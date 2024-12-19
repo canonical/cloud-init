@@ -341,7 +341,7 @@ class Modules:
         for module_details in mostly_mods:
             (mod, name, _freq, _args) = module_details
             if mod is None:
-                continue
+                continue  # type: ignore [unreachable]
             worked_distros = mod.meta["distros"]
             if not _is_active(module_details, self.cfg):
                 inapplicable_mods.append(name)
@@ -357,7 +357,7 @@ class Modules:
                         skipped.append(name)
                         continue
                     forced.append(name)
-            active_mods.append([mod, name, _freq, _args])
+            active_mods.append(ModuleDetails(mod, name, _freq, _args))
 
         if inapplicable_mods:
             LOG.info(

@@ -2195,9 +2195,7 @@ apt_reboot_if_required: Deprecated in version 22.2. Use\
             expected_err.format(cfg_file=user_data_fn, id_path=id_path) == err
         )
         assert "deprec" not in caplog.text
-        assert read_cfg_paths.call_args_list == [
-            mock.call(fetch_existing_datasource="trust")
-        ]
+        assert read_cfg_paths.call_args_list == [mock.call(cache_mode="trust")]
 
     @pytest.mark.parametrize(
         "uid, annotate, expected_out, expected_err, expectation",
@@ -2275,6 +2273,4 @@ apt_reboot_if_required: Deprecated in version 22.2. Use\
             expected_err.format(cfg_file=user_data_fn, id_path=id_path) == err
         )
         assert "deprec" not in caplog.text
-        assert read_cfg_paths.call_args_list == [
-            mock.call(fetch_existing_datasource="trust")
-        ]
+        assert read_cfg_paths.call_args_list == [mock.call(cache_mode="trust")]

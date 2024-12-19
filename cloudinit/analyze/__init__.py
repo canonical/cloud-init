@@ -140,8 +140,8 @@ def analyze_boot(name, args):
             if e["name"] == "init-local"
             and "starting search" in e["description"]
         ][-1]
-        ci_start = datetime.fromtimestamp(
-            last_init_local["timestamp"], timezone.utc
+        ci_start = str(
+            datetime.fromtimestamp(last_init_local["timestamp"], timezone.utc)
         )
     except IndexError:
         ci_start = "Could not find init-local log-line in cloud-init.log"
