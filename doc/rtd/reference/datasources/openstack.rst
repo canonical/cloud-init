@@ -21,8 +21,8 @@ checks the following environment attributes as a potential OpenStack platform:
     ``product_name=OpenStack Nova``.
   * ``DMI product_name``: Either ``Openstack Nova`` or ``OpenStack Compute``.
   * ``DMI chassis_asset_tag`` is ``HUAWEICLOUD``, ``OpenTelekomCloud``,
-    ``SAP CCloud VM``, ``OpenStack Nova`` (since 19.2) or
-    ``OpenStack Compute`` (since 19.2).
+    ``SAP CCloud VM``, ``Samsung Cloud Platform``,
+    ``OpenStack Nova`` (since 19.2) or ``OpenStack Compute`` (since 19.2).
 
 Configuration
 =============
