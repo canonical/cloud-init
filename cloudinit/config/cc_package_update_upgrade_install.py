@@ -10,7 +10,7 @@ import logging
 import os
 import time
 
-from cloudinit import subp, util
+from cloudinit import signal_handler, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -48,6 +48,9 @@ def _fire_reboot(
     wait_attempts: int = 6, initial_sleep: int = 1, backoff: int = 2
 ):
     """Run a reboot command and panic if it doesn't happen fast enough."""
+    # systemd will kill cloud-init with a signal
+    # this is expected so don't behave as if this is a failure state
+    signal_handler.detach_handlers()
     subp.subp(REBOOT_CMD)
     start = time.monotonic()
     wait_time = initial_sleep
@@ -106,8 +109,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             break
     if (upgrade or pkglist) and reboot_if_required and reboot_fn_exists:
         try:
-            LOG.warning(
-                "Rebooting after upgrade or install per %s", reboot_marker
+            LOG.info(
+                "***WARNING*** Rebooting after upgrade or install per %s",
+                reboot_marker,
             )
             # Flush the above warning + anything else out...
             flush_loggers(LOG)
