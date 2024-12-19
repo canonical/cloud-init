@@ -13,7 +13,7 @@ import tempfile
 import time
 import unittest
 from contextlib import ExitStack, contextmanager
-from typing import ClassVar, List, Union
+from typing import List, Union
 from unittest import mock
 from unittest.util import strclass
 from urllib.parse import urlsplit, urlunsplit
@@ -172,8 +172,8 @@ class CiTestCase(TestCase):
 
     # Subclass overrides for specific test behavior
     # Whether or not a unit test needs logfile setup
+    allowed_subp: Union[List, bool] = False
     with_logs = False
-    allowed_subp: ClassVar[Union[List, bool]] = False
     SUBP_SHELL_TRUE = "shell=true"
 
     @contextmanager
@@ -215,13 +215,13 @@ class CiTestCase(TestCase):
 
         if not isinstance(cmd, str):
             cmd = cmd[0]
-        pass_through = False
+        pass_through: Union[List, bool] = False
         if not isinstance(self.allowed_subp, (list, bool)):
             raise TypeError("self.allowed_subp supports list or bool.")
         if isinstance(self.allowed_subp, bool):
             pass_through = self.allowed_subp
         else:
-            pass_through = (cmd in self.allowed_subp) or (
+            pass_through = (cmd in self.allowed_subp) or (  # type: ignore
                 self.SUBP_SHELL_TRUE in self.allowed_subp
                 and kwargs.get("shell")
             )
@@ -250,7 +250,7 @@ class CiTestCase(TestCase):
         else:
             tmpd = tempfile.mkdtemp(dir=dir)
         self.addCleanup(
-            functools.partial(shutil.rmtree, tmpd, ignore_errors=True)
+            functools.partial(shutil.rmtree, tmpd, ignore_errors=True)  # type: ignore
         )
         return tmpd
 
@@ -280,7 +280,7 @@ class CiTestCase(TestCase):
         myds = DataSourceNone.DataSourceNone(sys_cfg, mydist, self.paths)
         if metadata:
             myds.metadata.update(metadata)
-        return cloud.Cloud(myds, self.paths, sys_cfg, mydist, None)
+        return cloud.Cloud(myds, self.paths, sys_cfg, mydist, mock.Mock())
 
     @classmethod
     def random_string(cls, length=8):
@@ -492,17 +492,19 @@ class ResponsesTestCase(CiTestCase):
 
 
 class SchemaTestCaseMixin(unittest.TestCase):
-    def assertSchemaValid(self, cfg, msg="Valid Schema failed validation."):
+    def assertSchemaValid(
+        self, cfg: dict, msg="Valid Schema failed validation."
+    ):
         """Assert the config is valid per self.schema.
 
         If there is only one top level key in the schema properties, then
         the cfg will be put under that key."""
-        props = list(self.schema.get("properties"))
+        props = list(self.schema.get("properties"))  # type: ignore
         # put cfg under top level key if there is only one in the schema
         if len(props) == 1:
             cfg = {props[0]: cfg}
         try:
-            validate_cloudconfig_schema(cfg, self.schema, strict=True)
+            validate_cloudconfig_schema(cfg, self.schema, strict=True)  # type: ignore[attr-defined]
         except SchemaValidationError:
             self.fail(msg)
 

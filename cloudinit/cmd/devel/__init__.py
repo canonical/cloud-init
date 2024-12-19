@@ -8,7 +8,7 @@ from cloudinit import stages
 from cloudinit.helpers import Paths
 
 
-def read_cfg_paths(cache_mode: Optional[str] = None) -> Paths:
+def read_cfg_paths(cache_mode: Optional[stages.CacheMode] = None) -> Paths:
     """Return a Paths object based on the system configuration on disk.
 
     :param cache_mode: String one of check or trust. Whether to

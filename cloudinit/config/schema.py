@@ -26,7 +26,7 @@ from typing import (
 
 import yaml
 
-from cloudinit import features, lifecycle, performance, safeyaml
+from cloudinit import features, lifecycle, performance, safeyaml, stages
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.handlers import INCLUSION_TYPES_MAP, type_from_starts_with
 from cloudinit.helpers import Paths
@@ -1309,7 +1309,7 @@ def get_config_paths_from_args(
         return primary_datapath
 
     try:
-        paths = read_cfg_paths(cache_mode="trust")
+        paths = read_cfg_paths(cache_mode=stages.CacheMode.trust)
     except (IOError, OSError) as e:
         if e.errno == EACCES:
             LOG.debug(

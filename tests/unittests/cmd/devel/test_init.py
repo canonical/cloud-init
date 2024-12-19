@@ -21,7 +21,7 @@ class TestReadCfgPaths:
                     "cloudinit.util.read_conf_from_cmdline", return_value={}
                 ), mock.patch("cloudinit.util.read_conf", return_value={}):
                     m_init.return_value = init
-                    paths = read_cfg_paths(cache_mode="trust")
+                    paths = read_cfg_paths(cache_mode=stages.CacheMode.trust)
         assert (
             paths.get_ipath() == f"/var/lib/cloud/instances/{TEST_INSTANCE_ID}"
         )

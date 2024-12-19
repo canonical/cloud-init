@@ -20,7 +20,7 @@ from typing import List, Optional, Sequence, Set
 import pytest
 import yaml
 
-from cloudinit import features, performance
+from cloudinit import features, performance, stages
 from cloudinit.config.schema import (
     SchemaProblem,
     SchemaType,
@@ -2195,7 +2195,9 @@ apt_reboot_if_required: Deprecated in version 22.2. Use\
             expected_err.format(cfg_file=user_data_fn, id_path=id_path) == err
         )
         assert "deprec" not in caplog.text
-        assert read_cfg_paths.call_args_list == [mock.call(cache_mode="trust")]
+        assert read_cfg_paths.call_args_list == [
+            mock.call(cache_mode=stages.CacheMode.trust)
+        ]
 
     @pytest.mark.parametrize(
         "uid, annotate, expected_out, expected_err, expectation",
@@ -2273,4 +2275,6 @@ apt_reboot_if_required: Deprecated in version 22.2. Use\
             expected_err.format(cfg_file=user_data_fn, id_path=id_path) == err
         )
         assert "deprec" not in caplog.text
-        assert read_cfg_paths.call_args_list == [mock.call(cache_mode="trust")]
+        assert read_cfg_paths.call_args_list == [
+            mock.call(cache_mode=stages.CacheMode.trust)
+        ]

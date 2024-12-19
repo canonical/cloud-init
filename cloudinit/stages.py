@@ -110,7 +110,7 @@ UserShortName = Literal[
 # The first argument in main_init() / main_modules() / main_single()
 ArgName = Literal["init", "modules", "single"]
 
-# The first argument in main_init() / main_modules() / main_single()
+# Previously used internally for flow control but also gets logged sometimes
 InternalName = Literal[
     "local",
     "network",
@@ -121,10 +121,8 @@ OtherName = Literal["single", "other"]
 
 # Because code reuse is evil and user confusion is the goal.
 #
-# Kidding. Lets please standardize these strings. Last time I
-# tried to change this string I got pushback so for now it stays.
-# But we really shouldn't have so many variants of the same thing
-# showing up in our logs.
+# Kidding. Lets please standardize these strings. We really shouldn't need
+# variants of a "short name" in our logs.
 WelcomeName = Literal[
     "init-local", "init", "modules:config", "modules:final", "single"
 ]
@@ -158,7 +156,8 @@ class BootStage(BaseStage):
     report: the stage name used in Report events
     long: user-facing stage name, capitalized
     status: status.json stage name, also used in some logs
-    internal: a (mostly) not user-facing string
+    internal: a string that was previously used internally for flow control but
+              also gets logged sometimes
     """
 
     welcome: WelcomeName
@@ -320,7 +319,12 @@ def update_event_enabled(
 
 
 class Init:
-    def __init__(self, stage: Stage, reporter=None, cache_mode=None):
+    def __init__(
+        self,
+        stage: Stage,
+        reporter=None,
+        cache_mode: Optional[CacheMode] = None,
+    ):
         """the final boss
 
         This is a multi-purpose God object which should be exterminated.
@@ -329,17 +333,19 @@ class Init:
         reporter: a reporter object
         cache_mode: force a specific CacheMode
         """
-        self.stage = stage
         # Created on first use
         self._cfg: Dict[str, Any] = {}
         self._paths: Optional[helpers.Paths] = None
         self._distro: Optional[distros.Distro] = None
         self._datasource: Optional[sources.DataSource] = None
-        self._cache_mode = cache_mode
+
         # Changed only when a fetch occurs
         self.ds_restored = False
         self._previous_iid: Optional[str] = None
 
+        # Arguments passed
+        self.stage: Stage = stage
+        self._cache_mode: Optional[CacheMode] = cache_mode
         if reporter is None:
             reporter = events.ReportEventStack(
                 name="init-reporter",
@@ -448,7 +454,7 @@ class Init:
         util.del_file(self.paths.instance_link)
 
     def track_python_version_change(self):
-        """Purge the cache if python version changed on us.
+        """Purge the cache if python version changed since last boot.
 
         There could be changes not represented in our cache (obj.pkl) after we
         upgrade to a new version of python, so at that point clear the cache
@@ -610,10 +616,6 @@ class Init:
                 return (ds, "restored from checked cache: %s" % ds)
             else:
                 return (None, "cache invalid in datasource: %s" % ds)
-
-    def fetch(self):
-        """fetch() is an alias for Init.datasource"""
-        return self.datasource
 
     @property
     def datasource(self) -> sources.DataSource:
@@ -792,6 +794,13 @@ class Init:
             or previous != self.datasource.get_instance_id()
         )
         return ret
+
+    def fetch(self):
+        """fetch() is an alias for Init.datasource
+
+        optionally load datasource from cache, otherwise discover datasource
+        """
+        return self.datasource
 
     def instancify(self):
         return self._reflect_cur_instance()
