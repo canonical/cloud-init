@@ -1,28 +1,28 @@
 .. _user_data_formats:
 
-User data formats
+User-data formats
 *****************
 
-User data is configuration data provided by a user of a cloud platform to an
-instance at launch. User data can be passed to cloud-init in any of many
-formats documented here. User data is combined with the other
+User-data is configuration data provided by a user of a cloud platform to an
+instance at launch. User-data can be passed to cloud-init in any of many
+formats documented here. User-data is combined with the other
 :ref:`configuration sources<configuration>` to create a combined configuration
 which modifies an instance.
 
 Configuration types
 ===================
 
-User data formats can be categorized into those that directly configure the
+User-data formats can be categorized into those that directly configure the
 instance, and those that serve as a container, template, or means to obtain
 or modify another configuration.
 
 Formats that directly configure the instance:
 
 - `Cloud config data`_
-- `User data script`_
+- `User-data script`_
 - `Cloud boothook`_
 
-Formats that deal with other user data formats:
+Formats that deal with other user-data formats:
 
 - `Include file`_
 - `Jinja template`_
@@ -71,7 +71,7 @@ For more information, see the cloud config
 
 .. _user_data_script:
 
-User data script
+User-data script
 ================
 
 Example
@@ -85,13 +85,13 @@ Example
 Explanation
 -----------
 
-A user data script is a single script to be executed once per instance.
-User data scripts are run relatively late in the boot process, during
+A user-data script is a single script to be executed once per instance.
+User-data scripts are run relatively late in the boot process, during
 cloud-init's :ref:`final stage<boot-Final>` as part of the
 :ref:`cc_scripts_user<mod_cc_scripts_user>` module.
 
 .. warning::
-    Use of ``INSTANCE_ID`` variable within user data scripts is deprecated.
+    Use of ``INSTANCE_ID`` variable within user-data scripts is deprecated.
     Use :ref:`jinja templates<user_data_formats-jinja>` with
     :ref:`v1.instance_id<v1_instance_id>` instead.
 
@@ -125,7 +125,7 @@ Example of once-per-instance script
 Explanation
 -----------
 
-A cloud boothook is similar to a :ref:`user data script<user_data_script>`
+A cloud boothook is similar to a :ref:`user-data script<user_data_script>`
 in that it is a script run on boot. When run,
 the environment variable ``INSTANCE_ID`` is set to the current instance ID
 for use within the script.
@@ -157,7 +157,7 @@ Explanation
 -----------
 
 An include file contains a list of URLs, one per line. Each of the URLs will
-be read and their content can be any kind of user data format, both base
+be read and their content can be any kind of user-data format, both base
 config and meta config. If an error occurs reading a file the remaining files
 will not be read.
 
@@ -180,7 +180,7 @@ Example cloud-config
 
 .. _jinja-script:
 
-Example user data script
+Example user-data script
 ------------------------
 
 .. code-block:: shell
@@ -193,13 +193,13 @@ Explanation
 -----------
 
 `Jinja templating <https://jinja.palletsprojects.com/>`_ may be used for
-cloud-config and user data scripts. Any
-:ref:`instance-data variables<instance_metadata-keys>` may be used
+cloud-config and user-data scripts. Any
+:ref:`instance-data variables<instance-data-keys>` may be used
 as jinja template variables. Any jinja templated configuration must contain
 the original header along with the new jinja header above it.
 
 .. note::
-    Use of Jinja templates is supported for cloud-config, user data
+    Use of Jinja templates is supported for cloud-config, user-data
     scripts, and cloud-boothooks. Jinja templates are not supported for
     meta configs.
 
@@ -241,7 +241,7 @@ Explanation
 
 Using a MIME multi-part file, the user can specify more than one type of data.
 
-For example, both a user data script and a cloud-config type could be
+For example, both a user-data script and a cloud-config type could be
 specified.
 
 Each part must specify a valid
@@ -265,14 +265,14 @@ MIME multipart message to :file:`stdout`.
 
 **MIME subcommand Examples**
 
-Create user data containing both a cloud-config (:file:`config.yaml`)
+Create user-data containing both a cloud-config (:file:`config.yaml`)
 and a shell script (:file:`script.sh`)
 
 .. code-block:: shell-session
 
-    $ cloud-init devel make-mime -a config.yaml:cloud-config -a script.sh:x-shellscript > userdata
+    $ cloud-init devel make-mime -a config.yaml:cloud-config -a script.sh:x-shellscript > user-data.mime
 
-Create user data containing 3 shell scripts:
+Create user-data containing 3 shell scripts:
 
 - :file:`always.sh` - run every boot
 - :file:`instance.sh` - run once per instance
@@ -315,13 +315,13 @@ The format is a list of dictionaries.
 Required fields:
 
 * ``type``: The :ref:`Content-Type<user_data_formats-content_types>`
-  identifier for the type of user data in content
-* ``content``: The user data configuration
+  identifier for the type of user-data in content
+* ``content``: The user-data configuration
 
 Optional fields:
 
 * ``launch-index``: The EC2 Launch-Index (if applicable)
-* ``filename``: This field is only used if using a user data format that
+* ``filename``: This field is only used if using a user-data format that
   requires a filename in a MIME part. This is unrelated to any local system
   file.
 
@@ -344,7 +344,7 @@ Explanation
 -----------
 
 A part handler contains custom code for either supporting new
-mime-types in multi-part user data or for overriding the existing handlers for
+mime-types in multi-part user-data or for overriding the existing handlers for
 supported mime-types.
 
 See the :ref:`custom part handler<custom_part_handler>` reference documentation
@@ -357,7 +357,7 @@ Gzip compressed content
 
 Content found to be gzip compressed will be uncompressed.
 The uncompressed data will then be used as if it were not compressed.
-This is typically useful because user data size may be limited based on
+This is typically useful because user-data size may be limited based on
 cloud platform.
 
 .. _user_data_formats-content_types:
@@ -365,22 +365,22 @@ cloud platform.
 Headers and content types
 =========================
 
-In order for cloud-init to recognize which user data format is being used,
-the user data must contain a header. Additionally, if the user data
+In order for cloud-init to recognize which user-data format is being used,
+the user-data must contain a header. Additionally, if the user-data
 is being passed as a multi-part message, such as MIME, cloud-config-archive,
 or part-handler, the content-type for each part must also be set
 appropriately.
 
-The table below lists the headers and content types for each user data format.
+The table below lists the headers and content types for each user-data format.
 Note that gzip compressed content is not represented here as it gets passed
 as binary data and so may be processed automatically.
 
 +--------------------+-----------------------------+-------------------------+
-|User data format    |Header                       |Content-Type             |
+|User-data format    |Header                       |Content-Type             |
 +====================+=============================+=========================+
 |Cloud config data   |#cloud-config                |text/cloud-config        |
 +--------------------+-----------------------------+-------------------------+
-|User data script    |#!                           |text/x-shellscript       |
+|User-data script    |#!                           |text/x-shellscript       |
 +--------------------+-----------------------------+-------------------------+
 |Cloud boothook      |#cloud-boothook              |text/cloud-boothook      |
 +--------------------+-----------------------------+-------------------------+

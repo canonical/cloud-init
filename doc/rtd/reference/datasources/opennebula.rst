@@ -10,7 +10,7 @@ The `OpenNebula`_ (ON) datasource supports the contextualisation disk.
 ..  `network configuration`_ in the public documentation for
 .. more information.
 
-OpenNebula's virtual machines are contextualised (parametrised) by
+OpenNebula's virtual machines are contextualized (parametrized) by
 CD-ROM image, which contains a shell script :file:`context.sh`, with
 custom variables defined on virtual machine start. There are no
 fixed contextualisation variables, but the datasource accepts
@@ -106,7 +106,7 @@ One or multiple SSH keys (separated by newlines) can be specified.
     USER_DATA
     USERDATA
 
-``Cloud-init`` user data.
+``Cloud-init`` user-data.
 
 Example configuration
 =====================
@@ -116,7 +116,7 @@ OpenNebula datasource only in ``net`` mode.
 
 ::
 
-    disable_ec2_metadata: True
+    disable_ec2_meta-data: True
     datasource_list: ['OpenNebula']
     datasource:
       OpenNebula:

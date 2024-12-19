@@ -43,7 +43,7 @@ web browser to open `index.html` to view and navigate the site.
 How are the docs structured?
 ============================
 
-We use `Diataxis`_ to organise our documentation. There is more detail on the
+We use `Diataxis`_ to organize our documentation. There is more detail on the
 layout of the ``doc`` directory in the :doc:`docs_layout` article.
 
 We also have a :doc:`style_docs` that will help you if you need to edit or

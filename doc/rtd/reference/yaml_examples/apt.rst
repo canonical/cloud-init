@@ -44,7 +44,7 @@ irrespective of this setting.
 Specify mirrors
 ===============
 
-* Default: auto select based on cloud metadata in EC2, the default is
+* Default: auto select based on instance-data in EC2, the default is
   ``<region>.archive.ubuntu.com``.
 
 One can either specify a URI to use as a mirror with the ``uri`` key, or a list
@@ -57,7 +57,7 @@ DataSource. In EC2, that means using ``<region>.ec2.archive.ubuntu.com``.
 
 If no mirror is provided by the DataSource, but ``search_dns`` is true, then
 search for DNS names ``<distro>-mirror`` in each of:
-- FQDN of this host per cloud metadata
+- FQDN of this host per cloud instance-data
 - localdomain
 - no domain (which would search domains listed in ``/etc/resolv.conf``)
 

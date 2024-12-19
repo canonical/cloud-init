@@ -1200,7 +1200,7 @@ def get_hostname_fqdn(cfg, cloud, metadata_only=False):
 
     @param cfg: Dictionary of merged user-data configuration (from init.cfg).
     @param cloud: Cloud instance from init.cloudify().
-    @param metadata_only: Boolean, set True to only query cloud meta-data,
+    @param metadata_only: Boolean, set True to only query meta-data,
         returning None if not present in meta-data.
     @return: a namedtuple of
         <hostname>, <fqdn>, <is_default> (str, str, bool).
