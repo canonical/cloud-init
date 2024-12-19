@@ -102,9 +102,36 @@ UserShortName = Literal[
     "modules-final",
 ]
 
+# The first argument in main_init() / main_modules() / main_single()
+ArgName = Literal[
+    "init",
+    "modules",
+    "single",
+]
+
+# The first argument in main_init() / main_modules() / main_single()
+InternalName = Literal[
+    "local",
+    "network",
+    "config",
+    "final",
+]
+InternalNameSingle = Union[InternalName, Literal["single"]]
+
+# Because code reuse is evil and user confusion is the goal.
+#
+# Kidding. Lets please standardize but I've gotten pushback on changing this
+# string in the past so for now I guess we get yet another user-facing string
+# that means the same thing.
+WelcomeName = Literal[
+    "init-local", "init", "modules:config", "modules:final", "single"
+]
+
 
 @dataclass
 class BaseStage:
+    welcome: WelcomeName
+    name: ArgName
     deps: List[sources.Deps]
 
 
@@ -122,11 +149,12 @@ class BootStage(BaseStage):
 
     short: UserShortName
     long: UserLongName
+    internal: InternalName
 
 
 @dataclass
 class SingleStage(BaseStage):
-    pass
+    internal: InternalNameSingle
 
 
 Stage = Union[SingleStage, BootStage]
@@ -134,26 +162,41 @@ Stage = Union[SingleStage, BootStage]
 # These module variables store static data that is associated with each stage.
 # https://docs.cloud-init.io/en/latest/explanation/boot.html
 local: Final = BootStage(
+    internal="local",
+    name="init",
     short="init-local",
+    welcome="init-local",
     long="Local Stage",
     deps=[sources.DEP_FILESYSTEM],
 )
 network: Final = BootStage(
+    internal="network",
+    name="init",
     short="init",
+    welcome="init",
     long="Network Stage",
     deps=[sources.DEP_FILESYSTEM, sources.DEP_NETWORK],
 )
 config: Final = BootStage(
+    internal="config",
+    name="modules",
     short="modules-config",
+    welcome="modules:config",
     long="Config Stage",
     deps=[],
 )
 final: Final = BootStage(
+    internal="final",
+    name="modules",
     short="modules-final",
+    welcome="modules:final",
     long="Final Stage",
     deps=[],
 )
 single: Final = SingleStage(
+    internal="single",
+    name="single",
+    welcome="single",
     deps=[],
 )
 
@@ -233,7 +276,7 @@ class Init:
 
         This is a multi-purpose God object which should be exterminated.
 
-        stage: a string which names the stage
+        stage: which Stage Init() is currently running in
         reporter: a reporter object
         cache_mode: force a specific CacheMode
         """

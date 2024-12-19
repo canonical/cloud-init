@@ -86,6 +86,7 @@ class StageStatus(TypedDict):
     finished: Optional[float]
 
 
+# TypedDict function syntax supports hyphenated keys
 V1Status = TypedDict(
     "V1Status",
     {
@@ -120,9 +121,8 @@ def print_exc(msg=""):
     sys.stderr.write("\n")
 
 
-def welcome(action, msg=None):
-    if not msg:
-        msg = welcome_format(action)
+def welcome(name: str):
+    msg = welcome_format(name)
     log_util.multi_log("%s\n" % (msg), console=False, stderr=True, log=LOG)
     return msg
 
@@ -402,6 +402,27 @@ def _should_wait_on_network(
 
 
 def main_init(name, args):
+    """
+    Cloud-init 'init' stage is broken up into the following sub-stages
+
+    1. Ensure that the init object fetches its config without errors
+    2. Setup logging/output redirections with resultant config (if any)
+    3. Initialize the cloud-init filesystem
+    4. Check if we can stop early by looking for various files
+    5. Fetch the datasource
+    6. Connect to the current instance location + update the cache
+    7. Consume the userdata (handlers get activated here)
+    8. Construct the modules object
+    9. Adjust any subsequent logging/output redirections using the modules
+       objects config as it may be different from init object
+    10. Run the modules for the 'init' stage
+    11. Done!
+    """
+
+    if args.local:
+        stage = stages.local
+    else:
+        stage = stages.network
 
     early_logs = [
         attempt_cmdline_url(
@@ -411,27 +432,6 @@ def main_init(name, args):
             network=not args.local,
         )
     ]
-
-    # Cloud-init 'init' stage is broken up into the following sub-stages
-    # 1. Ensure that the init object fetches its config without errors
-    # 2. Setup logging/output redirections with resultant config (if any)
-    # 3. Initialize the cloud-init filesystem
-    # 4. Check if we can stop early by looking for various files
-    # 5. Fetch the datasource
-    # 6. Connect to the current instance location + update the cache
-    # 7. Consume the userdata (handlers get activated here)
-    # 8. Construct the modules object
-    # 9. Adjust any subsequent logging/output redirections using the modules
-    #    objects config as it may be different from init object
-    # 10. Run the modules for the 'init' stage
-    # 11. Done!
-    if args.local:
-        stage = stages.local
-        mode = sources.DSMODE_LOCAL
-    else:
-        stage = stages.network
-        mode = sources.DSMODE_NETWORK
-    w_msg = welcome_format(stage.short)
     init = stages.Init(stage, reporter=args.reporter)
     # Stage 1
     init.read_cfg(extract_fns(args))
@@ -441,9 +441,9 @@ def main_init(name, args):
     try:
         if not args.skip_log_setup:
             close_stdin(lambda msg: early_logs.append((logging.DEBUG, msg)))
-            outfmt, errfmt = util.fixup_output(init.cfg, name)
+            outfmt, errfmt = util.fixup_output(init.cfg, stage.name)
         else:
-            outfmt, errfmt = util.get_output_cfg(init.cfg, name)
+            outfmt, errfmt = util.get_output_cfg(init.cfg, stage.name)
     except Exception:
         msg = "Failed to setup output redirection!"
         util.logexc(LOG, msg)
@@ -462,8 +462,8 @@ def main_init(name, args):
     # Any log usage prior to setup_logging above did not have local user log
     # config applied.  We send the welcome message now, as stderr/out have
     # been redirected and log now configured.
-    welcome(name, msg=w_msg)
-    LOG.info("PID [%s] started cloud-init '%s'.", os.getppid(), stage.short)
+    welcome(stage.welcome)
+    LOG.info("PID [%s] started cloud-init '%s'.", os.getppid(), stage.welcome)
 
     # re-play early log messages before logging was setup
     for lvl, msg in early_logs:
@@ -478,7 +478,7 @@ def main_init(name, args):
     init.start_boot()
     init.track_python_version_change()
 
-    if mode == sources.DSMODE_NETWORK:
+    if stage == stages.network:
         if not os.path.exists(init.paths.get_runpath(".skip-network")):
             LOG.debug("Will wait for network connectivity before continuing")
             init.distro.wait_for_network()
@@ -490,12 +490,26 @@ def main_init(name, args):
     bring_up_interfaces = _should_bring_up_interfaces(init, args)
     try:
         init.fetch()
-        # if in network mode, and the datasource is local
+        # If in network mode, and the datasource is local
         # then work was done at that stage.
-        if mode == sources.DSMODE_NETWORK and init.datasource.dsmode != mode:
+        #
+        # dsmode is defined by datasource default but is also configurable
+        # by cloud and user configuration settings.
+        #
+        # NoCloud's local datasource uses DSMODE_LOCAL, otherwise most (all?)
+        # other datasources default to DSMODE_NETWORK.
+        #
+        # XXX: TODO
+        #
+        # dsmode adds much architectural complexity and Git history implies
+        # that it might not be required anymore. Consider simplifying
+        # this architecture.
+        if (
+            stage == stages.network
+            and init.datasource.dsmode != sources.DSMODE_NETWORK
+        ):
             LOG.debug(
-                "[%s] Exiting. datasource %s in local mode",
-                mode,
+                "Exiting. datasource %s in local mode",
                 init.datasource,
             )
             return (None, [])
@@ -503,7 +517,7 @@ def main_init(name, args):
         # In the case of 'cloud-init init' without '--local' it is a bit
         # more likely that the user would consider it failure if nothing was
         # found.
-        if mode == sources.DSMODE_LOCAL:
+        if stage == stages.local:
             LOG.debug("No local datasource found")
         else:
             util.logexc(
@@ -511,71 +525,87 @@ def main_init(name, args):
             )
         if not args.force:
             init.apply_network_config(bring_up=bring_up_interfaces)
-            LOG.debug("[%s] Exiting without datasource", mode)
-            if mode == sources.DSMODE_LOCAL:
+            LOG.debug("Exiting without datasource")
+            if stage == stages.local:
                 return (None, [])
             else:
                 return (None, ["No instance datasource found."])
         else:
-            LOG.debug(
-                "[%s] barreling on in force mode without datasource", mode
-            )
+            # XXX: TODO
+            #
+            # --force is untested and broken. It assumes that something
+            # useful can be accomplished without a datasource object.
+            #
+            # The next use of init.datasource or init.fetch(), such as in
+            # _maybe_persist_instance_data(), will throw an exception. Consider
+            # removing --force, or perhaps to avoid upsetting users that
+            # currently use it, just change the code path to be the same with
+            # or without --force.
+            LOG.debug("Barreling on in force mode without datasource.")
 
     _maybe_persist_instance_data(init)
     # Stage 6
     iid = init.instancify()
     LOG.debug(
-        "[%s] %s will now be targeting instance id: %s. new=%s",
-        mode,
-        name,
+        "%s will now be targeting instance id: %s. new=%s",
+        stage.short,
         iid,
         init.is_new_instance(),
     )
 
-    if mode == sources.DSMODE_LOCAL:
+    if stage == stages.local:
         # Before network comes up, set any configured hostname to allow
         # dhcp clients to advertize this hostname to any DDNS services
         # LP: #1746455.
-        _maybe_set_hostname(init, stage="local", retry_stage="network")
-
-    init.apply_network_config(bring_up=bring_up_interfaces)
-
-    if mode == sources.DSMODE_LOCAL:
+        _maybe_set_hostname(
+            init,
+            stage=stages.local.internal,
+            retry_stage=stages.network.internal,
+        )
+        init.apply_network_config(bring_up=bring_up_interfaces)
         should_wait, reason = _should_wait_on_network(init.datasource)
         if should_wait:
             LOG.debug(
                 "Network connectivity determined necessary for "
-                "cloud-init's network stage. Reason: %s",
+                "cloud-init's %s. Reason: %s",
+                stages.network.long,
                 reason,
             )
         else:
             LOG.debug(
                 "Network connectivity determined unnecessary for "
-                "cloud-init's network stage. Reason: %s",
+                "cloud-init's %s. Reason: %s",
+                stages.network.long,
                 reason,
             )
             util.write_file(init.paths.get_runpath(".skip-network"), "")
 
-        if init.datasource.dsmode != mode:
+        # see comment above regarding dsmode
+        if init.datasource.dsmode != sources.DSMODE_LOCAL:
             LOG.debug(
-                "[%s] Exiting. datasource %s not in local mode.",
-                mode,
+                "Exiting. datasource %s not in local mode.",
                 init.datasource,
             )
             return (init.datasource, [])
         else:
             LOG.debug(
-                "[%s] %s is in local mode, will apply init modules now.",
-                mode,
+                "%s is in local mode, will apply init modules now.",
                 init.datasource,
             )
+    elif stage == stages.network:
+        init.apply_network_config(bring_up=bring_up_interfaces)
 
     # Give the datasource a chance to use network resources.
-    # This is used on Azure to communicate with the fabric over network.
+    # This is used on VMware to wait for the network?
     init.setup_datasource()
+
     # update fully realizes user-data (pulling in #include if necessary)
     init.update()
-    _maybe_set_hostname(init, stage="init-net", retry_stage="modules:config")
+    _maybe_set_hostname(
+        init,
+        stage=stages.network.internal,
+        retry_stage=stages.network.internal,
+    )
     # Stage 7
     try:
         # Attempt to consume the data per instance.
@@ -618,10 +648,10 @@ def main_init(name, args):
     try:
         outfmt_orig = outfmt
         errfmt_orig = errfmt
-        (outfmt, errfmt) = util.get_output_cfg(mods.cfg, name)
+        outfmt, errfmt = util.get_output_cfg(mods.cfg, stage.name)
         if outfmt_orig != outfmt or errfmt_orig != errfmt:
             LOG.warning("Stdout, stderr changing to (%s, %s)", outfmt, errfmt)
-            (outfmt, errfmt) = util.fixup_output(mods.cfg, name)
+            (outfmt, errfmt) = util.fixup_output(mods.cfg, stage.name)
     except Exception:
         util.logexc(LOG, "Failed to re-adjust output redirection!")
     loggers.setup_logging(mods.cfg)
@@ -632,7 +662,7 @@ def main_init(name, args):
     di_report_warn(datasource=init.datasource, cfg=init.cfg)
 
     # Stage 10
-    return (init.datasource, run_module_section(mods, name, name))
+    return (init.datasource, run_module_section(mods, stage.name, stage.name))
 
 
 def di_report_warn(datasource, cfg):
@@ -686,21 +716,29 @@ def di_report_warn(datasource, cfg):
 
 
 def main_modules(action_name, args):
-    name = args.mode
-    # Cloud-init 'modules' stages are broken up into the following sub-stages
-    # 1. Ensure that the init object fetches its config without errors
-    # 2. Get the datasource from the init object, if it does
-    #    not exist then that means the main_init stage never
-    #    worked, and thus this stage can not run.
-    # 3. Construct the modules object
-    # 4. Adjust any subsequent logging/output redirections using
-    #    the modules objects configuration
-    # 5. Run the modules for the given stage name
-    # 6. Done!
-    bootstage_name = "%s:%s" % (action_name, name)
-    w_msg = welcome_format(bootstage_name)
+    """
+    Cloud-init 'modules' stages are broken up into the following sub-stages
+    1. Ensure that the init object fetches its config without errors
+    2. Get the datasource from the init object, if it does
+       not exist then that means the main_init stage never
+       worked, and thus this stage can not run.
+    3. Construct the modules object
+    4. Adjust any subsequent logging/output redirections using
+       the modules objects configuration
+    5. Run the modules for the given stage name
+    6. Done!
+    """
+    if stages.config.internal == args.mode:
+        stage = stages.config
+    elif stages.final.internal == args.mode:
+        stage = stages.final
+    elif stages.network.internal == args.mode:
+        stage = stages.network
+    else:
+        RuntimeError(f"Unknown modules mode {args.mode}")
+
     init = stages.Init(
-        name, reporter=args.reporter, cache_mode=stages.CacheMode.trust
+        stage, reporter=args.reporter, cache_mode=stages.CacheMode.trust
     )
     # Stage 1
     init.read_cfg(extract_fns(args))
@@ -711,7 +749,7 @@ def main_modules(action_name, args):
         # There was no datasource found, theres nothing to do
         msg = (
             "Can not apply stage %s, no datasource found! Likely bad "
-            "things to come!" % name
+            "things to come!" % stage.internal
         )
         util.logexc(LOG, msg)
         print_exc(msg)
@@ -724,7 +762,7 @@ def main_modules(action_name, args):
     try:
         if not args.skip_log_setup:
             close_stdin()
-            util.fixup_output(mods.cfg, name)
+            util.fixup_output(mods.cfg, stage.internal)
     except Exception:
         util.logexc(LOG, "Failed to setup output redirection!")
     if args.debug:
@@ -738,10 +776,10 @@ def main_modules(action_name, args):
         apply_reporting_cfg(init.cfg)
 
     # now that logging is setup and stdout redirected, send welcome
-    welcome(name, msg=w_msg)
-    LOG.info("PID [%s] started cloud-init '%s'.", os.getppid(), bootstage_name)
+    welcome(stage.welcome)
+    LOG.info("PID [%s] started cloud-init '%s'.", os.getppid(), stage.welcome)
 
-    if name == "init":
+    if stage == stages.network:
         lifecycle.deprecate(
             deprecated="`--mode init`",
             deprecated_version="24.1",
@@ -749,7 +787,7 @@ def main_modules(action_name, args):
         )
 
     # Stage 5
-    return run_module_section(mods, name, name)
+    return run_module_section(mods, stage.internal, stage.internal)
 
 
 def main_single(name, args):
@@ -761,8 +799,7 @@ def main_single(name, args):
     #    the modules objects configuration
     # 5. Run the single module
     # 6. Done!
-    mod_name = args.name
-    w_msg = welcome_format(name)
+    stage = stages.single
     init = stages.Init(
         stages.single,
         reporter=args.reporter,
@@ -811,15 +848,15 @@ def main_single(name, args):
     apply_reporting_cfg(init.cfg)
 
     # now that logging is setup and stdout redirected, send welcome
-    welcome(name, msg=w_msg)
+    welcome(stage.welcome)
 
     # Stage 5
-    (which_ran, failures) = mods.run_single(mod_name, mod_args, mod_freq)
+    (which_ran, failures) = mods.run_single(stage.internal, mod_args, mod_freq)
     if failures:
-        LOG.warning("Ran %s but it failed!", mod_name)
+        LOG.warning("Ran %s but it failed!", stage.internal)
         return 1
     elif not which_ran:
-        LOG.warning("Did not run %s, does it exist?", mod_name)
+        LOG.warning("Did not run %s, does it exist?", stage.internal)
         return 1
     else:
         # Guess it worked
@@ -993,7 +1030,7 @@ def _maybe_persist_instance_data(init: stages.Init):
             init.datasource.persist_instance_data(write_cache=False)
 
 
-def _maybe_set_hostname(init, stage, retry_stage):
+def _maybe_set_hostname(init: stages.Init, stage: str, retry_stage: str):
     """Call set_hostname if metadata, vendordata or userdata provides it.
 
     @param stage: String representing current stage in which we are running.
@@ -1008,8 +1045,8 @@ def _maybe_set_hostname(init, stage, retry_stage):
             cc_set_hostname.handle("set_hostname", init.cfg, cloud, [])
         except cc_set_hostname.SetHostnameError as e:
             LOG.debug(
-                "Failed setting hostname in %s stage. Will"
-                " retry in %s stage. Error: %s.",
+                "Failed setting hostname in %s. Will"
+                " retry in %s. Error: %s.",
                 stage,
                 retry_stage,
                 str(e),
