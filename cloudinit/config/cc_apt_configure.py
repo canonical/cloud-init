@@ -1116,7 +1116,7 @@ def apt_key(
                 )
         return file_name
 
-    def apt_key_list(gpg_context):
+    def apt_key_list(gpg_context: GPG):
         """apt-key list
 
         returns string of all trusted keys (in /etc/apt/trusted.gpg and
