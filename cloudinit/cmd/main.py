@@ -548,7 +548,7 @@ def main_init(name, args):
     iid = init.instancify()
     LOG.debug(
         "%s will now be targeting instance id: %s. new=%s",
-        stage.short,
+        stage.status,
         iid,
         init.is_new_instance(),
     )
@@ -864,25 +864,7 @@ def main_single(name, args):
 
 
 def status_wrapper(name: modes, args):
-    paths = read_cfg_paths()
-    data_d = paths.get_cpath("data")
-    link_d = os.path.normpath(paths.run_dir)
-
-    status_path = os.path.join(data_d, "status.json")
-    status_link = os.path.join(link_d, "status.json")
-    result_path = os.path.join(data_d, "result.json")
-    result_link = os.path.join(link_d, "result.json")
-    root_logger = logging.getLogger()
-
-    util.ensure_dirs(
-        (
-            data_d,
-            link_d,
-        )
-    )
-
-    (_name, functor) = args.action
-
+    """status_wrapper() runs a function and records data to status.json"""
     mode: stages.BootStage
 
     if name == "init" and args.local:
@@ -912,6 +894,25 @@ def status_wrapper(name: modes, args):
             "stage": None,
         }
     }
+    paths = read_cfg_paths()
+    data_d = paths.get_cpath("data")
+    link_d = os.path.normpath(paths.run_dir)
+
+    status_path = os.path.join(data_d, "status.json")
+    status_link = os.path.join(link_d, "status.json")
+    result_path = os.path.join(data_d, "result.json")
+    result_link = os.path.join(link_d, "result.json")
+    root_logger = logging.getLogger()
+
+    util.ensure_dirs(
+        (
+            data_d,
+            link_d,
+        )
+    )
+
+    (_name, functor) = args.action
+
     if mode == stages.local:
         for f in (status_link, result_link, status_path, result_path):
             util.del_file(f)
@@ -922,15 +923,15 @@ def status_wrapper(name: modes, args):
             pass
 
     v1 = status["v1"]
-    v1["stage"] = mode.short
-    if v1[mode.short]["start"] and not v1[mode.short]["finished"]:
+    v1["stage"] = mode.status
+    if v1[mode.status]["start"] and not v1[mode.status]["finished"]:
         # This stage was restarted, which isn't expected.
         LOG.warning(
             "Unexpected start time found for %s. Was this stage restarted?",
             mode.long,
         )
 
-    v1[mode.short]["start"] = float(util.uptime())
+    v1[mode.status]["start"] = float(util.uptime())
     # this cast shouldn't be necessary?
     # https://github.com/python/mypy/issues/6847
     handler = cast(
@@ -960,11 +961,11 @@ def status_wrapper(name: modes, args):
         else:
             errors = ret
 
-        v1[mode.short]["errors"].extend([str(e) for e in errors])
+        v1[mode.status]["errors"].extend([str(e) for e in errors])
     except Exception as e:
-        LOG.exception("failed stage %s", mode.short)
-        print_exc("failed run of stage %s" % mode.short)
-        v1[mode.short]["errors"].append(str(e))
+        LOG.exception("failed stage %s", mode.status)
+        print_exc("failed run of stage %s" % mode.status)
+        v1[mode.status]["errors"].append(str(e))
     except SystemExit as e:
         # All calls to sys.exit() resume running here.
         # silence a pylint false positive
@@ -972,15 +973,15 @@ def status_wrapper(name: modes, args):
         if e.code:  # pylint: disable=using-constant-test
             # Only log errors when sys.exit() is called with a non-zero
             # exit code
-            LOG.exception("failed stage %s", mode.short)
-            print_exc("failed run of stage %s" % mode.short)
-            v1[mode.short]["errors"].append(f"sys.exit({str(e.code)}) called")
+            LOG.exception("Failed stage %s", mode.status)
+            print_exc("Failed stage %s" % mode.status)
+            v1[mode.status]["errors"].append(f"sys.exit({str(e.code)}) called")
     finally:
         # Before it exits, cloud-init will:
         # 1) Write status.json (and result.json if in Final stage).
         # 2) Write the final log message containing module run time.
         # 3) Flush any queued reporting event handlers.
-        v1[mode.short]["finished"] = float(util.uptime())
+        v1[mode.status]["finished"] = float(util.uptime())
         v1["stage"] = None
 
         # merge new recoverable errors into existing recoverable error list
@@ -988,14 +989,14 @@ def status_wrapper(name: modes, args):
         handler.clean_logs()
         for key in new_recoverable_errors.keys():
             if key in preexisting_recoverable_errors:
-                v1[mode.short]["recoverable_errors"][key] = list(
+                v1[mode.status]["recoverable_errors"][key] = list(
                     set(
                         preexisting_recoverable_errors[key]
                         + new_recoverable_errors[key]
                     )
                 )
             else:
-                v1[mode.short]["recoverable_errors"][key] = (
+                v1[mode.status]["recoverable_errors"][key] = (
                     new_recoverable_errors[key]
                 )
 
@@ -1005,10 +1006,10 @@ def status_wrapper(name: modes, args):
     if mode == stages.final:
         # write the 'finished' file
         errors = [
-            *v1[stages.local.short].get("errors", []),
-            *v1[stages.network.short].get("errors", []),
-            *v1[stages.config.short].get("errors", []),
-            *v1[stages.final.short].get("errors", []),
+            *v1[stages.local.status].get("errors", []),
+            *v1[stages.network.status].get("errors", []),
+            *v1[stages.config.status].get("errors", []),
+            *v1[stages.final.status].get("errors", []),
         ]
 
         atomic_helper.write_json(
@@ -1019,7 +1020,7 @@ def status_wrapper(name: modes, args):
             os.path.relpath(result_path, link_d), result_link, force=True
         )
 
-    return len(v1[mode.short]["errors"])
+    return len(v1[mode.status]["errors"])
 
 
 def _maybe_persist_instance_data(init: stages.Init):

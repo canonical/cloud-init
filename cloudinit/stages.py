@@ -144,10 +144,10 @@ class BootStage(BaseStage):
     BootStage.
 
     long: user-facing stage name
-    short: status.json stage name, used in some logs
+    status: status.json stage name, used in some logs
     """
 
-    short: UserShortName
+    status: UserShortName
     long: UserLongName
     internal: InternalName
 
@@ -164,7 +164,7 @@ Stage = Union[SingleStage, BootStage]
 local: Final = BootStage(
     internal="local",
     name="init",
-    short="init-local",
+    status="init-local",
     welcome="init-local",
     long="Local Stage",
     deps=[sources.DEP_FILESYSTEM],
@@ -172,7 +172,7 @@ local: Final = BootStage(
 network: Final = BootStage(
     internal="network",
     name="init",
-    short="init",
+    status="init",
     welcome="init",
     long="Network Stage",
     deps=[sources.DEP_FILESYSTEM, sources.DEP_NETWORK],
@@ -180,7 +180,7 @@ network: Final = BootStage(
 config: Final = BootStage(
     internal="config",
     name="modules",
-    short="modules-config",
+    status="modules-config",
     welcome="modules:config",
     long="Config Stage",
     deps=[],
@@ -188,7 +188,7 @@ config: Final = BootStage(
 final: Final = BootStage(
     internal="final",
     name="modules",
-    short="modules-final",
+    status="modules-final",
     welcome="modules:final",
     long="Final Stage",
     deps=[],

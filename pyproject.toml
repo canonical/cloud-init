@@ -44,7 +44,6 @@ no_implicit_optional = true
 module = [
     "cloudinit.analyze.dump",
     "cloudinit.analyze.show",
-    "cloudinit.cmd.devel.hotplug_hook",
     "cloudinit.cmd.devel.make_mime",
     "cloudinit.cmd.devel.net_convert",
     "cloudinit.config.cc_apt_configure",
