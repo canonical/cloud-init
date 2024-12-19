@@ -134,7 +134,7 @@ class TestModules:
         assert mods.run_section("not_matter")
         if active:
             assert [
-                mock.call([list(module_details)])
+                mock.call([module_details])
             ] == m_run_modules.call_args_list
             assert not caplog.text
         else:

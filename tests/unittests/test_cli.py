@@ -56,13 +56,13 @@ class TestCLI:
             pytest.param(
                 "doesnotmatter",
                 "init1",
-                "^unknown name: init1$",
+                "Invalid cloud-init stage init1 bogusmode",
                 id="invalid_name",
             ),
             pytest.param(
                 "modules_name",
                 "modules",
-                "^Invalid cloud init mode specified 'modules-bogusmode'$",
+                "Invalid cloud-init stage modules bogusmode",
                 id="invalid_modes",
             ),
         ],

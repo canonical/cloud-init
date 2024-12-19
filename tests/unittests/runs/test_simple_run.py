@@ -57,9 +57,9 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
             return netcfg, NetworkConfigSource.FALLBACK
 
         self.assertFalse(os.path.exists("/var/lib/cloud"))
-        initer = stages.Init()
+        initer = stages.Init(stages.single)
         initer.read_cfg()
-        initer.initialize()
+        initer.initialize_filesystem()
         self.assertTrue(os.path.exists("/var/lib/cloud"))
         for d in ["scripts", "seed", "instances", "handlers", "sem", "data"]:
             self.assertTrue(os.path.isdir(os.path.join("/var/lib/cloud", d)))
@@ -82,9 +82,9 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
 
     def test_none_ds_runs_modules_which_do_not_define_distros(self):
         """Any modules which do not define a distros attribute are run."""
-        initer = stages.Init()
+        initer = stages.Init(stages.single)
         initer.read_cfg()
-        initer.initialize()
+        initer.initialize_filesystem()
         initer.fetch()
         initer.instancify()
         initer.update()
@@ -110,9 +110,9 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
 
     def test_none_ds_skips_modules_which_define_unmatched_distros(self):
         """Skip modules which define distros which don't match the current."""
-        initer = stages.Init()
+        initer = stages.Init(stages.single)
         initer.read_cfg()
-        initer.initialize()
+        initer.initialize_filesystem()
         initer.fetch()
         initer.instancify()
         initer.update()
@@ -139,9 +139,9 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
         This is done in the module with the declaration:
         distros = [ALL_DISTROS]. runcmd is an example.
         """
-        initer = stages.Init()
+        initer = stages.Init(stages.single)
         initer.read_cfg()
-        initer.initialize()
+        initer.initialize_filesystem()
         initer.fetch()
         initer.instancify()
         initer.update()
@@ -174,9 +174,9 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
             os.path.join(self.new_root, "etc", "cloud", "cloud.cfg"), cloud_cfg
         )
 
-        initer = stages.Init()
+        initer = stages.Init(stages.single)
         initer.read_cfg()
-        initer.initialize()
+        initer.initialize_filesystem()
         initer.fetch()
         initer.instancify()
         initer.update()
@@ -208,9 +208,9 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
             os.path.join(self.new_root, "etc", "cloud", "cloud.cfg"), cloud_cfg
         )
 
-        initer = stages.Init()
+        initer = stages.Init(stages.single)
         initer.read_cfg()
-        initer.initialize()
+        initer.initialize_filesystem()
         initer.fetch()
         initer.instancify()
         initer.update()

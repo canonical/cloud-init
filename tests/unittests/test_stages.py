@@ -58,7 +58,7 @@ class TestInit:
     @pytest.fixture(autouse=True)
     def setup(self, tmpdir):
         self.tmpdir = tmpdir
-        self.init = stages.Init()
+        self.init = stages.Init(stages.single)
         self.init._cfg = {
             "system_info": {
                 "distro": "ubuntu",
@@ -67,7 +67,7 @@ class TestInit:
         }
         tmpdir.mkdir("instance-uuid")
         sym_link(tmpdir.join("instance-uuid"), tmpdir.join("instance"))
-        self.init.datasource = FakeDataSource(paths=self.init.paths)
+        self.init._datasource = FakeDataSource(paths=self.init.paths)
         self._real_is_new_instance = self.init.is_new_instance
         self.init.is_new_instance = mock.Mock(return_value=True)
 
@@ -143,7 +143,7 @@ class TestInit:
             "network": {},
         }  # system config doesn't disable
 
-        self.init.datasource = FakeDataSource(network_config=net_config)
+        self.init._datasource = FakeDataSource(network_config=net_config)
         assert (
             None,
             NetworkConfigSource.DS,
@@ -196,8 +196,8 @@ class TestInit:
         m_cmdline.return_value = {"config": "disabled"}
         m_initramfs.return_value = {"config": "disabled"}
 
-        self.init.datasource = FakeDataSource(network_config=in_config)
-        self.init.datasource.network_config_sources = [
+        self.init._datasource = FakeDataSource(network_config=in_config)
+        self.init._datasource.network_config_sources = [
             NetworkConfigSource.DS,
             NetworkConfigSource.SYSTEM_CFG,
             NetworkConfigSource.CMD_LINE,
@@ -222,8 +222,8 @@ class TestInit:
         self, m_cmdline, m_initramfs, in_config, out_config, caplog
     ):
         """find_networking_config should check sources in DS defined order"""
-        self.init.datasource = FakeDataSource(network_config=in_config)
-        self.init.datasource.network_config_sources = [
+        self.init._datasource = FakeDataSource(network_config=in_config)
+        self.init._datasource.network_config_sources = [
             "invalid_src",
             NetworkConfigSource.DS,
         ]
@@ -251,8 +251,8 @@ class TestInit:
         self, m_cmdline, m_initramfs, in_config, out_config, caplog
     ):
         """find_networking_config should check sources in DS defined order"""
-        self.init.datasource = FakeDataSource(network_config=in_config)
-        self.init.datasource.network_config_sources = [
+        self.init._datasource = FakeDataSource(network_config=in_config)
+        self.init._datasource.network_config_sources = [
             NetworkConfigSource.FALLBACK,
             NetworkConfigSource.DS,
         ]
@@ -286,7 +286,7 @@ class TestInit:
             "system_info": {"paths": {"cloud_dir": self.tmpdir}},
             "network": {"config": ["fakesys_config"]},
         }
-        self.init.datasource = FakeDataSource(
+        self.init._datasource = FakeDataSource(
             network_config={"config": ["fakedatasource"]}
         )
         assert (
@@ -313,7 +313,7 @@ class TestInit:
             "system_info": {"paths": {"cloud_dir": self.tmpdir}},
             "network": {"config": ["fakesys_config"]},
         }
-        self.init.datasource = FakeDataSource(
+        self.init._datasource = FakeDataSource(
             network_config={"config": ["fakedatasource"]}
         )
         assert (
@@ -340,7 +340,7 @@ class TestInit:
             "system_info": {"paths": {"cloud_dir": self.tmpdir}},
             "network": in_config,
         }
-        self.init.datasource = FakeDataSource(
+        self.init._datasource = FakeDataSource(
             network_config={"config": ["fakedatasource"]}
         )
         assert (
@@ -363,7 +363,7 @@ class TestInit:
         """find_networking_config returns datasource net config if present."""
         m_cmdline.return_value = {}  # No kernel network config
         m_initramfs.return_value = {}  # no initramfs network config
-        self.init.datasource = FakeDataSource(network_config=in_config)
+        self.init._datasource = FakeDataSource(network_config=in_config)
         assert (
             out_config,
             NetworkConfigSource.DS,
@@ -409,7 +409,9 @@ class TestInit:
             "system_info": {"paths": {"cloud_dir": self.tmpdir}},
             "network": None,
         }
-        self.init.datasource = FakeDataSource(network_config={"network": None})
+        self.init._datasource = FakeDataSource(
+            network_config={"network": None}
+        )
 
         self.init.distro.generate_fallback_config = dict
 
@@ -539,7 +541,7 @@ class TestInit:
         m_macs.return_value = {"42:42:42:42:42:42": "eth9"}
 
         self.init._find_networking_config = fake_network_config
-        self.init.datasource = FakeDataSource(paths=self.init.paths)
+        self.init._datasource = FakeDataSource(paths=self.init.paths)
         self.init.is_new_instance = mock.Mock(return_value=False)
         return net_cfg
 
@@ -630,9 +632,9 @@ class TestInit:
 
 
 class TestInit_InitializeFilesystem:
-    """Tests for cloudinit.stages.Init._initialize_filesystem.
+    """Tests for cloudinit.stages.Init.initialize_filesystem.
 
-    TODO: Expand these tests to cover all of _initialize_filesystem's behavior.
+    TODO: Expand these tests to cover all of initialize_filesystem's behavior.
     """
 
     @pytest.fixture
@@ -643,7 +645,7 @@ class TestInit_InitializeFilesystem:
         `init._cfg` if the default empty dict configuration is not appropriate.
         """
         with mock.patch(M_PATH + "util.ensure_dirs"):
-            init = stages.Init()
+            init = stages.Init(stages.single)
             init._cfg = {}
             init._paths = paths
             yield init
@@ -656,7 +658,7 @@ class TestInit_InitializeFilesystem:
         """If no log file is configured, we should not ensure its existence."""
         init._cfg = {}
 
-        init._initialize_filesystem()
+        init.initialize_filesystem()
 
         assert 0 == m_ensure_file.call_count
 
@@ -665,7 +667,7 @@ class TestInit_InitializeFilesystem:
         log_file = tmpdir.join("cloud-init.log")
         init._cfg = {"def_log_file": str(log_file)}
 
-        init._initialize_filesystem()
+        init.initialize_filesystem()
 
         assert log_file.exists()
         # Assert we create it 0o640  by default if it doesn't already exist
@@ -694,7 +696,7 @@ class TestInit_InitializeFilesystem:
         log_file.chmod(input)
         init._cfg = {"def_log_file": str(log_file)}
         with mock.patch.object(stages.util, "ensure_file") as ensure:
-            init._initialize_filesystem()
+            init.initialize_filesystem()
             assert expected == ensure.call_args[0][1]
 
 

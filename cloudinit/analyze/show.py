@@ -122,7 +122,7 @@ class SystemctlReader:
 
     def __init__(self, property, parameter=None):
         self.epoch = None
-        self.args = [subp.which("systemctl"), "show"]
+        self.args = ["systemctl", "show"]
         if parameter:
             self.args.append(parameter)
         self.args.extend(["-p", property])

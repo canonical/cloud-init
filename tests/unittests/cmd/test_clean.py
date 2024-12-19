@@ -356,7 +356,7 @@ class TestClean:
             "cloudinit.cmd.clean",
             {
                 "subp": {"side_effect": fake_subp},
-                "Init": {"return_value": init_class},
+                "stages.Init": {"return_value": init_class},
             },
             clean.handle_clean_args,
             name="does not matter",
@@ -400,7 +400,7 @@ class TestClean:
                 cloudinit.cmd.clean, "ETC_MACHINE_ID", machine_id_path.strpath
             ):
                 with mock.patch(
-                    "cloudinit.cmd.clean.Init", return_value=init_class
+                    "cloudinit.cmd.clean.stages.Init", return_value=init_class
                 ):
                     assert 0 == clean.handle_clean_args(
                         name="does not matter",
@@ -421,7 +421,7 @@ class TestClean:
             wrap_and_call(
                 "cloudinit.cmd.clean",
                 {
-                    "Init": {"return_value": init_class},
+                    "stages.Init": {"return_value": init_class},
                     "sys.argv": {"new": ["clean", "--logs"]},
                 },
                 clean.main,
