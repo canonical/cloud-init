@@ -120,13 +120,13 @@ InternalNameSingle = Union[InternalName, Literal["single"]]
 
 # Because code reuse is evil and user confusion is the goal.
 #
-# Kidding. Lets please standardize but I've gotten pushback on changing this
-# string in the past so for now I guess we get yet another user-facing string
-# that means the same thing.
+# Kidding. Lets please standardize these strings. Last time I
+# tried to change this string I got pushback so for now it stays.
+# But we really shouldn't have so many variants of the same thing
+# showing up in our logs.
 WelcomeName = Literal[
     "init-local", "init", "modules:config", "modules:final", "single"
 ]
-
 
 @dataclass
 class BaseStage:
@@ -143,19 +143,18 @@ class BootStage(BaseStage):
     "single" is also required, use "Stage" which is a union of SingleStage and
     BootStage.
 
-    long: user-facing stage name
-    status: status.json stage name, used in some logs
+    long: user-facing stage name, capitalized
+    status: status.json stage name, also used in some logs because why not
+    internal: mostly not user-facing, except where it is /me facepalm
     """
 
-    status: UserShortName
     long: UserLongName
+    status: UserShortName
     internal: InternalName
-
 
 @dataclass
 class SingleStage(BaseStage):
     internal: InternalNameSingle
-
 
 Stage = Union[SingleStage, BootStage]
 
