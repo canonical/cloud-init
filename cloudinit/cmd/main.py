@@ -305,7 +305,7 @@ def attempt_cmdline_url(path, network=True, cmdline=None) -> Tuple[int, str]:
     )
 
 
-def _should_bring_up_interfaces(init, args):
+def _should_bring_up_interfaces(init: stages.Init, args):
     if util.get_cfg_option_bool(init.cfg, "disable_network_activation"):
         return False
     return not args.local

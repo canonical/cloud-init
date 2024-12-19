@@ -128,6 +128,7 @@ WelcomeName = Literal[
     "init-local", "init", "modules:config", "modules:final", "single"
 ]
 
+
 @dataclass
 class BaseStage:
     welcome: WelcomeName
@@ -152,9 +153,11 @@ class BootStage(BaseStage):
     status: UserShortName
     internal: InternalName
 
+
 @dataclass
 class SingleStage(BaseStage):
     internal: InternalNameSingle
+
 
 Stage = Union[SingleStage, BootStage]
 
@@ -313,18 +316,19 @@ class Init:
             return self._cache_mode
 
         # inferred from system state
+        self._cache_mode = CacheMode.trust
         if self.stage == local:
             if util.get_cfg_option_bool(self.cfg, "manual_cache_clean", False):
                 LOG.debug("manual cache clean set from config")
-                return CacheMode.trust
+                self._cache_mode = CacheMode.trust
             else:
                 mfile = self.paths.get_ipath_cur("manual_clean_marker")
                 if os.path.exists(mfile):
                     LOG.debug(
                         "manual cache clean found from marker: %s", mfile
                     )
-                    return CacheMode.trust
-        return CacheMode.trust
+                    self._cache_mode = CacheMode.trust
+        return self._cache_mode
 
     @property
     def distro(self):
@@ -416,7 +420,7 @@ class Init:
                 python_version_path
             ):
                 LOG.debug("Python version change detected. Purging cache")
-                util.del_file(self.paths.instance_link)
+                self.reset_instance()
                 util.write_file(python_version_path, current_python_version)
         else:
             if os.path.exists(self.paths.get_ipath_cur("obj_pkl")):
@@ -490,11 +494,7 @@ class Init:
         # using the new location of run_dir
         return self._read_bootstrap_cfg(extra_fns, paths)
 
-    def _read_bootstrap_cfg(
-        self,
-        extra_fns,
-        bootstrapped_config: dict,
-    ):
+    def _read_bootstrap_cfg(self, extra_fns, bootstrapped_config: dict):
         no_cfg_paths = helpers.Paths(bootstrapped_config, self._datasource)
         instance_data_file = no_cfg_paths.get_runpath(
             "instance_data_sensitive"
@@ -516,6 +516,8 @@ class Init:
         return sources.pkl_load(self.paths.get_ipath_cur("obj_pkl"))
 
     def _write_to_cache(self):
+        if not self._datasource:
+            return False
         if util.get_cfg_option_bool(self.cfg, "manual_cache_clean", False):
             # The empty file in instance/ dir indicates manual cleaning,
             # and can be read by ds-identify.
