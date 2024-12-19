@@ -17,8 +17,8 @@ import sys
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterator, List, NamedTuple, Optional, cast
 
+from cloudinit import stages
 from cloudinit.log import loggers
-from cloudinit.stages import Init
 from cloudinit.subp import ProcessExecutionError, subp
 from cloudinit.temp_utils import tempdir
 from cloudinit.util import copy, get_config_logfiles, write_file
@@ -405,7 +405,7 @@ def collect_logs_cli(
         LOG.warning(
             "The --include-userdata flag is deprecated and does nothing."
         )
-    init = Init(ds_deps=[])
+    init = stages.Init(stages.other)
     init.read_cfg()
 
     collect_logs(
@@ -424,7 +424,7 @@ def collect_logs_cli(
         )
 
 
-def handle_collect_logs_args(_name: str, args: argparse.Namespace) -> int:
+def handle_collect_logs_args(_, args: argparse.Namespace) -> int:
     """Handle the CLI interface to the module.
 
     Parse CLI args, redirect all exceptions to stderr, and return an exit code.
