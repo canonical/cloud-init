@@ -9,7 +9,7 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import safeyaml, util
+from cloudinit import safeyaml, stages, util
 from cloudinit.cmd import main
 from cloudinit.util import ensure_dir, load_text_file, write_file
 
@@ -115,7 +115,7 @@ class TestMain:
             subcommand="init",
             skip_log_setup=False,
         )
-        _ds, msg = main.main_init("init", cmdargs)
+        _ds, msg = main.main_init(stages.network, cmdargs)
         assert msg == []
         # Instancify is called
         instance_id_path = "var/lib/cloud/data/instance-id"
@@ -159,7 +159,7 @@ class TestMain:
             "cloudinit.cmd.main.cc_set_hostname.handle",
             side_effect=set_hostname,
         )
-        main.main_init("init", cmdargs)
+        main.main_init(stages.network, cmdargs)
 
         m_hostname.assert_called_once()
 
@@ -347,7 +347,7 @@ class TestMain:
             subcommand="init",
             skip_log_setup=False,
         )
-        main.main_init("init", cmdargs)
+        main.main_init(stages.network, cmdargs)
         if expected_add_wait:
             m_nm.assert_called_once()
             m_subp.assert_called_with(

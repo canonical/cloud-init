@@ -155,9 +155,9 @@ def remove_artifacts(init, remove_logs, remove_seed=False, remove_config=None):
     return 0
 
 
-def handle_clean_args(name, args):
+def handle_clean_args(_, args):
     """Handle calls to 'cloud-init clean' as a subcommand."""
-    init = stages.Init(stages.single)
+    init = stages.Init(stages.other)
     exit_code = remove_artifacts(
         init, args.remove_logs, args.remove_seed, args.remove_config
     )

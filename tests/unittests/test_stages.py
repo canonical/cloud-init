@@ -58,7 +58,7 @@ class TestInit:
     @pytest.fixture(autouse=True)
     def setup(self, tmpdir):
         self.tmpdir = tmpdir
-        self.init = stages.Init(stages.single)
+        self.init = stages.Init(stages.other)
         self.init._cfg = {
             "system_info": {
                 "distro": "ubuntu",
@@ -645,7 +645,7 @@ class TestInit_InitializeFilesystem:
         `init._cfg` if the default empty dict configuration is not appropriate.
         """
         with mock.patch(M_PATH + "util.ensure_dirs"):
-            init = stages.Init(stages.single)
+            init = stages.Init(stages.other)
             init._cfg = {}
             init._paths = paths
             yield init

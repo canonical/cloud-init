@@ -1393,7 +1393,7 @@ def get_config_paths_from_args(
     return instance_data_path, config_files
 
 
-def handle_schema_args(name, args):
+def handle_schema_args(_, args):
     """Handle provided schema args and perform the appropriate actions."""
     _assert_exclusive_args(args)
     full_schema = get_schema()

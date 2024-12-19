@@ -287,7 +287,7 @@ def handle_args(name, args):
     )
 
     hotplug_init = Init(
-        stages.single,
+        stages.other,
         reporter=hotplug_reporter,
         cache_mode=stages.CacheMode.trust,
     )

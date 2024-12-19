@@ -10,7 +10,7 @@ from collections import namedtuple
 
 import pytest
 
-from cloudinit import helpers
+from cloudinit import helpers, stages
 from cloudinit.cmd import main as cli
 from tests.unittests import helpers as test_helpers
 
@@ -50,33 +50,6 @@ class TestCLI:
         except SystemExit as e:
             return e.code
 
-    @pytest.mark.parametrize(
-        "action,name,match",
-        [
-            pytest.param(
-                "doesnotmatter",
-                "init1",
-                "Invalid cloud-init stage init1 bogusmode",
-                id="invalid_name",
-            ),
-            pytest.param(
-                "modules_name",
-                "modules",
-                "Invalid cloud-init stage modules bogusmode",
-                id="invalid_modes",
-            ),
-        ],
-    )
-    def test_status_wrapper_errors(
-        self, action, name, match, caplog, mock_status_wrapper
-    ):
-        my_action = mock.Mock()
-
-        myargs = FakeArgs((action, my_action), False, "bogusmode")
-        with pytest.raises(ValueError, match=match):
-            cli.status_wrapper(name, myargs)
-        assert [] == my_action.call_args_list
-
     @mock.patch("cloudinit.cmd.main.atomic_helper.write_json")
     def test_status_wrapper_init_local_writes_fresh_status_info(
         self,
@@ -100,7 +73,7 @@ class TestCLI:
             return "SomeDatasource", ["an error"]
 
         myargs = FakeArgs(("ignored_name", myaction), True, "bogusmode")
-        cli.status_wrapper("init", myargs)
+        cli.status_wrapper(stages.network, myargs)
         # No errors reported in status
         status_v1 = m_json.call_args_list[1][0][1]["v1"]
         assert status_v1.keys() == {
@@ -138,7 +111,7 @@ class TestCLI:
             return "SomeDatasource", ["an_error"]
 
         myargs = FakeArgs(("ignored_name", myaction), True, "bogusmode")
-        cli.status_wrapper("init", myargs)  # No explicit data_d
+        cli.status_wrapper(stages.network, myargs)  # No explicit data_d
 
         # Access cloud_dir directly
         status_v1 = m_json.call_args_list[1][0][1]["v1"]
@@ -222,13 +195,18 @@ class TestCLI:
         else:
             setup_basic_logging.assert_not_called()
 
-    @pytest.mark.parametrize("subcommand", ["init", "modules"])
+    @pytest.mark.parametrize(
+        "subcommand,stage",
+        [("init", stages.network), ("modules", stages.config)],
+    )
     @mock.patch("cloudinit.cmd.main.status_wrapper")
-    def test_modules_subcommand_parser(self, m_status_wrapper, subcommand):
+    def test_modules_subcommand_parser(
+        self, m_status_wrapper, subcommand, stage
+    ):
         """The subcommand 'subcommand' calls status_wrapper passing modules."""
         self._call_main(["cloud-init", subcommand])
         (name, parseargs) = m_status_wrapper.call_args_list[0][0]
-        assert subcommand == name
+        assert subcommand == stage.name
         assert subcommand == parseargs.subcommand
         assert subcommand == parseargs.action[0]
         assert f"main_{subcommand}" == parseargs.action[1].__name__
@@ -309,8 +287,7 @@ class TestCLI:
     def test_single_subcommand(self, m_main_single):
         """The subcommand 'single' calls main_single with valid args."""
         self._call_main(["cloud-init", "single", "--name", "cc_ntp"])
-        (name, parseargs) = m_main_single.call_args_list[0][0]
-        assert "single" == name
+        _, parseargs = m_main_single.call_args_list[0][0]
         assert "single" == parseargs.subcommand
         assert "single" == parseargs.action[0]
         assert False is parseargs.debug
@@ -323,8 +300,7 @@ class TestCLI:
     def test_features_hook_subcommand(self, m_features):
         """The subcommand 'features' calls main_features with args."""
         self._call_main(["cloud-init", "features"])
-        (name, parseargs) = m_features.call_args_list[0][0]
-        assert "features" == name
+        _, parseargs = m_features.call_args_list[0][0]
         assert "features" == parseargs.subcommand
         assert "features" == parseargs.action[0]
         assert False is parseargs.debug
@@ -344,7 +320,7 @@ class TestSignalHandling:
         """
         for code in [1, 2, 3, 4]:
             rc = cli.status_wrapper(
-                "init",
+                stages.network,
                 FakeArgs(
                     (
                         None,
@@ -374,7 +350,7 @@ class TestSignalHandling:
         warning"""
         # call status_wrapper() with the required args
         rc = cli.status_wrapper(
-            "init",
+            stages.local,
             FakeArgs(
                 (
                     None,
@@ -443,7 +419,7 @@ class TestSignalHandling:
             )
         # call status_wrapper() with the required args
         cli.status_wrapper(
-            "init",
+            stages.network,
             FakeArgs(
                 (
                     None,

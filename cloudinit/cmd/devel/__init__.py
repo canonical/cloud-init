@@ -18,7 +18,7 @@ def read_cfg_paths(cache_mode: Optional[str] = None) -> Paths:
 
     :raises: DataSourceNotFoundException when no datasource cache exists.
     """
-    init = stages.Init(stages.single, cache_mode=cache_mode)
+    init = stages.Init(stages.other, cache_mode=cache_mode)
     if cache_mode:
         init.fetch()
     init.read_cfg()

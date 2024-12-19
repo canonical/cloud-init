@@ -57,7 +57,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
             return netcfg, NetworkConfigSource.FALLBACK
 
         self.assertFalse(os.path.exists("/var/lib/cloud"))
-        initer = stages.Init(stages.single)
+        initer = stages.Init(stages.other)
         initer.read_cfg()
         initer.initialize_filesystem()
         self.assertTrue(os.path.exists("/var/lib/cloud"))
@@ -82,7 +82,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
 
     def test_none_ds_runs_modules_which_do_not_define_distros(self):
         """Any modules which do not define a distros attribute are run."""
-        initer = stages.Init(stages.single)
+        initer = stages.Init(stages.other)
         initer.read_cfg()
         initer.initialize_filesystem()
         initer.fetch()
@@ -110,7 +110,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
 
     def test_none_ds_skips_modules_which_define_unmatched_distros(self):
         """Skip modules which define distros which don't match the current."""
-        initer = stages.Init(stages.single)
+        initer = stages.Init(stages.other)
         initer.read_cfg()
         initer.initialize_filesystem()
         initer.fetch()
@@ -139,7 +139,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
         This is done in the module with the declaration:
         distros = [ALL_DISTROS]. runcmd is an example.
         """
-        initer = stages.Init(stages.single)
+        initer = stages.Init(stages.other)
         initer.read_cfg()
         initer.initialize_filesystem()
         initer.fetch()
@@ -174,7 +174,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
             os.path.join(self.new_root, "etc", "cloud", "cloud.cfg"), cloud_cfg
         )
 
-        initer = stages.Init(stages.single)
+        initer = stages.Init(stages.other)
         initer.read_cfg()
         initer.initialize_filesystem()
         initer.fetch()
@@ -208,7 +208,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
             os.path.join(self.new_root, "etc", "cloud", "cloud.cfg"), cloud_cfg
         )
 
-        initer = stages.Init(stages.single)
+        initer = stages.Init(stages.other)
         initer.read_cfg()
         initer.initialize_filesystem()
         initer.fetch()

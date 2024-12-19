@@ -81,6 +81,11 @@ class Semaphore:
     args: Tuple[str, str]
 
 
+# Cloud-init might first check instance-id before trusting the cache (check).
+# Cloud-init may use a pre-existing cache without checking instance-id (trust).
+# Cloud-init's default behavior may be overriden by user configuration.
+#
+# https://docs.cloud-init.io/en/latest/explanation/first_boot.html
 class CacheMode(str, Enum):
     trust = "trust"
     check = "check"
@@ -103,11 +108,7 @@ UserShortName = Literal[
 ]
 
 # The first argument in main_init() / main_modules() / main_single()
-ArgName = Literal[
-    "init",
-    "modules",
-    "single",
-]
+ArgName = Literal["init", "modules", "single"]
 
 # The first argument in main_init() / main_modules() / main_single()
 InternalName = Literal[
@@ -116,7 +117,7 @@ InternalName = Literal[
     "config",
     "final",
 ]
-InternalNameSingle = Union[InternalName, Literal["single"]]
+OtherName = Literal["single", "other"]
 
 # Because code reuse is evil and user confusion is the goal.
 #
@@ -128,46 +129,73 @@ WelcomeName = Literal[
     "init-local", "init", "modules:config", "modules:final", "single"
 ]
 
+ReportName = Literal[
+    "init-local", "init-network", "modules-config", "modules-final", "single"
+]
+
 
 @dataclass
 class BaseStage:
-    welcome: WelcomeName
-    name: ArgName
+    """BaseStage stores attributes shared by BootStage and OtherStage
+
+    deps: a list of required deps
+    description: a free-form string describing the stage
+    """
+
     deps: List[sources.Deps]
+    description: str
 
 
 @dataclass
 class BootStage(BaseStage):
-    """BootStage is used by static analyzers to ensure that values are valid
+    """BootStage represents one of the four boot stages
 
-    This type excludes "single" which enables stricter type checking. Where
-    "single" is also required, use "Stage" which is a union of SingleStage and
-    BootStage.
+    BootStage instances are used to control flow of code execution.
+    BootStage instances contain non-changing values associated with the stage.
 
+    welcome: the stage welcome log string
+    name: the stage argparse "name"
+    report: the stage name used in Report events
     long: user-facing stage name, capitalized
-    status: status.json stage name, also used in some logs because why not
-    internal: mostly not user-facing, except where it is /me facepalm
+    status: status.json stage name, also used in some logs
+    internal: a (mostly) not user-facing string
     """
 
+    welcome: WelcomeName
+    name: ArgName
+    report: ReportName
     long: UserLongName
     status: UserShortName
     internal: InternalName
 
 
 @dataclass
-class SingleStage(BaseStage):
-    internal: InternalNameSingle
+class OtherStage(BaseStage):
+    """OtherStage provides a Stage implementation in non-boot codepaths.
+
+    welcome: the stage welcome log string
+    report: the stage name used in Report events
+    internal: a (mostly) not user-facing string
+    """
+
+    welcome: OtherName
+    report: OtherName
+    internal: OtherName
 
 
-Stage = Union[SingleStage, BootStage]
+Stage = Union[OtherStage, BootStage]
 
 # These module variables store static data that is associated with each stage.
 # https://docs.cloud-init.io/en/latest/explanation/boot.html
+#
+# BootStage variables include: local, network, config, and final
 local: Final = BootStage(
     internal="local",
     name="init",
     status="init-local",
     welcome="init-local",
+    report="init-local",
+    description="searching for network datasources",
     long="Local Stage",
     deps=[sources.DEP_FILESYSTEM],
 )
@@ -176,6 +204,9 @@ network: Final = BootStage(
     name="init",
     status="init",
     welcome="init",
+    report="init-network",
+    # this description is untruthful, modules run here too
+    description="searching for network datasources",
     long="Network Stage",
     deps=[sources.DEP_FILESYSTEM, sources.DEP_NETWORK],
 )
@@ -184,6 +215,8 @@ config: Final = BootStage(
     name="modules",
     status="modules-config",
     welcome="modules:config",
+    report="modules-config",
+    description="running modules for config",
     long="Config Stage",
     deps=[],
 )
@@ -192,13 +225,27 @@ final: Final = BootStage(
     name="modules",
     status="modules-final",
     welcome="modules:final",
+    report="modules-final",
+    description="running modules for final",
     long="Final Stage",
     deps=[],
 )
-single: Final = SingleStage(
+# OtherStage objects are used when Init() is used in non-boot codepaths.
+#
+# single is used as a Stage object in main_single()
+single: Final = OtherStage(
     internal="single",
-    name="single",
     welcome="single",
+    report="single",
+    description="running single stage",
+    deps=[],
+)
+# other is used as a Stage object in all other codepaths
+other: Final = OtherStage(
+    internal="other",
+    welcome="other",
+    report="other",
+    description="non-boot stage",
     deps=[],
 )
 

@@ -50,7 +50,7 @@ def gzip_text(text):
 
 @pytest.fixture(scope="function")
 def init_tmp(request, tmpdir):
-    ci = stages.Init(stages.single)
+    ci = stages.Init(stages.other)
     cloud_dir = tmpdir.join("cloud")
     cloud_dir.mkdir()
     run_dir = tmpdir.join("run")

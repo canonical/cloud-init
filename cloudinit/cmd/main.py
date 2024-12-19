@@ -401,7 +401,7 @@ def _should_wait_on_network(
     )
 
 
-def main_init(name, args):
+def main_init(stage: stages.BootStage, args):
     """
     Cloud-init 'init' stage is broken up into the following sub-stages
 
@@ -418,11 +418,6 @@ def main_init(name, args):
     10. Run the modules for the 'init' stage
     11. Done!
     """
-
-    if args.local:
-        stage = stages.local
-    else:
-        stage = stages.network
 
     early_logs = [
         attempt_cmdline_url(
@@ -715,7 +710,7 @@ def di_report_warn(datasource, cfg):
     )
 
 
-def main_modules(action_name, args):
+def main_modules(stage: stages.BootStage, args):
     """
     Cloud-init 'modules' stages are broken up into the following sub-stages
     1. Ensure that the init object fetches its config without errors
@@ -728,14 +723,6 @@ def main_modules(action_name, args):
     5. Run the modules for the given stage name
     6. Done!
     """
-    if stages.config.internal == args.mode:
-        stage = stages.config
-    elif stages.final.internal == args.mode:
-        stage = stages.final
-    elif stages.network.internal == args.mode:
-        stage = stages.network
-    else:
-        RuntimeError(f"Unknown modules mode {args.mode}")
 
     init = stages.Init(
         stage, reporter=args.reporter, cache_mode=stages.CacheMode.trust
@@ -790,7 +777,7 @@ def main_modules(action_name, args):
     return run_module_section(mods, stage.internal, stage.internal)
 
 
-def main_single(name, args):
+def main_single(_, args):
     # Cloud-init single stage is broken up into the following sub-stages
     # 1. Ensure that the init object fetches its config without errors
     # 2. Attempt to fetch the datasource (warn if it doesn't work)
@@ -799,9 +786,9 @@ def main_single(name, args):
     #    the modules objects configuration
     # 5. Run the single module
     # 6. Done!
-    stage = stages.single
+    stage = stages.other
     init = stages.Init(
-        stages.single,
+        stage,
         reporter=args.reporter,
         cache_mode=stages.CacheMode.trust,
     )
@@ -863,20 +850,8 @@ def main_single(name, args):
         return 0
 
 
-def status_wrapper(name: modes, args):
+def status_wrapper(stage: stages.BootStage, args):
     """status_wrapper() runs a function and records data to status.json"""
-    mode: stages.BootStage
-
-    if name == "init" and args.local:
-        mode = stages.local
-    elif name == "init":
-        mode = stages.network
-    elif name == "modules" and args.mode == "config":
-        mode = stages.config
-    elif name == "modules" and args.mode == "final":
-        mode = stages.final
-    else:
-        raise ValueError(f"Invalid cloud-init stage {name} {args.mode}")
 
     nullstatus: StageStatus = {
         "errors": [],
@@ -913,7 +888,7 @@ def status_wrapper(name: modes, args):
 
     (_name, functor) = args.action
 
-    if mode == stages.local:
+    if stage == stages.local:
         for f in (status_link, result_link, status_path, result_path):
             util.del_file(f)
     else:
@@ -923,15 +898,15 @@ def status_wrapper(name: modes, args):
             pass
 
     v1 = status["v1"]
-    v1["stage"] = mode.status
-    if v1[mode.status]["start"] and not v1[mode.status]["finished"]:
+    v1["stage"] = stage.status
+    if v1[stage.status]["start"] and not v1[stage.status]["finished"]:
         # This stage was restarted, which isn't expected.
         LOG.warning(
             "Unexpected start time found for %s. Was this stage restarted?",
-            mode.long,
+            stage.long,
         )
 
-    v1[mode.status]["start"] = float(util.uptime())
+    v1[stage.status]["start"] = float(util.uptime())
     # this cast shouldn't be necessary?
     # https://github.com/python/mypy/issues/6847
     handler = cast(
@@ -953,19 +928,19 @@ def status_wrapper(name: modes, args):
     )
 
     try:
-        ret = functor(name, args)
-        if mode in (stages.local, stages.network):
+        ret = functor(stage, args)
+        if stage in (stages.local, stages.network):
             (datasource, errors) = ret
             if datasource is not None:
                 v1["datasource"] = str(datasource)
         else:
             errors = ret
 
-        v1[mode.status]["errors"].extend([str(e) for e in errors])
+        v1[stage.status]["errors"].extend([str(e) for e in errors])
     except Exception as e:
-        LOG.exception("failed stage %s", mode.status)
-        print_exc("failed run of stage %s" % mode.status)
-        v1[mode.status]["errors"].append(str(e))
+        LOG.exception("failed stage %s", stage.status)
+        print_exc("failed run of stage %s" % stage.status)
+        v1[stage.status]["errors"].append(str(e))
     except SystemExit as e:
         # All calls to sys.exit() resume running here.
         # silence a pylint false positive
@@ -973,15 +948,17 @@ def status_wrapper(name: modes, args):
         if e.code:  # pylint: disable=using-constant-test
             # Only log errors when sys.exit() is called with a non-zero
             # exit code
-            LOG.exception("Failed stage %s", mode.status)
-            print_exc("Failed stage %s" % mode.status)
-            v1[mode.status]["errors"].append(f"sys.exit({str(e.code)}) called")
+            LOG.exception("Failed stage %s", stage.status)
+            print_exc("Failed stage %s" % stage.status)
+            v1[stage.status]["errors"].append(
+                f"sys.exit({str(e.code)}) called"
+            )
     finally:
         # Before it exits, cloud-init will:
         # 1) Write status.json (and result.json if in Final stage).
         # 2) Write the final log message containing module run time.
         # 3) Flush any queued reporting event handlers.
-        v1[mode.status]["finished"] = float(util.uptime())
+        v1[stage.status]["finished"] = float(util.uptime())
         v1["stage"] = None
 
         # merge new recoverable errors into existing recoverable error list
@@ -989,21 +966,21 @@ def status_wrapper(name: modes, args):
         handler.clean_logs()
         for key in new_recoverable_errors.keys():
             if key in preexisting_recoverable_errors:
-                v1[mode.status]["recoverable_errors"][key] = list(
+                v1[stage.status]["recoverable_errors"][key] = list(
                     set(
                         preexisting_recoverable_errors[key]
                         + new_recoverable_errors[key]
                     )
                 )
             else:
-                v1[mode.status]["recoverable_errors"][key] = (
+                v1[stage.status]["recoverable_errors"][key] = (
                     new_recoverable_errors[key]
                 )
 
         # Write status.json after running init / module code
         atomic_helper.write_json(status_path, status)
 
-    if mode == stages.final:
+    if stage == stages.final:
         # write the 'finished' file
         errors = [
             *v1[stages.local.status].get("errors", []),
@@ -1020,7 +997,7 @@ def status_wrapper(name: modes, args):
             os.path.relpath(result_path, link_d), result_link, force=True
         )
 
-    return len(v1[mode.status]["errors"])
+    return len(v1[stage.status]["errors"])
 
 
 def _maybe_persist_instance_data(init: stages.Init):
@@ -1054,7 +1031,7 @@ def _maybe_set_hostname(init: stages.Init, stage: str, retry_stage: str):
             )
 
 
-def main_features(name, args):
+def main_features(_, args):
     sys.stdout.write("\n".join(sorted(version.FEATURES)) + "\n")
 
 
@@ -1382,34 +1359,31 @@ def sub_main(args):
     # Write boot stage data to write status.json and result.json
     # Exclude modules --mode=init, since it is not a real boot stage and
     # should not be written into status.json
-    if "init" == name or ("modules" == name and "init" != args.mode):
-        functor = status_wrapper
+    # if "init" == name or ("modules" == name and "init" != args.mode):
 
-    rname = None
     report_on = True
-    if name == "init":
-        if args.local:
-            rname, rdesc = ("init-local", "searching for local datasources")
-        else:
-            rname, rdesc = (
-                "init-network",
-                "searching for network datasources",
-            )
-    elif name == "modules":
-        rname, rdesc = (
-            "modules-%s" % args.mode,
-            "running modules for %s" % args.mode,
-        )
+    stage: Optional[stages.BootStage] = None
+    if name == "init" and args.local:
+        stage = stages.local
+    elif name == "init":
+        stage = stages.network
+    elif name == "modules" and args.mode == "config":
+        stage = stages.config
+    elif name == "modules" and args.mode == "final":
+        stage = stages.final
     elif name == "single":
-        rname, rdesc = (
-            "single/%s" % args.name,
-            "running single module %s" % args.name,
-        )
+        # skip status_wrapper for single
+        # leave stage = None because no need to pass it to main_single
+        rname: str = stages.single.report
+        rdesc: str = stages.single.description
         report_on = args.report
     else:
-        rname = name
-        rdesc = "running 'cloud-init %s'" % name
-        report_on = False
+        # skip status_wrapper for modules + init stage
+        rname, rdesc, report_on = name, "running 'cloud-init {name}'", False
+    if stage:
+        rname, rdesc = stage.report, stage.description
+        if isinstance(stage, stages.BootStage):
+            functor = status_wrapper
 
     args.reporter = events.ReportEventStack(
         rname, rdesc, reporting_enabled=report_on
@@ -1417,7 +1391,7 @@ def sub_main(args):
 
     with args.reporter:
         with performance.Timed(f"cloud-init stage: '{rname}'"):
-            retval = functor(name, args)
+            retval = functor(stage, args)
     reporting.flush_events()
 
     # handle return code for main_modules, as it is not wrapped by

@@ -405,7 +405,7 @@ def collect_logs_cli(
         LOG.warning(
             "The --include-userdata flag is deprecated and does nothing."
         )
-    init = stages.Init(stages.single)
+    init = stages.Init(stages.other)
     init.read_cfg()
 
     collect_logs(
@@ -424,7 +424,7 @@ def collect_logs_cli(
         )
 
 
-def handle_collect_logs_args(_name: str, args: argparse.Namespace) -> int:
+def handle_collect_logs_args(_, args: argparse.Namespace) -> int:
     """Handle the CLI interface to the module.
 
     Parse CLI args, redirect all exceptions to stderr, and return an exit code.

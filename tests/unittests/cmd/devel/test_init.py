@@ -7,7 +7,7 @@ from tests.unittests.util import TEST_INSTANCE_ID, FakeDataSource
 
 class TestReadCfgPaths:
     def test_read_cfg_paths_fetches_cached_datasource(self, tmpdir):
-        init = stages.Init(stages.single)
+        init = stages.Init(stages.other)
         init._cfg = {
             "system_info": {
                 "distro": "ubuntu",

@@ -55,6 +55,13 @@ DSMODE_PASS: Final[DsMode] = "pass"
 
 VALID_DSMODES = [DSMODE_DISABLED, DSMODE_LOCAL, DSMODE_NETWORK]
 
+# DEP_FILESYSTEM and DEP_NETWORK are part of an abstraction that was never
+# fully realized and has unnecessary complexity.
+#
+# [DEP_FILESYSTEM]              - this means Local stage
+# [DEP_FILESYSTEM, DEP_NETWORK] - this means Network stage
+#
+# XXX: TODO - simplify this logic
 Deps = Literal["FILESYSTEM", "NETWORK"]
 DEP_FILESYSTEM: Deps = "FILESYSTEM"
 DEP_NETWORK: Deps = "NETWORK"

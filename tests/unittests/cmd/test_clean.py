@@ -359,7 +359,7 @@ class TestClean:
                 "stages.Init": {"return_value": init_class},
             },
             clean.handle_clean_args,
-            name="does not matter",
+            "does not matter",
             args=cmdargs,
         )
         assert 0 == retcode
@@ -403,7 +403,7 @@ class TestClean:
                     "cloudinit.cmd.clean.stages.Init", return_value=init_class
                 ):
                     assert 0 == clean.handle_clean_args(
-                        name="does not matter",
+                        "does not matter",
                         args=cmdargs,
                     )
         if systemd_val:

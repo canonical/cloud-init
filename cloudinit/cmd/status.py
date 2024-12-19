@@ -228,7 +228,7 @@ def print_status(args, details: StatusDetails):
         print(safeyaml.dumps(details_dict))
 
 
-def handle_status_args(name, args) -> int:
+def handle_status_args(_, args) -> int:
     """Handle calls to 'cloud-init status' as a subcommand."""
     # Read configured paths
     paths = read_cfg_paths()

@@ -145,7 +145,7 @@ if __name__ == "__main__":
     # of __main__ would help determine if a better approach exists.
     #
     # we don't needReportEventStack, so reporter=True
-    distro = stages.Init(stages.single, reporter=True).distro
+    distro = stages.Init(stages.other, reporter=True).distro
 
     md = vultr.get_metadata(
         distro,
