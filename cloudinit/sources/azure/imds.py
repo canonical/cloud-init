@@ -55,7 +55,7 @@ class ReadUrlRetryHandler:
         self._request_count = 0
         self._last_error: Union[None, Type, int] = None
 
-    def exception_callback(self, req_args, exception) -> bool:
+    def exception_callback(self, exception) -> bool:
         self._request_count += 1
         if not isinstance(exception, UrlError):
             report_diagnostic_event(

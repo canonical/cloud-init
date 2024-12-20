@@ -756,6 +756,33 @@ class TestEc2:
             assert log in caplog.record_tuples
 
     @responses.activate
+    def test_aws_token_503_success_after_retries(self, mocker, tmpdir):
+        """Verify that 503s fetching AWS tokens are retried.
+
+        GH-5577: Cloud-init fails on AWS if IMDSv2 returns a 503 error.
+        """
+        ds = self._setup_ds(
+            platform_data=self.valid_platform_data,
+            sys_cfg={
+                "datasource": {
+                    "Ec2": {
+                        "strict_id": False,
+                    }
+                }
+            },
+            md=None,
+            mocker=mocker,
+            tmpdir=tmpdir,
+        )
+
+        token_url = self.data_url("latest", data_item="api/token")
+        responses.add(responses.PUT, token_url, status=503)
+        responses.add(responses.PUT, token_url, status=503)
+        responses.add(responses.PUT, token_url, status=200, body="response")
+        assert ds.wait_for_metadata_service() is True
+        assert 3 == len(responses.calls)
+
+    @responses.activate
     def test_aws_token_redacted(self, caplog, mocker, tmpdir):
         """Verify that aws tokens are redacted when logged."""
         ds = self._setup_ds(

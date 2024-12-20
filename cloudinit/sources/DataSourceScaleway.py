@@ -84,7 +84,7 @@ def query_data_api_once(api_address, timeout, requests_session):
             session=requests_session,
             # If the error is a HTTP/404 or a ConnectionError, go into raise
             # block below and don't bother retrying.
-            exception_cb=lambda _, exc: exc.code != 404
+            exception_cb=lambda exc: exc.code != 404
             and (
                 not isinstance(exc.cause, requests.exceptions.ConnectionError)
             ),
