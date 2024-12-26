@@ -496,7 +496,7 @@ class MetadataReader(BaseReader):
         def should_retry_cb(_request_args, cause):
             try:
                 code = int(cause.code)
-                if code >= 400:
+                if code == 404 or code < 400:
                     return False
             except (TypeError, ValueError):
                 # Older versions of requests didn't have a code.
