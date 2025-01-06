@@ -135,4 +135,4 @@ via :command:`hostname $HostName`, and then bouncing the interface. This
 behaviour can be configured or disabled in the datasource config. See
 'Configuration' above.
 
-.. _instance metadata service (IMDS): https://docs.microsoft.com/en-us/azure/virtual-machines/windows/instance-meta-data-service
+.. _instance metadata service (IMDS): https://docs.microsoft.com/en-us/azure/virtual-machines/windows/instance-metadata-service

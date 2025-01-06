@@ -29,4 +29,4 @@ Vultr's datasource can be configured as follows: ::
   accessible failure.
 
 .. _Vultr: https://www.vultr.com/
-.. _instance metadata service documentation: https://www.vultr.com/meta-data/
+.. _instance metadata service documentation: https://www.vultr.com/metadata/
