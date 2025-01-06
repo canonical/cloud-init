@@ -475,6 +475,7 @@ def pytest_sessionstart(session) -> None:
     """do session setup"""
     global _SESSION_CLOUD
     global REAPER
+    log.info("starting session")
     try:
         _SESSION_CLOUD = get_session_cloud()
         setup_image(_SESSION_CLOUD)
@@ -490,11 +491,13 @@ def pytest_sessionstart(session) -> None:
         pytest.exit(
             f"{type(e).__name__} in session setup: {str(e)}", returncode=2
         )
+    log.info("started session")
 
 
 def pytest_sessionfinish(session, exitstatus) -> None:
     """do session teardown"""
     global REAPER
+    log.info("finishing session")
     try:
         if integration_settings.INCLUDE_COVERAGE:
             _generate_coverage_report()
@@ -524,3 +527,4 @@ def pytest_sessionfinish(session, exitstatus) -> None:
         log.warning(
             "Could not destroy session cloud: %s(%s)", type(e).__name__, e
         )
+    log.info("finish session")

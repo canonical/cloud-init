@@ -164,7 +164,7 @@ class _Reaper:
             LOG.info(
                 "Reaper: reaped %s/%s instances",
                 self.counter,
-                self.counter + len(self.undead_ledger)
+                self.counter + len(self.undead_ledger),
             )
             return True
 
