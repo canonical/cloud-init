@@ -39,28 +39,28 @@ class TestReaper:
         """basic setup teardown"""
 
         instance = MockInstance(0)
-        r = reaper.Reaper()
+        r = reaper._Reaper()
         # start / stop
-        r.reaper_start()
-        r.reaper_stop()
+        r.start()
+        r.stop()
         # start / reap / stop
-        r.reaper_start()
+        r.start()
         r.reap(instance)
-        r.reaper_stop()
+        r.stop()
 
         # start / stop
-        r.reaper_start()
-        r.reaper_stop()
+        r.start()
+        r.stop()
         assert instance.stopped
 
     def test_basic_reap(self):
         """basic setup teardown"""
 
         i_1 = MockInstance(0)
-        r = reaper.Reaper()
-        r.reaper_start()
+        r = reaper._Reaper()
+        r.start()
         r.reap(i_1)
-        r.reaper_stop()
+        r.stop()
         assert i_1.stopped
 
     def test_unreaped_instance(self):
@@ -68,12 +68,12 @@ class TestReaper:
 
         i_1 = MockInstance(64)
         i_2 = MockInstance(64)
-        r = reaper.Reaper()
-        r.reaper_start()
+        r = reaper._Reaper()
+        r.start()
         r.reap(i_1)
         r.reap(i_2)
         with warnings.catch_warnings(record=True) as w:
-            r.reaper_stop()
+            r.stop()
         assert len(w) == 1
 
     def test_stubborn_reap(self):
@@ -94,8 +94,8 @@ class TestReaper:
         ]
 
         # forcibly disallow sleeping, to avoid wasted time during tests
-        r = reaper.Reaper(timeout=0.0)
-        r.reaper_start()
+        r = reaper._Reaper(timeout=0.0)
+        r.start()
         for i in instances:
             r.reap(i)
 
@@ -116,7 +116,7 @@ class TestReaper:
             sleep_total += sleep_time
             sleep_time *= 2
             time.sleep(sleep_time)
-        r.reaper_stop()
+        r.stop()
         for i in instances:
             assert i.stopped, (
                 f"Reaper didn't reap stubborn instance {i} in {sleep_total}s. "
@@ -130,12 +130,12 @@ class TestReaper:
         """
         num = 64
         instances = []
-        r = reaper.Reaper()
-        r.reaper_start()
+        r = reaper._Reaper()
+        r.start()
         for _ in range(num):
             i = MockInstance(0)
             instances.append(i)
             r.reap(i)
-        r.reaper_stop()
+        r.stop()
         for i in instances:
             assert i.stopped

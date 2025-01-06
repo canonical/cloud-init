@@ -1,12 +1,10 @@
-"""Destroy instances in a background thread
+"""Defines _Reaper, which destroys instances in a background thread
 
-interface:
-
-start_reaper()                       - spawns reaper thread
-stop_reaper()                        - join thread and report leaked instances
-reap(instance: IntegrationInstance)  - queues instance for deletion
-
-start_reaper() / stop_reaper() - must be called only once
+This class is intended to be a singleton which is instantiated on session setup
+and cleaned on session teardown. Any instances submitted to the reaper are
+destroyed. Instances that refuse to be destroyed due to external library errors
+or flaky infrastructure are tracked, retried and upon test session completion
+are reported to the end user as a test warning.
 """
 
 import logging
@@ -20,7 +18,7 @@ from tests.integration_tests.instances import IntegrationInstance
 LOG = logging.getLogger()
 
 
-class Reaper:
+class _Reaper:
     def __init__(self, timeout: float = 30.0):
         # self.timeout sets the amount of time to sleep before retrying
         self.timeout = timeout
@@ -66,7 +64,7 @@ class Reaper:
             self.wake_reaper.notify()
             LOG.info("Reaper: awakened to reap")
 
-    def reaper_start(self):
+    def start(self):
         """Spawn the reaper background thread."""
         LOG.info("Reaper: starting")
         self.reaper_thread = threading.Thread(
@@ -74,7 +72,7 @@ class Reaper:
         )
         self.reaper_thread.start()
 
-    def reaper_stop(self):
+    def stop(self):
         """Stop the reaper background thread and wait for completion."""
         LOG.info("Reaper: stopping")
         self.exit_reaper.set()
@@ -189,6 +187,3 @@ class Reaper:
                 )
         self.undead_ledger.extend(new_undead_instances)
         return False
-
-
-reaper = Reaper()
