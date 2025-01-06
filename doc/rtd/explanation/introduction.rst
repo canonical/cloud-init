@@ -66,7 +66,7 @@ it will:
   * **Meta-data** instance platform data, such as the machine ID, hostname and
     network config
   * **Vendor-data** and/or **user-data**. These take the same form, although
-    Vendor-data is provided by the cloud vendor, and user-data is provided by
+    vendor-data is provided by the cloud vendor, and user-data is provided by
     the user. These data are usually applied in the post-networking phase, and
     might include:
 
