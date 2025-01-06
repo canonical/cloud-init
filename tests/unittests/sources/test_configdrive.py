@@ -389,6 +389,7 @@ class TestConfigDriveDataSource(CiTestCase):
             M_PATH + "util.find_devs_with", "m_find_devs_with", return_value=[]
         )
         self.tmp = self.tmp_dir()
+        self.allowed_subp = True
 
     def test_ec2_metadata(self):
         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
@@ -869,6 +870,7 @@ class TestConvertNetworkData(CiTestCase):
     def setUp(self):
         super(TestConvertNetworkData, self).setUp()
         self.tmp = self.tmp_dir()
+        self.allowed_subp = True
 
     def _getnames_in_config(self, ncfg):
         return set(
