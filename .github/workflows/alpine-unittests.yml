@@ -29,9 +29,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup LXD
-        uses: canonical/setup-lxd@v0.1.1
-        with:
-          channel: latest/candidate
+        uses: canonical/setup-lxd@v0.1.2
 
       - name: Create alpine container
         # the current shell doesn't have lxd as one of the groups
