@@ -51,6 +51,9 @@ class _Reaper:
         # Thread object, handle used to re-join the thread
         self.reaper_thread: threading.Thread
 
+        # Count the dead
+        self.counter = 0
+
     def reap(self, instance: IntegrationInstance):
         """reap() submits an instance to the reaper thread.
 
@@ -88,6 +91,7 @@ class _Reaper:
         try:
             LOG.info("Reaper: destroying %s", instance.instance.id)
             instance.destroy()
+            self.counter += 1
             return True
         except Exception as e:
             LOG.warning(
@@ -157,6 +161,11 @@ class _Reaper:
                 warnings.warn(f"Test instance(s) leaked: {self.undead_ledger}")
             else:
                 LOG.info("Reaper: duties complete, my turn to rest")
+            LOG.info(
+                "Reaper: reaped %s/%s instances",
+                self.counter,
+                self.counter + len(self.undead_ledger)
+            )
             return True
 
         # attempt to destroy all instances which previously refused to
