@@ -27,6 +27,7 @@ from cloudinit.config.schema import (
     SchemaValidationError,
     annotated_cloudconfig_file,
     get_jsonschema_validator,
+    get_meta_doc,
     get_schema,
     get_schema_dir,
     handle_schema_args,
@@ -2212,3 +2213,14 @@ apt_reboot_if_required: Deprecated in version 22.2. Use\
         assert read_cfg_paths.call_args_list == [
             mock.call(fetch_existing_datasource="trust")
         ]
+
+
+class TestDeprecation:
+    def test_get_meta_doc_deprecation(self, caplog):
+        """Test that calling get_meta_doc() emits deprecation.
+
+        Ensures that custom modules calling `get_meta_doc()` can still
+        function but receive deprecation warning.
+        """
+        get_meta_doc("some", "random", "arguments", plus="kwargs")
+        assert "The 'get_meta_doc()' function is deprecated" in caplog.text
