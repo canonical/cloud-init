@@ -389,7 +389,6 @@ class TestConfigDriveDataSource(CiTestCase):
             M_PATH + "util.find_devs_with", "m_find_devs_with", return_value=[]
         )
         self.tmp = self.tmp_dir()
-        self.allowed_subp = True
 
     def test_ec2_metadata(self):
         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
@@ -870,7 +869,6 @@ class TestConvertNetworkData(CiTestCase):
     def setUp(self):
         super(TestConvertNetworkData, self).setUp()
         self.tmp = self.tmp_dir()
-        self.allowed_subp = True
 
     def _getnames_in_config(self, ncfg):
         return set(
@@ -898,12 +896,15 @@ class TestConvertNetworkData(CiTestCase):
 
     def test_convert_raises_value_error_on_missing_name(self):
         macs = {"aa:aa:aa:aa:aa:00": "ens1"}
-        self.assertRaises(
-            ValueError,
-            openstack.convert_net_json,
-            NETWORK_DATA,
-            known_macs=macs,
-        )
+        with mock.patch(
+            "cloudinit.sources.helpers.openstack.util.udevadm_settle"
+        ):
+            self.assertRaises(
+                ValueError,
+                openstack.convert_net_json,
+                NETWORK_DATA,
+                known_macs=macs,
+            )
 
     def test_conversion_with_route(self):
         ncfg = openstack.convert_net_json(
