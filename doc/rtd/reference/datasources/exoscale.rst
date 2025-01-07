@@ -3,11 +3,11 @@
 Exoscale
 ********
 
-This datasource supports reading from the meta-data server used on the
-`Exoscale platform`_. Use of the Exoscale datasource is recommended to benefit
-from new features of the Exoscale platform.
+This datasource supports reading from the instance metadata server (IMDS) used
+on the `Exoscale platform`_. Use of the Exoscale datasource is recommended to
+benefit from new features of the Exoscale platform.
 
-The datasource relies on the availability of a compatible meta-data server
+The datasource relies on the availability of a compatible IMDS
 (``http://169.254.169.254`` is used by default) and its companion password
 server, reachable at the same address (by default on port 8080).
 
@@ -42,7 +42,7 @@ The following settings are available and can be set for the
 
 The settings available are:
 
-* ``metadata_url``: The URL for the instance metadata service.
+* ``metadata_url``: The URL for the IMDS.
 
   Defaults to ``http://169.254.169.254``.
 

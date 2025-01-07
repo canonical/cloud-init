@@ -28,9 +28,9 @@ configuration in :file:`/etc/cloud/cloud.cfg` or
 A **string** containing the user-data (including header) to be used by
 cloud-init.
 
-``meta-data``
+``metadata``
 -------------
-The meta-data to be used by cloud-init.
+The metadata to be used by cloud-init.
 
 .. _datasource_none_example:
 
@@ -41,7 +41,7 @@ Example configuration
 
   datasource:
     None:
-      meta-data:
+      metadata:
         local-hostname: "myhost.internal"
       userdata_raw: |
         #cloud-config

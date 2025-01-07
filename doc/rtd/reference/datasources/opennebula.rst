@@ -116,7 +116,7 @@ OpenNebula datasource only in ``net`` mode.
 
 ::
 
-    disable_ec2_meta-data: True
+    disable_ec2_metadata: True
     datasource_list: ['OpenNebula']
     datasource:
       OpenNebula:

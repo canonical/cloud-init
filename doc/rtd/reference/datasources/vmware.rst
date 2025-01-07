@@ -126,10 +126,10 @@ following key/value pairs on a VM's ``extraConfig`` `property`_:
 
    * - Property
      - Description
-   * - ``guestinfo.meta-data``
+   * - ``guestinfo.metadata``
      - A YAML or JSON document containing the ``cloud-init`` meta-data.
    * - ``guestinfo.meta-data.encoding``
-     - The encoding type for ``guestinfo.meta-data``.
+     - The encoding type for ``guestinfo.metadata``.
    * - ``guestinfo.userdata``
      - A YAML document containing the ``cloud-init`` user-data.
    * - ``guestinfo.userdata.encoding``
@@ -412,15 +412,15 @@ this datasource using the GuestInfo keys transport:
    .. code-block:: shell
 
        govc vm.change -vm "${VM}" \
-       -e guestinfo.meta-data="${METADATA}" \
-       -e guestinfo.meta-data.encoding="gzip+base64" \
+       -e guestinfo.metadata="${METADATA}" \
+       -e guestinfo.metadata.encoding="gzip+base64" \
        -e guestinfo.userdata="${USERDATA}" \
        -e guestinfo.userdata.encoding="gzip+base64"
 
    .. note::
       Please note the above commands include specifying the encoding for the
       properties. This is important as it informs the datasource how to decode
-      the data for ``cloud-init``. Valid values for ``meta-data.encoding`` and
+      the data for ``cloud-init``. Valid values for ``metadata.encoding`` and
       ``userdata.encoding`` include:
 
       * ``base64``

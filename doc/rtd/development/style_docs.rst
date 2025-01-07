@@ -113,7 +113,7 @@ There are some common words that should follow specific usage in text:
   capitalized at the start of a sentence.
 - **datasource**: One word.
 - **user-data**, **vendor-data**, **cloud-config**, **instance-data**: Two
-  words, not to be combined or hyphenated.
+  words, always hyphenated.
 - **meta-data**: Hyphenated when describing cloud-init's datasource meta-data.
   Using the word "metadata" to generically describe data that provides
   information about other data is discouraged, to avoid confusion.

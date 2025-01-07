@@ -34,10 +34,10 @@ configuration (in :file:`/etc/cloud/cloud.cfg` or
 ----------------------------
 
 A boolean, defaulting to False. If set to True on an OCI Virtual Machine,
-``cloud-init`` will fetch networking meta-data from Oracle's IMDS and use it
-to configure the non-primary network interface controllers in the system. If
-set to True on an OCI Bare Metal Machine, it will have no effect (though this
-may change in the future).
+``cloud-init`` will fetch networking meta-data from Oracle's instance metadata
+service and use it to configure the non-primary network interface controllers
+in the system. If set to True on an OCI Bare Metal Machine, it will have no
+effect (though this may change in the future).
 
 ``max_wait``
 ------------

@@ -9,7 +9,7 @@ For a full list of keys, refer to the
 
 .. warning::
    The EC2 instance metadata service is a network service, and thus is readable by
-   non-root users on the system (i.e. ``ec2meta-data --user-data``).
+   non-root users on the system (i.e. ``ec2metadata --user-data``).
 
    If you want security against this, use ``include-once`` + SSL URLs.
 

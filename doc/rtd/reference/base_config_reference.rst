@@ -345,7 +345,7 @@ On an Ubuntu system, :file:`/etc/cloud/cloud.cfg` should look similar to:
     - ubuntu_pro
     - ntp
     - timezone
-    - disable_ec2_meta-data
+    - disable_ec2_metadata
     - runcmd
     - byobu
 

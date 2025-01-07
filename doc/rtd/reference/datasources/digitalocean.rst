@@ -9,8 +9,8 @@ DigitalOcean
 The `DigitalOcean`_ datasource consumes the content served from DigitalOcean's
 instance metadata service. This instance metadata service serves information
 about the running droplet via http over the link local address
-``169.254.169.254``. The meta-data API endpoints are fully described in the
-DigitalOcean `meta-data documentation`_.
+``169.254.169.254``. The API endpoints are fully described in the DigitalOcean
+`meta-data documentation`_.
 
 Configuration
 =============

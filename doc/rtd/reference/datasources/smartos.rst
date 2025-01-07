@@ -11,8 +11,8 @@ Please see http://smartos.org/ for information about SmartOS.
 SmartOS platform
 ================
 
-The SmartOS virtualization platform uses meta-data from the instance via the
-second serial console. On Linux, this is :file:`/dev/ttyS1`. The data is
+The SmartOS virtualization platform uses instance-data from the instance via
+the second serial console. On Linux, this is :file:`/dev/ttyS1`. The data is
 provided via a simple protocol:
 
 * Something queries for the data,

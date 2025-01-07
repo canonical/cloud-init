@@ -37,9 +37,9 @@ The settings that may be configured are as follows:
 ``metadata_urls``
 -----------------
 
-This list of URLs will be searched for an OpenStack IMDS. The
-first entry that successfully returns a 200 response for ``<url>/openstack``
-will be selected.
+This list of URLs will be searched for an OpenStack IMDS (instance
+metadata service). The first entry that successfully returns a 200 response
+for ``<url>/openstack`` will be selected.
 
 Default: ['http://169.254.169.254'])
 
