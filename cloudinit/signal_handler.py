@@ -44,15 +44,15 @@ def default_handler(_num, _stack) -> None:
 
 def inspect_handler(sig: Union[int, Callable, None]) -> None:
     """inspect_handler() logs signal handler state"""
-    if sig == signal.SIG_DFL:
-        LOG.debug("Signal state [SIG_IGN] - previously ignored.")
-    elif sig == signal.SIG_IGN:
+    # only produce a log if the signal handler isn't in the expected default
+    # state: SIG_DFL
+    if sig == signal.SIG_IGN:
         LOG.info("Signal state [SIG_IGN] - previously ignored.")
     elif sig is None:
         LOG.info("Signal state [None] - previously not installed from Python.")
     elif callable(sig):
         LOG.info("Signal state [%s] - custom handler.", sig)
-    else:
+    elif sig != signal.SIG_DFL:
         # this should never happen, unless something in Python changes
         # https://docs.python.org/3/library/signal.html#signal.getsignal
         LOG.warning("Signal state [%s(%s)] - unknown", type(sig), sig)
