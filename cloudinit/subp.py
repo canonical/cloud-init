@@ -368,9 +368,8 @@ def runparts(dirp, skip_no_exist=True, exe_prefix=None):
         if is_exe(exe_path):
             attempted.append(exe_path)
             try:
-                signal_handler.detach_handlers()
-                subp(prefix + [exe_path], capture=False)
-                signal_handler.attach_handlers()
+                with signal_handler.suspend_crash():
+                    subp(prefix + [exe_path], capture=False)
             except ProcessExecutionError as e:
                 LOG.debug(e)
                 failed.append(exe_name)

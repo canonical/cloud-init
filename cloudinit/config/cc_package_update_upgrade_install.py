@@ -50,8 +50,8 @@ def _fire_reboot(
     """Run a reboot command and panic if it doesn't happen fast enough."""
     # systemd will kill cloud-init with a signal
     # this is expected so don't behave as if this is a failure state
-    signal_handler.detach_handlers()
-    subp.subp(REBOOT_CMD)
+    with signal_handler.suspend_crash():
+        subp.subp(REBOOT_CMD)
     start = time.monotonic()
     wait_time = initial_sleep
     for _i in range(wait_attempts):

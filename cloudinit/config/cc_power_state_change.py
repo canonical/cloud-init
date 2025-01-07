@@ -218,6 +218,6 @@ def run_after_pid_gone(pid, pidcmdline, timeout, condition, func, args):
         fatal("Unexpected Exception when checking condition: %s" % e)
 
     # systemd could kill this process with a signal before it exits
-    # this is expected, so remove the signal handlers
-    signal_handler.detach_handlers()
-    func(*args)
+    # this is expected, so don't crash
+    with signal_handler.suspend_crash():
+        func(*args)

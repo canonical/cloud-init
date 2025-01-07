@@ -50,9 +50,10 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         try:
             iid = cloud.get_instance_id()
             env = {"INSTANCE_ID": str(iid)} if iid else {}
-            signal_handler.detach_handlers()
-            subp.subp(["/bin/sh", tmpf.name], update_env=env, capture=False)
-            signal_handler.attach_handlers()
+            with signal_handler.suspend_crash():
+                subp.subp(
+                    ["/bin/sh", tmpf.name], update_env=env, capture=False
+                )
         except Exception:
             util.logexc(LOG, "Failed to run bootcmd module %s", name)
             raise
