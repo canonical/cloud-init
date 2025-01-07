@@ -1,3 +1,9 @@
+cloud-init (25.1-0ubuntu1~20.04.1) UNRELEASED; urgency=medium
+
+  * Update d/p/no-single-process.patch
+
+ -- Brett Holman <brett.holman@canonical.com>  Mon, 06 Jan 2024 17:39:42 -0700
+
 cloud-init (24.4-0ubuntu1~20.04.1) focal; urgency=medium
 
   * add d/p/grub-dpkg-support.patch
