@@ -1,5 +1,7 @@
 cloud-init (25.1~1g9bac08a9-0ubuntu1) UNRELEASED; urgency=medium
 
+  * d/cloud-init-base.templates: Move VMware before OVF
+    See GH-4030 and LP: #1992509
   * Upstream snapshot based on upstream/main at 9bac08a9.
 
  -- James Falcon <james.falcon@canonical.com>  Tue, 07 Jan 2025 09:25:12 -0600
