@@ -17,7 +17,7 @@ Last-Update: 2024-08-02
 -# process has completed this stage. The output from the return socket is piped
 -# into a shell so that the process can send a completion message (defaults to
 -# "done", otherwise includes an error message) and an exit code to systemd.
--ExecStart=sh -c 'echo "start" | netcat -Uu -W1 /run/cloud-init/share/config.sock -s /run/cloud-init/share/config-return.sock | sh'
+-ExecStart=sh -c 'echo "start" | nc -Uu -W1 /run/cloud-init/share/config.sock -s /run/cloud-init/share/config-return.sock | sh'
 +ExecStart=/usr/bin/cloud-init modules --mode=config
  RemainAfterExit=yes
  TimeoutSec=0
@@ -35,7 +35,7 @@ Last-Update: 2024-08-02
 -# process has completed this stage. The output from the return socket is piped
 -# into a shell so that the process can send a completion message (defaults to
 -# "done", otherwise includes an error message) and an exit code to systemd.
--ExecStart=sh -c 'echo "start" | netcat -Uu -W1 /run/cloud-init/share/final.sock -s /run/cloud-init/share/final-return.sock | sh'
+-ExecStart=sh -c 'echo "start" | nc -Uu -W1 /run/cloud-init/share/final.sock -s /run/cloud-init/share/final-return.sock | sh'
 +ExecStart=/usr/bin/cloud-init modules --mode=final
  RemainAfterExit=yes
  TimeoutSec=0
@@ -64,7 +64,7 @@ Last-Update: 2024-08-02
 -# process has completed this stage. The output from the return socket is piped
 -# into a shell so that the process can send a completion message (defaults to
 -# "done", otherwise includes an error message) and an exit code to systemd.
--ExecStart=sh -c 'echo "start" | netcat -Uu -W1 /run/cloud-init/share/local.sock -s /run/cloud-init/share/local-return.sock | sh'
+-ExecStart=sh -c 'echo "start" | nc -Uu -W1 /run/cloud-init/share/local.sock -s /run/cloud-init/share/local-return.sock | sh'
 +ExecStart=/usr/bin/cloud-init init --local
  RemainAfterExit=yes
  TimeoutSec=0
@@ -296,7 +296,7 @@ Last-Update: 2024-08-02
 -# process has completed this stage. The output from the return socket is piped
 -# into a shell so that the process can send a completion message (defaults to
 -# "done", otherwise includes an error message) and an exit code to systemd.
--ExecStart=sh -c 'echo "start" | netcat -Uu -W1 /run/cloud-init/share/network.sock -s /run/cloud-init/share/network-return.sock | sh'
+-ExecStart=sh -c 'echo "start" | nc -Uu -W1 /run/cloud-init/share/network.sock -s /run/cloud-init/share/network-return.sock | sh'
 -RemainAfterExit=yes
 -TimeoutSec=0
 -
