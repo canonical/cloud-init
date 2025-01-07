@@ -771,7 +771,11 @@ def convert_net_json(network_json=None, known_macs=None):
             if not mac:
                 raise ValueError("No mac_address or name entry for %s" % d)
             if mac not in known_macs:
-                raise ValueError("Unable to find a system nic for %s" % d)
+                # Let's give udev a chance to catch up
+                util.udevadm_settle()
+                known_macs = net.get_interfaces_by_mac()
+                if mac not in known_macs:
+                    raise ValueError("Unable to find a system nic for %s" % d)
             d["name"] = known_macs[mac]
 
         for cfg, key, fmt, targets in link_updates:
