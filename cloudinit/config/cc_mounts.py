@@ -31,10 +31,8 @@ meta: MetaSchema = {
 
 # Shortname matches 'sda', 'sda1', 'xvda', 'hda', 'sdb', xvdb, vda, vdd1, sr0
 DEVICE_NAME_FILTER = r"^([x]{0,1}[shv]d[a-z][0-9]*|sr[0-9]+)$"
-DEVICE_NAME_RE = re.compile(DEVICE_NAME_FILTER)
 # Name matches 'server:/path'
 NETWORK_NAME_FILTER = r"^.+:.*"
-NETWORK_NAME_RE = re.compile(NETWORK_NAME_FILTER)
 FSTAB_PATH = "/etc/fstab"
 MNT_COMMENT = "comment=cloudconfig"
 MB = 2**20
@@ -57,7 +55,7 @@ def is_meta_device_name(name):
 
 def is_network_device(name):
     # return true if this is a network device
-    if NETWORK_NAME_RE.match(name):
+    if re.match(NETWORK_NAME_FILTER, name):
         return True
     return False
 
@@ -114,7 +112,7 @@ def sanitize_devname(startname, transformer, aliases=None):
             device_path = "/dev/%s" % (device_path,)
         LOG.debug("Mapped metadata name %s to %s", orig, device_path)
     else:
-        if DEVICE_NAME_RE.match(startname):
+        if re.match(DEVICE_NAME_FILTER, startname):
             device_path = "/dev/%s" % (device_path,)
 
     partition_path = None

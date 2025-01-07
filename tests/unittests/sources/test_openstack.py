@@ -688,6 +688,27 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
         )
 
     @test_helpers.mock.patch(MOCK_PATH + "dmi.read_dmi_data")
+    def test_ds_detect_samsung_cloud_platform_chassis_asset_tag(
+        self, m_dmi, m_is_x86
+    ):
+        """Return True on OpenStack reporting
+        Samsung Cloud Platform VM asset-tag."""
+        m_is_x86.return_value = True
+
+        def fake_asset_tag_dmi_read(dmi_key):
+            if dmi_key == "system-product-name":
+                return "c7.large.2"  # No match
+            if dmi_key == "chassis-asset-tag":
+                return "Samsung Cloud Platform"
+            assert False, "Unexpected dmi read of %s" % dmi_key
+
+        m_dmi.side_effect = fake_asset_tag_dmi_read
+        self.assertTrue(
+            self._fake_ds().ds_detect(),
+            "Expected ds_detect == True on Samsung Cloud Platform VM",
+        )
+
+    @test_helpers.mock.patch(MOCK_PATH + "dmi.read_dmi_data")
     def test_ds_detect_oraclecloud_chassis_asset_tag(self, m_dmi, m_is_x86):
         """Return True on OpenStack reporting Oracle cloud asset-tag."""
         m_is_x86.return_value = True
