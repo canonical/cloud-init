@@ -7,11 +7,12 @@ or flaky infrastructure are tracked, retried and upon test session completion
 are reported to the end user as a test warning.
 """
 
+from __future__ import annotations  # required for Python 3.8
 import logging
 import queue
 import threading
 import warnings
-from typing import Final, List
+from typing import Final, List, Optional
 
 from tests.integration_tests.instances import IntegrationInstance
 
@@ -49,7 +50,7 @@ class _Reaper:
         )
 
         # Thread object, handle used to re-join the thread
-        self.reaper_thread: threading.Thread
+        self.reaper_thread: Optional[threading.Thread] = None
 
         # Count the dead
         self.counter = 0
@@ -82,7 +83,7 @@ class _Reaper:
         with self.wake_reaper:
             self.wake_reaper.notify()
             LOG.info("Reaper: awakened to reap")
-        if self.reaper_thread:
+        if self.reaper_thread and self.reaper_thread.is_alive():
             self.reaper_thread.join()
         LOG.info("Reaper: stopped")
 
@@ -168,12 +169,15 @@ class _Reaper:
             )
             return True
 
-        # attempt to destroy all instances which previously refused to
-        # destroy
+        # attempt to destroy all instances which previously refused to destroy
         for instance in self.undead_ledger:
+            if self.exit_reaper.is_set() and self.reaped_instances.empty():
+                # don't retry instances if the exit_reaper Event is set
+                break
             if self._destroy(instance):
                 self.undead_ledger.remove(instance)
                 LOG.info("Reaper: destroyed %s (undead)", instance.instance.id)
+
         self._update_undead_ledger(new_undead_instances)
         return False
 
