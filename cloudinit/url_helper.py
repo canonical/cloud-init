@@ -27,7 +27,7 @@ from typing import (
     Callable,
     Iterator,
     List,
-    MutableMapping,
+    Mapping,
     NamedTuple,
     Optional,
     Tuple,
@@ -349,13 +349,13 @@ class UrlError(IOError):
         self,
         cause: Any,  # This SHOULD be an exception to wrap, but can be anything
         code: Optional[int] = None,
-        headers: Optional[MutableMapping] = None,
+        headers: Optional[Mapping] = None,
         url: Optional[str] = None,
     ):
         IOError.__init__(self, str(cause))
         self.cause = cause
         self.code = code
-        self.headers: MutableMapping = {} if headers is None else headers
+        self.headers: Mapping = {} if headers is None else headers
         self.url = url
 
 
@@ -391,12 +391,10 @@ def _get_retry_after(retry_after: str) -> float:
         # Translate a date such as "Fri, 31 Dec 1999 23:59:59 GMT"
         # into seconds to wait
         try:
-            to_wait = float(
-                time.mktime(
-                    time.strptime(retry_after, "%a, %d %b %Y %H:%M:%S %Z")
-                )
-                - time.time()
-            )
+            time_tuple = parsedate(retry_after)
+            if not time_tuple:
+                raise ValueError("Failed to parse Retry-After header value")
+            to_wait = float(time.mktime(time_tuple) - time.time())
         except ValueError:
             LOG.info(
                 "Failed to parse Retry-After header value: %s. "
