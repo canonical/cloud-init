@@ -5,7 +5,7 @@ Fallback/no datasource
 
 This is the fallback datasource when no other datasource can be selected. It
 is the equivalent of an empty datasource, in that it provides an empty string
-as user data, and an empty dictionary as metadata.
+as user-data, and an empty dictionary as meta-data.
 
 It is useful for testing, as well as for occasions when you do not need an
 actual datasource to meet your instance requirements (i.e. you just want to

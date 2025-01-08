@@ -3,7 +3,7 @@
 About the cloud-config file
 ***************************
 
-The ``#cloud-config`` file is a type of user data that cloud-init can consume
+The ``#cloud-config`` file is a type of user-data that cloud-init can consume
 to automatically set up various aspects of the system. It is commonly referred
 to as **cloud config**. Using cloud config to configure your machine leverages
 the best practices encoded into cloud-init's modules in a distribution-agnostic
@@ -73,7 +73,7 @@ you of any errors.
 Example cloud-config file
 =========================
 
-The following code is an example of a complete user data cloud-config file.
+The following code is an example of a complete user-data cloud-config file.
 The :ref:`cloud-config example library <yaml_examples>` contains further
 examples that can be copy/pasted and adapted to your needs.
 
