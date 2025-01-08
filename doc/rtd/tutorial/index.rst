@@ -26,7 +26,7 @@ capabilities.
 
 * :ref:`Part 1: quick deployment <tutorial_lxd>`
 
-  Here we deploy a cloud-init user data script into a LXD container. It
+  Here we deploy a cloud-init user-data script into a LXD container. It
   can also be used as a quick-start guide.
 
 .. toctree::
