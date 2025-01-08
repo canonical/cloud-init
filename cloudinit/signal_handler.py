@@ -10,6 +10,7 @@ import inspect
 import logging
 import signal
 import sys
+import types
 from io import StringIO
 from typing import Callable, Dict, Final, NamedTuple, Union
 
@@ -37,22 +38,24 @@ SIGNAL_EXIT_BEHAVIOR_QUIET: Final = ExitBehavior(0, logging.INFO)
 SIGNAL_EXIT_BEHAVIOR = SIGNAL_EXIT_BEHAVIOR_CRASH
 
 
-def default_handler(_num, _stack) -> None:
-    """an empty handler"""
-    return None
-
-
 def inspect_handler(sig: Union[int, Callable, None]) -> None:
     """inspect_handler() logs signal handler state"""
-    # only produce a log if the signal handler isn't in the expected default
-    # state: SIG_DFL
-    if sig == signal.SIG_IGN:
+    if callable(sig):
+        # only produce a log when the signal handler isn't in the expected
+        # default state
+        if isinstance(sig, types.BuiltinFunctionType):
+            LOG.info("Signal state [%s] - previously custom handler.", sig)
+    elif sig == signal.SIG_IGN:
         LOG.info("Signal state [SIG_IGN] - previously ignored.")
     elif sig is None:
         LOG.info("Signal state [None] - previously not installed from Python.")
-    elif callable(sig):
-        LOG.info("Signal state [%s] - custom handler.", sig)
     elif sig != signal.SIG_DFL:
+        LOG.info(
+            "Signal state [%s] - default way of handling signal was "
+            "previously in use.",
+            sig
+        )
+    else:
         # this should never happen, unless something in Python changes
         # https://docs.python.org/3/library/signal.html#signal.getsignal
         LOG.warning("Signal state [%s(%s)] - unknown", type(sig), sig)
