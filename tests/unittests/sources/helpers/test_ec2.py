@@ -276,7 +276,7 @@ class TestEc2Util(helpers.ResponsesTestCase):
     def test_metadata_children_with_invalid_character(self):
         def _skip_tags(exception):
             if isinstance(exception, uh.UrlError) and exception.code == 404:
-                if "meta-data/tags/" in exception.url:
+                if exception.url and "meta-data/tags/" in exception.url:
                     print(exception.url)
                     return True
             return False
