@@ -128,7 +128,7 @@ following key/value pairs on a VM's ``extraConfig`` `property`_:
      - Description
    * - ``guestinfo.metadata``
      - A YAML or JSON document containing the ``cloud-init`` meta-data.
-   * - ``guestinfo.meta-data.encoding``
+   * - ``guestinfo.metadata.encoding``
      - The encoding type for ``guestinfo.metadata``.
    * - ``guestinfo.userdata``
      - A YAML document containing the ``cloud-init`` user-data.
