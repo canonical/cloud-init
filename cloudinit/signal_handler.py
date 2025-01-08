@@ -19,7 +19,7 @@ from cloudinit.log import log_util
 
 LOG = logging.getLogger(__name__)
 
-SIG_MESSAGE: Final = "Cloud-init %s received %s, exiting\n"
+SIG_MESSAGE: Final = "Cloud-init {} received {}, exiting\n"
 BACK_FRAME_TRACE_DEPTH: Final = 3
 SIGNALS: Final[Dict[int, str]] = {
     signal.SIGINT: "Cloud-init %(version)s received SIGINT, exiting",
@@ -35,7 +35,7 @@ class ExitBehavior(NamedTuple):
 
 SIGNAL_EXIT_BEHAVIOR_CRASH: Final = ExitBehavior(1, logging.ERROR)
 SIGNAL_EXIT_BEHAVIOR_QUIET: Final = ExitBehavior(0, logging.INFO)
-SIGNAL_EXIT_BEHAVIOR = SIGNAL_EXIT_BEHAVIOR_CRASH
+_SIGNAL_EXIT_BEHAVIOR = SIGNAL_EXIT_BEHAVIOR_CRASH
 
 
 def inspect_handler(sig: Union[int, Callable, None]) -> None:
@@ -73,13 +73,14 @@ def _pprint_frame(frame, depth, max_depth, contents):
 
 
 def _handle_exit(signum, frame):
-    msg = SIG_MESSAGE
-    contents = StringIO(msg.format(vr.version_string(), signum.name))
+    # in practice we always receive a Signals object but int is possible
+    name = signum.name if isinstance(signum, signal.Signals) else signum
+    contents = StringIO(SIG_MESSAGE.format(vr.version_string(), name))
     _pprint_frame(frame, 1, BACK_FRAME_TRACE_DEPTH, contents)
     log_util.multi_log(
-        contents.getvalue(), log=LOG, log_level=SIGNAL_EXIT_BEHAVIOR.log_level
+        contents.getvalue(), log=LOG, log_level=_SIGNAL_EXIT_BEHAVIOR.log_level
     )
-    sys.exit(SIGNAL_EXIT_BEHAVIOR.exit_code)
+    sys.exit(_SIGNAL_EXIT_BEHAVIOR.exit_code)
 
 
 def attach_handlers():
@@ -99,7 +100,7 @@ def suspend_crash():
     call stack is still printed if signal is received during this context, but
     the return code is 0 and no traceback is printed.
     """
-    global SIGNAL_EXIT_BEHAVIOR
-    SIGNAL_EXIT_BEHAVIOR = SIGNAL_EXIT_BEHAVIOR_QUIET
+    global _SIGNAL_EXIT_BEHAVIOR
+    _SIGNAL_EXIT_BEHAVIOR = SIGNAL_EXIT_BEHAVIOR_QUIET
     yield
-    SIGNAL_EXIT_BEHAVIOR = SIGNAL_EXIT_BEHAVIOR_CRASH
+    _SIGNAL_EXIT_BEHAVIOR = SIGNAL_EXIT_BEHAVIOR_CRASH
