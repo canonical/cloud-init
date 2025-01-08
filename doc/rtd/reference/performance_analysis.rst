@@ -21,7 +21,7 @@ options are responsible. These subcommands default to reading
 :command:`analyze show`
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-Parse and organise :file:`cloud-init.log` events by stage and include each
+Parse and organize :file:`cloud-init.log` events by stage and include each
 sub-stage granularity with time delta reports.
 
 .. code-block:: shell-session

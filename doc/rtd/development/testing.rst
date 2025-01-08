@@ -51,28 +51,14 @@ Test layout
 * ``pytest`` tests should use bare ``assert`` statements, to take advantage
   of ``pytest``'s `assertion introspection`_.
 
-``pytest`` version "gotchas"
-----------------------------
+Dependency versions
+-------------------
 
-As we still support Ubuntu 18.04 (Bionic Beaver), we can only use ``pytest``
-features that are available in v3.3.2. This is an inexhaustive list of
-ways in which this may catch you out:
-
-  * Only the following built-in fixtures are available [#fixture-list]_:
-
-    * ``cache``
-    * ``capfd``
-    * ``capfdbinary``
-    * ``caplog``
-    * ``capsys``
-    * ``capsysbinary``
-    * ``doctest_namespace``
-    * ``monkeypatch``
-    * ``pytestconfig``
-    * ``record_xml_property``
-    * ``recwarn``
-    * ``tmpdir_factory``
-    * ``tmpdir``
+Cloud-init supports a range of versions for each of its test dependencies, as
+well as runtime dependencies. If you are unsure whether a specific feature is
+supported for a particular dependency, check the ``lowest-supported``
+environment in ``tox.ini``. This can be run using ``tox -e lowest-supported``.
+This runs as a Github Actions job when a pull request is submitted or updated.
 
 Mocking and assertions
 ----------------------
@@ -138,13 +124,6 @@ Test argument ordering
 
   * ``pytest.mark.parametrize``
   * ``mock.patch``
-
-.. [#fixture-list] This list of fixtures (with markup) can be
-   reproduced by running::
-
-     python3 -m pytest  --fixtures -q | grep "^[^ -]" | grep -v 'no tests ran in' | sort | sed 's/ \[session scope\]//g;s/.*/* ``\0``/g'
-
-   in an ubuntu lxd container with python3-pytest installed.
 
 .. LINKS:
 .. _pytest: https://docs.pytest.org/

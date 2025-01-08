@@ -65,8 +65,8 @@ currently being defined.
 There are two physically/structurally different classes of device definitions,
 and the ID field has a different interpretation for each:
 
-Physical devices (e.g., ethernet, wifi)
----------------------------------------
+Physical devices (e.g., ethernet, Wi-Fi)
+----------------------------------------
 
 These can dynamically come and go between reboots and even during runtime
 (hotplugging). In the generic case, they can be selected by ``match:``
@@ -241,7 +241,7 @@ Example: ::
 
 Add static addresses to the interface in addition to the ones received
 through DHCP or RA. Each sequence entry is in CIDR notation, i.e., of the
-form ``addr/prefixlen``. ``addr`` is an IPv4 or IPv6 address as recognised
+form ``addr/prefixlen``. ``addr`` is an IPv4 or IPv6 address as recognized
 by ``inet_pton(3)`` and ``prefixlen`` the number of bits of the subnet.
 
 Example: ``addresses: [192.168.14.2/24, 2001:1::1/64]``
@@ -252,7 +252,7 @@ Example: ``addresses: [192.168.14.2/24, 2001:1::1/64]``
 Deprecated, see `Netplan#default-routes`_.
 Set default gateway for IPv4/6, for manual address configuration. This
 requires setting ``addresses`` too. Gateway IPs must be in a form
-recognised by ``inet_pton(3)``
+recognized by ``inet_pton(3)``
 
 Example for IPv4: ``gateway4: 172.16.0.1``
 Example for IPv6: ``gateway6: 2001:4::1``
