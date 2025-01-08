@@ -7,6 +7,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import contextlib
 import inspect
+import threading
 import logging
 import signal
 import sys
@@ -36,6 +37,7 @@ class ExitBehavior(NamedTuple):
 SIGNAL_EXIT_BEHAVIOR_CRASH: Final = ExitBehavior(1, logging.ERROR)
 SIGNAL_EXIT_BEHAVIOR_QUIET: Final = ExitBehavior(0, logging.INFO)
 _SIGNAL_EXIT_BEHAVIOR = SIGNAL_EXIT_BEHAVIOR_CRASH
+_SUSPEND_WRITE_LOCK = threading.RLock()
 
 
 def inspect_handler(sig: Union[int, Callable, None]) -> None:
@@ -99,8 +101,14 @@ def suspend_crash():
     This allow signal handling without a crash where it is expected. The
     call stack is still printed if signal is received during this context, but
     the return code is 0 and no traceback is printed.
+
+    Threadsafe.
     """
     global _SIGNAL_EXIT_BEHAVIOR
-    _SIGNAL_EXIT_BEHAVIOR = SIGNAL_EXIT_BEHAVIOR_QUIET
-    yield
-    _SIGNAL_EXIT_BEHAVIOR = SIGNAL_EXIT_BEHAVIOR_CRASH
+
+    # If multiple threads simultaneously were to modify this
+    # global state, this function would not behave as expected.
+    with _SUSPEND_WRITE_LOCK:
+        _SIGNAL_EXIT_BEHAVIOR = SIGNAL_EXIT_BEHAVIOR_QUIET
+        yield
+        _SIGNAL_EXIT_BEHAVIOR = SIGNAL_EXIT_BEHAVIOR_CRASH

@@ -8,8 +8,8 @@ import pytest
 
 from cloudinit import signal_handler
 
+REENTRANT = "reentrant"
 
-@patch.object(signal_handler.sys, "exit", Mock())
 class TestSignalHandler:
 
     @pytest.mark.parametrize(
@@ -21,7 +21,30 @@ class TestSignalHandler:
             (1, inspect.currentframe()),
         ],
     )
-    def test_suspend_signal(self, m_args):
+    @pytest.mark.parametrize(
+        "m_suspended",
+        [
+            (REENTRANT, 0),
+            (True, 0),
+            (False, 1),
+        ],
+    )
+    def test_suspend_signal(self, m_args, m_suspended):
+        """suspend_crash should prevent crashing (exit 1) on signal
+
+        otherwise cloud-init should exit 1
+        """
         sig, frame = m_args
-        with signal_handler.suspend_crash():
-            signal_handler._handle_exit(sig, frame)
+        suspended, rc = m_suspended
+
+        with patch.object(signal_handler.sys, "exit", Mock()) as m_exit:
+            if suspended is True:
+                with signal_handler.suspend_crash():
+                    signal_handler._handle_exit(sig, frame)
+            elif suspended == REENTRANT:
+                with signal_handler.suspend_crash(
+                    ), signal_handler.suspend_crash():
+                    signal_handler._handle_exit(sig, frame)
+            else:
+                signal_handler._handle_exit(sig, frame)
+        m_exit.assert_called_with(rc)
