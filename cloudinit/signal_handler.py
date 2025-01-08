@@ -43,7 +43,7 @@ def inspect_handler(sig: Union[int, Callable, None]) -> None:
     if callable(sig):
         # only produce a log when the signal handler isn't in the expected
         # default state
-        if isinstance(sig, types.BuiltinFunctionType):
+        if not isinstance(sig, types.BuiltinFunctionType):
             LOG.info("Signal state [%s] - previously custom handler.", sig)
     elif sig == signal.SIG_IGN:
         LOG.info("Signal state [SIG_IGN] - previously ignored.")
@@ -53,7 +53,7 @@ def inspect_handler(sig: Union[int, Callable, None]) -> None:
         LOG.info(
             "Signal state [%s] - default way of handling signal was "
             "previously in use.",
-            sig
+            sig,
         )
     else:
         # this should never happen, unless something in Python changes
