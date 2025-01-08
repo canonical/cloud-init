@@ -7,7 +7,7 @@ import os
 import subprocess
 from errno import ENOEXEC
 from io import TextIOWrapper
-from typing import List, Optional, Union
+from typing import List, Literal, Optional, Union
 
 from cloudinit import performance
 
@@ -170,7 +170,7 @@ def subp(
     capture=True,
     shell=False,
     logstring=False,
-    decode="replace",
+    decode: Literal[False, "strict", "ignore", "replace"] = "replace",
     update_env=None,
     cwd=None,
     timeout=None,
