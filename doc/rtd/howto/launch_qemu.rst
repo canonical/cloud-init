@@ -7,9 +7,10 @@ Run cloud-init locally with QEMU
 machines with hardware acceleration, and to emulate the instruction sets of
 different architectures than the host you are running on.
 
-The ``NoCloud`` datasource allows you to provide your own user data,
-metadata, or network configuration directly to an instance without running a
-network service. This is helpful for launching local cloud images with QEMU.
+The ``NoCloud`` datasource allows you to provide your own user-data,
+vendor-data, meta-data, or network configuration directly to an instance
+without running a network service. This is helpful for launching local cloud
+images with QEMU.
 
 Create your configuration
 -------------------------
