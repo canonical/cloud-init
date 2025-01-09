@@ -1326,7 +1326,7 @@ def get_config_paths_from_args(
         )
     if args.instance_data:
         instance_data_path = args.instance_data
-    elif os.getuid() != 0:
+    elif os.getuid():
         instance_data_path = paths.get_runpath("instance_data")
     else:
         instance_data_path = paths.get_runpath("instance_data_sensitive")

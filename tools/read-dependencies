@@ -324,7 +324,7 @@ def pkg_install(pkg_list, distro, test_distro=False, dry_run=False):
     install_cmd = []
     if dry_run:
         install_cmd.append("echo")
-    if os.geteuid() != 0:
+    if os.geteuid():
         install_cmd.append("sudo")
 
     distro_family = DISTRO_PKG_TYPE_MAP[distro]

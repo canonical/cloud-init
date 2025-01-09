@@ -237,7 +237,7 @@ class IscDhclient(DhcpClient):
         """
         lease_regex = re.compile(r"lease {(?P<lease>.*?)}\n", re.DOTALL)
         dhcp_leases: List[Dict] = []
-        if len(lease_content) == 0:
+        if not lease_content:
             return []
         for lease in lease_regex.findall(lease_content):
             lease_options = []

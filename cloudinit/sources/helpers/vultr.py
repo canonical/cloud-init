@@ -78,7 +78,7 @@ def get_interface_list():
     except Exception as e:
         LOG.error("find_candidate_nics script exception: %s", e)
 
-    if len(ifaces) == 0:
+    if not ifaces:
         for iface in net.find_candidate_nics():
             # Skip dummy
             if "dummy" in iface:

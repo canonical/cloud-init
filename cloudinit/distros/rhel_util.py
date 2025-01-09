@@ -26,7 +26,7 @@ def update_sysconfig_file(fn, adjustments, allow_empty=False):
         if v is None:
             continue
         v = str(v)
-        if len(v) == 0 and not allow_empty:
+        if (not v) and (not allow_empty):
             continue
         contents[k] = v
         updated_am += 1
