@@ -8,9 +8,7 @@ import re
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
-from cloudinit.config.schema import (
-    MetaSchema,
-)
+from cloudinit.config.schema import MetaSchema
 from cloudinit.settings import PER_ONCE
 
 LOG = logging.getLogger(__name__)
