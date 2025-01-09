@@ -38,33 +38,6 @@ ubuntu-desktop-installer 22.06.01                 23315  latest/stable   ...
 )
 
 
-class TestvalidateConfigSchema:
-    @pytest.mark.parametrize(
-        "src_cfg,error_msg",
-        [
-            pytest.param(
-                {"autoinstall": 1},
-                "autoinstall: Expected dict type but found: int",
-                id="err_non_dict",
-            ),
-            pytest.param(
-                {"autoinstall": {}},
-                "autoinstall: Missing required 'version' key",
-                id="err_require_version_key",
-            ),
-            pytest.param(
-                {"autoinstall": {"version": "v1"}},
-                "autoinstall.version: Expected int type but found: str",
-                id="err_version_non_int",
-            ),
-        ],
-    )
-    def test_runtime_validation_errors(self, src_cfg, error_msg):
-        """cloud-init raises errors at runtime on invalid autoinstall config"""
-        with pytest.raises(SchemaValidationError, match=error_msg):
-            cc_ubuntu_autoinstall.validate_config_schema(src_cfg)
-
-
 @mock.patch(MODPATH + "util.wait_for_snap_seeded")
 @mock.patch(MODPATH + "subp.subp")
 class TestHandleAutoinstall:
@@ -73,14 +46,6 @@ class TestHandleAutoinstall:
     @pytest.mark.parametrize(
         "cfg,snap_list,subp_calls,logs,snap_wait_called",
         [
-            pytest.param(
-                {},
-                SAMPLE_SNAP_LIST_OUTPUT,
-                [],
-                ["Skipping module named name, no 'autoinstall' key"],
-                False,
-                id="skip_no_cfg",
-            ),
             pytest.param(
                 {"autoinstall": {"version": 1}},
                 SAMPLE_SNAP_LIST_OUTPUT,
@@ -149,6 +114,8 @@ class TestAutoInstallSchema:
                 {"autoinstall": {}},
                 "autoinstall: 'version' is a required property",
             ),
+            ({"autoinstall": {"version": 1}}, None),
+            ({"autoinstall": {"version": "v1"}}, "is not of type 'integer'"),
         ),
     )
     @skipUnlessJsonSchema()
