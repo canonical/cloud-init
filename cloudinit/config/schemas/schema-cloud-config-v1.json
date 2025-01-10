@@ -670,7 +670,7 @@
       "type": "object",
       "properties": {
         "autoinstall": {
-          "description": "Opaque autoinstall schema definition for Ubuntu autoinstall. Full schema processed by live-installer. See: https://ubuntu.com/server/docs/install/autoinstall-reference.",
+          "description": "Cloud-init ignores this key and its values. It is used by Subiquity, the Ubuntu Autoinstaller. See: https://ubuntu.com/server/docs/install/autoinstall-reference.",
           "type": "object",
           "properties": {
             "version": {
