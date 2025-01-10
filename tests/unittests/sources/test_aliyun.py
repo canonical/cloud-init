@@ -9,45 +9,92 @@ import responses
 
 from cloudinit import helpers
 from cloudinit.sources import DataSourceAliYun as ay
-from cloudinit.sources.DataSourceEc2 import convert_ec2_metadata_network_config
+from cloudinit.sources.helpers.aliyun import (
+    convert_ecs_metadata_network_config,
+)
+from cloudinit.util import load_json
 from tests.unittests import helpers as test_helpers
 
-DEFAULT_METADATA = {
-    "instance-id": "aliyun-test-vm-00",
-    "eipv4": "10.0.0.1",
-    "hostname": "test-hostname",
-    "image-id": "m-test",
-    "launch-index": "0",
-    "mac": "00:16:3e:00:00:00",
-    "network-type": "vpc",
-    "private-ipv4": "192.168.0.1",
-    "serial-number": "test-string",
-    "vpc-cidr-block": "192.168.0.0/16",
-    "vpc-id": "test-vpc",
-    "vswitch-id": "test-vpc",
-    "vswitch-cidr-block": "192.168.0.0/16",
-    "zone-id": "test-zone-1",
-    "ntp-conf": {
-        "ntp_servers": [
-            "ntp1.aliyun.com",
-            "ntp2.aliyun.com",
-            "ntp3.aliyun.com",
-        ]
+DEFAULT_METADATA_RAW = r"""{
+  "disks": {
+    "bp15spwwhlf8bbbn7xxx": {
+      "id": "d-bp15spwwhlf8bbbn7xxx",
+      "name": ""
+    }
+  },
+  "dns-conf": {
+    "nameservers": [
+    "100.100.2.136",
+    "100.100.2.138"
+    ]
+  },
+  "hibernation": {
+    "configured": "false"
+  },
+  "instance": {
+    "instance-name": "aliyun-test-vm-00",
+    "instance-type": "ecs.g8i.large",
+    "last-host-landing-time": "2024-11-17 10:02:41",
+    "max-netbw-egress": "2560000",
+    "max-netbw-ingress": "2560000",
+    "virtualization-solution": "ECS Virt",
+    "virtualization-solution-version": "2.0"
+  },
+  "network": {
+    "interfaces": {
+      "macs": {
+        "00:16:3e:14:59:58": {
+          "gateway": "172.16.101.253",
+          "netmask": "255.255.255.0",
+          "network-interface-id": "eni-bp13i3ed90icgdgaxxxx"
+        }
+      }
+    }
+  },
+  "ntp-conf": {
+    "ntp-servers": [
+      "ntp1.aliyun.com",
+      "ntp1.cloud.aliyuncs.com"
+    ]
+  },
+  "public-keys": {
+    "0": {
+      "openssh-key": "ssh-rsa AAAAB3Nza"
     },
-    "source-address": [
-        "http://mirrors.aliyun.com",
-        "http://mirrors.aliyuncs.com",
-    ],
-    "public-keys": {
-        "key-pair-1": {"openssh-key": "ssh-rsa AAAAB3..."},
-        "key-pair-2": {"openssh-key": "ssh-rsa AAAAB3..."},
-    },
-}
+    "skp-bp1test": {
+      "openssh-key": "ssh-rsa AAAAB3Nza"
+    }
+  },
+  "eipv4": "121.66.77.88",
+  "hostname": "aliyun-test-vm-00",
+  "image-id": "ubuntu_24_04_x64_20G_alibase_20241016.vhd",
+  "instance-id": "i-bp15ojxppkmsnyjxxxxx",
+  "mac": "00:16:3e:14:59:58",
+  "network-type": "vpc",
+  "owner-account-id": "123456",
+  "private-ipv4": "172.16.111.222",
+  "region-id": "cn-hangzhou",
+  "serial-number": "3ca05955-a892-46b3-a6fc-xxxxxx",
+  "source-address": "http://mirrors.cloud.aliyuncs.com",
+  "sub-private-ipv4-list": "172.16.101.215",
+  "vpc-cidr-block": "172.16.0.0/12",
+  "vpc-id": "vpc-bp1uwvjta7txxxxxxx",
+  "vswitch-cidr-block": "172.16.101.0/24",
+  "vswitch-id": "vsw-bp12cibmw6078qv123456",
+  "zone-id": "cn-hangzhou-j"
+}"""
+
+DEFAULT_METADATA = load_json(DEFAULT_METADATA_RAW)
 
 DEFAULT_USERDATA = """\
 #cloud-config
 
 hostname: localhost"""
+
+DEFAULT_VENDORDATA = """\
+#cloud-config
+bootcmd:
+- echo hello world > /tmp/vendor"""
 
 
 class TestAliYunDatasource(test_helpers.ResponsesTestCase):
@@ -68,6 +115,10 @@ class TestAliYunDatasource(test_helpers.ResponsesTestCase):
         return DEFAULT_USERDATA
 
     @property
+    def default_vendordata(self):
+        return DEFAULT_VENDORDATA
+
+    @property
     def metadata_url(self):
         return (
             os.path.join(
@@ -79,9 +130,26 @@ class TestAliYunDatasource(test_helpers.ResponsesTestCase):
         )
 
     @property
+    def metadata_all_url(self):
+        return (
+            os.path.join(
+                self.metadata_address,
+                self.ds.min_metadata_version,
+                "meta-data",
+            )
+            + "/all"
+        )
+
+    @property
     def userdata_url(self):
         return os.path.join(
             self.metadata_address, self.ds.min_metadata_version, "user-data"
+        )
+
+    @property
+    def vendordata_url(self):
+        return os.path.join(
+            self.metadata_address, self.ds.min_metadata_version, "vendor-data"
         )
 
     # EC2 provides an instance-identity document which must return 404 here
@@ -133,9 +201,17 @@ class TestAliYunDatasource(test_helpers.ResponsesTestCase):
         register = functools.partial(self.responses.add, responses.GET)
         register_helper(register, base_url, data)
 
-    def regist_default_server(self):
+    def regist_default_server(self, register_json_meta_path=True):
         self.register_mock_metaserver(self.metadata_url, self.default_metadata)
+        if register_json_meta_path:
+            self.register_mock_metaserver(
+                self.metadata_all_url, DEFAULT_METADATA_RAW
+            )
         self.register_mock_metaserver(self.userdata_url, self.default_userdata)
+        self.register_mock_metaserver(
+            self.vendordata_url, self.default_userdata
+        )
+
         self.register_mock_metaserver(self.identity_url, self.default_identity)
         self.responses.add(responses.PUT, self.token_url, "API-TOKEN")
 
@@ -175,7 +251,25 @@ class TestAliYunDatasource(test_helpers.ResponsesTestCase):
         self._test_get_iid()
         self._test_host_name()
         self.assertEqual("aliyun", self.ds.cloud_name)
-        self.assertEqual("ec2", self.ds.platform)
+        self.assertEqual("aliyun", self.ds.platform)
+        self.assertEqual(
+            "metadata (http://100.100.100.200)", self.ds.subplatform
+        )
+
+    @mock.patch("cloudinit.sources.DataSourceEc2.util.is_resolvable")
+    @mock.patch("cloudinit.sources.DataSourceAliYun._is_aliyun")
+    def test_with_mock_server_without_json_path(self, m_is_aliyun, m_resolv):
+        m_is_aliyun.return_value = True
+        self.regist_default_server(register_json_meta_path=False)
+        ret = self.ds.get_data()
+        self.assertEqual(True, ret)
+        self.assertEqual(1, m_is_aliyun.call_count)
+        self._test_get_data()
+        self._test_get_sshkey()
+        self._test_get_iid()
+        self._test_host_name()
+        self.assertEqual("aliyun", self.ds.cloud_name)
+        self.assertEqual("aliyun", self.ds.platform)
         self.assertEqual(
             "metadata (http://100.100.100.200)", self.ds.subplatform
         )
@@ -221,7 +315,7 @@ class TestAliYunDatasource(test_helpers.ResponsesTestCase):
         self._test_get_iid()
         self._test_host_name()
         self.assertEqual("aliyun", self.ds.cloud_name)
-        self.assertEqual("ec2", self.ds.platform)
+        self.assertEqual("aliyun", self.ds.platform)
         self.assertEqual(
             "metadata (http://100.100.100.200)", self.ds.subplatform
         )
@@ -272,31 +366,28 @@ class TestAliYunDatasource(test_helpers.ResponsesTestCase):
             public_keys["key-pair-0"]["openssh-key"],
         )
 
-    def test_route_metric_calculated_without_device_number(self):
-        """Test that route-metric code works without `device-number`
-
-        `device-number` is part of EC2 metadata, but not supported on aliyun.
-        Attempting to access it will raise a KeyError.
-
-        LP: #1917875
-        """
-        netcfg = convert_ec2_metadata_network_config(
+    def test_route_metric_calculated_with_multiple_network_cards(self):
+        """Test that route-metric code works with multiple network cards"""
+        netcfg = convert_ecs_metadata_network_config(
             {
                 "interfaces": {
                     "macs": {
-                        "06:17:04:d7:26:09": {
-                            "interface-id": "eni-e44ef49e",
+                        "00:16:3e:14:59:58": {
+                            "ipv6-gateway": "2408:xxxxx",
+                            "ipv6s": "[2408:xxxxxx]",
+                            "network-interface-id": "eni-bp13i1xxxxx",
                         },
-                        "06:17:04:d7:26:08": {
-                            "interface-id": "eni-e44ef49f",
+                        "00:16:3e:39:43:27": {
+                            "gateway": "172.16.101.253",
+                            "netmask": "255.255.255.0",
+                            "network-interface-id": "eni-bp13i2xxxx",
                         },
                     }
                 }
             },
-            mock.Mock(),
             macs_to_nics={
-                "06:17:04:d7:26:09": "eth0",
-                "06:17:04:d7:26:08": "eth1",
+                "00:16:3e:14:59:58": "eth0",
+                "00:16:3e:39:43:27": "eth1",
             },
         )
 
@@ -313,6 +404,28 @@ class TestAliYunDatasource(test_helpers.ResponsesTestCase):
         assert not {"routing-policy", "routes"}.intersection(
             netcfg["ethernets"]["eth1"].keys()
         )
+
+        # eth0 network meta-data  have ipv6s info, ipv6 should True
+        met0_dhcp6 = netcfg["ethernets"]["eth0"]["dhcp6"]
+        assert met0_dhcp6 is True
+
+        netcfg = convert_ecs_metadata_network_config(
+            {
+                "interfaces": {
+                    "macs": {
+                        "00:16:3e:14:59:58": {
+                            "gateway": "172.16.101.253",
+                            "netmask": "255.255.255.0",
+                            "network-interface-id": "eni-bp13ixxxx",
+                        }
+                    }
+                }
+            },
+            macs_to_nics={"00:16:3e:14:59:58": "eth0"},
+        )
+        met0 = netcfg["ethernets"]["eth0"]
+        # single network card would have no dhcp4-overrides
+        assert "dhcp4-overrides" not in met0
 
 
 class TestIsAliYun(test_helpers.CiTestCase):
