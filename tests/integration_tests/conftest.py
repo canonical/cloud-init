@@ -39,6 +39,11 @@ log = logging.getLogger("integration_testing")
 log.addHandler(logging.StreamHandler(sys.stdout))
 log.setLevel(logging.INFO)
 
+# set log level INFO instead of DEBUG for boto3 and botocore
+# to prevent 1000s of lines of DEBUG log spam that occur during some tests
+logging.getLogger("botocore").setLevel(logging.INFO)
+logging.getLogger("boto3").setLevel(logging.INFO)
+
 platforms: Dict[str, Type[IntegrationCloud]] = {
     "ec2": Ec2Cloud,
     "gce": GceCloud,
