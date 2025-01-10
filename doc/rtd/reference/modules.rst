@@ -64,6 +64,8 @@ Modules
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_mounts/data.yaml
    :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_netplan_nm_patch/data.yaml
+   :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_ntp/data.yaml
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_package_update_upgrade_install/data.yaml
@@ -79,6 +81,12 @@ Modules
 .. datatemplate:yaml:: ../../module-docs/cc_resolv_conf/data.yaml
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_rh_subscription/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_rpi_connect/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_rpi_interfaces/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_rpi_userdata/data.yaml
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_rsyslog/data.yaml
    :template: modules.tmpl
