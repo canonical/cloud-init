@@ -50,6 +50,7 @@ from cloudinit.distros.package_management.package_manager import PackageManager
 from cloudinit.distros.package_management.utils import known_package_managers
 from cloudinit.distros.parsers import hosts
 from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
+from cloudinit.lifecycle import log_with_downgradable_level
 from cloudinit.net import activators, dhcp, renderers
 from cloudinit.net.netops import NetOps
 from cloudinit.net.network_state import parse_net_config_data
@@ -896,10 +897,13 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                     password_key = "passwd"
                     # Only "plain_text_passwd" and "hashed_passwd"
                     # are valid for an existing user.
-                    LOG.warning(
-                        "'passwd' in user-data is ignored for existing "
-                        "user %s",
-                        name,
+                    log_with_downgradable_level(
+                        logger=LOG,
+                        version="24.3",
+                        requested_level=logging.WARNING,
+                        msg="'passwd' in user-data is ignored "
+                        "for existing user %s",
+                        args=(name,),
                     )
 
                 # As no password specified for the existing user in user-data
@@ -937,20 +941,26 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         elif pre_existing_user:
             # Pre-existing user with no existing password and none
             # explicitly set in user-data.
-            LOG.warning(
-                "Not unlocking blank password for existing user %s."
+            log_with_downgradable_level(
+                logger=LOG,
+                version="24.3",
+                requested_level=logging.WARNING,
+                msg="Not unlocking blank password for existing user %s."
                 " 'lock_passwd: false' present in user-data but no existing"
                 " password set and no 'plain_text_passwd'/'hashed_passwd'"
                 " provided in user-data",
-                name,
+                args=(name,),
             )
         else:
             # No password (whether blank or otherwise) explicitly set
-            LOG.warning(
-                "Not unlocking password for user %s. 'lock_passwd: false'"
+            log_with_downgradable_level(
+                logger=LOG,
+                version="24.3",
+                requested_level=logging.WARNING,
+                msg="Not unlocking password for user %s. 'lock_passwd: false'"
                 " present in user-data but no 'passwd'/'plain_text_passwd'/"
                 "'hashed_passwd' provided in user-data",
-                name,
+                args=(name,),
             )
 
         # Configure doas access
