@@ -13,7 +13,7 @@ import re
 import subprocess
 import time
 
-from cloudinit import subp, util
+from cloudinit import signal_handler, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -217,4 +217,7 @@ def run_after_pid_gone(pid, pidcmdline, timeout, condition, func, args):
     except Exception as e:
         fatal("Unexpected Exception when checking condition: %s" % e)
 
-    func(*args)
+    # systemd could kill this process with a signal before it exits
+    # this is expected, so don't crash
+    with signal_handler.suspend_crash():
+        func(*args)

@@ -3,6 +3,7 @@
 Test that the power state config options work as expected.
 """
 
+import re
 import time
 
 import pytest
@@ -52,7 +53,6 @@ def _can_connect(instance):
 # This test is marked unstable because even though it should be able to
 # run anywhere, I can only get it to run in an lxd container, and even then
 # occasionally some timing issues will crop up.
-@pytest.mark.unstable
 @pytest.mark.skipif(not IS_UBUNTU, reason="Only ever tested on Ubuntu")
 @pytest.mark.skipif(
     PLATFORM != "lxd_container",
@@ -64,7 +64,7 @@ class TestPowerChange:
         [
             ("poweroff", "now", "10", "will execute: shutdown -P now msg"),
             ("reboot", "now", "0", "will execute: shutdown -r now msg"),
-            ("halt", "+1", "0", "will execute: shutdown -H +1 msg"),
+            ("halt", "+1", "0", re.escape("will execute: shutdown -H +1 msg")),
         ],
     )
     def test_poweroff(

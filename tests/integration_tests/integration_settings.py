@@ -81,7 +81,7 @@ EXISTING_INSTANCE_ID: Optional[str] = None
 #   Install from a PPA. It MUST start with 'ppa:'
 # <file path>
 #   A path to a valid package to be uploaded and installed
-CLOUD_INIT_SOURCE = "NONE"
+CLOUD_INIT_SOURCE = "IN_PLACE"
 
 # cloud-init metapackage to install
 # Examples: cloud-init, cloud-init-base, cloud-init-smart-os
