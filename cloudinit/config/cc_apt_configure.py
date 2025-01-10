@@ -241,7 +241,7 @@ def apply_debconf_selections(cfg):
     LOG.debug("pkgs_cfgd: %s", pkgs_cfgd)
     need_reconfig = pkgs_cfgd.intersection(pkgs_installed)
 
-    if len(need_reconfig) == 0:
+    if not need_reconfig:
         LOG.debug("no need for reconfig")
         return
 

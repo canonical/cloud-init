@@ -27,7 +27,7 @@ LOG = logging.getLogger(__name__)
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
-    if len(args) != 0:
+    if args:
         locale = args[0]
     else:
         locale = util.get_cfg_option_str(cfg, "locale", cloud.get_locale())

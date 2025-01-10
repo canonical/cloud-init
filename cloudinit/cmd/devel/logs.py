@@ -399,7 +399,7 @@ def collect_logs_cli(
 ) -> None:
     """Handle calls to 'cloud-init collect-logs' as a subcommand."""
     _setup_logger(verbosity)
-    if os.getuid() != 0:
+    if os.getuid():
         raise RuntimeError("This command must be run as root.")
     if include_userdata:
         LOG.warning(

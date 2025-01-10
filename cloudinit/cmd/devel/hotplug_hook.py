@@ -325,7 +325,7 @@ def handle_args(name, args):
                     udevaction=args.udevaction,
                 )
             else:
-                if os.getuid() != 0:
+                if os.getuid():
                     sys.stderr.write(
                         "Root is required. Try prepending your command with"
                         " sudo.\n"

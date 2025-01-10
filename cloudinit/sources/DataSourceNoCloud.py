@@ -167,7 +167,7 @@ class DataSourceNoCloud(sources.DataSource):
 
         # There was no indication on kernel cmdline or data
         # in the seeddir suggesting this handler should be used.
-        if len(found) == 0:
+        if not found:
             return False
 
         # The special argument "seedfrom" indicates we should
