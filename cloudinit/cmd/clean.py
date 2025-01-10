@@ -11,11 +11,10 @@ import glob
 import os
 import sys
 
-from cloudinit import settings
+from cloudinit import settings, stages
 from cloudinit.distros import uses_systemd
 from cloudinit.log import log_util
 from cloudinit.net.netplan import CLOUDINIT_NETPLAN_FILE
-from cloudinit.stages import Init
 from cloudinit.subp import ProcessExecutionError, runparts, subp
 from cloudinit.util import (
     del_dir,
@@ -156,9 +155,9 @@ def remove_artifacts(init, remove_logs, remove_seed=False, remove_config=None):
     return 0
 
 
-def handle_clean_args(name, args):
+def handle_clean_args(_, args):
     """Handle calls to 'cloud-init clean' as a subcommand."""
-    init = Init(ds_deps=[])
+    init = stages.Init(stages.other)
     exit_code = remove_artifacts(
         init, args.remove_logs, args.remove_seed, args.remove_config
     )

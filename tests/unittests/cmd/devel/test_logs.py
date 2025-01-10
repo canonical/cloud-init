@@ -146,7 +146,7 @@ class TestCollectLogs:
         if sys.version_info > (3, 11):
             tar_kwargs = {"filter": "fully_trusted"}
         with tarfile.open(tmp_path / "cloud-init.tar.gz") as tar:
-            tar.extractall(extract_to, **tar_kwargs)  # type: ignore[arg-type]
+            tar.extractall(extract_to, **tar_kwargs)  # type: ignore
         extracted_dir = extract_to / f"cloud-init-logs-{today}"
 
         for name in to_collect:

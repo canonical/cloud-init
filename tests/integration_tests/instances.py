@@ -54,7 +54,7 @@ class CloudInitSource(Enum):
     UPGRADE = 6
 
     def installs_new_version(self):
-        return self.name not in [self.NONE.name, self.IN_PLACE.name]
+        return self not in [self.NONE, self.IN_PLACE]
 
 
 class IntegrationInstance:

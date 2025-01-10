@@ -128,7 +128,7 @@ class DataSourceIBMCloud(sources.DataSource):
         super(DataSourceIBMCloud, self).__init__(sys_cfg, distro, paths)
         self.source = None
         self._network_config = None
-        self.network_json = None
+        self.network_json = {}
         self.platform = None
 
     def __str__(self):
@@ -145,7 +145,7 @@ class DataSourceIBMCloud(sources.DataSource):
         self.platform = results["platform"]
         self.metadata = results["metadata"]
         self.userdata_raw = results.get("userdata")
-        self.network_json = results.get("networkdata")
+        self.network_json = results.get("networkdata", {})
         vd = results.get("vendordata")
         self.system_uuid = results["system-uuid"]
         try:
