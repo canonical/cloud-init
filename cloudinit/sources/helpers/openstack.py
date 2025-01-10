@@ -496,7 +496,7 @@ class MetadataReader(BaseReader):
         def should_retry_cb(_request_args, cause):
             try:
                 code = int(cause.code)
-                if code not in [408, 429, 500, 502, 503, 504]:
+                if code >= 400 and code not in [408, 429, 500, 502, 503, 504]:
                     return False
             except (TypeError, ValueError):
                 # Older versions of requests didn't have a code.
