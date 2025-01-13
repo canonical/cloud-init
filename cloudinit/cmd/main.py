@@ -344,7 +344,7 @@ def _should_wait_via_user_data(
             version="24.4",
             requested_level=logging.WARNING,
             msg="Unexpected failure parsing userdata: %s",
-            args=e,
+            args=(e,),
         )
         return True, "failed to parse user data as yaml"
 

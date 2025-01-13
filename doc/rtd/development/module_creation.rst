@@ -51,7 +51,7 @@ definition in `cloud-init-schema.json`_.
     - ``ONCE``: Runs only on first boot.
     - ``PER_INSTANCE``: Runs once per instance. When exactly this happens
       is dependent on the datasource, but may be triggered any time there
-      would be a significant change to the instance metadata. An example
+      would be a significant change to the instance-data. An example
       could be an instance being moved to a different subnet.
 
   - ``activate_by_schema_keys``: Optional list of cloud-config keys that will

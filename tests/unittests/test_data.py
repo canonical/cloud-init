@@ -14,7 +14,6 @@ from pathlib import Path
 from unittest import mock
 
 import pytest
-import requests
 import responses
 
 from cloudinit import handlers
@@ -742,9 +741,7 @@ class TestConsumeUserDataHttp:
         responses.add(
             responses.GET,
             bad_url,
-            body=requests.HTTPError(
-                f"403 Client Error: Forbidden for url: {bad_url}"
-            ),
+            body="forbidden",
             status=403,
         )
 

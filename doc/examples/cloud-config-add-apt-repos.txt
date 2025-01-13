@@ -6,7 +6,7 @@
 # Additional apt configuration and repositories section.
 #
 #
-# Default: auto select based on cloud metadata
+# Default: auto select based on instance-data
 #  in ec2, the default is <region>.archive.ubuntu.com
 # apt:
 #   primary:
@@ -24,7 +24,7 @@
 #
 # if no mirror is provided by the DataSource, but 'search_dns' is
 # true, then search for dns names '<distro>-mirror' in each of
-# - fqdn of this host per cloud metadata
+# - fqdn of this host per meta-data
 # - localdomain
 # - no domain (which would search domains listed in /etc/resolv.conf)
 # If there is a dns entry for <distro>-mirror, then it is assumed that there
