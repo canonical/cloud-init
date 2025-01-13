@@ -10,6 +10,7 @@ from cloudinit import signal_handler
 
 REENTRANT = "reentrant"
 
+
 class TestSignalHandler:
 
     @pytest.mark.parametrize(
@@ -42,8 +43,7 @@ class TestSignalHandler:
                 with signal_handler.suspend_crash():
                     signal_handler._handle_exit(sig, frame)
             elif suspended == REENTRANT:
-                with signal_handler.suspend_crash(
-                    ), signal_handler.suspend_crash():
+                with signal_handler.suspend_crash(), signal_handler.suspend_crash():
                     signal_handler._handle_exit(sig, frame)
             else:
                 signal_handler._handle_exit(sig, frame)
