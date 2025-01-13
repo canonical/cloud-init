@@ -51,7 +51,7 @@ def inspect_handler(sig: Union[int, Callable, None]) -> None:
         LOG.info("Signal state [SIG_IGN] - previously ignored.")
     elif sig is None:
         LOG.info("Signal state [None] - previously not installed from Python.")
-    elif sig != signal.SIG_DFL:
+    elif sig == signal.SIG_DFL:
         LOG.info(
             "Signal state [%s] - default way of handling signal was "
             "previously in use.",
