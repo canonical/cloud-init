@@ -7,10 +7,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import contextlib
 import inspect
-import threading
 import logging
 import signal
 import sys
+import threading
 import types
 from io import StringIO
 from typing import Callable, Dict, Final, NamedTuple, Union

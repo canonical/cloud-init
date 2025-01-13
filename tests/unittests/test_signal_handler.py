@@ -43,8 +43,9 @@ class TestSignalHandler:
                 with signal_handler.suspend_crash():
                     signal_handler._handle_exit(sig, frame)
             elif suspended == REENTRANT:
-                with signal_handler.suspend_crash(), signal_handler.suspend_crash():
-                    signal_handler._handle_exit(sig, frame)
+                with signal_handler.suspend_crash():
+                    with signal_handler.suspend_crash():
+                        signal_handler._handle_exit(sig, frame)
             else:
                 signal_handler._handle_exit(sig, frame)
         m_exit.assert_called_with(rc)
