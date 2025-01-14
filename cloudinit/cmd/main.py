@@ -348,6 +348,9 @@ def _should_wait_via_user_data(
         )
         return True, "failed to parse user data as yaml"
 
+    if not isinstance(parsed_yaml, dict):
+        return True, "parsed config not in cloud-config format"
+
     # These all have the potential to require network access, so we should wait
     if "write_files" in parsed_yaml:
         for item in parsed_yaml["write_files"]:
