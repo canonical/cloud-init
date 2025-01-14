@@ -2,7 +2,6 @@
 # pylint: disable=attribute-defined-outside-init
 
 import logging
-import re
 from functools import partial
 from threading import Event
 from time import process_time
