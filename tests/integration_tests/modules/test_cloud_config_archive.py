@@ -16,6 +16,7 @@ USER_DATA = """\
 """
 
 
+@pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
 def test_cloud_config_archive(client: IntegrationInstance):
     """Basic correctness test for #cloud-config-archive."""
