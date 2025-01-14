@@ -983,7 +983,6 @@ def wait_for_url(
                 # We've already exceeded our max_wait. Time to bail.
                 break
 
-    LOG.error("Timed out, no response from urls: %s", urls)
     return False, None
 
 

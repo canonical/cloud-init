@@ -326,6 +326,7 @@ class DataSourceEc2(sources.DataSource):
 
         # If we get here, then wait_for_url timed out, waiting for IMDS
         # or the IMDS HTTP endpoint is disabled
+        LOG.error("Unable to get response from urls: %s", urls)
         return None
 
     def wait_for_metadata_service(self):
