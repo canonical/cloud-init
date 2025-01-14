@@ -1,4 +1,4 @@
-cloud-init (25.1~2g4ee65391-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (25.1~2g4ee65391-0ubuntu1) plucky; urgency=medium
 
   * d/cloud-init-base.templates: Move VMware before OVF
     See GH-4030 and LP: #1992509
@@ -8,7 +8,7 @@ cloud-init (25.1~2g4ee65391-0ubuntu1) UNRELEASED; urgency=medium
     - Bugs fixed in this snapshot: 
       (LP: #2094179, #2094208, #2094857, #2094858) 
 
- -- James Falcon <james.falcon@canonical.com>  Tue, 14 Jan 2025 13:39:57 -0600
+ -- James Falcon <james.falcon@canonical.com>  Tue, 14 Jan 2025 14:10:49 -0600
 
 cloud-init (24.4-0ubuntu1) plucky; urgency=medium
 
