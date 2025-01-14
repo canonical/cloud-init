@@ -2,6 +2,8 @@ cloud-init (25.1~2g4ee65391-0ubuntu1) UNRELEASED; urgency=medium
 
   * d/cloud-init-base.templates: Move VMware before OVF
     See GH-4030 and LP: #1992509
+  * d/cloud-init-base.lintian-overrides: Update lintian
+    warnings to use /usr/lib rather than /lib
   * Upstream snapshot based on upstream/main at 4ee65391.
     - Bugs fixed in this snapshot: 
       (LP: #2094179, #2094208, #2094857, #2094858) 
