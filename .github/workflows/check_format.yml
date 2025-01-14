@@ -104,11 +104,3 @@ jobs:
       - name: Run ShellCheck
         run: |
           shellcheck ./tools/ds-identify
-
-  check-cla-signers:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Check CLA signers file
-        run: tools/check-cla-signers
