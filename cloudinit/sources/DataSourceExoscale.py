@@ -67,6 +67,7 @@ class DataSourceExoscale(sources.DataSource):
             timeout=self.url_timeout,
             status_cb=LOG.critical,
         )
+        LOG.error("Unable to get response from url: %s", metadata_url)
 
         return bool(url)
 

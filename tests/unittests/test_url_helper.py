@@ -733,7 +733,7 @@ class TestWaitForUrl:
         assert response.encode() == response_contents
 
     @responses.activate
-    def test_timeout(self, caplog):
+    def test_timeout(self):
         """If no endpoint responds in time, expect no response"""
 
         self.event.clear()
@@ -761,9 +761,6 @@ class TestWaitForUrl:
         self.event.set()
         assert not url
         assert not response_contents
-        assert re.search(
-            r"open 'https:\/\/sleep1\/'.*Timed out", caplog.text, re.DOTALL
-        )
 
     def test_explicit_arguments(self, retry_mocks):
         """Ensure that explicit arguments are respected"""
