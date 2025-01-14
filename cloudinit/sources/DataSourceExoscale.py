@@ -67,7 +67,6 @@ class DataSourceExoscale(sources.DataSource):
             timeout=self.url_timeout,
             status_cb=LOG.critical,
         )
-        LOG.error("Unable to get response from url: %s", metadata_url)
 
         return bool(url)
 
@@ -80,6 +79,7 @@ class DataSourceExoscale(sources.DataSource):
         metadata_ready = self.wait_for_metadata_service()
 
         if not metadata_ready:
+            LOG.error("Unable to get response from metadata service")
             return {}
 
         return read_metadata(
