@@ -330,8 +330,10 @@ def _should_wait_via_user_data(
     if not raw_config:
         return False, "no configuration found"
 
+    # Since this could be some arbitrarily large blob of binary data,
+    # such as a gzipped file, only grab enough to inspect the header.
     # Since we can get a header like #cloud-config-archive, make sure
-    # we grab enough text to correctly distinguish our type
+    # we grab enough to not be incorrectly identified as cloud-config.
     if (
         handlers.type_from_starts_with(raw_config.strip()[:42])
         != "text/cloud-config"
