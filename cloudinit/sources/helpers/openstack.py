@@ -493,7 +493,7 @@ class MetadataReader(BaseReader):
         return self._versions
 
     def _path_read(self, path, decode=False):
-        def should_retry_cb(_request_args, cause):
+        def should_retry_cb(cause):
             try:
                 code = int(cause.code)
                 if code >= 400:
