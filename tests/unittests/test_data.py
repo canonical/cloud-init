@@ -516,6 +516,7 @@ c: 4
                 "DEPRECATION_INFO_BOUNDARY": "devel",
                 "NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH": False,
                 "APT_DEB822_SOURCE_LIST_FILE": True,
+                "MANUAL_NETWORK_WAIT": True,
             },
             "system_info": {
                 "default_user": {"name": "ubuntu"},
