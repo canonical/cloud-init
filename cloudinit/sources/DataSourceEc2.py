@@ -14,7 +14,7 @@ import os
 import time
 import uuid
 from contextlib import suppress
-from typing import Dict, List
+from typing import Dict, List, Literal
 
 from cloudinit import dmi, net, sources
 from cloudinit import url_helper as uhelp
@@ -310,7 +310,7 @@ class DataSourceEc2(sources.DataSource):
                 timeout=url_params.timeout_seconds,
                 status_cb=LOG.warning,
                 headers_cb=self._get_headers,
-                exception_cb=self._imds_exception_cb,
+                exception_cb=self._token_exception_cb,
                 request_method=request_method,
                 headers_redact=self.imdsv2_token_redact,
                 connect_synchronously=False,
@@ -326,6 +326,7 @@ class DataSourceEc2(sources.DataSource):
 
         # If we get here, then wait_for_url timed out, waiting for IMDS
         # or the IMDS HTTP endpoint is disabled
+        LOG.error("Unable to get response from urls: %s", urls)
         return None
 
     def wait_for_metadata_service(self):
@@ -622,25 +623,27 @@ class DataSourceEc2(sources.DataSource):
             return None
         return response.contents
 
-    def _skip_or_refresh_stale_aws_token_cb(self, msg, exception):
+    def _skip_or_refresh_stale_aws_token_cb(
+        self, exception: uhelp.UrlError
+    ) -> bool:
         """Callback will not retry on SKIP_USERDATA_CODES or if no token
         is available."""
-        retry = ec2.skip_retry_on_codes(
-            ec2.SKIP_USERDATA_CODES, msg, exception
-        )
+        retry = ec2.skip_retry_on_codes(ec2.SKIP_USERDATA_CODES, exception)
         if not retry:
             return False  # False raises exception
-        return self._refresh_stale_aws_token_cb(msg, exception)
+        return self._refresh_stale_aws_token_cb(exception)
 
-    def _refresh_stale_aws_token_cb(self, msg, exception):
+    def _refresh_stale_aws_token_cb(
+        self, exception: uhelp.UrlError
+    ) -> Literal[True]:
         """Exception handler for Ec2 to refresh token if token is stale."""
-        if isinstance(exception, uhelp.UrlError) and exception.code == 401:
+        if exception.code == 401:
             # With _api_token as None, _get_headers will _refresh_api_token.
             LOG.debug("Clearing cached Ec2 API token due to expiry")
             self._api_token = None
         return True  # always retry
 
-    def _imds_exception_cb(self, msg, exception=None):
+    def _token_exception_cb(self, exception: uhelp.UrlError) -> bool:
         """Fail quickly on proper AWS if IMDSv2 rejects API token request
 
         Guidance from Amazon is that if IMDSv2 had disabled token requests
@@ -653,19 +656,23 @@ class DataSourceEc2(sources.DataSource):
         temporarily unroutable or unavailable will still retry due to the
         callsite wait_for_url.
         """
-        if isinstance(exception, uhelp.UrlError):
+        if exception.code:
             # requests.ConnectionError will have exception.code == None
-            if exception.code and exception.code >= 400:
-                if exception.code == 403:
-                    LOG.warning(
-                        "Ec2 IMDS endpoint returned a 403 error. "
-                        "HTTP endpoint is disabled. Aborting."
-                    )
-                else:
-                    LOG.warning(
-                        "Fatal error while requesting Ec2 IMDSv2 API tokens"
-                    )
-                raise exception
+            if exception.code == 403:
+                LOG.warning(
+                    "Ec2 IMDS endpoint returned a 403 error. "
+                    "HTTP endpoint is disabled. Aborting."
+                )
+                return False
+            elif exception.code == 503:
+                # Let the global handler deal with it
+                return False
+            elif exception.code >= 400:
+                LOG.warning(
+                    "Fatal error while requesting Ec2 IMDSv2 API tokens"
+                )
+                return False
+        return True
 
     def _get_headers(self, url=""):
         """Return a dict of headers for accessing a url.
