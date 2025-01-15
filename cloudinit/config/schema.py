@@ -1461,6 +1461,26 @@ def handle_schema_args(name, args):
         )
 
 
+def get_meta_doc(*_args, **_kwargs) -> str:
+    """Provide a stub for backwards compatibility.
+
+    This function is no longer used, but earlier versions of modules
+    required this function for documentation purposes. This is a stub so
+    that custom modules do not break on upgrade.
+    """
+    lifecycle.log_with_downgradable_level(
+        logger=LOG,
+        version="24.4",
+        requested_level=logging.WARNING,
+        msg=(
+            "The 'get_meta_doc()' function is deprecated and will be removed "
+            "in a future version of cloud-init."
+        ),
+        args=(),
+    )
+    return ""
+
+
 def main():
     """Tool to validate schema of a cloud-config file or print schema docs."""
     parser = get_parser()

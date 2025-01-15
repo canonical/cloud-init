@@ -18,6 +18,19 @@ MyArgs = namedtuple(
 )
 
 
+CLOUD_CONFIG_ARCHIVE = """\
+#cloud-config-archive
+- type: "text/cloud-boothook"
+  content: |
+    #!/bin/sh
+    echo "this is from a boothook." > /var/tmp/boothook.txt
+- type: "text/cloud-config"
+  content: |
+    bootcmd:
+    - echo "this is from a cloud-config." > /var/tmp/bootcmd.txt
+"""
+
+
 EXTRA_CLOUD_CONFIG = """\
 #cloud-config
 write_files
@@ -264,6 +277,8 @@ class TestMain:
             ),
             # Not parseable as yaml
             (mock.Mock(), "#cloud-config\nbootcmd:\necho hello", True),
+            # Yaml that parses to list
+            (mock.Mock(), CLOUD_CONFIG_ARCHIVE, True),
             # Non-cloud-config
             (mock.Mock(), "#!/bin/bash\n  - echo hello", True),
             # Something that after processing won't decode to utf-8
