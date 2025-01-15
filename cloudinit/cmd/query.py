@@ -261,7 +261,7 @@ def _find_instance_data_leaf_by_varname_path(
     return response
 
 
-def handle_args(name, args):
+def handle_args(_, args):
     """Handle calls to 'cloud-init query' as a subcommand."""
     if not any([args.list_keys, args.varname, args.format, args.dump_all]):
         LOG.error(

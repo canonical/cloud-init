@@ -196,7 +196,7 @@ def config_from_klibc_net_cfg(files=None, mac_addrs=None):
         files = _get_klibc_net_cfg_files()
 
     entries = []
-    names = {}
+    names: dict = {}
     for cfg_file in files:
         name, entry = _klibc_to_config_entry(
             util.load_text_file(cfg_file), mac_addrs=mac_addrs

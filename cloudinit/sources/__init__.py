@@ -16,7 +16,17 @@ import os
 import pickle
 import re
 from enum import Enum, unique
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
+from typing import (
+    Any,
+    Dict,
+    Final,
+    List,
+    Literal,
+    NamedTuple,
+    Optional,
+    Tuple,
+    Union,
+)
 
 from cloudinit import (
     atomic_helper,
@@ -37,36 +47,45 @@ from cloudinit.helpers import Paths
 from cloudinit.persistence import CloudInitPickleMixin
 from cloudinit.reporting import events
 
-DSMODE_DISABLED = "disabled"
-DSMODE_LOCAL = "local"
-DSMODE_NETWORK = "net"
-DSMODE_PASS = "pass"
+DsMode = Literal["disabled", "local", "net", "pass"]
+DSMODE_DISABLED: Final[DsMode] = "disabled"
+DSMODE_LOCAL: Final[DsMode] = "local"
+DSMODE_NETWORK: Final[DsMode] = "net"
+DSMODE_PASS: Final[DsMode] = "pass"
 
 VALID_DSMODES = [DSMODE_DISABLED, DSMODE_LOCAL, DSMODE_NETWORK]
 
-DEP_FILESYSTEM = "FILESYSTEM"
-DEP_NETWORK = "NETWORK"
-DS_PREFIX = "DataSource"
+# DEP_FILESYSTEM and DEP_NETWORK are part of an abstraction that was never
+# fully realized and has unnecessary complexity.
+#
+# [DEP_FILESYSTEM]              - this means Local stage
+# [DEP_FILESYSTEM, DEP_NETWORK] - this means Network stage
+#
+# XXX: TODO - simplify this logic
+Deps = Literal["FILESYSTEM", "NETWORK"]
+DEP_FILESYSTEM: Deps = "FILESYSTEM"
+DEP_NETWORK: Deps = "NETWORK"
+DS_PREFIX: Final = "DataSource"
 
-EXPERIMENTAL_TEXT = (
+EXPERIMENTAL_TEXT: Final = (
     "EXPERIMENTAL: The structure and format of content scoped under the 'ds'"
     " key may change in subsequent releases of cloud-init."
 )
 
 
-REDACT_SENSITIVE_VALUE = "redacted for non-root user"
+REDACT_SENSITIVE_VALUE: Final = "redacted for non-root user"
 
 # Key which can be provide a cloud's official product name to cloud-init
-METADATA_CLOUD_NAME_KEY = "cloud-name"
+METADATA_CLOUD_NAME_KEY: Final = "cloud-name"
 
-UNSET = "_unset"
-METADATA_UNKNOWN = "unknown"
+UNSET: Final[dict] = {}
+METADATA_UNKNOWN: Final = "unknown"
 
 LOG = logging.getLogger(__name__)
 
 # CLOUD_ID_REGION_PREFIX_MAP format is:
 #  <region-match-prefix>: (<new-cloud-id>: <test_allowed_cloud_callable>)
-CLOUD_ID_REGION_PREFIX_MAP = {
+CLOUD_ID_REGION_PREFIX_MAP: Final = {
     "cn-": ("aws-china", lambda c: c == "aws"),  # only change aws regions
     "us-gov-": ("aws-gov", lambda c: c == "aws"),  # only change aws regions
     "china": ("azure-china", lambda c: c == "azure"),  # only change azure
@@ -190,7 +209,7 @@ class DataSourceHostname(NamedTuple):
 
 class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
-    dsmode = DSMODE_NETWORK
+    dsmode: DsMode = DSMODE_NETWORK
     default_locale = "en_US.UTF-8"
 
     # Datasource name needs to be set by subclasses to determine which
@@ -208,7 +227,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     #  - seed-dir (<dirname>)
     _subplatform = None
 
-    _crawled_metadata: Optional[Union[Dict, str]] = None
+    _crawled_metadata: Optional[Dict] = None
 
     # The network configuration sources that should be considered for this data
     # source.  (The first source in this list that provides network
@@ -328,7 +347,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         self.vendordata_raw = None
         self.vendordata2_raw = None
         self.metadata_address: Optional[str] = None
-        self.network_json: Optional[str] = UNSET
+        self.network_json = UNSET
         self.ec2_metadata = UNSET
 
         self.ds_cfg = util.get_cfg_by_path(
@@ -1006,7 +1025,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
 
 def normalize_pubkey_data(pubkey_data):
-    keys = []
+    keys: List[str] = []
 
     if not pubkey_data:
         return keys
