@@ -56,6 +56,9 @@ class TestBoothook:
     ):
         """Test boothook handling waits for network before running."""
         client = class_client
-        assert network_wait_logged(
-            client.read_from_file("/var/log/cloud-init.log")
-        ) == features.MANUAL_NETWORK_WAIT
+        assert (
+            network_wait_logged(
+                client.read_from_file("/var/log/cloud-init.log")
+            )
+            == features.MANUAL_NETWORK_WAIT
+        )
