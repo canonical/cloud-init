@@ -87,6 +87,17 @@ On Debian and Ubuntu systems, cc_apt_configure will write a deb822 compatible
 to write /etc/apt/sources.list directly.
 """
 
+MANUAL_NETWORK_WAIT = True
+"""
+On Ubuntu systems, cloud-init-network.service will start immediately after
+cloud-init-local.service and manually wait for network online when necessary.
+If False, rely on systemd ordering to ensure network is available before
+starting cloud-init-network.service.
+
+Note that in addition to this flag, downstream patches are also likely needed
+to modify the systemd unit files.
+"""
+
 DEPRECATION_INFO_BOUNDARY = "devel"
 """
 DEPRECATION_INFO_BOUNDARY is used by distros to configure at which upstream
