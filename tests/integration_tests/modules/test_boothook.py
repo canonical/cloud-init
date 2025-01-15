@@ -3,6 +3,7 @@ import re
 
 import pytest
 
+from cloudinit import features
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import (
     network_wait_logged,
@@ -55,6 +56,9 @@ class TestBoothook:
     ):
         """Test boothook handling waits for network before running."""
         client = class_client
-        assert network_wait_logged(
-            client.read_from_file("/var/log/cloud-init.log")
+        assert (
+            network_wait_logged(
+                client.read_from_file("/var/log/cloud-init.log")
+            )
+            == features.MANUAL_NETWORK_WAIT
         )
