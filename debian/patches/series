@@ -12,3 +12,4 @@ no-single-process.patch
 no-nocloud-network.patch
 grub-dpkg-support.patch
 cpick-84806336-chore-Add-feature-flag-for-manual-network-waiting
+no-remove-networkd-online.patch
