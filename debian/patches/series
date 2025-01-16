@@ -15,3 +15,4 @@ no-single-process.patch
 drop-unsupported-systemd-condition-environment.patch
 no-nocloud-network.patch
 grub-dpkg-support.patch
+no-remove-networkd-online.patch
