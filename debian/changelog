@@ -1,5 +1,8 @@
 cloud-init (24.4.1-0ubuntu0~24.04.1) UNRELEASED; urgency=medium
 
+  * Add d/p/cpick-84806336-chore-Add-feature-flag-for-manual-network-waiting
+    - Pull in the upstream commit that makes it easier to patch out the
+      new systemd-networkd-wait-online behavior in e30549e8
   * Upstream snapshot based on 24.4.1.
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/24.4.1/ChangeLog
