@@ -1,0 +1,41 @@
+Description: Remove changes to networkd-online dependency
+ The original change can cause failures on instances that have
+ changes to the default systemd service ordering or a complex
+ network setup, so we want to patch this behavior out.
+Author: James Falcon <james.falcon@canonical.com>
+Bug: https://bugs.launchpad.net/ubuntu/+source/cloud-init/+bug/2094149
+Last-Update: 2025-01-16
+--- a/cloudinit/features.py
++++ b/cloudinit/features.py
+@@ -87,7 +87,7 @@ On Debian and Ubuntu systems, cc_apt_con
+ to write /etc/apt/sources.list directly.
+ """
+ 
+-MANUAL_NETWORK_WAIT = True
++MANUAL_NETWORK_WAIT = False
+ """
+ On Ubuntu systems, cloud-init-network.service will start immediately after
+ cloud-init-local.service and manually wait for network online when necessary.
+--- a/systemd/cloud-init.service.tmpl
++++ b/systemd/cloud-init.service.tmpl
+@@ -9,9 +9,7 @@ Wants=cloud-init-local.service
+ Wants=sshd-keygen.service
+ Wants=sshd.service
+ After=cloud-init-local.service
+-{% if variant not in ["ubuntu"] %}
+ After=systemd-networkd-wait-online.service
+-{% endif %}
+ {% if variant in ["ubuntu", "unknown", "debian"] %}
+ After=networking.service
+ {% endif %}
+--- a/tests/unittests/test_data.py
++++ b/tests/unittests/test_data.py
+@@ -516,7 +516,7 @@ c: 4
+                 "DEPRECATION_INFO_BOUNDARY": "devel",
+                 "NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH": False,
+                 "APT_DEB822_SOURCE_LIST_FILE": True,
+-                "MANUAL_NETWORK_WAIT": True,
++                "MANUAL_NETWORK_WAIT": False,
+             },
+             "system_info": {
+                 "default_user": {"name": "ubuntu"},
