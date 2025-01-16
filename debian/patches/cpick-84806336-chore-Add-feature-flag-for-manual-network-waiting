@@ -25,7 +25,7 @@ Controls the behavior added in e30549e for easier downstream patching
  from cloudinit import signal_handler
  from cloudinit import sources
  from cloudinit import socket
-@@ -491,7 +491,9 @@ def main_init(name, args):
+@@ -486,7 +486,9 @@ def main_init(name, args):
      mode = sources.DSMODE_LOCAL if args.local else sources.DSMODE_NETWORK
  
      if mode == sources.DSMODE_NETWORK:
@@ -36,7 +36,7 @@ Controls the behavior added in e30549e for easier downstream patching
              LOG.debug("Will wait for network connectivity before continuing")
              init.distro.wait_for_network()
          existing = "trust"
-@@ -565,20 +567,21 @@ def main_init(name, args):
+@@ -560,20 +562,21 @@ def main_init(name, args):
      init.apply_network_config(bring_up=bring_up_interfaces)
  
      if mode == sources.DSMODE_LOCAL:
@@ -89,7 +89,7 @@ Controls the behavior added in e30549e for easier downstream patching
 +to modify the systemd unit files.
 +"""
 +
- DEPRECATION_INFO_BOUNDARY = "22.1"
+ DEPRECATION_INFO_BOUNDARY = "24.1"
  """
  DEPRECATION_INFO_BOUNDARY is used by distros to configure at which upstream
 --- a/tests/integration_tests/datasources/test_nocloud.py
@@ -142,7 +142,7 @@ Controls the behavior added in e30549e for easier downstream patching
  from cloudinit.cmd import main
  from cloudinit.util import ensure_dir, load_text_file, write_file
  
-@@ -367,7 +367,7 @@ class TestMain:
+@@ -363,7 +363,7 @@ class TestMain:
              skip_log_setup=False,
          )
          main.main_init("init", cmdargs)
