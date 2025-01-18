@@ -16,11 +16,11 @@ def pkg_config_read(library: str, var: str) -> str:
     fallbacks = {
         "systemd": {
             "systemdsystemconfdir": "/etc/systemd/system",
-            "systemdsystemunitdir": "/lib/systemd/system",
-            "systemdsystemgeneratordir": "/lib/systemd/system-generators",
+            "systemdsystemunitdir": "/usr/lib/systemd/system",
+            "systemdsystemgeneratordir": "/usr/lib/systemd/system-generators",
         },
         "udev": {
-            "udevdir": "/lib/udev",
+            "udevdir": "/usr/lib/udev",
         },
     }
     cmd = ["pkg-config", f"--variable={var}", library]

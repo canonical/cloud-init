@@ -7,5 +7,5 @@ cc_disable_ec2_metadata:
   - comment: |
       Example 1:
     file: cc_disable_ec2_metadata/example1.yaml
-  name: Disable EC2 Metadata
-  title: Disable AWS EC2 Metadata
+  name: Disable EC2 Instance Metadata Service
+  title: Disable AWS EC2 Instance Metadata Service

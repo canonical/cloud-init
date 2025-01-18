@@ -896,12 +896,15 @@ class TestConvertNetworkData(CiTestCase):
 
     def test_convert_raises_value_error_on_missing_name(self):
         macs = {"aa:aa:aa:aa:aa:00": "ens1"}
-        self.assertRaises(
-            ValueError,
-            openstack.convert_net_json,
-            NETWORK_DATA,
-            known_macs=macs,
-        )
+        with mock.patch(
+            "cloudinit.sources.helpers.openstack.util.udevadm_settle"
+        ):
+            self.assertRaises(
+                ValueError,
+                openstack.convert_net_json,
+                NETWORK_DATA,
+                known_macs=macs,
+            )
 
     def test_conversion_with_route(self):
         ncfg = openstack.convert_net_json(

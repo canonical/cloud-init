@@ -14,7 +14,6 @@ from pathlib import Path
 from unittest import mock
 
 import pytest
-import requests
 import responses
 
 from cloudinit import handlers
@@ -517,6 +516,7 @@ c: 4
                 "DEPRECATION_INFO_BOUNDARY": "devel",
                 "NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH": False,
                 "APT_DEB822_SOURCE_LIST_FILE": True,
+                "MANUAL_NETWORK_WAIT": True,
             },
             "system_info": {
                 "default_user": {"name": "ubuntu"},
@@ -742,9 +742,7 @@ class TestConsumeUserDataHttp:
         responses.add(
             responses.GET,
             bad_url,
-            body=requests.HTTPError(
-                f"403 Client Error: Forbidden for url: {bad_url}"
-            ),
+            body="forbidden",
             status=403,
         )
 
