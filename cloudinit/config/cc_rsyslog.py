@@ -246,6 +246,7 @@ class SyslogRemotesLine:
         self.proto = proto
 
         self.addr = addr
+        self.port = int(port) if port else None
         if port:
             self.port = int(port)
         else:
@@ -284,7 +285,7 @@ class SyslogRemotesLine:
         else:
             buf += self.addr
 
-        if self.port:
+        if self.port is not None:
             buf += ":%s" % self.port
 
         if self.name:

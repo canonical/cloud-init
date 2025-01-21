@@ -5,7 +5,7 @@
 import json
 import logging
 import re
-from typing import Any, List
+from typing import Any, Dict, List
 from urllib.parse import urlparse
 
 from cloudinit import performance, subp, util
@@ -196,6 +196,7 @@ def configure_pro(token, enable=None):
 
     try:
         enable_resp = json.loads(enable_stdout)
+        handle_enable_errors(enable_resp)
     except json.JSONDecodeError as e:
         raise RuntimeError(
             f"Pro response was not json: {enable_stdout}"
@@ -225,7 +226,10 @@ def configure_pro(token, enable=None):
     # related. We can distinguish them by checking if `service` is non-null
     # or null respectively.
 
-    enable_errors: List[dict] = []
+
+def handle_enable_errors(enable_resp: Dict[str, Any]):
+
+    enable_errors: List[Dict[str, Any]] = []
     for err in enable_resp.get("errors", []):
         if err["message_code"] == "service-already-enabled":
             LOG.debug("Service `%s` already enabled.", err["service"])
