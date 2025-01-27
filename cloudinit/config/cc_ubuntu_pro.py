@@ -197,10 +197,14 @@ def configure_pro(token, enable=None):
     try:
         enable_resp = json.loads(enable_stdout)
         handle_enable_errors(enable_resp)
+
     except json.JSONDecodeError as e:
         raise RuntimeError(
             f"Pro response was not json: {enable_stdout}"
         ) from e
+
+
+def handle_enable_errors(enable_resp: Dict[str, Any]):
 
     # At this point we were able to load the json response from Pro. This
     # response contains a list of errors under the key 'errors'. E.g.
@@ -225,9 +229,6 @@ def configure_pro(token, enable=None):
     # From our pov there are two type of errors, service and non-service
     # related. We can distinguish them by checking if `service` is non-null
     # or null respectively.
-
-
-def handle_enable_errors(enable_resp: Dict[str, Any]):
 
     enable_errors: List[Dict[str, Any]] = []
     for err in enable_resp.get("errors", []):
