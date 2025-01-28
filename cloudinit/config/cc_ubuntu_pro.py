@@ -5,7 +5,7 @@
 import json
 import logging
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 from urllib.parse import urlparse
 
 from cloudinit import performance, subp, util
@@ -204,53 +204,61 @@ def configure_pro(token, enable=None):
         ) from e
 
 
-def handle_enable_errors(enable_resp: Dict[str, Any]):
+def handle_enable_errors(enable_resp: Union[List[Any], Dict[str, Any]]):
+    if isinstance(enable_resp, list):
+        LOG.warning(
+            "Unexpected list response from pro enable: %s", enable_resp
+        )
+        return
+    elif isinstance(enable_resp, dict) and "errors" in enable_resp:
+        # At this point we were able to load the json response from Pro. This
+        # response contains a list of errors under the key 'errors'. E.g.
+        #
+        #   {
+        #      "errors": [
+        #        {
+        #           "message": "UA Apps: ESM is already enabled ...",
+        #           "message_code": "service-already-enabled",
+        #           "service": "esm-apps",
+        #           "type": "service"
+        #        },
+        #        {
+        #           "message": "Cannot enable unknown service 'asdf' ...",
+        #           "message_code": "invalid-service-or-failure",
+        #           "service": null,
+        #           "type": "system"
+        #        }
+        #      ]
+        #   }
+        #
+        # From our pov there are two type of errors, service and non-service
+        # related. We can distinguish them by checking if `service` is non-null
+        # or null respectively.
+        enable_errors: List[Dict[str, Any]] = []
+        for err in enable_resp.get("errors", []):
+            if err["message_code"] == "service-already-enabled":
+                LOG.debug("Service `%s` already enabled.", err["service"])
+                continue
+            enable_errors.append(err)
 
-    # At this point we were able to load the json response from Pro. This
-    # response contains a list of errors under the key 'errors'. E.g.
-    #
-    #   {
-    #      "errors": [
-    #        {
-    #           "message": "UA Apps: ESM is already enabled ...",
-    #           "message_code": "service-already-enabled",
-    #           "service": "esm-apps",
-    #           "type": "service"
-    #        },
-    #        {
-    #           "message": "Cannot enable unknown service 'asdf' ...",
-    #           "message_code": "invalid-service-or-failure",
-    #           "service": null,
-    #           "type": "system"
-    #        }
-    #      ]
-    #   }
-    #
-    # From our pov there are two type of errors, service and non-service
-    # related. We can distinguish them by checking if `service` is non-null
-    # or null respectively.
+        if enable_errors:
+            error_services: List[str] = []
+            for err in enable_errors:
+                service = err.get("service")
+                if service is not None:
+                    error_services.append(service)
+                    msg = f'Failure enabling `{service}`: {err["message"]}'
+                else:
+                    msg = f'Failure of type `{err["type"]}`: {err["message"]}'
+                util.logexc(LOG, msg)
 
-    enable_errors: List[Dict[str, Any]] = []
-    for err in enable_resp.get("errors", []):
-        if err["message_code"] == "service-already-enabled":
-            LOG.debug("Service `%s` already enabled.", err["service"])
-            continue
-        enable_errors.append(err)
-
-    if enable_errors:
-        error_services: List[str] = []
-        for err in enable_errors:
-            service = err.get("service")
-            if service is not None:
-                error_services.append(service)
-                msg = f'Failure enabling `{service}`: {err["message"]}'
-            else:
-                msg = f'Failure of type `{err["type"]}`: {err["message"]}'
-            util.logexc(LOG, msg)
-
-        raise RuntimeError(
-            "Failure enabling Ubuntu Pro service(s): "
-            + ", ".join(error_services)
+            raise RuntimeError(
+                "Failure enabling Ubuntu Pro service(s): "
+                + ", ".join(error_services)
+            )
+    else:
+        LOG.warning(
+            "Unexpected response format from pro enable: %s", enable_resp
         )
 
 

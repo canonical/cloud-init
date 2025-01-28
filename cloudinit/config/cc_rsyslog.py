@@ -246,11 +246,7 @@ class SyslogRemotesLine:
         self.proto = proto
 
         self.addr = addr
-        self.port = port
-        if port:
-            self.port = int(port)
-        else:
-            self.port = None
+        self.port = int(port) if port is not None else None
 
     def validate(self):
         if self.port:
