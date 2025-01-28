@@ -8,7 +8,7 @@ import yaml
 
 from cloudinit.subp import subp
 from tests.integration_tests import random_mac_address
-from tests.integration_tests.clouds import IntegrationCloud
+from tests.integration_tests.clouds import Ec2Cloud, IntegrationCloud
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import (
@@ -341,7 +341,7 @@ def test_ec2_multi_nic_reboot(session_cloud: IntegrationCloud):
 
 @pytest.mark.adhoc  # costly instance not available in all regions / azs
 @pytest.mark.skipif(PLATFORM != "ec2", reason="test is ec2 specific")
-def test_ec2_multi_network_cards(session_cloud: IntegrationCloud):
+def test_ec2_multi_network_cards(session_cloud: Ec2Cloud):
     """
     Tests that with an interface type with multiple network cards (non unique
     device indexes).
