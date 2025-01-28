@@ -150,6 +150,10 @@ def verify_clean_boot(
         )
         if isinstance(ignore_tracebacks, list):
             ignore_tracebacks.append("Stderr: RTNETLINK answers: File exists")
+        # Ubuntu lxd storage
+        ignore_warnings = append_or_create_list(
+            ignore_warnings, "thinpool by default on Ubuntu due to LP #1982780"
+        )
         # LP: #1833446
         ignore_warnings = append_or_create_list(
             ignore_warnings,
