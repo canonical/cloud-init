@@ -237,6 +237,30 @@ on of:
             PLATFORM = 'lxd_container'
 
 
+Selecting Instance Type
+-----------------------
+
+To select a specific instance type, modify the ``INSTANCE_TYPE`` variable to be
+the desired instance type. This value is cloud-specific, so refer to the
+cloud's documentation for the available instance types. If you specify an
+instance type, be sure to also specify respective cloud platform you are
+testing against.
+
+.. tab-set::
+
+    .. tab-item:: Inline environment variable
+
+        .. code-block:: bash
+
+            CLOUD_INIT_PLATFORM=ec2 CLOUD_INIT_INSTANCE_TYPE='t2.micro' tox -e integration_tests
+
+    .. tab-item:: user_settings.py file
+
+        .. code-block:: python
+
+            PLATFORM = 'ec2'  # need to specify the cloud in order to use the instance type setting
+            INSTANCE_TYPE = 't2.micro'
+
 Image selection
 ===============
 

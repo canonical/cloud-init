@@ -132,6 +132,10 @@ class IntegrationCloud(ABC):
             "user_data": user_data,
             "username": DISTRO_TO_USERNAME[CURRENT_RELEASE.os],
         }
+        if self.settings.INSTANCE_TYPE:
+            default_launch_kwargs["instance_type"] = (
+                self.settings.INSTANCE_TYPE
+            )
         launch_kwargs = {**default_launch_kwargs, **launch_kwargs}
         display_launch_kwargs = deepcopy(launch_kwargs)
         if display_launch_kwargs.get("user_data") is not None:
