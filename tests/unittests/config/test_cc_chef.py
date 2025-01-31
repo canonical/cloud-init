@@ -150,7 +150,7 @@ class TestChef(FilesystemMockingTestCase):
         environment            "_default"
         node_name              "iid-datasource-none"
         json_attribs           "/etc/chef/firstboot.json"
-        file_cache_path        "/var/cache/chef"
+        file_cache_path        "/var/chef/cache"
         file_backup_path       "/var/backups/chef"
         pid_file               "/var/run/chef/client.pid"
         Chef::Log::Formatter.show_time = true
