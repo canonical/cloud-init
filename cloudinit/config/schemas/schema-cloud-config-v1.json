@@ -1219,7 +1219,7 @@
               },
               "minItems": 1,
               "uniqueItems": true,
-              "description": "Create the necessary directories for chef to run. By default, it creates the following directories:\n- ``/etc/chef``\n- ``/var/log/chef``\n- ``/var/lib/chef``\n- ``/var/cache/chef``\n- ``/var/backups/chef``\n- ``/var/run/chef``"
+              "description": "Create the necessary directories for chef to run. By default, it creates the following directories:\n- ``/etc/chef``\n- ``/var/log/chef``\n- ``/var/lib/chef``\n- ``/var/chef/cache``\n- ``/var/backups/chef``\n- ``/var/run/chef``"
             },
             "config_path": {
               "type": "string",
@@ -1267,8 +1267,8 @@
             },
             "file_cache_path": {
               "type": "string",
-              "default": "/var/cache/chef",
-              "description": "Specifies the location in which chef cache files will be saved. By default, it uses the ``/var/cache/chef`` location."
+              "default": "/var/chef/cache",
+              "description": "Specifies the location in which chef cache files will be saved. By default, it uses the ``/var/chef/cache`` location."
             },
             "json_attribs": {
               "type": "string",
