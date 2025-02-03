@@ -1,0 +1,257 @@
+From: Brett Holman <brett.holman@canonical.com>
+Last-Update: Mon, 3 Feb 2025 10:20:46 -0700
+Bug: https://github.com/canonical/cloud-init/issues/5971
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/cloud-init/+bug/2097319
+Subject: [PATCH] fix: retry AWS hotplug for async IMDS (#5995)
+
+Make tests more robust to temporary network failure.
+Document hotplug limitations.
+
+Fixes GH-5373
+---
+ cloudinit/cmd/devel/hotplug_hook.py           | 15 +++++-
+ cloudinit/sources/DataSourceEc2.py            |  4 +-
+ cloudinit/sources/__init__.py                 | 17 +++++++
+ doc/module-docs/cc_install_hotplug/data.yaml  |  5 ++
+ .../integration_tests/modules/test_hotplug.py | 47 ++++++++++++++++---
+ .../unittests/cmd/devel/test_hotplug_hook.py  |  1 +
+ tools/hook-hotplug                            |  5 ++
+ 7 files changed, 85 insertions(+), 9 deletions(-)
+
+--- a/cloudinit/cmd/devel/hotplug_hook.py
++++ b/cloudinit/cmd/devel/hotplug_hook.py
+@@ -204,7 +204,7 @@
+     return datasource
+
+
+-def handle_hotplug(hotplug_init: Init, devpath, subsystem, udevaction):
++def handle_hotplug(hotplug_init: Init, devpath, subsystem, udevaction) -> None:
+     datasource = initialize_datasource(hotplug_init, subsystem)
+     if not datasource:
+         return
+@@ -216,6 +216,19 @@
+         action=udevaction,
+         success_fn=hotplug_init._write_to_cache,
+     )
++    start = time.time()
++    if not datasource.hotplug_retry_settings.force_retry:
++        try_hotplug(subsystem, event_handler, datasource)
++        return
++    while time.time() - start < datasource.hotplug_retry_settings.sleep_total:
++        try_hotplug(subsystem, event_handler, datasource)
++        LOG.debug(
++            "Gathering network configuration again due to IMDS limitations."
++        )
++        time.sleep(datasource.hotplug_retry_settings.sleep_period)
++
++
++def try_hotplug(subsystem, event_handler, datasource) -> None:
+     wait_times = [1, 3, 5, 10, 30]
+     last_exception = Exception("Bug while processing hotplug event.")
+     for attempt, wait in enumerate(wait_times):
+--- a/cloudinit/sources/DataSourceEc2.py
++++ b/cloudinit/sources/DataSourceEc2.py
+@@ -24,7 +24,7 @@
+ from cloudinit.net import netplan
+ from cloudinit.net.dhcp import NoDHCPLeaseError
+ from cloudinit.net.ephemeral import EphemeralIPNetwork
+-from cloudinit.sources import NicOrder
++from cloudinit.sources import HotplugRetrySettings, NicOrder
+ from cloudinit.sources.helpers import ec2
+
+ LOG = logging.getLogger(__name__)
+@@ -114,6 +114,7 @@
+     }
+
+     extra_hotplug_udev_rules = _EXTRA_HOTPLUG_UDEV_RULES
++    hotplug_retry_settings = HotplugRetrySettings(True, 5, 30)
+
+     def __init__(self, sys_cfg, distro, paths):
+         super(DataSourceEc2, self).__init__(sys_cfg, distro, paths)
+@@ -125,6 +126,7 @@
+         super()._unpickle(ci_pkl_version)
+         self.extra_hotplug_udev_rules = _EXTRA_HOTPLUG_UDEV_RULES
+         self._fallback_nic_order = NicOrder.MAC
++        self.hotplug_retry_settings = HotplugRetrySettings(True, 5, 30)
+
+     def _get_cloud_name(self):
+         """Return the cloud name as identified during _get_data."""
+--- a/cloudinit/sources/__init__.py
++++ b/cloudinit/sources/__init__.py
+@@ -17,7 +17,7 @@
+ import re
+ from collections import namedtuple
+ from enum import Enum, unique
+-from typing import Any, Dict, List, Optional, Tuple, Union
++from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
+ 
+ from cloudinit import (
+     atomic_helper,
+@@ -193,6 +193,14 @@
+ )
+
+
++class HotplugRetrySettings(NamedTuple):
++    """in seconds"""
++
++    force_retry: bool
++    sleep_period: int
++    sleep_total: int
++
++
+ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
+
+     dsmode = DSMODE_NETWORK
+@@ -316,6 +324,14 @@
+     # in the updated metadata
+     skip_hotplug_detect = False
+
++    # AWS interface data propagates to the IMDS without a syncronization method
++    # Since no better alternative exists, use a datasource-specific mechanism
++    # which retries periodically for a set amount of time - apply configuration
++    # as needed. Do not force retry on other datasources.
++    #
++    # https://github.com/amazonlinux/amazon-ec2-net-utils/blob/601bc3513fa7b8a6ab46d9496b233b079e55f2e9/lib/lib.sh#L483
++    hotplug_retry_settings = HotplugRetrySettings(False, 0, 0)
++
+     # Extra udev rules for cc_install_hotplug
+     extra_hotplug_udev_rules: Optional[str] = None
+
+@@ -360,6 +376,7 @@
+             "skip_hotplug_detect": False,
+             "vendordata2": None,
+             "vendordata2_raw": None,
++            "hotplug_retry_settings": HotplugRetrySettings(False, 0, 0),
+         }
+         for key, value in expected_attrs.items():
+             if not hasattr(self, key):
+--- a/doc/module-docs/cc_install_hotplug/data.yaml
++++ b/doc/module-docs/cc_install_hotplug/data.yaml
+@@ -9,6 +9,11 @@
+     refresh the instance metadata from the datasource, detect the device in
+     the updated metadata, then apply the updated network configuration.
+
++    Udev rules are installed while cloud-init is running, which means that
++    devices which are added during boot might not be configured. To work
++    around this limitation, one can wait until cloud-init has completed
++    before hotplugging devices.
++
+     Currently supported datasources: Openstack, EC2
+   examples:
+   - comment: |
+--- a/tests/integration_tests/modules/test_hotplug.py
++++ b/tests/integration_tests/modules/test_hotplug.py
+@@ -1,3 +1,4 @@
++import logging
+ import time
+ from collections import namedtuple
+
+@@ -36,6 +37,7 @@
+     when: ['boot-new-instance']
+ """
+
++LOG = logging.getLogger()
+ ip_addr = namedtuple("ip_addr", "interface state ip4 ip6")
+
+
+@@ -319,6 +321,12 @@
+         ips_before = _get_ip_addr(client)
+         primary_priv_ip4 = ips_before[1].ip4
+         primary_priv_ip6 = ips_before[1].ip6
++        # cloud-init is incapable of hotplugged devices until after
++        # completion (cloud-init.target / cloud-init status --wait)
++        #
++        # To reliably test cloud-init hotplug, wait for completion before
++        # testing behaviors.
++        wait_for_cloud_init(client)
+         client.instance.add_network_interface(ipv6_address_count=1)
+
+         _wait_till_hotplug_complete(client)
+@@ -348,13 +356,14 @@
+         assert len(ips_after_add) == len(ips_before) + 1
+
+         # pings to primary and secondary NICs work
+-        r = bastion.execute(f"ping -c1 {primary_priv_ip4}")
++        # use -w so that test is less flaky with temporary network failure
++        r = bastion.execute(f"ping -c1 -w5 {primary_priv_ip4}")
+         assert r.ok, r.stdout
+-        r = bastion.execute(f"ping -c1 {secondary_priv_ip4}")
++        r = bastion.execute(f"ping -c1 -w5 {secondary_priv_ip4}")
+         assert r.ok, r.stdout
+-        r = bastion.execute(f"ping -c1 {primary_priv_ip6}")
++        r = bastion.execute(f"ping -c1 -w5 {primary_priv_ip6}")
+         assert r.ok, r.stdout
+-        r = bastion.execute(f"ping -c1 {secondary_priv_ip6}")
++        r = bastion.execute(f"ping -c1 -w5 {secondary_priv_ip6}")
+         assert r.ok, r.stdout
+
+         # Check every route has metrics associated. See LP: #2055397
+@@ -368,12 +377,31 @@
+         _wait_till_hotplug_complete(client, expected_runs=2)
+
+         # ping to primary NIC works
+-        assert bastion.execute(f"ping -c1 {primary_priv_ip4}").ok
+-        assert bastion.execute(f"ping -c1 {primary_priv_ip6}").ok
++        retries = 32
++        error = ""
++        for i in range(retries):
++            if bastion.execute(f"ping -c1 -w5 {primary_priv_ip4}").ok:
++                break
++            LOG.info("Failed to ping %s on try #%s", primary_priv_ip4, i + 1)
++        else:
++            error = (
++                f"Failed to ping {primary_priv_ip4} after {retries} retries"
++            )
++
++        for i in range(retries):
++            if bastion.execute(f"ping -c1 -w5 {primary_priv_ip6}").ok:
++                break
++            LOG.info("Failed to ping %s on try #%s", primary_priv_ip6, i + 1)
++        else:
++            error = (
++                f"Failed to ping {primary_priv_ip6} after {retries} retries"
++            )
+
+         log_content = client.read_from_file("/var/log/cloud-init.log")
+         verify_clean_log(log_content)
+         verify_clean_boot(client)
++        if error:
++            raise Exception(error)
+
+
+ @pytest.mark.skipif(PLATFORM != "ec2", reason="test is ec2 specific")
+--- a/tests/unittests/cmd/devel/test_hotplug_hook.py
++++ b/tests/unittests/cmd/devel/test_hotplug_hook.py
+@@ -36,6 +36,7 @@
+     m_datasource = mock.MagicMock(spec=DataSource)
+     m_datasource.distro = m_distro
+     m_datasource.skip_hotplug_detect = False
++    m_datasource.hotplug_retry_settings = DataSource.hotplug_retry_settings
+     m_init.datasource = m_datasource
+     m_init.fetch.return_value = m_datasource
+
+--- a/tools/hook-hotplug
++++ b/tools/hook-hotplug
+@@ -5,6 +5,7 @@
+ # cloud-init is ready; if so invoke cloud-init hotplug-hook
+
+ fifo=/run/cloud-init/hook-hotplug-cmd
++log_file=/run/cloud-init/hook-hotplug.log
+
+ should_run() {
+     if [ -d /run/systemd ]; then
+@@ -17,6 +18,9 @@
+ }
+
+ if ! should_run; then
++    # This happens when a device is hotplugged before cloud-init-hotplugd.socket is
++    # listening on the socket.
++    echo "Not running hotplug, not ready yet" >> ${log_file}
+     exit 0
+ fi
+
+@@ -25,3 +29,4 @@
+ env_params=" --subsystem=${SUBSYSTEM} handle --devpath=${DEVPATH} --udevaction=${ACTION}"
+ # write params to cloud-init's hotplug-hook fifo
+ echo "${env_params}" >&3
++echo "Running hotplug hook: $env_params" >> ${log_file}
