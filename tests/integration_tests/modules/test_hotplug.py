@@ -309,37 +309,29 @@ def test_multi_nic_hotplug(client: IntegrationInstance):
     verify_clean_boot(client)
 
 
+# TODO: support early hotplug
+#
+# This test usually passes without the `wait_for_cloud_init()`
+# but sometimes the hotplug event races with the end of cloud-init
+# so occasionally fails. For now, document this shortcoming and
+# wait for cloud-init to complete before testing the behavior.
 @pytest.mark.skipif(PLATFORM != "ec2", reason="test is ec2 specific")
-@pytest.mark.parametrize("test_early_plug", [False, True])
-def test_multi_nic_hotplug_vpc(
-    session_cloud: IntegrationCloud, test_early_plug: bool
-):
+def test_multi_nic_hotplug_vpc(session_cloud: IntegrationCloud):
     """Tests that additional secondary NICs are routable from local
     networks after the hotplug hook is executed when network updates
     are configured on the HOTPLUG event."""
-    if test_early_plug:
-        # This test usually passes without wait_for_cloud_init(),
-        # but sometimes the hotplug event races with the end of cloud-init
-        # so occasionally fails. For now, skip it. Keep it around, because
-        # this variation of the test would be valuable to test early hotplug,
-        # if it is ever supported.
-        pytest.skip(
-            "Skipping test because cloud-init doesn't support hotplug "
-            "until after cloud-init (yet)"
-        )
     with session_cloud.launch(
         user_data=USER_DATA
     ) as client, session_cloud.launch() as bastion:
         ips_before = _get_ip_addr(client)
         primary_priv_ip4 = ips_before[1].ip4
         primary_priv_ip6 = ips_before[1].ip6
-        if not test_early_plug:
-            # cloud-init is incapable of hotplugged devices until after
-            # completion (cloud-init.target / cloud-init status --wait)
-            #
-            # To reliably test cloud-init hotplug, wait for completion before
-            # testing behaviors.
-            wait_for_cloud_init(client)
+        # cloud-init is incapable of hotplugged devices until after
+        # completion (cloud-init.target / cloud-init status --wait)
+        #
+        # To reliably test cloud-init hotplug, wait for completion before
+        # testing behaviors.
+        wait_for_cloud_init(client)
         client.instance.add_network_interface(ipv6_address_count=1)
 
         _wait_till_hotplug_complete(client)

@@ -217,17 +217,14 @@ def handle_hotplug(hotplug_init: Init, devpath, subsystem, udevaction) -> None:
         success_fn=hotplug_init._write_to_cache,
     )
     start = time.time()
-    elapsed = 0.0
     if not datasource.hotplug_retry_settings.force_retry:
         try_hotplug(subsystem, event_handler, datasource)
-        LOG.info("Not forcing retry")
         return
-    while elapsed < datasource.hotplug_retry_settings.sleep_total:
+    while time.time() - start < datasource.hotplug_retry_settings.sleep_total:
         try_hotplug(subsystem, event_handler, datasource)
-        LOG.info(
+        LOG.debug(
             "Gathering network configuration again due to IMDS limitations."
         )
-        elapsed = time.time() - start
         time.sleep(datasource.hotplug_retry_settings.sleep_period)
 
 
