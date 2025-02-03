@@ -87,6 +87,7 @@ class DataSourceGCE(sources.DataSource):
 
     def _get_data(self):
         url_params = self.get_url_params()
+        ret = {}
         if self.perform_dhcp_setup:
             candidate_nics = net.find_candidate_nics()
             if DEFAULT_PRIMARY_INTERFACE in candidate_nics:
@@ -116,6 +117,9 @@ class DataSourceGCE(sources.DataSource):
                             )
                             continue
                 except NoDHCPLeaseError:
+                    LOG.debug(
+                        "Unable to obtain a DHCP lease for %s", candidate_nic
+                    )
                     continue
                 if ret["success"]:
                     self.distro.fallback_interface = candidate_nic
@@ -128,14 +132,14 @@ class DataSourceGCE(sources.DataSource):
         else:
             ret = read_md(address=self.metadata_address, url_params=url_params)
 
-        if not ret["success"]:
-            if ret["platform_reports_gce"]:
-                LOG.warning(ret["reason"])
+        if not ret.get("success"):
+            if ret.get("platform_reports_gce"):
+                LOG.warning(ret.get("reason"))
             else:
-                LOG.debug(ret["reason"])
+                LOG.debug(ret.get("reason"))
             return False
-        self.metadata = ret["meta-data"]
-        self.userdata_raw = ret["user-data"]
+        self.metadata = ret.get("meta-data")
+        self.userdata_raw = ret.get("user-data")
         return True
 
     @property
