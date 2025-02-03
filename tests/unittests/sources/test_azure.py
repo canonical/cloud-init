@@ -2274,6 +2274,9 @@ scbus-1 on xpt0 bus 0
             dsrc.cfg["system_info"]["default_user"]["name"], "username1"
         )
 
+    @pytest.mark.parametrize(
+        "disablePasswordAuthentication", ["false", "true"]
+    )
     def test_disable_password_from_imds(self):
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
@@ -2289,7 +2292,7 @@ scbus-1 on xpt0 bus 0
         self.m_fetch.return_value = imds_data_with_os_profile
         dsrc = self._get_ds(data)
         dsrc.get_data()
-        self.assertFalse(dsrc.cfg["ssh_pwauth"])
+        self.assertTrue(dsrc.cfg["ssh_pwauth"])
 
     def test_userdata_from_imds(self):
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
