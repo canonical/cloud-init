@@ -204,7 +204,7 @@ def initialize_datasource(hotplug_init: Init, subsystem: str):
     return datasource
 
 
-def handle_hotplug(hotplug_init: Init, devpath, subsystem, udevaction):
+def handle_hotplug(hotplug_init: Init, devpath, subsystem, udevaction) -> None:
     datasource = initialize_datasource(hotplug_init, subsystem)
     if not datasource:
         return
@@ -216,6 +216,19 @@ def handle_hotplug(hotplug_init: Init, devpath, subsystem, udevaction):
         action=udevaction,
         success_fn=hotplug_init._write_to_cache,
     )
+    start = time.time()
+    if not datasource.hotplug_retry_settings.force_retry:
+        try_hotplug(subsystem, event_handler, datasource)
+        return
+    while time.time() - start < datasource.hotplug_retry_settings.sleep_total:
+        try_hotplug(subsystem, event_handler, datasource)
+        LOG.debug(
+            "Gathering network configuration again due to IMDS limitations."
+        )
+        time.sleep(datasource.hotplug_retry_settings.sleep_period)
+
+
+def try_hotplug(subsystem, event_handler, datasource) -> None:
     wait_times = [1, 3, 5, 10, 30]
     last_exception = Exception("Bug while processing hotplug event.")
     for attempt, wait in enumerate(wait_times):

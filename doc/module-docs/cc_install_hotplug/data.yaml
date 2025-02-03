@@ -9,6 +9,11 @@ cc_install_hotplug:
     refresh the instance metadata from the datasource, detect the device in
     the updated metadata, then apply the updated network configuration.
 
+    Udev rules are installed while cloud-init is running, which means that
+    devices which are added during boot might not be configured. To work
+    around this limitation, one can wait until cloud-init has completed
+    before hotplugging devices.
+
     Currently supported datasources: Openstack, EC2
   examples:
   - comment: |
