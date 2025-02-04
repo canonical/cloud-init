@@ -54,7 +54,15 @@ Last-Update: 2024-08-02
  Before=network-pre.target
  Before=shutdown.target
  {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
-@@ -25,14 +26,7 @@ Type=oneshot
+@@ -16,6 +17,7 @@
+ Before=sysinit.target
+ {% endif %}
+ Conflicts=shutdown.target
++RequiresMountsFor=/var/lib/cloud
+ ConditionPathExists=!/etc/cloud/cloud-init.disabled
+ ConditionKernelCommandLine=!cloud-init=disabled
+ ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
+@@ -25,14 +27,7 @@
  {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
  ExecStartPre=/sbin/restorecon /run/cloud-init
  {% endif %}
