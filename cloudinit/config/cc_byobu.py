@@ -28,7 +28,7 @@ meta: MetaSchema = {
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
-    if len(args) != 0:
+    if args:
         value = args[0]
     else:
         value = util.get_cfg_option_str(cfg, "byobu_by_default", "")

@@ -5085,7 +5085,7 @@ class TestGetInterfaces:
 
         assert "tun0" in self._se_get_devicelist()
         found = [ent for ent in ret if "tun0" in ent]
-        assert len(found) == 0
+        assert not found
 
     def test_gi_excludes_stolen_macs(self, mocks):
         ret = net.get_interfaces()

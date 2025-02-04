@@ -597,7 +597,7 @@ class TestConfigDriveDataSource(CiTestCase):
         devs_with_answers = {}
 
         def my_devs_with(*args, **kwargs):
-            criteria = args[0] if len(args) else kwargs.pop("criteria", None)
+            criteria = args[0] if args else kwargs.pop("criteria", None)
             return devs_with_answers.get(criteria, [])
 
         def my_is_partition(dev):

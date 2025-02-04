@@ -408,7 +408,7 @@ class ConfigDriveReader(BaseReader):
             path = self._path_join(self.base_path, name)
             if os.path.exists(path):
                 found[name] = path
-        if len(found) == 0:
+        if not found:
             raise NonReadable("%s: no files found" % (self.base_path))
 
         md = {}
