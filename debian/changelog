@@ -8,6 +8,8 @@ cloud-init (24.4.1-0ubuntu0~22.04.1) UNRELEASED; urgency=medium
       (GH-5971) (LP: #2097319)
   * Add d/p/no-remove-networkd-online.patch
     - Revert breaking change on stable release (LP: #2094149)
+  * Update d/p/no-single-process.patch
+    - This patch missed waiting for mounts (LP: #2097441)
   * refresh patches:
     - d/p/cli-retain-file-argument-as-main-cmd-arg.patch
     - d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
