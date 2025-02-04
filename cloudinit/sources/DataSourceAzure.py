@@ -764,7 +764,7 @@ class DataSourceAzure(sources.DataSource):
                 imds_disable_password,
             )
             crawled_data["cfg"]["ssh_pwauth"] = not imds_disable_password
-        else:
+        if imds_disable_password is False:
             crawled_data["cfg"]["ssh_pwauth"] = True
 
         if self.seed == "IMDS" and not crawled_data["files"]:
