@@ -323,12 +323,16 @@ class TestAnsible:
     def test_deps_not_installed(self, m_which):
         """assert exception raised if package not installed"""
         with raises(ValueError):
-            cc_ansible.AnsiblePullDistro(get_cloud().distro).check_deps()
+            cc_ansible.AnsiblePullDistro(
+                get_cloud().distro, "root"
+            ).check_deps()
 
     @mock.patch(M_PATH + "subp.which", return_value=True)
     def test_deps(self, m_which):
         """assert exception not raised if package installed"""
-        cc_ansible.AnsiblePullDistro(get_cloud().distro).check_deps()
+        cc_ansible.AnsiblePullDistro(
+            get_cloud().distro, "ansible"
+        ).check_deps()
 
     @mark.serial
     @mock.patch(M_PATH + "subp.subp", return_value=("stdout", "stderr"))
@@ -390,7 +394,7 @@ class TestAnsible:
         ansible_pull = (
             cc_ansible.AnsiblePullPip(distro, "ansible")
             if pull_type == "pip"
-            else cc_ansible.AnsiblePullDistro(distro)
+            else cc_ansible.AnsiblePullDistro(distro, "")
         )
         cc_ansible.run_ansible_pull(
             ansible_pull, deepcopy(cfg["ansible"]["pull"])
@@ -415,7 +419,7 @@ class TestAnsible:
     def test_parse_version_distro(self, m_subp):
         """Verify that the expected version is returned"""
         assert cc_ansible.AnsiblePullDistro(
-            get_cloud().distro
+            get_cloud().distro, ""
         ).get_version() == lifecycle.Version(2, 10, 8)
 
     @mock.patch("cloudinit.subp.subp", side_effect=[(pip_version, "")])

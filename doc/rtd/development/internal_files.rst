@@ -20,8 +20,8 @@ subdirectories:
 
 The :file:`/var/lib/cloud/instance` directory is a symbolic link that points
 to the most recently used :file:`instance-id` directory. This folder contains
-the information ``cloud-init`` received from datasources, including vendor and
-user data. This can help to determine that the correct data was passed.
+the information ``cloud-init`` received from datasources, including vendor-data
+and user-data. This can help to determine that the correct data was passed.
 
 It also contains the :file:`datasource` file that contains the full information
 about which datasource was identified and used to set up the system.

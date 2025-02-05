@@ -30,14 +30,14 @@ we just created:
 .. code-block:: shell-session
 
     $ lxc init ubuntu-daily:jammy test-container
-    $ lxc config set test-container user.user-data - < userdata.yaml
+    $ lxc config set test-container user.user-data - < user-data.yaml
     $ lxc start test-container
 
 To avoid the extra commands this can also be done at launch:
 
 .. code-block:: shell-session
 
-    $ lxc launch ubuntu-daily:jammy test-container --config=user.user-data="$(cat userdata.yaml)"
+    $ lxc launch ubuntu-daily:jammy test-container --config=user.user-data="$(cat user-data.yaml)"
 
 Finally, a profile can be set up with the specific data if you need to
 launch this multiple times:
@@ -57,9 +57,9 @@ configuration data use the configuration options specified below:
 +----------------+---------------------------+
 | Data           | Configuration option      |
 +================+===========================+
-| user data      | cloud-init.user-data      |
+| user-data      | cloud-init.user-data      |
 +----------------+---------------------------+
-| vendor data    | cloud-init.vendor-data    |
+| vendor-data    | cloud-init.vendor-data    |
 +----------------+---------------------------+
 | network config | cloud-init.network-config |
 +----------------+---------------------------+
@@ -72,4 +72,3 @@ custom network config and using LXD with cloud-init.
 .. _LXD: https://ubuntu.com/lxd
 .. _Instance Configuration: https://documentation.ubuntu.com/lxd/en/latest/instances/
 .. _Custom Network Configuration: https://documentation.ubuntu.com/lxd/en/latest/cloud-init/
-

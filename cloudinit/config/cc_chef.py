@@ -27,7 +27,7 @@ CHEF_DIRS = (
     "/etc/chef",
     "/var/log/chef",
     "/var/lib/chef",
-    "/var/cache/chef",
+    "/var/chef/cache",
     "/var/backups/chef",
     "/var/run/chef",
 )
@@ -49,7 +49,7 @@ CHEF_RB_TPL_DEFAULTS = {
     "validation_cert": None,
     "client_key": "/etc/chef/client.pem",
     "json_attribs": CHEF_FB_PATH,
-    "file_cache_path": "/var/cache/chef",
+    "file_cache_path": "/var/chef/cache",
     "file_backup_path": "/var/backups/chef",
     "pid_file": "/var/run/chef/client.pid",
     "show_time": True,
@@ -171,6 +171,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             )
 
     # Create the chef config from template
+    cfg_filename = util.get_cfg_option_str(
+        chef_cfg, "config_path", default=CHEF_RB_PATH
+    )
     template_fn = cloud.get_template_filename("chef_client.rb")
     if template_fn:
         iid = str(cloud.datasource.get_instance_id())
@@ -183,9 +186,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             if k in CHEF_RB_TPL_PATH_KEYS and v:
                 param_paths.add(os.path.dirname(v))
         util.ensure_dirs(param_paths)
-        templater.render_to_file(template_fn, CHEF_RB_PATH, params)
+        templater.render_to_file(template_fn, cfg_filename, params)
     else:
-        LOG.warning("No template found, not rendering to %s", CHEF_RB_PATH)
+        LOG.warning("No template found, not rendering to %s", cfg_filename)
 
     # Set the firstboot json
     fb_filename = util.get_cfg_option_str(

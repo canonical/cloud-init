@@ -15,6 +15,7 @@ import pytest
 from pycloudlib.cloud import ImageType
 from pycloudlib.lxd.instance import LXDInstance
 
+import tests.integration_tests.reaper as reaper
 from tests.integration_tests import integration_settings
 from tests.integration_tests.clouds import (
     AzureCloud,
@@ -37,6 +38,11 @@ from tests.integration_tests.instances import (
 log = logging.getLogger("integration_testing")
 log.addHandler(logging.StreamHandler(sys.stdout))
 log.setLevel(logging.INFO)
+
+# set log level INFO instead of DEBUG for boto3 and botocore
+# to prevent 1000s of lines of DEBUG log spam that occur during some tests
+logging.getLogger("botocore").setLevel(logging.INFO)
+logging.getLogger("boto3").setLevel(logging.INFO)
 
 platforms: Dict[str, Type[IntegrationCloud]] = {
     "ec2": Ec2Cloud,
@@ -75,6 +81,7 @@ def disable_subp_usage(request):
 
 
 _SESSION_CLOUD: IntegrationCloud
+REAPER: reaper._Reaper
 
 
 @pytest.fixture(scope="session")
@@ -472,9 +479,13 @@ def _generate_profile_report() -> None:
 def pytest_sessionstart(session) -> None:
     """do session setup"""
     global _SESSION_CLOUD
+    global REAPER
+    log.info("starting session")
     try:
         _SESSION_CLOUD = get_session_cloud()
         setup_image(_SESSION_CLOUD)
+        REAPER = reaper._Reaper()
+        REAPER.start()
     except Exception as e:
         if _SESSION_CLOUD:
             # if a _SESSION_CLOUD was allocated, clean it up
@@ -485,10 +496,13 @@ def pytest_sessionstart(session) -> None:
         pytest.exit(
             f"{type(e).__name__} in session setup: {str(e)}", returncode=2
         )
+    log.info("started session")
 
 
 def pytest_sessionfinish(session, exitstatus) -> None:
     """do session teardown"""
+    global REAPER
+    log.info("finishing session")
     try:
         if integration_settings.INCLUDE_COVERAGE:
             _generate_coverage_report()
@@ -505,8 +519,17 @@ def pytest_sessionfinish(session, exitstatus) -> None:
             e,
         )
     try:
+        REAPER.stop()
+    except Exception as e:
+        log.warning(
+            "Could not tear down instance reaper thread: %s(%s)",
+            type(e).__name__,
+            e,
+        )
+    try:
         _SESSION_CLOUD.destroy()
     except Exception as e:
         log.warning(
             "Could not destroy session cloud: %s(%s)", type(e).__name__, e
         )
+    log.info("finish session")

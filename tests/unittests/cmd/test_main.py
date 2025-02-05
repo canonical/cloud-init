@@ -9,13 +9,26 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import safeyaml, util
+from cloudinit import features, safeyaml, util
 from cloudinit.cmd import main
 from cloudinit.util import ensure_dir, load_text_file, write_file
 
 MyArgs = namedtuple(
     "MyArgs", "debug files force local reporter subcommand skip_log_setup"
 )
+
+
+CLOUD_CONFIG_ARCHIVE = """\
+#cloud-config-archive
+- type: "text/cloud-boothook"
+  content: |
+    #!/bin/sh
+    echo "this is from a boothook." > /var/tmp/boothook.txt
+- type: "text/cloud-config"
+  content: |
+    bootcmd:
+    - echo "this is from a cloud-config." > /var/tmp/bootcmd.txt
+"""
 
 
 EXTRA_CLOUD_CONFIG = """\
@@ -264,6 +277,8 @@ class TestMain:
             ),
             # Not parseable as yaml
             (mock.Mock(), "#cloud-config\nbootcmd:\necho hello", True),
+            # Yaml that parses to list
+            (mock.Mock(), CLOUD_CONFIG_ARCHIVE, True),
             # Non-cloud-config
             (mock.Mock(), "#!/bin/bash\n  - echo hello", True),
             # Something that after processing won't decode to utf-8
@@ -348,7 +363,7 @@ class TestMain:
             skip_log_setup=False,
         )
         main.main_init("init", cmdargs)
-        if expected_add_wait:
+        if features.MANUAL_NETWORK_WAIT and expected_add_wait:
             m_nm.assert_called_once()
             m_subp.assert_called_with(
                 ["systemctl", "start", "systemd-networkd-wait-online.service"]
