@@ -330,7 +330,7 @@ class SubscriptionManager:
         """
 
         # An empty list was passed
-        if len(pools) == 0:
+        if not pools:
             self.log.debug("No pools to attach")
             return True
 
@@ -379,7 +379,7 @@ class SubscriptionManager:
             return False
 
         # Bail if both lists are not populated
-        if (len(erepos) == 0) and (len(drepos) == 0):
+        if not (erepos) and not (drepos):
             self.log.debug("No repo IDs to enable or disable")
             return True
 

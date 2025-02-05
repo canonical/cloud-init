@@ -938,7 +938,7 @@ class Renderer(renderer.Renderer):
         ):
             content.set_section_keypair("main", "dns", "none")
 
-        if len(content) == 0:
+        if not content:
             return None
         out = "".join([_make_header(), "\n", "\n".join(content.write()), "\n"])
         return out

@@ -125,7 +125,7 @@ def lsb_release():
             if fname in fmap:
                 data[fmap[fname]] = val.strip()
         missing = [k for k in fmap.values() if k not in data]
-        if len(missing):
+        if missing:
             LOG.warning(
                 "Missing fields in lsb_release --all output: %s",
                 ",".join(missing),
@@ -1627,11 +1627,11 @@ def pipe_in_out(in_fh, out_fh, chunk_size=1024, chunk_cb=None):
         data = in_fh.read(chunk_size)
         if len(data) == 0:
             break
-        else:
-            out_fh.write(data)
-            bytes_piped += len(data)
-            if chunk_cb:
-                chunk_cb(bytes_piped)
+        out_fh.write(data)
+        bytes_piped += len(data)
+        if chunk_cb:
+            chunk_cb(bytes_piped)
+
     out_fh.flush()
     return bytes_piped
 
@@ -2991,7 +2991,7 @@ def wait_for_files(flist, maxwait, naplen=0.5, log_pre=""):
     waited = 0
     while True:
         need -= set([f for f in need if os.path.exists(f)])
-        if len(need) == 0:
+        if not need:
             LOG.debug(
                 "%sAll files appeared after %s seconds: %s",
                 log_pre,

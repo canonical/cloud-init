@@ -92,7 +92,7 @@ def _register_uris(version, ec2_files, ec2_meta, os_files, *, responses_mock):
 
     def match_ec2_url(uri, headers):
         path = uri.path.strip("/")
-        if len(path) == 0:
+        if not path:
             return (200, headers, "\n".join(EC2_VERSIONS))
         path = uri.path.lstrip("/")
         if path in ec2_files:
