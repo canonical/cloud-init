@@ -1,8 +1,8 @@
-cloud-init (25.1~3geb1965a4-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (25.1~3geb1965a4-0ubuntu1) plucky; urgency=medium
 
   * Upstream snapshot based on upstream/main at eb1965a4.
 
- -- James Falcon <james.falcon@canonical.com>  Wed, 05 Feb 2025 10:19:53 -0600
+ -- James Falcon <james.falcon@canonical.com>  Wed, 05 Feb 2025 10:20:41 -0600
 
 cloud-init (25.1~2g4ee65391-0ubuntu1) plucky; urgency=medium
 
