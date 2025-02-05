@@ -49,8 +49,9 @@ jobs:
           fi
           # The quilt default setting is --fuzz=2, but debian packaging has
           # stricter requirements
-          cp /etc/quilt.quiltrc ~/.quiltrc
-          sed -i 's/QUILT_PUSH_ARGS=.*$/QUILT_PUSH_ARGS="--fuzz=0"/g'
+          sudo sed -i 's/QUILT_PUSH_ARGS=.*$/QUILT_PUSH_ARGS="--fuzz=0"/g' /etc/quilt.quiltrc
+          # quilt defaults to QUILT_PATCHES=patches, but debian uses debian/patches
+          sudo sed -i 's|.*QUILT_PATCHES=.*$|QUILT_PATCHES=debian/patches|g' /etc/quilt.quiltrc
 
       - name: Run test - apply patches and run unit tests
         run: |
