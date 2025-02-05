@@ -59,13 +59,6 @@ DISTRO_OVERRIDES = {
 
 LOG = logging.getLogger(__name__)
 
-COMMENT_RE = re.compile(r"[ ]*[#]+[ ]*")
-HOST_PORT_RE = re.compile(
-    r"^(?P<proto>[@]{0,2})"
-    r"(([\[](?P<bracket_addr>[^\]]*)[\]])|(?P<addr>[^:]*))"
-    r"([:](?P<port>[0-9]+))?$"
-)
-
 
 def distro_default_rsyslog_config(distro: Distro):
     """Construct a distro-specific rsyslog config dictionary by merging
@@ -195,7 +188,7 @@ def apply_rsyslog_changes(configs, def_fname, cfg_dir):
 
 def parse_remotes_line(line, name=None):
     try:
-        data, comment = COMMENT_RE.split(line)
+        data, comment = re.split(r"[ ]*[#]+[ ]*", line)
         comment = comment.strip()
     except ValueError:
         data, comment = (line, None)
@@ -209,7 +202,12 @@ def parse_remotes_line(line, name=None):
     else:
         raise ValueError("line had multiple spaces: %s" % data)
 
-    toks = HOST_PORT_RE.match(host_port)
+    toks = re.match(
+        r"^(?P<proto>[@]{0,2})"
+        r"(([\[](?P<bracket_addr>[^\]]*)[\]])|(?P<addr>[^:]*))"
+        r"([:](?P<port>[0-9]+))?$",
+        host_port,
+    )
 
     if not toks:
         raise ValueError("Invalid host specification '%s'" % host_port)

@@ -9,7 +9,7 @@ import sysconfig
 from copy import deepcopy
 from typing import Optional
 
-from cloudinit import lifecycle, subp
+from cloudinit import lifecycle, signal_handler, subp
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -63,7 +63,8 @@ class AnsiblePull(abc.ABC):
         return self.distro.do_as(command, self.run_user, **kwargs)
 
     def subp(self, command, **kwargs):
-        return subp.subp(command, update_env=self.env, **kwargs)
+        with signal_handler.suspend_crash():
+            return subp.subp(command, update_env=self.env, **kwargs)
 
     @abc.abstractmethod
     def is_installed(self):
@@ -123,6 +124,10 @@ class AnsiblePullPip(AnsiblePull):
 
 
 class AnsiblePullDistro(AnsiblePull):
+    def __init__(self, distro: Distro, user: Optional[str]):
+        super().__init__(distro)
+        self.run_user = user
+
     def install(self, pkg_name: str):
         if not self.is_installed():
             self.distro.install_packages([pkg_name])
@@ -150,7 +155,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         if install_method == "pip":
             ansible = AnsiblePullPip(distro, ansible_user)
         else:
-            ansible = AnsiblePullDistro(distro)
+            ansible = AnsiblePullDistro(distro, ansible_user)
         ansible.install(package_name)
         ansible.check_deps()
         ansible_config = ansible_cfg.get("ansible_config", "")

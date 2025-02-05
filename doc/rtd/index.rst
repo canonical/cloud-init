@@ -4,12 +4,12 @@ Cloud-init documentation
 ########################
 
 ``Cloud-init`` is the *industry standard* multi-distribution method for
-cross-platform cloud instance initialisation. It is supported across all major
+cross-platform cloud instance initialization. It is supported across all major
 public cloud providers, provisioning systems for private cloud infrastructure,
 and bare-metal installations.
 
 During boot, ``cloud-init`` identifies the cloud it is running on and
-initialises the system accordingly. Cloud instances will automatically be
+initializes the system accordingly. Cloud instances will automatically be
 provisioned during first boot with networking, storage, SSH keys, packages
 and various other system aspects already configured.
 
@@ -87,8 +87,9 @@ projects, contributions, suggestions, fixes and constructive feedback.
 
    tutorial/index
    howto/index
-   explanation/index
    reference/index
+   explanation/index
+
 
 .. toctree::
    :caption: Development

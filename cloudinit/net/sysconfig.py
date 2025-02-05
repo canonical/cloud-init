@@ -718,8 +718,9 @@ class Renderer(renderer.Renderer):
     def _render_physical_interfaces(
         cls, network_state, iface_contents, flavor
     ):
-        physical_filter = renderer.filter_by_physical
-        for iface in network_state.iter_interfaces(physical_filter):
+        for iface in network_state.iter_interfaces(
+            renderer.filter_by_type("physical")
+        ):
             iface_name = iface.get("config_id") or iface["name"]
             iface_subnets = iface.get("subnets", [])
             iface_cfg = iface_contents[iface_name]
@@ -937,7 +938,7 @@ class Renderer(renderer.Renderer):
         ):
             content.set_section_keypair("main", "dns", "none")
 
-        if len(content) == 0:
+        if not content:
             return None
         out = "".join([_make_header(), "\n", "\n".join(content.write()), "\n"])
         return out

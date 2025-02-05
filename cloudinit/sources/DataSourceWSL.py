@@ -237,14 +237,14 @@ def merge_agent_landscape_data(
     cloud-init to merge separate parts.
     """
     # Ignore agent_data if None or empty
-    if agent_data is None or len(agent_data.raw) == 0:
-        if user_data is None or len(user_data.raw) == 0:
+    if (agent_data is None) or (not agent_data.raw):
+        if (user_data is None) or (not user_data.raw):
             return None
         return user_data.raw
 
     # Ignore user_data if None or empty
-    if user_data is None or len(user_data.raw) == 0:
-        if agent_data is None or len(agent_data.raw) == 0:
+    if (user_data is None) or (not user_data.raw):
+        if (agent_data is None) or (not agent_data.raw):
             return None
         return agent_data.raw
 

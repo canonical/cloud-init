@@ -147,8 +147,8 @@ def apply_apt(cfg, cloud, gpg):
     _ensure_dependencies(cfg, matcher, cloud)
 
     if util.is_false(cfg.get("preserve_sources_list", False)):
-        add_mirror_keys(cfg, cloud, gpg)
-        generate_sources_list(cfg, release, mirrors, cloud)
+        keys = add_mirror_keys(cfg, cloud, gpg)
+        generate_sources_list(cfg, release, mirrors, cloud, keys)
         rename_apt_lists(mirrors, arch)
 
     try:
@@ -241,7 +241,7 @@ def apply_debconf_selections(cfg):
     LOG.debug("pkgs_cfgd: %s", pkgs_cfgd)
     need_reconfig = pkgs_cfgd.intersection(pkgs_installed)
 
-    if len(need_reconfig) == 0:
+    if not need_reconfig:
         LOG.debug("no need for reconfig")
         return
 
@@ -421,11 +421,15 @@ def disable_suites(disabled, src, release) -> str:
     return retsrc
 
 
-def add_mirror_keys(cfg, cloud, gpg):
+def add_mirror_keys(cfg, cloud, gpg) -> Mapping[str, str]:
     """Adds any keys included in the primary/security mirror clauses"""
+    keys = {}
     for key in ("primary", "security"):
         for mirror in cfg.get(key, []):
-            add_apt_key(mirror, cloud, gpg, file_name=key)
+            resp = add_apt_key(mirror, cloud, gpg, file_name=key)
+            if resp:
+                keys[f"{key}_key"] = resp
+    return keys
 
 
 def is_deb822_sources_format(apt_src_content: str) -> bool:
@@ -515,7 +519,7 @@ def get_apt_cfg() -> Dict[str, str]:
     }
 
 
-def generate_sources_list(cfg, release, mirrors, cloud):
+def generate_sources_list(cfg, release, mirrors, cloud, keys):
     """generate_sources_list
     create a source.list file based on a custom or default template
     by replacing mirrors and release in the template"""
@@ -528,6 +532,7 @@ def generate_sources_list(cfg, release, mirrors, cloud):
         aptsrc_file = apt_sources_list
 
     params = {"RELEASE": release, "codename": release}
+    params.update(keys)
     for k in mirrors:
         params[k] = mirrors[k]
         params[k.lower()] = mirrors[k]

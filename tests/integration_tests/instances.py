@@ -15,7 +15,7 @@ from pycloudlib.lxd.instance import LXDInstance
 from pycloudlib.result import Result
 
 from tests.helpers import cloud_init_project_dir
-from tests.integration_tests import integration_settings
+from tests.integration_tests import conftest, integration_settings
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.util import ASSETS_DIR
 
@@ -293,9 +293,14 @@ Pin-Priority: 1001"""
         # to install missing dependency errors due to stale cache.
         self.execute("apt update")
         # Use apt install instead of dpkg -i to pull in any changed pkg deps
-        assert self.execute(
-            f"apt install {remote_path} --yes --allow-downgrades"
-        ).ok
+        apt_result = self.execute(
+            f"apt install -qy {remote_path} --allow-downgrades"
+        )
+        if not apt_result.ok:
+            raise RuntimeError(
+                f"Failed to install {deb_name}: stdout: {apt_result.stdout}. "
+                f"stderr: {apt_result.stderr}"
+            )
 
     @retry(tries=30, delay=1)
     def upgrade_cloud_init(self, pkg: str):
@@ -350,12 +355,12 @@ Pin-Priority: 1001"""
 
     def __exit__(self, exc_type, exc_val, exc_tb):
 
-        if self.settings.KEEP_INSTANCE:
-            log.info("Keeping Instance, public ip: %s", self.ip())
+        if not self.settings.KEEP_INSTANCE:
+            conftest.REAPER.reap(self)
         elif (
             integration_settings.KEEP_INSTANCE == "ON_ERROR"
             and self.test_failed
         ):
             log.info("Keeping Instance (test failed) public ip: %s", self.ip())
         else:
-            self.destroy()
+            log.info("Keeping Instance public ip: %s", self.ip())
