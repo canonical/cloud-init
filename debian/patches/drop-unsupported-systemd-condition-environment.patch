@@ -10,12 +10,12 @@ Last-Update: 2024-05-21
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/systemd/cloud-init-local.service.tmpl
 +++ b/systemd/cloud-init-local.service.tmpl
-@@ -19,7 +19,6 @@ Before=sysinit.target
- Conflicts=shutdown.target
+@@ -20,7 +20,6 @@
+ RequiresMountsFor=/var/lib/cloud
  ConditionPathExists=!/etc/cloud/cloud-init.disabled
  ConditionKernelCommandLine=!cloud-init=disabled
 -ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
- 
+
  [Service]
  Type=oneshot
 --- a/systemd/cloud-init.target
@@ -72,6 +72,6 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  ConditionPathExists=!/etc/cloud/cloud-init.disabled
  ConditionKernelCommandLine=!cloud-init=disabled
 -ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
- 
+
  [Socket]
  ListenFIFO=/run/cloud-init/hook-hotplug-cmd
