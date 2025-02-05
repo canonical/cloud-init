@@ -27,7 +27,7 @@ CHEF_DIRS = (
     "/etc/chef",
     "/var/log/chef",
     "/var/lib/chef",
-    "/var/cache/chef",
+    "/var/chef/cache",
     "/var/backups/chef",
     "/var/run/chef",
 )
@@ -49,7 +49,7 @@ CHEF_RB_TPL_DEFAULTS = {
     "validation_cert": None,
     "client_key": "/etc/chef/client.pem",
     "json_attribs": CHEF_FB_PATH,
-    "file_cache_path": "/var/cache/chef",
+    "file_cache_path": "/var/chef/cache",
     "file_backup_path": "/var/backups/chef",
     "pid_file": "/var/run/chef/client.pid",
     "show_time": True,
