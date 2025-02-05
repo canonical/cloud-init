@@ -500,7 +500,7 @@ def get_none_if_empty_val(val):
     # simplify the rest of this function's logic.
     val = util.decode_binary(val)
     val = val.rstrip()
-    if len(val) == 0 or val == GUESTINFO_EMPTY_YAML_VAL:
+    if (not val) or (val == GUESTINFO_EMPTY_YAML_VAL):
         return None
     return val
 

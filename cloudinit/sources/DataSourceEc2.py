@@ -895,7 +895,7 @@ def _build_nic_order(
     @return: Dictionary with macs as keys and nic orders as values.
     """
     nic_order: Dict[str, int] = {}
-    if len(macs_to_nics) == 0 or len(macs_metadata) == 0:
+    if (not macs_to_nics) or (not macs_metadata):
         return nic_order
 
     valid_macs_metadata = filter(
