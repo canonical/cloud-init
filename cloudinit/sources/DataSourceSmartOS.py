@@ -438,7 +438,7 @@ class JoyentMetadataClient:
         while True:
             try:
                 byte = self.fp.read(1)
-                if len(byte) == 0:
+                if not byte:
                     raise JoyentMetadataTimeoutException(msg % as_ascii())
                 if byte == b"\n":
                     return as_ascii()

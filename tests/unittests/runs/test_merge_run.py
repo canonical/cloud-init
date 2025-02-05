@@ -66,7 +66,7 @@ class TestMergeRun(helpers.FilesystemMockingTestCase):
         self.assertEqual(mirror["arches"], ["i386", "amd64", "blah"])
         mods = Modules(initer)
         (which_ran, failures) = mods.run_section("cloud_init_modules")
-        self.assertTrue(len(failures) == 0)
+        self.assertFalse(failures)
         self.assertTrue(os.path.exists("/etc/blah.ini"))
         self.assertIn("write_files", which_ran)
         contents = util.load_text_file("/etc/blah.ini")

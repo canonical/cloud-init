@@ -1034,7 +1034,7 @@ class OvfEnvXml:
         matches = node.findall(
             "./%s:%s" % (namespace, name), OvfEnvXml.NAMESPACES
         )
-        if len(matches) == 0:
+        if not matches:
             msg = "missing configuration for %r" % name
             LOG.debug(msg)
             if required:
@@ -1058,13 +1058,14 @@ class OvfEnvXml:
         default=None,
     ):
         matches = node.findall("./wa:" + name, OvfEnvXml.NAMESPACES)
-        if len(matches) == 0:
+        if not matches:
             msg = "missing configuration for %r" % name
             LOG.debug(msg)
             if required:
                 raise errors.ReportableErrorOvfInvalidMetadata(msg)
             return default
-        elif len(matches) > 1:
+
+        if len(matches) > 1:
             raise errors.ReportableErrorOvfInvalidMetadata(
                 "multiple configuration matches for %r (%d)"
                 % (name, len(matches))
