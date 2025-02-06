@@ -381,8 +381,8 @@ class TestVmwareNetConfig(CiTestCase):
             if fp:
                 os.unlink(fp.name)
 
-    def test_non_primary_nic_without_gateway(self):
-        """A non primary nic set is not required to have a gateway."""
+    def test_static_nic_without_ipv4_netmask(self):
+        """netmask is optional for static ipv4 configuration."""
         config = textwrap.dedent(
             """\
             [NETWORK]
@@ -400,7 +400,6 @@ class TestVmwareNetConfig(CiTestCase):
             IPv4_MODE = BACKWARDS_COMPATIBLE
             BOOTPROTO = static
             IPADDR = 10.20.87.154
-            NETMASK = 255.255.252.0
             """
         )
         nc = self._get_NicConfigurator(config)
@@ -410,12 +409,38 @@ class TestVmwareNetConfig(CiTestCase):
                     "match": {"macaddress": "00:50:56:a6:8c:08"},
                     "wakeonlan": True,
                     "dhcp4": False,
-                    "addresses": ["10.20.87.154/22"],
+                    "addresses": ["10.20.87.154/32"],
                     "set-name": "NIC1",
                 }
             },
             nc.generate(),
         )
+
+    def test_static_nic_without_ipv6_netmask(self):
+        """netmask is mandatory for static ipv6 configuration."""
+        config = textwrap.dedent(
+            """\
+            [NETWORK]
+            NETWORKING = yes
+            BOOTPROTO = dhcp
+            HOSTNAME = myhost1
+            DOMAINNAME = eng.vmware.com
+
+            [NIC-CONFIG]
+            NICS = NIC1
+
+            [NIC1]
+            MACADDR = 00:50:56:a6:8c:08
+            ONBOOT = yes
+            IPv4_MODE = BACKWARDS_COMPATIBLE
+            BOOTPROTO = static
+            IPADDR = 10.20.87.154
+            IPv6ADDR|1 = fc00:10:20:87::154
+            """
+        )
+        nc = self._get_NicConfigurator(config)
+        with self.assertRaises(ValueError):
+            nc.generate()
 
     def test_non_primary_nic_with_gateway(self):
         """A non primary nic set can have a gateway."""
@@ -537,7 +562,7 @@ class TestVmwareNetConfig(CiTestCase):
                     "wakeonlan": True,
                     "dhcp4": False,
                     "addresses": ["10.20.87.154/22"],
-                    "routes": [{"to": "default", "via": "10.20.87.253"}],
+                    "routes": [{"to": "0.0.0.0/0", "via": "10.20.87.253"}],
                     "set-name": "NIC1",
                 }
             },

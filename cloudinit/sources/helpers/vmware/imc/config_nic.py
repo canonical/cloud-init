@@ -92,38 +92,19 @@ class NicConfigurator:
             raise ValueError("No known device has MACADDR: %s" % nic.mac)
 
         nic_config_dict = {}
-        # match
-        match = self.gen_match(mac)
-        if match:
-            nic_config_dict.update(match)
-        # set-name
-        set_name = self.gen_set_name(name)
-        if set_name:
-            nic_config_dict.update(set_name)
-        # wakeonlan
-        wakeonlan = self.gen_wakeonlan(nic)
-        if wakeonlan:
-            nic_config_dict.update(wakeonlan)
-        # dhcp4
-        dhcp4 = self.gen_dhcp4(nic)
-        if dhcp4:
-            nic_config_dict.update(dhcp4)
-        # dhcp6
-        dhcp6 = self.gen_dhcp6(nic)
-        if dhcp6:
-            nic_config_dict.update(dhcp6)
-        # addresses
-        addresses = self.gen_addresses(nic)
-        if addresses:
-            nic_config_dict.update(addresses)
-        # routes
-        routes = self.gen_routes(nic)
-        if routes:
-            nic_config_dict.update(routes)
-        # nameservers
-        nameservers = self.gen_nameservers()
-        if nameservers:
-            nic_config_dict.update(nameservers)
+        generators = [
+            self.gen_match(mac),
+            self.gen_set_name(name),
+            self.gen_wakeonlan(nic),
+            self.gen_dhcp4(nic),
+            self.gen_dhcp6(nic),
+            self.gen_addresses(nic),
+            self.gen_routes(nic),
+            self.gen_nameservers(),
+        ]
+        for value in generators:
+            if value:
+                nic_config_dict.update(value)
 
         return {name: nic_config_dict}
 
@@ -134,10 +115,7 @@ class NicConfigurator:
         return {"set-name": name}
 
     def gen_wakeonlan(self, nic):
-        if nic.onboot:
-            return {"wakeonlan": True}
-        else:
-            return {"wakeonlan": False}
+        return {"wakeonlan": nic.onboot}
 
     def gen_dhcp4(self, nic):
         dhcp4 = {}
@@ -151,23 +129,19 @@ class NicConfigurator:
                 dhcp4.update({"dhcp4-overrides": {"use-dns": False}})
         else:
             dhcp4.update({"dhcp4": False})
-        if dhcp4:
-            return dhcp4
-        else:
-            return None
+        return dhcp4
 
     def gen_dhcp6(self, nic):
+        dhcp6 = {}
         if nic.staticIpv6:
-            return {"dhcp6": False}
-        else:
-            # TODO: nic shall explicitly tell it's DHCP6
-            # TODO: set dhcp6-overrides
-            return None
+            dhcp6.update({"dhcp6": False})
+        # TODO: nic shall explicitly tell it's DHCP6
+        # TODO: set dhcp6-overrides
+        return dhcp6
 
     def gen_addresses(self, nic):
         address_list = []
         v4_cidr = 32
-        v6_cidr = 128
 
         # Static Ipv4
         v4_addrs = nic.staticIpv4
@@ -187,12 +161,11 @@ class NicConfigurator:
         if address_list:
             return {"addresses": address_list}
         else:
-            return None
+            return {}
 
     def gen_routes(self, nic):
         route_list = []
         v4_cidr = 32
-        v6_cidr = 128
 
         # Ipv4 routes
         v4_addrs = nic.staticIpv4
@@ -200,7 +173,7 @@ class NicConfigurator:
             v4 = v4_addrs[0]
             # Add the ipv4 default route
             if nic.primary and v4.gateways:
-                route_list.append({"to": "default", "via": v4.gateways[0]})
+                route_list.append({"to": "0.0.0.0/0", "via": v4.gateways[0]})
             # Add ipv4 static routes if there is no primary nic
             if not self._primaryNic and v4.gateways:
                 if v4.netmask:
@@ -217,7 +190,7 @@ class NicConfigurator:
                 v6_cidr = ipv6_mask_to_net_prefix(v6.netmask)
                 # Add the ipv6 default route
                 if nic.primary and v6.gateway:
-                    route_list.append({"to": "default", "via": v6.gateway})
+                    route_list.append({"to": "::/0", "via": v6.gateway})
                 # Add ipv6 static routes if there is no primary nic
                 if not self._primaryNic and v6.gateway:
                     v6_subnet = ipaddress.IPv6Network(
@@ -230,7 +203,7 @@ class NicConfigurator:
         if route_list:
             return {"routes": route_list}
         else:
-            return None
+            return {}
 
     def gen_nameservers(self):
         nameservers_dict = {}
@@ -250,7 +223,7 @@ class NicConfigurator:
         if nameservers_dict:
             return {"nameservers": nameservers_dict}
         else:
-            return None
+            return {}
 
     def generate(self, configure=False, osfamily=None):
         """Return the config elements that are needed to configure the nics"""
