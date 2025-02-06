@@ -281,7 +281,7 @@ class SyslogRemotesLine:
         else:
             buf += self.addr
 
-        if self.port is not None:
+        if self.port:
             buf += ":%s" % self.port
 
         if self.name:
