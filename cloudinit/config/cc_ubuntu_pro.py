@@ -195,7 +195,7 @@ def configure_pro(token, enable=None):
         ) from e
 
     try:
-        enable_resp: Dict[str, Any] = json.loads(enable_stdout)
+        enable_resp = json.loads(enable_stdout)
     except json.JSONDecodeError as e:
         raise RuntimeError(
             f"Pro response was not json: {enable_stdout}"
