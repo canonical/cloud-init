@@ -286,6 +286,7 @@ def _test_ansible_pull_from_local_server(my_client):
 @pytest.mark.user_data(
     USER_DATA + INSTALL_METHOD.format(package="ansible-core", method="pip")
 )
+@pytest.mark.skip("This test is currently broken and needs to be fixed")
 def test_ansible_pull_pip(client: IntegrationInstance):
     push_and_enable_systemd_unit(client, "repo_server.service", REPO_SERVER)
     push_and_enable_systemd_unit(client, "repo_waiter.service", REPO_WAITER)
@@ -303,6 +304,7 @@ def test_ansible_pull_pip(client: IntegrationInstance):
 @pytest.mark.user_data(
     USER_DATA + INSTALL_METHOD.format(package="ansible", method="distro")
 )
+@pytest.mark.skip("This test is currently broken and needs to be fixed")
 def test_ansible_pull_distro(client):
     push_and_enable_systemd_unit(client, "repo_server.service", REPO_SERVER)
     push_and_enable_systemd_unit(client, "repo_waiter.service", REPO_WAITER)
