@@ -5,7 +5,7 @@
 import json
 import logging
 import re
-from typing import Any, Dict, List
+from typing import Any, List
 from urllib.parse import urlparse
 
 from cloudinit import performance, subp, util
