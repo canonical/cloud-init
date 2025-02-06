@@ -5,7 +5,7 @@
 import json
 import logging
 import re
-from typing import Any, List
+from typing import Any, Dict, List
 from urllib.parse import urlparse
 
 from cloudinit import performance, subp, util
@@ -178,8 +178,8 @@ def configure_pro(token, enable=None):
         # Allow `ua attach` to fail in already attached machines
         subp.subp(attach_cmd, rcs={0, 2}, logstring=redacted_cmd)
     except subp.ProcessExecutionError as e:
-        err = str(e).replace(token, REDACTED)
-        msg = f"Failure attaching Ubuntu Pro:\n{err}"
+        error = str(e).replace(token, REDACTED)
+        msg = f"Failure attaching Ubuntu Pro:\n{error}"
         util.logexc(LOG, msg)
         raise RuntimeError(msg) from e
 
@@ -195,7 +195,7 @@ def configure_pro(token, enable=None):
         ) from e
 
     try:
-        enable_resp = json.loads(enable_stdout)
+        enable_resp: Dict[str, Any] = json.loads(enable_stdout)
     except json.JSONDecodeError as e:
         raise RuntimeError(
             f"Pro response was not json: {enable_stdout}"
@@ -226,21 +226,21 @@ def configure_pro(token, enable=None):
     # or null respectively.
 
     enable_errors: List[dict] = []
-    for error in enable_resp.get("errors", []):
-        if error["message_code"] == "service-already-enabled":
-            LOG.debug("Service `%s` already enabled.", error["service"])
+    for err in enable_resp.get("errors", []):
+        if err["message_code"] == "service-already-enabled":
+            LOG.debug("Service `%s` already enabled.", err["service"])
             continue
-        enable_errors.append(error)
+        enable_errors.append(err)
 
     if enable_errors:
         error_services: List[str] = []
-        for error in enable_errors:
-            service = error.get("service")
+        for err in enable_errors:
+            service = err.get("service")
             if service is not None:
                 error_services.append(service)
-                msg = f'Failure enabling `{service}`: {error["message"]}'
+                msg = f'Failure enabling `{service}`: {err["message"]}'
             else:
-                msg = f'Failure of type `{error["type"]}`: {error["message"]}'
+                msg = f'Failure of type `{err["type"]}`: {err["message"]}'
             util.logexc(LOG, msg)
 
         raise RuntimeError(
