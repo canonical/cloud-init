@@ -1215,7 +1215,7 @@ def get_hostname_fqdn(cfg, cloud, metadata_only=False):
     is_default = False
     if "fqdn" in cfg:
         # user specified a fqdn.  Default hostname then is based off that
-        fqdn = cfg["fqdn"]
+        fqdn = str(cfg["fqdn"])
         hostname = get_cfg_option_str(cfg, "hostname", fqdn.split(".")[0])
     else:
         if "hostname" in cfg and cfg["hostname"].find(".") > 0:
