@@ -1,8 +1,10 @@
 # Copyright (C) 2015 Canonical Ltd.
-# Copyright (C) 2016-2022 VMware INC.
+# Copyright (C) 2006-2024 Broadcom. All Rights Reserved.
+# Broadcom Confidential. The term "Broadcom" refers to Broadcom Inc.
+# and/or its subsidiaries.
 #
 # Author: Sankar Tanguturi <stanguturi@vmware.com>
-#         Pengpeng Sun <pengpengs@vmware.com>
+#         Pengpeng Sun <pengpeng.sun@broadcom.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
@@ -17,10 +19,7 @@ from cloudinit.sources.helpers.vmware.imc.config import Config
 from cloudinit.sources.helpers.vmware.imc.config_file import (
     ConfigFile as WrappedConfigFile,
 )
-from cloudinit.sources.helpers.vmware.imc.config_nic import (
-    NicConfigurator,
-    gen_subnet,
-)
+from cloudinit.sources.helpers.vmware.imc.config_nic import NicConfigurator
 from cloudinit.sources.helpers.vmware.imc.guestcust_util import (
     get_network_data_from_vmware_cust_cfg,
     get_non_network_data_from_vmware_cust_cfg,
@@ -164,36 +163,21 @@ class TestVmwareConfigFile(CiTestCase):
 
         network_config = get_network_data_from_vmware_cust_cfg(config, False)
 
-        self.assertEqual(1, network_config.get("version"))
+        self.assertEqual(2, network_config.get("version"))
 
-        config_types = network_config.get("config")
-        name_servers = None
-        dns_suffixes = None
+        ethernets = network_config.get("ethernets")
 
-        for type in config_types:
-            if type.get("type") == "nameserver":
-                name_servers = type.get("address")
-                dns_suffixes = type.get("search")
-                break
-
-        self.assertEqual(["10.20.145.1", "10.20.145.2"], name_servers, "dns")
-        self.assertEqual(
-            ["eng.vmware.com", "proxy.vmware.com"], dns_suffixes, "suffixes"
-        )
-
-    def test_gen_subnet(self):
-        """Tests if gen_subnet properly calculates network subnet from
-        IPv4 address and netmask"""
-        ip_subnet_list = [
-            ["10.20.87.253", "255.255.252.0", "10.20.84.0"],
-            ["10.20.92.105", "255.255.252.0", "10.20.92.0"],
-            ["192.168.0.10", "255.255.0.0", "192.168.0.0"],
-        ]
-        for entry in ip_subnet_list:
+        for _, config in ethernets.items():
+            self.assertTrue(isinstance(config, dict))
+            name_servers = config.get("nameservers").get("addresses")
+            dns_suffixes = config.get("nameservers").get("search")
             self.assertEqual(
-                entry[2],
-                gen_subnet(entry[0], entry[1]),
-                "Subnet for a specified ip and netmask",
+                ["10.20.145.1", "10.20.145.2"], name_servers, "dns"
+            )
+            self.assertEqual(
+                ["eng.vmware.com", "proxy.vmware.com"],
+                dns_suffixes,
+                "suffixes",
             )
 
     def test_get_config_dns_suffixes(self):
@@ -206,162 +190,141 @@ class TestVmwareConfigFile(CiTestCase):
 
         network_config = get_network_data_from_vmware_cust_cfg(config, False)
 
-        self.assertEqual(1, network_config.get("version"))
+        self.assertEqual(2, network_config.get("version"))
 
-        config_types = network_config.get("config")
-        name_servers = None
-        dns_suffixes = None
+        ethernets = network_config.get("ethernets")
 
-        for type in config_types:
-            if type.get("type") == "nameserver":
-                name_servers = type.get("address")
-                dns_suffixes = type.get("search")
-                break
-
-        self.assertEqual([], name_servers, "dns")
-        self.assertEqual(["eng.vmware.com"], dns_suffixes, "suffixes")
+        for _, config in ethernets.items():
+            self.assertTrue(isinstance(config, dict))
+            name_servers = config.get("nameservers").get("addresses")
+            dns_suffixes = config.get("nameservers").get("search")
+            self.assertEqual(None, name_servers, "dns")
+            self.assertEqual(["eng.vmware.com"], dns_suffixes, "suffixes")
 
     def test_get_nics_list_dhcp(self):
-        """Tests if NicConfigurator properly calculates network subnets
+        """Tests if NicConfigurator properly calculates ethernets
         for a configuration with a list of DHCP NICs"""
         cf = ConfigFile("tests/data/vmware/cust-dhcp-2nic.cfg")
 
         config = Config(cf)
 
-        nicConfigurator = NicConfigurator(config.nics, False)
-        nics_cfg_list = nicConfigurator.generate()
-
-        self.assertEqual(2, len(nics_cfg_list), "number of config elements")
-
-        nic1 = {"name": "NIC1"}
-        nic2 = {"name": "NIC2"}
-        for cfg in nics_cfg_list:
-            if cfg.get("name") == nic1.get("name"):
-                nic1.update(cfg)
-            elif cfg.get("name") == nic2.get("name"):
-                nic2.update(cfg)
-
-        self.assertEqual("physical", nic1.get("type"), "type of NIC1")
-        self.assertEqual("NIC1", nic1.get("name"), "name of NIC1")
-        self.assertEqual(
-            "00:50:56:a6:8c:08", nic1.get("mac_address"), "mac address of NIC1"
+        nicConfigurator = NicConfigurator(
+            config.nics, config.name_servers, config.dns_suffixes, False
         )
-        subnets = nic1.get("subnets")
-        self.assertEqual(1, len(subnets), "number of subnets for NIC1")
-        subnet = subnets[0]
-        self.assertEqual("dhcp", subnet.get("type"), "DHCP type for NIC1")
-        self.assertEqual("auto", subnet.get("control"), "NIC1 Control type")
+        ethernets_dict = nicConfigurator.generate()
 
-        self.assertEqual("physical", nic2.get("type"), "type of NIC2")
-        self.assertEqual("NIC2", nic2.get("name"), "name of NIC2")
-        self.assertEqual(
-            "00:50:56:a6:5a:de", nic2.get("mac_address"), "mac address of NIC2"
-        )
-        subnets = nic2.get("subnets")
-        self.assertEqual(1, len(subnets), "number of subnets for NIC2")
-        subnet = subnets[0]
-        self.assertEqual("dhcp", subnet.get("type"), "DHCP type for NIC2")
-        self.assertEqual("auto", subnet.get("control"), "NIC2 Control type")
+        self.assertTrue(isinstance(ethernets_dict, dict))
+        self.assertEqual(2, len(ethernets_dict), "number of ethernets")
+
+        for name, config in ethernets_dict.items():
+            if name == "NIC1":
+                self.assertEqual(
+                    "00:50:56:a6:8c:08",
+                    config.get("match").get("macaddress"),
+                    "mac address of NIC1",
+                )
+                self.assertEqual(
+                    True, config.get("wakeonlan"), "wakeonlan of NIC1"
+                )
+                self.assertEqual(
+                    True, config.get("dhcp4"), "DHCPv4 enablement of NIC1"
+                )
+                self.assertEqual(
+                    False,
+                    config.get("dhcp4-overrides").get("use-dns"),
+                    "use-dns enablement for dhcp4-overrides of NIC1",
+                )
+            if name == "NIC2":
+                self.assertEqual(
+                    "00:50:56:a6:5a:de",
+                    config.get("match").get("macaddress"),
+                    "mac address of NIC2",
+                )
+                self.assertEqual(
+                    True, config.get("wakeonlan"), "wakeonlan of NIC2"
+                )
+                self.assertEqual(
+                    True, config.get("dhcp4"), "DHCPv4 enablement of NIC2"
+                )
+                self.assertEqual(
+                    False,
+                    config.get("dhcp4-overrides").get("use-dns"),
+                    "use-dns enablement for dhcp4-overrides of NIC2",
+                )
 
     def test_get_nics_list_static(self):
-        """Tests if NicConfigurator properly calculates network subnets
+        """Tests if NicConfigurator properly calculates ethernets
         for a configuration with 2 static NICs"""
         cf = ConfigFile("tests/data/vmware/cust-static-2nic.cfg")
 
         config = Config(cf)
 
-        nicConfigurator = NicConfigurator(config.nics, False)
-        nics_cfg_list = nicConfigurator.generate()
-
-        self.assertEqual(2, len(nics_cfg_list), "number of elements")
-
-        nic1 = {"name": "NIC1"}
-        nic2 = {"name": "NIC2"}
-        route_list = []
-        for cfg in nics_cfg_list:
-            cfg_type = cfg.get("type")
-            if cfg_type == "physical":
-                if cfg.get("name") == nic1.get("name"):
-                    nic1.update(cfg)
-                elif cfg.get("name") == nic2.get("name"):
-                    nic2.update(cfg)
-
-        self.assertEqual("physical", nic1.get("type"), "type of NIC1")
-        self.assertEqual("NIC1", nic1.get("name"), "name of NIC1")
-        self.assertEqual(
-            "00:50:56:a6:8c:08", nic1.get("mac_address"), "mac address of NIC1"
+        nicConfigurator = NicConfigurator(
+            config.nics, config.name_servers, config.dns_suffixes, False
         )
+        ethernets_dict = nicConfigurator.generate()
 
-        subnets = nic1.get("subnets")
-        self.assertEqual(2, len(subnets), "Number of subnets")
+        self.assertTrue(isinstance(ethernets_dict, dict))
+        self.assertEqual(2, len(ethernets_dict), "number of ethernets")
 
-        static_subnet = []
-        static6_subnet = []
-
-        for subnet in subnets:
-            subnet_type = subnet.get("type")
-            if subnet_type == "static":
-                static_subnet.append(subnet)
-            elif subnet_type == "static6":
-                static6_subnet.append(subnet)
-            else:
-                self.assertEqual(True, False, "Unknown type")
-            if "route" in subnet:
-                for route in subnet.get("routes"):
-                    route_list.append(route)
-
-        self.assertEqual(1, len(static_subnet), "Number of static subnet")
-        self.assertEqual(1, len(static6_subnet), "Number of static6 subnet")
-
-        subnet = static_subnet[0]
-        self.assertEqual(
-            "10.20.87.154",
-            subnet.get("address"),
-            "IPv4 address of static subnet",
-        )
-        self.assertEqual(
-            "255.255.252.0", subnet.get("netmask"), "NetMask of static subnet"
-        )
-        self.assertEqual(
-            "auto", subnet.get("control"), "control for static subnet"
-        )
-
-        subnet = static6_subnet[0]
-        self.assertEqual(
-            "fc00:10:20:87::154",
-            subnet.get("address"),
-            "IPv6 address of static subnet",
-        )
-        self.assertEqual(
-            "64", subnet.get("netmask"), "NetMask of static6 subnet"
-        )
-
-        route_set = set(["10.20.87.253", "10.20.87.105", "192.168.0.10"])
-        for route in route_list:
-            self.assertEqual(10000, route.get("metric"), "metric of route")
-            gateway = route.get("gateway")
-            if gateway in route_set:
-                route_set.discard(gateway)
-            else:
-                self.assertEqual(True, False, "invalid gateway %s" % (gateway))
-
-        self.assertEqual("physical", nic2.get("type"), "type of NIC2")
-        self.assertEqual("NIC2", nic2.get("name"), "name of NIC2")
-        self.assertEqual(
-            "00:50:56:a6:ef:7d", nic2.get("mac_address"), "mac address of NIC2"
-        )
-
-        subnets = nic2.get("subnets")
-        self.assertEqual(1, len(subnets), "Number of subnets for NIC2")
-
-        subnet = subnets[0]
-        self.assertEqual("static", subnet.get("type"), "Subnet type")
-        self.assertEqual(
-            "192.168.6.102", subnet.get("address"), "Subnet address"
-        )
-        self.assertEqual(
-            "255.255.0.0", subnet.get("netmask"), "Subnet netmask"
-        )
+        for name, config in ethernets_dict.items():
+            print(config)
+            if name == "NIC1":
+                self.assertEqual(
+                    "00:50:56:a6:8c:08",
+                    config.get("match").get("macaddress"),
+                    "mac address of NIC1",
+                )
+                self.assertEqual(
+                    True, config.get("wakeonlan"), "wakeonlan of NIC1"
+                )
+                self.assertEqual(
+                    False, config.get("dhcp4"), "DHCPv4 enablement of NIC1"
+                )
+                self.assertEqual(
+                    False, config.get("dhcp6"), "DHCPv6 enablement of NIC1"
+                )
+                self.assertEqual(
+                    ["10.20.87.154/22", "fc00:10:20:87::154/64"],
+                    config.get("addresses"),
+                    "IP addresses of NIC1",
+                )
+                self.assertEqual(
+                    [
+                        {"to": "10.20.84.0/22", "via": "10.20.87.253"},
+                        {"to": "10.20.84.0/22", "via": "10.20.87.105"},
+                        {
+                            "to": "fc00:10:20:87::/64",
+                            "via": "fc00:10:20:87::253",
+                        },
+                    ],
+                    config.get("routes"),
+                    "routes of NIC1",
+                )
+            if name == "NIC2":
+                self.assertEqual(
+                    "00:50:56:a6:ef:7d",
+                    config.get("match").get("macaddress"),
+                    "mac address of NIC2",
+                )
+                self.assertEqual(
+                    True, config.get("wakeonlan"), "wakeonlan of NIC2"
+                )
+                self.assertEqual(
+                    False, config.get("dhcp4"), "DHCPv4 enablement of NIC2"
+                )
+                self.assertEqual(
+                    ["192.168.6.102/16"],
+                    config.get("addresses"),
+                    "IP addresses of NIC2",
+                )
+                self.assertEqual(
+                    [
+                        {"to": "192.168.0.0/16", "via": "192.168.0.10"},
+                    ],
+                    config.get("routes"),
+                    "routes of NIC2",
+                )
 
     def test_custom_script(self):
         cf = ConfigFile("tests/data/vmware/cust-dhcp-2nic.cfg")
@@ -408,13 +371,18 @@ class TestVmwareNetConfig(CiTestCase):
                 fp.write(text)
                 fp.close()
             cfg = Config(ConfigFile(fp.name))
-            return NicConfigurator(cfg.nics, use_system_devices=False)
+            return NicConfigurator(
+                cfg.nics,
+                cfg.name_servers,
+                cfg.dns_suffixes,
+                use_system_devices=False,
+            )
         finally:
             if fp:
                 os.unlink(fp.name)
 
-    def test_non_primary_nic_without_gateway(self):
-        """A non primary nic set is not required to have a gateway."""
+    def test_static_nic_without_ipv4_netmask(self):
+        """netmask is optional for static ipv4 configuration."""
         config = textwrap.dedent(
             """\
             [NETWORK]
@@ -432,28 +400,47 @@ class TestVmwareNetConfig(CiTestCase):
             IPv4_MODE = BACKWARDS_COMPATIBLE
             BOOTPROTO = static
             IPADDR = 10.20.87.154
-            NETMASK = 255.255.252.0
             """
         )
         nc = self._get_NicConfigurator(config)
         self.assertEqual(
-            [
-                {
-                    "type": "physical",
-                    "name": "NIC1",
-                    "mac_address": "00:50:56:a6:8c:08",
-                    "subnets": [
-                        {
-                            "control": "auto",
-                            "type": "static",
-                            "address": "10.20.87.154",
-                            "netmask": "255.255.252.0",
-                        }
-                    ],
+            {
+                "NIC1": {
+                    "match": {"macaddress": "00:50:56:a6:8c:08"},
+                    "wakeonlan": True,
+                    "dhcp4": False,
+                    "addresses": ["10.20.87.154/32"],
+                    "set-name": "NIC1",
                 }
-            ],
+            },
             nc.generate(),
         )
+
+    def test_static_nic_without_ipv6_netmask(self):
+        """netmask is mandatory for static ipv6 configuration."""
+        config = textwrap.dedent(
+            """\
+            [NETWORK]
+            NETWORKING = yes
+            BOOTPROTO = dhcp
+            HOSTNAME = myhost1
+            DOMAINNAME = eng.vmware.com
+
+            [NIC-CONFIG]
+            NICS = NIC1
+
+            [NIC1]
+            MACADDR = 00:50:56:a6:8c:08
+            ONBOOT = yes
+            IPv4_MODE = BACKWARDS_COMPATIBLE
+            BOOTPROTO = static
+            IPADDR = 10.20.87.154
+            IPv6ADDR|1 = fc00:10:20:87::154
+            """
+        )
+        nc = self._get_NicConfigurator(config)
+        with self.assertRaises(ValueError):
+            nc.generate()
 
     def test_non_primary_nic_with_gateway(self):
         """A non primary nic set can have a gateway."""
@@ -480,29 +467,16 @@ class TestVmwareNetConfig(CiTestCase):
         )
         nc = self._get_NicConfigurator(config)
         self.assertEqual(
-            [
-                {
-                    "type": "physical",
-                    "name": "NIC1",
-                    "mac_address": "00:50:56:a6:8c:08",
-                    "subnets": [
-                        {
-                            "control": "auto",
-                            "type": "static",
-                            "address": "10.20.87.154",
-                            "netmask": "255.255.252.0",
-                            "routes": [
-                                {
-                                    "type": "route",
-                                    "destination": "10.20.84.0/22",
-                                    "gateway": "10.20.87.253",
-                                    "metric": 10000,
-                                }
-                            ],
-                        }
-                    ],
+            {
+                "NIC1": {
+                    "match": {"macaddress": "00:50:56:a6:8c:08"},
+                    "wakeonlan": True,
+                    "dhcp4": False,
+                    "addresses": ["10.20.87.154/22"],
+                    "routes": [{"to": "10.20.84.0/22", "via": "10.20.87.253"}],
+                    "set-name": "NIC1",
                 }
-            ],
+            },
             nc.generate(),
         )
 
@@ -540,29 +514,19 @@ class TestVmwareNetConfig(CiTestCase):
         )
         nc = self._get_NicConfigurator(config)
         self.assertEqual(
-            [
-                {
-                    "type": "physical",
-                    "name": "NIC1",
-                    "mac_address": "00:50:56:ac:d1:8a",
-                    "subnets": [
-                        {
-                            "control": "auto",
-                            "type": "static",
-                            "address": "100.115.223.75",
-                            "netmask": "255.255.255.0",
-                            "routes": [
-                                {
-                                    "type": "route",
-                                    "destination": "100.115.223.0/24",
-                                    "gateway": "100.115.223.254",
-                                    "metric": 10000,
-                                }
-                            ],
-                        }
+            {
+                "NIC1": {
+                    "match": {"macaddress": "00:50:56:ac:d1:8a"},
+                    "wakeonlan": True,
+                    "dhcp4": False,
+                    "addresses": ["100.115.223.75/24"],
+                    "routes": [
+                        {"to": "100.115.223.0/24", "via": "100.115.223.254"}
                     ],
+                    "set-name": "NIC1",
+                    "nameservers": {"addresses": ["8.8.8.8"]},
                 }
-            ],
+            },
             nc.generate(),
         )
 
@@ -592,22 +556,16 @@ class TestVmwareNetConfig(CiTestCase):
         )
         nc = self._get_NicConfigurator(config)
         self.assertEqual(
-            [
-                {
-                    "type": "physical",
-                    "name": "NIC1",
-                    "mac_address": "00:50:56:a6:8c:08",
-                    "subnets": [
-                        {
-                            "control": "auto",
-                            "type": "static",
-                            "address": "10.20.87.154",
-                            "netmask": "255.255.252.0",
-                            "gateway": "10.20.87.253",
-                        }
-                    ],
+            {
+                "NIC1": {
+                    "match": {"macaddress": "00:50:56:a6:8c:08"},
+                    "wakeonlan": True,
+                    "dhcp4": False,
+                    "addresses": ["10.20.87.154/22"],
+                    "routes": [{"to": "0.0.0.0/0", "via": "10.20.87.253"}],
+                    "set-name": "NIC1",
                 }
-            ],
+            },
             nc.generate(),
         )
 
