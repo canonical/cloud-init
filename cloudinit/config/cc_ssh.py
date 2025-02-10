@@ -38,9 +38,6 @@ LOG = logging.getLogger(__name__)
 GENERATE_KEY_NAMES = ["rsa", "ecdsa", "ed25519"]
 FIPS_UNSUPPORTED_KEY_NAMES = ["ed25519"]
 
-pattern_unsupported_config_keys = re.compile(
-    "^(ecdsa-sk|ed25519-sk)_(private|public|certificate)$"
-)
 KEY_FILE_TPL = "/etc/ssh/ssh_host_%s_key"
 PUBLISH_HOST_KEYS = True
 # By default publish all supported hostkey types.
@@ -113,7 +110,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         cert_config = []
         for key, val in cfg["ssh_keys"].items():
             if key not in CONFIG_KEY_TO_FILE:
-                if pattern_unsupported_config_keys.match(key):
+                if re.match(
+                    "^(ecdsa-sk|ed25519-sk)_(private|public|certificate)$", key
+                ):
                     reason = "unsupported"
                 else:
                     reason = "unrecognized"

@@ -1,26 +1,18 @@
-.. _tutorial_wsl:
+.. _launch_wsl:
 
-WSL Tutorial
-************
+Using WSL with cloud-init
+*************************
 
-In this tutorial, we will customize a Windows Subsystem for Linux (WSL)
+In this guide, we will customize a `Windows Subsystem for Linux`_ (WSL)
 instance using cloud-init on Ubuntu.
-
-How to use this tutorial
-========================
-
-In this tutorial, the commands in each code block can be copied and pasted
-directly into a ``PowerShell`` Window . Omit the prompt before each
-command, or use the "copy code" button on the right-hand side of the block,
-which will copy the command for you without the prompt.
 
 Prerequisites
 =============
 
-This tutorial assumes you are running within a ``Windows 11`` or ``Windows
+This guide assumes you are running within a ``Windows 11`` or ``Windows
 Server 2022`` environment. If ``wsl`` is already installed, you must be
 running version 2. You can check your version of ``wsl`` by running the
-following command:
+following command in your terminal:
 
 .. code-block:: doscon
 
@@ -38,9 +30,8 @@ Example output:
     DXCore version: 10.0.25131.1002-220531-1700.rs-onecore-base2-hyp
     Windows version: 10.0.20348.2402
 
-If running this tutorial within a virtualized
-environment (`including in the cloud`_), ensure that
-`nested virtualization`_ is enabled.
+If you follow this guide while using a virtualized environment
+(`including in the cloud`_), ensure that `nested virtualization`_ is enabled.
 
 Install WSL
 ===========
@@ -66,10 +57,10 @@ Example output:
 
 Reboot the system when prompted.
 
-Create our user data
-====================
+Create some user-data
+=====================
 
-User data is the primary way for a user to customize a cloud-init instance.
+User-data is the primary way for a user to customize a cloud-init instance.
 Open Notepad and paste the following:
 
 .. code-block:: yaml
@@ -89,13 +80,13 @@ Ensure that the file is saved with the ``.user-data`` extension and
 not as a ``.txt`` file.
 
 .. note::
-    We are creating user data that is tied to the instance we just created,
-    but by changing the filename, we can create user data that applies to
-    multiple or all WSL instances. See
+    We are creating user-data that is tied to the instance we just created,
+    but by changing the filename, we can create user-data that applies to
+    multiple (or all) WSL instances. See
     :ref:`WSL Datasource reference page<wsl_user_data_configuration>` for
     more information.
 
-What is user data?
+What is user-data?
 ==================
 
 Before moving forward, let's inspect our :file:`user-data` file.
@@ -112,7 +103,7 @@ We created the following contents:
       permissions: '0770'
 
 The first line starts with ``#cloud-config``, which tells cloud-init
-what type of user data is in the config. Cloud-config is a YAML-based
+what type of user-data is in the config. Cloud-config is a YAML-based
 configuration type that tells cloud-init how to configure the instance
 being created. Multiple different format types are supported by
 cloud-init. For more information, see the
@@ -167,7 +158,7 @@ Download the Ubuntu 24.04 WSL image.
 
     PS> Invoke-WebRequest -Uri https://cloud-images.ubuntu.com/wsl/noble/current/ubuntu-noble-wsl-amd64-wsl.rootfs.tar.gz -OutFile wsl-images\ubuntu-noble-wsl-amd64-wsl.rootfs.tar.gz
 
-Import the image into WSL storing it in the ``wsl-images`` directory.
+Import the image into WSL, storing it in the ``wsl-images`` directory.
 
 .. code-block:: doscon
 
@@ -186,8 +177,8 @@ Start the Ubuntu WSL instance
 
     PS> wsl --distribution Ubuntu-24.04
 
-Setup the Ubuntu WSL instance
-=============================
+Set up the Ubuntu WSL instance
+==============================
 
 The Ubuntu WSL instance will start, and you may be prompted for a username
 and password.
@@ -224,12 +215,12 @@ screen similar to the following:
     /root/.hushlogin file.
     root@machine:/mnt/c/Users/me#
 
-You should now be in a shell inside the WSL instance.
+This indicates you are now in a shell inside the WSL instance.
 
 Verify that ``cloud-init`` ran successfully
 -------------------------------------------
 
-Before validating the user data, let's wait for ``cloud-init`` to complete
+Before validating the user-data, let's wait for ``cloud-init`` to complete
 successfully:
 
 .. code-block:: shell-session
@@ -254,11 +245,11 @@ Which provides the following output:
 
     wsl
 
-Verify our user data
+Verify our user-data
 --------------------
 
 Now we know that ``cloud-init`` has been successfully run, we can verify that
-it received the expected user data we provided earlier:
+it received the expected user-data we provided earlier:
 
 .. code-block:: shell-session
 
@@ -275,7 +266,7 @@ Which should print the following to the terminal window:
     path: /var/tmp/hello-world.txt
     permissions: '0770'
 
-We can also assert the user data we provided is a valid cloud-config:
+We can also assert the user-data we provided is a valid cloud-config:
 
 .. code-block:: shell-session
 
@@ -287,7 +278,7 @@ Which should print the following:
 
     Valid schema user-data
 
-Finally, let us verify that our user data was applied successfully:
+Finally, let us verify that our user-data was applied successfully:
 
 .. code-block:: shell-session
 
@@ -299,13 +290,13 @@ Which should then print:
 
     Hello from cloud-init
 
-We can see that ``cloud-init`` has received and consumed our user data
+We can see that ``cloud-init`` has received and consumed our user-data
 successfully!
 
 What's next?
 ============
 
-In this tutorial, we used the :ref:`Write Files module <mod_cc_write_files>` to
+In this guide, we used the :ref:`Write Files module <mod_cc_write_files>` to
 write a file to our WSL instance. The full list of modules available can be
 found in our :ref:`modules documentation<modules>`.
 Each module contains examples of how to use it.
@@ -316,7 +307,7 @@ examples of more common use cases.
 Cloud-init's WSL reference documentation can be found on the
 :ref:`WSL Datasource reference page<datasource_wsl>`.
 
-
+.. _Windows Subsystem for Linux: https://learn.microsoft.com/en-us/windows/wsl/
 .. _including in the cloud: https://techcommunity.microsoft.com/t5/itops-talk-blog/how-to-setup-nested-virtualization-for-azure-vm-vhd/ba-p/1115338
 .. _nested virtualization: https://docs.microsoft.com/en-us/virtualization/hyper-v-on-windows/user-guide/nested-virtualization
 .. _Ubuntu 24.04: https://apps.microsoft.com/detail/9nz3klhxdjp5

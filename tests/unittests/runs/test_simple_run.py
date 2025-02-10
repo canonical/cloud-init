@@ -97,7 +97,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
 
         mods = Modules(initer)
         (which_ran, failures) = mods.run_section("cloud_init_modules")
-        self.assertTrue(len(failures) == 0)
+        self.assertFalse(failures)
         self.assertTrue(os.path.exists("/etc/blah.ini"))
         self.assertIn("write_files", which_ran)
         contents = util.load_text_file("/etc/blah.ini")
@@ -125,7 +125,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
 
         mods = Modules(initer)
         (which_ran, failures) = mods.run_section("cloud_init_modules")
-        self.assertTrue(len(failures) == 0)
+        self.assertFalse(failures)
         self.assertIn(
             "Skipping modules 'spacewalk' because they are not verified on"
             " distro 'ubuntu'",
@@ -154,7 +154,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
 
         mods = Modules(initer)
         (which_ran, failures) = mods.run_section("cloud_init_modules")
-        self.assertTrue(len(failures) == 0)
+        self.assertFalse(failures)
         self.assertIn("runcmd", which_ran)
         self.assertNotIn(
             "Skipping modules 'runcmd' because they are not verified on"
@@ -189,7 +189,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
 
         mods = Modules(initer)
         (which_ran, failures) = mods.run_section("cloud_init_modules")
-        self.assertTrue(len(failures) == 0)
+        self.assertFalse(failures)
         self.assertIn("spacewalk", which_ran)
         self.assertIn(
             "running unverified_modules: 'spacewalk'", self.logs.getvalue()
@@ -223,5 +223,5 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
 
         mods = Modules(initer)
         (which_ran, failures) = mods.run_section("cloud_init_modules")
-        self.assertTrue(len(failures) == 0)
+        self.assertFalse(failures)
         self.assertEqual([], which_ran)

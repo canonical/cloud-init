@@ -5,6 +5,7 @@
 # cloud-init is ready; if so invoke cloud-init hotplug-hook
 
 fifo=/run/cloud-init/hook-hotplug-cmd
+log_file=/run/cloud-init/hook-hotplug.log
 
 should_run() {
     if [ -d /run/systemd ]; then
@@ -17,6 +18,9 @@ should_run() {
 }
 
 if ! should_run; then
+    # This happens when a device is hotplugged before cloud-init-hotplugd.socket is
+    # listening on the socket.
+    echo "Not running hotplug, not ready yet" >> ${log_file}
     exit 0
 fi
 
@@ -25,3 +29,4 @@ exec 3<>$fifo
 env_params=" --subsystem=${SUBSYSTEM} handle --devpath=${DEVPATH} --udevaction=${ACTION}"
 # write params to cloud-init's hotplug-hook fifo
 echo "${env_params}" >&3
+echo "Running hotplug hook: $env_params" >> ${log_file}

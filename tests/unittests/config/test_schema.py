@@ -27,6 +27,7 @@ from cloudinit.config.schema import (
     SchemaValidationError,
     annotated_cloudconfig_file,
     get_jsonschema_validator,
+    get_meta_doc,
     get_schema,
     get_schema_dir,
     handle_schema_args,
@@ -1161,6 +1162,72 @@ class TestMain:
                 ),
                 "Valid schema",
             ),
+            (
+                "network-config",
+                (
+                    b"network:\n version: 1\n config:\n  - type: physical\n"
+                    b"    name: eth0\n    subnets:\n      - type: manual\n"
+                ),
+                "Valid schema",
+            ),
+            (
+                "network-config",
+                (
+                    b"network:\n version: 1\n config:\n  - type: physical\n"
+                    b"    name: eth0\n    subnets:\n      - type: static\n"
+                ),
+                "Valid schema",
+            ),
+            (
+                "network-config",
+                (
+                    b"network:\n version: 1\n config:\n  - type: physical\n"
+                    b"    name: eth0\n    subnets:\n      - type: static6\n"
+                ),
+                "Valid schema",
+            ),
+            (
+                "network-config",
+                (
+                    b"network:\n version: 1\n config:\n  - type: physical\n"
+                    b"    name: eth0\n    subnets:\n      - type: dhcp6\n"
+                ),
+                "Valid schema",
+            ),
+            (
+                "network-config",
+                (
+                    b"network:\n version: 1\n config:\n  - type: physical\n"
+                    b"    name: eth0\n    subnets:\n      - type: dhcp4\n"
+                ),
+                "Valid schema",
+            ),
+            (
+                "network-config",
+                (
+                    b"network:\n version: 1\n config:\n  - type: physical\n"
+                    b"    name: eth0\n    subnets:\n      - type: ipv6_slaac\n"
+                ),
+                "Valid schema",
+            ),
+            (
+                "network-config",
+                (
+                    b"network:\n version: 1\n config:\n  - type: physical\n"
+                    b"    name: eth0\n    subnets:\n"
+                    b"      - type: ipv6_dhcpv6-stateful\n"
+                ),
+                "Valid schema",
+            ),
+            (
+                "network-config",
+                (
+                    b"network:\n version: 1\n config:\n  - type: physical\n"
+                    b"    name: eth0\n    subnets:\n"
+                    b"      - type: ipv6_dhcpv6-stateless\n"
+                ),
+                "Valid schema",
+            ),
         ),
     )
     @mock.patch("cloudinit.net.netplan.available", return_value=False)
@@ -2212,3 +2279,14 @@ apt_reboot_if_required: Deprecated in version 22.2. Use\
         assert read_cfg_paths.call_args_list == [
             mock.call(fetch_existing_datasource="trust")
         ]
+
+
+class TestDeprecation:
+    def test_get_meta_doc_deprecation(self, caplog):
+        """Test that calling get_meta_doc() emits deprecation.
+
+        Ensures that custom modules calling `get_meta_doc()` can still
+        function but receive deprecation warning.
+        """
+        get_meta_doc("some", "random", "arguments", plus="kwargs")
+        assert "The 'get_meta_doc()' function is deprecated" in caplog.text

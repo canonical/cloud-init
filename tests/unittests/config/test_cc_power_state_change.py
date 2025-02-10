@@ -47,7 +47,7 @@ class TestLoadPowerState(t_help.TestCase):
         self.assertRaises(TypeError, psc.load_power_state, cfg, self.dist)
 
     def test_valid_modes(self):
-        cfg = {"power_state": {}}
+        cfg: dict = {"power_state": {}}
         for mode in ("halt", "poweroff", "reboot"):
             cfg["power_state"]["mode"] = mode
             check_lps_ret(psc.load_power_state(cfg, self.dist), mode=mode)

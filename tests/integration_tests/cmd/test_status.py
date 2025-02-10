@@ -34,7 +34,7 @@ def retry_read_from_file(client: IntegrationInstance, path: str):
     PLATFORM != "lxd_container",
     reason="Test is LXD specific",
 )
-def test_wait_when_no_datasource(session_cloud: IntegrationCloud, setup_image):
+def test_wait_when_no_datasource(session_cloud: IntegrationCloud):
     """Ensure that when no datasource is found, we get status: disabled
 
     LP: #1966085

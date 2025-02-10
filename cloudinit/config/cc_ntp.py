@@ -427,18 +427,14 @@ def write_ntp_config_template(
     if not peers:
         peers = []
 
-    if len(servers) == 0 and len(pools) == 0 and distro_name == "cos":
+    if not servers and not pools and distro_name == "cos":
         return
-    if (
-        len(servers) == 0
-        and distro_name == "alpine"
-        and service_name == "ntpd"
-    ):
+    if not servers and distro_name == "alpine" and service_name == "ntpd":
         # Alpine's Busybox ntpd only understands "servers" configuration
         # and not "pool" configuration.
         servers = generate_server_names(distro_name)
         LOG.debug("Adding distro default ntp servers: %s", ",".join(servers))
-    elif len(servers) == 0 and len(pools) == 0:
+    elif not (servers) and not (pools):
         pools = generate_server_names(distro_name)
         LOG.debug(
             "Adding distro default ntp pool servers: %s", ",".join(pools)
