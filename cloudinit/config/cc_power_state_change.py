@@ -45,7 +45,10 @@ def givecmdline(pid):
             (output, _err) = subp.subp(["procstat", "-c", str(pid)])
             line = output.splitlines()[1]
             m = re.search(r"\d+ (\w|\.|-)+\s+(/\w.+)", line)
-            return m.group(2)
+            if m:
+                return m.group(2)
+            else:
+                return None
         else:
             return util.load_text_file("/proc/%s/cmdline" % pid)
     except IOError:
