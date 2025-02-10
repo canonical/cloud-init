@@ -325,10 +325,6 @@ def _validator(
         yield error_type(msg, schema.get("deprecated_version", "devel"))
 
 
-_validator_deprecated = partial(_validator, filter_key="deprecated")
-_validator_changed = partial(_validator, filter_key="changed")
-
-
 def _anyOf(
     validator,
     anyOf,
@@ -474,8 +470,8 @@ def get_jsonschema_validator():
 
     # Add deprecation handling
     validators = dict(Draft4Validator.VALIDATORS)
-    validators[DEPRECATED_KEY] = _validator_deprecated
-    validators["changed"] = _validator_changed
+    validators[DEPRECATED_KEY] = partial(_validator, filter_key="deprecated")
+    validators["changed"] = partial(_validator, filter_key="changed")
     validators["oneOf"] = _oneOf
     validators["anyOf"] = _anyOf
 
@@ -1459,6 +1455,26 @@ def handle_schema_args(name, args):
             fmt="Error: Invalid schema: {}\n",
             sys_exit=True,
         )
+
+
+def get_meta_doc(*_args, **_kwargs) -> str:
+    """Provide a stub for backwards compatibility.
+
+    This function is no longer used, but earlier versions of modules
+    required this function for documentation purposes. This is a stub so
+    that custom modules do not break on upgrade.
+    """
+    lifecycle.log_with_downgradable_level(
+        logger=LOG,
+        version="24.4",
+        requested_level=logging.WARNING,
+        msg=(
+            "The 'get_meta_doc()' function is deprecated and will be removed "
+            "in a future version of cloud-init."
+        ),
+        args=(),
+    )
+    return ""
 
 
 def main():

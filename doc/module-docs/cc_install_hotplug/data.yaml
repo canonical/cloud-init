@@ -1,13 +1,18 @@
 cc_install_hotplug:
   description: |
     This module will install the udev rules to enable hotplug if supported by
-    the datasource and enabled in the userdata. The udev rules will be
+    the datasource and enabled in the user-data. The udev rules will be
     installed as ``/etc/udev/rules.d/90-cloud-init-hook-hotplug.rules``.
 
     When hotplug is enabled, newly added network devices will be added to the
     system by cloud-init. After udev detects the event, cloud-init will
     refresh the instance metadata from the datasource, detect the device in
     the updated metadata, then apply the updated network configuration.
+
+    Udev rules are installed while cloud-init is running, which means that
+    devices which are added during boot might not be configured. To work
+    around this limitation, one can wait until cloud-init has completed
+    before hotplugging devices.
 
     Currently supported datasources: Openstack, EC2
   examples:

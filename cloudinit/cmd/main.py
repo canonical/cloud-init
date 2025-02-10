@@ -21,7 +21,7 @@ import logging
 import yaml
 from typing import Optional, Tuple, Callable, Union
 
-from cloudinit import netinfo
+from cloudinit import features, netinfo
 from cloudinit import signal_handler
 from cloudinit import sources
 from cloudinit import socket
@@ -330,8 +330,12 @@ def _should_wait_via_user_data(
     if not raw_config:
         return False, "no configuration found"
 
+    # Since this could be some arbitrarily large blob of binary data,
+    # such as a gzipped file, only grab enough to inspect the header.
+    # Since we can get a header like #cloud-config-archive, make sure
+    # we grab enough to not be incorrectly identified as cloud-config.
     if (
-        handlers.type_from_starts_with(raw_config.strip()[:13])
+        handlers.type_from_starts_with(raw_config.strip()[:42])
         != "text/cloud-config"
     ):
         return True, "non-cloud-config user data found"
@@ -344,9 +348,12 @@ def _should_wait_via_user_data(
             version="24.4",
             requested_level=logging.WARNING,
             msg="Unexpected failure parsing userdata: %s",
-            args=e,
+            args=(e,),
         )
         return True, "failed to parse user data as yaml"
+
+    if not isinstance(parsed_yaml, dict):
+        return True, "parsed config not in cloud-config format"
 
     # These all have the potential to require network access, so we should wait
     if "write_files" in parsed_yaml:
@@ -479,7 +486,9 @@ def main_init(name, args):
     mode = sources.DSMODE_LOCAL if args.local else sources.DSMODE_NETWORK
 
     if mode == sources.DSMODE_NETWORK:
-        if not os.path.exists(init.paths.get_runpath(".skip-network")):
+        if features.MANUAL_NETWORK_WAIT and not os.path.exists(
+            init.paths.get_runpath(".skip-network")
+        ):
             LOG.debug("Will wait for network connectivity before continuing")
             init.distro.wait_for_network()
         existing = "trust"
@@ -553,20 +562,21 @@ def main_init(name, args):
     init.apply_network_config(bring_up=bring_up_interfaces)
 
     if mode == sources.DSMODE_LOCAL:
-        should_wait, reason = _should_wait_on_network(init.datasource)
-        if should_wait:
-            LOG.debug(
-                "Network connectivity determined necessary for "
-                "cloud-init's network stage. Reason: %s",
-                reason,
-            )
-        else:
-            LOG.debug(
-                "Network connectivity determined unnecessary for "
-                "cloud-init's network stage. Reason: %s",
-                reason,
-            )
-            util.write_file(init.paths.get_runpath(".skip-network"), "")
+        if features.MANUAL_NETWORK_WAIT:
+            should_wait, reason = _should_wait_on_network(init.datasource)
+            if should_wait:
+                LOG.debug(
+                    "Network connectivity determined necessary for "
+                    "cloud-init's network stage. Reason: %s",
+                    reason,
+                )
+            else:
+                LOG.debug(
+                    "Network connectivity determined unnecessary for "
+                    "cloud-init's network stage. Reason: %s",
+                    reason,
+                )
+                util.write_file(init.paths.get_runpath(".skip-network"), "")
 
         if init.datasource.dsmode != mode:
             LOG.debug(

@@ -1733,15 +1733,18 @@ def can_dev_be_reformatted(devpath, preserve_ntfs):
     # devpath of /dev/sd[a-z] or /dev/disk/cloud/azure_resource
     # where partitions are "<devpath>1" or "<devpath>-part1" or "<devpath>p1"
     partitions = _partitions_on_device(devpath)
-    if len(partitions) == 0:
+    if not partitions:
         return False, "device %s was not partitioned" % devpath
-    elif len(partitions) > 2:
+
+    partition_len = len(partitions)
+    if partition_len > 2:
         msg = "device %s had 3 or more partitions: %s" % (
             devpath,
             " ".join([p[1] for p in partitions]),
         )
         return False, msg
-    elif len(partitions) == 2:
+
+    if partition_len == 2:
         cand_part, cand_path = partitions[1]
     else:
         cand_part, cand_path = partitions[0]
