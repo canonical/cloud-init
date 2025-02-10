@@ -14,11 +14,15 @@ Notes:
 """
 
 import base64
+import difflib
 import ipaddress
 import json
 import logging
+from pprint import pformat
 import time
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple
+
+import yaml
 
 from cloudinit import atomic_helper, dmi, net, sources, util
 from cloudinit.distros.networking import NetworkConfig
@@ -27,6 +31,8 @@ from cloudinit.net import (
     ephemeral,
     get_interfaces_by_mac,
     is_netfail_master,
+    netplan,
+    network_state,
 )
 from cloudinit.url_helper import wait_for_url
 
@@ -34,7 +40,7 @@ LOG = logging.getLogger(__name__)
 
 BUILTIN_DS_CONFIG = {
     # Don't use IMDS to configure secondary NICs by default
-    "configure_secondary_nics": False,
+    "configure_secondary_nics": True,
 }
 CHASSIS_ASSET_TAG = "OracleCloud.com"
 IPV4_METADATA_ROOT = "http://169.254.169.254/opc/v{version}/"
@@ -169,7 +175,12 @@ class DataSourceOracle(sources.DataSource):
             self._network_config = {"config": [], "version": 1}
 
     def _has_network_config(self) -> bool:
-        return bool(self._network_config.get("config", []))
+        if self._network_config:
+            if self._network_config.get("version") == 1:
+                return bool(self._network_config.get("config"))
+            elif self._network_config.get("version") == 2:
+                return bool(self._network_config.get("ethernets"))
+        return False
 
     @staticmethod
     def ds_detect() -> bool:
@@ -295,7 +306,10 @@ class DataSourceOracle(sources.DataSource):
         set_primary = False
         # this is v1
         if self._is_iscsi_root():
-            self._network_config = self._get_iscsi_config()
+            self._network_config_v1 = self._get_iscsi_config()
+            self._network_config = convert_v1_netplan_to_v2(
+                self._network_config_v1
+            )
         if not self._has_network_config():
             LOG.warning(
                 "Could not obtain network configuration from initramfs. "
@@ -317,6 +331,8 @@ class DataSourceOracle(sources.DataSource):
                     LOG,
                     "Failed to parse IMDS network configuration!",
                 )
+
+
 
         # we need to verify that the nic selected is not a netfail over
         # device and, if it is a netfail master, then we need to avoid
@@ -380,70 +396,138 @@ class DataSourceOracle(sources.DataSource):
             else:
                 network = ipaddress.ip_network(vnic_dict["subnetCidrBlock"])
 
-            if self._network_config["version"] == 1:
-                if is_primary:
-                    if is_ipv6_only:
-                        subnets = [{"type": "dhcp6"}]
-                    else:
-                        subnets = [{"type": "dhcp"}]
+            ############################# V1 HERE #############################  
+        
+            if is_primary:
+                if is_ipv6_only:
+                    subnets = [{"type": "dhcp6"}]
                 else:
-                    subnets = []
-                    if vnic_dict.get("privateIp"):
-                        subnets.append(
-                            {
-                                "type": "static",
-                                "address": (
-                                    f"{vnic_dict['privateIp']}/"
-                                    f"{network.prefixlen}"
-                                ),
-                            }
-                        )
-                    if vnic_dict.get("ipv6Addresses"):
-                        subnets.append(
-                            {
-                                "type": "static",
-                                "address": (
-                                    f"{vnic_dict['ipv6Addresses'][0]}/"
-                                    f"{network.prefixlen}"
-                                ),
-                            }
-                        )
-                interface_config = {
-                    "name": name,
-                    "type": "physical",
-                    "mac_address": mac_address,
-                    "mtu": MTU,
-                    "subnets": subnets,
-                }
-                self._network_config["config"].append(interface_config)
-            elif self._network_config["version"] == 2:
-                # Why does this elif exist???
-                # Are there plans to switch to v2?
-                interface_config = {
-                    "mtu": MTU,
-                    "match": {"macaddress": mac_address},
-                }
-                self._network_config["ethernets"][name] = interface_config
+                    subnets = [{"type": "dhcp"}]
+            else:
+                subnets = []
+                if vnic_dict.get("privateIp"):
+                    subnets.append(
+                        {
+                            "type": "static",
+                            "address": (
+                                f"{vnic_dict['privateIp']}/"
+                                f"{network.prefixlen}"
+                            ),
+                        }
+                    )
+                if vnic_dict.get("ipv6Addresses"):
+                    subnets.append(
+                        {
+                            "type": "static",
+                            "address": (
+                                f"{vnic_dict['ipv6Addresses'][0]}/"
+                                f"{network.prefixlen}"
+                            ),
+                        }
+                    )
+            interface_config = {
+                "name": name,
+                "type": "physical",
+                "mac_address": mac_address,
+                "mtu": MTU,
+                "subnets": subnets,
+            }
+            self._network_config_v1["config"].append(interface_config)
 
-                interface_config["dhcp6"] = is_primary and is_ipv6_only
-                interface_config["dhcp4"] = is_primary and not is_ipv6_only
-                if not is_primary:
-                    interface_config["addresses"] = []
-                    if vnic_dict.get("privateIp"):
-                        interface_config["addresses"].append(
-                            f"{vnic_dict['privateIp']}/{network.prefixlen}"
-                        )
-                    if vnic_dict.get("ipv6Addresses"):
-                        interface_config["addresses"].append(
-                            f"{vnic_dict['ipv6Addresses'][0]}/"
-                            f"{network.prefixlen}"
-                        )
-                self._network_config["ethernets"][name] = interface_config
 
+            ############################# V2 HERE #############################  
+            # Why does this elif exist???
+            # Are there plans to switch to v2?
+            interface_config = {
+                "mtu": MTU,
+                "match": {"macaddress": mac_address},
+                "set-name": name,
+            }
+            self._network_config["ethernets"][name] = interface_config
+
+            if is_primary and is_ipv6_only:
+                interface_config["dhcp6"] = True
+            elif is_primary and not is_ipv6_only:
+                interface_config["dhcp4"] = True
+
+            if not is_primary:
+                interface_config["addresses"] = []
+                if vnic_dict.get("privateIp"):
+                    interface_config["addresses"].append(
+                        f"{vnic_dict['privateIp']}/{network.prefixlen}"
+                    )
+                if vnic_dict.get("ipv6Addresses"):
+                    interface_config["addresses"].append(
+                        f"{vnic_dict['ipv6Addresses'][0]}/"
+                        f"{network.prefixlen}"
+                    )
+            self._network_config["ethernets"][name] = interface_config
+
+        LOG.debug(
+            "Comparing IMDS network configs between v1 and v2"
+        )
+        compare_v1_and_v2_config_entries(self._network_config_v1, self._network_config)
 
 class DataSourceOracleNet(DataSourceOracle):
     perform_dhcp_setup = False
 
+
+def convert_v1_netplan_to_v2(network_config: dict) -> dict:
+    has_base_network_key = "network" in network_config
+    if has_base_network_key:
+        network_config = network_config["network"]
+    v1_network_state = network_state.parse_net_config_data(network_config, renderer=netplan.Renderer)
+    netplan_v2_yaml_string = netplan.Renderer()._render_content(v1_network_state)
+    netplan_v2_dict = yaml.safe_load(netplan_v2_yaml_string)
+    if has_base_network_key:
+        if "network" not in netplan_v2_dict:
+            netplan_v2_dict = {"network": netplan_v2_dict}
+    if not has_base_network_key:
+        if "network" in netplan_v2_dict:
+            netplan_v2_dict = netplan_v2_dict["network"]
+    return netplan_v2_dict
+
+def move_version_to_beggining_of_yaml_str(yaml_str: str) -> str:
+    version_line = [ 
+        line for line in yaml_str.split("\n") if "version:" in line
+    ][0]
+    lines = [ line for line in yaml_str.split("\n") if "version:" not in line ]
+    lines.insert(1, version_line)
+    return "\n".join(lines)
+
+def compare_v1_and_v2_config_entries(v1_config, v2_config):
+    v1_network_state = network_state.parse_net_config_data(
+        v1_config, renderer=netplan.Renderer
+    )
+    v2_network_state = network_state.parse_net_config_data(
+        v2_config, renderer=netplan.Renderer
+    )
+    v1_rendered_string = netplan.Renderer()._render_content(v1_network_state)
+    v2_rendered_string = netplan.Renderer()._render_content(v2_network_state)
+    v1_rendered_string = move_version_to_beggining_of_yaml_str(v1_rendered_string)
+    v2_rendered_string = move_version_to_beggining_of_yaml_str(v2_rendered_string)
+    LOG.debug("v1:\n%s\n\n%s", pformat(v1_config), v1_rendered_string)
+    LOG.debug("v2:\n%s\n\n%s", pformat(v2_config), v2_rendered_string)
+
+
+    if yaml.safe_load(v1_rendered_string) != yaml.safe_load(v2_rendered_string):
+        diff = difflib.unified_diff(
+            v1_rendered_string.splitlines(),
+            v2_rendered_string.splitlines(),
+            lineterm="",
+        )
+        LOG.warning(
+            "oracle datasource v1 and v2 network config entries do not match! "
+            "diff:\n%s",
+            "\n".join(diff)
+        )
+        return False
+    else:
+        LOG.debug(
+            "oracle datasource v1 and v2 network config entries match!"
+        )
+
+    return True
 
 def _is_ipv4_metadata_url(metadata_address: str):
     if not metadata_address:

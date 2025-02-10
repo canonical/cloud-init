@@ -91,7 +91,7 @@ def client_with_secondary_vnic(
     with session_cloud.launch() as client:
         ip_address = client.instance.add_network_interface()
         yield client
-        client.instance.remove_network_interface(ip_address)
+        # client.instance.remove_network_interface(ip_address)
 
 
 @pytest.mark.skipif(PLATFORM != "oci", reason="Test is OCI specific")
@@ -157,3 +157,95 @@ def test_oci_networking_system_cfg(client: IntegrationInstance, tmpdir):
     netplan_cfg = yaml.safe_load(netplan_yaml)
     expected_netplan_cfg = yaml.safe_load(SYSTEM_CFG)
     assert expected_netplan_cfg == netplan_cfg
+
+
+"""
+
+def compare_v1_and_v2_config_entries(v1_config, v2_config):
+
+    v1_network_state = network_state.parse_net_config_data(
+        v1_config, renderer=netplan.Renderer
+    )
+    v2_network_state = network_state.parse_net_config_data(
+        v2_config, renderer=netplan.Renderer
+    )
+    v1_rendered_string = netplan.Renderer()._render_content(v1_network_state)
+    v2_rendered_string = netplan.Renderer()._render_content(v2_network_state)
+
+    LOG.debug("v1:\n%s\n\n%s", pformat(v1_config), v1_rendered_string)
+    LOG.debug("v2:\n%s\n\n%s", pformat(v2_config), v2_rendered_string)
+
+
+    if yaml.safe_load(v1_rendered_string) != yaml.safe_load(v2_rendered_string):
+        diff = difflib.unified_diff(
+            v1_rendered_string.splitlines(),
+            v2_rendered_string.splitlines(),
+            lineterm="",
+        )
+        LOG.debug()
+        LOG.warning(
+            "oracle datasource v1 and v2 network config entries do not match! "
+            "diff:\n%s",
+            "\n".join(diff)
+        )
+        return False
+    else:
+        LOG.debug(
+            "oracle datasource v1 and v2 network config entries match!"
+        )
+
+    return True
+"""
+
+import logging
+logger = logging.getLogger(__name__)
+
+def _install_custom_cloudinit(client: IntegrationInstance, restart=True):
+    client.push_file(
+        "cloud-init_all.deb",
+        "/home/ubuntu/cloud-init.deb",
+    )
+    r1 = client.execute(
+        "sudo apt remove cloud-init --assume-yes -y"
+    )
+    assert r1.return_code == 0
+    r2 = client.execute(
+        "sudo apt install -y /home/ubuntu/cloud-init.deb"
+    )
+    assert r2.return_code == 0
+    r3 = client.execute(
+        "cloud-init --version"
+    )
+    logger.info(r3.stdout)
+    assert r3.return_code == 0
+    if restart:
+        client.execute("cloud-init clean --logs")
+        logger.info("Restarting instance")
+        client.instance.restart()
+
+# function that looks for the v1 vs v2 logs
+def test_v1_and_v2_network_config_match(
+    client_with_secondary_vnic: IntegrationInstance, tmpdir
+):
+    client = client_with_secondary_vnic
+    _install_custom_cloudinit(client, restart=False)
+    # make it so that that the instance will configure secondary nics
+    customize_environment(client, tmpdir, configure_secondary_nics=True)
+
+    # pull the log file locally for easier debugging
+    client.pull_file("/var/log/cloud-init.log", "cpc-6431-cloud-init.log")
+
+    log = client.read_from_file("/var/log/cloud-init.log")
+    verify_clean_log(log)
+    verify_clean_boot(client)
+
+
+    # assert that the v1 and v2 network config entries match
+    # compare_v1_and_v2_config_entries(v1_config, v2_config)
+
+    assert "Comparing IMDS network configs between v1 and v2" in log
+
+    # and that the debug log is present
+    assert "oracle datasource v1 and v2 network config entries match!" in log
+
+
