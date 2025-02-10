@@ -362,7 +362,6 @@ def _should_wait_via_user_data(
             source_uri = source_dict.get("uri", "")
             if source_uri and not (source_uri.startswith(("/", "file:"))):
                 return True, "write_files with source uri found"
-        return False, "write_files without source uri found"
     if parsed_yaml.get("bootcmd"):
         return True, "bootcmd found"
     if parsed_yaml.get("random_seed", {}).get("command"):
