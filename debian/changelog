@@ -1,3 +1,12 @@
+cloud-init (25.1-0ubuntu1) UNRELEASED; urgency=medium
+
+  * refresh patches:
+    - d/p/deprecation-version-boundary.patch
+    - d/p/grub-dpkg-support.patch
+  * Upstream snapshot based on upstream/main at 2b7d9636.
+
+ -- Brett Holman <brett.holman@canonical.com>  Mon, 10 Feb 2025 16:14:36 -0700
+
 cloud-init (24.4-0ubuntu1~24.10.1) oracular; urgency=medium
 
   * drop all d/p/cpick-* files as they are included in upstream snapshot
