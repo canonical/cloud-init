@@ -9,8 +9,8 @@ Last-Update: 2024-06-28
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/cloudinit/features.py
 +++ b/cloudinit/features.py
-@@ -87,7 +87,7 @@ On Debian and Ubuntu systems, cc_apt_con
- to write /etc/apt/sources.list directly.
+@@ -98,7 +98,7 @@ Note that in addition to this flag, down
+ to modify the systemd unit files.
  """
  
 -DEPRECATION_INFO_BOUNDARY = "devel"

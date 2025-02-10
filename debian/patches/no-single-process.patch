@@ -53,7 +53,7 @@ Last-Update: 2024-08-02
  Before=network-pre.target
  Before=shutdown.target
  {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
-@@ -16,6 +17,7 @@
+@@ -16,6 +17,7 @@ Before=firewalld.target
  Before=sysinit.target
  {% endif %}
  Conflicts=shutdown.target
@@ -61,7 +61,7 @@ Last-Update: 2024-08-02
  ConditionPathExists=!/etc/cloud/cloud-init.disabled
  ConditionKernelCommandLine=!cloud-init=disabled
  ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
-@@ -25,14 +27,7 @@
+@@ -25,14 +27,7 @@ Type=oneshot
  {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
  ExecStartPre=/sbin/restorecon /run/cloud-init
  {% endif %}
@@ -151,7 +151,7 @@ Last-Update: 2024-08-02
              stdout = query_systemctl(
 --- a/cloudinit/config/cc_mounts.py
 +++ b/cloudinit/config/cc_mounts.py
-@@ -521,7 +521,7 @@ def handle(name: str, cfg: Config, cloud
+@@ -519,7 +519,7 @@ def handle(name: str, cfg: Config, cloud
      # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
      uses_systemd = cloud.distro.uses_systemd()
      default_mount_options = (
@@ -162,7 +162,7 @@ Last-Update: 2024-08-02
      )
 --- a/cloudinit/config/schemas/schema-cloud-config-v1.json
 +++ b/cloudinit/config/schemas/schema-cloud-config-v1.json
-@@ -2029,12 +2029,12 @@
+@@ -2034,12 +2034,12 @@
          },
          "mount_default_fields": {
            "type": "array",
