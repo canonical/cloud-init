@@ -7,8 +7,8 @@ Author: James Falcon <james.falcon@canonical.com>
 Last-Update: 2024-06-28
 --- a/cloudinit/features.py
 +++ b/cloudinit/features.py
-@@ -87,7 +87,7 @@ On Debian and Ubuntu systems, cc_apt_con
- to write /etc/apt/sources.list directly.
+@@ -98,7 +98,7 @@ Note that in addition to this flag, down
+ to modify the systemd unit files.
  """
  
 -DEPRECATION_INFO_BOUNDARY = "devel"
