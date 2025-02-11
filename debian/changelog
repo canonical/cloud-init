@@ -1,10 +1,19 @@
 cloud-init (25.1-0ubuntu1~20.04.1) UNRELEASED; urgency=medium
 
-  * Update d/p/no-single-process.patch
-    - This patch missed waiting for mounts (LP: #2097441)
-    - Fix upstream conflict
+  * Drop d/p/cpick-84806336-chore-Add-feature-flag-for-manual-network-waiting
+    - Included in upstream snapshot
+  * Drop d/p/cpick-b817a679-fix-retry-AWS-hotplug-for-async-IMDS.patch
+    - Included in upstream snapshot
+  * refresh patches:
+    - d/p/no-single-process.patch
+    - d/p/debian/patches/deprecation-version-boundary.patch
+    - d/p/drop-unsupported-systemd-condition-environment.patch
+    - d/p/expire-on-hashed-users.patch
+    - d/p/retain-ec2-default-net-update-events.patch
+    - d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
+  * Upstream snapshot based on upstream/main at 2b7d9636.
 
- -- Brett Holman <brett.holman@canonical.com>  Mon, 06 Jan 2024 17:39:42 -0700
+ -- Brett Holman <brett.holman@canonical.com>  Tue, 11 Feb 2025 07:24:54 -0700
 
 cloud-init (24.4-0ubuntu1~20.04.1) focal; urgency=medium
 
