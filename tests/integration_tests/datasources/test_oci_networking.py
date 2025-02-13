@@ -1,3 +1,4 @@
+import logging
 import re
 from typing import Iterator, Set
 
@@ -8,6 +9,8 @@ from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.util import verify_clean_boot, verify_clean_log
+
+logger = logging.getLogger(__name__)
 
 DS_CFG = """\
 datasource:
@@ -197,31 +200,24 @@ def compare_v1_and_v2_config_entries(v1_config, v2_config):
     return True
 """
 
-import logging
-logger = logging.getLogger(__name__)
 
 def _install_custom_cloudinit(client: IntegrationInstance, restart=True):
     client.push_file(
         "cloud-init_all.deb",
         "/home/ubuntu/cloud-init.deb",
     )
-    r1 = client.execute(
-        "sudo apt remove cloud-init --assume-yes -y"
-    )
+    r1 = client.execute("sudo apt remove cloud-init --assume-yes -y")
     assert r1.return_code == 0
-    r2 = client.execute(
-        "sudo apt install -y /home/ubuntu/cloud-init.deb"
-    )
+    r2 = client.execute("sudo apt install -y /home/ubuntu/cloud-init.deb")
     assert r2.return_code == 0
-    r3 = client.execute(
-        "cloud-init --version"
-    )
+    r3 = client.execute("cloud-init --version")
     logger.info(r3.stdout)
     assert r3.return_code == 0
     if restart:
         client.execute("cloud-init clean --logs")
         logger.info("Restarting instance")
         client.instance.restart()
+
 
 # function that looks for the v1 vs v2 logs
 def test_v1_and_v2_network_config_match(
@@ -239,7 +235,6 @@ def test_v1_and_v2_network_config_match(
     verify_clean_log(log)
     verify_clean_boot(client)
 
-
     # assert that the v1 and v2 network config entries match
     # compare_v1_and_v2_config_entries(v1_config, v2_config)
 
@@ -247,5 +242,3 @@ def test_v1_and_v2_network_config_match(
 
     # and that the debug log is present
     assert "oracle datasource v1 and v2 network config entries match!" in log
-
-

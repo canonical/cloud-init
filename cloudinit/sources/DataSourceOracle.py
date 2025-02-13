@@ -18,8 +18,8 @@ import difflib
 import ipaddress
 import json
 import logging
-from pprint import pformat
 import time
+from pprint import pformat
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 import yaml
@@ -40,7 +40,7 @@ LOG = logging.getLogger(__name__)
 
 BUILTIN_DS_CONFIG = {
     # Don't use IMDS to configure secondary NICs by default
-    "configure_secondary_nics": True,
+    "configure_secondary_nics": False,
 }
 CHASSIS_ASSET_TAG = "OracleCloud.com"
 IPV4_METADATA_ROOT = "http://169.254.169.254/opc/v{version}/"
@@ -155,7 +155,8 @@ class DataSourceOracle(sources.DataSource):
             ]
         )
         self._network_config_source = KlibcOracleNetworkConfigSource()
-        self._network_config: dict = {"config": [], "version": 1}
+        self._network_config_v1: dict = {"config": [], "version": 1}
+        self._network_config: dict = {"ethernets": {}, "version": 2}
 
         url_params = self.get_url_params()
         self.url_max_wait = url_params.max_wait_seconds
@@ -173,6 +174,8 @@ class DataSourceOracle(sources.DataSource):
             )
         if not hasattr(self, "_network_config"):
             self._network_config = {"config": [], "version": 1}
+        if not hasattr(self, "_network_config_v1"):
+            self._network_config_v1 = {"config": [], "version": 1}
 
     def _has_network_config(self) -> bool:
         if self._network_config:
@@ -287,8 +290,11 @@ class DataSourceOracle(sources.DataSource):
         """Return whether we are on a iscsi machine."""
         return self._network_config_source.is_applicable()
 
-    def _get_iscsi_config(self) -> dict:
+    def _get_iscsi_config_v1(self) -> dict:
         return self._network_config_source.render_config()
+
+    def _get_iscsi_config(self) -> dict:
+        return convert_v1_netplan_to_v2(self._get_iscsi_config_v1())
 
     @property
     def network_config(self):
@@ -306,10 +312,8 @@ class DataSourceOracle(sources.DataSource):
         set_primary = False
         # this is v1
         if self._is_iscsi_root():
-            self._network_config_v1 = self._get_iscsi_config()
-            self._network_config = convert_v1_netplan_to_v2(
-                self._network_config_v1
-            )
+            self._network_config_v1 = self._get_iscsi_config_v1()
+            self._network_config = self._get_iscsi_config()
         if not self._has_network_config():
             LOG.warning(
                 "Could not obtain network configuration from initramfs. "
@@ -331,8 +335,6 @@ class DataSourceOracle(sources.DataSource):
                     LOG,
                     "Failed to parse IMDS network configuration!",
                 )
-
-
 
         # we need to verify that the nic selected is not a netfail over
         # device and, if it is a netfail master, then we need to avoid
@@ -396,8 +398,8 @@ class DataSourceOracle(sources.DataSource):
             else:
                 network = ipaddress.ip_network(vnic_dict["subnetCidrBlock"])
 
-            ############################# V1 HERE #############################  
-        
+            ############################# V1 HERE #############################
+
             if is_primary:
                 if is_ipv6_only:
                     subnets = [{"type": "dhcp6"}]
@@ -434,8 +436,7 @@ class DataSourceOracle(sources.DataSource):
             }
             self._network_config_v1["config"].append(interface_config)
 
-
-            ############################# V2 HERE #############################  
+            ############################# V2 HERE #############################
             # Why does this elif exist???
             # Are there plans to switch to v2?
             interface_config = {
@@ -463,10 +464,11 @@ class DataSourceOracle(sources.DataSource):
                     )
             self._network_config["ethernets"][name] = interface_config
 
-        LOG.debug(
-            "Comparing IMDS network configs between v1 and v2"
+        LOG.debug("Comparing IMDS network configs between v1 and v2")
+        compare_v1_and_v2_config_entries(
+            self._network_config_v1, self._network_config
         )
-        compare_v1_and_v2_config_entries(self._network_config_v1, self._network_config)
+
 
 class DataSourceOracleNet(DataSourceOracle):
     perform_dhcp_setup = False
@@ -476,8 +478,12 @@ def convert_v1_netplan_to_v2(network_config: dict) -> dict:
     has_base_network_key = "network" in network_config
     if has_base_network_key:
         network_config = network_config["network"]
-    v1_network_state = network_state.parse_net_config_data(network_config, renderer=netplan.Renderer)
-    netplan_v2_yaml_string = netplan.Renderer()._render_content(v1_network_state)
+    v1_network_state = network_state.parse_net_config_data(
+        network_config, renderer=netplan.Renderer
+    )
+    netplan_v2_yaml_string = netplan.Renderer()._render_content(
+        v1_network_state
+    )
     netplan_v2_dict = yaml.safe_load(netplan_v2_yaml_string)
     if has_base_network_key:
         if "network" not in netplan_v2_dict:
@@ -487,13 +493,15 @@ def convert_v1_netplan_to_v2(network_config: dict) -> dict:
             netplan_v2_dict = netplan_v2_dict["network"]
     return netplan_v2_dict
 
-def move_version_to_beggining_of_yaml_str(yaml_str: str) -> str:
-    version_line = [ 
+
+def move_version_to_beggining_of_nteplan_yaml_str(yaml_str: str) -> str:
+    version_line = [
         line for line in yaml_str.split("\n") if "version:" in line
     ][0]
-    lines = [ line for line in yaml_str.split("\n") if "version:" not in line ]
+    lines = [line for line in yaml_str.split("\n") if "version:" not in line]
     lines.insert(1, version_line)
     return "\n".join(lines)
+
 
 def compare_v1_and_v2_config_entries(v1_config, v2_config):
     v1_network_state = network_state.parse_net_config_data(
@@ -504,13 +512,18 @@ def compare_v1_and_v2_config_entries(v1_config, v2_config):
     )
     v1_rendered_string = netplan.Renderer()._render_content(v1_network_state)
     v2_rendered_string = netplan.Renderer()._render_content(v2_network_state)
-    v1_rendered_string = move_version_to_beggining_of_yaml_str(v1_rendered_string)
-    v2_rendered_string = move_version_to_beggining_of_yaml_str(v2_rendered_string)
+    v1_rendered_string = move_version_to_beggining_of_nteplan_yaml_str(
+        yaml_str=v1_rendered_string,
+    )
+    v2_rendered_string = move_version_to_beggining_of_nteplan_yaml_str(
+        yaml_str=v2_rendered_string,
+    )
     LOG.debug("v1:\n%s\n\n%s", pformat(v1_config), v1_rendered_string)
     LOG.debug("v2:\n%s\n\n%s", pformat(v2_config), v2_rendered_string)
 
-
-    if yaml.safe_load(v1_rendered_string) != yaml.safe_load(v2_rendered_string):
+    if yaml.safe_load(v1_rendered_string) != yaml.safe_load(
+        v2_rendered_string
+    ):
         diff = difflib.unified_diff(
             v1_rendered_string.splitlines(),
             v2_rendered_string.splitlines(),
@@ -519,15 +532,13 @@ def compare_v1_and_v2_config_entries(v1_config, v2_config):
         LOG.warning(
             "oracle datasource v1 and v2 network config entries do not match! "
             "diff:\n%s",
-            "\n".join(diff)
+            "\n".join(diff),
         )
         return False
-    else:
-        LOG.debug(
-            "oracle datasource v1 and v2 network config entries match!"
-        )
 
+    LOG.debug("oracle datasource v1 and v2 network config entries match!")
     return True
+
 
 def _is_ipv4_metadata_url(metadata_address: str):
     if not metadata_address:

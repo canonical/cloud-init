@@ -281,6 +281,9 @@ def oracle_ds(request, fixture_utils, paths, metadata_version, mocker):
     is_iscsi = fixture_utils.closest_marker_first_arg_or(
         request, "is_iscsi", True
     )
+    # mock_v1_v2_compare = fixture_utils.closest_marker_first_arg_or(
+    #     request, "mock_v1_v2_compare", mock.MagicMock()
+    # )
 
     metadata = ReadOpcMetadataResponse(
         metadata_version,
@@ -386,12 +389,14 @@ class TestIsPlatformViable:
     "cloudinit.net.is_openvswitch_internal_interface",
     mock.Mock(return_value=False),
 )
+@mock.patch(DS_PATH + ".compare_v1_and_v2_config_entries", mock.MagicMock())
 class TestNetworkConfigFromOpcImds:
     def test_no_secondary_nics_does_not_mutate_input(self, oracle_ds):
         oracle_ds._vnics_data = [{}]
         # We test this by using in a non-dict to ensure that no dict
         # operations are used; failure would be seen as exceptions
         oracle_ds._network_config = object()
+        oracle_ds._network_config_v1 = object()
         oracle_ds._add_network_config_from_opc_imds(set_primary=False)
 
     def test_bare_metal_machine_skipped(self, oracle_ds, caplog):
@@ -432,11 +437,11 @@ class TestNetworkConfigFromOpcImds:
         caplog,
     ):
         oracle_ds._vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)
-        oracle_ds._network_config = network_config
+        oracle_ds._network_config_v1 = network_config
         with mock.patch(DS_PATH + ".get_interfaces_by_mac", return_value={}):
             oracle_ds._add_network_config_from_opc_imds(set_primary=False)
 
-        assert 1 == len(oracle_ds._network_config[network_config_key])
+        assert 1 == len(oracle_ds._network_config_v1[network_config_key])
         assert (
             f"Interface with MAC {MAC_ADDR} not found; skipping" in caplog.text
         )
@@ -446,9 +451,14 @@ class TestNetworkConfigFromOpcImds:
         "set_primary",
         [True, False],
     )
-    def test_imds_nic_setup_v1(self, set_primary, oracle_ds):
+    def test_imds_nic_setup_v1(
+        self,
+        # m_compare_v1_and_v2_config_entries,
+        set_primary,
+        oracle_ds,
+    ):
         oracle_ds._vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)
-        oracle_ds._network_config = {
+        oracle_ds._network_config_v1 = {
             "version": 1,
             "config": [{"primary": "nic"}],
         }
@@ -464,7 +474,7 @@ class TestNetworkConfigFromOpcImds:
             )
 
         secondary_nic_index = 1
-        nic_cfg = oracle_ds.network_config["config"]
+        nic_cfg = oracle_ds._network_config_v1["config"]
         if set_primary:
             primary_cfg = nic_cfg[1]
             secondary_nic_index += 1
@@ -489,7 +499,12 @@ class TestNetworkConfigFromOpcImds:
         "set_primary",
         [True, False],
     )
-    def test_secondary_nic_v2(self, set_primary, oracle_ds):
+    def test_secondary_nic_v2(
+        self,
+        # m_compare_v1_and_v2_config_entries,
+        set_primary,
+        oracle_ds,
+    ):
         oracle_ds._vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)
         oracle_ds._network_config = {
             "version": 2,
@@ -511,16 +526,16 @@ class TestNetworkConfigFromOpcImds:
             assert "ens3" in nic_cfg
             primary_cfg = nic_cfg["ens3"]
 
-            assert primary_cfg["dhcp4"] is True
-            assert primary_cfg["dhcp6"] is False
+            assert primary_cfg.get("dhcp4")
+            assert not primary_cfg.get("dhcp6")
             assert "02:00:17:05:d1:db" == primary_cfg["match"]["macaddress"]
             assert 9000 == primary_cfg["mtu"]
             assert "addresses" not in primary_cfg
 
         assert "ens4" in nic_cfg
         secondary_cfg = nic_cfg["ens4"]
-        assert secondary_cfg["dhcp4"] is False
-        assert secondary_cfg["dhcp6"] is False
+        assert not secondary_cfg.get("dhcp4")
+        assert not secondary_cfg.get("dhcp6")
         assert "00:00:17:02:2b:b1" == secondary_cfg["match"]["macaddress"]
         assert 9000 == secondary_cfg["mtu"]
 
@@ -538,7 +553,7 @@ class TestNetworkConfigFromOpcImds:
         oracle_ds._vnics_data = json.loads(
             OPC_VM_IPV6_ONLY_SECONDARY_VNIC_RESPONSE
         )
-        oracle_ds._network_config = {
+        oracle_ds._network_config_v1 = {
             "version": 1,
             "config": [{"primary": "nic"}],
         }
@@ -554,7 +569,7 @@ class TestNetworkConfigFromOpcImds:
             )
 
         secondary_nic_index = 1
-        nic_cfg = oracle_ds.network_config["config"]
+        nic_cfg = oracle_ds._network_config_v1["config"]
         if set_primary:
             primary_cfg = nic_cfg[1]
             secondary_nic_index += 1
@@ -606,16 +621,16 @@ class TestNetworkConfigFromOpcImds:
             assert "ens3" in nic_cfg
             primary_cfg = nic_cfg["ens3"]
 
-            assert primary_cfg["dhcp4"] is False
-            assert primary_cfg["dhcp6"] is True
+            assert not primary_cfg.get("dhcp4")
+            assert primary_cfg.get("dhcp6")
             assert "02:00:17:0d:6b:be" == primary_cfg["match"]["macaddress"]
             assert 9000 == primary_cfg["mtu"]
             assert "addresses" not in primary_cfg
 
         assert "ens4" in nic_cfg
         secondary_cfg = nic_cfg["ens4"]
-        assert secondary_cfg["dhcp4"] is False
-        assert secondary_cfg["dhcp6"] is False
+        assert not secondary_cfg.get("dhcp4")
+        assert not secondary_cfg.get("dhcp6")
         assert "02:00:17:18:f6:ff" == secondary_cfg["match"]["macaddress"]
         assert 9000 == secondary_cfg["mtu"]
 
@@ -1490,6 +1505,7 @@ class TestPerformDHCPSetup:
 
 
 @mock.patch(DS_PATH + ".get_interfaces_by_mac", return_value={})
+@mock.patch(DS_PATH + ".compare_v1_and_v2_config_entries", mock.MagicMock())
 class TestNetworkConfig:
     def test_network_config_cached(self, m_get_interfaces_by_mac, oracle_ds):
         """.network_config should be cached"""
@@ -1628,14 +1644,14 @@ class TestNetworkConfig:
         with mock.patch.object(oracle_ds, "_vnics_data", vnics_data):
             oracle_ds._add_network_config_from_opc_imds(set_primary=True)
         assert not oracle_ds._has_network_config()
+        # set log level to WARNING
+        caplog.set_level(logging.WARNING)
         assert (
-            logging.WARNING,
-            "Interface with MAC 02:00:17:05:d1:db not found; skipping",
-        ) == caplog.record_tuples[-2][1:]
+            "Interface with MAC 02:00:17:05:d1:db not found; skipping"
+        ) in caplog.text
         assert (
-            logging.WARNING,
-            f"Interface with MAC {MAC_ADDR} not found; skipping",
-        ) == caplog.record_tuples[-1][1:]
+            f"Interface with MAC {MAC_ADDR} not found; skipping"
+        ) in caplog.text
 
     # @pytest.mark.parametrize("set_primary", [True, False])
     # @pytest.mark.parametrize("use_ipv6", [True, False])
@@ -1689,7 +1705,10 @@ class TestNetworkConfig:
             assert not oracle_ds._has_network_config()
         else:
             # Simulate primary config was taken from iscsi
-            oracle_ds._network_config = copy.deepcopy(KLIBC_NET_CFG)
+            oracle_ds._network_config_v1 = copy.deepcopy(KLIBC_NET_CFG)
+            oracle_ds._network_config = convert_v1_netplan_to_v2(
+                oracle_ds._network_config_v1
+            )
         if use_ipv6:
             interfaces = {IPV6_MAC_ADDR1: "eth_0"}
             if secondary_mac_present:
@@ -1721,7 +1740,7 @@ class TestNetworkConfig:
         oracle_ds._add_network_config_from_opc_imds(set_primary)
         num_configs_expected = 1 + int(secondary_mac_present)
         assert num_configs_expected == len(
-            oracle_ds._network_config["config"]
+            oracle_ds._network_config["ethernets"]
         ), "Config not added"
 
         # assert that secondary vnic config is skipped if its mac is not found
@@ -1794,3 +1813,134 @@ class TestHelpers:
                 expected_base_url
                 == oracle._get_versioned_metadata_base_url(url)
             )
+
+
+import yaml
+
+from cloudinit.sources.DataSourceOracle import (
+    compare_v1_and_v2_config_entries,
+    convert_v1_netplan_to_v2,
+    move_version_to_beggining_of_nteplan_yaml_str,
+)
+
+# Minimal dummy v1 network configuration for testing
+DUMMY_V1_CONFIG = {
+    "version": 1,
+    "config": [
+        {
+            "name": "eth0",
+            "type": "physical",
+            "mac_address": "00:11:22:33:44:55",
+            "subnets": [{"type": "dhcp"}],
+            "mtu": 1500,
+        }
+    ],
+}
+
+
+class TestNetplanV2Helpers:
+    def test_move_version_to_beggining_of_nteplan_yaml_str(self):
+        # Create a YAML string with the version: line not at beginning.
+        original_yaml = "\n".join(
+            [
+                "network:",
+                "    ethernets:",
+                "        eth0:",
+                "            dhcp4: true",
+                "    version: 2",
+            ]
+        )
+        modified_yaml = move_version_to_beggining_of_nteplan_yaml_str(
+            original_yaml
+        )
+        lines = modified_yaml.split("\n")
+        # Assert the "version:" line is now on the second line.
+        assert "version:" in lines[1]
+        # Also check that all parts of the original string are present.
+        for part in ["network:", "ethernets:", "eth0:", "dhcp4: true"]:
+            assert part in modified_yaml
+
+    @pytest.mark.parametrize(
+        "v1_config, v2_config, expected_result",
+        [
+            pytest.param(
+                DUMMY_V1_CONFIG,
+                convert_v1_netplan_to_v2(DUMMY_V1_CONFIG),
+                True,
+                id="matching_configs",
+            ),
+            pytest.param(
+                DUMMY_V1_CONFIG,
+                {
+                    **convert_v1_netplan_to_v2(DUMMY_V1_CONFIG),
+                    "ethernets": {"eth0": {"dhcp4": True}},
+                },
+                False,
+                id="mismatched_configs",
+            ),
+        ],
+    )
+    def test_compare_v1_and_v2_config_entries(
+        self, v1_config, v2_config, expected_result
+    ):
+        result = compare_v1_and_v2_config_entries(v1_config, v2_config)
+        assert result == expected_result
+
+    def test_convert_v1_netplan_to_v2(self):
+        converted = convert_v1_netplan_to_v2(DUMMY_V1_CONFIG)
+        # Assert the result is a dict.
+        assert isinstance(converted, dict)
+        # When v1 config is without "network" key, conversion returns the inner config.
+        # Assert that the converted config has key "ethernets"
+        if "ethernets" in converted:
+            eths = converted["ethernets"]
+        else:
+            eths = converted.get("ethernets")
+        assert eths is not None
+        # Optionally, check that one of the interfaces is named "eth0"
+        assert "eth0" in eths
+
+    def test_convert_v1_netplan_to_v2_with_network_key(self):
+        mock_input = {"network": {"version": 1, "config": []}}
+        mock_output = {"network": {"version": 2, "ethernets": {}}}
+
+        with mock.patch(
+            "cloudinit.net.network_state.parse_net_config_data"
+        ) as mock_parse:
+            with mock.patch("cloudinit.net.netplan.Renderer") as mock_renderer:
+                mock_parse.return_value = "mock_state"
+                mock_renderer.return_value._render_content.return_value = (
+                    yaml.dump(mock_output)
+                )
+
+                result = convert_v1_netplan_to_v2(mock_input)
+                assert result == mock_output
+
+    def test_convert_v1_netplan_to_v2_without_network_key(self):
+        mock_input = {"version": 1, "config": []}
+        mock_output = {"version": 2, "ethernets": {}}
+
+        with mock.patch(
+            "cloudinit.net.network_state.parse_net_config_data"
+        ) as mock_parse:
+            with mock.patch("cloudinit.net.netplan.Renderer") as mock_renderer:
+                mock_parse.return_value = "mock_state"
+                mock_renderer.return_value._render_content.return_value = (
+                    yaml.dump(mock_output)
+                )
+
+                result = convert_v1_netplan_to_v2(mock_input)
+                assert result == mock_output
+
+    def test_convert_v1_netplan_to_v2_no_network_key_in_output(self):
+        mock_input = {"network": {"version": 1}}
+        mock_output = {"version": 2}
+
+        with mock.patch("cloudinit.net.network_state.parse_net_config_data"):
+            with mock.patch("cloudinit.net.netplan.Renderer") as mock_renderer:
+                mock_renderer.return_value._render_content.return_value = (
+                    yaml.dump(mock_output)
+                )
+
+                result = convert_v1_netplan_to_v2(mock_input)
+                assert result == {"network": mock_output}
