@@ -1119,6 +1119,24 @@ class Renderer(renderer.Renderer):
             if network_state.use_ipv6:
                 netcfg.append("NETWORKING_IPV6=yes")
                 netcfg.append("IPV6_AUTOCONF=no")
+
+            # if sysconfig file exists and is not empty, append rest of the
+            # file content, do not remove the exsisting customizations.
+            if os.path.exists(sysconfig_path):
+                for line in util.load_text_file(sysconfig_path).splitlines():
+                    if (
+                        not any(
+                            setting in line
+                            for setting in [
+                                "NETWORKING",
+                                "NETWORKING_IPV6",
+                                "IPV6_AUTOCONF",
+                            ]
+                        )
+                        and line not in _make_header().splitlines()
+                    ):
+                        netcfg.append(line)
+
             util.write_file(
                 sysconfig_path, "\n".join(netcfg) + "\n", file_mode
             )
