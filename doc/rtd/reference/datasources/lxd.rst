@@ -11,8 +11,8 @@ running LXD container and VM as ``/dev/lxd/sock`` and represents all
 instance-meta-data as versioned HTTP routes such as:
 
   - 1.0/meta-data
-  - 1.0/config/user.vendor-data
-  - 1.0/config/user.user-data
+  - 1.0/config/cloud-init.vendor-data
+  - 1.0/config/cloud-init.user-data
   - 1.0/config/user.<any-custom-key>
 
 The LXD socket device ``/dev/lxd/sock`` is only present on containers and VMs
