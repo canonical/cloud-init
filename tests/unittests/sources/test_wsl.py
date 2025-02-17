@@ -902,7 +902,6 @@ package_update: true"""
         userdata = join_payloads_from_content_type(
             cast(MIMEMultipart, ud), "text/cloud-config"
         )
-
         assert "landscapetest" in userdata
         assert "up4w_token" in userdata
         assert "tags" not in userdata
@@ -951,7 +950,6 @@ package_update: true"""
         userdata = join_payloads_from_content_type(
             cast(MIMEMultipart, ud), "text/cloud-config"
         )
-
         assert "landscapetest" not in userdata
         assert (
             "port: 6554" in userdata
