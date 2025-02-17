@@ -121,7 +121,7 @@ class TestRebootIfRequired:
                     # subp and not really rebooting the system
                     subp_call = ["/sbin/reboot"]
 
-        caplog.set_level(logging.WARNING)
+        caplog.set_level(logging.INFO)
         with mock.patch(
             "cloudinit.subp.subp", return_value=SubpResult("{}", "fakeerr")
         ) as m_subp:

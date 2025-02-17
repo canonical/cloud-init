@@ -2,7 +2,6 @@
 # pylint: disable=attribute-defined-outside-init
 
 import logging
-import re
 from functools import partial
 from threading import Event
 from time import process_time
@@ -17,6 +16,7 @@ from cloudinit.url_helper import (
     REDACTED,
     UrlError,
     UrlResponse,
+    _handle_error,
     dual_stack,
     oauth_headers,
     read_file_or_url,
@@ -156,7 +156,7 @@ class TestReadFileOrUrl(CiTestCase):
         class FakeSessionRaisesHttpError(requests.Session):
             @classmethod
             def request(cls, **kwargs):
-                raise requests.exceptions.HTTPError("broke")
+                raise requests.exceptions.RequestException("broke")
 
         class FakeSession(requests.Session):
             @classmethod
@@ -346,6 +346,63 @@ class TestReadUrl:
             response = readurl(url, headers_cb=headers_cb)
 
         assert response._response == m_response
+
+    def test_error_no_cb(self, mocker):
+        response = requests.Response()
+        response.status_code = 500
+        m_request = mocker.patch("requests.Session.request", autospec=True)
+        m_request.return_value = response
+
+        with pytest.raises(UrlError) as e:
+            readurl("http://some/path")
+        assert e.value.code == 500
+
+    def test_error_cb_true(self, mocker):
+        mocker.patch("time.sleep")
+
+        bad_response = requests.Response()
+        bad_response.status_code = 500
+        bad_response._content = b"oh noes!"
+        good_response = requests.Response()
+        good_response.status_code = 200
+        good_response._content = b"yay"
+
+        m_request = mocker.patch("requests.Session.request", autospec=True)
+        m_request.side_effect = (bad_response, good_response)
+
+        readurl("http://some/path", retries=1, exception_cb=lambda _: True)
+        assert m_request.call_count == 2
+
+    def test_error_cb_false(self, mocker):
+        mocker.patch("time.sleep")
+
+        bad_response = requests.Response()
+        bad_response.status_code = 500
+        bad_response._content = b"oh noes!"
+
+        m_request = mocker.patch("requests.Session.request", autospec=True)
+        m_request.return_value = bad_response
+
+        with pytest.raises(UrlError):
+            readurl(
+                "http://some/path", retries=1, exception_cb=lambda _: False
+            )
+        assert m_request.call_count == 1
+
+    def test_exception_503(self, mocker):
+        mocker.patch("time.sleep")
+
+        retry_response = requests.Response()
+        retry_response.status_code = 503
+        retry_response._content = b"try again"
+        good_response = requests.Response()
+        good_response.status_code = 200
+        good_response._content = b"good"
+        m_request = mocker.patch("requests.Session.request", autospec=True)
+        m_request.side_effect = (retry_response, retry_response, good_response)
+
+        readurl("http://some/path")
+        assert m_request.call_count == 3
 
 
 event = Event()
@@ -593,7 +650,7 @@ SLEEP1 = "https://sleep1/"
 SLEEP2 = "https://sleep2/"
 
 
-class TestUrlHelper:
+class TestWaitForUrl:
     success = "SUCCESS"
     fail = "FAIL"
     event = Event()
@@ -675,7 +732,7 @@ class TestUrlHelper:
         assert response.encode() == response_contents
 
     @responses.activate
-    def test_timeout(self, caplog):
+    def test_timeout(self):
         """If no endpoint responds in time, expect no response"""
 
         self.event.clear()
@@ -703,9 +760,6 @@ class TestUrlHelper:
         self.event.set()
         assert not url
         assert not response_contents
-        assert re.search(
-            r"open 'https:\/\/sleep1\/'.*Timed out", caplog.text, re.DOTALL
-        )
 
     def test_explicit_arguments(self, retry_mocks):
         """Ensure that explicit arguments are respected"""
@@ -758,6 +812,66 @@ class TestUrlHelper:
         ]
         assert actual_sleep_times == expected_sleep_times
 
+    @responses.activate
+    def test_503(self, mocker):
+        mocker.patch("time.sleep")
+
+        for _ in range(10):
+            responses.add(
+                method=responses.GET,
+                url="http://hi/",
+                status=503,
+                body=b"try again",
+            )
+        responses.add(
+            method=responses.GET,
+            url="http://hi/",
+            status=200,
+            body=b"good",
+        )
+
+        assert wait_for_url(urls=["http://hi/"], max_wait=0.0001)[1] == b"good"
+
+    @responses.activate
+    def test_503_async(self, mocker):
+        mocker.patch("time.sleep")
+
+        for _ in range(10):
+            responses.add(
+                method=responses.GET,
+                url="http://hi/",
+                status=503,
+                body=b"try again",
+            )
+            responses.add(
+                method=responses.GET,
+                url="http://hi2/",
+                status=503,
+                body="try again",
+            )
+        responses.add(
+            method=responses.GET,
+            url="http://hi/",
+            status=200,
+            body=b"good",
+        )
+        responses.add(
+            method=responses.GET,
+            url="http://hi2/",
+            status=200,
+            body=b"good",
+        )
+
+        assert (
+            wait_for_url(
+                urls=["http://hi/", "http://hi2/"],
+                max_wait=0.0001,
+                async_delay=0,
+                connect_synchronously=False,
+            )[1]
+            == b"good"
+        )
+
     # These side effect methods are a way of having a somewhat predictable
     # output for time.monotonic(). Otherwise, we have to track too many calls
     # to time.monotonic() and unrelated changes to code being called could
@@ -774,3 +888,69 @@ class TestUrlHelper:
         if "timeout" in kwargs:
             self.mock_time_value += kwargs["timeout"] + 0.0000001
         raise UrlError("test")
+
+
+class TestHandleError:
+    def test_handle_error_no_cb(self):
+        """Test no callback."""
+        assert _handle_error(UrlError("test")) is None
+
+    def test_handle_error_cb_false(self):
+        """Test callback returning False."""
+        with pytest.raises(UrlError) as e:
+            _handle_error(UrlError("test"), exception_cb=lambda _: False)
+        assert str(e.value) == "test"
+
+    def test_handle_error_cb_true(self):
+        """Test callback returning True."""
+        assert (
+            _handle_error(UrlError("test"), exception_cb=lambda _: True)
+        ) is None
+
+    def test_handle_503(self, caplog):
+        """Test 503 with no callback."""
+        assert _handle_error(UrlError("test", code=503)) == 1
+        assert "Unable to introspect response header" in caplog.text
+
+    def test_handle_503_with_retry_header(self):
+        """Test 503 with a retry integer value."""
+        assert (
+            _handle_error(
+                UrlError("test", code=503, headers={"Retry-After": 5})
+            )
+            == 5
+        )
+
+    def test_handle_503_with_retry_header_in_past(self, caplog):
+        """Test 503 with date in the past."""
+        assert (
+            _handle_error(
+                UrlError(
+                    "test",
+                    code=503,
+                    headers={"Retry-After": "Fri, 31 Dec 1999 23:59:59 GMT"},
+                )
+            )
+            == 1
+        )
+        assert "Retry-After header value is in the past" in caplog.text
+
+    def test_handle_503_cb_true(self):
+        """Test 503 with a callback returning True."""
+        assert (
+            _handle_error(
+                UrlError("test", code=503),
+                exception_cb=lambda _: True,
+            )
+            is None
+        )
+
+    def test_handle_503_cb_false(self):
+        """Test 503 with a callback returning False."""
+        assert (
+            _handle_error(
+                UrlError("test", code=503),
+                exception_cb=lambda _: False,
+            )
+            == 1
+        )

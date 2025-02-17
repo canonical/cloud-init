@@ -1,0 +1,179 @@
+From 84806336bdd6655b048a0c0d8190d08a5aa15a15 Mon Sep 17 00:00:00 2001
+From: James Falcon <james.falcon@canonical.com>
+Date: Wed, 15 Jan 2025 15:36:17 -0600
+Subject: [PATCH] chore: Add feature flag for manual network waiting
+
+Controls the behavior added in e30549e for easier downstream patching
+---
+ cloudinit/cmd/main.py                         | 35 ++++++++++---------
+ cloudinit/features.py                         | 11 ++++++
+ .../datasources/test_nocloud.py               |  7 ++--
+ .../modules/test_boothook.py                  |  3 +-
+ tests/unittests/cmd/test_main.py              |  4 +--
+ tests/unittests/test_data.py                  |  1 +
+ tests/unittests/test_features.py              |  2 ++
+ 7 files changed, 42 insertions(+), 21 deletions(-)
+
+--- a/cloudinit/cmd/main.py
++++ b/cloudinit/cmd/main.py
+@@ -21,7 +21,7 @@ import logging
+ import yaml
+ from typing import Optional, Tuple, Callable, Union
+ 
+-from cloudinit import netinfo
++from cloudinit import features, netinfo
+ from cloudinit import signal_handler
+ from cloudinit import sources
+ from cloudinit import socket
+@@ -486,7 +486,9 @@ def main_init(name, args):
+     mode = sources.DSMODE_LOCAL if args.local else sources.DSMODE_NETWORK
+ 
+     if mode == sources.DSMODE_NETWORK:
+-        if not os.path.exists(init.paths.get_runpath(".skip-network")):
++        if features.MANUAL_NETWORK_WAIT and not os.path.exists(
++            init.paths.get_runpath(".skip-network")
++        ):
+             LOG.debug("Will wait for network connectivity before continuing")
+             init.distro.wait_for_network()
+         existing = "trust"
+@@ -560,20 +562,21 @@ def main_init(name, args):
+     init.apply_network_config(bring_up=bring_up_interfaces)
+ 
+     if mode == sources.DSMODE_LOCAL:
+-        should_wait, reason = _should_wait_on_network(init.datasource)
+-        if should_wait:
+-            LOG.debug(
+-                "Network connectivity determined necessary for "
+-                "cloud-init's network stage. Reason: %s",
+-                reason,
+-            )
+-        else:
+-            LOG.debug(
+-                "Network connectivity determined unnecessary for "
+-                "cloud-init's network stage. Reason: %s",
+-                reason,
+-            )
+-            util.write_file(init.paths.get_runpath(".skip-network"), "")
++        if features.MANUAL_NETWORK_WAIT:
++            should_wait, reason = _should_wait_on_network(init.datasource)
++            if should_wait:
++                LOG.debug(
++                    "Network connectivity determined necessary for "
++                    "cloud-init's network stage. Reason: %s",
++                    reason,
++                )
++            else:
++                LOG.debug(
++                    "Network connectivity determined unnecessary for "
++                    "cloud-init's network stage. Reason: %s",
++                    reason,
++                )
++                util.write_file(init.paths.get_runpath(".skip-network"), "")
+ 
+         if init.datasource.dsmode != mode:
+             LOG.debug(
+--- a/cloudinit/features.py
++++ b/cloudinit/features.py
+@@ -87,6 +87,17 @@ On Debian and Ubuntu systems, cc_apt_con
+ to write /etc/apt/sources.list directly.
+ """
+ 
++MANUAL_NETWORK_WAIT = True
++"""
++On Ubuntu systems, cloud-init-network.service will start immediately after
++cloud-init-local.service and manually wait for network online when necessary.
++If False, rely on systemd ordering to ensure network is available before
++starting cloud-init-network.service.
++
++Note that in addition to this flag, downstream patches are also likely needed
++to modify the systemd unit files.
++"""
++
+ DEPRECATION_INFO_BOUNDARY = "24.1"
+ """
+ DEPRECATION_INFO_BOUNDARY is used by distros to configure at which upstream
+--- a/tests/integration_tests/datasources/test_nocloud.py
++++ b/tests/integration_tests/datasources/test_nocloud.py
+@@ -5,7 +5,7 @@ from textwrap import dedent
+ import pytest
+ from pycloudlib.lxd.instance import LXDInstance
+ 
+-from cloudinit import lifecycle
++from cloudinit import features, lifecycle
+ from cloudinit.subp import subp
+ from tests.integration_tests.instances import IntegrationInstance
+ from tests.integration_tests.integration_settings import PLATFORM
+@@ -100,7 +100,10 @@ def test_nocloud_seedfrom_vendordata(cli
+     client.restart()
+     assert client.execute("cloud-init status").ok
+     assert "seeded_vendordata_test_file" in client.execute("ls /var/tmp")
+-    assert network_wait_logged(client.execute("cat /var/log/cloud-init.log"))
++    assert (
++        network_wait_logged(client.execute("cat /var/log/cloud-init.log"))
++        == features.MANUAL_NETWORK_WAIT
++    )
+ 
+ 
+ SMBIOS_USERDATA = """\
+--- a/tests/integration_tests/modules/test_boothook.py
++++ b/tests/integration_tests/modules/test_boothook.py
+@@ -3,6 +3,7 @@ import re
+ 
+ import pytest
+ 
++from cloudinit import features
+ from tests.integration_tests.instances import IntegrationInstance
+ from tests.integration_tests.util import (
+     network_wait_logged,
+@@ -57,4 +58,4 @@ class TestBoothook:
+         client = class_client
+         assert network_wait_logged(
+             client.read_from_file("/var/log/cloud-init.log")
+-        )
++        ) == features.MANUAL_NETWORK_WAIT
+--- a/tests/unittests/cmd/test_main.py
++++ b/tests/unittests/cmd/test_main.py
+@@ -9,7 +9,7 @@ from unittest import mock
+ 
+ import pytest
+ 
+-from cloudinit import safeyaml, util
++from cloudinit import features, safeyaml, util
+ from cloudinit.cmd import main
+ from cloudinit.util import ensure_dir, load_text_file, write_file
+ 
+@@ -363,7 +363,7 @@ class TestMain:
+             skip_log_setup=False,
+         )
+         main.main_init("init", cmdargs)
+-        if expected_add_wait:
++        if features.MANUAL_NETWORK_WAIT and expected_add_wait:
+             m_nm.assert_called_once()
+             m_subp.assert_called_with(
+                 ["systemctl", "start", "systemd-networkd-wait-online.service"]
+--- a/tests/unittests/test_data.py
++++ b/tests/unittests/test_data.py
+@@ -516,6 +516,7 @@ c: 4
+                 "DEPRECATION_INFO_BOUNDARY": "devel",
+                 "NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH": False,
+                 "APT_DEB822_SOURCE_LIST_FILE": True,
++                "MANUAL_NETWORK_WAIT": True,
+             },
+             "system_info": {
+                 "default_user": {"name": "ubuntu"},
+--- a/tests/unittests/test_features.py
++++ b/tests/unittests/test_features.py
+@@ -22,6 +22,7 @@ class TestGetFeatures:
+             DEPRECATION_INFO_BOUNDARY="devel",
+             NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH=False,
+             APT_DEB822_SOURCE_LIST_FILE=True,
++            MANUAL_NETWORK_WAIT=False,
+         ):
+             assert {
+                 "ERROR_ON_USER_DATA_FAILURE": True,
+@@ -31,4 +32,5 @@ class TestGetFeatures:
+                 "NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH": False,
+                 "APT_DEB822_SOURCE_LIST_FILE": True,
+                 "DEPRECATION_INFO_BOUNDARY": "devel",
++                "MANUAL_NETWORK_WAIT": False,
+             } == features.get_features()

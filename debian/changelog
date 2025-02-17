@@ -5,6 +5,25 @@ cloud-init (25.1-0ubuntu1~24.04.1) UNRELEASED; urgency=medium
 
  -- Brett Holman <brett.holman@canonical.com>  Mon, 06 Jan 2024 17:39:42 -0700
 
+cloud-init (24.4.1-0ubuntu0~24.04.1) noble; urgency=medium
+
+  * Add d/p/cpick-84806336-chore-Add-feature-flag-for-manual-network-waiting
+    - Pull in the upstream commit that makes it easier to patch out the
+      new systemd-networkd-wait-online behavior in e30549e8
+  * Add d/p/cpick-b817a679-fix-retry-AWS-hotplug-for-async-IMDS.patch
+    - Pull in the upstream commit works around a limitation in AWS's IMDS
+      (GH-5971) (LP: #2097319)
+  * Add d/p/no-remove-networkd-online.patch
+    - Revert breaking change on stable release (LP: #2094149)
+  * Update d/p/no-single-process.patch
+    - This patch missed waiting for mounts (LP: #2097441)
+  * Upstream snapshot based on 24.4.1.
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/24.4.1/ChangeLog
+    (LP: #2094179, #2094208, #2094857, #2094858)
+
+ -- Brett Holman <brett.holman@canonical.com>  Tue, 04 Feb 2025 15:36:06 -0700
+
 cloud-init (24.4-0ubuntu1~24.04.2) noble; urgency=medium
 
   * Fix d/p/no-single-process.patch
