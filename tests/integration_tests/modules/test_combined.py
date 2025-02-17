@@ -19,6 +19,7 @@ from pycloudlib.gce.instance import GceInstance
 import cloudinit.config
 from cloudinit import lifecycle
 from cloudinit.util import is_true
+from tests.integration_tests.clouds import Ec2Cloud
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import (
@@ -484,7 +485,11 @@ class TestCombined:
         assert v1_data["region"] is None
 
     @pytest.mark.skipif(PLATFORM != "ec2", reason="Test is ec2 specific")
-    def test_instance_json_ec2(self, class_client: IntegrationInstance):
+    def test_instance_json_ec2(
+        self,
+        class_client: IntegrationInstance,
+        session_cloud: Ec2Cloud,
+    ):
         client = class_client
         instance_json_file = client.read_from_file(
             "/run/cloud-init/instance-data.json"
@@ -507,7 +512,7 @@ class TestCombined:
         )
         assert v1_data["instance_id"] == client.instance.name
         assert v1_data["local_hostname"].startswith("ip-")
-        assert v1_data["region"] == client.cloud.cloud_instance.region
+        assert v1_data["region"] == session_cloud.cloud_instance.region
 
     @pytest.mark.skipif(PLATFORM != "gce", reason="Test is GCE specific")
     def test_instance_json_gce(self, class_client: IntegrationInstance):

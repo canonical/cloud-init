@@ -408,7 +408,7 @@ class ConfigDriveReader(BaseReader):
             path = self._path_join(self.base_path, name)
             if os.path.exists(path):
                 found[name] = path
-        if len(found) == 0:
+        if not found:
             raise NonReadable("%s: no files found" % (self.base_path))
 
         md = {}
@@ -496,7 +496,7 @@ class MetadataReader(BaseReader):
         def should_retry_cb(cause):
             try:
                 code = int(cause.code)
-                if code >= 400:
+                if code >= 400 and code not in [408, 429, 500, 502, 503, 504]:
                     return False
             except (TypeError, ValueError):
                 # Older versions of requests didn't have a code.
@@ -771,7 +771,11 @@ def convert_net_json(network_json=None, known_macs=None):
             if not mac:
                 raise ValueError("No mac_address or name entry for %s" % d)
             if mac not in known_macs:
-                raise ValueError("Unable to find a system nic for %s" % d)
+                # Let's give udev a chance to catch up
+                util.udevadm_settle()
+                known_macs = net.get_interfaces_by_mac()
+                if mac not in known_macs:
+                    raise ValueError("Unable to find a system nic for %s" % d)
             d["name"] = known_macs[mac]
 
         for cfg, key, fmt, targets in link_updates:

@@ -9,7 +9,7 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import safeyaml, util
+from cloudinit import features, safeyaml, util
 from cloudinit.cmd import main
 from cloudinit.util import ensure_dir, load_text_file, write_file
 
@@ -363,7 +363,7 @@ class TestMain:
             skip_log_setup=False,
         )
         main.main_init("init", cmdargs)
-        if expected_add_wait:
+        if features.MANUAL_NETWORK_WAIT and expected_add_wait:
             m_nm.assert_called_once()
             m_subp.assert_called_with(
                 ["systemctl", "start", "systemd-networkd-wait-online.service"]

@@ -130,7 +130,7 @@ DI_DSNAME=""
 # be searched if there is no setting found in config.
 DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
 CloudSigma CloudStack DigitalOcean Vultr AliYun Ec2 GCE OpenNebula OpenStack \
-OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale RbxCloud UpCloud VMware \
+VMware OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale RbxCloud UpCloud \
 LXD NWCS Akamai WSL CloudCIX"
 DI_DSLIST=""
 DI_MODE=""
@@ -1459,6 +1459,10 @@ dscheck_OpenStack() {
     fi
 
     if dmi_chassis_asset_tag_matches "HUAWEICLOUD"; then
+        return ${DS_FOUND}
+    fi
+
+    if dmi_chassis_asset_tag_matches "Samsung Cloud Platform"; then
         return ${DS_FOUND}
     fi
 

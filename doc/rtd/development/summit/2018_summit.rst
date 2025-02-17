@@ -45,7 +45,7 @@ that they gave as a part of the summit:
   and there was a discussion on ending Python 2.7 support as well. An
   announcement to the mailing list is coming soon.
 * **Instance-data.json support and cloud-init cli**: Chad demoed a standard way
-  of querying instance data keys to enable scripting, templating, and access
+  of querying instance-data keys to enable scripting, templating, and access
   across all clouds.
 * **Multipass**: Alberto from the Canonical Multipass team joined us to demo
   the `Multipass`_ project. Multipass is the fastest way to get a virtual

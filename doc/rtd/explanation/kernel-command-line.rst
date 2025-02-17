@@ -29,7 +29,7 @@ In order to allow an ephemeral, or otherwise pristine image to receive some
 configuration, ``cloud-init`` can read a URL directed by the kernel command
 line and proceed as if its data had previously existed.
 
-This allows for configuring a metadata service, or some other data.
+This allows for configuring an instance metadata service, or some other data.
 
 When :ref:`the local stage<boot-Local>` runs, it will check to see if
 ``cloud-config-url`` appears in key/value fashion in the kernel command line,

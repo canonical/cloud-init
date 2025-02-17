@@ -312,7 +312,7 @@ def check_permissions(username, current_path, full_path, is_file, strictmodes):
 
     # 3. no write permission (w) is given to group and world users (022)
     # Group and world user can still have +rx.
-    if strictmodes and parent_permission & 0o022 != 0:
+    if strictmodes and (parent_permission & 0o022):
         LOG.debug(
             "Path %s in %s must not give write"
             "permission to group or world users. Ignoring key.",

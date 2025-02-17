@@ -124,6 +124,10 @@ class AnsiblePullPip(AnsiblePull):
 
 
 class AnsiblePullDistro(AnsiblePull):
+    def __init__(self, distro: Distro, user: Optional[str]):
+        super().__init__(distro)
+        self.run_user = user
+
     def install(self, pkg_name: str):
         if not self.is_installed():
             self.distro.install_packages([pkg_name])
@@ -151,7 +155,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         if install_method == "pip":
             ansible = AnsiblePullPip(distro, ansible_user)
         else:
-            ansible = AnsiblePullDistro(distro)
+            ansible = AnsiblePullDistro(distro, ansible_user)
         ansible.install(package_name)
         ansible.check_deps()
         ansible_config = ansible_cfg.get("ansible_config", "")

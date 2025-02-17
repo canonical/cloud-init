@@ -718,8 +718,9 @@ class Renderer(renderer.Renderer):
     def _render_physical_interfaces(
         cls, network_state, iface_contents, flavor
     ):
-        physical_filter = renderer.filter_by_physical
-        for iface in network_state.iter_interfaces(physical_filter):
+        for iface in network_state.iter_interfaces(
+            renderer.filter_by_type("physical")
+        ):
             iface_name = iface.get("config_id") or iface["name"]
             iface_subnets = iface.get("subnets", [])
             iface_cfg = iface_contents[iface_name]
@@ -937,7 +938,7 @@ class Renderer(renderer.Renderer):
         ):
             content.set_section_keypair("main", "dns", "none")
 
-        if len(content) == 0:
+        if not content:
             return None
         out = "".join([_make_header(), "\n", "\n".join(content.write()), "\n"])
         return out
@@ -1118,6 +1119,24 @@ class Renderer(renderer.Renderer):
             if network_state.use_ipv6:
                 netcfg.append("NETWORKING_IPV6=yes")
                 netcfg.append("IPV6_AUTOCONF=no")
+
+            # if sysconfig file exists and is not empty, append rest of the
+            # file content, do not remove the exsisting customizations.
+            if os.path.exists(sysconfig_path):
+                for line in util.load_text_file(sysconfig_path).splitlines():
+                    if (
+                        not any(
+                            setting in line
+                            for setting in [
+                                "NETWORKING",
+                                "NETWORKING_IPV6",
+                                "IPV6_AUTOCONF",
+                            ]
+                        )
+                        and line not in _make_header().splitlines()
+                    ):
+                        netcfg.append(line)
+
             util.write_file(
                 sysconfig_path, "\n".join(netcfg) + "\n", file_mode
             )

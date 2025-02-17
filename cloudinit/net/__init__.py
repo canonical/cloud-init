@@ -828,7 +828,7 @@ def _rename_interfaces(
         "up": Iproute2.link_up,
     }
 
-    if len(ops) + len(ups) == 0:
+    if not (ops) and not (ups):
         if len(errors):
             LOG.warning(
                 "Unable to rename interfaces: %s due to errors: %s",

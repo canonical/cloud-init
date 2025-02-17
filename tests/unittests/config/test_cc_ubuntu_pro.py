@@ -57,19 +57,24 @@ def fake_uaclient(mocker):
     m_uaclient = mock.Mock()
 
     sys.modules["uaclient"] = m_uaclient
+    mock_exceptions_module = mock.Mock()
 
     # Exceptions
-    _exceptions = namedtuple(
-        "exceptions",
+    Exceptions = namedtuple(
+        "Exceptions",
         [
             "UserFacingError",
             "AlreadyAttachedError",
         ],
-    )(
+    )
+    mock_exceptions_module.UserFacingError = FakeUserFacingError
+    mock_exceptions_module.AlreadyAttachedError = FakeAlreadyAttachedError
+    sys.modules["uaclient.api.exceptions"] = mock_exceptions_module
+    _exceptions = Exceptions(
         FakeUserFacingError,
         FakeAlreadyAttachedError,
     )
-    sys.modules["uaclient.api.exceptions"] = _exceptions
+    return _exceptions
 
 
 @pytest.mark.usefixtures("fake_uaclient")
@@ -834,7 +839,7 @@ class TestHandle:
         caplog,
     ):
         """Non-Pro schemas and instance."""
-        handle("nomatter", cfg=cfg, cloud=cloud, args=None)
+        handle("nomatter", cfg=cfg, cloud=cloud, args=[])
         for record_tuple in log_record_tuples:
             assert record_tuple in caplog.record_tuples
         if maybe_install_call_args_list is not None:
@@ -961,7 +966,7 @@ class TestHandle:
             m_auto_attach.side_effect = auto_attach_side_effect
 
         with expectation:
-            handle("nomatter", cfg=cfg, cloud=cloud, args=None)
+            handle("nomatter", cfg=cfg, cloud=cloud, args=[])
 
         for record_tuple in log_record_tuples:
             assert record_tuple in caplog.record_tuples
@@ -1006,7 +1011,7 @@ class TestHandle:
         enable or disable pro auto-attach.
         """
         m_should_auto_attach.return_value = is_pro
-        handle("nomatter", cfg=cfg, cloud=self.cloud, args=None)
+        handle("nomatter", cfg=cfg, cloud=self.cloud, args=[])
         assert not m_attach.call_args_list
 
     @pytest.mark.parametrize(
@@ -1061,7 +1066,7 @@ class TestHandle:
                 "nomatter",
                 cfg=cfg,
                 cloud=self.cloud,
-                args=None,
+                args=[],
             )
 
     @mock.patch(f"{MPATH}.subp.subp")
@@ -1087,7 +1092,7 @@ class TestHandle:
                 "nomatter",
                 cfg=cfg,
                 cloud=self.cloud,
-                args=None,
+                args=[],
             )
         assert not caplog.text
 
@@ -1107,7 +1112,7 @@ class TestHandle:
                 "nomatter",
                 cfg=cfg,
                 cloud=self.cloud,
-                args=None,
+                args=[],
             )
         assert [] == m_subp.call_args_list
         assert (

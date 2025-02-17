@@ -21,7 +21,7 @@ import logging
 import yaml
 from typing import Optional, Tuple, Callable, Union
 
-from cloudinit import netinfo
+from cloudinit import features, netinfo
 from cloudinit import signal_handler
 from cloudinit import sources
 from cloudinit import socket
@@ -362,7 +362,6 @@ def _should_wait_via_user_data(
             source_uri = source_dict.get("uri", "")
             if source_uri and not (source_uri.startswith(("/", "file:"))):
                 return True, "write_files with source uri found"
-        return False, "write_files without source uri found"
     if parsed_yaml.get("bootcmd"):
         return True, "bootcmd found"
     if parsed_yaml.get("random_seed", {}).get("command"):
@@ -486,7 +485,9 @@ def main_init(name, args):
     mode = sources.DSMODE_LOCAL if args.local else sources.DSMODE_NETWORK
 
     if mode == sources.DSMODE_NETWORK:
-        if not os.path.exists(init.paths.get_runpath(".skip-network")):
+        if features.MANUAL_NETWORK_WAIT and not os.path.exists(
+            init.paths.get_runpath(".skip-network")
+        ):
             LOG.debug("Will wait for network connectivity before continuing")
             init.distro.wait_for_network()
         existing = "trust"
@@ -560,20 +561,21 @@ def main_init(name, args):
     init.apply_network_config(bring_up=bring_up_interfaces)
 
     if mode == sources.DSMODE_LOCAL:
-        should_wait, reason = _should_wait_on_network(init.datasource)
-        if should_wait:
-            LOG.debug(
-                "Network connectivity determined necessary for "
-                "cloud-init's network stage. Reason: %s",
-                reason,
-            )
-        else:
-            LOG.debug(
-                "Network connectivity determined unnecessary for "
-                "cloud-init's network stage. Reason: %s",
-                reason,
-            )
-            util.write_file(init.paths.get_runpath(".skip-network"), "")
+        if features.MANUAL_NETWORK_WAIT:
+            should_wait, reason = _should_wait_on_network(init.datasource)
+            if should_wait:
+                LOG.debug(
+                    "Network connectivity determined necessary for "
+                    "cloud-init's network stage. Reason: %s",
+                    reason,
+                )
+            else:
+                LOG.debug(
+                    "Network connectivity determined unnecessary for "
+                    "cloud-init's network stage. Reason: %s",
+                    reason,
+                )
+                util.write_file(init.paths.get_runpath(".skip-network"), "")
 
         if init.datasource.dsmode != mode:
             LOG.debug(
