@@ -1,8 +1,7 @@
 cloud-init (25.1-0ubuntu1~24.04.1) UNRELEASED; urgency=medium
 
-  * Update d/p/no-single-process.patch
-    - This patch missed waiting for mounts (LP: #2097441)
-    - Fix upstream conflict
+  * refresh patches:
+    - d/p/no-single-process.patch
 
  -- Brett Holman <brett.holman@canonical.com>  Mon, 06 Jan 2024 17:39:42 -0700
 
