@@ -1,5 +1,8 @@
 cloud-init (25.1-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
 
+  * Drop cpicks which are now upstream:
+    - cpick-d75840be-fix-retry-AWS-hotplug-for-async-IMDS-5995
+    - cpick-84806336-chore-Add-feature-flag-for-manual-network-waiting
   * refresh patches
     - d/p/no-single-process.patch
 
