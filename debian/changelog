@@ -1,4 +1,4 @@
-cloud-init (25.1-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (25.1-0ubuntu1~24.10.1) UNRELEASED; urgency=medium
 
   * Drop cpicks which are now upstream:
     - d/p/cpick-d75840be-fix-retry-AWS-hotplug-for-async-IMDS-5995
@@ -6,9 +6,9 @@ cloud-init (25.1-0ubuntu1) UNRELEASED; urgency=medium
   * refresh patches:
     - d/p/deprecation-version-boundary.patch
     - d/p/grub-dpkg-support.patch
-  * Upstream snapshot based on upstream/main at 2b7d9636.
+  * Upstream snapshot based on upstream/main at 1a9393ee.
 
- -- Brett Holman <brett.holman@canonical.com>  Mon, 10 Feb 2025 16:14:36 -0700
+ -- Brett Holman <brett.holman@canonical.com>  Mon, 17 Feb 2025 16:11:57 -0700
 
 cloud-init (24.4.1-0ubuntu0~24.10.1) oracular; urgency=medium
 
