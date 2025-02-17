@@ -48,9 +48,9 @@ Last-Update: 2024-02-14
          os.path.join(cloud.paths.get_ipath_cur(), "snapd.assertions"),
 --- a/cloudinit/config/cc_ubuntu_autoinstall.py
 +++ b/cloudinit/config/cc_ubuntu_autoinstall.py
-@@ -37,7 +37,6 @@ def handle(name: str, cfg: Config, cloud
-         )
-         return
+@@ -26,7 +26,6 @@ LIVE_INSTALLER_SNAPS = ("subiquity", "ub
+ 
+ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
  
 -    util.wait_for_snap_seeded(cloud)
      snap_list, _ = subp.subp(["snap", "list"])
@@ -58,7 +58,7 @@ Last-Update: 2024-02-14
      for snap_name in LIVE_INSTALLER_SNAPS:
 --- a/cloudinit/util.py
 +++ b/cloudinit/util.py
-@@ -73,7 +73,7 @@ from cloudinit import (
+@@ -74,7 +74,7 @@ from cloudinit import (
      version,
  )
  from cloudinit.log.log_util import logexc
@@ -67,7 +67,7 @@ Last-Update: 2024-02-14
  
  if TYPE_CHECKING:
      # Avoid circular import
-@@ -3016,18 +3016,6 @@ def wait_for_files(flist, maxwait, naple
+@@ -3017,18 +3017,6 @@ def wait_for_files(flist, maxwait, naple
      return need
  
  
@@ -99,19 +99,12 @@ Last-Update: 2024-02-14
  ConditionKernelCommandLine=!cloud-init=disabled
 --- a/tests/integration_tests/modules/test_frequency_override.py
 +++ b/tests/integration_tests/modules/test_frequency_override.py
-@@ -1,7 +1,6 @@
- import pytest
- 
- from tests.integration_tests.instances import IntegrationInstance
--from tests.integration_tests.releases import CURRENT_RELEASE
- 
- USER_DATA = """\
- #cloud-config
-@@ -18,17 +17,6 @@ def test_frequency_override(client: Inte
+@@ -19,18 +19,6 @@ def test_frequency_override(client: Inte
          in client.read_from_file("/var/log/cloud-init.log")
      )
      assert client.read_from_file("/var/tmp/hi").strip().count("hi") == 1
--    if CURRENT_RELEASE.os == "ubuntu":
+-    # This workaround is not needed for OCI, so just skip it
+-    if CURRENT_RELEASE.os == "ubuntu" and PLATFORM != "oci":
 -        if CURRENT_RELEASE.series in ("focal", "jammy", "lunar", "mantic"):
 -            # Stable series will block on snapd.seeded.service and create a
 -            # semaphore file
@@ -234,8 +227,8 @@ Last-Update: 2024-02-14
  from tests.unittests.helpers import skipUnlessJsonSchema
  from tests.unittests.util import get_cloud
  
-@@ -65,20 +64,18 @@ class TestvalidateConfigSchema:
-             cc_ubuntu_autoinstall.validate_config_schema(src_cfg)
+@@ -38,13 +37,12 @@ ubuntu-desktop-installer 22.06.01
+ )
  
  
 -@mock.patch(MODPATH + "util.wait_for_snap_seeded")
@@ -248,15 +241,8 @@ Last-Update: 2024-02-14
 +        "cfg,snap_list,subp_calls,logs",
          [
              pytest.param(
-                 {},
-                 SAMPLE_SNAP_LIST_OUTPUT,
-                 [],
-                 ["Skipping module named name, no 'autoinstall' key"],
--                False,
-                 id="skip_no_cfg",
-             ),
-             pytest.param(
-@@ -90,7 +87,6 @@ class TestHandleAutoinstall:
+                 {"autoinstall": {"version": 1}},
+@@ -55,7 +53,6 @@ class TestHandleAutoinstall:
                      " installer snap packages to be present: subiquity,"
                      " ubuntu-desktop-installer"
                  ],
@@ -264,7 +250,7 @@ Last-Update: 2024-02-14
                  id="valid_autoinstall_schema_checks_snaps",
              ),
              pytest.param(
-@@ -101,7 +97,6 @@ class TestHandleAutoinstall:
+@@ -66,7 +63,6 @@ class TestHandleAutoinstall:
                      "Valid autoinstall schema. Config will be processed by"
                      " subiquity"
                  ],
@@ -272,7 +258,7 @@ Last-Update: 2024-02-14
                  id="valid_autoinstall_schema_sees_subiquity",
              ),
              pytest.param(
-@@ -112,33 +107,19 @@ class TestHandleAutoinstall:
+@@ -77,33 +73,19 @@ class TestHandleAutoinstall:
                      "Valid autoinstall schema. Config will be processed by"
                      " ubuntu-desktop-installer"
                  ],
