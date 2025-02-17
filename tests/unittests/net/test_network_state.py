@@ -1,6 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import ipaddress
+from typing import Dict
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
 import yaml
@@ -67,9 +69,10 @@ class TestNetworkStateParseConfig(CiTestCase):
         super(TestNetworkStateParseConfig, self).setUp()
         nsi_path = netstate_path + ".NetworkStateInterpreter"
         self.add_patch(nsi_path, "m_nsi")
+        self.m_nsi: MagicMock
 
     def test_missing_version_returns_none(self):
-        ncfg = {}
+        ncfg: Dict[str, int] = {}
         with self.assertRaises(RuntimeError):
             network_state.parse_net_config_data(ncfg)
 

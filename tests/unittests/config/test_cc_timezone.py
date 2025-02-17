@@ -35,5 +35,5 @@ class TestTimezone:
 
         assert {"TIMEZONE": cfg["timezone"]} == dict(n_cfg)
 
-        contents = util.load_text_file("/etc/localtime")
-        assert dummy_contents == contents.strip()
+        localtime_contents = util.load_text_file("/etc/localtime")
+        assert dummy_contents == localtime_contents.strip()
