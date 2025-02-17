@@ -18,14 +18,14 @@ Last-Update: 2024-08-02
 -# process has completed this stage. The output from the return socket is piped
 -# into a shell so that the process can send a completion message (defaults to
 -# "done", otherwise includes an error message) and an exit code to systemd.
--ExecStart=sh -c 'echo "start" | netcat -Uu -W1 /run/cloud-init/share/config.sock -s /run/cloud-init/share/config-return.sock | sh'
+-ExecStart=sh -c 'echo "start" | nc -Uu -W1 /run/cloud-init/share/config.sock -s /run/cloud-init/share/config-return.sock | sh'
 +ExecStart=/usr/bin/cloud-init modules --mode=config
  RemainAfterExit=yes
  TimeoutSec=0
  
 --- a/systemd/cloud-final.service
 +++ b/systemd/cloud-final.service
-@@ -12,14 +12,7 @@ ConditionEnvironment=!KERNEL_CMDLINE=clo
+@@ -12,16 +12,10 @@ ConditionEnvironment=!KERNEL_CMDLINE=clo
  
  [Service]
  Type=oneshot
@@ -36,11 +36,14 @@ Last-Update: 2024-08-02
 -# process has completed this stage. The output from the return socket is piped
 -# into a shell so that the process can send a completion message (defaults to
 -# "done", otherwise includes an error message) and an exit code to systemd.
--ExecStart=sh -c 'echo "start" | netcat -Uu -W1 /run/cloud-init/share/final.sock -s /run/cloud-init/share/final-return.sock | sh'
+-ExecStart=sh -c 'echo "start" | nc -Uu -W1 /run/cloud-init/share/final.sock -s /run/cloud-init/share/final-return.sock | sh'
 +ExecStart=/usr/bin/cloud-init modules --mode=final
  RemainAfterExit=yes
  TimeoutSec=0
++KillMode=process
  TasksMax=infinity
+ 
+ # Output needs to appear in instance console output
 --- a/systemd/cloud-init-local.service.tmpl
 +++ b/systemd/cloud-init-local.service.tmpl
 @@ -7,6 +7,7 @@ DefaultDependencies=no
@@ -70,7 +73,7 @@ Last-Update: 2024-08-02
 -# process has completed this stage. The output from the return socket is piped
 -# into a shell so that the process can send a completion message (defaults to
 -# "done", otherwise includes an error message) and an exit code to systemd.
--ExecStart=sh -c 'echo "start" | netcat -Uu -W1 /run/cloud-init/share/local.sock -s /run/cloud-init/share/local-return.sock | sh'
+-ExecStart=sh -c 'echo "start" | nc -Uu -W1 /run/cloud-init/share/local.sock -s /run/cloud-init/share/local-return.sock | sh'
 +ExecStart=/usr/bin/cloud-init init --local
  RemainAfterExit=yes
  TimeoutSec=0
@@ -197,7 +200,7 @@ Last-Update: 2024-08-02
              stdout = query_systemctl(
 --- a/cloudinit/config/cc_mounts.py
 +++ b/cloudinit/config/cc_mounts.py
-@@ -521,7 +521,7 @@ def handle(name: str, cfg: Config, cloud
+@@ -519,7 +519,7 @@ def handle(name: str, cfg: Config, cloud
      # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
      uses_systemd = cloud.distro.uses_systemd()
      default_mount_options = (
@@ -208,7 +211,7 @@ Last-Update: 2024-08-02
      )
 --- a/cloudinit/config/schemas/schema-cloud-config-v1.json
 +++ b/cloudinit/config/schemas/schema-cloud-config-v1.json
-@@ -2029,12 +2029,12 @@
+@@ -2034,12 +2034,12 @@
          },
          "mount_default_fields": {
            "type": "array",
@@ -247,3 +250,70 @@ Last-Update: 2024-08-02
              /dev/sdb1	none	swap	sw,comment=cloudconfig	0	0
              """  # noqa: E501
              ).strip()
+--- a/systemd/cloud-init-network.service.tmpl
++++ /dev/null
+@@ -1,64 +0,0 @@
+-## template:jinja
+-[Unit]
+-# https://docs.cloud-init.io/en/latest/explanation/boot.html
+-Description=Cloud-init: Network Stage
+-{% if variant not in ["almalinux", "cloudlinux", "photon", "rhel"] %}
+-DefaultDependencies=no
+-{% endif %}
+-Wants=cloud-init-local.service
+-Wants=sshd-keygen.service
+-Wants=sshd.service
+-After=cloud-init-local.service
+-{% if variant not in ["ubuntu"] %}
+-After=systemd-networkd-wait-online.service
+-{% endif %}
+-{% if variant in ["ubuntu", "unknown", "debian"] %}
+-After=networking.service
+-{% endif %}
+-{% if variant in ["almalinux", "centos", "cloudlinux", "eurolinux", "fedora",
+-                  "miraclelinux", "openeuler", "OpenCloudOS", "openmandriva", "rhel", "rocky",
+-                  "suse", "TencentOS", "virtuozzo"] %}
+-After=NetworkManager.service
+-After=NetworkManager-wait-online.service
+-{% endif %}
+-{% if variant in ["suse"] %}
+-After=wicked.service
+-# setting hostname via hostnamectl depends on dbus, which otherwise
+-# would not be guaranteed at this point.
+-After=dbus.service
+-{% endif %}
+-Before=network-online.target
+-Before=sshd-keygen.service
+-Before=sshd.service
+-Before=systemd-user-sessions.service
+-{% if variant in ["ubuntu", "unknown", "debian"] %}
+-Before=sysinit.target
+-Before=shutdown.target
+-Conflicts=shutdown.target
+-{% endif %}
+-{% if variant in ["suse"] %}
+-Before=shutdown.target
+-Conflicts=shutdown.target
+-{% endif %}
+-ConditionPathExists=!/etc/cloud/cloud-init.disabled
+-ConditionKernelCommandLine=!cloud-init=disabled
+-ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
+-
+-[Service]
+-Type=oneshot
+-# This service is a shim which preserves systemd ordering while allowing a
+-# single Python process to run cloud-init's logic. This works by communicating
+-# with the cloud-init process over a unix socket to tell the process that this
+-# stage can start, and then wait on a return socket until the cloud-init
+-# process has completed this stage. The output from the return socket is piped
+-# into a shell so that the process can send a completion message (defaults to
+-# "done", otherwise includes an error message) and an exit code to systemd.
+-ExecStart=sh -c 'echo "start" | nc -Uu -W1 /run/cloud-init/share/network.sock -s /run/cloud-init/share/network-return.sock | sh'
+-RemainAfterExit=yes
+-TimeoutSec=0
+-
+-# Output needs to appear in instance console output
+-StandardOutput=journal+console
+-
+-[Install]
+-WantedBy=cloud-init.target

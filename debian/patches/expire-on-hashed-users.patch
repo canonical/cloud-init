@@ -18,7 +18,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  in cc_set_passwords, hashed passwords will be expired. Previous to 22.3,
 --- a/tests/unittests/config/test_cc_set_passwords.py
 +++ b/tests/unittests/config/test_cc_set_passwords.py
-@@ -196,61 +196,6 @@ class TestSetPasswordsHandle:
+@@ -198,61 +198,6 @@ class TestSetPasswordsHandle:
      @pytest.mark.parametrize(
          "user_cfg",
          [
@@ -80,7 +80,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
              {"expire": "false", "list": ["root:R", "ubuntu:RANDOM"]},
              {
                  "expire": "false",
-@@ -510,6 +455,9 @@ expire_cases = [
+@@ -512,6 +457,9 @@ expire_cases = [
  class TestExpire:
      @pytest.mark.parametrize("cfg", expire_cases)
      def test_expire(self, cfg, mocker, caplog):

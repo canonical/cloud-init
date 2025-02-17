@@ -19,5 +19,5 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 -    }
 -
      extra_hotplug_udev_rules = _EXTRA_HOTPLUG_UDEV_RULES
+     hotplug_retry_settings = HotplugRetrySettings(True, 5, 30)
  
-     def __init__(self, sys_cfg, distro, paths):
