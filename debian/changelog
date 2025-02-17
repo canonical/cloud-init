@@ -5,8 +5,9 @@ cloud-init (25.1-0ubuntu1~20.04.1) UNRELEASED; urgency=medium
     - d/p/cpick-84806336-chore-Add-feature-flag-for-manual-network-waiting
   * refresh patches
     - d/p/no-single-process.patch
+  * Upstream snapshot based on upstream/main at 1a9393ee.
 
- -- Brett Holman <brett.holman@canonical.com>  Mon, 06 Jan 2024 17:39:42 -0700
+ -- Brett Holman <brett.holman@canonical.com>  Mon, 17 Feb 2025 15:10:27 -0700
 
 cloud-init (24.4.1-0ubuntu0~20.04.1) focal; urgency=medium
 
