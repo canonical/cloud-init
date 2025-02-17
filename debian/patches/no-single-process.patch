@@ -7,7 +7,7 @@ Last-Update: 2024-08-02
 --- a/systemd/cloud-config.service
 +++ b/systemd/cloud-config.service
 @@ -9,14 +9,7 @@ ConditionEnvironment=!KERNEL_CMDLINE=clo
-
+ 
  [Service]
  Type=oneshot
 -# This service is a shim which preserves systemd ordering while allowing a
@@ -17,15 +17,15 @@ Last-Update: 2024-08-02
 -# process has completed this stage. The output from the return socket is piped
 -# into a shell so that the process can send a completion message (defaults to
 -# "done", otherwise includes an error message) and an exit code to systemd.
--ExecStart=sh -c 'echo "start" | netcat -Uu -W1 /run/cloud-init/share/config.sock -s /run/cloud-init/share/config-return.sock | sh'
+-ExecStart=sh -c 'echo "start" | nc -Uu -W1 /run/cloud-init/share/config.sock -s /run/cloud-init/share/config-return.sock | sh'
 +ExecStart=/usr/bin/cloud-init modules --mode=config
  RemainAfterExit=yes
  TimeoutSec=0
-
+ 
 --- a/systemd/cloud-final.service
 +++ b/systemd/cloud-final.service
 @@ -12,16 +12,10 @@ ConditionEnvironment=!KERNEL_CMDLINE=clo
-
+ 
  [Service]
  Type=oneshot
 -# This service is a shim which preserves systemd ordering while allowing a
@@ -35,13 +35,13 @@ Last-Update: 2024-08-02
 -# process has completed this stage. The output from the return socket is piped
 -# into a shell so that the process can send a completion message (defaults to
 -# "done", otherwise includes an error message) and an exit code to systemd.
--ExecStart=sh -c 'echo "start" | netcat -Uu -W1 /run/cloud-init/share/final.sock -s /run/cloud-init/share/final-return.sock | sh'
+-ExecStart=sh -c 'echo "start" | nc -Uu -W1 /run/cloud-init/share/final.sock -s /run/cloud-init/share/final-return.sock | sh'
 +ExecStart=/usr/bin/cloud-init modules --mode=final
  RemainAfterExit=yes
  TimeoutSec=0
 +KillMode=process
  TasksMax=infinity
-
+ 
  # Output needs to appear in instance console output
 --- a/systemd/cloud-init-local.service.tmpl
 +++ b/systemd/cloud-init-local.service.tmpl
@@ -53,7 +53,7 @@ Last-Update: 2024-08-02
  Before=network-pre.target
  Before=shutdown.target
  {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
-@@ -16,6 +17,7 @@
+@@ -16,6 +17,7 @@ Before=firewalld.target
  Before=sysinit.target
  {% endif %}
  Conflicts=shutdown.target
@@ -61,7 +61,7 @@ Last-Update: 2024-08-02
  ConditionPathExists=!/etc/cloud/cloud-init.disabled
  ConditionKernelCommandLine=!cloud-init=disabled
  ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
-@@ -25,14 +27,7 @@
+@@ -25,14 +27,7 @@ Type=oneshot
  {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
  ExecStartPre=/sbin/restorecon /run/cloud-init
  {% endif %}
@@ -72,11 +72,11 @@ Last-Update: 2024-08-02
 -# process has completed this stage. The output from the return socket is piped
 -# into a shell so that the process can send a completion message (defaults to
 -# "done", otherwise includes an error message) and an exit code to systemd.
--ExecStart=sh -c 'echo "start" | netcat -Uu -W1 /run/cloud-init/share/local.sock -s /run/cloud-init/share/local-return.sock | sh'
+-ExecStart=sh -c 'echo "start" | nc -Uu -W1 /run/cloud-init/share/local.sock -s /run/cloud-init/share/local-return.sock | sh'
 +ExecStart=/usr/bin/cloud-init init --local
  RemainAfterExit=yes
  TimeoutSec=0
-
+ 
 --- /dev/null
 +++ b/systemd/cloud-init.service.tmpl
 @@ -0,0 +1,56 @@
@@ -151,7 +151,7 @@ Last-Update: 2024-08-02
              stdout = query_systemctl(
 --- a/cloudinit/config/cc_mounts.py
 +++ b/cloudinit/config/cc_mounts.py
-@@ -521,7 +521,7 @@ def handle(name: str, cfg: Config, cloud
+@@ -519,7 +519,7 @@ def handle(name: str, cfg: Config, cloud
      # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
      uses_systemd = cloud.distro.uses_systemd()
      default_mount_options = (
@@ -162,7 +162,7 @@ Last-Update: 2024-08-02
      )
 --- a/cloudinit/config/schemas/schema-cloud-config-v1.json
 +++ b/cloudinit/config/schemas/schema-cloud-config-v1.json
-@@ -2029,12 +2029,12 @@
+@@ -2034,12 +2034,12 @@
          },
          "mount_default_fields": {
            "type": "array",
@@ -180,7 +180,7 @@ Last-Update: 2024-08-02
 --- a/systemd/cloud-config.target
 +++ b/systemd/cloud-config.target
 @@ -14,5 +14,5 @@
-
+ 
  [Unit]
  Description=Cloud-config availability
 -Wants=cloud-init-local.service cloud-init-network.service
@@ -304,7 +304,7 @@ Last-Update: 2024-08-02
 -# process has completed this stage. The output from the return socket is piped
 -# into a shell so that the process can send a completion message (defaults to
 -# "done", otherwise includes an error message) and an exit code to systemd.
--ExecStart=sh -c 'echo "start" | netcat -Uu -W1 /run/cloud-init/share/network.sock -s /run/cloud-init/share/network-return.sock | sh'
+-ExecStart=sh -c 'echo "start" | nc -Uu -W1 /run/cloud-init/share/network.sock -s /run/cloud-init/share/network-return.sock | sh'
 -RemainAfterExit=yes
 -TimeoutSec=0
 -
