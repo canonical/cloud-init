@@ -27,7 +27,9 @@ SYSTEMD_CHECK_CALL = mock.call(
     ["systemctl", "show", "--property", "ActiveState", "--value", "ssh"]
 )
 SYSTEMD_RESTART_CALL = mock.call(
-    ["systemctl", "restart", "ssh"], capture=True, rcs=None
+    ["systemctl", "restart", "ssh", "--job-mode=ignore-dependencies"],
+    capture=True,
+    rcs=None,
 )
 SERVICE_RESTART_CALL = mock.call(
     ["service", "ssh", "restart"], capture=True, rcs=None

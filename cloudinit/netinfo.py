@@ -189,7 +189,7 @@ def _netdev_info_ifconfig_netbsd(ifconfig_data):
     # fields that need to be returned in devs for each dev
     devs = {}
     for line in ifconfig_data.splitlines():
-        if len(line) == 0:
+        if not line:
             continue
         if line[0] not in ("\t", " "):
             curdev = line.split()[0]
@@ -237,7 +237,7 @@ def _netdev_info_ifconfig(ifconfig_data):
     # fields that need to be returned in devs for each dev
     devs = {}
     for line in ifconfig_data.splitlines():
-        if len(line) == 0:
+        if not line:
             continue
         if line[0] not in ("\t", " "):
             curdev = line.split()[0]
@@ -587,7 +587,8 @@ def netdev_pformat():
         fields = ["Device", "Up", "Address", "Mask", "Scope", "Hw-Address"]
         tbl = SimpleTable(fields)
         for dev, data in sorted(netdev.items()):
-            for addr in data.get("ipv4"):
+            ipv4_addrs = data.get("ipv4")
+            for addr in ipv4_addrs:
                 tbl.add_row(
                     (
                         dev,
@@ -598,7 +599,9 @@ def netdev_pformat():
                         data["hwaddr"],
                     )
                 )
-            for addr in data.get("ipv6"):
+
+            ipv6_addrs = data.get("ipv6")
+            for addr in ipv6_addrs:
                 tbl.add_row(
                     (
                         dev,
@@ -609,7 +612,7 @@ def netdev_pformat():
                         data["hwaddr"],
                     )
                 )
-            if len(data.get("ipv6")) + len(data.get("ipv4")) == 0:
+            if not (ipv4_addrs) and not (ipv6_addrs):
                 tbl.add_row(
                     (dev, data["up"], empty, empty, empty, data["hwaddr"])
                 )

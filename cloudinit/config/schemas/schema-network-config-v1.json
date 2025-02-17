@@ -484,7 +484,8 @@
             "static6",
             "ipv6_dhcpv6-stateful",
             "ipv6_dhcpv6-stateless",
-            "ipv6_slaac"
+            "ipv6_slaac",
+            "manual"
           ]
         },
         "control": {

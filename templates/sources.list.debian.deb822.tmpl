@@ -24,11 +24,11 @@ Types: deb deb-src
 URIs: {{mirror}}
 Suites: {{codename}} {{codename}}-updates {{codename}}-backports
 Components: main
-Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+Signed-By: {{primary_key | default('/usr/share/keyrings/debian-archive-keyring.gpg', true)}}
 
 ## Major bug fix updates produced after the final release of the distribution.
 Types: deb deb-src
 URIs: {{security}}
 Suites: {{codename}}{% if codename in ('buster', 'stretch') %}/updates{% else %}-security{% endif %}
 Components: main
-Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+Signed-By: {{security_key | default(primary_key, true) | default('/usr/share/keyrings/debian-archive-keyring.gpg', true)}}

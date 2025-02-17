@@ -1,8 +1,10 @@
 # Copyright (C) 2016 Canonical Ltd.
-# Copyright (C) 2016-2023 VMware Inc.
+# Copyright (C) 2006-2024 Broadcom. All Rights Reserved.
+# Broadcom Confidential. The term "Broadcom" refers to Broadcom Inc.
+# and/or its subsidiaries.
 #
 # Author: Sankar Tanguturi <stanguturi@vmware.com>
-#         Pengpeng Sun <pegnpengs@vmware.com>
+#         Pengpeng Sun <pengpeng.sun@broadcom.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
@@ -325,23 +327,19 @@ def get_non_network_data_from_vmware_cust_cfg(cust_cfg):
 def get_network_data_from_vmware_cust_cfg(
     cust_cfg, use_system_devices=True, configure=False, osfamily=None
 ):
-    nicConfigurator = NicConfigurator(cust_cfg.nics, use_system_devices)
-    nics_cfg_list = nicConfigurator.generate(configure, osfamily)
-
-    return get_v1_network_config(
-        nics_cfg_list, cust_cfg.name_servers, cust_cfg.dns_suffixes
+    nicConfigurator = NicConfigurator(
+        cust_cfg.nics,
+        cust_cfg.name_servers,
+        cust_cfg.dns_suffixes,
+        use_system_devices,
     )
+    ethernets_dict = nicConfigurator.generate(configure, osfamily)
+
+    return gen_v2_network_config(ethernets_dict)
 
 
-def get_v1_network_config(nics_cfg_list=None, nameservers=None, search=None):
-    config_list = nics_cfg_list
-
-    if nameservers or search:
-        config_list.append(
-            {"type": "nameserver", "address": nameservers, "search": search}
-        )
-
-    return {"version": 1, "config": config_list}
+def gen_v2_network_config(ethernets_dict):
+    return {"version": 2, "ethernets": ethernets_dict}
 
 
 def connect_nics(cust_cfg_dir):

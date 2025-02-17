@@ -7,7 +7,7 @@ import re
 import string
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Type
+from typing import Optional, Type
 from uuid import UUID
 
 from pycloudlib import (
@@ -23,7 +23,7 @@ from pycloudlib import (
 )
 from pycloudlib.cloud import ImageType
 from pycloudlib.ec2.instance import EC2Instance
-from pycloudlib.lxd.cloud import _BaseLXD
+from pycloudlib.lxd.cloud import BaseCloud, _BaseLXD
 from pycloudlib.lxd.instance import BaseInstance, LXDInstance
 
 import cloudinit
@@ -65,7 +65,7 @@ class IntegrationCloud(ABC):
         self.settings = settings
         self.cloud_instance = self._get_cloud_instance()
         self.initial_image_id = self._get_initial_image()
-        self.snapshot_id = None
+        self.snapshot_id: Optional[str] = None
 
     @property
     def image_id(self):
@@ -83,7 +83,7 @@ class IntegrationCloud(ABC):
         )
 
     @abstractmethod
-    def _get_cloud_instance(self):
+    def _get_cloud_instance(self) -> BaseCloud:
         raise NotImplementedError
 
     def _get_initial_image(self, **kwargs) -> str:
@@ -132,6 +132,10 @@ class IntegrationCloud(ABC):
             "user_data": user_data,
             "username": DISTRO_TO_USERNAME[CURRENT_RELEASE.os],
         }
+        if self.settings.INSTANCE_TYPE:
+            default_launch_kwargs["instance_type"] = (
+                self.settings.INSTANCE_TYPE
+            )
         launch_kwargs = {**default_launch_kwargs, **launch_kwargs}
         display_launch_kwargs = deepcopy(launch_kwargs)
         if display_launch_kwargs.get("user_data") is not None:
@@ -182,7 +186,7 @@ class IntegrationCloud(ABC):
 
     def delete_snapshot(self):
         if self.snapshot_id:
-            if self.settings.KEEP_IMAGE:  # type: ignore
+            if self.settings.KEEP_IMAGE:
                 log.info(
                     "NOT deleting snapshot image created for this testrun "
                     "because KEEP_IMAGE is True: %s",
@@ -198,6 +202,7 @@ class IntegrationCloud(ABC):
 
 class Ec2Cloud(IntegrationCloud):
     datasource = "ec2"
+    cloud_instance: EC2
 
     def _get_cloud_instance(self) -> EC2:
         return EC2(tag="ec2-integration-test")
@@ -226,6 +231,7 @@ class Ec2Cloud(IntegrationCloud):
 
 class GceCloud(IntegrationCloud):
     datasource = "gce"
+    cloud_instance: GCE
 
     def _get_cloud_instance(self) -> GCE:
         return GCE(
@@ -263,6 +269,7 @@ class AzureCloud(IntegrationCloud):
 
 class OciCloud(IntegrationCloud):
     datasource = "oci"
+    cloud_instance: OCI
 
     def _get_cloud_instance(self) -> OCI:
         return OCI(
@@ -382,6 +389,7 @@ class LxdVmCloud(_LxdIntegrationCloud):
 
 class OpenstackCloud(IntegrationCloud):
     datasource = "openstack"
+    cloud_instance: Openstack
 
     def _get_cloud_instance(self):
         return Openstack(
@@ -414,7 +422,7 @@ class IbmCloud(IntegrationCloud):
 
 class QemuCloud(IntegrationCloud):
     datasource = "qemu"
-    cloud_instance = Qemu
+    cloud_instance: Qemu
 
     def _get_cloud_instance(self):
         return Qemu(tag="qemu-integration-test")

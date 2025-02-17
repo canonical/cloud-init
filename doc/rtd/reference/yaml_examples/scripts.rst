@@ -1,10 +1,10 @@
 .. _cce-scripts:
 
-Control vendor data use
+Control vendor-data use
 ***********************
 
-The use of :ref:`vendor data <vendordata>` can be controlled by the user.
-Vendor data can be used (or disabled) with an optional prefix.
+The use of :ref:`vendor-data <vendor-data>` can be controlled by the user.
+Vendor-data can be used (or disabled) with an optional prefix.
 
 For a full list of keys, refer to the
 :ref:`scripts vendor module <mod_cc_scripts_vendor>` docs.
@@ -26,7 +26,7 @@ Example 2
 Example 3
 ---------
 
-With this example, vendor data will not be processed.
+With this example, vendor-data will not be processed.
 
 .. literalinclude:: ../../../module-docs/cc_scripts_vendor/example3.yaml
    :language: yaml

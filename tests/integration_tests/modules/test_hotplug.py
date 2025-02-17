@@ -1,3 +1,4 @@
+import logging
 import time
 from collections import namedtuple
 
@@ -36,6 +37,7 @@ updates:
     when: ['boot-new-instance']
 """
 
+LOG = logging.getLogger()
 ip_addr = namedtuple("ip_addr", "interface state ip4 ip6")
 
 
@@ -307,9 +309,14 @@ def test_multi_nic_hotplug(client: IntegrationInstance):
     verify_clean_boot(client)
 
 
+# TODO: support early hotplug
+#
+# This test usually passes without the `wait_for_cloud_init()`
+# but sometimes the hotplug event races with the end of cloud-init
+# so occasionally fails. For now, document this shortcoming and
+# wait for cloud-init to complete before testing the behavior.
 @pytest.mark.skipif(PLATFORM != "ec2", reason="test is ec2 specific")
-@pytest.mark.skip(reason="IMDS race, see GH-5373. Unskip when fixed.")
-def test_multi_nic_hotplug_vpc(setup_image, session_cloud: IntegrationCloud):
+def test_multi_nic_hotplug_vpc(session_cloud: IntegrationCloud):
     """Tests that additional secondary NICs are routable from local
     networks after the hotplug hook is executed when network updates
     are configured on the HOTPLUG event."""
@@ -319,6 +326,12 @@ def test_multi_nic_hotplug_vpc(setup_image, session_cloud: IntegrationCloud):
         ips_before = _get_ip_addr(client)
         primary_priv_ip4 = ips_before[1].ip4
         primary_priv_ip6 = ips_before[1].ip6
+        # cloud-init is incapable of hotplugged devices until after
+        # completion (cloud-init.target / cloud-init status --wait)
+        #
+        # To reliably test cloud-init hotplug, wait for completion before
+        # testing behaviors.
+        wait_for_cloud_init(client)
         client.instance.add_network_interface(ipv6_address_count=1)
 
         _wait_till_hotplug_complete(client)
@@ -348,13 +361,14 @@ def test_multi_nic_hotplug_vpc(setup_image, session_cloud: IntegrationCloud):
         assert len(ips_after_add) == len(ips_before) + 1
 
         # pings to primary and secondary NICs work
-        r = bastion.execute(f"ping -c1 {primary_priv_ip4}")
+        # use -w so that test is less flaky with temporary network failure
+        r = bastion.execute(f"ping -c1 -w5 {primary_priv_ip4}")
         assert r.ok, r.stdout
-        r = bastion.execute(f"ping -c1 {secondary_priv_ip4}")
+        r = bastion.execute(f"ping -c1 -w5 {secondary_priv_ip4}")
         assert r.ok, r.stdout
-        r = bastion.execute(f"ping -c1 {primary_priv_ip6}")
+        r = bastion.execute(f"ping -c1 -w5 {primary_priv_ip6}")
         assert r.ok, r.stdout
-        r = bastion.execute(f"ping -c1 {secondary_priv_ip6}")
+        r = bastion.execute(f"ping -c1 -w5 {secondary_priv_ip6}")
         assert r.ok, r.stdout
 
         # Check every route has metrics associated. See LP: #2055397
@@ -368,12 +382,31 @@ def test_multi_nic_hotplug_vpc(setup_image, session_cloud: IntegrationCloud):
         _wait_till_hotplug_complete(client, expected_runs=2)
 
         # ping to primary NIC works
-        assert bastion.execute(f"ping -c1 {primary_priv_ip4}").ok
-        assert bastion.execute(f"ping -c1 {primary_priv_ip6}").ok
+        retries = 32
+        error = ""
+        for i in range(retries):
+            if bastion.execute(f"ping -c1 -w5 {primary_priv_ip4}").ok:
+                break
+            LOG.info("Failed to ping %s on try #%s", primary_priv_ip4, i + 1)
+        else:
+            error = (
+                f"Failed to ping {primary_priv_ip4} after {retries} retries"
+            )
+
+        for i in range(retries):
+            if bastion.execute(f"ping -c1 -w5 {primary_priv_ip6}").ok:
+                break
+            LOG.info("Failed to ping %s on try #%s", primary_priv_ip6, i + 1)
+        else:
+            error = (
+                f"Failed to ping {primary_priv_ip6} after {retries} retries"
+            )
 
         log_content = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log_content)
         verify_clean_boot(client)
+        if error:
+            raise Exception(error)
 
 
 @pytest.mark.skipif(PLATFORM != "ec2", reason="test is ec2 specific")

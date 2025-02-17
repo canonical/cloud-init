@@ -61,7 +61,7 @@ Configuration files
 - :file:`/etc/cloud/cloud.cfg`
 - :file:`/etc/cloud/cloud.cfg.d/*.cfg`
 
-These files can define the modules that run during instance initialisation,
+These files can define the modules that run during instance initialization,
 the datasources to evaluate on boot, as well as other settings.
 
 See the :ref:`configuration sources explanation<configuration>` and

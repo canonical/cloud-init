@@ -196,7 +196,13 @@ class DataSourceLXD(sources.DataSource):
     @staticmethod
     def ds_detect() -> bool:
         """Check platform environment to report if this datasource may run."""
-        return is_platform_viable()
+        if not os.path.exists(LXD_SOCKET_PATH):
+            LOG.warning("%s does not exist.", LXD_SOCKET_PATH)
+            return False
+        elif not stat.S_ISSOCK(os.lstat(LXD_SOCKET_PATH).st_mode):
+            LOG.warning("%s is not a socket", LXD_SOCKET_PATH)
+            return False
+        return True
 
     def _get_data(self) -> bool:
         """Crawl LXD socket API instance data and return True on success"""
@@ -266,13 +272,6 @@ class DataSourceLXD(sources.DataSource):
             self._network_config = generate_network_config()
 
         return cast(dict, self._network_config)
-
-
-def is_platform_viable() -> bool:
-    """Return True when this platform appears to have an LXD socket."""
-    if os.path.exists(LXD_SOCKET_PATH):
-        return stat.S_ISSOCK(os.lstat(LXD_SOCKET_PATH).st_mode)
-    return False
 
 
 def _get_json_response(
@@ -427,7 +426,7 @@ def read_metadata(
     when the LXD configuration setting `security.devlxd` is true.
 
     When `security.devlxd` is false, no /dev/lxd/socket file exists. This
-    datasource will return False from `is_platform_viable` in that case.
+    datasource will return False from `ds_detect` in that case.
 
     Perform a GET of <LXD_SOCKET_API_VERSION>/config` and walk all `user.*`
     configuration keys, storing all keys and values under a dict key

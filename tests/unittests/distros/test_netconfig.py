@@ -691,12 +691,16 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
         return "/etc/sysconfig/network"
 
     def _apply_and_verify(
-        self, apply_fn, config, expected_cfgs=None, bringup=False
+        self,
+        apply_fn,
+        config,
+        expected_cfgs=None,
+        bringup=False,
+        tmpd=None,
     ):
         if not expected_cfgs:
             raise ValueError("expected_cfg must not be None")
 
-        tmpd = None
         with mock.patch("cloudinit.net.sysconfig.available") as m_avail:
             m_avail.return_value = True
             with self.reRooted(tmpd) as tmpd:
@@ -783,6 +787,58 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
             self.distro.apply_network_config,
             V1_NET_CFG_IPV6,
             expected_cfgs=expected_cfgs.copy(),
+        )
+
+    def test_sysconfig_network_no_overwite_ipv6_rh(self):
+        expected_cfgs = {
+            self.ifcfg_path("eth0"): dedent(
+                """\
+                BOOTPROTO=none
+                DEFROUTE=yes
+                DEVICE=eth0
+                IPV6ADDR=2607:f0d0:1002:0011::2/64
+                IPV6INIT=yes
+                IPV6_AUTOCONF=no
+                IPV6_DEFAULTGW=2607:f0d0:1002:0011::1
+                IPV6_FORCE_ACCEPT_RA=no
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no
+                """
+            ),
+            self.ifcfg_path("eth1"): dedent(
+                """\
+                BOOTPROTO=dhcp
+                DEVICE=eth1
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no
+                """
+            ),
+            self.control_path(): dedent(
+                """\
+                NETWORKING=yes
+                NETWORKING_IPV6=yes
+                IPV6_AUTOCONF=no
+                NOZEROCONF=yes
+                """
+            ),
+        }
+        tmpdir = self.tmp_dir()
+        file_mode = 0o644
+        # pre-existing config in /etc/sysconfig/network should not be removed
+        with self.reRooted(tmpdir) as tmpdir:
+            util.write_file(
+                self.control_path(),
+                "".join("NOZEROCONF=yes") + "\n",
+                file_mode,
+            )
+
+        self._apply_and_verify(
+            self.distro.apply_network_config,
+            V1_NET_CFG_IPV6,
+            expected_cfgs=expected_cfgs.copy(),
+            tmpd=tmpdir,
         )
 
     def test_vlan_render_unsupported(self):

@@ -1,10 +1,10 @@
 .. _merging_user_data:
 
-Merging user data sections
+Merging user-data sections
 **************************
 
-The ability to merge user data sections allows a way to specify how
-cloud-config YAML "dictionaries" provided as user data are handled when there
+The ability to merge user-data sections allows a way to specify how
+cloud-config YAML "dictionaries" provided as user-data are handled when there
 are multiple YAML files to be merged together (e.g., when performing an
 #include).
 
@@ -100,7 +100,7 @@ Custom 3rd party mergers can be defined, for more info visit
 How to activate
 ===============
 
-There are a few ways to activate the merging algorithms, and to customise them
+There are a few ways to activate the merging algorithms, and to customize them
 for your own usage.
 
 1. The first way involves the usage of MIME messages in ``cloud-init`` to
@@ -166,15 +166,15 @@ merge with a cloud-config dictionary coming after it.
 Other uses
 ==========
 
-In addition to being used for merging user data sections, the default merging
+In addition to being used for merging user-data sections, the default merging
 algorithm for merging :file:`'conf.d'` YAML files (which form an initial YAML
 config for ``cloud-init``) was also changed to use this mechanism, to take
-advantage of the full benefits (and customisation) here as well. Other places
-that used the previous merging are also, similarly, now extensible (metadata
+advantage of the full benefits (and customization) here as well. Other places
+that used the previous merging are also, similarly, now extensible (meta-data
 merging, for example).
 
 Note, however, that merge algorithms are not used *across* configuration types.
-As was the case before merging was implemented, user data will overwrite
+As was the case before merging was implemented, user-data will overwrite
 :file:`'conf.d'` configuration without merging.
 
 Example cloud-config

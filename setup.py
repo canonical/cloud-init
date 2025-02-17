@@ -242,13 +242,11 @@ class InitsysInstallData(install):
         if self.init_system and isinstance(self.init_system, str):
             self.init_system = self.init_system.split(",")
 
-        if len(self.init_system) == 0 and not platform.system().endswith(
-            "BSD"
-        ):
+        if not self.init_system and not platform.system().endswith("BSD"):
             self.init_system = ["systemd"]
 
         bad = [f for f in self.init_system if f not in INITSYS_TYPES]
-        if len(bad) != 0:
+        if bad:
             raise DistutilsError("Invalid --init-system: %s" % ",".join(bad))
 
         for system in self.init_system:
@@ -329,7 +327,7 @@ requirements = read_requires()
 setuptools.setup(
     name="cloud-init",
     version=get_version(),
-    description="Cloud instance initialisation magic",
+    description="Cloud instance initialization magic",
     author="Scott Moser",
     author_email="scott.moser@canonical.com",
     url="http://launchpad.net/cloud-init/",

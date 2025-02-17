@@ -22,7 +22,7 @@ processed:
 - :file:`/run/cloud-init/network-config.json`: world-readable JSON containing
   the selected source network-config JSON used by cloud-init network renderers.
 
-User data cannot change an instance's network configuration. In the absence
+User-data cannot change an instance's network configuration. In the absence
 of network configuration in any of the above sources, ``cloud-init`` will
 write out a network configuration that will issue a DHCP request on a "first"
 network interface.
@@ -67,9 +67,9 @@ networking configuration.
 Disabling network activation
 ============================
 
-Some datasources may not be initialised until after the network has been
+Some datasources may not be initialized until after the network has been
 brought up. In this case, ``cloud-init`` will attempt to bring up the
-interfaces specified by the datasource metadata using a network activator
+interfaces specified by the datasource meta-data using a network activator
 discovered by `cloudinit.net.activators.select_activator`_.
 
 This behaviour can be disabled in the ``cloud-init`` configuration dictionary,
@@ -125,11 +125,11 @@ The following datasources optionally provide network configuration:
 
 - :ref:`datasource_config_drive`
 
-  - `OpenStack Metadata Service Network`_
+  - `OpenStack Instance Metadata Service Network`_
 
 - :ref:`datasource_digital_ocean`
 
-  - `DigitalOcean JSON metadata`_
+  - `DigitalOcean JSON meta-data`_
 
 - :ref:`datasource_lxd`
 
@@ -142,19 +142,19 @@ The following datasources optionally provide network configuration:
 
 - :ref:`datasource_openstack`
 
-  - `OpenStack Metadata Service Network`_
+  - `OpenStack Instance Metadata Service Network`_
 
 - :ref:`datasource_smartos`
 
-  - `SmartOS JSON Metadata`_
+  - `SmartOS JSON Instance Metadata`_
 
 - :ref:`datasource_upcloud`
 
-  - `UpCloud JSON metadata`_
+  - `UpCloud JSON meta-data`_
 
 - :ref:`datasource_vultr`
 
-  - `Vultr JSON metadata`_
+  - `Vultr JSON meta-data`_
 
 For more information on network configuration formats:
 
@@ -320,10 +320,10 @@ Example output:
 .. _LXD: https://documentation.ubuntu.com/lxd/en/latest/cloud-init/#how-to-specify-network-configuration-data
 .. _NetworkManager: https://networkmanager.dev
 .. _Netplan: https://netplan.io/
-.. _DigitalOcean JSON metadata: https://developers.digitalocean.com/documentation/metadata/
-.. _OpenStack Metadata Service Network: https://specs.openstack.org/openstack/nova-specs/specs/liberty/implemented/metadata-service-network-info.html
-.. _SmartOS JSON Metadata: https://eng.joyent.com/mdata/datadict.html
-.. _UpCloud JSON metadata: https://developers.upcloud.com/1.3/8-servers/#metadata-service
-.. _Vultr JSON metadata: https://www.vultr.com/metadata/
+.. _DigitalOcean JSON meta-data: https://developers.digitalocean.com/documentation/metadata/
+.. _OpenStack Instance Metadata Service Network: https://specs.openstack.org/openstack/nova-specs/specs/liberty/implemented/metadata-service-network-info.html
+.. _SmartOS JSON Instance Metadata: https://eng.joyent.com/mdata/datadict.html
+.. _UpCloud JSON meta-data: https://developers.upcloud.com/1.3/8-servers/#metadata-service
+.. _Vultr JSON meta-data: https://www.vultr.com/metadata/
 .. _cloudinit.net.activators.select_activator: https://github.com/canonical/cloud-init/blob/main/cloudinit/net/activators.py#L249
 .. _FreeBSD.start_services: https://github.com/canonical/cloud-init/blob/main/cloudinit/net/freebsd.py#L46

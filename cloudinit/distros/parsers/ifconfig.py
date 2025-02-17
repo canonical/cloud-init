@@ -102,7 +102,7 @@ class Ifconfig:
         ifs_by_mac = defaultdict(list)
         dev = None
         for line in text.splitlines():
-            if len(line) == 0:
+            if not line:
                 continue
             if line[0] not in ("\t", " "):
                 # We hit the start of a device block in the ifconfig output

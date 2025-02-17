@@ -45,7 +45,7 @@ Types: deb
 URIs: {{mirror}}
 Suites: {{codename}} {{codename}}-updates {{codename}}-backports
 Components: main universe restricted multiverse
-Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+Signed-By: {{primary_key | default('/usr/share/keyrings/ubuntu-archive-keyring.gpg', true)}}
 
 ## Ubuntu security updates. Aside from URIs and Suites,
 ## this should mirror your choices in the previous section.
@@ -53,4 +53,4 @@ Types: deb
 URIs: {{security}}
 Suites: {{codename}}-security
 Components: main universe restricted multiverse
-Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+Signed-By: {{security_key | default(primary_key, true) | default('/usr/share/keyrings/ubuntu-archive-keyring.gpg', true)}}

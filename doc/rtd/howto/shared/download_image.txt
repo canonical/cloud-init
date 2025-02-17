@@ -1,0 +1,5 @@
+Download an Ubuntu image to run:
+
+.. code-block:: shell-session
+
+    wget https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img

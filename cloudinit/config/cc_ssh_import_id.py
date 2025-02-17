@@ -47,7 +47,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         return
 
     # import for "user: XXXXX"
-    if len(args) != 0:
+    if args:
         user = args[0]
         ids = []
         if len(args) > 1:

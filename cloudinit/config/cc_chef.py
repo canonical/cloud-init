@@ -23,21 +23,15 @@ from cloudinit.settings import PER_ALWAYS
 
 RUBY_VERSION_DEFAULT = "1.8"
 
-CHEF_DIRS = tuple(
-    [
-        "/etc/chef",
-        "/var/log/chef",
-        "/var/lib/chef",
-        "/var/cache/chef",
-        "/var/backups/chef",
-        "/var/run/chef",
-    ]
+CHEF_DIRS = (
+    "/etc/chef",
+    "/var/log/chef",
+    "/var/lib/chef",
+    "/var/chef/cache",
+    "/var/backups/chef",
+    "/var/run/chef",
 )
-REQUIRED_CHEF_DIRS = tuple(
-    [
-        "/etc/chef",
-    ]
-)
+REQUIRED_CHEF_DIRS = ("/etc/chef",)
 
 # Used if fetching chef from a omnibus style package
 OMNIBUS_URL = "https://www.chef.io/chef/install.sh"
@@ -55,7 +49,7 @@ CHEF_RB_TPL_DEFAULTS = {
     "validation_cert": None,
     "client_key": "/etc/chef/client.pem",
     "json_attribs": CHEF_FB_PATH,
-    "file_cache_path": "/var/cache/chef",
+    "file_cache_path": "/var/chef/cache",
     "file_backup_path": "/var/backups/chef",
     "pid_file": "/var/run/chef/client.pid",
     "show_time": True,
@@ -74,22 +68,20 @@ CHEF_RB_TPL_PATH_KEYS = frozenset(
     ]
 )
 CHEF_RB_TPL_KEYS = frozenset(
-    itertools.chain(
-        CHEF_RB_TPL_DEFAULTS.keys(),
-        CHEF_RB_TPL_BOOL_KEYS,
-        CHEF_RB_TPL_PATH_KEYS,
-        [
-            "server_url",
-            "node_name",
-            "environment",
-            "validation_name",
-            "chef_license",
-        ],
-    )
+    [
+        *CHEF_RB_TPL_DEFAULTS.keys(),
+        *CHEF_RB_TPL_BOOL_KEYS,
+        *CHEF_RB_TPL_PATH_KEYS,
+        "server_url",
+        "node_name",
+        "environment",
+        "validation_name",
+        "chef_license",
+    ]
 )
 CHEF_RB_PATH = "/etc/chef/client.rb"
 CHEF_EXEC_PATH = "/usr/bin/chef-client"
-CHEF_EXEC_DEF_ARGS = tuple(["-d", "-i", "1800", "-s", "20"])
+CHEF_EXEC_DEF_ARGS = ("-d", "-i", "1800", "-s", "20")
 
 
 LOG = logging.getLogger(__name__)
@@ -179,6 +171,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             )
 
     # Create the chef config from template
+    cfg_filename = util.get_cfg_option_str(
+        chef_cfg, "config_path", default=CHEF_RB_PATH
+    )
     template_fn = cloud.get_template_filename("chef_client.rb")
     if template_fn:
         iid = str(cloud.datasource.get_instance_id())
@@ -191,9 +186,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             if k in CHEF_RB_TPL_PATH_KEYS and v:
                 param_paths.add(os.path.dirname(v))
         util.ensure_dirs(param_paths)
-        templater.render_to_file(template_fn, CHEF_RB_PATH, params)
+        templater.render_to_file(template_fn, cfg_filename, params)
     else:
-        LOG.warning("No template found, not rendering to %s", CHEF_RB_PATH)
+        LOG.warning("No template found, not rendering to %s", cfg_filename)
 
     # Set the firstboot json
     fb_filename = util.get_cfg_option_str(

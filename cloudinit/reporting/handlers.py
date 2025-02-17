@@ -345,7 +345,7 @@ class HyperVKvpReportingHandler(ReportingHandler):
             result_array.append(self._encode_kvp_item(subkey, value))
             i += 1
             des_in_json = des_in_json[room_for_desc:]
-            if len(des_in_json) == 0:
+            if not des_in_json:
                 break
         return result_array
 

@@ -3843,8 +3843,8 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 0
-        assert len(self.mock_azure_report_failure_to_fabric.mock_calls) == 0
+        assert not self.mock_kvp_report_failure_to_host.mock_calls
+        assert not self.mock_azure_report_failure_to_fabric.mock_calls
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
         # Verify dmesg reported via KVP.
@@ -3928,8 +3928,8 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 0
-        assert len(self.mock_azure_report_failure_to_fabric.mock_calls) == 0
+        assert not self.mock_kvp_report_failure_to_host.mock_calls
+        assert not self.mock_azure_report_failure_to_fabric.mock_calls
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
         # Verify dmesg reported via KVP.
@@ -4014,7 +4014,7 @@ class TestProvisioning:
         # Verify reports via KVP.
         assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 1
         assert len(self.mock_azure_report_failure_to_fabric.mock_calls) == 1
-        assert len(self.mock_kvp_report_success_to_host.mock_calls) == 0
+        assert not self.mock_kvp_report_success_to_host.mock_calls
 
         # Verify dmesg reported via KVP.
         assert len(self.mock_report_dmesg_to_kvp.mock_calls) == 1
@@ -4197,7 +4197,7 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 0
+        assert not self.mock_kvp_report_failure_to_host.mock_calls
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 2
 
         # Verify dmesg reported via KVP.
@@ -4324,7 +4324,7 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 0
+        assert not self.mock_kvp_report_failure_to_host.mock_calls
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 2
 
         # Verify dmesg reported via KVP.
@@ -4453,7 +4453,7 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 0
+        assert not self.mock_kvp_report_failure_to_host.mock_calls
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 2
 
         # Verify dmesg reported via KVP.
@@ -4589,7 +4589,7 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 0
+        assert not self.mock_kvp_report_failure_to_host.mock_calls
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 2
 
         # Verify dmesg reported via KVP.
@@ -4830,7 +4830,7 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 0
+        assert not self.mock_kvp_report_failure_to_host.mock_calls
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
     @pytest.mark.parametrize("pps_type", ["Savable", "Running", "Unknown"])
@@ -4863,7 +4863,7 @@ class TestProvisioning:
 
         # Verify reports via KVP.
         assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 2
-        assert len(self.mock_kvp_report_success_to_host.mock_calls) == 0
+        assert not self.mock_kvp_report_success_to_host.mock_calls
 
     @pytest.mark.parametrize(
         "subp_side_effect",
@@ -4979,7 +4979,7 @@ class TestProvisioning:
 
         # Verify reports via KVP.
         assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 1
-        assert len(self.mock_kvp_report_success_to_host.mock_calls) == 0
+        assert not self.mock_kvp_report_success_to_host.mock_calls
 
 
 class TestCheckAzureProxyAgent:

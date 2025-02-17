@@ -135,7 +135,7 @@ def update_locale_conf(sys_path, locale_cfg):
         if v is None:
             continue
         v = str(v)
-        if len(v) == 0:
+        if not v:
             continue
         contents[k] = v
         updated_am += 1

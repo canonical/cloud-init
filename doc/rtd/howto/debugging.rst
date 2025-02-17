@@ -66,9 +66,9 @@ Cloud-init did not run
 Cloud-init ran, but didn't do what I want it to
 ===============================================
 
-1. If you are using cloud-init's user data
+1. If you are using cloud-init's user-data
    :ref:`cloud config<user_data_formats-cloud_config>`, make sure
-   to :ref:`validate your user data cloud config<check_user_data_cloud_config>`
+   to :ref:`validate your user-data cloud config<check_user_data_cloud_config>`
 
 2. Check for errors in ``cloud-init status --long``
 

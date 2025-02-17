@@ -3,12 +3,12 @@
 LXD
 ***
 
-The LXD datasource allows the user to provide custom user data,
-vendor data, metadata and network-config to the instance without running
+The LXD datasource allows the user to provide custom user-data,
+vendor-data, meta-data and network-config to the instance without running
 a network service (or even without having a network at all). This datasource
 performs HTTP GETs against the `LXD socket device`_ which is provided to each
 running LXD container and VM as ``/dev/lxd/sock`` and represents all
-instance-metadata as versioned HTTP routes such as:
+instance-meta-data as versioned HTTP routes such as:
 
   - 1.0/meta-data
   - 1.0/config/user.vendor-data
@@ -28,23 +28,23 @@ The LXD datasource is detected as viable by ``ds-identify`` during the
 ``/sys/class/dmi/id/board_name`` matches "LXD".
 
 The LXD datasource provides ``cloud-init`` with the ability to react to
-metadata, vendor data, user data and network-config changes, and to render the
+meta-data, vendor-data, user-data and network-config changes, and to render the
 updated configuration across a system reboot.
 
-To modify which metadata, vendor data or user data are provided to the
+To modify which meta-data, vendor-data or user-data are provided to the
 launched container, use either LXD profiles or
 ``lxc launch ... -c <key>="<value>"`` at initial container launch, by setting
 one of the following keys:
 
-- ``cloud-init.vendor-data``: YAML which overrides any metadata values.
+- ``cloud-init.vendor-data``: YAML which overrides any meta-data values.
 - ``cloud-init.network-config``: YAML representing either
   :ref:`network_config_v1` or :ref:`network_config_v2` format.
 - ``cloud-init.user-data``: YAML which takes precedence and overrides both
-  metadata and vendor data values.
+  meta-data and vendor-data values.
 - ``user.<any-key>``: Keys prefixed with ``user.`` are included in
-  :ref:`instance data<instance_metadata>` under the ``ds.config`` key. These
+  :ref:`instance-data<instance-data>` under the ``ds.config`` key. These
   key value pairs are used in jinja :ref:`cloud-config<jinja-config>`
-  and :ref:`user data scripts<jinja-script>`. These key-value pairs may be
+  and :ref:`user-data scripts<jinja-script>`. These key-value pairs may be
   inspected on a launched instance using ``cloud-init query ds.config``.
 
 .. note::
@@ -83,7 +83,7 @@ Hotplug
 
 Network hotplug functionality is supported for the LXD datasource as described
 in the :ref:`events` documentation. As hotplug functionality relies on the
-cloud-provided network metadata, the LXD datasource will only meaningfully
+cloud-provided network meta-data, the LXD datasource will only meaningfully
 react to a hotplug event if it has the configuration necessary to respond to
 the change. Practically, this means that even with hotplug enabled, **the
 default behavior for adding a new virtual NIC will result in no change**.

@@ -74,7 +74,7 @@ In most cases, this stage does not do much more than that. It finds the
 datasource and determines the network configuration to be used. That
 network configuration can come from:
 
-- **datasource**: Cloud-provided network configuration via metadata.
+- **datasource**: Cloud-provided network configuration via meta-data.
 - **fallback**: ``Cloud-init``'s fallback networking consists of rendering
   the equivalent to ``dhcp on eth0``, which was historically the most popular
   mechanism for network configuration of a guest.
@@ -116,7 +116,7 @@ Network
 +---------+--------+----------------------------------------------------------+
 
 This stage requires all configured networking to be online, as it will fully
-process any user data that is found. Here, processing means it will:
+process any user-data that is found. Here, processing means it will:
 
 - retrieve any ``#include`` or ``#include-once`` (recursively) including
   http,
@@ -127,7 +127,7 @@ This stage runs the ``disk_setup`` and ``mounts`` modules which may partition
 and format disks and configure mount points (such as in :file:`/etc/fstab`).
 Those modules cannot run earlier as they may receive configuration input
 from sources only available via the network. For example, a user may have
-provided user data in a network resource that describes how local mounts
+provided user-data in a network resource that describes how local mounts
 should be done.
 
 On some clouds, such as Azure, this stage will create filesystems to be
@@ -180,7 +180,7 @@ Things that run here include:
 
 - package installations,
 - configuration management plugins (Ansible, Puppet, Chef, salt-minion), and
-- user-defined scripts (i.e., shell scripts passed as user data).
+- user-defined scripts (i.e., shell scripts passed as user-data).
 
 For scripts external to ``cloud-init`` looking to wait until ``cloud-init`` is
 finished, the :command:`cloud-init status --wait` subcommand can help block

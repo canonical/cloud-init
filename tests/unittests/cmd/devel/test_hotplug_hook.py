@@ -36,6 +36,7 @@ def mocks():
     m_datasource = mock.MagicMock(spec=DataSource)
     m_datasource.distro = m_distro
     m_datasource.skip_hotplug_detect = False
+    m_datasource.hotplug_retry_settings = DataSource.hotplug_retry_settings
     m_init.datasource = m_datasource
     m_init.fetch.return_value = m_datasource
 

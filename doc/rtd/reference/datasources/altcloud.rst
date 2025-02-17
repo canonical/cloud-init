@@ -3,13 +3,13 @@
 AltCloud
 *********
 
-The datasource AltCloud will be used to pick up user data on `RHEVm`_ and
+The datasource AltCloud will be used to pick up user-data on `RHEVm`_ and
 `vSphere`_.
 
 RHEVm
 =====
 
-For `RHEVm`_ v3.0 the user data is injected into the VM using floppy
+For `RHEVm`_ v3.0 the user-data is injected into the VM using floppy
 injection via the `RHEVm`_ dashboard "Custom Properties".
 
 The format of the "Custom Properties" entry must be: ::
@@ -41,7 +41,7 @@ data to it using the `Delta Cloud`_.
 vSphere
 =======
 
-For VMWare's `vSphere`_ the user data is injected into the VM as an ISO
+For VMWare's `vSphere`_ the user-data is injected into the VM as an ISO
 via the CD-ROM. This can be done using the `vSphere`_ dashboard
 by connecting an ISO image to the CD/DVD drive.
 
@@ -50,7 +50,7 @@ set the CD/DVD drive when creating the vSphere VM to point to an
 ISO on the data store.
 
 .. note::
-   The ISO must contain the user data.
+   The ISO must contain the user-data.
 
 For example, to pass the same ``simple_script.bash`` to vSphere:
 

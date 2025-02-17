@@ -54,9 +54,7 @@ jobs:
           path: '${{ runner.temp }}/cloud-init*.deb'
           retention-days: 3
       - name: Setup LXD
-        uses: canonical/setup-lxd@v0.1.1
-        with:
-          channel: latest/candidate
+        uses: canonical/setup-lxd@v0.1.2
       - name: Verify deb package
         run: |
           ls -hal '${{ runner.temp }}'
