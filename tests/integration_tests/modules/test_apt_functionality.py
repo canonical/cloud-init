@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Series of integration tests covering apt functionality."""
+import logging
 import re
 from textwrap import dedent
 
@@ -9,13 +10,18 @@ from cloudinit.config import cc_apt_configure
 from cloudinit.util import is_true
 from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.integration_settings import PLATFORM
+from tests.integration_tests.integration_settings import (
+    KEEP_INSTANCE,
+    PLATFORM,
+)
 from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU, MANTIC
 from tests.integration_tests.util import (
     get_feature_flag_value,
     verify_clean_boot,
     verify_clean_log,
 )
+
+logger = logging.getLogger(__name__)
 
 DEB822_SOURCES_FILE = "/etc/apt/sources.list.d/ubuntu.sources"
 ORIG_SOURCES_FILE = "/etc/apt/sources.list"
@@ -477,12 +483,65 @@ runcmd:
 """
 
 
+def _do_oci_customization(cloud_config: str):
+    """
+    Add a snap disable command to the cloud-config for OCI.
+
+    This is necessary to disable the oracle-cloud-agent snap on Oracle Cloud
+    in order to prevent it from interfering with apt during tests.
+    """
+    addition = "  - snap disable oracle-cloud-agent"
+    if PLATFORM == "oci":
+        logger.info(
+            "Running on Oracle Cloud, adding snap disable command to "
+            "cloud-config to disable the oracle-cloud-agent snap."
+        )
+        return cloud_config.replace("runcmd:", f"runcmd:\n{addition}")
+    return cloud_config
+
+
 @pytest.mark.skipif(not IS_UBUNTU, reason="Apt usage")
 def test_install_missing_deps(session_cloud: IntegrationCloud):
+    """
+    Test the installation of missing dependencies using apt on an Ubuntu
+    system. This test is divided into two stages:
+    Stage 1 (Remove 'gpg' package):
+    - Launch an instance with user-data that removes the 'gpg' package.
+      - If on Oracle Cloud, add a command to the user-data to disable the
+        oracle-cloud-agent snap to prevent it from interfering with apt.
+    - Verify that the cloud-init log is clean and the boot process is clean.
+    - Verify that 'gpg' is actually uninstalled using dpkg.
+    - Create a snapshot of the instance after 'gpg' has been removed.
+    - If KEEP_INSTANCE is False, destroy the instance after snapshotting.
+    Stage 2 (re-install 'gpg' package with user-data):
+    - Launch a new instance from the snapshot created in Stage 1 with
+      user-data that installs any missing recommended dependencies.
+    - Verify that the cloud-init log is clean and the boot process is clean.
+    - Check the cloud-init log to ensure that 'gpg' and its dependencies are
+      installed successfully.
+    - Double check that 'gpg' is actually installed using dpkg.
+    """
     # Two stage install: First stage:  remove gpg noninteractively from image
-    instance1 = session_cloud.launch(user_data=REMOVE_GPG_USERDATA)
+    instance1 = session_cloud.launch(
+        user_data=_do_oci_customization(REMOVE_GPG_USERDATA)
+    )
+
+    # look for r"un  gpg" using regex ('un' means uninstalled)
+    dpkg_output = instance1.execute("dpkg -l gpg")
+    assert re.search(r"un\s+gpg", dpkg_output.stdout), (
+        "gpg package is still installed. it should have been removed by "
+        "the user-data."
+    )
+
     snapshot_id = instance1.snapshot()
-    instance1.destroy()
+    if not KEEP_INSTANCE:
+        logger.info("Destroying instance1 after snapshotting.")
+        instance1.destroy()
+    else:
+        logger.info(
+            "Not destroying instance1 after snapshotting because KEEP_INSTANCE"
+            " is True."
+        )
     # Second stage: provide active apt user-data which will install missing gpg
     with session_cloud.launch(
         user_data=INSTALL_ANY_MISSING_RECOMMENDED_DEPENDENCIES,
@@ -492,3 +551,7 @@ def test_install_missing_deps(session_cloud: IntegrationCloud):
         verify_clean_log(log)
         verify_clean_boot(minimal_client)
         assert re.search(RE_GPG_SW_PROPERTIES_INSTALLED, log)
+        gpg_installed = re.search(
+            r"ii\s+gpg", minimal_client.execute("dpkg -l gpg").stdout
+        )
+        assert gpg_installed is not None, "gpg package is not installed."
