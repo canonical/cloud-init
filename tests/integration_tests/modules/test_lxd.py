@@ -247,7 +247,7 @@ def test_storage_btrfs(client):
 @pytest.mark.skipif(
     CURRENT_RELEASE < FOCAL, reason="tested on Focal and later"
 )
-def test_storage_preseed_btrfs(setup_image, session_cloud: IntegrationCloud):
+def test_storage_preseed_btrfs(session_cloud: IntegrationCloud):
     # TODO: If test is marked as not bionic, why is there a bionic section?
     if CURRENT_RELEASE.series in ("bionic",):
         nictype = "nictype: bridged"
@@ -311,7 +311,7 @@ def test_storage_zfs(client):
 @pytest.mark.skipif(
     CURRENT_RELEASE < FOCAL, reason="Tested on focal and later"
 )
-def test_storage_preseed_zfs(setup_image, session_cloud: IntegrationCloud):
+def test_storage_preseed_zfs(session_cloud: IntegrationCloud):
     # TODO: If test is marked as not bionic, why is there a bionic section?
     if CURRENT_RELEASE.series in ("bionic",):
         nictype = "nictype: bridged"

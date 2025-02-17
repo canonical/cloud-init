@@ -325,10 +325,6 @@ def _validator(
         yield error_type(msg, schema.get("deprecated_version", "devel"))
 
 
-_validator_deprecated = partial(_validator, filter_key="deprecated")
-_validator_changed = partial(_validator, filter_key="changed")
-
-
 def _anyOf(
     validator,
     anyOf,
@@ -474,8 +470,8 @@ def get_jsonschema_validator():
 
     # Add deprecation handling
     validators = dict(Draft4Validator.VALIDATORS)
-    validators[DEPRECATED_KEY] = _validator_deprecated
-    validators["changed"] = _validator_changed
+    validators[DEPRECATED_KEY] = partial(_validator, filter_key="deprecated")
+    validators["changed"] = partial(_validator, filter_key="changed")
     validators["oneOf"] = _oneOf
     validators["anyOf"] = _anyOf
 

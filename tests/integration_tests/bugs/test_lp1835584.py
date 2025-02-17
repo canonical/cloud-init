@@ -92,8 +92,5 @@ def test_azure_kernel_upgrade_case_insensitive_uuid(
             )
         }
     ) as instance:
-        # We can't use setup_image fixture here because we want to avoid
-        # taking a snapshot or cleaning the booted machine after cloud-init
-        # upgrade.
         instance.install_new_cloud_init(source, clean=False)
         _check_iid_insensitive_across_kernel_upgrade(instance)

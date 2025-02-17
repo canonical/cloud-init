@@ -21,9 +21,6 @@ def filter_by_attr(match_name):
     return lambda iface: (match_name in iface and iface[match_name])
 
 
-filter_by_physical = filter_by_type("physical")
-
-
 class Renderer(abc.ABC):
     def __init__(self, config=None):
         pass
@@ -34,7 +31,7 @@ class Renderer(abc.ABC):
         # TODO(harlowja): this seems shared between eni renderer and
         # this, so move it to a shared location.
         content = io.StringIO()
-        for iface in network_state.iter_interfaces(filter_by_physical):
+        for iface in network_state.iter_interfaces(filter_by_type("physical")):
             # for physical interfaces write out a persist net udev rule
             if "name" in iface and iface.get("mac_address"):
                 driver = iface.get("driver", None)

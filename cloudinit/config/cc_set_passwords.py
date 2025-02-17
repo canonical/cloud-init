@@ -45,9 +45,9 @@ def get_users_by_type(users_list: list, pw_type: str) -> list:
     )
 
 
-def _restart_ssh_daemon(distro, service):
+def _restart_ssh_daemon(distro: Distro, service: str, *extra_args: str):
     try:
-        distro.manage_service("restart", service)
+        distro.manage_service("restart", service, *extra_args)
         LOG.debug("Restarted the SSH daemon.")
     except subp.ProcessExecutionError as e:
         LOG.warning(
@@ -104,7 +104,21 @@ def handle_ssh_pwauth(pw_auth, distro: Distro):
             ]
         ).stdout.strip()
         if state.lower() in ["active", "activating", "reloading"]:
-            _restart_ssh_daemon(distro, service)
+            # This module runs Before=sshd.service. What that means is that
+            # the code can only get to this point if a user manually starts the
+            # network stage. While this isn't a well-supported use-case, this
+            # does cause a deadlock if started via systemd directly:
+            # "systemctl start cloud-init.service". Prevent users from causing
+            # this deadlock by forcing systemd to ignore dependencies when
+            # restarting. Note that this deadlock is not possible in newer
+            # versions of cloud-init, since starting the second service doesn't
+            # run the second stage in 24.3+. This code therefore exists solely
+            # for backwards compatibility so that users who think that they
+            # need to manually start cloud-init (why?) with systemd (again,
+            # why?) can do so.
+            _restart_ssh_daemon(
+                distro, service, "--job-mode=ignore-dependencies"
+            )
     else:
         _restart_ssh_daemon(distro, service)
 

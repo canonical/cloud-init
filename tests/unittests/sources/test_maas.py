@@ -105,7 +105,7 @@ class TestMAASDataSource:
         return what read_maas_seed_url returns."""
 
         def my_readurl(*args, **kwargs):
-            if len(args):
+            if args:
                 url = args[0]
             else:
                 url = kwargs["url"]

@@ -6,7 +6,7 @@ Events and updates
 Events
 ======
 
-``Cloud-init`` will fetch and apply cloud and user data configuration
+``Cloud-init`` will fetch and apply cloud and user-data configuration
 upon several event types. The two most common events for ``cloud-init``
 are when an instance first boots and any subsequent boot thereafter (reboot).
 In addition to boot events, ``cloud-init`` users and vendors are interested
@@ -21,12 +21,6 @@ event types:
   default behaviour, this option exists to prevent regressing such behaviour.
 - ``HOTPLUG``: Dynamic add of a system device.
 
-Future work will likely include infrastructure and support for the following
-events:
-
-- ``METADATA_CHANGE``: An instance's metadata has changed.
-- ``USER_REQUEST``: Directed request to update.
-
 Datasource event support
 ========================
 
@@ -39,7 +33,7 @@ running on a platform whose datasource cannot support the event.
 Configuring event updates
 =========================
 
-Update configuration may be specified via user data, which can be used to
+Update configuration may be specified via user-data, which can be used to
 enable or disable handling of specific events. This configuration will be
 honored as long as the events are supported by the datasource. However,
 configuration will always be applied at first boot, regardless of the user
@@ -66,9 +60,9 @@ Hotplug
 =======
 
 When the ``hotplug`` event is supported by the datasource and configured in
-:ref:`user data<mod_cc_install_hotplug>`, ``cloud-init`` will respond to the
+:ref:`user-data<mod_cc_install_hotplug>`, ``cloud-init`` will respond to the
 addition or removal of network interfaces to the system. In addition to
-fetching and updating the system metadata, ``cloud-init`` will also bring
+fetching and updating the instance-data, ``cloud-init`` will also bring
 up/down the newly added interface.
 
 Example

@@ -1,8 +1,8 @@
-.. _instance_metadata:
+.. _instance-data:
 
 
-Instance metadata
-*****************
+Instance-data
+*************
 
 .. toctree::
    :maxdepth: 1
@@ -45,7 +45,7 @@ Discovery
 on invalid ``instance-data`` keys, paths, or invalid syntax.
 
 The :command:`query` command also publishes ``userdata`` and ``vendordata``
-keys to the root user which will contain the decoded user and vendor data
+keys to the root user which will contain the decoded user-data and vendor-data
 provided to this instance. Non-root users referencing ``userdata`` or
 ``vendordata`` keys will see only redacted values.
 
@@ -62,7 +62,7 @@ Using ``instance-data``
 
 ``instance-data`` can be used in the following configuration types:
 
-* :ref:`User data scripts<user_data_script>`.
+* :ref:`User-data scripts<user_data_script>`.
 * :ref:`Cloud-config<user_data_formats-cloud_config>`.
 * :ref:`Base configuration<configuration>`.
 * Command line interface via :command:`cloud-init query` or
@@ -101,7 +101,7 @@ Example: Cloud config with ``instance-data``
          "availability-zone": "{{ v1.availability_zone }}"}'
          https://example.com
 
-Example: User data script with ``instance-data``
+Example: User-data script with ``instance-data``
 ------------------------------------------------
 
 .. code-block:: jinja
@@ -157,7 +157,7 @@ Storage locations
 -----------------
 
 * :file:`/run/cloud-init/instance-data.json`: world-readable JSON containing
-  standardised keys, sensitive keys redacted.
+  standardized keys, sensitive keys redacted.
 * :file:`/run/cloud-init/instance-data-sensitive.json`: root-readable
   unredacted JSON blob.
 * :file:`/run/cloud-init/combined-cloud-config.json`: root-readable
@@ -165,7 +165,7 @@ Storage locations
   are applied to the :file:`/run/cloud-init/combined-cloud-config.json` config
   values.
 
-.. _instance_metadata-keys:
+.. _instance-data-keys:
 
 :file:`instance-data.json` top level keys
 -----------------------------------------
@@ -214,9 +214,9 @@ included in the ``sensitive-keys`` list which is only readable by root.
 ``ds``
 ^^^^^^
 
-Datasource-specific metadata crawled for the specific cloud platform. It should
-closely represent the structure of the cloud metadata crawled. The structure of
-content and details provided are entirely cloud-dependent. Mileage will vary
+Datasource-specific data crawled for the specific cloud platform. It should
+closely represent the structure of the data crawled. The structure of content
+and details provided are entirely cloud-dependent. Mileage will vary
 depending on what the cloud exposes. The content exposed under the ``ds`` key
 is currently **experimental** and expected to change slightly in the upcoming
 ``cloud-init`` release.
@@ -238,13 +238,13 @@ underlying host ``sys_info`` key above.
 ``v1``
 ^^^^^^
 
-Standardised ``cloud-init`` metadata keys, these keys are guaranteed to exist
+Standardized ``cloud-init`` data keys, these keys are guaranteed to exist
 on all cloud platforms. They will also retain their current behaviour and
 format, and will be carried forward even if ``cloud-init`` introduces a new
-version of standardised keys with ``v2``.
+version of standardized keys with ``v2``.
 
 To cut down on keystrokes on the command line, ``cloud-init`` also provides
-top-level key aliases for any standardised ``v#`` keys present. The preceding
+top-level key aliases for any standardized ``v#`` keys present. The preceding
 ``v1`` is not required of ``v1.var_name`` These aliases will represent the
 value of the highest versioned standard key. For example, ``cloud_name``
 value will be ``v2.cloud_name`` if both ``v1`` and ``v2`` keys are present in
@@ -257,13 +257,13 @@ jinja-safe key alias. This allows for ``cloud-init`` templates to use aliased
 variable references which allow for jinja's dot-notation reference such as
 ``{{ ds.v1_0.my_safe_key }}`` instead of ``{{ ds["v1.0"]["my/safe-key"] }}``.
 
-Standardised :file:`instance-data.json` v1 keys
+Standardized :file:`instance-data.json` v1 keys
 -----------------------------------------------
 
 ``v1._beta_keys``
 ^^^^^^^^^^^^^^^^^
 
-List of standardised keys still in 'beta'. The format, intent or presence of
+List of standardized keys still in 'beta'. The format, intent or presence of
 these keys can change. Do not consider them production-ready.
 
 Example output:
@@ -367,8 +367,7 @@ Example output:
 ``v1.subplatform``
 ^^^^^^^^^^^^^^^^^^
 
-Additional platform details describing the specific source or type of metadata
-used. The format of subplatform will be:
+Detailed platform information. Subplatform format is:
 
 ``<subplatform_type> (<url_file_or_dev_path>)``
 
@@ -382,7 +381,7 @@ Example output:
 ``v1.public_ssh_keys``
 ^^^^^^^^^^^^^^^^^^^^^^
 
-A list of SSH keys provided to the instance by the datasource metadata.
+A list of SSH keys provided to the instance by the datasource.
 
 Example output:
 

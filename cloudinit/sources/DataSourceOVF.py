@@ -78,7 +78,7 @@ class DataSourceOVF(sources.DataSource):
                 found.append(name)
 
         # There was no OVF transports found
-        if len(found) == 0:
+        if not found:
             return False
 
         if "seedfrom" in md and md["seedfrom"]:
@@ -322,10 +322,11 @@ def transport_vmware_guestinfo():
         # If the first attempt at getting the data was with vmtoolsd, then
         # no second attempt is made.
         if vmtoolsd and rpctool == vmtoolsd:
-            # The fallback failed, log the error.
-            util.logexc(
-                LOG, "vmtoolsd failed to get guestinfo.ovfEnv: %s", error
-            )
+            # The fallback failed and exit code is not 1, log the error.
+            if error.exit_code != 1:
+                util.logexc(
+                    LOG, "vmtoolsd failed to get guestinfo.ovfEnv: %s", error
+                )
             return None
 
         if not vmtoolsd:
@@ -336,10 +337,11 @@ def transport_vmware_guestinfo():
             LOG.info("fallback to vmtoolsd")
             return query_guestinfo(vmtoolsd, exec_vmtoolsd)
         except subp.ProcessExecutionError as error:
-            # The fallback failed, log the error.
-            util.logexc(
-                LOG, "vmtoolsd failed to get guestinfo.ovfEnv: %s", error
-            )
+            # The fallback failed and exit code is not 1, log the error.
+            if error.exit_code != 1:
+                util.logexc(
+                    LOG, "vmtoolsd failed to get guestinfo.ovfEnv: %s", error
+                )
 
     return None
 
@@ -370,7 +372,7 @@ def get_properties(contents):
         dom.documentElement, lambda n: n.localName == "PropertySection"
     )
 
-    if len(propSections) == 0:
+    if not propSections:
         raise XmlError("No 'PropertySection's")
 
     props = {}

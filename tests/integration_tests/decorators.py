@@ -27,7 +27,7 @@ def retry(*, tries: int = 30, delay: int = 1):
                     time.sleep(delay)
             else:
                 if last_error:
-                    raise last_error
+                    raise TimeoutError from last_error
             return retval
 
         return wrapper

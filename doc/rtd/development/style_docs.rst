@@ -4,10 +4,8 @@ Documentation style guide
 Language
 --------
 
-Where possible, text should be written in UK English. However, discretion and
-common sense can both be applied. For example, where text refers to code
-elements that exist in US English, the spelling of these elements should not
-be changed to UK English.
+Where possible, text should be written in US English. However, discretion and
+common sense can both be applied.
 
 Try to be concise and to the point in your writing. It is acceptable to link
 to official documentation elsewhere rather than repeating content. It's also
@@ -87,12 +85,18 @@ It is generally best to avoid screenshots where possible. If you need to refer
 to text output, you can use code blocks. For diagrams, we recommend the use of
 `Mermaid`_.
 
+File names
+----------
+
+File names should be decorated with backticks to ensure monospace font is used
+to distinguish the name from regular text.
+
 Code blocks
 -----------
 
-Our documentation uses the Sphinx extension "sphinx-copybutton", which creates
-a small button on the right-hand side of code blocks for users to copy the
-code snippets we provide.
+Our documentation uses the Sphinx extension ``sphinx-copybutton``, which
+creates a small button on the right-hand side of code blocks for users to copy
+the code snippets we provide.
 
 The copied code will strip out the prompt symbol (``$``) so that users can
 paste commands directly into their terminal. For user convenience, please
@@ -104,29 +108,29 @@ Vertical whitespace
 One newline between each section helps ensure readability of the documentation
 source code.
 
-Common words
-------------
-
-There are some common words that should follow specific usage in text:
-
-- **cloud-init**: Always hyphenated, and follows sentence case, so only
-  capitalised at the start of a sentence.
-- **metadata**, **datasource**: One word.
-- **user data**, **vendor data**: Two words, not to be combined or hyphenated.
-
-When referring to file names, which may be hyphenated, they should be decorated
-with backticks to ensure monospace font is used to distinguish them from
-regular text.
-
 Acronyms
 --------
 
-Acronyms are always capitalised (e.g., JSON, YAML, QEMU, LXD) in text.
+Acronyms are always capitalized (e.g., JSON, YAML, QEMU, LXD) in text.
 
 The first time an acronym is used on a page, it is best practice to introduce
 it by showing the expanded name followed by the acronym in parentheses. E.g.,
 Quick EMUlator (QEMU). If the acronym is very common, or you provide a link to
 a documentation page that provides such details, you will not need to do this.
+
+Common terms
+------------
+
+The following project terms should follow specific usage in text:
+
+- **cloud-init**: Always hyphenated, and follows sentence case, so only
+  capitalized at the start of a sentence.
+- **datasource**: One word.
+- **user-data**: Two words, always hyphenated.
+- **vendor-data**: Two words, always hyphenated.
+- **cloud-config**: Two words, always hyphenated.
+- **instance-data**: Two words, always hyphenated.
+- **meta-data**: Two words, always hyphenated.
 
 .. _Read the Docs: https://readthedocs.com/
 .. _Python style guide: https://devguide.python.org/documentation/markup/

@@ -340,7 +340,7 @@ class TestInstallRsyslog(TestCase):
             with mock.patch.object(
                 cloud.distro, "install_packages"
             ) as m_install:
-                handle("rsyslog", {"rsyslog": config}, cloud, None)
+                handle("rsyslog", {"rsyslog": config}, cloud, [])
             m_which.assert_called_with(config["check_exe"])
             m_install.assert_called_with(config["packages"])
 
@@ -356,6 +356,6 @@ class TestInstallRsyslog(TestCase):
         m_isbsd.return_value = False
         m_which.return_value = "/usr/sbin/rsyslogd"
         with mock.patch.object(cloud.distro, "install_packages") as m_install:
-            handle("rsyslog", {"rsyslog": config}, cloud, None)
+            handle("rsyslog", {"rsyslog": config}, cloud, [])
         m_which.assert_called_with(config["check_exe"])
         m_install.assert_not_called()

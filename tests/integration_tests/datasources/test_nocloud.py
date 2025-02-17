@@ -5,7 +5,7 @@ from textwrap import dedent
 import pytest
 from pycloudlib.lxd.instance import LXDInstance
 
-from cloudinit import lifecycle
+from cloudinit import features, lifecycle
 from cloudinit.subp import subp
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
@@ -100,7 +100,10 @@ def test_nocloud_seedfrom_vendordata(client: IntegrationInstance):
     client.restart()
     assert client.execute("cloud-init status").ok
     assert "seeded_vendordata_test_file" in client.execute("ls /var/tmp")
-    assert network_wait_logged(client.execute("cat /var/log/cloud-init.log"))
+    assert (
+        network_wait_logged(client.execute("cat /var/log/cloud-init.log"))
+        == features.MANUAL_NETWORK_WAIT
+    )
 
 
 SMBIOS_USERDATA = """\

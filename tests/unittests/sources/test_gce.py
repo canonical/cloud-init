@@ -488,3 +488,42 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         ds = DataSourceGCE.DataSourceGCE(sys_cfg={}, distro=None, paths=None)
         ds._get_data()
         assert m_dhcp.call_count == 0
+
+    @mock.patch(
+        M_PATH + "EphemeralDHCPv4",
+        autospec=True,
+    )
+    @mock.patch(M_PATH + "net.find_candidate_nics")
+    def test_datasource_on_dhcp_lease_failure(
+        self, m_find_candidate_nics, m_dhcp
+    ):
+        self._set_mock_metadata()
+        distro = mock.MagicMock()
+        distro.get_tmp_exec_path = self.tmp_dir
+        ds = DataSourceGCE.DataSourceGCELocal(
+            sys_cfg={}, distro=distro, paths=None
+        )
+        m_find_candidate_nics.return_value = [
+            "ens0p4",
+            "ens0p5",
+        ]
+        m_dhcp.return_value.__enter__.side_effect = (
+            NoDHCPLeaseError,
+            NoDHCPLeaseError,
+        )
+        assert ds._get_data() is False
+        assert m_dhcp.call_args_list == [
+            mock.call(distro, iface="ens0p4"),
+            mock.call(distro, iface="ens0p5"),
+        ]
+
+        expected_logs = (
+            "Looking for the primary NIC in: ['ens0p4', 'ens0p5']",
+            "Unable to obtain a DHCP lease for ens0p4",
+            "Unable to obtain a DHCP lease for ens0p5",
+        )
+        for msg in expected_logs:
+            self.assertIn(
+                msg,
+                self.logs.getvalue(),
+            )

@@ -29,7 +29,7 @@ ssh_authorized_keys:
 
 
 @pytest.mark.skipif(PLATFORM != "azure", reason="Test is Azure specific")
-def test_crlf_in_azure_metadata_ssh_keys(session_cloud, setup_image):
+def test_crlf_in_azure_metadata_ssh_keys(session_cloud):
     authorized_keys_path = "/home/{}/.ssh/authorized_keys".format(
         session_cloud.cloud_instance.username
     )

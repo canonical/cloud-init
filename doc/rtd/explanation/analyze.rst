@@ -324,7 +324,7 @@ Example output:
    UserspaceTimestampMonotonic=989279
 
 The ``UserspaceTimestamp`` tracks when the init system starts, which is used
-as an indicator of the kernel finishing initialisation.
+as an indicator of the kernel finishing initialization.
 
 Running the following command will gather the ``InactiveExitTimestamp``:
 

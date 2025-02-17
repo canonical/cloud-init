@@ -799,6 +799,22 @@ class TestGetHostnameFqdn(CiTestCase):
             mock.call(metadata_only=False),
         ] == cloud.get_hostname.call_args_list
 
+    def test_get_hostname_fqdn_from_numeric_fqdn(self):
+        """When cfg fqdn is numeric, ensure it is treated as a string."""
+        hostname, fqdn, _ = util.get_hostname_fqdn(
+            cfg={"fqdn": 12345}, cloud=None
+        )
+        self.assertEqual("12345", hostname)
+        self.assertEqual("12345", fqdn)
+
+    def test_get_hostname_fqdn_from_numeric_fqdn_with_domain(self):
+        """When cfg fqdn is numeric with a domain, ensure correct parsing."""
+        hostname, fqdn, _ = util.get_hostname_fqdn(
+            cfg={"fqdn": "12345.example.com"}, cloud=None
+        )
+        self.assertEqual("12345", hostname)
+        self.assertEqual("12345.example.com", fqdn)
+
     def test_get_hostname_fqdn_from_passes_metadata_only_to_cloud(self):
         """Calls to cloud.get_hostname pass the metadata_only parameter."""
         cloud = mock.MagicMock()

@@ -13,8 +13,9 @@ Depends: ${misc:Depends},
          ${python3:Depends},
          iproute2,
          python3-debconf
+Breaks: cloud-init-base
 Recommends: eatmydata, sudo, software-properties-common, gdisk
 Suggests: ssh-import-id, openssh-server
 Description: Init scripts for cloud instances
- Cloud instances need special scripts to run during initialisation
+ Cloud instances need special scripts to run during initialization
  to retrieve and install ssh keys and to let the user run various scripts.

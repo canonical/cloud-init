@@ -254,6 +254,11 @@ KVM_ENV = {"SYSTEMD_VIRTUALIZATION": "vm:kvm"}
 MOCK_VIRT_IS_KVM_QEMU = {"name": "detect_virt", "RET": "qemu", "ret": 0}
 IS_KVM_QEMU_ENV = {"SYSTEMD_VIRTUALIZATION": "vm:qemu"}
 MOCK_VIRT_IS_VMWARE = {"name": "detect_virt", "RET": "vmware", "ret": 0}
+MOCK_VIRT_IS_NOT_VMWARE = {
+    "name": "detect_virt",
+    "RET": "not-vmware",
+    "ret": 0,
+}
 IS_VMWARE_ENV = {"SYSTEMD_VIRTUALIZATION": "vm:vmware"}
 # currenty' SmartOS hypervisor "bhyve" is unknown by systemd-detect-virt.
 MOCK_VIRT_IS_VM_OTHER = {"name": "detect_virt", "RET": "vm-other", "ret": 0}
@@ -468,10 +473,11 @@ class DsIdentifyBase(CiTestCase):
 
     def _test_ds_found(self, name):
         data = copy.deepcopy(VALID_CFG[name])
-
-        return self._check_via_dict(
-            data, RC_FOUND, dslist=[data.pop("ds"), DS_NONE]
-        )
+        dslist = []
+        for ds in data.pop("ds").split(","):
+            dslist.append(ds.strip())
+        dslist.append(DS_NONE)
+        return self._check_via_dict(data, RC_FOUND, dslist=dslist)
 
     def _test_ds_not_found(self, name):
         data = copy.deepcopy(VALID_CFG[name])
@@ -928,6 +934,10 @@ class TestDsIdentify(DsIdentifyBase):
         """Open Huawei Cloud identification."""
         self._test_ds_found("OpenStack-HuaweiCloud")
 
+    def test_openstack_samsung_cloud_platform(self):
+        """Open Samsung Cloud Platform identification."""
+        self._test_ds_found("OpenStack-SamsungCloudPlatform")
+
     def test_openstack_asset_tag_nova(self):
         """OpenStack identification via asset tag OpenStack Nova."""
         self._test_ds_found("OpenStack-AssetTag-Nova")
@@ -1172,6 +1182,26 @@ class TestDsIdentify(DsIdentifyBase):
         """VMware is identified when vmware customization is enabled."""
         self._test_ds_found("VMware-vmware-customization")
 
+    def test_vmware_ovf_on_vmware_with_vmware_customization_and_ovf_schema(
+        self,
+    ):
+        """VMware and OVF are identified when:
+        1. On VMware platform.
+        2. VMware customization is enabled.
+        3. iso9660 cdrom path contains ovf schema."""
+        self._test_ds_found(
+            "VMware-OVF-on-vmware-with-vmware-customization-and-ovf-schema"
+        )
+
+    def test_ovf_not_on_vmware_with_vmware_customization_and_ovf_schema(self):
+        """OVF is identified when:
+        1. Not on VMware platform.
+        2. VMware customization is enabled.
+        3. iso9660 cdrom path contains ovf schema."""
+        self._test_ds_found(
+            "OVF-not-on-vmware-with-vmware-customization-and-ovf-schema"
+        )
+
     def test_vmware_on_vmware_open_vm_tools_64(self):
         """VMware is identified when open-vm-tools installed in /usr/lib64."""
         cust64 = copy.deepcopy(VALID_CFG["VMware-vmware-customization"])
@@ -1268,6 +1298,24 @@ class TestDsIdentify(DsIdentifyBase):
     def test_vmware_guestinfo_activated_by_vendordata(self):
         """VMware: guestinfo transport activated by vendordata"""
         self._test_ds_found("VMware-GuestInfo-Vendordata")
+
+    def test_vmware_ovf_on_vmware_with_guestinfo_metadata_and_ovf_schema(self):
+        """VMware and OVF are identified when:
+        1. On VMware platform.
+        2. guestinfo transport activated by metadata
+        3. iso9660 cdrom path contains ovf schema."""
+        self._test_ds_found(
+            "VMware-OVF-on-vmware-with-guestinfo-metadata-and-ovf-schema"
+        )
+
+    def test_ovf_not_on_vmware_with_guestinfo_metadata_and_ovf_schema(self):
+        """OVF is identified when:
+        1. Not on VMware platform.
+        2. guestinfo transport activated by metadata
+        3. iso9660 cdrom path contains ovf schema."""
+        self._test_ds_found(
+            "OVF-not-on-vmware-with-guestinfo-metadata-and-ovf-schema"
+        )
 
 
 class TestAkamai(DsIdentifyBase):
@@ -2076,6 +2124,12 @@ VALID_CFG = {
         "files": {P_CHASSIS_ASSET_TAG: "HUAWEICLOUD\n"},
         "mocks": [MOCK_VIRT_IS_KVM],
     },
+    "OpenStack-SamsungCloudPlatform": {
+        # Samsung Cloud Platform hosts use OpenStack
+        "ds": "OpenStack",
+        "files": {P_CHASSIS_ASSET_TAG: "Samsung Cloud Platform\n"},
+        "mocks": [MOCK_VIRT_IS_KVM],
+    },
     "OpenStack-AssetTag-Nova": {
         # VMware vSphere can't modify product-name, LP: #1669875
         "ds": "OpenStack",
@@ -2481,6 +2535,92 @@ VALID_CFG = {
             "etc/cloud/cloud.cfg": "disable_vmware_customization: false\n",
         },
     },
+    "VMware-OVF-on-vmware-with-vmware-customization-and-ovf-schema": {
+        "ds": "VMware, OVF",
+        "mocks": [
+            MOCK_VIRT_IS_VMWARE,
+            {
+                "name": "vmware_has_rpctool",
+                "ret": 0,
+                "out": "/usr/bin/vmware-rpctool",
+            },
+            {
+                "name": "vmware_has_vmtoolsd",
+                "ret": 1,
+                "out": "/usr/bin/vmtoolsd",
+            },
+            {
+                "name": "blkid",
+                "ret": 0,
+                "out": blkid_out(
+                    [
+                        {"DEVNAME": "sr0", "TYPE": "iso9660", "LABEL": ""},
+                        {
+                            "DEVNAME": "sr1",
+                            "TYPE": "iso9660",
+                            "LABEL": "ignoreme",
+                        },
+                        {
+                            "DEVNAME": "vda1",
+                            "TYPE": "vfat",
+                            "PARTUUID": uuid4(),
+                        },
+                    ]
+                ),
+            },
+        ],
+        "files": {
+            # Setup vmware customization enabled
+            "usr/lib/vmware-tools/plugins/vmsvc/libdeployPkgPlugin.so": "here",
+            "etc/cloud/cloud.cfg": "disable_vmware_customization: false\n",
+            # Setup ovf schema
+            "dev/sr0": "pretend ovf iso has " + OVF_MATCH_STRING + "\n",
+            "sys/class/block/sr0/size": "2048\n",
+        },
+    },
+    "OVF-not-on-vmware-with-vmware-customization-and-ovf-schema": {
+        "ds": "OVF",
+        "mocks": [
+            MOCK_VIRT_IS_NOT_VMWARE,
+            {
+                "name": "vmware_has_rpctool",
+                "ret": 0,
+                "out": "/usr/bin/vmware-rpctool",
+            },
+            {
+                "name": "vmware_has_vmtoolsd",
+                "ret": 1,
+                "out": "/usr/bin/vmtoolsd",
+            },
+            {
+                "name": "blkid",
+                "ret": 0,
+                "out": blkid_out(
+                    [
+                        {"DEVNAME": "sr0", "TYPE": "iso9660", "LABEL": ""},
+                        {
+                            "DEVNAME": "sr1",
+                            "TYPE": "iso9660",
+                            "LABEL": "ignoreme",
+                        },
+                        {
+                            "DEVNAME": "vda1",
+                            "TYPE": "vfat",
+                            "PARTUUID": uuid4(),
+                        },
+                    ]
+                ),
+            },
+        ],
+        "files": {
+            # Setup vmware customization enabled
+            "usr/lib/vmware-tools/plugins/vmsvc/libdeployPkgPlugin.so": "here",
+            "etc/cloud/cloud.cfg": "disable_vmware_customization: false\n",
+            # Setup ovf schema
+            "dev/sr0": "pretend ovf iso has " + OVF_MATCH_STRING + "\n",
+            "sys/class/block/sr0/size": "2048\n",
+        },
+    },
     "VMware-EnvVar-NoData": {
         "ds": "VMware",
         "mocks": [
@@ -2756,6 +2896,112 @@ VALID_CFG = {
             },
             MOCK_VIRT_IS_VMWARE,
         ],
+    },
+    "VMware-OVF-on-vmware-with-guestinfo-metadata-and-ovf-schema": {
+        "ds": "VMware, OVF",
+        "mocks": [
+            MOCK_VIRT_IS_VMWARE,
+            {
+                "name": "vmware_has_rpctool",
+                "ret": 1,
+                "out": "/usr/bin/vmware-rpctool",
+            },
+            {
+                "name": "vmware_has_vmtoolsd",
+                "ret": 0,
+                "out": "/usr/bin/vmtoolsd",
+            },
+            {
+                "name": "vmware_guestinfo_metadata",
+                "ret": 0,
+                "out": "---",
+            },
+            {
+                "name": "vmware_guestinfo_userdata",
+                "ret": 1,
+            },
+            {
+                "name": "vmware_guestinfo_vendordata",
+                "ret": 1,
+            },
+            {
+                "name": "blkid",
+                "ret": 0,
+                "out": blkid_out(
+                    [
+                        {"DEVNAME": "sr0", "TYPE": "iso9660", "LABEL": ""},
+                        {
+                            "DEVNAME": "sr1",
+                            "TYPE": "iso9660",
+                            "LABEL": "ignoreme",
+                        },
+                        {
+                            "DEVNAME": "vda1",
+                            "TYPE": "vfat",
+                            "PARTUUID": uuid4(),
+                        },
+                    ]
+                ),
+            },
+        ],
+        "files": {
+            # Setup ovf schema
+            "dev/sr0": "pretend ovf iso has " + OVF_MATCH_STRING + "\n",
+            "sys/class/block/sr0/size": "2048\n",
+        },
+    },
+    "OVF-not-on-vmware-with-guestinfo-metadata-and-ovf-schema": {
+        "ds": "OVF",
+        "mocks": [
+            MOCK_VIRT_IS_NOT_VMWARE,
+            {
+                "name": "vmware_has_rpctool",
+                "ret": 1,
+                "out": "/usr/bin/vmware-rpctool",
+            },
+            {
+                "name": "vmware_has_vmtoolsd",
+                "ret": 0,
+                "out": "/usr/bin/vmtoolsd",
+            },
+            {
+                "name": "vmware_guestinfo_metadata",
+                "ret": 0,
+                "out": "---",
+            },
+            {
+                "name": "vmware_guestinfo_userdata",
+                "ret": 1,
+            },
+            {
+                "name": "vmware_guestinfo_vendordata",
+                "ret": 1,
+            },
+            {
+                "name": "blkid",
+                "ret": 0,
+                "out": blkid_out(
+                    [
+                        {"DEVNAME": "sr0", "TYPE": "iso9660", "LABEL": ""},
+                        {
+                            "DEVNAME": "sr1",
+                            "TYPE": "iso9660",
+                            "LABEL": "ignoreme",
+                        },
+                        {
+                            "DEVNAME": "vda1",
+                            "TYPE": "vfat",
+                            "PARTUUID": uuid4(),
+                        },
+                    ]
+                ),
+            },
+        ],
+        "files": {
+            # Setup ovf schema
+            "dev/sr0": "pretend ovf iso has " + OVF_MATCH_STRING + "\n",
+            "sys/class/block/sr0/size": "2048\n",
+        },
     },
     "Ec2-Outscale": {
         "ds": "Ec2",

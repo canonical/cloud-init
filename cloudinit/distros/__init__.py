@@ -50,6 +50,7 @@ from cloudinit.distros.package_management.package_manager import PackageManager
 from cloudinit.distros.package_management.utils import known_package_managers
 from cloudinit.distros.parsers import hosts
 from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
+from cloudinit.lifecycle import log_with_downgradable_level
 from cloudinit.net import activators, dhcp, renderers
 from cloudinit.net.netops import NetOps
 from cloudinit.net.network_state import parse_net_config_data
@@ -100,10 +101,6 @@ OSFAMILIES = {
 
 LOG = logging.getLogger(__name__)
 
-# This is a best guess regex, based on current EC2 AZs on 2017-12-11.
-# It could break when Amazon adds new regions and new AZs.
-_EC2_AZ_RE = re.compile("^[a-z][a-z]-(?:[a-z]+-)+[0-9][a-z]$")
-
 # Default NTP Client Configurations
 PREFERRED_NTP_CLIENTS = ["chrony", "systemd-timesyncd", "ntp", "ntpdate"]
 
@@ -142,7 +139,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     shadow_empty_locked_passwd_patterns = ["^{username}::", "^{username}:!:"]
     tz_zone_dir = "/usr/share/zoneinfo"
     default_owner = "root:root"
-    init_cmd = ["service"]  # systemctl, service etc
+    init_cmd: List[str] = ["service"]  # systemctl, service etc
     renderer_configs: Mapping[str, MutableMapping[str, Any]] = {}
     _preferred_ntp_clients = None
     networking_cls: Type[Networking] = LinuxNetworking
@@ -900,10 +897,13 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                     password_key = "passwd"
                     # Only "plain_text_passwd" and "hashed_passwd"
                     # are valid for an existing user.
-                    LOG.warning(
-                        "'passwd' in user-data is ignored for existing "
-                        "user %s",
-                        name,
+                    log_with_downgradable_level(
+                        logger=LOG,
+                        version="24.3",
+                        requested_level=logging.WARNING,
+                        msg="'passwd' in user-data is ignored "
+                        "for existing user %s",
+                        args=(name,),
                     )
 
                 # As no password specified for the existing user in user-data
@@ -941,20 +941,26 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         elif pre_existing_user:
             # Pre-existing user with no existing password and none
             # explicitly set in user-data.
-            LOG.warning(
-                "Not unlocking blank password for existing user %s."
+            log_with_downgradable_level(
+                logger=LOG,
+                version="24.3",
+                requested_level=logging.WARNING,
+                msg="Not unlocking blank password for existing user %s."
                 " 'lock_passwd: false' present in user-data but no existing"
                 " password set and no 'plain_text_passwd'/'hashed_passwd'"
                 " provided in user-data",
-                name,
+                args=(name,),
             )
         else:
             # No password (whether blank or otherwise) explicitly set
-            LOG.warning(
-                "Not unlocking password for user %s. 'lock_passwd: false'"
+            log_with_downgradable_level(
+                logger=LOG,
+                version="24.3",
+                requested_level=logging.WARNING,
+                msg="Not unlocking password for user %s. 'lock_passwd: false'"
                 " present in user-data but no 'passwd'/'plain_text_passwd'/"
                 "'hashed_passwd' provided in user-data",
-                name,
+                args=(name,),
             )
 
         # Configure doas access
@@ -1373,7 +1379,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 "try-reload": [service, "restart"],
                 "status": [service, "status"],
             }
-        cmd = list(init_cmd) + list(cmds[action])
+        cmd = init_cmd + cmds[action] + list(extra_args)
         return subp.subp(cmd, capture=True, rcs=rcs)
 
     def set_keymap(self, layout: str, model: str, variant: str, options: str):
@@ -1707,7 +1713,12 @@ def _get_package_mirror_info(
 
         # ec2 availability zones are named cc-direction-[0-9][a-d] (us-east-1b)
         # the region is us-east-1. so region = az[0:-1]
-        if _EC2_AZ_RE.match(data_source.availability_zone):
+        # This is a best guess regex, based on current EC2 AZs on 2017-12-11.
+        # It could break when Amazon adds new regions and new AZs.
+        if re.match(
+            "^[a-z][a-z]-(?:[a-z]+-)+[0-9][a-z]$",
+            data_source.availability_zone,
+        ):
             ec2_region = data_source.availability_zone[0:-1]
 
             if ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES:

@@ -78,9 +78,7 @@ def parse_resolvectl_dns(output: str) -> dict:
 @pytest.mark.skipif(
     CURRENT_RELEASE < BIONIC, reason="Easier to test on Bionic+"
 )
-def test_azure_multi_nic_setup(
-    setup_image, session_cloud: IntegrationCloud
-) -> None:
+def test_azure_multi_nic_setup(session_cloud: IntegrationCloud) -> None:
     """Integration test for https://warthogs.atlassian.net/browse/CPC-3999.
 
     Azure should have the primary NIC only route to DNS.

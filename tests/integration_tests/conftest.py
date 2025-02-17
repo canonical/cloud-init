@@ -15,6 +15,7 @@ import pytest
 from pycloudlib.cloud import ImageType
 from pycloudlib.lxd.instance import LXDInstance
 
+import tests.integration_tests.reaper as reaper
 from tests.integration_tests import integration_settings
 from tests.integration_tests.clouds import (
     AzureCloud,
@@ -37,6 +38,11 @@ from tests.integration_tests.instances import (
 log = logging.getLogger("integration_testing")
 log.addHandler(logging.StreamHandler(sys.stdout))
 log.setLevel(logging.INFO)
+
+# set log level INFO instead of DEBUG for boto3 and botocore
+# to prevent 1000s of lines of DEBUG log spam that occur during some tests
+logging.getLogger("botocore").setLevel(logging.INFO)
+logging.getLogger("boto3").setLevel(logging.INFO)
 
 platforms: Dict[str, Type[IntegrationCloud]] = {
     "ec2": Ec2Cloud,
@@ -74,8 +80,22 @@ def disable_subp_usage(request):
     pass
 
 
+_SESSION_CLOUD: IntegrationCloud
+REAPER: reaper._Reaper
+
+
 @pytest.fixture(scope="session")
 def session_cloud() -> Generator[IntegrationCloud, None, None]:
+    """a shared session is created in pytest_sessionstart()
+
+    yield this shared session
+    """
+    global _SESSION_CLOUD
+    yield _SESSION_CLOUD
+
+
+def get_session_cloud() -> IntegrationCloud:
+    """get_session_cloud() creates a session from configuration"""
     if integration_settings.PLATFORM not in platforms.keys():
         raise ValueError(
             f"{integration_settings.PLATFORM} is an invalid PLATFORM "
@@ -91,8 +111,7 @@ def session_cloud() -> Generator[IntegrationCloud, None, None]:
         )
     cloud = platforms[integration_settings.PLATFORM](image_type=image_type)
     cloud.emit_settings_to_log()
-    yield cloud
-    cloud.destroy()
+    return cloud
 
 
 def get_validated_source(
@@ -118,12 +137,8 @@ def get_validated_source(
     raise ValueError(f"Invalid value for CLOUD_INIT_SOURCE setting: {source}")
 
 
-@pytest.fixture(scope="session")
-def setup_image(session_cloud: IntegrationCloud, request):
-    """Setup the target environment with the correct version of cloud-init.
-
-    So we can launch instances / run tests with the correct image
-    """
+def setup_image(session_cloud: IntegrationCloud) -> None:
+    """create image with correct version of cloud-init, then make a snapshot"""
     source = get_validated_source(session_cloud)
     if not (
         source.installs_new_version()
@@ -141,7 +156,8 @@ def setup_image(session_cloud: IntegrationCloud, request):
         and integration_settings.INCLUDE_COVERAGE
     ):
         log.error(
-            "Invalid configuration, cannot enable both profile and coverage."
+            "Invalid configuration, cannot enable both profile and "
+            "coverage."
         )
         raise ValueError()
     if integration_settings.INCLUDE_COVERAGE:
@@ -157,11 +173,6 @@ def setup_image(session_cloud: IntegrationCloud, request):
     # one around as it was just for image creation
     client.destroy()
     log.info("Done with environment setup")
-
-    # For some reason a yield here raises a
-    # ValueError: setup_image did not yield a value
-    # during setup so use a finalizer instead.
-    request.addfinalizer(session_cloud.delete_snapshot)
 
 
 def _collect_logs(instance: IntegrationInstance, log_dir: Path):
@@ -311,13 +322,16 @@ def _client(
         local_launch_kwargs["lxd_setup"] = lxd_setup
 
     with session_cloud.launch(
-        user_data=user_data, launch_kwargs=launch_kwargs, **local_launch_kwargs
+        user_data=user_data,
+        launch_kwargs=launch_kwargs,
+        **local_launch_kwargs,
     ) as instance:
         if lxd_use_exec is not None and isinstance(
             instance.instance, LXDInstance
         ):
             # Existing instances are not affected by the launch kwargs, so
-            # ensure it here; we still need the launch kwarg so waiting works
+            # ensure it here; we still need the launch kwarg so waiting
+            # works
             instance.instance.execute_via_ssh = False
         previous_failures = request.session.testsfailed
         yield instance
@@ -325,10 +339,12 @@ def _client(
         _collect_artifacts(instance, request.node.nodeid, test_failed)
     # conflicting requirements:
     # - pytest thinks that it can cleanup loggers after tests run
-    # - pycloudlib thinks that at garbage collection is a good place to tear
-    #   down sftp connections
-    # After the final test runs, pytest might clean up loggers which will cause
-    # paramiko to barf when it logs that the connection is being closed.
+    # - pycloudlib thinks that at garbage collection is a good place to
+    # tear down sftp connections
+    #
+    # After the final test runs, pytest might clean up loggers which will
+    # cause paramiko to barf when it logs that the connection is being
+    # closed.
     #
     # Manually run __del__() to prevent this teardown mess.
     instance.instance.__del__()
@@ -336,7 +352,7 @@ def _client(
 
 @pytest.fixture
 def client(  # pylint: disable=W0135
-    request, fixture_utils, session_cloud, setup_image
+    request, fixture_utils, session_cloud
 ) -> Iterator[IntegrationInstance]:
     """Provide a client that runs for every test."""
     with _client(request, fixture_utils, session_cloud) as client:
@@ -345,7 +361,7 @@ def client(  # pylint: disable=W0135
 
 @pytest.fixture(scope="module")
 def module_client(  # pylint: disable=W0135
-    request, fixture_utils, session_cloud, setup_image
+    request, fixture_utils, session_cloud
 ) -> Iterator[IntegrationInstance]:
     """Provide a client that runs once per module."""
     with _client(request, fixture_utils, session_cloud) as client:
@@ -354,7 +370,7 @@ def module_client(  # pylint: disable=W0135
 
 @pytest.fixture(scope="class")
 def class_client(  # pylint: disable=W0135
-    request, fixture_utils, session_cloud, setup_image
+    request, fixture_utils, session_cloud
 ) -> Iterator[IntegrationInstance]:
     """Provide a client that runs once per class."""
     with _client(request, fixture_utils, session_cloud) as client:
@@ -459,8 +475,61 @@ def _generate_profile_report() -> None:
     log.info(command, "final.stats")
 
 
+# https://docs.pytest.org/en/stable/reference/reference.html#pytest.hookspec.pytest_sessionstart
+def pytest_sessionstart(session) -> None:
+    """do session setup"""
+    global _SESSION_CLOUD
+    global REAPER
+    log.info("starting session")
+    try:
+        _SESSION_CLOUD = get_session_cloud()
+        setup_image(_SESSION_CLOUD)
+        REAPER = reaper._Reaper()
+        REAPER.start()
+    except Exception as e:
+        if _SESSION_CLOUD:
+            # if a _SESSION_CLOUD was allocated, clean it up
+            if _SESSION_CLOUD.snapshot_id:
+                # if a snapshot id was set, then snapshot succeeded, teardown
+                _SESSION_CLOUD.delete_snapshot()
+            _SESSION_CLOUD.destroy()
+        pytest.exit(
+            f"{type(e).__name__} in session setup: {str(e)}", returncode=2
+        )
+    log.info("started session")
+
+
 def pytest_sessionfinish(session, exitstatus) -> None:
-    if integration_settings.INCLUDE_COVERAGE:
-        _generate_coverage_report()
-    elif integration_settings.INCLUDE_PROFILE:
-        _generate_profile_report()
+    """do session teardown"""
+    global REAPER
+    log.info("finishing session")
+    try:
+        if integration_settings.INCLUDE_COVERAGE:
+            _generate_coverage_report()
+        elif integration_settings.INCLUDE_PROFILE:
+            _generate_profile_report()
+    except Exception as e:
+        log.warning("Could not generate report during teardown: %s", e)
+    try:
+        _SESSION_CLOUD.delete_snapshot()
+    except Exception as e:
+        log.warning(
+            "Could not delete snapshot. Leaked snapshot id %s: %s",
+            _SESSION_CLOUD.snapshot_id,
+            e,
+        )
+    try:
+        REAPER.stop()
+    except Exception as e:
+        log.warning(
+            "Could not tear down instance reaper thread: %s(%s)",
+            type(e).__name__,
+            e,
+        )
+    try:
+        _SESSION_CLOUD.destroy()
+    except Exception as e:
+        log.warning(
+            "Could not destroy session cloud: %s(%s)", type(e).__name__, e
+        )
+    log.info("finish session")

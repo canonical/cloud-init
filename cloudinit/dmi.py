@@ -2,8 +2,7 @@
 import logging
 import os
 import re
-from collections import namedtuple
-from typing import Optional
+from typing import NamedTuple, Optional
 
 from cloudinit import performance, subp
 from cloudinit.util import (
@@ -18,8 +17,12 @@ LOG = logging.getLogger(__name__)
 # Path for DMI Data
 DMI_SYS_PATH = "/sys/class/dmi/id"
 
-KernelNames = namedtuple("KernelNames", ["linux", "freebsd", "openbsd"])
-KernelNames.__new__.__defaults__ = (None, None, None)
+
+class KernelNames(NamedTuple):
+    linux: str
+    freebsd: Optional[str]
+    openbsd: Optional[str]
+
 
 # FreeBSD's kenv(1) and Linux /sys/class/dmi/id/* both use different names from
 # dmidecode. The values are the same, and ultimately what we're interested in.

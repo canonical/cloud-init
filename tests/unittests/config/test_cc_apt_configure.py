@@ -328,7 +328,7 @@ Suites: {{codename}} {{codename}}-updates {{codename}}-backports
 Components: main restricted universe multiverse
 Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg"""
         }
-        cc_apt.generate_sources_list(cfg, "noble", {}, cloud)
+        cc_apt.generate_sources_list(cfg, "noble", {}, cloud, {})
         if expected_content is None:
             assert not sources_file.exists()
             assert f"Removing {sources_file} to favor deb822" in caplog.text

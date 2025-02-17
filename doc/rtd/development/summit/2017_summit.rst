@@ -42,7 +42,7 @@ that they gave as a part of the summit:
   merge request CI process and encouraged this as a way for other OSes to
   participate.
 * **Using lxd for Rapid Development and Testing**: Scott demoed setting
-  userdata when launching a lxd instance and how this can be used in the
+  user-data when launching a lxd instance and how this can be used in the
   development process. He also discussed lxd image remotes and types of images.
 
 Breakout Sessions
@@ -52,7 +52,7 @@ In addition to the prepared demos, the summit had numerous sessions that were
 requested by the attendees as additional topics for discussion:
 
 * Netplan (v2 YAML) as primary format
-* How to query metadata
+* How to query instance-data
 * Version numbering
 * Device hot-plug
 * Python 3
