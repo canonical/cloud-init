@@ -88,7 +88,7 @@ Last-Update: 2024-02-14
      result = get_mount_info(mount_point, get_mnt_opts=True)
 --- a/systemd/cloud-config.service
 +++ b/systemd/cloud-config.service
-@@ -2,7 +2,7 @@
+@@ -1,7 +1,7 @@
  [Unit]
  # https://docs.cloud-init.io/en/latest/explanation/boot.html
  Description=Cloud-init: Config Stage

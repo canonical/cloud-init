@@ -1,3 +1,11 @@
+24.4.1
+ - fix: Ensure _should_wait_via_user_data() handles all user data types (#5976)
+ - fix: Don't log error in wait_for_url (#5972)
+ - feat(url_helper): Retry on 503 error (#5938)
+ - fix: Don't break modules that use get_meta_doc() (#5953)
+ - refactor: Pass deprecation log args as tuple (#5953)
+ - fix: uninstall custom signal handlers before shutdown (#5913)
+
 24.4
  - test: Ensure unit ordering in ftp tests includes downstream units (#5892)
  - test: re-decrement expected webhook events (#5894)

@@ -135,7 +135,7 @@ class MetadataMaterializer:
         return joined
 
 
-def skip_retry_on_codes(status_codes, _request_args, cause):
+def skip_retry_on_codes(status_codes, cause):
     """Returns False if cause.code is in status_codes."""
     return cause.code not in status_codes
 
@@ -143,6 +143,7 @@ def skip_retry_on_codes(status_codes, _request_args, cause):
 def get_instance_userdata(
     api_version="latest",
     metadata_address="http://169.254.169.254",
+    *,
     ssl_details=None,
     timeout=5,
     retries=5,

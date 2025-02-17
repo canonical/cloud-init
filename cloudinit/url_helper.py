@@ -22,7 +22,17 @@ from functools import partial
 from http.client import NOT_FOUND
 from itertools import count
 from ssl import create_default_context
-from typing import Any, Callable, Iterator, List, Optional, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    Iterator,
+    List,
+    Mapping,
+    NamedTuple,
+    Optional,
+    Tuple,
+    Union,
+)
 from urllib.parse import quote, urlparse, urlsplit, urlunparse
 
 import requests
@@ -33,6 +43,7 @@ from cloudinit import performance, util, version
 LOG = logging.getLogger(__name__)
 
 REDACTED = "REDACTED"
+ExceptionCallback = Optional[Callable[["UrlError"], bool]]
 
 
 def _cleanurl(url):
@@ -334,13 +345,17 @@ class UrlResponse:
 
 
 class UrlError(IOError):
-    def __init__(self, cause, code=None, headers=None, url=None):
+    def __init__(
+        self,
+        cause: Any,  # This SHOULD be an exception to wrap, but can be anything
+        code: Optional[int] = None,
+        headers: Optional[Mapping] = None,
+        url: Optional[str] = None,
+    ):
         IOError.__init__(self, str(cause))
         self.cause = cause
         self.code = code
-        self.headers = headers
-        if self.headers is None:
-            self.headers = {}
+        self.headers: Mapping = {} if headers is None else headers
         self.url = url
 
 
@@ -362,8 +377,77 @@ def _get_ssl_args(url, ssl_details):
     return ssl_args
 
 
+def _get_retry_after(retry_after: str) -> float:
+    """Parse a Retry-After header value into an integer.
+
+    : param retry_after: The value of the Retry-After header.
+        https://www.rfc-editor.org/rfc/rfc9110.html#section-10.2.3
+        https://www.rfc-editor.org/rfc/rfc2616#section-3.3
+    : return: The number of seconds to wait before retrying the request.
+    """
+    try:
+        to_wait = float(retry_after)
+    except ValueError:
+        # Translate a date such as "Fri, 31 Dec 1999 23:59:59 GMT"
+        # into seconds to wait
+        try:
+            time_tuple = parsedate(retry_after)
+            if not time_tuple:
+                raise ValueError("Failed to parse Retry-After header value")
+            to_wait = float(time.mktime(time_tuple) - time.time())
+        except ValueError:
+            LOG.info(
+                "Failed to parse Retry-After header value: %s. "
+                "Waiting 1 second instead.",
+                retry_after,
+            )
+            to_wait = 1
+        if to_wait < 0:
+            LOG.info(
+                "Retry-After header value is in the past. "
+                "Waiting 1 second instead."
+            )
+            to_wait = 1
+    return to_wait
+
+
+def _handle_error(
+    error: UrlError,
+    *,
+    exception_cb: ExceptionCallback = None,
+) -> Optional[float]:
+    """Handle exceptions raised during request processing.
+
+    If we have no exception callback or the callback handled the error or we
+    got a 503, return with an optional timeout so the request can be retried.
+    Otherwise, raise the error.
+
+    :param error: The exception raised during the request.
+    :param response: The response object.
+    :param exception_cb: Callable to handle the exception.
+
+    :return: Optional time to wait before retrying the request.
+    """
+    if exception_cb and exception_cb(error):
+        return None
+    if error.code and error.code == 503:
+        LOG.warning(
+            "Ec2 IMDS endpoint returned a 503 error. "
+            "HTTP endpoint is overloaded. Retrying."
+        )
+        if error.headers:
+            return _get_retry_after(error.headers.get("Retry-After", "1"))
+        LOG.info("Unable to introspect response header. Waiting 1 second.")
+        return 1
+    if not exception_cb:
+        return None
+    # If exception_cb returned False and there's no 503
+    raise error
+
+
 def readurl(
     url,
+    *,
     data=None,
     timeout=None,
     retries=0,
@@ -374,7 +458,7 @@ def readurl(
     ssl_details=None,
     check_status=True,
     allow_redirects=True,
-    exception_cb=None,
+    exception_cb: ExceptionCallback = None,
     session=None,
     infinite=False,
     log_req_resp=True,
@@ -403,8 +487,8 @@ def readurl(
         occurs. Default: True.
     :param allow_redirects: Optional boolean passed straight to Session.request
         as 'allow_redirects'. Default: True.
-    :param exception_cb: Optional callable which accepts the params
-        msg and exception and returns a boolean True if retries are permitted.
+    :param exception_cb: Optional callable to handle exception and returns
+        True if retries are permitted.
     :param session: Optional exiting requests.Session instance to reuse.
     :param infinite: Bool, set True to retry indefinitely. Default: False.
     :param log_req_resp: Set False to turn off verbose debug messages.
@@ -471,6 +555,7 @@ def readurl(
                         filtered_req_args[k][key] = REDACTED
             else:
                 filtered_req_args[k] = v
+        raised_exception: Exception
         try:
             if log_req_resp:
                 LOG.debug(
@@ -481,59 +566,57 @@ def readurl(
                     filtered_req_args,
                 )
 
-            r = session.request(**req_args)
+            response = session.request(**req_args)
 
             if check_status:
-                r.raise_for_status()
+                response.raise_for_status()
             LOG.debug(
                 "Read from %s (%s, %sb) after %s attempts",
                 url,
-                r.status_code,
-                len(r.content),
+                response.status_code,
+                len(response.content),
                 (i + 1),
             )
             # Doesn't seem like we can make it use a different
             # subclass for responses, so add our own backward-compat
             # attrs
-            return UrlResponse(r)
+            return UrlResponse(response)
         except exceptions.SSLError as e:
             # ssl exceptions are not going to get fixed by waiting a
             # few seconds
             raise UrlError(e, url=url) from e
+        except exceptions.HTTPError as e:
+            url_error = UrlError(
+                e,
+                code=e.response.status_code,
+                headers=e.response.headers,
+                url=url,
+            )
+            raised_exception = e
         except exceptions.RequestException as e:
-            if (
-                isinstance(e, (exceptions.HTTPError))
-                and hasattr(e, "response")
-                and hasattr(  # This appeared in v 0.10.8
-                    e.response, "status_code"
-                )
-            ):
-                url_error = UrlError(
-                    e,
-                    code=e.response.status_code,
-                    headers=e.response.headers,
-                    url=url,
-                )
-            else:
-                url_error = UrlError(e, url=url)
+            url_error = UrlError(e, url=url)
+            raised_exception = e
+            response = None
 
-            if exception_cb and not exception_cb(req_args.copy(), url_error):
-                # if an exception callback was given, it should return True
-                # to continue retrying and False to break and re-raise the
-                # exception
-                raise url_error from e
-
+        response_sleep_time = _handle_error(
+            url_error,
+            exception_cb=exception_cb,
+        )
+        # If our response tells us to wait, then wait even if we're
+        # past the max tries
+        if not response_sleep_time:
             will_retry = infinite or (i + 1 < manual_tries)
             if not will_retry:
-                raise url_error from e
+                raise url_error from raised_exception
+        sleep_time = response_sleep_time or sec_between
 
-            if sec_between > 0:
-                if log_req_resp:
-                    LOG.debug(
-                        "Please wait %s seconds while we wait to try again",
-                        sec_between,
-                    )
-                time.sleep(sec_between)
+        if sec_between > 0:
+            if log_req_resp:
+                LOG.debug(
+                    "Please wait %s seconds while we wait to try again",
+                    sec_between,
+                )
+            time.sleep(sleep_time)
 
     raise RuntimeError("This path should be unreachable...")
 
@@ -561,7 +644,7 @@ def dual_stack(
     addresses: List[str],
     stagger_delay: float = 0.150,
     timeout: int = 10,
-) -> Tuple:
+) -> Tuple[Optional[str], Optional[UrlResponse]]:
     """execute multiple callbacks in parallel
 
     Run blocking func against two different addresses staggered with a
@@ -639,61 +722,60 @@ def dual_stack(
     return (returned_address, return_result)
 
 
+class HandledResponse(NamedTuple):
+    # Set when we have a response to return
+    url: Optional[str]
+    response: Optional[UrlResponse]
+
+    # Possibly set if we need to try again
+    wait_time: Optional[float]
+
+
 def wait_for_url(
     urls,
+    *,
     max_wait: float = float("inf"),
     timeout: Optional[float] = None,
     status_cb: Callable = LOG.debug,  # some sources use different log levels
     headers_cb: Optional[Callable] = None,
     headers_redact=None,
     sleep_time: Optional[float] = None,
-    exception_cb: Optional[Callable] = None,
+    exception_cb: ExceptionCallback = None,
     sleep_time_cb: Optional[Callable[[Any, float], float]] = None,
     request_method: str = "",
     connect_synchronously: bool = True,
     async_delay: float = 0.150,
 ):
-    """
-    urls:      a list of urls to try
-    max_wait:  roughly the maximum time to wait before giving up
-               The max time is *actually* len(urls)*timeout as each url will
-               be tried once and given the timeout provided.
-               a number <= 0 will always result in only one try
-    timeout:   the timeout provided to urlopen
-    status_cb: call method with string message when a url is not available
-    headers_cb: call method with single argument of url to get headers
-                for request.
-    headers_redact: a list of header names to redact from the log
-    sleep_time: Amount of time to sleep between retries. If this and
-                sleep_time_cb are None, the default sleep time
-                defaults to 1 second and increases by 1 seconds every 5
-                tries. Cannot be specified along with `sleep_time_cb`.
-    exception_cb: call method with 2 arguments 'msg' (per status_cb) and
-                  'exception', the exception that occurred.
-    sleep_time_cb: call method with 2 arguments (response, loop_n) that
-                   generates the next sleep time. Cannot be specified
-                   along with 'sleep_time`.
-    request_method: indicate the type of HTTP request, GET, PUT, or POST
-    connect_synchronously: if false, enables executing requests in parallel
-    async_delay: delay before parallel metadata requests, see RFC 6555
-    returns: tuple of (url, response contents), on failure, (False, None)
+    """Wait for a response from one of the urls provided.
 
-    the idea of this routine is to wait for the EC2 metadata service to
-    come up.  On both Eucalyptus and EC2 we have seen the case where
-    the instance hit the MD before the MD service was up.  EC2 seems
-    to have permanently fixed this, though.
+    :param urls: List of urls to try
+    :param max_wait: Roughly the maximum time to wait before giving up
+        The max time is *actually* len(urls)*timeout as each url will
+        be tried once and given the timeout provided.
+        a number <= 0 will always result in only one try
+    :param timeout: Timeout provided to urlopen
+    :param status_cb: Callable with string message when a url is not available
+    :param headers_cb: Callable with single argument of url to get headers
+        for request.
+    :param headers_redact: List of header names to redact from the log
+    :param sleep_time: Amount of time to sleep between retries. If this and
+        sleep_time_cb are None, the default sleep time defaults to 1 second
+        and increases by 1 seconds every 5 tries. Cannot be specified along
+        with `sleep_time_cb`.
+    :param exception_cb: Callable to handle exception and returns True if
+        retries are permitted.
+    :param sleep_time_cb: Callable with 2 arguments (response, loop_n) that
+        generates the next sleep time. Cannot be specified
+        along with 'sleep_time`.
+    :param request_method: Indicates the type of HTTP request:
+        GET, PUT, or POST
+    :param connect_synchronously: If false, enables executing requests
+        in parallel
+    :param async_delay: Delay before parallel metadata requests, see RFC 6555
 
-    In openstack, the metadata service might be painfully slow, and
-    unable to avoid hitting a timeout of even up to 10 seconds or more
-    (LP: #894279) for a simple GET.
+    :return: tuple of (url, response contents), on failure, (False, None)
 
-    Offset those needs with the need to not hang forever (and block boot)
-    on a system where cloud-init is configured to look for EC2 Metadata
-    service but is not going to find one.  It is possible that the instance
-    data host (169.254.169.254) may be firewalled off Entirely for a system,
-    meaning that the connection will block forever unless a timeout is set.
-
-    The default value for max_wait will retry indefinitely.
+    :raises: UrlError on unrecoverable error
     """
 
     def default_sleep_time(_, loop_number: int) -> float:
@@ -707,8 +789,28 @@ def wait_for_url(
             time.monotonic() - start_time + sleep_time > max_wait
         )
 
-    def handle_url_response(response, url):
+    def handle_url_response(
+        response: Optional[UrlResponse], url: Optional[str]
+    ) -> Tuple[Optional[UrlError], str]:
         """Map requests response code/contents to internal "UrlError" type"""
+        reason = ""
+        url_exc = None
+        if not (response and url):
+            reason = "Request timed out"
+            url_exc = UrlError(ValueError(reason))
+            return url_exc, reason
+        try:
+            # Do this first because it can provide more context for the
+            # exception than what comes later
+            response._response.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            url_exc = UrlError(
+                e,
+                code=e.response.status_code,
+                headers=e.response.headers,
+                url=url,
+            )
+            return url_exc, str(e)
         if not response.contents:
             reason = "empty response [%s]" % (response.code)
             url_exc = UrlError(
@@ -718,6 +820,7 @@ def wait_for_url(
                 url=url,
             )
         elif not response.ok():
+            # 3xx "errors" wouldn't be covered by the raise_for_status above
             reason = "bad status code [%s]" % (response.code)
             url_exc = UrlError(
                 ValueError(reason),
@@ -725,22 +828,26 @@ def wait_for_url(
                 headers=response.headers,
                 url=url,
             )
-        else:
-            reason = ""
-            url_exc = None
         return (url_exc, reason)
 
     def read_url_handle_exceptions(
-        url_reader_cb, urls, start_time, exc_cb, log_cb
-    ):
+        url_reader_cb: Callable[
+            [Any], Tuple[Optional[str], Optional[UrlResponse]]
+        ],
+        urls: Union[str, List[str]],
+        start_time: int,
+        exc_cb: ExceptionCallback,
+        log_cb: Callable,
+    ) -> HandledResponse:
         """Execute request, handle response, optionally log exception"""
         reason = ""
         url = None
+        url_exc: Optional[Exception]
         try:
             url, response = url_reader_cb(urls)
             url_exc, reason = handle_url_response(response, url)
             if not url_exc:
-                return (url, response)
+                return HandledResponse(url, response, wait_time=None)
         except UrlError as e:
             reason = "request error [%s]" % e
             url_exc = e
@@ -756,13 +863,18 @@ def wait_for_url(
             reason,
         )
         log_cb(status_msg)
-        if exc_cb:
-            # This can be used to alter the headers that will be sent
-            # in the future, for example this is what the MAAS datasource
-            # does.
-            exc_cb(msg=status_msg, exception=url_exc)
 
-    def read_url_cb(url, timeout):
+        return HandledResponse(
+            url=None,
+            response=None,
+            wait_time=(
+                _handle_error(url_exc, exception_cb=exc_cb)
+                if isinstance(url_exc, UrlError)
+                else None
+            ),
+        )
+
+    def read_url_cb(url: str, timeout: int) -> UrlResponse:
         return readurl(
             url,
             headers={} if headers_cb is None else headers_cb(url),
@@ -772,19 +884,24 @@ def wait_for_url(
             request_method=request_method,
         )
 
-    def read_url_serial(start_time, timeout, exc_cb, log_cb):
+    def read_url_serial(
+        start_time, timeout, exc_cb, log_cb
+    ) -> HandledResponse:
         """iterate over list of urls, request each one and handle responses
         and thrown exceptions individually per url
         """
 
-        def url_reader_serial(url):
+        def url_reader_serial(url: str):
             return (url, read_url_cb(url, timeout))
 
+        wait_times = []
         for url in urls:
             now = time.monotonic()
-            if loop_n != 0:
+            if loop_n != 0 and not must_try_again:
                 if timeup(max_wait, start_time):
-                    return
+                    return HandledResponse(
+                        url=None, response=None, wait_time=None
+                    )
                 if (
                     max_wait is not None
                     and timeout
@@ -796,10 +913,16 @@ def wait_for_url(
             out = read_url_handle_exceptions(
                 url_reader_serial, url, start_time, exc_cb, log_cb
             )
-            if out:
+            if out.response:
                 return out
+            elif out.wait_time:
+                wait_times.append(out.wait_time)
+        wait_time = max(wait_times) if wait_times else None
+        return HandledResponse(url=None, response=None, wait_time=wait_time)
 
-    def read_url_parallel(start_time, timeout, exc_cb, log_cb):
+    def read_url_parallel(
+        start_time, timeout, exc_cb, log_cb
+    ) -> HandledResponse:
         """pass list of urls to dual_stack which sends requests in parallel
         handle response and exceptions of the first endpoint to respond
         """
@@ -809,11 +932,9 @@ def wait_for_url(
             stagger_delay=async_delay,
             timeout=timeout,
         )
-        out = read_url_handle_exceptions(
+        return read_url_handle_exceptions(
             url_reader_parallel, urls, start_time, exc_cb, log_cb
         )
-        if out:
-            return out
 
     start_time = time.monotonic()
     if sleep_time and sleep_time_cb:
@@ -833,13 +954,17 @@ def wait_for_url(
     loop_n: int = 0
     response = None
     while True:
+        resp = do_read_url(start_time, timeout, exception_cb, status_cb)
+        must_try_again = False
+        if resp.response:
+            return resp.url, resp.response.contents
+        elif resp.wait_time:
+            time.sleep(resp.wait_time)
+            loop_n = loop_n + 1
+            must_try_again = True
+            continue
+
         current_sleep_time = calculate_sleep_time(response, loop_n)
-
-        url = do_read_url(start_time, timeout, exception_cb, status_cb)
-        if url:
-            address, response = url
-            return (address, response.contents)
-
         if timeup(max_wait, start_time, current_sleep_time):
             break
 
@@ -858,7 +983,6 @@ def wait_for_url(
                 # We've already exceeded our max_wait. Time to bail.
                 break
 
-    LOG.error("Timed out, no response from urls: %s", urls)
     return False, None
 
 

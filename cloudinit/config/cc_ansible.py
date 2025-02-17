@@ -9,7 +9,7 @@ import sysconfig
 from copy import deepcopy
 from typing import Optional
 
-from cloudinit import lifecycle, subp
+from cloudinit import lifecycle, signal_handler, subp
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -63,7 +63,8 @@ class AnsiblePull(abc.ABC):
         return self.distro.do_as(command, self.run_user, **kwargs)
 
     def subp(self, command, **kwargs):
-        return subp.subp(command, update_env=self.env, **kwargs)
+        with signal_handler.suspend_crash():
+            return subp.subp(command, update_env=self.env, **kwargs)
 
     @abc.abstractmethod
     def is_installed(self):

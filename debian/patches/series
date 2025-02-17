@@ -15,3 +15,6 @@ no-single-process.patch
 drop-unsupported-systemd-condition-environment.patch
 no-nocloud-network.patch
 grub-dpkg-support.patch
+cpick-84806336-chore-Add-feature-flag-for-manual-network-waiting
+no-remove-networkd-online.patch
+cpick-d75840be-fix-retry-AWS-hotplug-for-async-IMDS-5995

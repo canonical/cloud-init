@@ -330,8 +330,12 @@ def _should_wait_via_user_data(
     if not raw_config:
         return False, "no configuration found"
 
+    # Since this could be some arbitrarily large blob of binary data,
+    # such as a gzipped file, only grab enough to inspect the header.
+    # Since we can get a header like #cloud-config-archive, make sure
+    # we grab enough to not be incorrectly identified as cloud-config.
     if (
-        handlers.type_from_starts_with(raw_config.strip()[:13])
+        handlers.type_from_starts_with(raw_config.strip()[:42])
         != "text/cloud-config"
     ):
         return True, "non-cloud-config user data found"
@@ -344,9 +348,12 @@ def _should_wait_via_user_data(
             version="24.4",
             requested_level=logging.WARNING,
             msg="Unexpected failure parsing userdata: %s",
-            args=e,
+            args=(e,),
         )
         return True, "failed to parse user data as yaml"
+
+    if not isinstance(parsed_yaml, dict):
+        return True, "parsed config not in cloud-config format"
 
     # These all have the potential to require network access, so we should wait
     if "write_files" in parsed_yaml:
