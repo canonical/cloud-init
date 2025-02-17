@@ -94,7 +94,7 @@ def client_with_secondary_vnic(
     with session_cloud.launch() as client:
         ip_address = client.instance.add_network_interface()
         yield client
-        # client.instance.remove_network_interface(ip_address)
+        client.instance.remove_network_interface(ip_address)
 
 
 @pytest.mark.skipif(PLATFORM != "oci", reason="Test is OCI specific")
@@ -160,45 +160,6 @@ def test_oci_networking_system_cfg(client: IntegrationInstance, tmpdir):
     netplan_cfg = yaml.safe_load(netplan_yaml)
     expected_netplan_cfg = yaml.safe_load(SYSTEM_CFG)
     assert expected_netplan_cfg == netplan_cfg
-
-
-"""
-
-def compare_v1_and_v2_config_entries(v1_config, v2_config):
-
-    v1_network_state = network_state.parse_net_config_data(
-        v1_config, renderer=netplan.Renderer
-    )
-    v2_network_state = network_state.parse_net_config_data(
-        v2_config, renderer=netplan.Renderer
-    )
-    v1_rendered_string = netplan.Renderer()._render_content(v1_network_state)
-    v2_rendered_string = netplan.Renderer()._render_content(v2_network_state)
-
-    LOG.debug("v1:\n%s\n\n%s", pformat(v1_config), v1_rendered_string)
-    LOG.debug("v2:\n%s\n\n%s", pformat(v2_config), v2_rendered_string)
-
-
-    if yaml.safe_load(v1_rendered_string) != yaml.safe_load(v2_rendered_string):
-        diff = difflib.unified_diff(
-            v1_rendered_string.splitlines(),
-            v2_rendered_string.splitlines(),
-            lineterm="",
-        )
-        LOG.debug()
-        LOG.warning(
-            "oracle datasource v1 and v2 network config entries do not match! "
-            "diff:\n%s",
-            "\n".join(diff)
-        )
-        return False
-    else:
-        LOG.debug(
-            "oracle datasource v1 and v2 network config entries match!"
-        )
-
-    return True
-"""
 
 
 def _install_custom_cloudinit(client: IntegrationInstance, restart=True):
