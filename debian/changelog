@@ -4,7 +4,13 @@ cloud-init (25.1-0ubuntu1~20.04.1) UNRELEASED; urgency=medium
     - d/p/cpick-d75840be-fix-retry-AWS-hotplug-for-async-IMDS-5995
     - d/p/cpick-84806336-chore-Add-feature-flag-for-manual-network-waiting
   * refresh patches
+    - d/p/deprecation-version-boundary.patch
+    - d/p/expire-on-hashed-users.patch
+    - d/p/netplan99-cannot-use-default.patch
     - d/p/no-single-process.patch
+    - d/p/retain-ec2-default-net-update-events.patch
+    - d/p/retain-netplan-world-readable.patch
+    - d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
   * Upstream snapshot based on upstream/main at 1a9393ee.
 
  -- Brett Holman <brett.holman@canonical.com>  Mon, 17 Feb 2025 15:10:27 -0700
