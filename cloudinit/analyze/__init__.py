@@ -197,7 +197,6 @@ def analyze_boot(name, args):
 
     outfh.write(status_map[status_code].format(**kwargs))
     clean_io(infh, outfh)
-    return status_code
 
 
 def analyze_blame(name, args):
