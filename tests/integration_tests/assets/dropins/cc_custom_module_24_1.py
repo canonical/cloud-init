@@ -31,12 +31,12 @@ meta: MetaSchema = {
         "example_key: example_value",
         "example_other_key: ['value', 2]",
     ],
-}
+}  # type: ignore
 
 __doc__ = get_meta_doc(meta)
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
-    LOG.debug(f"Hi from module {name}")
+    LOG.debug(f"Hi from module {name}")  # noqa: G004
     # Add one more line for easier testing
     print("Hello from module")
