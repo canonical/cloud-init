@@ -11,6 +11,20 @@ releases.
     many operating system vendors patch out breaking changes in
     cloud-init to ensure consistent behavior on their platform.
 
+25.1
+====
+
+/usr merge
+----------
+
+Cloud-init's packaging code no longer installs anything to ``/lib``. Instead,
+anything that was installed to ``/lib`` is now installed to ``/usr/lib``.
+This shouldn't affect any systemd-based distributions as they have all
+transitioned to the ``/usr`` merge. However, this could affect older
+stable releases, non-systemd and non-Linux distributions. See
+`this commit <https://github.com/canonical/cloud-init/commit/0547349214fcfb827e58c1de5e4ad7d23d08cc7f>`_
+for more details.
+
 24.3
 ====
 
