@@ -1,6 +1,13 @@
 build
 cloud_init.egg-info
 dist
+*.deb
+*.tar.xz
+*.tar.gz
+*.build
+*.dsc
+*.changes
+*.buildinfo
 *.pyc
 __pycache__
 .tox
@@ -37,3 +44,4 @@ cloud-init_*.upload
 
 # user test settings
 tests/integration_tests/user_settings.py
+

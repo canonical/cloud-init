@@ -26,6 +26,7 @@ Unix family of operating systems. See the complete list below.
 * OpenCloudOS
 * OpenMandriva
 * PhotonOS
+* Raspberry Pi OS
 * Red Hat Enterprise Linux
 * Rocky
 * SLES/openSUSE
