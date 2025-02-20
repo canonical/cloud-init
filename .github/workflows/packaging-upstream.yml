@@ -1,0 +1,69 @@
+# This test runs after merging PRs into upstream to notify maintainers when
+# a new PR has caused a patch to not apply against the merged branch.
+name: "Packaging (main branch) - patches apply cleanly and unit tests pass (after merging)"
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: 'ci-${{ github.workflow }}-${{ github.ref }}'
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash -ex {0}
+
+jobs:
+  patch-conflicts-ubuntu:
+    runs-on: ubuntu-24.04
+    name: Check patches
+    steps:
+
+      - name: Setup - checkout branches
+        uses: actions/checkout@v4
+        with:
+          # Fetch all history for merging
+          fetch-depth: 0
+          ref: origin/main
+
+      - name: Setup - install dependencies
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -y install tox quilt
+
+      - name: Setup - configure quilt
+        run: |
+          # The quilt default setting is --fuzz=2, but debian packaging has
+          # stricter requirements.
+          sudo sed -i 's/QUILT_PUSH_ARGS=.*$/QUILT_PUSH_ARGS="--fuzz=0"/g' /etc/quilt.quiltrc
+          # quilt defaults to QUILT_PATCHES=patches, but debian uses debian/patches
+          sudo sed -i 's|.*QUILT_PATCHES=.*$|QUILT_PATCHES=debian/patches|g' /etc/quilt.quiltrc
+
+      - name: Setup - configure git
+        run: |
+          git config user.name "Github Actions"
+          git config user.email "noreply@github.com"
+
+      - name: Run test - apply patches and run unit tests for each series
+        run: |
+          # Modify the following line to add / remove ubuntu series
+          for BRANCH in ubuntu/devel ubuntu/oracular ubuntu/noble ubuntu/jammy ubuntu/focal; do
+            # merge - this step is not expected to fail
+            git merge "origin/$BRANCH"
+            if [ ! -f debian/patches/series ]; then
+              echo "no patches, skipping $BRANCH"
+              # undo merge - this step is not expected to fail
+              git reset --hard origin/main
+              continue
+            fi
+            # did patches apply cleanly?
+            quilt push -a
+            # run unit tests
+            tox -e py3
+            # a patch didn't un-apply cleanly if this step fails
+            quilt pop -a
+            # undo merge - this step is not expected to fail
+            git reset --hard origin/main
+          done

@@ -38,3 +38,12 @@ jobs:
            cat unsigned-cla.txt
            exit 1
         fi
+
+  check-cla-signers:
+    name: Verify that ./tools/.github-cla-signers is in alphabetical order
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check CLA signers file
+        run: tools/check-cla-signers

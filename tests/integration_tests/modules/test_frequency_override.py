@@ -1,6 +1,7 @@
 import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE
 
 USER_DATA = """\
@@ -18,7 +19,8 @@ def test_frequency_override(client: IntegrationInstance):
         in client.read_from_file("/var/log/cloud-init.log")
     )
     assert client.read_from_file("/var/tmp/hi").strip().count("hi") == 1
-    if CURRENT_RELEASE.os == "ubuntu":
+    # This workaround is not needed for OCI, so just skip it
+    if CURRENT_RELEASE.os == "ubuntu" and PLATFORM != "oci":
         if CURRENT_RELEASE.series in ("focal", "jammy", "lunar", "mantic"):
             # Stable series will block on snapd.seeded.service and create a
             # semaphore file

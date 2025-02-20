@@ -377,7 +377,7 @@ def check_partition_mbr_layout(device, layout):
     found_layout = []
     for line in out.splitlines():
         _line = line.split()
-        if len(_line) == 0:
+        if not _line:
             continue
 
         if device in _line[0]:
@@ -500,7 +500,7 @@ def get_partition_mbr_layout(size, layout):
         # Create a single partition, default to Linux
         return ",,83"
 
-    if (len(layout) == 0 and isinstance(layout, list)) or not isinstance(
+    if ((not layout) and isinstance(layout, list)) or not isinstance(
         layout, list
     ):
         raise RuntimeError("Partition layout is invalid")

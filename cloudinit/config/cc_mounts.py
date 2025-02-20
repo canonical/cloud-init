@@ -548,7 +548,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if swapfile:
         updated_cfg.append([swapfile, "none", "swap", "sw", "0", "0"])
 
-    if len(updated_cfg) == 0:
+    if not updated_cfg:
         # This will only be true if there is no mount configuration at all
         # Even if fstab has no functional changes, we'll get past this point
         # as we remove any 'comment=cloudconfig' lines and then add them back

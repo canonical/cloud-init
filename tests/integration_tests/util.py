@@ -143,13 +143,17 @@ def verify_clean_boot(
             ignore_warnings,
             "Could not match supplied host pattern, ignoring:",
         )
-    elif "oracle" == PLATFORM:
+    elif "oci" == PLATFORM:
         # LP: #1842752
         ignore_errors = append_or_create_list(
             ignore_warnings, "Stderr: RTNETLINK answers: File exists"
         )
         if isinstance(ignore_tracebacks, list):
             ignore_tracebacks.append("Stderr: RTNETLINK answers: File exists")
+        # Ubuntu lxd storage
+        ignore_warnings = append_or_create_list(
+            ignore_warnings, "thinpool by default on Ubuntu due to LP #1982780"
+        )
         # LP: #1833446
         ignore_warnings = append_or_create_list(
             ignore_warnings,

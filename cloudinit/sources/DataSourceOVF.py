@@ -78,7 +78,7 @@ class DataSourceOVF(sources.DataSource):
                 found.append(name)
 
         # There was no OVF transports found
-        if len(found) == 0:
+        if not found:
             return False
 
         if "seedfrom" in md and md["seedfrom"]:
@@ -372,7 +372,7 @@ def get_properties(contents):
         dom.documentElement, lambda n: n.localName == "PropertySection"
     )
 
-    if len(propSections) == 0:
+    if not propSections:
         raise XmlError("No 'PropertySection's")
 
     props = {}

@@ -65,7 +65,7 @@ class SysConf(configobj.ConfigObj):
     def _quote(self, value, multiline=False):
         if not isinstance(value, str):
             raise ValueError('Value "%s" is not a string' % (value))
-        if len(value) == 0:
+        if not value:
             return ""
         quot_func = None
         if value[0] in ['"', "'"] and value[-1] in ['"', "'"]:

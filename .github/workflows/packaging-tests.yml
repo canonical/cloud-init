@@ -1,4 +1,8 @@
-name: Packaging
+# This test runs against packaging PRs and verifies that
+# patches apply and unit tests pass.
+#
+# TODO: add full build-package / sbuild test
+name: "Packaging (downstream branch) - patches apply cleanly unit tests pass"
 
 on:
   pull_request:
@@ -13,40 +17,65 @@ defaults:
   run:
     shell: sh -ex {0}
 
-env:
-  RELEASE: focal
-
 jobs:
-  check-patches:
-    name: Check patches
+  patch-conflicts-upstream:
     runs-on: ubuntu-24.04
+    name: Check patches apply cleanly and unit tests pass
     steps:
-      - name: Checkout
+
+      - name: Setup - checkout branch
         uses: actions/checkout@v4
-        with:
-          # Fetch all branches for merging
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
-      - name: Prepare dependencies
+
+      - name: Setup - install dependencies
         run: |
+          # This stage is slow, and unnecessecary when no series exists, so
+          # only run it if necessary to save some cycles.
+          # Github Actions doesn't appear to have a simple mechanism for
+          # early exit without failure
+          if [ ! -f debian/patches/series ]; then
+            echo "no patches, skipping"
+            exit 0
+          fi
           sudo DEBIAN_FRONTEND=noninteractive apt-get update
           sudo DEBIAN_FRONTEND=noninteractive apt-get -y install tox quilt
-      - name: Setup quilt environment
-        run: |
-          echo 'QUILT_PATCHES=debian/patches' >> ~/.quiltrc
-          echo 'QUILT_SERIES=debian/patches/series' >> ~/.quiltrc
 
-      - name: Configure git and merge
+      - name: Setup - Configure quilt
         run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git merge origin/main
-      - name: Quilt patches apply successfully and tests run
+          # Github Actions doesn't appear to have a simple mechanism for
+          # early exit without failure
+          if [ ! -f debian/patches/series ]; then
+            echo "no patches, skipping"
+            exit 0
+          fi
+          # The quilt default setting is --fuzz=2, but debian packaging has
+          # stricter requirements
+          sudo sed -i 's/QUILT_PUSH_ARGS=.*$/QUILT_PUSH_ARGS="--fuzz=0"/g' /etc/quilt.quiltrc
+          # Standardize patches to use this format. Sorted patches reduce patch size.
+          sudo sed -i 's/QUILT_REFRESH_ARGS=.*$/QUILT_REFRESH_ARGS="-p ab --no-timestamps --no-index --sort"/g' /etc/quilt.quiltrc
+          # quilt defaults to QUILT_PATCHES=patches, but debian uses debian/patches
+          sudo sed -i 's|.*QUILT_PATCHES=.*$|QUILT_PATCHES=debian/patches|g' /etc/quilt.quiltrc
+
+      - name: Run test - apply patches and run unit tests
         run: |
+          # Github Actions doesn't appear to have a simple mechanism for
+          # early exit without failure
           if [ ! -f debian/patches/series ]; then
             echo "no patches, skipping"
             exit 0
           fi
           quilt push -a
           tox -e py3
-          quilt pop -a
+          quilt pop -a --refresh
+      - name: Enforce sorted patches
+        run: |
+          # Github Actions doesn't appear to have a simple mechanism for
+          # early exit without failure
+          if [ ! -f debian/patches/series ]; then
+            echo "no patches, skipping"
+            exit 0
+          fi
+          # check for any changes from the refresh above
+          if [ -n "$(git diff)" ]; then
+            # if patches were refreshed then they weren't sorted
+            exit 1
+          fi

@@ -105,7 +105,7 @@ class TestMAASDataSource:
         return what read_maas_seed_url returns."""
 
         def my_readurl(*args, **kwargs):
-            if len(args):
+            if args:
                 url = args[0]
             else:
                 url = kwargs["url"]
@@ -125,7 +125,7 @@ class TestMAASDataSource:
 
     def test_seed_url_valid(self, tmpdir):
         """Verify that valid seed_url is read as such."""
-        valid = {
+        valid: dict = {
             "meta-data/instance-id": "i-instanceid",
             "meta-data/local-hostname": "test-hostname",
             "meta-data/public-keys": "test-hostname",

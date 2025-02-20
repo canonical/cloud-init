@@ -1,38 +1,31 @@
 # Copyright (C) 2015 Canonical Ltd.
-# Copyright (C) 2016 VMware INC.
+# Copyright (C) 2006-2024 Broadcom. All Rights Reserved.
+# Broadcom Confidential. The term "Broadcom" refers to Broadcom Inc.
+# and/or its subsidiaries.
 #
 # Author: Sankar Tanguturi <stanguturi@vmware.com>
+#         Pengpeng Sun <pengpeng.sun@broadcom.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import ipaddress
 import logging
 import os
 import re
 
 from cloudinit import net, subp, util
-from cloudinit.net.network_state import ipv4_mask_to_net_prefix
+from cloudinit.net.network_state import (
+    ipv4_mask_to_net_prefix,
+    ipv6_mask_to_net_prefix,
+)
 
 logger = logging.getLogger(__name__)
 
 
-def gen_subnet(ip, netmask):
-    """
-    Return the subnet for a given ip address and a netmask
-    @return (str): the subnet
-    @param ip: ip address
-    @param netmask: netmask
-    """
-    ip_array = ip.split(".")
-    mask_array = netmask.split(".")
-    result = []
-    for index in list(range(4)):
-        result.append(int(ip_array[index]) & int(mask_array[index]))
-
-    return ".".join([str(x) for x in result])
-
-
 class NicConfigurator:
-    def __init__(self, nics, use_system_devices=True):
+    def __init__(
+        self, nics, name_servers, dns_suffixes, use_system_devices=True
+    ):
         """
         Initialize the Nic Configurator
         @param nics (list) an array of nics to configure
@@ -41,9 +34,9 @@ class NicConfigurator:
          the specified nics.
         """
         self.nics = nics
+        self.name_servers = name_servers
+        self.dns_suffixes = dns_suffixes
         self.mac2Name = {}
-        self.ipv4PrimaryGateway = None
-        self.ipv6PrimaryGateway = None
 
         if use_system_devices:
             self.find_devices()
@@ -87,10 +80,10 @@ class NicConfigurator:
             name = section.split(":", 1)[0]
             self.mac2Name[mac] = name
 
-    def gen_one_nic(self, nic):
+    def gen_one_nic_v2(self, nic):
         """
-        Return the config list needed to configure a nic
-        @return (list): the subnets and routes list to configure the nic
+        Return the config dict needed to configure a nic
+        @return (dict): the config dict to configure the nic
         @param nic (NicBase): the nic to configure
         """
         mac = nic.mac.lower()
@@ -98,137 +91,139 @@ class NicConfigurator:
         if not name:
             raise ValueError("No known device has MACADDR: %s" % nic.mac)
 
-        nics_cfg_list = []
+        nic_config_dict = {}
+        generators = [
+            self.gen_match(mac),
+            self.gen_set_name(name),
+            self.gen_wakeonlan(nic),
+            self.gen_dhcp4(nic),
+            self.gen_dhcp6(nic),
+            self.gen_addresses(nic),
+            self.gen_routes(nic),
+            self.gen_nameservers(),
+        ]
+        for value in generators:
+            if value:
+                nic_config_dict.update(value)
 
-        cfg = {"type": "physical", "name": name, "mac_address": mac}
+        return {name: nic_config_dict}
 
-        subnet_list = []
-        route_list = []
+    def gen_match(self, mac):
+        return {"match": {"macaddress": mac}}
 
-        # Customize IPv4
-        (subnets, routes) = self.gen_ipv4(name, nic)
-        subnet_list.extend(subnets)
-        route_list.extend(routes)
+    def gen_set_name(self, name):
+        return {"set-name": name}
 
-        # Customize IPv6
-        (subnets, routes) = self.gen_ipv6(name, nic)
-        subnet_list.extend(subnets)
-        route_list.extend(routes)
+    def gen_wakeonlan(self, nic):
+        return {"wakeonlan": nic.onboot}
 
-        cfg.update({"subnets": subnet_list})
-
-        nics_cfg_list.append(cfg)
-        if route_list:
-            nics_cfg_list.extend(route_list)
-
-        return nics_cfg_list
-
-    def gen_ipv4(self, name, nic):
-        """
-        Return the set of subnets and routes needed to configure the
-        IPv4 settings of a nic
-        @return (set): the set of subnet and routes to configure the gateways
-        @param name (str): subnet and route list for the nic
-        @param nic (NicBase): the nic to configure
-        """
-
-        subnet = {}
-        route_list = []
-
-        if nic.onboot:
-            subnet.update({"control": "auto"})
-
+    def gen_dhcp4(self, nic):
+        dhcp4 = {}
         bootproto = nic.bootProto.lower()
         if nic.ipv4_mode.lower() == "disabled":
             bootproto = "manual"
-
         if bootproto != "static":
-            subnet.update({"type": "dhcp"})
-            return ([subnet], route_list)
+            dhcp4.update({"dhcp4": True})
+            # dhcp4-overrides
+            if self.name_servers or self.dns_suffixes:
+                dhcp4.update({"dhcp4-overrides": {"use-dns": False}})
         else:
-            subnet.update({"type": "static"})
+            dhcp4.update({"dhcp4": False})
+        return dhcp4
+
+    def gen_dhcp6(self, nic):
+        dhcp6 = {}
+        if nic.staticIpv6:
+            dhcp6.update({"dhcp6": False})
+        # TODO: nic shall explicitly tell it's DHCP6
+        # TODO: set dhcp6-overrides
+        return dhcp6
+
+    def gen_addresses(self, nic):
+        address_list = []
+        v4_cidr = 32
 
         # Static Ipv4
-        addrs = nic.staticIpv4
-        if not addrs:
-            return ([subnet], route_list)
-
-        v4 = addrs[0]
-        if v4.ip:
-            subnet.update({"address": v4.ip})
-        if v4.netmask:
-            subnet.update({"netmask": v4.netmask})
-
-        # Add the primary gateway
-        if nic.primary and v4.gateways:
-            self.ipv4PrimaryGateway = v4.gateways[0]
-            subnet.update({"gateway": self.ipv4PrimaryGateway})
-            return ([subnet], route_list)
-
-        # Add routes if there is no primary nic
-        if not self._primaryNic and v4.gateways:
-            subnet.update(
-                {"routes": self.gen_ipv4_route(nic, v4.gateways, v4.netmask)}
-            )
-
-        return ([subnet], route_list)
-
-    def gen_ipv4_route(self, nic, gateways, netmask):
-        """
-        Return the routes list needed to configure additional Ipv4 route
-        @return (list): the route list to configure the gateways
-        @param nic (NicBase): the nic to configure
-        @param gateways (str list): the list of gateways
-        """
-        route_list = []
-
-        cidr = ipv4_mask_to_net_prefix(netmask)
-
-        for gateway in gateways:
-            destination = "%s/%d" % (gen_subnet(gateway, netmask), cidr)
-            route_list.append(
-                {
-                    "destination": destination,
-                    "type": "route",
-                    "gateway": gateway,
-                    "metric": 10000,
-                }
-            )
-
-        return route_list
-
-    def gen_ipv6(self, name, nic):
-        """
-        Return the set of subnets and routes needed to configure the
-        gateways for a nic
-        @return (set): the set of subnets and routes to configure the gateways
-        @param name (str): name of the nic
-        @param nic (NicBase): the nic to configure
-        """
-
-        if not nic.staticIpv6:
-            return ([], [])
-
-        subnet_list = []
+        v4_addrs = nic.staticIpv4
+        if v4_addrs:
+            v4 = v4_addrs[0]
+            if v4.netmask:
+                v4_cidr = ipv4_mask_to_net_prefix(v4.netmask)
+            if v4.ip:
+                address_list.append(f"{v4.ip}/{v4_cidr}")
         # Static Ipv6
-        addrs = nic.staticIpv6
+        v6_addrs = nic.staticIpv6
+        if v6_addrs:
+            for v6 in v6_addrs:
+                v6_cidr = ipv6_mask_to_net_prefix(v6.netmask)
+                address_list.append(f"{v6.ip}/{v6_cidr}")
 
-        for addr in addrs:
-            subnet = {
-                "type": "static6",
-                "address": addr.ip,
-                "netmask": addr.netmask,
-            }
-            subnet_list.append(subnet)
+        if address_list:
+            return {"addresses": address_list}
+        else:
+            return {}
 
-        # TODO: Add the primary gateway
-
+    def gen_routes(self, nic):
         route_list = []
-        # TODO: Add routes if there is no primary nic
-        # if not self._primaryNic:
-        #    route_list.extend(self._genIpv6Route(name, nic, addrs))
+        v4_cidr = 32
 
-        return (subnet_list, route_list)
+        # Ipv4 routes
+        v4_addrs = nic.staticIpv4
+        if v4_addrs:
+            v4 = v4_addrs[0]
+            # Add the ipv4 default route
+            if nic.primary and v4.gateways:
+                route_list.append({"to": "0.0.0.0/0", "via": v4.gateways[0]})
+            # Add ipv4 static routes if there is no primary nic
+            if not self._primaryNic and v4.gateways:
+                if v4.netmask:
+                    v4_cidr = ipv4_mask_to_net_prefix(v4.netmask)
+                for gateway in v4.gateways:
+                    v4_subnet = ipaddress.IPv4Network(
+                        f"{gateway}/{v4_cidr}", strict=False
+                    )
+                    route_list.append({"to": f"{v4_subnet}", "via": gateway})
+        # Ipv6 routes
+        v6_addrs = nic.staticIpv6
+        if v6_addrs:
+            for v6 in v6_addrs:
+                v6_cidr = ipv6_mask_to_net_prefix(v6.netmask)
+                # Add the ipv6 default route
+                if nic.primary and v6.gateway:
+                    route_list.append({"to": "::/0", "via": v6.gateway})
+                # Add ipv6 static routes if there is no primary nic
+                if not self._primaryNic and v6.gateway:
+                    v6_subnet = ipaddress.IPv6Network(
+                        f"{v6.gateway}/{v6_cidr}", strict=False
+                    )
+                    route_list.append(
+                        {"to": f"{v6_subnet}", "via": v6.gateway}
+                    )
+
+        if route_list:
+            return {"routes": route_list}
+        else:
+            return {}
+
+    def gen_nameservers(self):
+        nameservers_dict = {}
+        search_list = []
+        addresses_list = []
+        if self.dns_suffixes:
+            for dns_suffix in self.dns_suffixes:
+                search_list.append(dns_suffix)
+        if self.name_servers:
+            for name_server in self.name_servers:
+                addresses_list.append(name_server)
+        if search_list:
+            nameservers_dict.update({"search": search_list})
+        if addresses_list:
+            nameservers_dict.update({"addresses": addresses_list})
+
+        if nameservers_dict:
+            return {"nameservers": nameservers_dict}
+        else:
+            return {}
 
     def generate(self, configure=False, osfamily=None):
         """Return the config elements that are needed to configure the nics"""
@@ -236,12 +231,12 @@ class NicConfigurator:
             logger.info("Configuring the interfaces file")
             self.configure(osfamily)
 
-        nics_cfg_list = []
+        ethernets_dict = {}
 
         for nic in self.nics:
-            nics_cfg_list.extend(self.gen_one_nic(nic))
+            ethernets_dict.update(self.gen_one_nic_v2(nic))
 
-        return nics_cfg_list
+        return ethernets_dict
 
     def clear_dhcp(self):
         logger.info("Clearing DHCP leases")
