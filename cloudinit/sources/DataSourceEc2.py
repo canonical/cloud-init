@@ -34,7 +34,6 @@ STRICT_ID_DEFAULT = "warn"
 
 
 class CloudNames:
-    ALIYUN = "aliyun"
     AWS = "aws"
     BRIGHTBOX = "brightbox"
     ZSTACK = "zstack"
@@ -54,7 +53,7 @@ def skip_404_tag_errors(exception):
 
 
 # Cloud platforms that support IMDSv2 style metadata server
-IDMSV2_SUPPORTED_CLOUD_PLATFORMS = [CloudNames.AWS, CloudNames.ALIYUN]
+IDMSV2_SUPPORTED_CLOUD_PLATFORMS = [CloudNames.AWS]
 
 # Only trigger hook-hotplug on NICs with Ec2 drivers. Avoid triggering
 # it on docker virtual NICs and the like. LP: #1946003
@@ -777,11 +776,6 @@ def warn_if_necessary(cfgval, cfg):
     warnings.show_warning("non_ec2_md", cfg, mode=True, sleep=sleep)
 
 
-def identify_aliyun(data):
-    if data["product_name"] == "Alibaba Cloud ECS":
-        return CloudNames.ALIYUN
-
-
 def identify_aws(data):
     # data is a dictionary returned by _collect_platform_data.
     uuid_str = data["uuid"]
@@ -830,7 +824,6 @@ def identify_platform():
         identify_zstack,
         identify_e24cloud,
         identify_outscale,
-        identify_aliyun,
         lambda x: CloudNames.UNKNOWN,
     )
     for checker in checks:
