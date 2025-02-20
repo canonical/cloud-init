@@ -758,14 +758,12 @@ class DataSourceAzure(sources.DataSource):
         if imds_hostname:
             LOG.debug("Hostname retrieved from IMDS: %s", imds_hostname)
             crawled_data["metadata"]["local-hostname"] = imds_hostname
-        if imds_disable_password:
+        if imds_disable_password is not None:
             LOG.debug(
                 "Disable password retrieved from IMDS: %s",
                 imds_disable_password,
             )
-            crawled_data["metadata"][
-                "disable_password"
-            ] = imds_disable_password
+            crawled_data["cfg"]["ssh_pwauth"] = not imds_disable_password
 
         if self.seed == "IMDS" and not crawled_data["files"]:
             try:
