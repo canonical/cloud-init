@@ -1,10 +1,10 @@
-cloud-init (25.1-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (25.1-0ubuntu1) plucky; urgency=medium
 
   * Upstream snapshot based on 25.1.
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/25.1/ChangeLog
 
- -- James Falcon <james.falcon@canonical.com>  Thu, 20 Feb 2025 14:25:46 -0600
+ -- James Falcon <james.falcon@canonical.com>  Thu, 20 Feb 2025 14:32:56 -0600
 
 cloud-init (25.1~3geb1965a4-0ubuntu1) plucky; urgency=medium
 
