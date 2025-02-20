@@ -306,8 +306,6 @@ class DataSourceAliYun(sources.DataSource):
 
         @return: The API token or None if unavailable.
         """
-        # if self.cloud_name not in IDMSV2_SUPPORTED_CLOUD_PLATFORMS:
-        #     return None
 
         if seconds is None:
             seconds = self.imdsv2_token_ttl_seconds
@@ -335,9 +333,7 @@ class DataSourceAliYun(sources.DataSource):
         If _api_token is unset on AWS, attempt to refresh the token via a PUT
         and then return the updated token header.
         """
-        # if self.cloud_name not in IDMSV2_SUPPORTED_CLOUD_PLATFORMS:
-        #     return {}
-        # Request a 6 hour token if URL is api_token_route
+
         request_token_header = {
             self.imdsv2_token_req_header: self.imdsv2_token_ttl_seconds
         }
