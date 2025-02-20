@@ -143,6 +143,9 @@ cloud_config_modules:
 {% if variant in ["ubuntu"] %}
   - wireguard
 {% endif %}
+{% if variant in ["fedora"] or is_rhel %}
+  - bootc
+{% endif %}
 {% if variant in ["debian", "ubuntu", "unknown"] %}
   - snap
 {% endif %}
