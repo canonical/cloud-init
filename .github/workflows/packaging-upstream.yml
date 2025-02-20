@@ -26,7 +26,7 @@ jobs:
         with:
           # Fetch all history for merging
           fetch-depth: 0
-          ref: origin/main
+          ref: main
 
       - name: Setup - install dependencies
         run: |
