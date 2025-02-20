@@ -20,6 +20,55 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                  }
                  # If the gateway is not contained within the subnet's
                  # network, mark it as on-link so that it can still be
+--- a/tests/unittests/distros/test_netconfig.py
++++ b/tests/unittests/distros/test_netconfig.py
+@@ -193,7 +193,7 @@ network:
+             addresses:
+             - 192.168.1.5/24
+             routes:
+-            -   to: default
++            -   to: 0.0.0.0/0
+                 via: 192.168.1.254
+         eth1:
+             dhcp4: true
+@@ -212,7 +212,7 @@ network:
+             addresses:
+             - 2607:f0d0:1002:0011::2/64
+             routes:
+-            -   to: default
++            -   to: ::/0
+                 via: 2607:f0d0:1002:0011::1
+         eth1:
+             dhcp4: true
+@@ -1078,7 +1078,7 @@ class TestNetCfgDistroArch(TestNetCfgDis
+                             addresses:
+                             - 192.168.1.5/24
+                             routes:
+-                            -   to: default
++                            -   to: 0.0.0.0/0
+                                 via: 192.168.1.254
+                         eth1:
+                             dhcp4: true
+--- a/tests/unittests/net/network_configs.py
++++ b/tests/unittests/net/network_configs.py
+@@ -1686,7 +1686,7 @@ pre-down route del -net 10.0.0.0/8 gw 11
+                             - sacchromyces.maas
+                             - brettanomyces.maas
+                         routes:
+-                        -   to: default
++                        -   to: 0.0.0.0/0
+                             via: 192.168.0.1
+         """
+         ).rstrip(" "),
+@@ -3119,7 +3119,7 @@ pre-down route del -net 10.0.0.0/8 gw 11
+                          transmit-hash-policy: layer3+4
+                          up-delay: 20
+                      routes:
+-                     -   to: default
++                     -   to: 0.0.0.0/0
+                          via: 192.168.0.1
+                      -   to: 10.1.3.0/24
+                          via: 192.168.0.3
 --- a/tests/unittests/test_net.py
 +++ b/tests/unittests/test_net.py
 @@ -433,7 +433,7 @@ network:
@@ -119,52 +168,3 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                            via: 2001:ffff::1
                            on-link: true
                        set-name: interface0
---- a/tests/unittests/distros/test_netconfig.py
-+++ b/tests/unittests/distros/test_netconfig.py
-@@ -193,7 +193,7 @@ network:
-             addresses:
-             - 192.168.1.5/24
-             routes:
--            -   to: default
-+            -   to: 0.0.0.0/0
-                 via: 192.168.1.254
-         eth1:
-             dhcp4: true
-@@ -212,7 +212,7 @@ network:
-             addresses:
-             - 2607:f0d0:1002:0011::2/64
-             routes:
--            -   to: default
-+            -   to: ::/0
-                 via: 2607:f0d0:1002:0011::1
-         eth1:
-             dhcp4: true
-@@ -1078,7 +1078,7 @@ class TestNetCfgDistroArch(TestNetCfgDis
-                             addresses:
-                             - 192.168.1.5/24
-                             routes:
--                            -   to: default
-+                            -   to: 0.0.0.0/0
-                                 via: 192.168.1.254
-                         eth1:
-                             dhcp4: true
---- a/tests/unittests/net/network_configs.py
-+++ b/tests/unittests/net/network_configs.py
-@@ -1686,7 +1686,7 @@ pre-down route del -net 10.0.0.0/8 gw 11
-                             - sacchromyces.maas
-                             - brettanomyces.maas
-                         routes:
--                        -   to: default
-+                        -   to: 0.0.0.0/0
-                             via: 192.168.0.1
-         """
-         ).rstrip(" "),
-@@ -3119,7 +3119,7 @@ pre-down route del -net 10.0.0.0/8 gw 11
-                          transmit-hash-policy: layer3+4
-                          up-delay: 20
-                      routes:
--                     -   to: default
-+                     -   to: 0.0.0.0/0
-                          via: 192.168.0.1
-                      -   to: 10.1.3.0/24
-                          via: 192.168.0.3

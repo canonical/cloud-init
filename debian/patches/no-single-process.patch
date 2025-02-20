@@ -5,6 +5,47 @@ Author: Brett Holman <brett.holman@canonical.com>
 Last-Update: 2024-08-02
 
 
+--- a/cloudinit/cmd/status.py
++++ b/cloudinit/cmd/status.py
+@@ -321,9 +321,8 @@ def systemd_failed(wait: bool) -> bool:
+     for service in [
+         "cloud-final.service",
+         "cloud-config.service",
+-        "cloud-init-network.service",
++        "cloud-init.service",
+         "cloud-init-local.service",
+-        "cloud-init-main.service",
+     ]:
+         try:
+             stdout = query_systemctl(
+--- a/cloudinit/config/cc_mounts.py
++++ b/cloudinit/config/cc_mounts.py
+@@ -519,7 +519,7 @@ def handle(name: str, cfg: Config, cloud
+     # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
+     uses_systemd = cloud.distro.uses_systemd()
+     default_mount_options = (
+-        "defaults,nofail,x-systemd.after=cloud-init-network.service,_netdev"
++        "defaults,nofail,x-systemd.after=cloud-init.service,_netdev"
+         if uses_systemd
+         else "defaults,nobootwait"
+     )
+--- a/cloudinit/config/schemas/schema-cloud-config-v1.json
++++ b/cloudinit/config/schemas/schema-cloud-config-v1.json
+@@ -2034,12 +2034,12 @@
+         },
+         "mount_default_fields": {
+           "type": "array",
+-          "description": "Default mount configuration for any mount entry with less than 6 options provided. When specified, 6 items are required and represent ``/etc/fstab`` entries. Default: ``defaults,nofail,x-systemd.after=cloud-init-network.service,_netdev``.",
++          "description": "Default mount configuration for any mount entry with less than 6 options provided. When specified, 6 items are required and represent ``/etc/fstab`` entries. Default: ``defaults,nofail,x-systemd.after=cloud-init.service,_netdev``.",
+           "default": [
+             null,
+             null,
+             "auto",
+-            "defaults,nofail,x-systemd.after=cloud-init-network.service",
++            "defaults,nofail,x-systemd.after=cloud-init.service",
+             "0",
+             "2"
+           ],
 --- a/systemd/cloud-config.service
 +++ b/systemd/cloud-config.service
 @@ -9,14 +9,7 @@ ConditionEnvironment=!KERNEL_CMDLINE=clo
@@ -23,6 +64,16 @@ Last-Update: 2024-08-02
  RemainAfterExit=yes
  TimeoutSec=0
  
+--- a/systemd/cloud-config.target
++++ b/systemd/cloud-config.target
+@@ -14,5 +14,5 @@
+ 
+ [Unit]
+ Description=Cloud-config availability
+-Wants=cloud-init-local.service cloud-init-network.service
+-After=cloud-init-local.service cloud-init-network.service
++Wants=cloud-init-local.service cloud-init.service
++After=cloud-init-local.service cloud-init.service
 --- a/systemd/cloud-final.service
 +++ b/systemd/cloud-final.service
 @@ -12,16 +12,10 @@ ConditionEnvironment=!KERNEL_CMDLINE=clo
@@ -123,133 +174,6 @@ Last-Update: 2024-08-02
 -
 -[Install]
 -WantedBy=cloud-init.target
---- /dev/null
-+++ b/systemd/cloud-init.service.tmpl
-@@ -0,0 +1,59 @@
-+## template:jinja
-+[Unit]
-+# https://docs.cloud-init.io/en/latest/explanation/boot.html
-+Description=Cloud-init: Network Stage
-+{% if variant not in ["almalinux", "cloudlinux", "photon", "rhel"] %}
-+DefaultDependencies=no
-+{% endif %}
-+Wants=cloud-init-local.service
-+Wants=sshd-keygen.service
-+Wants=sshd.service
-+After=cloud-init-local.service
-+{% if variant not in ["ubuntu"] %}
-+After=systemd-networkd-wait-online.service
-+{% endif %}
-+{% if variant in ["ubuntu", "unknown", "debian"] %}
-+After=networking.service
-+{% endif %}
-+{% if variant in ["almalinux", "centos", "cloudlinux", "eurolinux", "fedora",
-+                  "miraclelinux", "openeuler", "OpenCloudOS", "openmandriva", "rhel", "rocky",
-+                  "suse", "TencentOS", "virtuozzo"] %}
-+
-+After=network.service
-+After=NetworkManager.service
-+After=NetworkManager-wait-online.service
-+{% endif %}
-+{% if variant in ["suse"] %}
-+After=wicked.service
-+# setting hostname via hostnamectl depends on dbus, which otherwise
-+# would not be guaranteed at this point.
-+After=dbus.service
-+{% endif %}
-+Before=network-online.target
-+Before=sshd-keygen.service
-+Before=sshd.service
-+Before=systemd-user-sessions.service
-+{% if variant in ["ubuntu", "unknown", "debian"] %}
-+Before=sysinit.target
-+Before=shutdown.target
-+Conflicts=shutdown.target
-+{% endif %}
-+{% if variant in ["suse"] %}
-+Before=shutdown.target
-+Conflicts=shutdown.target
-+{% endif %}
-+ConditionPathExists=!/etc/cloud/cloud-init.disabled
-+ConditionKernelCommandLine=!cloud-init=disabled
-+ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
-+
-+[Service]
-+Type=oneshot
-+ExecStart=/usr/bin/cloud-init init
-+RemainAfterExit=yes
-+TimeoutSec=0
-+
-+# Output needs to appear in instance console output
-+StandardOutput=journal+console
-+
-+[Install]
-+WantedBy=cloud-init.target
---- a/cloudinit/cmd/status.py
-+++ b/cloudinit/cmd/status.py
-@@ -321,9 +321,8 @@ def systemd_failed(wait: bool) -> bool:
-     for service in [
-         "cloud-final.service",
-         "cloud-config.service",
--        "cloud-init-network.service",
-+        "cloud-init.service",
-         "cloud-init-local.service",
--        "cloud-init-main.service",
-     ]:
-         try:
-             stdout = query_systemctl(
---- a/cloudinit/config/cc_mounts.py
-+++ b/cloudinit/config/cc_mounts.py
-@@ -519,7 +519,7 @@ def handle(name: str, cfg: Config, cloud
-     # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
-     uses_systemd = cloud.distro.uses_systemd()
-     default_mount_options = (
--        "defaults,nofail,x-systemd.after=cloud-init-network.service,_netdev"
-+        "defaults,nofail,x-systemd.after=cloud-init.service,_netdev"
-         if uses_systemd
-         else "defaults,nobootwait"
-     )
---- a/cloudinit/config/schemas/schema-cloud-config-v1.json
-+++ b/cloudinit/config/schemas/schema-cloud-config-v1.json
-@@ -2034,12 +2034,12 @@
-         },
-         "mount_default_fields": {
-           "type": "array",
--          "description": "Default mount configuration for any mount entry with less than 6 options provided. When specified, 6 items are required and represent ``/etc/fstab`` entries. Default: ``defaults,nofail,x-systemd.after=cloud-init-network.service,_netdev``.",
-+          "description": "Default mount configuration for any mount entry with less than 6 options provided. When specified, 6 items are required and represent ``/etc/fstab`` entries. Default: ``defaults,nofail,x-systemd.after=cloud-init.service,_netdev``.",
-           "default": [
-             null,
-             null,
-             "auto",
--            "defaults,nofail,x-systemd.after=cloud-init-network.service",
-+            "defaults,nofail,x-systemd.after=cloud-init.service",
-             "0",
-             "2"
-           ],
---- a/systemd/cloud-config.target
-+++ b/systemd/cloud-config.target
-@@ -14,5 +14,5 @@
- 
- [Unit]
- Description=Cloud-config availability
--Wants=cloud-init-local.service cloud-init-network.service
--After=cloud-init-local.service cloud-init-network.service
-+Wants=cloud-init-local.service cloud-init.service
-+After=cloud-init-local.service cloud-init.service
---- a/tests/unittests/config/test_cc_mounts.py
-+++ b/tests/unittests/config/test_cc_mounts.py
-@@ -566,9 +566,9 @@ class TestFstabHandling:
-             LABEL=keepme	none	ext4	defaults	0	0
-             LABEL=UEFI
-             /dev/sda4	/mnt2	auto	nofail,comment=cloudconfig	1	2
--            /dev/sda5	/mnt3	auto	defaults,nofail,x-systemd.after=cloud-init-network.service,_netdev,comment=cloudconfig	0	2
-+            /dev/sda5	/mnt3	auto	defaults,nofail,x-systemd.after=cloud-init.service,_netdev,comment=cloudconfig	0	2
-             /dev/sda1	/mnt	xfs	auto,comment=cloudconfig	0	2
--            /dev/sda3	/mnt4	btrfs	defaults,nofail,x-systemd.after=cloud-init-network.service,_netdev,comment=cloudconfig	0	2
-+            /dev/sda3	/mnt4	btrfs	defaults,nofail,x-systemd.after=cloud-init.service,_netdev,comment=cloudconfig	0	2
-             /dev/sdb1	none	swap	sw,comment=cloudconfig	0	0
-             """  # noqa: E501
-             ).strip()
 --- a/systemd/cloud-init-network.service.tmpl
 +++ /dev/null
 @@ -1,64 +0,0 @@
@@ -317,3 +241,79 @@ Last-Update: 2024-08-02
 -
 -[Install]
 -WantedBy=cloud-init.target
+--- /dev/null
++++ b/systemd/cloud-init.service.tmpl
+@@ -0,0 +1,59 @@
++## template:jinja
++[Unit]
++# https://docs.cloud-init.io/en/latest/explanation/boot.html
++Description=Cloud-init: Network Stage
++{% if variant not in ["almalinux", "cloudlinux", "photon", "rhel"] %}
++DefaultDependencies=no
++{% endif %}
++Wants=cloud-init-local.service
++Wants=sshd-keygen.service
++Wants=sshd.service
++After=cloud-init-local.service
++{% if variant not in ["ubuntu"] %}
++After=systemd-networkd-wait-online.service
++{% endif %}
++{% if variant in ["ubuntu", "unknown", "debian"] %}
++After=networking.service
++{% endif %}
++{% if variant in ["almalinux", "centos", "cloudlinux", "eurolinux", "fedora",
++                  "miraclelinux", "openeuler", "OpenCloudOS", "openmandriva", "rhel", "rocky",
++                  "suse", "TencentOS", "virtuozzo"] %}
++
++After=network.service
++After=NetworkManager.service
++After=NetworkManager-wait-online.service
++{% endif %}
++{% if variant in ["suse"] %}
++After=wicked.service
++# setting hostname via hostnamectl depends on dbus, which otherwise
++# would not be guaranteed at this point.
++After=dbus.service
++{% endif %}
++Before=network-online.target
++Before=sshd-keygen.service
++Before=sshd.service
++Before=systemd-user-sessions.service
++{% if variant in ["ubuntu", "unknown", "debian"] %}
++Before=sysinit.target
++Before=shutdown.target
++Conflicts=shutdown.target
++{% endif %}
++{% if variant in ["suse"] %}
++Before=shutdown.target
++Conflicts=shutdown.target
++{% endif %}
++ConditionPathExists=!/etc/cloud/cloud-init.disabled
++ConditionKernelCommandLine=!cloud-init=disabled
++ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
++
++[Service]
++Type=oneshot
++ExecStart=/usr/bin/cloud-init init
++RemainAfterExit=yes
++TimeoutSec=0
++
++# Output needs to appear in instance console output
++StandardOutput=journal+console
++
++[Install]
++WantedBy=cloud-init.target
+--- a/tests/unittests/config/test_cc_mounts.py
++++ b/tests/unittests/config/test_cc_mounts.py
+@@ -566,9 +566,9 @@ class TestFstabHandling:
+             LABEL=keepme	none	ext4	defaults	0	0
+             LABEL=UEFI
+             /dev/sda4	/mnt2	auto	nofail,comment=cloudconfig	1	2
+-            /dev/sda5	/mnt3	auto	defaults,nofail,x-systemd.after=cloud-init-network.service,_netdev,comment=cloudconfig	0	2
++            /dev/sda5	/mnt3	auto	defaults,nofail,x-systemd.after=cloud-init.service,_netdev,comment=cloudconfig	0	2
+             /dev/sda1	/mnt	xfs	auto,comment=cloudconfig	0	2
+-            /dev/sda3	/mnt4	btrfs	defaults,nofail,x-systemd.after=cloud-init-network.service,_netdev,comment=cloudconfig	0	2
++            /dev/sda3	/mnt4	btrfs	defaults,nofail,x-systemd.after=cloud-init.service,_netdev,comment=cloudconfig	0	2
+             /dev/sdb1	none	swap	sw,comment=cloudconfig	0	0
+             """  # noqa: E501
+             ).strip()

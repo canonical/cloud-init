@@ -8,33 +8,6 @@ Author: Chad Smith <chad.smith@canonical.com>
 Last-Update: 2024-05-21
 ---
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
---- a/systemd/cloud-init-local.service.tmpl
-+++ b/systemd/cloud-init-local.service.tmpl
-@@ -20,7 +20,6 @@
- RequiresMountsFor=/var/lib/cloud
- ConditionPathExists=!/etc/cloud/cloud-init.disabled
- ConditionKernelCommandLine=!cloud-init=disabled
--ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
-
- [Service]
- Type=oneshot
---- a/systemd/cloud-init.target
-+++ b/systemd/cloud-init.target
-@@ -12,4 +12,3 @@ Description=Cloud-init target
- After=multi-user.target
- ConditionPathExists=!/etc/cloud/cloud-init.disabled
- ConditionKernelCommandLine=!cloud-init=disabled
--ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
---- a/systemd/cloud-init-hotplugd.service
-+++ b/systemd/cloud-init-hotplugd.service
-@@ -16,7 +16,6 @@ After=cloud-init.target
- Requires=cloud-init-hotplugd.socket
- ConditionPathExists=!/etc/cloud/cloud-init.disabled
- ConditionKernelCommandLine=!cloud-init=disabled
--ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
- 
- [Service]
- Type=oneshot
 --- a/systemd/cloud-config.service
 +++ b/systemd/cloud-config.service
 @@ -5,7 +5,6 @@ After=network-online.target cloud-config
@@ -55,10 +28,10 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  
  
  [Service]
---- a/systemd/cloud-init.service.tmpl
-+++ b/systemd/cloud-init.service.tmpl
-@@ -44,7 +44,6 @@ Conflicts=shutdown.target
- {% endif %}
+--- a/systemd/cloud-init-hotplugd.service
++++ b/systemd/cloud-init-hotplugd.service
+@@ -16,7 +16,6 @@ After=cloud-init.target
+ Requires=cloud-init-hotplugd.socket
  ConditionPathExists=!/etc/cloud/cloud-init.disabled
  ConditionKernelCommandLine=!cloud-init=disabled
 -ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
@@ -72,6 +45,33 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  ConditionPathExists=!/etc/cloud/cloud-init.disabled
  ConditionKernelCommandLine=!cloud-init=disabled
 -ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
-
+ 
  [Socket]
  ListenFIFO=/run/cloud-init/hook-hotplug-cmd
+--- a/systemd/cloud-init-local.service.tmpl
++++ b/systemd/cloud-init-local.service.tmpl
+@@ -20,7 +20,6 @@ Conflicts=shutdown.target
+ RequiresMountsFor=/var/lib/cloud
+ ConditionPathExists=!/etc/cloud/cloud-init.disabled
+ ConditionKernelCommandLine=!cloud-init=disabled
+-ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
+ 
+ [Service]
+ Type=oneshot
+--- a/systemd/cloud-init.service.tmpl
++++ b/systemd/cloud-init.service.tmpl
+@@ -44,7 +44,6 @@ Conflicts=shutdown.target
+ {% endif %}
+ ConditionPathExists=!/etc/cloud/cloud-init.disabled
+ ConditionKernelCommandLine=!cloud-init=disabled
+-ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
+ 
+ [Service]
+ Type=oneshot
+--- a/systemd/cloud-init.target
++++ b/systemd/cloud-init.target
+@@ -12,4 +12,3 @@ Description=Cloud-init target
+ After=multi-user.target
+ ConditionPathExists=!/etc/cloud/cloud-init.disabled
+ ConditionKernelCommandLine=!cloud-init=disabled
+-ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
