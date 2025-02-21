@@ -181,10 +181,12 @@ def validate_config(cfg: dict):
     for key in required_keys:
         if not get_cfg_by_path(cfg, key):
             raise ValueError(f"Missing required key '{key}' from {cfg}")
-    if cfg.get("pull"):
-        for key in "pull/url", "pull/playbook_name":
-            if not get_cfg_by_path(cfg, key):
-                raise ValueError(f"Missing required key '{key}' from {cfg}")
+    pull_cfg = cfg.get("pull")
+    if pull_cfg:
+        for c in pull_cfg:
+            for key in "url", "playbook_name":
+                if not get_cfg_by_path(c, key):
+                    raise ValueError(f"Missing required key '{key}' from {c}")
 
     controller_cfg = cfg.get("setup_controller")
     if controller_cfg:
@@ -210,28 +212,29 @@ def filter_args(cfg: dict) -> dict:
     }
 
 
-def run_ansible_pull(pull: AnsiblePull, cfg: dict):
-    playbook_name: str = cfg.pop("playbook_name")
+def run_ansible_pull(pull: AnsiblePull, cfg: list):
+    for c in cfg:  # Get every playbook_name and url in cfg list
+        playbook_name: str = c.pop("playbook_name")
 
-    v = pull.get_version()
-    if not v:
-        LOG.warning("Cannot parse ansible version")
-    elif v < lifecycle.Version(2, 7, 0):
-        # diff was added in commit edaa0b52450ade9b86b5f63097ce18ebb147f46f
-        if cfg.get("diff"):
-            raise ValueError(
-                f"Ansible version {v.major}.{v.minor}.{v.patch}"
-                "doesn't support --diff flag, exiting."
-            )
-    stdout = pull.pull(
-        *[
-            f"--{key}={value}" if value is not True else f"--{key}"
-            for key, value in filter_args(cfg).items()
-        ],
-        playbook_name,
-    )
-    if stdout:
-        sys.stdout.write(f"{stdout}")
+        v = pull.get_version()
+        if not v:
+            LOG.warning("Cannot parse ansible version")
+        elif v < lifecycle.Version(2, 7, 0):
+            # diff was added in commit edaa0b52450ade9b86b5f63097ce18ebb147f46f
+            if c.get("diff"):
+                raise ValueError(
+                    f"Ansible version {v.major}.{v.minor}.{v.patch}"
+                    "doesn't support --diff flag, exiting."
+                )
+        stdout = pull.pull(
+            *[
+                f"--{key}={value}" if value is not True else f"--{key}"
+                for key, value in filter_args(c).items()
+            ],
+            playbook_name,
+        )
+        if stdout:
+            sys.stdout.write(f"{stdout}")
 
 
 def ansible_galaxy(cfg: dict, ansible: AnsiblePull):
