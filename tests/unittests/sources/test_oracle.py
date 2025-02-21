@@ -2,18 +2,25 @@
 
 import base64
 import copy
+import difflib
 import json
 import logging
 from itertools import count
+from pprint import pformat
 from typing import Optional
 from unittest import mock
 
 import pytest
 import responses
+import yaml
 
+from cloudinit.net import netplan, network_state
 from cloudinit.sources import DataSourceOracle as oracle
 from cloudinit.sources import NetworkConfigSource
-from cloudinit.sources.DataSourceOracle import ReadOpcMetadataResponse
+from cloudinit.sources.DataSourceOracle import (
+    ReadOpcMetadataResponse,
+    convert_v1_netplan_to_v2,
+)
 from cloudinit.url_helper import UrlError
 from tests.unittests import helpers as test_helpers
 
@@ -310,9 +317,9 @@ def oracle_ds(request, fixture_utils, paths, metadata_version, mocker):
     )
     mocker.patch.object(ds, "_is_iscsi_root", return_value=is_iscsi)
     if is_iscsi:
-        iscsi_config = copy.deepcopy(KLIBC_NET_CFG)
+        iscsi_config = convert_v1_netplan_to_v2(copy.deepcopy(KLIBC_NET_CFG))
     else:
-        iscsi_config = {"version": 1, "config": []}
+        iscsi_config = {"version": 2, "ethernets": {}}
     mocker.patch.object(ds, "_get_iscsi_config", return_value=iscsi_config)
     yield ds
 
@@ -389,7 +396,6 @@ class TestIsPlatformViable:
     "cloudinit.net.is_openvswitch_internal_interface",
     mock.Mock(return_value=False),
 )
-@mock.patch(DS_PATH + ".compare_v1_and_v2_config_entries", mock.MagicMock())
 class TestNetworkConfigFromOpcImds:
     def test_no_secondary_nics_does_not_mutate_input(self, oracle_ds):
         oracle_ds._vnics_data = [{}]
@@ -451,57 +457,8 @@ class TestNetworkConfigFromOpcImds:
         "set_primary",
         [True, False],
     )
-    def test_imds_nic_setup_v1(
-        self,
-        # m_compare_v1_and_v2_config_entries,
-        set_primary,
-        oracle_ds,
-    ):
-        oracle_ds._vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)
-        oracle_ds._network_config_v1 = {
-            "version": 1,
-            "config": [{"primary": "nic"}],
-        }
-        with mock.patch(
-            f"{DS_PATH}.get_interfaces_by_mac",
-            return_value={
-                "02:00:17:05:d1:db": "ens3",
-                "00:00:17:02:2b:b1": "ens4",
-            },
-        ):
-            oracle_ds._add_network_config_from_opc_imds(
-                set_primary=set_primary
-            )
-
-        secondary_nic_index = 1
-        nic_cfg = oracle_ds._network_config_v1["config"]
-        if set_primary:
-            primary_cfg = nic_cfg[1]
-            secondary_nic_index += 1
-
-            assert "ens3" == primary_cfg["name"]
-            assert "physical" == primary_cfg["type"]
-            assert "02:00:17:05:d1:db" == primary_cfg["mac_address"]
-            assert 9000 == primary_cfg["mtu"]
-            assert 1 == len(primary_cfg["subnets"])
-            assert "address" not in primary_cfg["subnets"][0]
-            assert "dhcp" == primary_cfg["subnets"][0]["type"]
-        secondary_cfg = nic_cfg[secondary_nic_index]
-        assert "ens4" == secondary_cfg["name"]
-        assert "physical" == secondary_cfg["type"]
-        assert "00:00:17:02:2b:b1" == secondary_cfg["mac_address"]
-        assert 9000 == secondary_cfg["mtu"]
-        assert 1 == len(secondary_cfg["subnets"])
-        assert "10.0.0.231/24" == secondary_cfg["subnets"][0]["address"]
-        assert "static" == secondary_cfg["subnets"][0]["type"]
-
-    @pytest.mark.parametrize(
-        "set_primary",
-        [True, False],
-    )
     def test_secondary_nic_v2(
         self,
-        # m_compare_v1_and_v2_config_entries,
         set_primary,
         oracle_ds,
     ):
@@ -541,57 +498,6 @@ class TestNetworkConfigFromOpcImds:
 
         assert 1 == len(secondary_cfg["addresses"])
         assert "10.0.0.231/24" == secondary_cfg["addresses"][0]
-
-    @pytest.mark.parametrize(
-        "set_primary",
-        [
-            pytest.param(True, id="set_primary"),
-            pytest.param(False, id="dont_set_primary"),
-        ],
-    )
-    def test_imds_nic_setup_v1_ipv6_only(self, set_primary, oracle_ds):
-        oracle_ds._vnics_data = json.loads(
-            OPC_VM_IPV6_ONLY_SECONDARY_VNIC_RESPONSE
-        )
-        oracle_ds._network_config_v1 = {
-            "version": 1,
-            "config": [{"primary": "nic"}],
-        }
-        with mock.patch(
-            f"{DS_PATH}.get_interfaces_by_mac",
-            return_value={
-                "02:00:17:0d:6b:be": "ens3",
-                "02:00:17:18:f6:ff": "ens4",
-            },
-        ):
-            oracle_ds._add_network_config_from_opc_imds(
-                set_primary=set_primary
-            )
-
-        secondary_nic_index = 1
-        nic_cfg = oracle_ds._network_config_v1["config"]
-        if set_primary:
-            primary_cfg = nic_cfg[1]
-            secondary_nic_index += 1
-
-            assert "ens3" == primary_cfg["name"]
-            assert "physical" == primary_cfg["type"]
-            assert "02:00:17:0d:6b:be" == primary_cfg["mac_address"]
-            assert 9000 == primary_cfg["mtu"]
-            assert 1 == len(primary_cfg["subnets"])
-            assert "address" not in primary_cfg["subnets"][0]
-            assert "dhcp6" == primary_cfg["subnets"][0]["type"]
-        secondary_cfg = nic_cfg[secondary_nic_index]
-        assert "ens4" == secondary_cfg["name"]
-        assert "physical" == secondary_cfg["type"]
-        assert "02:00:17:18:f6:ff" == secondary_cfg["mac_address"]
-        assert 9000 == secondary_cfg["mtu"]
-        assert 1 == len(secondary_cfg["subnets"])
-        assert (
-            "2603:c020:400d:5d7e:aacc:8e5f:3b1b:3a4a/128"
-            == secondary_cfg["subnets"][0]["address"]
-        )
-        assert "static" == secondary_cfg["subnets"][0]["type"]
 
     @pytest.mark.parametrize(
         "set_primary",
@@ -1505,8 +1411,10 @@ class TestPerformDHCPSetup:
 
 
 @mock.patch(DS_PATH + ".get_interfaces_by_mac", return_value={})
-@mock.patch(DS_PATH + ".compare_v1_and_v2_config_entries", mock.MagicMock())
 class TestNetworkConfig:
+    
+    # set as iscsi root
+    @pytest.mark.is_iscsi(True)
     def test_network_config_cached(self, m_get_interfaces_by_mac, oracle_ds):
         """.network_config should be cached"""
         assert 0 == oracle_ds._get_iscsi_config.call_count
@@ -1815,13 +1723,65 @@ class TestHelpers:
             )
 
 
-import yaml
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
+##################### NETPLAN V2 MIGRATION TESTING BELOW ######################
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
 
-from cloudinit.sources.DataSourceOracle import (
-    compare_v1_and_v2_config_entries,
-    convert_v1_netplan_to_v2,
-    move_version_to_beggining_of_nteplan_yaml_str,
-)
+
+def move_version_to_beggining_of_nteplan_yaml_str(yaml_str: str) -> str:
+    version_line = [
+        line for line in yaml_str.split("\n") if "version:" in line
+    ][0]
+    lines = [line for line in yaml_str.split("\n") if "version:" not in line]
+    lines.insert(1, version_line)
+    return "\n".join(lines)
+
+
+logger = logging.getLogger(__name__)
+
+
+def compare_v1_and_v2_config_entries(v1_config, v2_config):
+    v1_network_state = network_state.parse_net_config_data(
+        v1_config, renderer=netplan.Renderer
+    )
+    v2_network_state = network_state.parse_net_config_data(
+        v2_config, renderer=netplan.Renderer
+    )
+    v1_rendered_string = netplan.Renderer()._render_content(v1_network_state)
+    v2_rendered_string = netplan.Renderer()._render_content(v2_network_state)
+    v1_rendered_string = move_version_to_beggining_of_nteplan_yaml_str(
+        yaml_str=v1_rendered_string,
+    )
+    v2_rendered_string = move_version_to_beggining_of_nteplan_yaml_str(
+        yaml_str=v2_rendered_string,
+    )
+    logger.debug("v1:\n%s\n\n%s", pformat(v1_config), v1_rendered_string)
+    logger.debug("v2:\n%s\n\n%s", pformat(v2_config), v2_rendered_string)
+
+    if yaml.safe_load(v1_rendered_string) != yaml.safe_load(
+        v2_rendered_string
+    ):
+        diff = difflib.unified_diff(
+            v1_rendered_string.splitlines(),
+            v2_rendered_string.splitlines(),
+            lineterm="",
+        )
+        logger.warning(
+            "oracle datasource v1 and v2 network config entries do not match! "
+            "diff:\n%s",
+            "\n".join(diff),
+        )
+        return False
+
+    logger.debug("oracle datasource v1 and v2 network config entries match!")
+    return True
+
 
 # Minimal dummy v1 network configuration for testing
 DUMMY_V1_CONFIG = {
