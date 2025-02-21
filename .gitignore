@@ -1,5 +1,5 @@
 build
-cloud_init.egg-info
+*.egg-info
 dist
 *.pyc
 __pycache__
@@ -23,17 +23,21 @@ stage
 htmlcov/
 tags
 .hypothesis/
+srpm/
+changelog-file
+releasenotes-file
+*.asc
+
 
 # Ignore packaging artifacts
-cloud-init.dsc
-cloud-init_*.build
-cloud-init_*.buildinfo
-cloud-init_*.changes
-cloud-init_*.deb
-cloud-init_*.dsc
-cloud-init_*.tar.gz
-cloud-init_*.tar.xz
-cloud-init_*.upload
+*.dsc
+*.build
+*.buildinfo
+*.changes
+*.deb
+*.tar.gz
+*.tar.xz
+*.upload
 
 # user test settings
 tests/integration_tests/user_settings.py
