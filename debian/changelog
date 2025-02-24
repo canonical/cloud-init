@@ -8,14 +8,7 @@ cloud-init (25.1-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
     - d/p/no-single-process.patch
     - d/p/retain-ec2-default-net-update-events.patch
     - d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
-  * Upstream snapshot based on upstream/main at 1a9393ee.
-  * refresh patches:
-    - d/p/cli-retain-file-argument-as-main-cmd-arg.patch
-    - d/p/expire-on-hashed-users.patch
-    - d/p/grub-dpkg-support.patch
-    - d/p/no-nocloud-network.patch
-    - d/p/no-single-process.patch
-    - d/p/retain-ec2-default-net-update-events.patch
+  * sort hunks within all patches (--sort on quilt refresh)
   * Upstream snapshot based on 25.1.
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/25.1/ChangeLog
