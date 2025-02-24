@@ -402,7 +402,7 @@ class TestWSLDataSource:
             cast(MIMEMultipart, ud), "text/cloud-config"
         )
         assert userdata is not None
-        assert "wsl.conf" in cast(str, userdata)
+        assert "wsl.conf" in userdata
 
     @mock.patch("cloudinit.util.lsb_release")
     def test_get_data_sh(self, m_lsb_release, tmpdir, paths):
@@ -421,11 +421,8 @@ class TestWSLDataSource:
         ud = ds.get_userdata()
 
         assert ud is not None
-        userdata = cast(
-            str,
-            join_payloads_from_content_type(
-                cast(MIMEMultipart, ud), "text/x-shellscript"
-            ),
+        userdata = join_payloads_from_content_type(
+            cast(MIMEMultipart, ud), "text/x-shellscript"
         )
         assert COMMAND in userdata
 
@@ -539,19 +536,13 @@ write_files:
         ud = ds.get_userdata()
 
         assert ud is not None
-        userdata = cast(
-            str,
-            join_payloads_from_content_type(
-                cast(MIMEMultipart, ud), "text/cloud-config"
-            ),
+        userdata = join_payloads_from_content_type(
+            cast(MIMEMultipart, ud), "text/cloud-config"
         )
         assert "wsl.conf" in userdata
         assert "packages" not in userdata
-        shell_script = cast(
-            str,
-            join_payloads_from_content_type(
-                cast(MIMEMultipart, ud), "text/x-shellscript"
-            ),
+        shell_script = join_payloads_from_content_type(
+            cast(MIMEMultipart, ud), "text/x-shellscript"
         )
 
         assert "" == shell_script
@@ -597,11 +588,8 @@ ubuntu_pro:
         ud = ds.get_userdata()
 
         assert ud is not None
-        userdata = cast(
-            str,
-            join_payloads_from_content_type(
-                cast(MIMEMultipart, ud), "text/cloud-config"
-            ),
+        userdata = join_payloads_from_content_type(
+            cast(MIMEMultipart, ud), "text/cloud-config"
         )
         assert "wsl.conf" in userdata
         assert "packages" not in userdata
@@ -639,11 +627,8 @@ package_update: true"""
         assert ds.get_data() is True
         ud = ds.get_userdata()
         assert ud is not None
-        userdata = cast(
-            str,
-            join_payloads_from_content_type(
-                cast(MIMEMultipart, ud), "text/cloud-config"
-            ),
+        userdata = join_payloads_from_content_type(
+            cast(MIMEMultipart, ud), "text/cloud-config"
         )
 
         assert (
@@ -700,11 +685,8 @@ package_update: true"""
         ud = ds.get_userdata()
 
         assert ud is not None
-        userdata = cast(
-            str,
-            join_payloads_from_content_type(
-                cast(MIMEMultipart, ud), "text/cloud-config"
-            ),
+        userdata = join_payloads_from_content_type(
+            cast(MIMEMultipart, ud), "text/cloud-config"
         )
 
         assert "ubuntu_pro" in userdata, "Agent data should be present"
@@ -761,11 +743,8 @@ ubuntu_pro:
         ud = ds.get_userdata()
 
         assert ud is not None
-        userdata = cast(
-            str,
-            join_payloads_from_content_type(
-                cast(MIMEMultipart, ud), "text/cloud-config"
-            ),
+        userdata = join_payloads_from_content_type(
+            cast(MIMEMultipart, ud), "text/cloud-config"
         )
 
         assert (
@@ -813,22 +792,16 @@ ubuntu_pro:
         ud = ds.get_userdata()
 
         assert ud is not None
-        userdata = cast(
-            str,
-            join_payloads_from_content_type(
-                cast(MIMEMultipart, ud), "text/cloud-config"
-            ),
+        userdata = join_payloads_from_content_type(
+            cast(MIMEMultipart, ud), "text/cloud-config"
         )
 
         assert (
             "agent_test" in userdata and "agent_token" in userdata
         ), "Agent data should be present"
 
-        shell_script = cast(
-            str,
-            join_payloads_from_content_type(
-                cast(MIMEMultipart, ud), "text/x-shellscript"
-            ),
+        shell_script = join_payloads_from_content_type(
+            cast(MIMEMultipart, ud), "text/x-shellscript"
         )
 
         assert COMMAND in shell_script
@@ -877,11 +850,8 @@ package_update: true"""
         ud = ds.get_userdata()
 
         assert ud is not None
-        userdata = cast(
-            str,
-            join_payloads_from_content_type(
-                cast(MIMEMultipart, ud), "text/cloud-config"
-            ),
+        userdata = join_payloads_from_content_type(
+            cast(MIMEMultipart, ud), "text/cloud-config"
         )
 
         assert (
@@ -929,11 +899,8 @@ package_update: true"""
         ud = ds.get_userdata()
 
         assert ud is not None
-        userdata = cast(
-            str,
-            join_payloads_from_content_type(
-                cast(MIMEMultipart, ud), "text/cloud-config"
-            ),
+        userdata = join_payloads_from_content_type(
+            cast(MIMEMultipart, ud), "text/cloud-config"
         )
         assert "landscapetest" in userdata
         assert "up4w_token" in userdata
@@ -980,11 +947,8 @@ package_update: true"""
         ud = ds.get_userdata()
 
         assert ud is not None
-        userdata = cast(
-            str,
-            join_payloads_from_content_type(
-                cast(MIMEMultipart, ud), "text/cloud-config"
-            ),
+        userdata = join_payloads_from_content_type(
+            cast(MIMEMultipart, ud), "text/cloud-config"
         )
         assert "landscapetest" not in userdata
         assert (

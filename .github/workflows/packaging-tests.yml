@@ -50,6 +50,8 @@ jobs:
           # The quilt default setting is --fuzz=2, but debian packaging has
           # stricter requirements
           sudo sed -i 's/QUILT_PUSH_ARGS=.*$/QUILT_PUSH_ARGS="--fuzz=0"/g' /etc/quilt.quiltrc
+          # Standardize patches to use this format. Sorted patches reduce patch size.
+          sudo sed -i 's/QUILT_REFRESH_ARGS=.*$/QUILT_REFRESH_ARGS="-p ab --no-timestamps --no-index --sort"/g' /etc/quilt.quiltrc
           # quilt defaults to QUILT_PATCHES=patches, but debian uses debian/patches
           sudo sed -i 's|.*QUILT_PATCHES=.*$|QUILT_PATCHES=debian/patches|g' /etc/quilt.quiltrc
 
@@ -63,4 +65,17 @@ jobs:
           fi
           quilt push -a
           tox -e py3
-          quilt pop -a
+          quilt pop -a --refresh
+      - name: Enforce sorted patches
+        run: |
+          # Github Actions doesn't appear to have a simple mechanism for
+          # early exit without failure
+          if [ ! -f debian/patches/series ]; then
+            echo "no patches, skipping"
+            exit 0
+          fi
+          # check for any changes from the refresh above
+          if [ -n "$(git diff)" ]; then
+            # if patches were refreshed then they weren't sorted
+            exit 1
+          fi

@@ -2274,7 +2274,7 @@ scbus-1 on xpt0 bus 0
             dsrc.cfg["system_info"]["default_user"]["name"], "username1"
         )
 
-    def test_disable_password_from_imds(self):
+    def test_disable_password_from_imds_true(self):
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
             "ovfcontent": construct_ovf_env(),
@@ -2289,7 +2289,25 @@ scbus-1 on xpt0 bus 0
         self.m_fetch.return_value = imds_data_with_os_profile
         dsrc = self._get_ds(data)
         dsrc.get_data()
-        self.assertTrue(dsrc.metadata["disable_password"])
+        self.assertFalse(dsrc.cfg["ssh_pwauth"])
+
+    def test_disable_password_from_imds_false(self):
+        sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
+        data = {
+            "ovfcontent": construct_ovf_env(),
+            "sys_cfg": sys_cfg,
+            "write_ovf_to_seed_dir": False,
+        }
+        imds_data_with_os_profile = copy.deepcopy(NETWORK_METADATA)
+        imds_data_with_os_profile["compute"]["osProfile"] = dict(
+            adminUsername="username1",
+            computerName="hostname1",
+            disablePasswordAuthentication="false",
+        )
+        self.m_fetch.return_value = imds_data_with_os_profile
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+        self.assertTrue(dsrc.cfg["ssh_pwauth"])
 
     def test_userdata_from_imds(self):
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
