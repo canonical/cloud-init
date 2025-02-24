@@ -7,8 +7,15 @@ cloud-init (25.1-0ubuntu1~24.04.1) UNRELEASED; urgency=medium
     - d/p/deprecation-version-boundary.patch
     - d/p/no-single-process.patch
   * Upstream snapshot based on upstream/main at 1a9393ee.
+  * refresh patches:
+    - d/p/grub-dpkg-support.patch
+    - d/p/no-nocloud-network.patch
+    - d/p/no-single-process.patch
+  * Upstream snapshot based on 25.1.
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/25.1/ChangeLog
 
- -- Brett Holman <brett.holman@canonical.com>  Mon, 17 Feb 2025 15:52:35 -0700
+ -- Brett Holman <brett.holman@canonical.com>  Mon, 24 Feb 2025 14:28:39 -0700
 
 cloud-init (24.4.1-0ubuntu0~24.04.1) noble; urgency=medium
 
