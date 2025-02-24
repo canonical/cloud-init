@@ -72,20 +72,10 @@ class IntegrationInstance:
         self._ip = ""
 
     def destroy(self):
-        wait = True
         if isinstance(self.instance, GceInstance):
-            wait = False
-        for i in range(1, 32):
-            try:
-                self.instance.delete(wait=wait)
-                break
-            except RuntimeError:
-                log.warning("Failed to clean instance, retrying.")
-                time.sleep(i)
+            self.instance.delete(wait=False)
         else:
-            # This is just a cleanup mechanism. If we fail to clean the
-            # instance that doesn't mean that the test has actually failed.
-            log.error("Failed to clean instance")
+            self.instance.delete()
 
     def restart(self):
         """Restart this instance (via cloud mechanism) and wait for boot.
@@ -93,15 +83,16 @@ class IntegrationInstance:
         This wraps pycloudlib's `BaseInstance.restart`
         """
         log.info("Restarting instance and waiting for boot")
-        last_exception = None
-        for i in range(1, 32):
+        iter = 32
+        for i in range(iter):
             try:
                 self.instance.restart()
                 break
             except RuntimeError as e:
                 last_exception = e
-                log.warning("Failed to restart instance.")
-                time.sleep(i)
+                if i != iter - 1:
+                    log.warning("Failed to restart instance. Trying again.")
+                    time.sleep(i)
         else:
             # this is a requirement for tests, so we must fail to prevent
             # running tests in an unexpected state
