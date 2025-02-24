@@ -1,3 +1,12 @@
+cloud-init (25.1-0ubuntu2) UNRELEASED; urgency=medium
+
+  * d/control: add Azure metapackage (LP: #2098988)
+    + New Azure binary package depending on cloud-init-base and
+      python3-passlib.
+    + Adds python3-passlib dependency to the cloud-init metapackage.
+
+ -- James Falcon <james.falcon@canonical.com>  Mon, 24 Feb 2025 13:21:45 -0600
+
 cloud-init (25.1-0ubuntu1) plucky; urgency=medium
 
   * Upstream snapshot based on 25.1.
