@@ -21,7 +21,7 @@ Last-Update: 2024-04-30 <YYYY-MM-DD, last update of the meta-information, option
      if args.files:
          for fh in args.files:
              # The realpath is more useful in logging
-@@ -1051,6 +1056,17 @@ def main(sysv_args=None):
+@@ -1053,6 +1058,17 @@ def main(sysv_args=None):
          default=False,
      )
      parser.add_argument(
