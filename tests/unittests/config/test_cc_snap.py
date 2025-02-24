@@ -314,7 +314,7 @@ class TestHandle:
         cfg = {
             "snap": {"assertions": [SYSTEM_USER_ASSERTION, ACCOUNT_ASSERTION]}
         }
-        handle("snap", cfg=cfg, cloud=fake_cloud, args=None)
+        handle("snap", cfg=cfg, cloud=fake_cloud, args=[])
         content = "\n".join(cfg["snap"]["assertions"])
         util.write_file(compare_file, content.encode("utf-8"))
         assert util.load_text_file(compare_file) == util.load_text_file(

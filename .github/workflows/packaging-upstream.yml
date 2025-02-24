@@ -26,7 +26,7 @@ jobs:
         with:
           # Fetch all history for merging
           fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: main
 
       - name: Setup - install dependencies
         run: |
@@ -55,7 +55,7 @@ jobs:
             if [ ! -f debian/patches/series ]; then
               echo "no patches, skipping $BRANCH"
               # undo merge - this step is not expected to fail
-              git reset --hard ${{ github.event.pull_request.head.sha }}
+              git reset --hard origin/main
               continue
             fi
             # did patches apply cleanly?
@@ -65,5 +65,5 @@ jobs:
             # a patch didn't un-apply cleanly if this step fails
             quilt pop -a
             # undo merge - this step is not expected to fail
-            git reset --hard ${{ github.event.pull_request.head.sha }}
+            git reset --hard origin/main
           done
