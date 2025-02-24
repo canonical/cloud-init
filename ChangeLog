@@ -1,3 +1,91 @@
+25.1
+ - ci: fix post-merge packaging CI (#6038)
+ - feat(azure): Fix imds-based ssh_pwauth (#6002) [Ksenija Stanojevic]
+ - ci: check for sorted patches (#6036)
+ - feat: aliyun datasource support crawl metadata at once (#5942)
+   [jinkangkang]
+ - docs: document /usr merge breaking change (#6032)
+ - test: Add integration test for /var mounts (#6033)
+ - test: Ensure pre-24.2 custom modules work (#6034)
+ - doc: Update references to older keys (#6022) [Pedro Ribeiro]
+ - fix: untyped-defs in tests/unittests/{config, net, sources} (#6023)
+   [Romain]
+ - fix: don't reference PR in post-merged CI (#6019)
+ - chore: explicitly skip broken ansible integration tests (#5996) [a-dubs]
+ - tests(oracle): fix test_install_missing_deps apt race condition (#5996)
+   [a-dubs]
+ - test(oracle): fix test_ubuntu_drivers_installed (#5996) [a-dubs]
+ - test(oracle): fix test_frequency_override integration test (#5996)
+   [a-dubs]
+ - chore: add type hint to IntegrationCloud's cloud_instance field (#5996)
+   [a-dubs]
+ - test(oracle): fix modules/test_lxd.py::test_storage_lvm on noble (#5996)
+   [a-dubs]
+ - commit 9e591fff266be9d4c83f74ec02a717b74993304d [a-dubs]
+ - net/sysconfig: do not remove all existing settings of
+   /etc/sysconfig/network (#5991) [Ani Sinha] (GH: 5990)
+ - fix: remove wrong return when checking if network necessary (#6013)
+ - fix: typing for rsyslog, ubuntu_pro, power_state_change (#5985)
+   [MostafaTarek124eru]
+ - fix: Retry on OpenStack HTTP status codes (#5943) [weiyang] (GH: 5687)
+ - fix: Ensure fqdn is treated as string in get_hostname_fqdn (#5993)
+   [MKhatibzadeh] (GH: 5989)
+ - feat(vmware): Convert imc network config to v2 (#5937) [PengpengSun]
+ - ci: add upstream post-merge test
+ - ci: check if upstream commit causes ubuntu patch conflicts
+ - ci: organize cla tests together
+ - test: eliminate obsolete cases, add non-error case
+ - chore: remove redundant manual schema validation
+ - doc: clarify subiquity docs
+ - chore: cleanup `len' usage (#5956) [Shreenidhi Shedi]
+ - Fix: GCE _get_data crashes if DHCP lease fails (#5998) [Bryan Fraschetti]
+ - Fixes GH-5997
+ - fix: correct the path for Chef's cache (#5994)
+   [MostafaTarek124eru] (GH: 5090)
+ - fix: Run ansible with run_user instead of root for distro install_method
+   (#5986) [Amirhossein Shaerpour] (GH: 4092)
+ - fix: retry AWS hotplug for async IMDS (#5995) (GH: 5373)
+ - feat(integration_tests): add optional INSTANCE_TYPE setting (#5988)
+   [Alec Warren]
+ - feat(integration-tests): set boto3 and botocore to INFO to prevent
+   log spamming [a-dubs]
+ - ci: add 'tox -e integration-tests-fast' command [a-dubs]
+ - chore: Add feature flag for manual network waiting (#5977)
+ - Release 24.4.1
+ - fix: Use /usr/lib/ rather than /lib in packaging code (#5970)
+ - Use log_with_downgradable_level for user password warnings (#5927)
+   [Ani Sinha]
+ - doc: change to hyphenated keys (#5909) (GH: 5555)
+ - fix: Wait for udev on openstack (#5947) [Robert Schweikert] (GH: 4125)
+ - test: disambiguate resource cleanup from test failure (#5926)
+ - fix: use program name of netcat as installed by upstream, "nc" (#5933)
+   (#5933) [Andreas K. Hüttel]
+ - ci: bump canonical/setup-lxd to version v0.1.2 (#5948)
+ - feat(cc_chef): Allow change of Chef configuration file (#5925)
+   [Sean Smith]
+ - docs: fix typo in generated file in LXD tutorial (#5941) [Pavel Shpak]
+ - feat: Identify Samsung Cloud Platform as OpenStack (#5924) [us0310306]
+ - fix: don't deadlock when starting network service with systemctl (#5935)
+ - feat: Custom keys for apt archives (#5828) [Bryan Fraschetti] (GH: 5473)
+ - test: improve test initialization error path (#5920)
+ - chore: improve logging when lxd detection fails (#5919)
+ - fix: Add "manual" to allowed subnet types  (#5875)
+   [Math Marchand] (GH: 5769)
+ - fix: remove bad ssh_svcname setting for Gentoo/OpenRC (#5918)
+   [Andreas K. Hüttel]
+ - feat(gentoo): Add compatibility for Gentoo with systemd (#5918)
+   [Andreas K. Hüttel]
+ - fix(ovf): no warning should be log when rpctool found no value (#5915)
+   [PengpengSun] (GH: 5914)
+ - Move DS VMware to be in front of DS OVF (#5912) [PengpengSun] (GH: 4030)
+ - ci: Add proper 'Breaks: ' to integration testing simple deb (#5923)
+ - chore: Add akhuettel to CLA signers file (#5917) [Andreas K. Hüttel]
+ - chore: eliminate calls at import time (#5889) (GH: 5344)
+ - test: Add pyserial to test-requirements.txt (#5907)
+ - test: Allow unknown size in growpart test (#5876)
+ - doc: Update tutorials [Sally]
+ - fix: bump azure key size to 3072 (#5841)
+
 24.4.1
  - fix: Ensure _should_wait_via_user_data() handles all user data types (#5976)
  - fix: Don't log error in wait_for_url (#5972)

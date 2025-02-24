@@ -125,7 +125,7 @@ class TestMAASDataSource:
 
     def test_seed_url_valid(self, tmpdir):
         """Verify that valid seed_url is read as such."""
-        valid = {
+        valid: dict = {
             "meta-data/instance-id": "i-instanceid",
             "meta-data/local-hostname": "test-hostname",
             "meta-data/public-keys": "test-hostname",
