@@ -49,6 +49,15 @@ Description: initialization and customization tool for cloud instances
  Cloud-init with minimal dependencies, refer to cloud-init for more
  information.
 
+Package: cloud-init-azure
+Architecture: all
+Depends: cloud-init-base,
+         python3-passlib,
+         ${misc:Depends},
+Description: Azure specific cloud-init
+ This metapackage depends on cloud-init-base and additional packages for
+ Azure.
+
 Package: cloud-init-cloud-sigma
 Architecture: all
 Depends: cloud-init-base,
@@ -71,6 +80,7 @@ Package: cloud-init
 Architecture: all
 Depends: cloud-init-base,
          python3-serial,
+         python3-passlib,
          ${misc:Depends},
 Description: initialization and customization tool for cloud instances
  Cloud-init is the industry standard multi-distribution method for
