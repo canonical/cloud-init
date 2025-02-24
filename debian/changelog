@@ -12,8 +12,19 @@ cloud-init (25.1-0ubuntu1~20.04.1) UNRELEASED; urgency=medium
     - d/p/retain-netplan-world-readable.patch
     - d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
   * Upstream snapshot based on upstream/main at 1a9393ee.
+  * refresh patches:
+    - d/p/cli-retain-file-argument-as-main-cmd-arg.patch
+    - d/p/drop-unsupported-systemd-condition-environment.patch
+    - d/p/grub-dpkg-support.patch
+    - d/p/netplan99-cannot-use-default.patch
+    - d/p/no-nocloud-network.patch
+    - d/p/no-single-process.patch
+    - d/p/retain-ec2-default-net-update-events.patch
+  * Upstream snapshot based on 25.1.
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/25.1/ChangeLog
 
- -- Brett Holman <brett.holman@canonical.com>  Mon, 17 Feb 2025 15:10:27 -0700
+ -- Brett Holman <brett.holman@canonical.com>  Mon, 24 Feb 2025 10:15:22 -0700
 
 cloud-init (24.4.1-0ubuntu0~20.04.1) focal; urgency=medium
 
