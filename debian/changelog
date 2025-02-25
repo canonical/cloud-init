@@ -1,9 +1,9 @@
-cloud-init (25.1-0ubuntu2) UNRELEASED; urgency=medium
+cloud-init (25.1-0ubuntu2) plucky; urgency=medium
 
   * d/control: add python3-passlib dependency to cloud-init
     metapackage. (LP: #2098988)
 
- -- James Falcon <james.falcon@canonical.com>  Tue, 25 Feb 2025 08:14:10 -0600
+ -- James Falcon <james.falcon@canonical.com>  Tue, 25 Feb 2025 08:16:55 -0600
 
 cloud-init (25.1-0ubuntu1) plucky; urgency=medium
 
