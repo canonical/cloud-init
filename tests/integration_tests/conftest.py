@@ -483,6 +483,11 @@ def pytest_sessionstart(session) -> None:
     log.info("starting session")
     try:
         _SESSION_CLOUD = get_session_cloud()
+    except Exception as e:
+        pytest.exit(
+            f"{type(e).__name__} in session setup: {str(e)}", returncode=2
+        )
+    try:
         setup_image(_SESSION_CLOUD)
         REAPER = reaper._Reaper()
         REAPER.start()
