@@ -18,7 +18,6 @@ from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU, MANTIC
 from tests.integration_tests.util import (
     get_feature_flag_value,
     verify_clean_boot,
-    verify_clean_log,
 )
 
 logger = logging.getLogger(__name__)
@@ -548,10 +547,30 @@ def test_install_missing_deps(session_cloud: IntegrationCloud):
         launch_kwargs={"image_id": snapshot_id},
     ) as minimal_client:
         log = minimal_client.read_from_file("/var/log/cloud-init.log")
-        verify_clean_log(log)
-        verify_clean_boot(minimal_client)
         assert re.search(RE_GPG_SW_PROPERTIES_INSTALLED, log)
         gpg_installed = re.search(
             r"ii\s+gpg", minimal_client.execute("dpkg -l gpg").stdout
         )
+        software_properties_common_installed = re.search(
+            r"ii\s+software-properties-common",
+            minimal_client.execute(
+                "dpkg -l software-properties-common"
+            ).stdout,
+        )
         assert gpg_installed is not None, "gpg package is not installed."
+        assert (
+            software_properties_common_installed is not None
+        ), "software-properties-common package is not installed."
+
+        # It's a little weird that we're ignoring apt errors when testing apt,
+        # but we've already verified that we install the missing dependencies.
+        # To ensure `software-properties-common` is installed, we need to
+        # specify a ppa in our user data, and `apt update` can fail if no ppa
+        # has been uploaded for the release being tested. This isn't uncommon
+        # for the devel release and newer releases in general.
+        # Ignoring apt update errors seems preferrable to playing whack-a-mole
+        # with ppas that may or may not be available.
+        verify_clean_boot(
+            minimal_client,
+            ignore_errors=["Failed to update package using apt"],
+        )
