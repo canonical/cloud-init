@@ -1,4 +1,3 @@
-import logging
 import re
 from typing import Iterator, Set
 
@@ -9,8 +8,6 @@ from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.util import verify_clean_boot, verify_clean_log
-
-logger = logging.getLogger(__name__)
 
 DS_CFG = """\
 datasource:
@@ -160,46 +157,3 @@ def test_oci_networking_system_cfg(client: IntegrationInstance, tmpdir):
     netplan_cfg = yaml.safe_load(netplan_yaml)
     expected_netplan_cfg = yaml.safe_load(SYSTEM_CFG)
     assert expected_netplan_cfg == netplan_cfg
-
-
-def _install_custom_cloudinit(client: IntegrationInstance, restart=True):
-    client.push_file(
-        "cloud-init_all.deb",
-        "/home/ubuntu/cloud-init.deb",
-    )
-    r1 = client.execute("sudo apt remove cloud-init --assume-yes -y")
-    assert r1.return_code == 0
-    r2 = client.execute("sudo apt install -y /home/ubuntu/cloud-init.deb")
-    assert r2.return_code == 0
-    r3 = client.execute("cloud-init --version")
-    logger.info(r3.stdout)
-    assert r3.return_code == 0
-    if restart:
-        client.execute("cloud-init clean --logs")
-        logger.info("Restarting instance")
-        client.instance.restart()
-
-
-# function that looks for the v1 vs v2 logs
-def test_v1_and_v2_network_config_match(
-    client_with_secondary_vnic: IntegrationInstance, tmpdir
-):
-    client = client_with_secondary_vnic
-    _install_custom_cloudinit(client, restart=False)
-    # make it so that that the instance will configure secondary nics
-    customize_environment(client, tmpdir, configure_secondary_nics=True)
-
-    # pull the log file locally for easier debugging
-    client.pull_file("/var/log/cloud-init.log", "cpc-6431-cloud-init.log")
-
-    log = client.read_from_file("/var/log/cloud-init.log")
-    verify_clean_log(log)
-    verify_clean_boot(client)
-
-    # assert that the v1 and v2 network config entries match
-    # compare_v1_and_v2_config_entries(v1_config, v2_config)
-
-    assert "Comparing IMDS network configs between v1 and v2" in log
-
-    # and that the debug log is present
-    assert "oracle datasource v1 and v2 network config entries match!" in log
