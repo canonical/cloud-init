@@ -2,17 +2,16 @@
 
 import base64
 import copy
-import difflib
 import json
 import logging
 from itertools import count
-from pprint import pformat
 from typing import Optional
 from unittest import mock
 
 import pytest
 import responses
 import yaml
+from deepdiff import DeepDiff
 
 from cloudinit.net import netplan, network_state
 from cloudinit.sources import DataSourceOracle as oracle
@@ -470,7 +469,7 @@ class TestNetworkConfigFromOpcImds:
         with mock.patch(
             f"{DS_PATH}.get_interfaces_by_mac",
             return_value={
-                "02:00:17:05:d1:db": "ens3",
+                "02:00:17:05:d1:db": "eth_0",
                 "00:00:17:02:2b:b1": "ens4",
             },
         ):
@@ -480,8 +479,8 @@ class TestNetworkConfigFromOpcImds:
 
         nic_cfg = oracle_ds.network_config["ethernets"]
         if set_primary:
-            assert "ens3" in nic_cfg
-            primary_cfg = nic_cfg["ens3"]
+            assert "eth_0" in nic_cfg
+            primary_cfg = nic_cfg["eth_0"]
 
             assert primary_cfg.get("dhcp4")
             assert not primary_cfg.get("dhcp6")
@@ -514,7 +513,7 @@ class TestNetworkConfigFromOpcImds:
         with mock.patch(
             f"{DS_PATH}.get_interfaces_by_mac",
             return_value={
-                "02:00:17:0d:6b:be": "ens3",
+                "02:00:17:0d:6b:be": "eth_0",
                 "02:00:17:18:f6:ff": "ens4",
             },
         ):
@@ -524,8 +523,8 @@ class TestNetworkConfigFromOpcImds:
 
         nic_cfg = oracle_ds.network_config["ethernets"]
         if set_primary:
-            assert "ens3" in nic_cfg
-            primary_cfg = nic_cfg["ens3"]
+            assert "eth_0" in nic_cfg
+            primary_cfg = nic_cfg["eth_0"]
 
             assert not primary_cfg.get("dhcp4")
             assert primary_cfg.get("dhcp6")
@@ -625,20 +624,20 @@ class TestNetworkConfigFiltersNetFailover:
         "nic_name, netcfg, netfail_master_return, call_args_list",
         [
             pytest.param(
-                "ens3",
+                "eth_0",
                 {
                     "version": 1,
                     "config": [
                         {
                             "type": "physical",
-                            "name": "ens3",
+                            "name": "eth_0",
                             "mac_address": MAC_ADDR,
                             "subnets": [{"type": "dhcp4"}],
                         }
                     ],
                 },
                 False,
-                [mock.call("ens3")],
+                [mock.call("eth_0")],
                 id="checks_v1_type_physical_interfaces",
             ),
             pytest.param(
@@ -659,20 +658,20 @@ class TestNetworkConfigFiltersNetFailover:
                 id="skips_v1_non_phys_interfaces",
             ),
             pytest.param(
-                "ens3",
+                "eth_0",
                 {
                     "version": 2,
                     "ethernets": {
-                        "ens3": {
+                        "eth_0": {
                             "dhcp4": True,
                             "critical": True,
-                            "set-name": "ens3",
+                            "set-name": "eth_0",
                             "match": {"macaddress": MAC_ADDR},
                         }
                     },
                 },
                 False,
-                [mock.call("ens3")],
+                [mock.call("eth_0")],
                 id="checks_v2_type_ethernet_interfaces",
             ),
             pytest.param(
@@ -716,7 +715,7 @@ class TestNetworkConfigFiltersNetFailover:
     def test_removes_master_mac_property_v1(
         self, m_netfail_master, m_get_interfaces_by_mac
     ):
-        nic_master, mac_master = "ens3", test_helpers.random_string()
+        nic_master, mac_master = "eth_0", test_helpers.random_string()
         nic_other, mac_other = "ens7", test_helpers.random_string()
         nic_extra, mac_extra = "enp0s1f2", test_helpers.random_string()
         m_get_interfaces_by_mac.return_value = {
@@ -746,7 +745,7 @@ class TestNetworkConfigFiltersNetFailover:
         }
 
         def _is_netfail_master(iface):
-            if iface == "ens3":
+            if iface == "eth_0":
                 return True
             return False
 
@@ -773,7 +772,7 @@ class TestNetworkConfigFiltersNetFailover:
     def test_removes_master_mac_property_v2(
         self, m_netfail_master, m_get_interfaces_by_mac
     ):
-        nic_master, mac_master = "ens3", test_helpers.random_string()
+        nic_master, mac_master = "eth_0", test_helpers.random_string()
         nic_other, mac_other = "ens7", test_helpers.random_string()
         nic_extra, mac_extra = "enp0s1f2", test_helpers.random_string()
         m_get_interfaces_by_mac.return_value = {
@@ -803,7 +802,7 @@ class TestNetworkConfigFiltersNetFailover:
         }
 
         def _is_netfail_master(iface):
-            if iface == "ens3":
+            if iface == "eth_0":
                 return True
             return False
 
@@ -1412,7 +1411,7 @@ class TestPerformDHCPSetup:
 
 @mock.patch(DS_PATH + ".get_interfaces_by_mac", return_value={})
 class TestNetworkConfig:
-    
+
     # set as iscsi root
     @pytest.mark.is_iscsi(True)
     def test_network_config_cached(self, m_get_interfaces_by_mac, oracle_ds):
@@ -1561,8 +1560,6 @@ class TestNetworkConfig:
             f"Interface with MAC {MAC_ADDR} not found; skipping"
         ) in caplog.text
 
-    # @pytest.mark.parametrize("set_primary", [True, False])
-    # @pytest.mark.parametrize("use_ipv6", [True, False])
     @pytest.mark.parametrize(
         [
             "set_primary",
@@ -1570,10 +1567,6 @@ class TestNetworkConfig:
             "secondary_mac_present",
         ],
         [
-            # pytest.param(True, True, id="ipv6 vnics setting primary"),
-            # pytest.param(False, True, id="ipv6 vnics not setting primary"),
-            # pytest.param(True, False, id="ipv4 vnics setting primary"),
-            # pytest.param(False, False, id="ipv4 vnics not setting primary"),
             pytest.param(
                 True,
                 True,
@@ -1634,16 +1627,6 @@ class TestNetworkConfig:
                 },
             )
         mocker.patch.object(oracle_ds, "_vnics_data", vnics_data)
-        mocker.patch.object(
-            oracle_ds,
-            "metadata_address",
-            ipv6_v1_instance_url if use_ipv6 else ipv4_v1_instance_url,
-        )
-
-        # assert that oracle_ds.metadata_address is set correctly
-        assert oracle_ds.metadata_address == (
-            ipv6_v1_instance_url if use_ipv6 else ipv4_v1_instance_url
-        )
 
         oracle_ds._add_network_config_from_opc_imds(set_primary)
         num_configs_expected = 1 + int(secondary_mac_present)
@@ -1725,11 +1708,7 @@ class TestHelpers:
 
 ###############################################################################
 ###############################################################################
-###############################################################################
-###############################################################################
 ##################### NETPLAN V2 MIGRATION TESTING BELOW ######################
-###############################################################################
-###############################################################################
 ###############################################################################
 ###############################################################################
 
@@ -1746,40 +1725,43 @@ def move_version_to_beggining_of_nteplan_yaml_str(yaml_str: str) -> str:
 logger = logging.getLogger(__name__)
 
 
-def compare_v1_and_v2_config_entries(v1_config, v2_config):
-    v1_network_state = network_state.parse_net_config_data(
-        v1_config, renderer=netplan.Renderer
-    )
-    v2_network_state = network_state.parse_net_config_data(
-        v2_config, renderer=netplan.Renderer
-    )
-    v1_rendered_string = netplan.Renderer()._render_content(v1_network_state)
-    v2_rendered_string = netplan.Renderer()._render_content(v2_network_state)
-    v1_rendered_string = move_version_to_beggining_of_nteplan_yaml_str(
-        yaml_str=v1_rendered_string,
-    )
-    v2_rendered_string = move_version_to_beggining_of_nteplan_yaml_str(
-        yaml_str=v2_rendered_string,
-    )
-    logger.debug("v1:\n%s\n\n%s", pformat(v1_config), v1_rendered_string)
-    logger.debug("v2:\n%s\n\n%s", pformat(v2_config), v2_rendered_string)
+def compare_netplan_configs(
+    config_a: Optional[dict] = None,
+    rendered_string_a: Optional[str] = None,
+    config_b: Optional[dict] = None,
+    rendered_string_b: Optional[str] = None,
+):
+    if not rendered_string_a:
+        if not config_a:
+            raise ValueError("config_a or rendered_string_a must be provided")
+        network_state_a = network_state.parse_net_config_data(
+            config_a, renderer=netplan.Renderer  # type: ignore
+        )
+        rendered_string_a = netplan.Renderer()._render_content(
+            network_state_a,
+        )
+    if not rendered_string_b:
+        if not config_b:
+            raise ValueError("config_b or rendered_string_b must be provided")
+        network_state_b = network_state.parse_net_config_data(
+            config_b, renderer=netplan.Renderer  # type: ignore
+        )
+        rendered_string_b = netplan.Renderer()._render_content(
+            network_state_b,
+        )
 
-    if yaml.safe_load(v1_rendered_string) != yaml.safe_load(
-        v2_rendered_string
-    ):
-        diff = difflib.unified_diff(
-            v1_rendered_string.splitlines(),
-            v2_rendered_string.splitlines(),
-            lineterm="",
-        )
-        logger.warning(
-            "oracle datasource v1 and v2 network config entries do not match! "
-            "diff:\n%s",
-            "\n".join(diff),
-        )
+    diff = DeepDiff(
+        yaml.safe_load(rendered_string_a),
+        yaml.safe_load(rendered_string_b),
+        ignore_order=True,
+    )
+
+    if diff:
+        logger.debug("network config entries do not match!")
+        logger.debug(diff)
         return False
 
-    logger.debug("oracle datasource v1 and v2 network config entries match!")
+    logger.debug("network config entries match!")
     return True
 
 
@@ -1799,58 +1781,12 @@ DUMMY_V1_CONFIG = {
 
 
 class TestNetplanV2Helpers:
-    def test_move_version_to_beggining_of_nteplan_yaml_str(self):
-        # Create a YAML string with the version: line not at beginning.
-        original_yaml = "\n".join(
-            [
-                "network:",
-                "    ethernets:",
-                "        eth0:",
-                "            dhcp4: true",
-                "    version: 2",
-            ]
-        )
-        modified_yaml = move_version_to_beggining_of_nteplan_yaml_str(
-            original_yaml
-        )
-        lines = modified_yaml.split("\n")
-        # Assert the "version:" line is now on the second line.
-        assert "version:" in lines[1]
-        # Also check that all parts of the original string are present.
-        for part in ["network:", "ethernets:", "eth0:", "dhcp4: true"]:
-            assert part in modified_yaml
-
-    @pytest.mark.parametrize(
-        "v1_config, v2_config, expected_result",
-        [
-            pytest.param(
-                DUMMY_V1_CONFIG,
-                convert_v1_netplan_to_v2(DUMMY_V1_CONFIG),
-                True,
-                id="matching_configs",
-            ),
-            pytest.param(
-                DUMMY_V1_CONFIG,
-                {
-                    **convert_v1_netplan_to_v2(DUMMY_V1_CONFIG),
-                    "ethernets": {"eth0": {"dhcp4": True}},
-                },
-                False,
-                id="mismatched_configs",
-            ),
-        ],
-    )
-    def test_compare_v1_and_v2_config_entries(
-        self, v1_config, v2_config, expected_result
-    ):
-        result = compare_v1_and_v2_config_entries(v1_config, v2_config)
-        assert result == expected_result
-
     def test_convert_v1_netplan_to_v2(self):
         converted = convert_v1_netplan_to_v2(DUMMY_V1_CONFIG)
         # Assert the result is a dict.
         assert isinstance(converted, dict)
-        # When v1 config is without "network" key, conversion returns the inner config.
+        # When v1 config is without "network" key,
+        # conversion returns the inner config.
         # Assert that the converted config has key "ethernets"
         if "ethernets" in converted:
             eths = converted["ethernets"]
@@ -1904,3 +1840,177 @@ class TestNetplanV2Helpers:
 
                 result = convert_v1_netplan_to_v2(mock_input)
                 assert result == {"network": mock_output}
+
+
+##############################################################################
+## Validating neplan v1 vs v2
+##############################################################################
+
+
+# VNIC Data:
+ipv6_only_single_nic_imds_data = [
+    {
+        "ipv6Addresses": ["2603:c020:400d:5d7e:193:941a:fd48:f87f"],
+        "ipv6SubnetCidrBlock": "2603:c020:400d:5d7e::/64",
+        "ipv6VirtualRouterIp": "fe80::200:17ff:fe40:8972",
+        "macAddr": "01:23:45:67:89:ab",
+        "vlanTag": 648,
+        "vnicId": "ocid1.vnic.oc1.iad.TRUNCATED",
+    }
+]
+
+# Netplan Config:
+ipv6_only_single_nic_netplan_output = """
+network:
+    version: 2
+    ethernets:
+        eth_0:
+            match:
+                macaddress: "01:23:45:67:89:ab"
+            dhcp6: true
+            set-name: "eth_0"
+            mtu: 9000
+""".strip()
+
+interfaces_by_mac = {
+    "01:23:45:67:89:ab": "eth_0",
+    "ba:98:76:54:32:10": "eth_1",
+}
+
+
+ipv6_2_imds_data = [
+    {
+        "ipv6Addresses": ["2603:c020:400d:5d7e:193:941a:fd48:f87f"],
+        "ipv6SubnetCidrBlock": "2603:c020:400d:5d7e::/64",
+        "ipv6VirtualRouterIp": "fe80::200:17ff:fe40:8972",
+        "macAddr": "01:23:45:67:89:ab",
+        "vlanTag": 648,
+        "vnicId": "ocid1.vnic.oc1.iad.TRUNCATED",
+    },
+    {
+        "ipv6Addresses": ["2603:c020:400d:5d7e:6965:bd73:547:5a29"],
+        "ipv6SubnetCidrBlock": "2603:c020:400d:5d7e::/64",
+        "ipv6VirtualRouterIp": "fe80::200:17ff:fe40:8972",
+        "macAddr": "ba:98:76:54:32:10",
+        "subnetCidrBlock": "\u003cnull\u003e",
+        "vlanTag": 1368,
+        "vnicId": "ocid1.vnic.oc1.iad.TRUNCATED",
+    },
+]
+
+ipv6_2_netplan = """
+network:
+    version: 2
+    ethernets:
+        eth_0:
+            match:
+                macaddress: "01:23:45:67:89:ab"
+            dhcp6: true
+            set-name: "eth_0"
+            mtu: 9000
+        eth_1:
+            match:
+                macaddress: "ba:98:76:54:32:10"
+            addresses:
+                - "2603:c020:400d:5d7e:6965:bd73:547:5a29/128"
+            set-name: "eth_1"
+            mtu: 9000
+""".strip()
+
+
+dual_stack_2_nics_imds_data = [
+    {
+        "ipv6Addresses": ["2603:c020:400d:5dbb:ca1d:a563:5e98:719e"],
+        "ipv6SubnetCidrBlock": "2603:c020:400d:5dbb::/64",
+        "ipv6VirtualRouterIp": "fe80::200:17ff:fe40:8972",
+        "macAddr": "01:23:45:67:89:ab",
+        "privateIp": "10.0.0.198",
+        "subnetCidrBlock": "10.0.0.0/24",
+        "virtualRouterIp": "10.0.0.1",
+        "vlanTag": 1844,
+        "vnicId": "ocid1.vnic.oc1.iad.TRUNCATED",
+    },
+    {
+        "ipv6Addresses": ["2603:c020:400d:5d69:5760:f787:1044:cdb2"],
+        "ipv6SubnetCidrBlock": "2603:c020:400d:5d69::/64",
+        "ipv6VirtualRouterIp": "fe80::200:17ff:fe40:8972",
+        "macAddr": "ba:98:76:54:32:10",
+        "privateIp": "10.0.1.69",
+        "subnetCidrBlock": "10.0.1.0/24",
+        "virtualRouterIp": "10.0.1.1",
+        "vlanTag": 473,
+        "vnicId": "ocid1.vnic.oc1.iad.TRUNCATED",
+    },
+]
+
+dual_stack_2_nics_netplan = """
+network:
+    version: 2
+    ethernets:
+        eth_0:
+            match:
+                macaddress: "01:23:45:67:89:ab"
+            dhcp4: true
+            set-name: "eth_0"
+            mtu: 9000
+        eth_1:
+            match:
+                macaddress: "ba:98:76:54:32:10"
+            addresses:
+                - "10.0.1.69/24"
+                - "2603:c020:400d:5d69:5760:f787:1044:cdb2/24"
+            set-name: "eth_1"
+            mtu: 9000
+""".strip()
+
+
+@mock.patch(
+    DS_PATH + ".get_interfaces_by_mac",
+    return_value=interfaces_by_mac,
+)
+class TestOracleV1toV2NetplanMigration:
+    @pytest.mark.ds_sys_cfg(
+        {"datasource": {"Oracle": {"configure_secondary_nics": True}}}
+    )
+    @pytest.mark.parametrize(
+        [
+            "vnics_data",
+            "converted_v2_output",
+            "set_primary",
+        ],
+        [
+            pytest.param(
+                ipv6_only_single_nic_imds_data,
+                ipv6_only_single_nic_netplan_output,
+                True,
+                id="ipv6_only_single_nic",
+            ),
+            pytest.param(
+                ipv6_2_imds_data,
+                ipv6_2_netplan,
+                True,
+                id="ipv6_2_nics",
+            ),
+            pytest.param(
+                dual_stack_2_nics_imds_data,
+                dual_stack_2_nics_netplan,
+                True,
+                id="dual_stack_2_nics",
+            ),
+        ],
+    )
+    def test_imds_netplan_v2_config_creation_matches_existing(
+        self,
+        m_get_interfaces_by_mac,
+        vnics_data: dict,
+        converted_v2_output: str,
+        set_primary: bool,
+        oracle_ds,
+        mocker,
+    ):
+        mocker.patch.object(oracle_ds, "_vnics_data", vnics_data)
+        oracle_ds._add_network_config_from_opc_imds(set_primary)
+        assert compare_netplan_configs(
+            config_a=oracle_ds.network_config,
+            rendered_string_b=converted_v2_output,
+        )

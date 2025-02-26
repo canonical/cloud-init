@@ -14,12 +14,10 @@ Notes:
 """
 
 import base64
-import difflib
 import ipaddress
 import json
 import logging
 import time
-from pprint import pformat
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 import yaml
@@ -279,7 +277,13 @@ class DataSourceOracle(sources.DataSource):
         return sources.normalize_pubkey_data(self.metadata.get("public_keys"))
 
     def _is_iscsi_root(self) -> bool:
-        """Return whether we are on a iscsi machine."""
+        """
+        Return whether we are on a iscsi machine.
+
+        On Ubuntu, if networking is retrieved from DHCP server in initramfs,
+        which is required in order to boot from an ISCSI block device, then
+        these files will exist.
+        """
         return self._network_config_source.is_applicable()
 
     def _get_iscsi_config_v1(self) -> dict:
@@ -366,20 +370,20 @@ class DataSourceOracle(sources.DataSource):
 
         vnics_data = self._vnics_data if set_primary else self._vnics_data[1:]
 
-        # If the metadata address is an IPv6 address
-
         for index, vnic_dict in enumerate(vnics_data):
             is_primary = set_primary and index == 0
             mac_address = vnic_dict["macAddr"].lower()
-            is_ipv6_only = vnic_dict.get(
-                "ipv6SubnetCidrBlock", False
-            ) and not vnic_dict.get("privateIp", False)
             if mac_address not in interfaces_by_mac:
                 LOG.warning(
                     "Interface with MAC %s not found; skipping",
                     mac_address,
                 )
                 continue
+
+            is_ipv6_only = vnic_dict.get(
+                "ipv6SubnetCidrBlock", False
+            ) and not vnic_dict.get("privateIp", False)
+
             name = interfaces_by_mac[mac_address]
             if is_ipv6_only:
                 network = ipaddress.ip_network(
@@ -423,7 +427,7 @@ def convert_v1_netplan_to_v2(network_config: dict) -> dict:
     if has_base_network_key:
         network_config = network_config["network"]
     v1_network_state = network_state.parse_net_config_data(
-        network_config, renderer=netplan.Renderer
+        network_config, renderer=netplan.Renderer  # type: ignore
     )
     netplan_v2_yaml_string = netplan.Renderer()._render_content(
         v1_network_state
