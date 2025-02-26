@@ -156,7 +156,7 @@ class ReportableErrorImdsInvalidMetadata(ReportableError):
         super().__init__(f"invalid IMDS metadata for key={key}")
 
         self.supporting_data["key"] = key
-        self.supporting_data["value"] = repr(value)
+        self.supporting_data["value"] = value
 
 
 class ReportableErrorImdsMetadataParsingException(ReportableError):
