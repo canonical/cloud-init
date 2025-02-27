@@ -20,6 +20,8 @@ import logging
 import time
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
+import yaml
+
 from cloudinit import atomic_helper, dmi, net, sources, util
 from cloudinit.distros.networking import NetworkConfig
 from cloudinit.net import (
@@ -27,6 +29,8 @@ from cloudinit.net import (
     ephemeral,
     get_interfaces_by_mac,
     is_netfail_master,
+    netplan,
+    network_state,
 )
 from cloudinit.url_helper import wait_for_url
 
@@ -149,7 +153,7 @@ class DataSourceOracle(sources.DataSource):
             ]
         )
         self._network_config_source = KlibcOracleNetworkConfigSource()
-        self._network_config: dict = {"config": [], "version": 1}
+        self._network_config: dict = {"ethernets": {}, "version": 2}
 
         url_params = self.get_url_params()
         self.url_max_wait = url_params.max_wait_seconds
@@ -166,10 +170,10 @@ class DataSourceOracle(sources.DataSource):
                 KlibcOracleNetworkConfigSource(),
             )
         if not hasattr(self, "_network_config"):
-            self._network_config = {"config": [], "version": 1}
+            self._network_config = {"ethernets": {}, "version": 2}
 
     def _has_network_config(self) -> bool:
-        return bool(self._network_config.get("config", []))
+        return bool(self._network_config.get("ethernets", {}))
 
     @staticmethod
     def ds_detect() -> bool:
@@ -273,11 +277,20 @@ class DataSourceOracle(sources.DataSource):
         return sources.normalize_pubkey_data(self.metadata.get("public_keys"))
 
     def _is_iscsi_root(self) -> bool:
-        """Return whether we are on a iscsi machine."""
+        """
+        Return whether we are on a iscsi machine.
+
+        On Ubuntu, if networking is retrieved from DHCP server in initramfs,
+        which is required in order to boot from an ISCSI block device, then
+        these files will exist.
+        """
         return self._network_config_source.is_applicable()
 
-    def _get_iscsi_config(self) -> dict:
+    def _get_iscsi_config_v1(self) -> dict:
         return self._network_config_source.render_config()
+
+    def _get_iscsi_config(self) -> dict:
+        return convert_v1_netplan_to_v2(self._get_iscsi_config_v1())
 
     @property
     def network_config(self):
@@ -293,7 +306,6 @@ class DataSourceOracle(sources.DataSource):
             return self._network_config
 
         set_primary = False
-        # this is v1
         if self._is_iscsi_root():
             self._network_config = self._get_iscsi_config()
         if not self._has_network_config():
@@ -358,20 +370,20 @@ class DataSourceOracle(sources.DataSource):
 
         vnics_data = self._vnics_data if set_primary else self._vnics_data[1:]
 
-        # If the metadata address is an IPv6 address
-
         for index, vnic_dict in enumerate(vnics_data):
             is_primary = set_primary and index == 0
             mac_address = vnic_dict["macAddr"].lower()
-            is_ipv6_only = vnic_dict.get(
-                "ipv6SubnetCidrBlock", False
-            ) and not vnic_dict.get("privateIp", False)
             if mac_address not in interfaces_by_mac:
                 LOG.warning(
                     "Interface with MAC %s not found; skipping",
                     mac_address,
                 )
                 continue
+
+            is_ipv6_only = vnic_dict.get(
+                "ipv6SubnetCidrBlock", False
+            ) and not vnic_dict.get("privateIp", False)
+
             name = interfaces_by_mac[mac_address]
             if is_ipv6_only:
                 network = ipaddress.ip_network(
@@ -380,75 +392,54 @@ class DataSourceOracle(sources.DataSource):
             else:
                 network = ipaddress.ip_network(vnic_dict["subnetCidrBlock"])
 
-            if self._network_config["version"] == 1:
-                if is_primary:
-                    if is_ipv6_only:
-                        subnets = [{"type": "dhcp6"}]
-                    else:
-                        subnets = [{"type": "dhcp"}]
-                else:
-                    subnets = []
-                    if vnic_dict.get("privateIp"):
-                        subnets.append(
-                            {
-                                "type": "static",
-                                "address": (
-                                    f"{vnic_dict['privateIp']}/"
-                                    f"{network.prefixlen}"
-                                ),
-                            }
-                        )
-                    if vnic_dict.get("ipv6Addresses"):
-                        subnets.append(
-                            {
-                                "type": "static",
-                                "address": (
-                                    f"{vnic_dict['ipv6Addresses'][0]}/"
-                                    f"{network.prefixlen}"
-                                ),
-                            }
-                        )
-                interface_config = {
-                    "name": name,
-                    "type": "physical",
-                    "mac_address": mac_address,
-                    "mtu": MTU,
-                    "subnets": subnets,
-                }
-                self._network_config["config"].append(interface_config)
-            elif self._network_config["version"] == 2:
-                # Why does this elif exist???
-                # Are there plans to switch to v2?
-                interface_config = {
-                    "mtu": MTU,
-                    "match": {"macaddress": mac_address},
-                }
-                self._network_config["ethernets"][name] = interface_config
+            interface_config = {
+                "mtu": MTU,
+                "match": {"macaddress": mac_address},
+                "set-name": name,
+            }
+            self._network_config["ethernets"][name] = interface_config
 
-                interface_config["dhcp6"] = is_primary and is_ipv6_only
-                interface_config["dhcp4"] = is_primary and not is_ipv6_only
-                if not is_primary:
-                    interface_config["addresses"] = []
-                    if vnic_dict.get("privateIp"):
-                        interface_config["addresses"].append(
-                            f"{vnic_dict['privateIp']}/{network.prefixlen}"
-                        )
-                    if vnic_dict.get("ipv6Addresses"):
-                        interface_config["addresses"].append(
-                            f"{vnic_dict['ipv6Addresses'][0]}/"
-                            f"{network.prefixlen}"
-                        )
-                self._network_config["ethernets"][name] = interface_config
+            if is_primary and is_ipv6_only:
+                interface_config["dhcp6"] = True
+            elif is_primary and not is_ipv6_only:
+                interface_config["dhcp4"] = True
+
+            if not is_primary:
+                interface_config["addresses"] = []
+                if vnic_dict.get("privateIp"):
+                    interface_config["addresses"].append(
+                        f"{vnic_dict['privateIp']}/{network.prefixlen}"
+                    )
+                if vnic_dict.get("ipv6Addresses"):
+                    interface_config["addresses"].append(
+                        f"{vnic_dict['ipv6Addresses'][0]}/"
+                        f"{network.prefixlen}"
+                    )
+            self._network_config["ethernets"][name] = interface_config
 
 
 class DataSourceOracleNet(DataSourceOracle):
     perform_dhcp_setup = False
 
 
-def _is_ipv4_metadata_url(metadata_address: str):
-    if not metadata_address:
-        return False
-    return metadata_address.startswith(IPV4_METADATA_ROOT.split("opc")[0])
+def convert_v1_netplan_to_v2(network_config: dict) -> dict:
+    has_base_network_key = "network" in network_config
+    if has_base_network_key:
+        network_config = network_config["network"]
+    v1_network_state = network_state.parse_net_config_data(
+        network_config, renderer=netplan.Renderer  # type: ignore
+    )
+    netplan_v2_yaml_string = netplan.Renderer()._render_content(
+        v1_network_state
+    )
+    netplan_v2_dict = yaml.safe_load(netplan_v2_yaml_string)
+    if has_base_network_key:
+        if "network" not in netplan_v2_dict:
+            netplan_v2_dict = {"network": netplan_v2_dict}
+    if not has_base_network_key:
+        if "network" in netplan_v2_dict:
+            netplan_v2_dict = netplan_v2_dict["network"]
+    return netplan_v2_dict
 
 
 def _read_system_uuid() -> Optional[str]:
