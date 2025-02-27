@@ -1706,22 +1706,6 @@ class TestHelpers:
             )
 
 
-###############################################################################
-###############################################################################
-##################### NETPLAN V2 MIGRATION TESTING BELOW ######################
-###############################################################################
-###############################################################################
-
-
-def move_version_to_beggining_of_nteplan_yaml_str(yaml_str: str) -> str:
-    version_line = [
-        line for line in yaml_str.split("\n") if "version:" in line
-    ][0]
-    lines = [line for line in yaml_str.split("\n") if "version:" not in line]
-    lines.insert(1, version_line)
-    return "\n".join(lines)
-
-
 logger = logging.getLogger(__name__)
 
 
@@ -1842,12 +1826,6 @@ class TestNetplanV2Helpers:
                 assert result == {"network": mock_output}
 
 
-##############################################################################
-## Validating neplan v1 vs v2
-##############################################################################
-
-
-# VNIC Data:
 ipv6_only_single_nic_imds_data = [
     {
         "ipv6Addresses": ["2603:c020:400d:5d7e:193:941a:fd48:f87f"],
@@ -1859,7 +1837,6 @@ ipv6_only_single_nic_imds_data = [
     }
 ]
 
-# Netplan Config:
 ipv6_only_single_nic_netplan_output = """
 network:
     version: 2
@@ -1871,12 +1848,6 @@ network:
             set-name: "eth_0"
             mtu: 9000
 """.strip()
-
-interfaces_by_mac = {
-    "01:23:45:67:89:ab": "eth_0",
-    "ba:98:76:54:32:10": "eth_1",
-}
-
 
 ipv6_2_imds_data = [
     {
@@ -1916,7 +1887,6 @@ network:
             set-name: "eth_1"
             mtu: 9000
 """.strip()
-
 
 dual_stack_2_nics_imds_data = [
     {
@@ -1962,6 +1932,11 @@ network:
             set-name: "eth_1"
             mtu: 9000
 """.strip()
+
+interfaces_by_mac = {
+    "01:23:45:67:89:ab": "eth_0",
+    "ba:98:76:54:32:10": "eth_1",
+}
 
 
 @mock.patch(
