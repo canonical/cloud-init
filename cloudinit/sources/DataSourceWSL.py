@@ -220,7 +220,7 @@ def load_instance_metadata(
 
 
 def load_ubuntu_pro_data(
-    user_home: PurePath,
+    user_home: PurePath, instance_id: str
 ) -> Tuple[Optional[ConfigData], Optional[ConfigData]]:
     """
     Read .ubuntupro user-data if present and return a tuple of agent and
@@ -241,12 +241,12 @@ def load_ubuntu_pro_data(
             landscape_path,
             cloud_init_data_dir(user_home),
         )
-        landscape_data = ConfigData(landscape_path)
+        landscape_data = ConfigData(landscape_path, instance_id)
 
     agent_path = PurePath(os.path.join(pro_dir, AGENT_DATA_FILE))
     agent_data = None
     if os.path.isfile(agent_path):
-        agent_data = ConfigData(agent_path)
+        agent_data = ConfigData(agent_path, instance_id)
 
     return agent_data, landscape_data
 
@@ -420,14 +420,15 @@ class DataSourceWSL(sources.DataSource):
             LOG.error("Unable to load metadata: %s", str(err))
             return False
 
+        iid = self.metadata["instance-id"]
         # # Load Ubuntu Pro configs only on Ubuntu distros
         if self.distro.name == "ubuntu":
-            agent_data, user_data = load_ubuntu_pro_data(user_home)
+            agent_data, user_data = load_ubuntu_pro_data(user_home, iid)
 
         # Load regular user configs
         try:
             if user_data is None and seed_dir is not None:
-                user_data = ConfigData(self.find_user_data_file(seed_dir))
+                user_data = ConfigData(self.find_user_data_file(seed_dir), iid)
 
         except (ValueError, IOError) as err:
             log = LOG.info if agent_data else LOG.error
