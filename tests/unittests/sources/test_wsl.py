@@ -225,7 +225,9 @@ class TestWSLHelperFunctions:
     ):
         """meta-data file is optional. Errors are raised on invalid content."""
         if md_content is not None:
-            tmpdir.join("myinstance.meta-data").write(md_content)
+            dir = tmpdir.join(".cloud-init")
+            dir.mkdir()
+            dir.join("myinstance.meta-data").write(md_content)
         with caplog.at_level(logging.WARNING):
             with raises:
                 assert md_expected == wsl.load_instance_metadata(

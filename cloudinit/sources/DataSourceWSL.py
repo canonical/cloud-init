@@ -186,31 +186,46 @@ class ConfigData:
         self.raw = "#cloud-config\n%s" % yaml.dump(self.config_dict).strip()
 
 
-def load_instance_metadata(
-    cloudinitdir: Optional[PurePath], instance_name: str
-) -> dict:
+def _load_metadata(metadata_path: PurePath) -> Optional[dict]:
     """
-    Returns the relevant metadata loaded from cloudinit dir based on the
-    instance name
+    Returns the relevant metadata loaded from the supplied metadata_path.
     """
-    metadata = {"instance-id": DEFAULT_INSTANCE_ID}
-    if cloudinitdir is None:
-        return metadata
-    metadata_path = os.path.join(
-        cloudinitdir.as_posix(), "%s.meta-data" % instance_name
-    )
-
+    metadata = None
     try:
-        metadata = util.load_yaml(util.load_text_file(metadata_path))
+        metadata = util.load_yaml(
+            util.load_text_file(metadata_path), default=""
+        )
     except FileNotFoundError:
         LOG.debug(
             "No instance metadata found at %s. Using default instance-id.",
             metadata_path,
         )
+
+    return metadata
+
+
+def load_instance_metadata(user_home: PurePath, instance_name: str) -> dict:
+    """
+    Returns the relevant metadata loaded from either the Ubuntu Pro dir
+    or the user cloud-int dir based on the instance name
+    """
+    metadata = {"instance-id": DEFAULT_INSTANCE_ID}
+    pro_dir = cloud_init_data_dir(user_home / ".ubuntupro")
+    user_dir = cloud_init_data_dir(user_home)
+    candidates = [dir for dir in [pro_dir, user_dir] if dir is not None]
+    found_at = ""
+    for dir in candidates:
+        path = dir / ("%s.meta-data" % instance_name)
+        dt = _load_metadata(path)
+        if dt is not None:
+            metadata = dt
+            found_at = path.as_posix()
+            break
+
     if not metadata or "instance-id" not in metadata:
         # Parsed metadata file invalid
         msg = (
-            f" Metadata at {metadata_path} does not contain instance-id key."
+            f"Metadata at {found_at} does not contain instance-id key."
             f" Instead received: {metadata}"
         )
         LOG.error(msg)
@@ -381,8 +396,8 @@ class DataSourceWSL(sources.DataSource):
             return False
 
         try:
-            data_dir = cloud_init_data_dir(find_home())
-            metadata = load_instance_metadata(data_dir, instance_name())
+            home = find_home()
+            metadata = load_instance_metadata(home, instance_name())
             return current == metadata.get("instance-id")
 
         except (IOError, ValueError) as err:
@@ -414,7 +429,7 @@ class DataSourceWSL(sources.DataSource):
         # Load any metadata
         try:
             self.metadata = load_instance_metadata(
-                seed_dir, self.instance_name
+                user_home, self.instance_name
             )
         except (ValueError, IOError) as err:
             LOG.error("Unable to load metadata: %s", str(err))
