@@ -148,17 +148,42 @@ class ConfigData:
     """Models a piece of configuration data as a dict if possible, while
     retaining its raw representation alongside its file path"""
 
-    def __init__(self, path: PurePath):
+    def is_cloud_config(self) -> bool:
+        return self.config_dict is not None
+
+    def __init__(self, path: PurePath, instance_id: str):
         self.raw: str = util.load_text_file(path)
         self.path: PurePath = path
 
         self.config_dict: Optional[dict] = None
 
-        if "text/cloud-config" == type_from_starts_with(self.raw):
-            self.config_dict = util.load_yaml(self.raw)
+        if "text/cloud-config" != type_from_starts_with(self.raw):
+            return
 
-    def is_cloud_config(self) -> bool:
-        return self.config_dict is not None
+        self.config_dict = util.load_yaml(self.raw)
+        if self.config_dict is None:
+            return
+        if not instance_id or instance_id == DEFAULT_INSTANCE_ID:
+            return
+        try:
+            if (
+                self.config_dict["landscape"]["client"].get(
+                    "installation_request_id"
+                )
+                is not None
+            ):
+                return
+
+            # If we don't have a landscape client installation_request_id
+            # but have valid instance-id in the metadata, let's reuse it:
+            self.config_dict["landscape"]["client"][
+                "installation_request_id"
+            ] = instance_id
+        except KeyError:
+            # client config doesn't exist, don't bother
+            pass
+
+        self.raw = "#cloud-config\n%s" % yaml.dump(self.config_dict).strip()
 
 
 def load_instance_metadata(

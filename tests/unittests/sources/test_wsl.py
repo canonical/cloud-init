@@ -317,11 +317,11 @@ class TestMergeAgentLandscapeData:
         if agent_yaml is not None:
             agent_path = tmpdir.join("agent.yaml")
             agent_path.write(agent_yaml)
-            agent_data = wsl.ConfigData(agent_path)
+            agent_data = wsl.ConfigData(agent_path, "")
         if landscape_user_data is not None:
             landscape_ud_path = tmpdir.join("instance_name.user_data")
             landscape_ud_path.write(landscape_user_data)
-            user_data = wsl.ConfigData(landscape_ud_path)
+            user_data = wsl.ConfigData(landscape_ud_path, "")
         assert expected == wsl.merge_agent_landscape_data(
             agent_data, user_data
         )
