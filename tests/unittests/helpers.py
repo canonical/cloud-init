@@ -19,6 +19,7 @@ from unittest.util import strclass
 from urllib.parse import urlsplit, urlunsplit
 
 import responses
+import yaml
 
 from cloudinit import atomic_helper, cloud, distros
 from cloudinit import helpers as ch
@@ -685,3 +686,53 @@ def does_not_raise():
 
     """
     yield
+
+
+logger = logging.getLogger(__name__)
+
+
+def dicts_are_equal(
+    dict1: dict,
+    dict2: dict,
+) -> bool:
+    """
+    Compare two dictionaries for equality by recursively sorting them.
+
+    This function sorts the dictionaries and their nested structures (lists and
+    dictionaries) recursively, then compares them. If the dictionaries are not
+    equal, it converts them to YAML format and prints out the differences.
+
+    Args:
+        dict1 (dict): The first dictionary to compare.
+        dict2 (dict): The second dictionary to compare.
+
+    Returns:
+        bool: True if the dictionaries are equal, False otherwise.
+    """
+
+    def recursively_sort_dict(item):
+        if isinstance(item, dict):
+            return {
+                k: recursively_sort_dict(v) for k, v in sorted(item.items())
+            }
+        if isinstance(item, list):
+            return [recursively_sort_dict(elem) for elem in item]
+        return item
+
+    dict1_sorted = recursively_sort_dict(dict1)
+    dict2_sorted = recursively_sort_dict(dict2)
+    if dict1_sorted != dict2_sorted:
+        import difflib
+
+        diff = difflib.unified_diff(
+            yaml.dump(dict1_sorted).splitlines(),
+            yaml.dump(dict2_sorted).splitlines(),
+            lineterm="",
+        )
+        diff_lines = "\n".join(diff)
+        logger.debug(
+            "Dictionaries do not match!\n Diff:\n%s",
+            diff_lines,
+        )
+        return False
+    return True

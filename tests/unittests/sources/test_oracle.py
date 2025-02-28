@@ -11,7 +11,6 @@ from unittest import mock
 import pytest
 import responses
 import yaml
-from deepdiff import DeepDiff
 
 from cloudinit.net import netplan, network_state
 from cloudinit.sources import DataSourceOracle as oracle
@@ -1734,18 +1733,14 @@ def compare_netplan_configs(
             network_state_b,
         )
 
-    diff = DeepDiff(
-        yaml.safe_load(rendered_string_a),
-        yaml.safe_load(rendered_string_b),
-        ignore_order=True,
-    )
-
-    if diff:
-        logger.debug("network config entries do not match!")
-        logger.debug(diff)
+    if not test_helpers.dicts_are_equal(
+        dict1=yaml.safe_load(rendered_string_a),
+        dict2=yaml.safe_load(rendered_string_b),
+    ):
+        logger.info("network config entries do not match.")
         return False
 
-    logger.debug("network config entries match!")
+    logger.info("network config entries match!")
     return True
 
 
