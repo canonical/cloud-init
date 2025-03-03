@@ -1934,7 +1934,7 @@ ipv4_2_nics_imds_data = [
         "subnetCidrBlock": "10.0.0.0/24",
         "virtualRouterIp": "10.0.0.1",
         "vlanTag": 1119,
-        "vnicId": "ocid1.vnic.oc1.iad.abuwcljsu5kb7gf5pc3flrl762huiyymiu3tq7b2xznspembn2jdalzg7nyq",
+        "vnicId": "ocid1.vnic.oc1.iad.TRUNCATED",
     },
     {
         "ipv6SubnetCidrBlock": "2603:c020:400d:5dbb::/64",
@@ -1944,7 +1944,7 @@ ipv4_2_nics_imds_data = [
         "subnetCidrBlock": "10.0.0.0/24",
         "virtualRouterIp": "10.0.0.1",
         "vlanTag": 1491,
-        "vnicId": "ocid1.vnic.oc1.iad.abuwcljsihhhr2i46qe4ie47spprck6rdq4plnroinv5cx5avwdtpvjxocuq",
+        "vnicId": "ocid1.vnic.oc1.iad.TRUNCATED",
     },
 ]
 
