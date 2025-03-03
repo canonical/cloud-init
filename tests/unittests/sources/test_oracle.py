@@ -286,9 +286,6 @@ def oracle_ds(request, fixture_utils, paths, metadata_version, mocker):
     is_iscsi = fixture_utils.closest_marker_first_arg_or(
         request, "is_iscsi", True
     )
-    # mock_v1_v2_compare = fixture_utils.closest_marker_first_arg_or(
-    #     request, "mock_v1_v2_compare", mock.MagicMock()
-    # )
 
     metadata = ReadOpcMetadataResponse(
         metadata_version,
