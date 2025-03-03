@@ -26,8 +26,10 @@ import logging
 import os
 import socket
 import time
+from typing import Dict, Set
 
 from cloudinit import atomic_helper, dmi, net, netinfo, sources, util
+from cloudinit.event import EventScope, EventType, userdata_to_events
 from cloudinit.log import loggers
 from cloudinit.sources.helpers.vmware.imc import guestcust_util
 from cloudinit.subp import ProcessExecutionError, subp, which
@@ -52,6 +54,20 @@ LOCAL_IPV6 = "local-ipv6"
 WAIT_ON_NETWORK = "wait-on-network"
 WAIT_ON_NETWORK_IPV4 = "ipv4"
 WAIT_ON_NETWORK_IPV6 = "ipv6"
+
+SUPPORTED_UPDATE_EVENTS = {
+    # Support network reconfiguration for the following events:
+    # TODO(akutz) Add support for METADATA_CHANGE and USER_REQUEST when
+    #             those events are supported by Cloud-Init.
+    EventScope.NETWORK: {
+        EventType.BOOT,
+        EventType.BOOT_LEGACY,
+        EventType.BOOT_NEW_INSTANCE,
+        # EventType.HOTPLUG, # Add when subtype != IMC
+    }
+}
+
+SUPPORTED_UPDATE_EVENTS_GUEST_INFO_KEY = "cloudinit.supported-update-events"
 
 
 class DataSourceVMware(sources.DataSource):
@@ -100,6 +116,8 @@ class DataSourceVMware(sources.DataSource):
         self.data_access_method = None
         self.rpctool = None
         self.rpctool_fn = None
+        self.default_update_events = None
+        self.supported_update_events = copy.deepcopy(SUPPORTED_UPDATE_EVENTS)
 
         # A list includes all possible data transports, each tuple represents
         # one data transport type. This datasource will try to get data from
@@ -121,6 +139,18 @@ class DataSourceVMware(sources.DataSource):
                 setattr(self, attr, None)
         if not hasattr(self, "cfg"):
             setattr(self, "cfg", {})
+        if not hasattr(self, "supported_update_events"):
+            setattr(
+                self,
+                "supported_update_events",
+                copy.deepcopy(SUPPORTED_UPDATE_EVENTS),
+            )
+        if not hasattr(self, "default_update_events"):
+            setattr(
+                self,
+                "default_update_events",
+                copy.deepcopy(self.supported_update_events),
+            )
         if not hasattr(self, "possible_data_access_method_list"):
             setattr(
                 self,
@@ -182,6 +212,19 @@ class DataSourceVMware(sources.DataSource):
 
         LOG.info("using data access method %s", self._get_subplatform())
 
+        # Support HOTPLUG events when the data access method is something
+        # other than IMC.
+        if self.data_access_method != DATA_ACCESS_METHOD_IMC:
+            self.supported_update_events[EventScope.NETWORK].add(
+                EventType.HOTPLUG
+            )
+
+        # The default list of configured update events should be the same as
+        # the list of supported update events.
+        self.default_update_events = copy.deepcopy(
+            self.supported_update_events
+        )
+
         # Get the metadata.
         self.metadata = process_metadata(load_json_or_yaml(md))
 
@@ -229,6 +272,22 @@ class DataSourceVMware(sources.DataSource):
         # persisted with the metadata.
         self.persist_instance_data()
 
+    def activate(self, cfg, is_new_instance):
+        """activate(cfg, is_new_instance)
+
+        This is called before the init_modules will be called but after
+        the user-data and vendor-data have been fully processed.
+
+        The cfg is fully up to date config, it contains a merged view of
+           system config, datasource config, user config, vendor config.
+        It should be used rather than the sys_cfg passed to __init__.
+
+        is_new_instance is a boolean indicating if this is a new instance.
+        """
+
+        # Reflect the supported update events into guestinfo.
+        self.advertise_supported_events(cfg)
+
     def _get_subplatform(self):
         get_key_name_fn = None
         if self.data_access_method == DATA_ACCESS_METHOD_ENVVAR:
@@ -261,6 +320,23 @@ class DataSourceVMware(sources.DataSource):
                 "config": self.distro.generate_fallback_config(),
             }
         return self.metadata["network"]["config"]
+
+    def advertise_supported_events(self, cfg):
+        default_events: Dict[EventScope, Set[EventType]] = copy.deepcopy(
+            self.default_update_events
+        )
+        user_events: Dict[EventScope, Set[EventType]] = userdata_to_events(
+            cfg.get("updates", {})
+        )
+        allowed_events = util.mergemanydict(
+            [
+                copy.deepcopy(user_events),
+                copy.deepcopy(default_events),
+            ]
+        )
+        return advertise_supported_events(
+            allowed_events, self.rpctool, self.rpctool_fn
+        )
 
     def get_instance_id(self):
         # Pull the instance ID out of the metadata if present. Otherwise
@@ -525,6 +601,40 @@ def advertise_local_ip_addrs(host_info, rpctool, rpctool_fn):
     if local_ipv6:
         guestinfo_set_value(LOCAL_IPV6, local_ipv6, rpctool, rpctool_fn)
         LOG.info("advertised local ipv6 address %s in guestinfo", local_ipv6)
+
+
+def advertise_supported_events(supported_update_events, rpctool, rpctool_fn):
+    """
+    advertise_supported_events publishes the types of supported events
+    to guestinfo
+    """
+    if not rpctool or not rpctool_fn:
+        return
+
+    sz = ""
+    for event_scope in supported_update_events:
+        if len(sz) > 0:
+            sz += ","
+        sz += "{}=".format(event_scope)
+        event_types = []
+        for event_type in supported_update_events[event_scope]:
+            event_types.append("{}".format(event_type))
+        event_types.sort()
+        szt = ""
+        for event_type in event_types:
+            if len(szt) > 0:
+                szt += ";"
+            szt += event_type
+        sz += szt
+
+    if len(sz) > 0:
+        guestinfo_set_value(
+            SUPPORTED_UPDATE_EVENTS_GUEST_INFO_KEY, sz, rpctool, rpctool_fn
+        )
+        LOG.info("advertised supported update events in guestinfo: %s", sz)
+        return sz
+
+    return None
 
 
 def handle_returned_guestinfo_val(key, val):
