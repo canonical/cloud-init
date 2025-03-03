@@ -1035,7 +1035,7 @@ class OauthUrlHelper:
         ) as fp:
             fp.write(json.dumps(cur))
 
-    def exception_cb(self, msg, exception):
+    def exception_cb(self, exception):
         if not (
             isinstance(exception, UrlError)
             and (exception.code == 403 or exception.code == 401)
@@ -1096,13 +1096,13 @@ class OauthUrlHelper:
     def readurl(self, *args, **kwargs):
         return self._wrapped(readurl, args, kwargs)
 
-    def _exception_cb(self, extra_exception_cb, msg, exception):
+    def _exception_cb(self, extra_exception_cb, exception):
         ret = None
         try:
             if extra_exception_cb:
-                ret = extra_exception_cb(msg, exception)
+                ret = extra_exception_cb(exception)
         finally:
-            self.exception_cb(msg, exception)
+            self.exception_cb(exception)
         return ret
 
     def _headers_cb(self, extra_headers_cb, url):
