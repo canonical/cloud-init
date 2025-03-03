@@ -1928,15 +1928,55 @@ network:
             mtu: 9000
 """.strip()
 
-interfaces_by_mac = {
-    "01:23:45:67:89:ab": "eth_0",
-    "ba:98:76:54:32:10": "eth_1",
-}
+ipv4_2_nics_imds_data = [
+    {
+        "ipv6SubnetCidrBlock": "2603:c020:400d:5dbb::/64",
+        "ipv6VirtualRouterIp": "fe80::200:17ff:fe40:8972",
+        "macAddr": "01:23:45:67:89:ab",
+        "privateIp": "10.0.0.65",
+        "subnetCidrBlock": "10.0.0.0/24",
+        "virtualRouterIp": "10.0.0.1",
+        "vlanTag": 1119,
+        "vnicId": "ocid1.vnic.oc1.iad.abuwcljsu5kb7gf5pc3flrl762huiyymiu3tq7b2xznspembn2jdalzg7nyq",
+    },
+    {
+        "ipv6SubnetCidrBlock": "2603:c020:400d:5dbb::/64",
+        "ipv6VirtualRouterIp": "fe80::200:17ff:fe40:8972",
+        "macAddr": "ba:98:76:54:32:10",
+        "privateIp": "10.0.0.239",
+        "subnetCidrBlock": "10.0.0.0/24",
+        "virtualRouterIp": "10.0.0.1",
+        "vlanTag": 1491,
+        "vnicId": "ocid1.vnic.oc1.iad.abuwcljsihhhr2i46qe4ie47spprck6rdq4plnroinv5cx5avwdtpvjxocuq",
+    },
+]
+
+ipv4_2_nics_netplan = """
+network:
+  version: 2
+  ethernets:
+    eth_0:
+      match:
+        macaddress: "01:23:45:67:89:ab"
+      dhcp4: true
+      set-name: "eth_0"
+      mtu: 9000
+    eth_1:
+      match:
+        macaddress: "ba:98:76:54:32:10"
+      addresses:
+      - "10.0.0.239/24"
+      set-name: "eth_1"
+      mtu: 9000
+""".strip()
 
 
 @mock.patch(
     DS_PATH + ".get_interfaces_by_mac",
-    return_value=interfaces_by_mac,
+    return_value={
+        "01:23:45:67:89:ab": "eth_0",
+        "ba:98:76:54:32:10": "eth_1",
+    },
 )
 class TestOracleV1toV2NetplanMigration:
     @pytest.mark.ds_sys_cfg(
@@ -1966,6 +2006,12 @@ class TestOracleV1toV2NetplanMigration:
                 dual_stack_2_nics_netplan,
                 True,
                 id="dual_stack_2_nics",
+            ),
+            pytest.param(
+                ipv4_2_nics_imds_data,
+                ipv4_2_nics_netplan,
+                True,
+                id="ipv4_2_nics",
             ),
         ],
     )
