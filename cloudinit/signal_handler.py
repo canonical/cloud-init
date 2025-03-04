@@ -80,7 +80,10 @@ def _handle_exit(signum, frame):
     contents = StringIO(SIG_MESSAGE.format(vr.version_string(), name))
     _pprint_frame(frame, 1, BACK_FRAME_TRACE_DEPTH, contents)
     log_util.multi_log(
-        contents.getvalue(), log=LOG, log_level=_SIGNAL_EXIT_BEHAVIOR.log_level
+        f"Received signal {name} resulting in exit. Cause:\n"
+        + contents.getvalue(),
+        log=LOG,
+        log_level=_SIGNAL_EXIT_BEHAVIOR.log_level,
     )
     sys.exit(_SIGNAL_EXIT_BEHAVIOR.exit_code)
 
