@@ -255,3 +255,4 @@ def test_imds_invalid_metadata():
     assert error.reason == "invalid IMDS metadata for key=compute"
     assert error.supporting_data["key"] == key
     assert error.supporting_data["value"] == value
+    assert error.supporting_data["type"] == type(value).__name__

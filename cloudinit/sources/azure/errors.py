@@ -157,6 +157,7 @@ class ReportableErrorImdsInvalidMetadata(ReportableError):
 
         self.supporting_data["key"] = key
         self.supporting_data["value"] = value
+        self.supporting_data["type"] = type(value).__name__
 
 
 class ReportableErrorImdsMetadataParsingException(ReportableError):
