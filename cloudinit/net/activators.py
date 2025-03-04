@@ -206,9 +206,9 @@ class NetworkManagerActivator(NetworkActivator):
                 state,
             )
         return _alter_interface(
-            ["systemctl", "reload-or-try-restart", "NetworkManager.service"],
+            ["systemctl", "try-reload-or-restart", "NetworkManager.service"],
             "all",
-        )
+        ) and all(cls.bring_up_interface(device) for device in device_names)
 
 
 class NetplanActivator(NetworkActivator):
