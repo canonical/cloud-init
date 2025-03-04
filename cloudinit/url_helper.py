@@ -697,7 +697,7 @@ def dual_stack(
         # No success, return the last exception but log them all for
         # debugging
         if last_exception:
-            LOG.warning(
+            LOG.debug(
                 "Exception(s) %s during request to "
                 "%s, raising last exception",
                 exceptions,
@@ -710,7 +710,7 @@ def dual_stack(
 
     # when max_wait expires, log but don't throw (retries happen)
     except TimeoutError:
-        LOG.warning(
+        LOG.debug(
             "Timed out waiting for addresses: %s, "
             "exception(s) raised while waiting: %s",
             " ".join(addresses),
