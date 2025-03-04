@@ -79,34 +79,45 @@ class AnsiblePullPip(AnsiblePull):
     def __init__(self, distro: Distro, user: Optional[str]):
         super().__init__(distro)
         self.run_user = user
+        self.add_pip_install_site_to_path()
 
-        # Add pip install site to PATH
-        user_base, _ = self.do_as(
-            [sys.executable, "-c", "'import site; print(site.getuserbase())'"]
-        )
-        ansible_path = f"{user_base}/bin/"
-        old_path = self.env.get("PATH")
-        if old_path:
-            self.env["PATH"] = ":".join([old_path, ansible_path])
-        else:
-            self.env["PATH"] = ansible_path
+    def add_pip_install_site_to_path(self):
+        if self.run_user:
+            user_base, _ = self.do_as(
+                [
+                    sys.executable,
+                    "-c",
+                    "import site; print(site.getuserbase())",
+                ]
+            )
+            ansible_path = f"{user_base}/bin/"
+
+            old_path = self.env.get("PATH")
+            if old_path:
+                self.env["PATH"] = ":".join([old_path, ansible_path])
+            else:
+                self.env["PATH"] = ansible_path
+
+    def bootstrap_pip_if_required(self):
+        try:
+            import pip  # noqa: F401
+        except ImportError:
+            self.distro.install_packages([self.distro.pip_package_name])
 
     def install(self, pkg_name: str):
         """should cloud-init grow an interface for non-distro package
         managers? this seems reusable
         """
+        self.bootstrap_pip_if_required()
+
         if not self.is_installed():
-            # bootstrap pip if required
-            try:
-                import pip  # noqa: F401
-            except ImportError:
-                self.distro.install_packages([self.distro.pip_package_name])
             cmd = [
                 sys.executable,
                 "-m",
                 "pip",
                 "install",
             ]
+
             if os.path.exists(
                 os.path.join(
                     sysconfig.get_path("stdlib"), "EXTERNALLY-MANAGED"
@@ -115,11 +126,17 @@ class AnsiblePullPip(AnsiblePull):
                 cmd.append("--break-system-packages")
             if self.run_user:
                 cmd.append("--user")
+
             self.do_as([*cmd, "--upgrade", "pip"])
             self.do_as([*cmd, pkg_name])
 
     def is_installed(self) -> bool:
-        stdout, _ = self.do_as([sys.executable, "-m", "pip", "list"])
+        cmd = [sys.executable, "-m", "pip", "list"]
+
+        if self.run_user:
+            cmd.append("--user")
+
+        stdout, _ = self.do_as(cmd)
         return "ansible" in stdout
 
 
