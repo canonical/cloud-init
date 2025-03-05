@@ -246,11 +246,11 @@ def test_unhandled_exception():
     quoted_value = quote_csv_value(f"exception={source_error!r}")
     assert f"|{quoted_value}|" in error.as_encoded_report()
 
+
 @pytest.mark.parametrize(
     "value",
     [
-        "Running"
-        "None",
+        "Running" "None",
         None,
     ],
 )
