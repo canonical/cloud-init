@@ -247,8 +247,8 @@ NETWORK_MANAGER_BRING_UP_ALL_CALL_LIST: list = [
         ),
         {},
     ),
-    ((["systemctl", "reload-or-try-restart", "NetworkManager.service"],), {}),
-]
+    ((["systemctl", "try-reload-or-restart", "NetworkManager.service"],), {}),
+] + NETWORK_MANAGER_BRING_UP_CALL_LIST
 
 NETWORKD_BRING_UP_CALL_LIST: list = [
     ((["ip", "link", "set", "dev", "eth0", "up"],), {}),
