@@ -156,8 +156,10 @@ class TestUpgrade:
         "Vultr": {"netcfg"},
         "VMware": {
             "data_access_method",
+            "default_update_events",
             "rpctool",
             "rpctool_fn",
+            "supported_update_events",
         },
         "WSL": {"instance_name"},
     }
