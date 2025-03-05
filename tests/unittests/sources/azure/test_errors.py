@@ -250,7 +250,8 @@ def test_unhandled_exception():
 @pytest.mark.parametrize(
     "value",
     [
-        "Running" "None",
+        "Running",
+        "None",
         None,
     ],
 )
