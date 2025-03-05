@@ -246,10 +246,16 @@ def test_unhandled_exception():
     quoted_value = quote_csv_value(f"exception={source_error!r}")
     assert f"|{quoted_value}|" in error.as_encoded_report()
 
-
-def test_imds_invalid_metadata():
+@pytest.mark.parametrize(
+    "value",
+    [
+        "Running"
+        "None",
+        None,
+    ],
+)
+def test_imds_invalid_metadata(value):
     key = "compute"
-    value = "Running"
     error = errors.ReportableErrorImdsInvalidMetadata(key=key, value=value)
 
     assert error.reason == "invalid IMDS metadata for key=compute"
