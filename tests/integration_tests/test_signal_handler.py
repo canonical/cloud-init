@@ -14,12 +14,7 @@ runcmd:
 
 @pytest.mark.user_data(USER_DATA)
 def test_no_warnings(client: IntegrationInstance):
-    """Test that the signal handler does not log errors on reboot.
-
-    Note that for single process boots, `Conflicts=shutdown.target` will
-    prevent the shutdown from happening before the cloud-init process has
-    exited.
-    """
+    """Test that the signal handler does not log errors when suppressed."""
     verify_clean_boot(client)
     log = client.read_from_file("/var/log/cloud-init.log")
     assert "Received signal 15 resulting in exit" in log
