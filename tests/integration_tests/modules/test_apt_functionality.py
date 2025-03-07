@@ -479,6 +479,7 @@ REMOVE_GPG_USERDATA = """
 #cloud-config
 runcmd:
   - DEBIAN_FRONTEND=noninteractive apt-get remove gpg -y
+  - DEBIAN_FRONTEND=noninteractive apt-get remove software-properties-common -y
 """
 
 
@@ -504,21 +505,21 @@ def test_install_missing_deps(session_cloud: IntegrationCloud):
     """
     Test the installation of missing dependencies using apt on an Ubuntu
     system. This test is divided into two stages:
-    Stage 1 (Remove 'gpg' package):
-    - Launch an instance with user-data that removes the 'gpg' package.
+    Stage 1 (Remove existing packages):
+    - Launch an instance with user-data that removes the 'gpg' and
+      'software-properties-common' packages.
       - If on Oracle Cloud, add a command to the user-data to disable the
         oracle-cloud-agent snap to prevent it from interfering with apt.
     - Verify that the cloud-init log is clean and the boot process is clean.
-    - Verify that 'gpg' is actually uninstalled using dpkg.
+    - Verify the packages are actually uninstalled using dpkg.
     - Create a snapshot of the instance after 'gpg' has been removed.
     - If KEEP_INSTANCE is False, destroy the instance after snapshotting.
-    Stage 2 (re-install 'gpg' package with user-data):
+    Stage 2 (re-install packages with user-data):
     - Launch a new instance from the snapshot created in Stage 1 with
       user-data that installs any missing recommended dependencies.
     - Verify that the cloud-init log is clean and the boot process is clean.
-    - Check the cloud-init log to ensure that 'gpg' and its dependencies are
-      installed successfully.
-    - Double check that 'gpg' is actually installed using dpkg.
+    - Check the cloud-init log to ensure that 'gpg' and
+      'software-properties-common' are installed successfully.
     """
     # Two stage install: First stage:  remove gpg noninteractively from image
     instance1 = session_cloud.launch(
@@ -526,11 +527,14 @@ def test_install_missing_deps(session_cloud: IntegrationCloud):
     )
 
     # look for r"un  gpg" using regex ('un' means uninstalled)
-    dpkg_output = instance1.execute("dpkg -l gpg")
-    assert re.search(r"un\s+gpg", dpkg_output.stdout), (
-        "gpg package is still installed. it should have been removed by "
-        "the user-data."
-    )
+    for package in ["gpg", "software-properties-common"]:
+        dpkg_output = instance1.execute(f"dpkg -l {package}")
+        assert re.search(
+            r"[ur][nc]\s+{}".format(package), dpkg_output.stdout
+        ), (
+            f"{package} package is still installed. it should have been "
+            "removed by the user-data."
+        )
 
     snapshot_id = instance1.snapshot()
     if not KEEP_INSTANCE:
