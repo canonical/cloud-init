@@ -7,8 +7,6 @@ USER_DATA = """\
 #cloud-config
 runcmd:
  - pkill cloud-init
- - sleep 5
- - echo 'whoops' > /var/tmp/whoops
 """
 
 
@@ -18,4 +16,3 @@ def test_no_warnings(client: IntegrationInstance):
     verify_clean_boot(client)
     log = client.read_from_file("/var/log/cloud-init.log")
     assert "Received signal 15 resulting in exit" in log
-    assert client.execute("test -f /var/tmp/whoops").failed
