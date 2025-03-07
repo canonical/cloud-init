@@ -432,7 +432,7 @@ def _handle_error(
         return None
     if error.code and error.code == 503:
         LOG.warning(
-            "Ec2 IMDS endpoint returned a 503 error. "
+            "Endpoint returned a 503 error. "
             "HTTP endpoint is overloaded. Retrying."
         )
         if error.headers:
