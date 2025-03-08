@@ -325,6 +325,43 @@ If either of the above values are true, then the datasource will sleep for a
 second, check the network status, and repeat until one or both addresses from
 the specified families are available.
 
+Update Event support
+--------------------
+
+The VMware datasource supports the following types of update events:
+
+* Network -- `boot`, `boot-legacy`, `boot-new-instance`, and `hotplug`
+
+This means the guest will reconfigure networking from the network
+configuration provided via guestinfo, IMC, etc. each time the guest
+boots or even when a new network interface is added.
+
+It is possible to override the data source's default set of configured
+update events by specifying which events to use via user data.
+For example, the following snippet from user data would disable the
+`hotplug` event:
+
+   .. code-block:: yaml
+
+       #cloud-config
+       updates:
+         network:
+           when: ["boot", "boot-legacy", "boot-new-instance"]
+
+Determining the supported update events
+---------------------------------------
+
+This datasource also advertises the scope and type of the supported events.
+The ``guestinfo`` key ``guestinfo.cloudinit.supported-update-events`` contains
+a list of the supported scopes and types that adheres to the format
+``SCOPE=TYPE[;TYPE][,SCOPE=TYPE[;TYPE]]``, for example:
+
+* ``network=boot;hotplug``
+* ``network=boot-new-instance``
+
+The advertised value is based on both the datasource's default set of
+supported events and those that may have been provided via user data.
+
 Walkthrough of GuestInfo keys transport
 =======================================
 
