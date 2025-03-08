@@ -142,15 +142,20 @@ class TestUsersGroups:
         class_client.execute("passwd -d foobar")
         class_client.instance.clean()
         class_client.restart()
-        verify_clean_boot(
-            class_client,
-            ignore_warnings=True,  # ignore warnings about existing groups
-            require_warnings=[
+        warnings = (
+            [
                 EXISTING_USER_EMPTY_PASSWD_WARNING.format(
                     username="nopassworduser"
                 ),
                 EXISTING_USER_EMPTY_PASSWD_WARNING.format(username="foobar"),
-            ],
+            ]
+            if CURRENT_RELEASE > NOBLE
+            else []
+        )
+        verify_clean_boot(
+            class_client,
+            ignore_warnings=True,  # ignore warnings about existing groups
+            require_warnings=warnings,
         )
 
 
