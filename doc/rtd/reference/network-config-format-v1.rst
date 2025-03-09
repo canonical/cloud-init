@@ -231,6 +231,8 @@ Type ``vlan`` requires the following keys:
 - ``name``: Set the name of the VLAN
 - ``vlan_link``: Specify the underlying link via its ``name``.
 - ``vlan_id``: Specify the VLAN numeric id.
+- ``mac_address``: Optional, specify VLAN subinterface MAC address. If not
+  set MAC address from physical interface is used.
 
 The following optional keys are supported:
 
