@@ -10,7 +10,7 @@
                  "mariner": "MarinerOS", "rhel": "Cloud User",
                  "netbsd": "NetBSD", "openbsd": "openBSD",
                  "openmandriva": "OpenMandriva admin", "photon": "PhotonOS",
-                 "ubuntu": "Ubuntu", "unknown": "Ubuntu"}) %}
+                 "exherbo": "Exherbo", "ubuntu": "Ubuntu", "unknown": "Ubuntu"}) %}
 {% set groups = ({"alpine": "adm, wheel", "aosc": "wheel", "arch": "wheel, users",
                   "azurelinux": "wheel",
                   "debian": "adm, audio, cdrom, dialout, dip, floppy, netdev, plugdev, sudo, video",
@@ -52,7 +52,7 @@ manage_etc_hosts: false
 
 # If this is set, 'root' will not be able to ssh in and they
 # will get a message to login instead as the default $user
-{% if variant in ["freebsd", "photon"] %}
+{% if variant in ["freebsd", "photon", "exherbo"] %}
 disable_root: false
 {% else %}
 disable_root: true
@@ -116,7 +116,7 @@ cloud_init_modules:
 {% endif %}
   - bootcmd
   - write_files
-{% if variant not in ["netbsd", "openbsd"] %}
+{% if variant not in ["netbsd", "openbsd", "exherbo"] %}
   - growpart
   - resizefs
 {% endif %}
@@ -225,10 +225,10 @@ cloud_final_modules:
 # (not accessible to handlers/transforms)
 system_info:
   # This will affect which distro class gets used
-{% if variant in ["alpine", "amazon", "aosc", "arch", "azurelinux", "debian", "fedora",
-                  "freebsd", "gentoo", "mariner", "netbsd", "openbsd",
-                  "OpenCloudOS", "openeuler", "openmandriva", "photon", "suse",
-                  "TencentOS", "ubuntu"] or is_rhel %}
+{% if variant in ["alpine", "amazon", "aosc", "arch", "azurelinux", "debian",
+                  "exherbo", "fedora", "freebsd", "gentoo", "mariner", "netbsd",
+                  "openbsd", "OpenCloudOS", "openeuler", "openmandriva", "photon",
+                  "suse", "TencentOS", "ubuntu"] or is_rhel %}
   distro: {{ variant }}
 {% elif variant == "dragonfly" %}
   distro: dragonflybsd
@@ -373,8 +373,8 @@ system_info:
 {% endif %}
 {% if variant in ["debian", "ubuntu", "unknown"] %}
   ssh_svcname: ssh
-{% elif variant in ["alpine", "amazon", "aosc", "arch", "azurelinux", "fedora",
-                    "gentoo", "mariner", "OpenCloudOS", "openeuler",
+{% elif variant in ["alpine", "amazon", "aosc", "arch", "azurelinux","exherbo",
+                    "fedora", "gentoo", "mariner", "OpenCloudOS", "openeuler",
                     "openmandriva", "photon", "suse", "TencentOS"]
                    or is_rhel %}
   ssh_svcname: sshd

@@ -23,6 +23,7 @@ def main():
         "debian",
         "dragonfly",
         "eurolinux",
+        "exherbo",
         "fedora",
         "freebsd",
         "gentoo",

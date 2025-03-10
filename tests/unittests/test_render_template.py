@@ -15,6 +15,7 @@ DISTRO_VARIANTS = [
     "centos",
     "debian",
     "eurolinux",
+    "exherbo",
     "fedora",
     "freebsd",
     "gentoo",
