@@ -544,6 +544,10 @@ def parse_ssh_config_map(fname):
 
 
 def _includes_dconf(fname: str) -> bool:
+    # Handle cases where sshd_config is handled in /usr/etc/ssh/sshd_config
+    # so /etc/ssh/sshd_config.d/ exists but /etc/ssh/sshd_config doesn't
+    if not os.path.exists(fname) and os.path.exists(f"{fname}.d"):
+        return True
     if not os.path.isfile(fname):
         return False
     for line in util.load_text_file(fname).splitlines():
