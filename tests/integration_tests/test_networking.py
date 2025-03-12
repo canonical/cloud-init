@@ -17,7 +17,11 @@ from tests.integration_tests.releases import (
     JAMMY,
     NOBLE,
 )
-from tests.integration_tests.util import verify_clean_boot, verify_clean_log
+from tests.integration_tests.util import (
+    has_netplanlib,
+    verify_clean_boot,
+    verify_clean_log,
+)
 
 # Older Ubuntu series didn't read cloud-init.* config keys
 LXD_NETWORK_CONFIG_KEY = (
@@ -66,13 +70,13 @@ class TestNetplanGenerateBehaviorOnReboot:
         client.execute(
             "mv /var/log/cloud-init.log /var/log/cloud-init.log.bak"
         )
-        if CURRENT_RELEASE < JAMMY:
+        if has_netplanlib(client):
+            assert "Rendered netplan config using netplan python API" in log
+        else:
             assert (
                 "No netplan python module. Fallback to write"
                 " /etc/netplan/50-cloud-init.yaml" in log
             )
-        else:
-            assert "Rendered netplan config using netplan python API" in log
         netplan = yaml.safe_load(
             client.execute("cat /etc/netplan/50-cloud-init.yaml")
         )
@@ -285,16 +289,7 @@ def test_invalid_network_v2_netplan(session_cloud: IntegrationCloud):
             "config_dict": config_dict,
         }
     ) as client:
-        # Netplan python API only available on JAMMY and later
-        if CURRENT_RELEASE < JAMMY:
-            assert (
-                "Skipping netplan schema validation. No netplan API available"
-            ) in client.read_from_file("/var/log/cloud-init.log")
-            assert (
-                "Skipping network-config schema validation for version: 2."
-                " No netplan API available."
-            ) in client.execute("cloud-init schema --system")
-        else:
+        if has_netplanlib(client):
             assert (
                 "network-config failed schema validation! You may run "
                 "'sudo cloud-init schema --system' to check the details."
@@ -307,6 +302,14 @@ def test_invalid_network_v2_netplan(session_cloud: IntegrationCloud):
                 "# E1: Invalid netplan schema. Error in network definition:"
                 " invalid boolean value 'badval"
             ) in client.execute("cloud-init schema --system --annotate")
+        else:
+            assert (
+                "Skipping netplan schema validation. No netplan API available"
+            ) in client.read_from_file("/var/log/cloud-init.log")
+            assert (
+                "Skipping network-config schema validation for version: 2."
+                " No netplan API available."
+            ) in client.execute("cloud-init schema --system")
 
 
 @pytest.mark.skipif(PLATFORM != "ec2", reason="test is ec2 specific")
