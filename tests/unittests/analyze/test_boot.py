@@ -107,7 +107,6 @@ class TestAnalyzeBoot:
         "cloudinit.analyze.show.dist_check_timestamp", return_value=err_code
     )
     def test_boot_invalid_distro(self, m_dist_check_timestamp):
-
         path = os.path.dirname(os.path.abspath(__file__))
         log_path = path + "/boot-test.log"
         path += "/dummy.log"
@@ -145,10 +144,17 @@ class TestAnalyzeBoot:
         args = parser.parse_args(args=["boot", "-i", path, "-o", log_path])
         name_default = ""
 
-        finish_code = analyze_boot(name_default, args)
+        analyze_boot(name_default, args)
+
+        expected_line = (
+            "Your Linux distro or container does not support this "
+            "functionality."
+        )
+        with open(log_path, "r") as f:
+            content = f.readline().strip()
+            assert expected_line == content
 
         self.remove_dummy_file(path, log_path)
-        assert FAIL_CODE == finish_code
 
     @mock.patch("cloudinit.util.is_container", return_value=True)
     @mock.patch("cloudinit.subp.subp", return_value=("U=1000000", None))
@@ -175,7 +181,11 @@ class TestAnalyzeBoot:
         parser = get_parser()
         args = parser.parse_args(args=["boot", "-i", path, "-o", log_path])
         name_default = ""
-        finish_code = analyze_boot(name_default, args)
+        analyze_boot(name_default, args)
+
+        expected_line = "-- Most Recent Container Boot Record --"
+        with open(log_path, "r") as f:
+            content = f.readline().strip()
+            assert expected_line == content
 
         self.remove_dummy_file(path, log_path)
-        assert CONTAINER_CODE == finish_code
