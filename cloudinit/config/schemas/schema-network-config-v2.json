@@ -151,6 +151,10 @@
               }
             }
           }
+        },
+        "critical" : {
+          "type": "boolean",
+          "description": "Designate the connection as “critical to the system”, meaning that special care will be taken by to not release the assigned IP when the daemon is restarted. (not recognised by NetworkManager)."
         }
       }
     },
