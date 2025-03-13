@@ -219,8 +219,9 @@ def config_from_klibc_net_cfg(files=None, mac_addrs=None):
             names[name] = {"files": [cfg_file], "entry": entry}
             entries.append(entry)
 
-    return {"config": entries, "version": 1}
-
+    r = {"config": entries, "version": 1}
+    logging.debug("klibc config: %s", r)
+    return r
 
 def read_initramfs_config():
     """
