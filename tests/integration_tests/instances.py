@@ -68,6 +68,7 @@ class IntegrationInstance:
         self.cloud = cloud
         self.instance = instance
         self.settings = settings
+        self.test_failed = False
         self._ip = ""
 
     def destroy(self):
@@ -82,7 +83,21 @@ class IntegrationInstance:
         This wraps pycloudlib's `BaseInstance.restart`
         """
         log.info("Restarting instance and waiting for boot")
-        self.instance.restart()
+        iter = 32
+        for i in range(iter):
+            try:
+                self.instance.restart()
+                break
+            except RuntimeError as e:
+                last_exception = e
+                if i != iter - 1:
+                    log.warning("Failed to restart instance. Trying again.")
+                    time.sleep(i)
+        else:
+            # this is a requirement for tests, so we must fail to prevent
+            # running tests in an unexpected state
+            log.error("Failed to restart instance.")
+            raise last_exception
 
     def execute(self, command, *, use_sudo=True) -> Result:
         if self.instance.username == "root" and use_sudo is False:
@@ -350,5 +365,10 @@ Pin-Priority: 1001"""
     def __exit__(self, exc_type, exc_val, exc_tb):
         if not self.settings.KEEP_INSTANCE:
             conftest.REAPER.reap(self)
+        elif (
+            integration_settings.KEEP_INSTANCE == "ON_ERROR"
+            and self.test_failed
+        ):
+            log.info("Keeping Instance (test failed) public ip: %s", self.ip())
         else:
-            log.info("Keeping Instance, public ip: %s", self.ip())
+            log.info("Keeping Instance public ip: %s", self.ip())
