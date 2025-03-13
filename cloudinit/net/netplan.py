@@ -430,6 +430,8 @@ class Renderer(renderer.Renderer):
             # filter None (but not False) entries up front
             ifcfg = dict(filter(lambda it: it[1] is not None, config.items()))
 
+            logging.debug("config for %s:\n%s", ifname, ifcfg)
+
             if_type = ifcfg.get("type")
             if if_type == "physical":
                 # required_keys = ['name', 'mac_address']
