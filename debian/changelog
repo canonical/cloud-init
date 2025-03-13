@@ -1,3 +1,15 @@
+cloud-init (24.4.1-0ubuntu0~24.10.2) UNRELEASED; urgency=medium
+
+  * cherry-pick fixes for MAAS traceback (LP: #2100963)
+    - cherry-pick c60771d8: test: pytestify test_url_helper.py
+    - cherry-pick 8810a2dc: test: Remove CiTestCase from
+      test_url_helper.py
+    - cherry-pick 582f16c1: test: add OauthUrlHelper tests
+    - cherry-pick 9311e066: fix: Update OauthUrlHelper to use readurl
+      exception_cb
+
+ -- James Falcon <james.falcon@canonical.com>  Thu, 13 Mar 2025 14:46:38 -0500
+
 cloud-init (24.4.1-0ubuntu0~24.10.1) oracular; urgency=medium
 
   * Add d/p/no-remove-networkd-online.patch
