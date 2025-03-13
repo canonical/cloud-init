@@ -1,4 +1,4 @@
-cloud-init (25.1-0ubuntu3) UNRELEASED; urgency=medium
+cloud-init (25.1-0ubuntu3) plucky; urgency=medium
 
   * cherry-pick fixes for MAAS traceback (LP: #2100963)
     - cherry-pick c60771d8: test: pytestify test_url_helper.py
