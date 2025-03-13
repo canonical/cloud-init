@@ -20,3 +20,4 @@ no-remove-networkd-online.patch
 cpick-d75840be-fix-retry-AWS-hotplug-for-async-IMDS-5995
 cpick-c60771d8-test-pytestify-test_url_helper.py
 cpick-8810a2dc-test-Remove-CiTestCase-from-test_url_helper.py
+cpick-582f16c1-test-add-OauthUrlHelper-tests
