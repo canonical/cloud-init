@@ -428,6 +428,7 @@ class NetworkStateInterpreter:
                 "accept-ra": accept_ra,
                 "wakeonlan": wakeonlan,
                 "optional": optional,
+                "critical": command.get("critical"),
             }
         )
         iface_key = command.get("config_id", command.get("name"))
