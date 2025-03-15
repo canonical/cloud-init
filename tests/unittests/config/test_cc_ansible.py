@@ -107,29 +107,31 @@ CFG_FULL_PULL = {
         "galaxy": {
             "actions": [["ansible-galaxy", "install", "debops.apt"]],
         },
-        "pull": {
-            "url": "https://github/holmanb/vmboot",
-            "playbook_name": "arch.yml",
-            "accept_host_key": True,
-            "clean": True,
-            "full": True,
-            "diff": False,
-            "ssh_common_args": "-y",
-            "scp_extra_args": "-l",
-            "sftp_extra_args": "-f",
-            "checkout": "tree",
-            "module_path": "~/.ansible/plugins/modules:"
-            "/usr/share/ansible/plugins/modules",
-            "timeout": "10",
-            "vault_id": "me",
-            "connection": "smart",
-            "vault_password_file": "/path/to/file",
-            "module_name": "git",
-            "sleep": "1",
-            "tags": "cumulus",
-            "skip_tags": "cisco",
-            "private_key": "{nope}",
-        },
+        "pull": [
+            {
+                "url": "https://github/holmanb/vmboot",
+                "playbook_name": "arch.yml",
+                "accept_host_key": True,
+                "clean": True,
+                "full": True,
+                "diff": False,
+                "ssh_common_args": "-y",
+                "scp_extra_args": "-l",
+                "sftp_extra_args": "-f",
+                "checkout": "tree",
+                "module_path": "~/.ansible/plugins/modules:"
+                "/usr/share/ansible/plugins/modules",
+                "timeout": "10",
+                "vault_id": "me",
+                "connection": "smart",
+                "vault_password_file": "/path/to/file",
+                "module_name": "git",
+                "sleep": "1",
+                "tags": "cumulus",
+                "skip_tags": "cisco",
+                "private_key": "{nope}",
+            },
+        ],
     }
 }
 
@@ -138,10 +140,12 @@ CFG_MINIMAL = {
         "install_method": "pip",
         "package_name": "ansible",
         "run_user": "ansible",
-        "pull": {
-            "url": "https://github/holmanb/vmboot",
-            "playbook_name": "ubuntu.yml",
-        },
+        "pull": [
+            {
+                "url": "https://github/holmanb/vmboot",
+                "playbook_name": "ubuntu.yml",
+            },
+        ],
     }
 }
 
@@ -159,11 +163,13 @@ class TestSchema:
                 {
                     "ansible": {
                         "install_method": "distro",
-                        "pull": {
-                            "url": "https://github/holmanb/vmboot",
-                            "playbook_name": "centos.yml",
-                            "dance": "bossa nova",
-                        },
+                        "pull": [
+                            {
+                                "url": "https://github/holmanb/vmboot",
+                                "playbook_name": "centos.yml",
+                                "dance": "bossa nova",
+                            },
+                        ],
                     }
                 },
                 "Additional properties are not allowed ",
@@ -183,10 +189,12 @@ class TestSchema:
                 {
                     "ansible": {
                         "install_method": "true",
-                        "pull": {
-                            "url": "https://github/holmanb/vmboot",
-                            "playbook_name": "debian.yml",
-                        },
+                        "pull": [
+                            {
+                                "url": "https://github/holmanb/vmboot",
+                                "playbook_name": "debian.yml",
+                            },
+                        ],
                     }
                 },
                 "'true' is not one of ['distro', 'pip']",
@@ -196,9 +204,11 @@ class TestSchema:
                 {
                     "ansible": {
                         "install_method": "pip",
-                        "pull": {
-                            "playbook_name": "fedora.yml",
-                        },
+                        "pull": [
+                            {
+                                "playbook_name": "fedora.yml",
+                            },
+                        ],
                     }
                 },
                 "'url' is a required property",
@@ -208,9 +218,11 @@ class TestSchema:
                 {
                     "ansible": {
                         "install_method": "pip",
-                        "pull": {
-                            "url": "gophers://encrypted-gophers/",
-                        },
+                        "pull": [
+                            {
+                                "url": "gophers://encrypted-gophers/",
+                            },
+                        ],
                     }
                 },
                 "'playbook_name' is a required property",
@@ -230,9 +242,8 @@ class TestSchema:
 class TestAnsible:
     def test_filter_args(self):
         """only diff should be removed"""
-        out = cc_ansible.filter_args(
-            CFG_FULL_PULL.get("ansible", {}).get("pull", {})
-        )
+        for c in CFG_FULL_PULL.get("ansible", {}).get("pull", []):
+            out = cc_ansible.filter_args(c)
         assert out == {
             "url": "https://github/holmanb/vmboot",
             "playbook-name": "arch.yml",
@@ -266,9 +277,11 @@ class TestAnsible:
                     "ansible": {
                         "package_name": "ansible-core",
                         "install_method": "distro",
-                        "pull": {
-                            "playbook_name": "ubuntu.yml",
-                        },
+                        "pull": [
+                            {
+                                "playbook_name": "ubuntu.yml",
+                            },
+                        ],
                     }
                 },
                 ValueError,
@@ -277,9 +290,11 @@ class TestAnsible:
                 {
                     "ansible": {
                         "install_method": "pip",
-                        "pull": {
-                            "url": "https://github/holmanb/vmboot",
-                        },
+                        "pull": [
+                            {
+                                "url": "https://github/holmanb/vmboot",
+                            },
+                        ],
                     }
                 },
                 ValueError,
