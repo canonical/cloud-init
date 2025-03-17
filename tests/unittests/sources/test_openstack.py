@@ -583,10 +583,10 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
         self.tmp = self.tmp_dir()
 
     def _fake_ds(self) -> ds.DataSourceOpenStack:
-        distro = mock.MagicMock(spec=Distro)
-        distro.is_virtual = True
         return ds.DataSourceOpenStack(
-            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN,
+            test_util.MockDistro(),
+            helpers.Paths({"run_dir": self.tmp}),
         )
 
     def test_ds_detect_non_intel_x86(self, m_is_x86):
