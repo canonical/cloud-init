@@ -151,7 +151,7 @@ class TestChef(FilesystemMockingTestCase):
         node_name              "iid-datasource-none"
         json_attribs           "/etc/chef/firstboot.json"
         file_cache_path        "/var/chef/cache"
-        file_backup_path       "/var/backups/chef"
+        file_backup_path       "/var/chef/backup"
         pid_file               "/var/run/chef/client.pid"
         Chef::Log::Formatter.show_time = true
         encrypted_data_bag_secret  "/etc/chef/encrypted_data_bag_secret"
