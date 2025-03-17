@@ -14,7 +14,6 @@ import pytest
 import responses
 
 from cloudinit import helpers, settings, util
-from cloudinit.distros import Distro
 from cloudinit.sources import UNSET, BrokenMetadata
 from cloudinit.sources import DataSourceOpenStack as ds
 from cloudinit.sources import convert_vendordata
@@ -301,9 +300,10 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
             OS_FILES,
             responses_mock=self.responses,
         )
-        distro = mock.MagicMock(spec=Distro)
         ds_os = ds.DataSourceOpenStack(
-            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN,
+            test_util.MockDistro(),
+            helpers.Paths({"run_dir": self.tmp}),
         )
         self.assertIsNone(ds_os.version)
         with mock.patch.object(ds_os, "override_ds_detect", return_value=True):
@@ -373,10 +373,10 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
         _register_uris(
             self.VERSION, {}, {}, os_files, responses_mock=self.responses
         )
-        distro = mock.MagicMock(spec=Distro)
-        distro.is_virtual = True
         ds_os = ds.DataSourceOpenStack(
-            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN,
+            test_util.MockDistro(),
+            helpers.Paths({"run_dir": self.tmp}),
         )
         self.assertIsNone(ds_os.version)
         with test_helpers.mock.patch.object(
@@ -400,10 +400,10 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
         _register_uris(
             self.VERSION, {}, {}, os_files, responses_mock=self.responses
         )
-        distro = mock.MagicMock(spec=Distro)
-        distro.is_virtual = True
         ds_os = ds.DataSourceOpenStack(
-            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN,
+            test_util.MockDistro(),
+            helpers.Paths({"run_dir": self.tmp}),
         )
         ds_os.ds_cfg = {
             "max_wait": 0,
@@ -476,10 +476,10 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
         _register_uris(
             self.VERSION, {}, {}, os_files, responses_mock=self.responses
         )
-        distro = mock.MagicMock(spec=Distro)
-        distro.is_virtual = True
         ds_os = ds.DataSourceOpenStack(
-            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN,
+            test_util.MockDistro(),
+            helpers.Paths({"run_dir": self.tmp}),
         )
         ds_os.ds_cfg = {
             "max_wait": 0,
@@ -582,10 +582,10 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
         self.tmp = self.tmp_dir()
 
     def _fake_ds(self) -> ds.DataSourceOpenStack:
-        distro = mock.MagicMock(spec=Distro)
-        distro.is_virtual = True
         return ds.DataSourceOpenStack(
-            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN,
+            test_util.MockDistro(),
+            helpers.Paths({"run_dir": self.tmp}),
         )
 
     def test_ds_detect_non_intel_x86(self, m_is_x86):
