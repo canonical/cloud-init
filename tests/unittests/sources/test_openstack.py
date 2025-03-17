@@ -85,13 +85,6 @@ def mock_is_resolvable():
         yield
 
 
-def mock_distro():
-    distro = mock.MagicMock(spec=Distro)
-    distro.is_virtual = True
-    distro.fallback_interface = "eth9"
-    return distro
-
-
 # TODO _register_uris should leverage test_ec2.register_mock_metaserver.
 def _register_uris(version, ec2_files, ec2_meta, os_files, *, responses_mock):
     """Registers a set of url patterns into responses that will mimic the
@@ -310,7 +303,7 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
         )
         ds_os = ds.DataSourceOpenStack(
             settings.CFG_BUILTIN,
-            mock_distro(),
+            test_util.MockDistro(),
             helpers.Paths({"run_dir": self.tmp}),
         )
         self.assertIsNone(ds_os.version)
@@ -383,7 +376,7 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
         )
         ds_os = ds.DataSourceOpenStack(
             settings.CFG_BUILTIN,
-            mock_distro(),
+            test_util.MockDistro(),
             helpers.Paths({"run_dir": self.tmp}),
         )
         self.assertIsNone(ds_os.version)
@@ -410,7 +403,7 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
         )
         ds_os = ds.DataSourceOpenStack(
             settings.CFG_BUILTIN,
-            mock_distro(),
+            test_util.MockDistro(),
             helpers.Paths({"run_dir": self.tmp}),
         )
         ds_os.ds_cfg = {
@@ -486,7 +479,7 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
         )
         ds_os = ds.DataSourceOpenStack(
             settings.CFG_BUILTIN,
-            mock_distro(),
+            test_util.MockDistro(),
             helpers.Paths({"run_dir": self.tmp}),
         )
         ds_os.ds_cfg = {
@@ -513,7 +506,7 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
         )
         ds_os = ds.DataSourceOpenStack(
             settings.CFG_BUILTIN,
-            mock_distro(),
+            test_util.MockDistro(),
             helpers.Paths({"run_dir": self.tmp}),
         )
         crawled_data = ds_os._crawl_metadata()
