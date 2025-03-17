@@ -430,8 +430,6 @@ class Renderer(renderer.Renderer):
             # filter None (but not False) entries up front
             ifcfg = dict(filter(lambda it: it[1] is not None, config.items()))
 
-            logging.debug("config for %s:\n%s", ifname, ifcfg)
-
             if_type = ifcfg.get("type")
             if if_type == "physical":
                 # required_keys = ['name', 'mac_address']
@@ -439,8 +437,8 @@ class Renderer(renderer.Renderer):
                     "set-name": ifname,
                     "match": ifcfg.get("match", None),
                 }
-                if "critical" in ifcfg:
-                    eth["critical"] = ifcfg["critical"]
+                if "keep_configuration" in ifcfg:
+                    eth["critical"] = ifcfg["keep_configuration"]
                 if eth["match"] is None:
                     macaddr = ifcfg.get("mac_address", None)
                     if macaddr is not None:
