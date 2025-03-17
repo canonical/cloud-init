@@ -14,7 +14,6 @@ import pytest
 import responses
 
 from cloudinit import helpers, settings, util
-from cloudinit.distros import Distro
 from cloudinit.sources import UNSET, BrokenMetadata
 from cloudinit.sources import DataSourceOpenStack as ds
 from cloudinit.sources import convert_vendordata
