@@ -1,0 +1,103 @@
+From 2400f4b650aa524fa1de7126cddbf17d18e10983 Mon Sep 17 00:00:00 2001
+From: James Falcon <james.falcon@canonical.com>
+Date: Mon, 17 Mar 2025 18:37:06 -0500
+Subject: [PATCH] test: correctly mock fallback nic in openstack tests (#6101)
+
+Previously, the mock distro would present a mock fallback interface
+resulting in invalid IP addresses that would look something like:
+fe80::a9fe:a9fe%25<MagicMock name='mock.fallback_interface' id='138716823174880'>
+---
+ tests/unittests/sources/test_openstack.py | 30 +++++++++++------------
+ tests/unittests/util.py                   |  2 ++
+ 2 files changed, 17 insertions(+), 15 deletions(-)
+
+--- a/tests/unittests/sources/test_openstack.py
++++ b/tests/unittests/sources/test_openstack.py
+@@ -14,7 +14,6 @@ import pytest
+ import responses
+ 
+ from cloudinit import helpers, settings, util
+-from cloudinit.distros import Distro
+ from cloudinit.sources import UNSET, BrokenMetadata
+ from cloudinit.sources import DataSourceOpenStack as ds
+ from cloudinit.sources import convert_vendordata
+@@ -301,9 +300,10 @@ class TestOpenStackDataSource(test_helpe
+             OS_FILES,
+             responses_mock=self.responses,
+         )
+-        distro = mock.MagicMock(spec=Distro)
+         ds_os = ds.DataSourceOpenStack(
+-            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
++            settings.CFG_BUILTIN,
++            test_util.MockDistro(),
++            helpers.Paths({"run_dir": self.tmp}),
+         )
+         self.assertIsNone(ds_os.version)
+         with mock.patch.object(ds_os, "override_ds_detect", return_value=True):
+@@ -373,10 +373,10 @@ class TestOpenStackDataSource(test_helpe
+         _register_uris(
+             self.VERSION, {}, {}, os_files, responses_mock=self.responses
+         )
+-        distro = mock.MagicMock(spec=Distro)
+-        distro.is_virtual = True
+         ds_os = ds.DataSourceOpenStack(
+-            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
++            settings.CFG_BUILTIN,
++            test_util.MockDistro(),
++            helpers.Paths({"run_dir": self.tmp}),
+         )
+         self.assertIsNone(ds_os.version)
+         with test_helpers.mock.patch.object(
+@@ -400,10 +400,10 @@ class TestOpenStackDataSource(test_helpe
+         _register_uris(
+             self.VERSION, {}, {}, os_files, responses_mock=self.responses
+         )
+-        distro = mock.MagicMock(spec=Distro)
+-        distro.is_virtual = True
+         ds_os = ds.DataSourceOpenStack(
+-            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
++            settings.CFG_BUILTIN,
++            test_util.MockDistro(),
++            helpers.Paths({"run_dir": self.tmp}),
+         )
+         ds_os.ds_cfg = {
+             "max_wait": 0,
+@@ -476,10 +476,10 @@ class TestOpenStackDataSource(test_helpe
+         _register_uris(
+             self.VERSION, {}, {}, os_files, responses_mock=self.responses
+         )
+-        distro = mock.MagicMock(spec=Distro)
+-        distro.is_virtual = True
+         ds_os = ds.DataSourceOpenStack(
+-            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
++            settings.CFG_BUILTIN,
++            test_util.MockDistro(),
++            helpers.Paths({"run_dir": self.tmp}),
+         )
+         ds_os.ds_cfg = {
+             "max_wait": 0,
+@@ -582,10 +582,10 @@ class TestDetectOpenStack(test_helpers.C
+         self.tmp = self.tmp_dir()
+ 
+     def _fake_ds(self) -> ds.DataSourceOpenStack:
+-        distro = mock.MagicMock(spec=Distro)
+-        distro.is_virtual = True
+         return ds.DataSourceOpenStack(
+-            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
++            settings.CFG_BUILTIN,
++            test_util.MockDistro(),
++            helpers.Paths({"run_dir": self.tmp}),
+         )
+ 
+     def test_ds_detect_non_intel_x86(self, m_is_x86):
+--- a/tests/unittests/util.py
++++ b/tests/unittests/util.py
+@@ -70,6 +70,8 @@ def abstract_to_concrete(abclass):
+ 
+ 
+ class MockDistro(distros.Distro):
++    fallback_interface = "eth9"
++
+     # MockDistro is here to test base Distro class implementations
+     def __init__(self, name="testingdistro", cfg=None, paths=None):
+         self._client = None

@@ -1,3 +1,13 @@
+cloud-init (24.4.1-0ubuntu0~20.04.3) UNRELEASED; urgency=medium
+
+  * cherry-pick 2400f4b6: test: correctly mock fallback nic in openstack
+    tests (#6101)
+    - This is necessary to ensure that package build tests pass using
+      the lastest version of python3.8. `urlparse()` is stricter in
+      response to CVE-2025-0938
+
+ -- James Falcon <james.falcon@canonical.com>  Mon, 17 Mar 2025 19:37:03 -0500
+
 cloud-init (24.4.1-0ubuntu0~20.04.2) focal; urgency=medium
 
   * cherry-pick fixes for MAAS traceback (LP: #2100963)
