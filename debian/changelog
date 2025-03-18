@@ -1,4 +1,4 @@
-cloud-init (24.4.1-0ubuntu0~20.04.3) UNRELEASED; urgency=medium
+cloud-init (24.4.1-0ubuntu0~20.04.3) focal; urgency=medium
 
   * cherry-pick 2400f4b6: test: correctly mock fallback nic in openstack
     tests (#6101)
