@@ -299,7 +299,7 @@ class DataSourceOracle(sources.DataSource):
             logging.debug(
                 "Instance is using iSCSI root, setting primary NIC as critical"
             )
-            self._network_config["config"][0]["critical"] = True
+            self._network_config["config"][0]["keep_configuration"] = True
         if not self._has_network_config():
             LOG.warning(
                 "Could not obtain network configuration from initramfs. "
