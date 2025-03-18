@@ -12,6 +12,7 @@ import itertools
 import json
 import logging
 import os
+import shutil
 from typing import List
 
 from cloudinit import subp, temp_utils, templater, url_helper, util
@@ -32,6 +33,11 @@ CHEF_DIRS = (
     "/var/run/chef",
 )
 REQUIRED_CHEF_DIRS = ("/etc/chef",)
+
+CHEF_DIR_MIGRATION = {
+    "/var/cache/chef": "/var/chef/cache",
+    "/var/backups/chef": "/var/chef/backup",
+}
 
 # Used if fetching chef from a omnibus style package
 OMNIBUS_URL = "https://www.chef.io/chef/install.sh"
@@ -137,6 +143,25 @@ def get_template_params(iid, chef_cfg):
     return params
 
 
+def migrate_chef_config_dirs():
+    """Migrate legacy chef backup and cache directories to new config paths."""
+    for old_dir, migrated_dir in CHEF_DIR_MIGRATION.items():
+        if os.path.exists(old_dir):
+            for filename in os.listdir(old_dir):
+                if os.path.exists(os.path.join(migrated_dir, filename)):
+                    LOG.debug(
+                        "Ignoring migration of %s. File already exists in %s.",
+                        os.path.join(old_dir, filename),
+                        migrated_dir,
+                    )
+                    continue
+                LOG.debug(
+                    f"Moving {os.path.join(old_dir, filename)} to"
+                    f" {migrated_dir}."
+                )
+                shutil.move(os.path.join(old_dir, filename), migrated_dir)
+
+
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """Handler method activated by cloud-init."""
 
@@ -155,6 +180,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         chef_dirs = list(CHEF_DIRS)
     for d in itertools.chain(chef_dirs, REQUIRED_CHEF_DIRS):
         util.ensure_dir(d)
+
+    # Migrate old directory cache and backups to new
+    migrate_chef_config_dirs()
 
     vkey_path = chef_cfg.get("validation_key", CHEF_VALIDATION_PEM_PATH)
     vcert = chef_cfg.get("validation_cert")
