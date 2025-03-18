@@ -200,10 +200,10 @@ def test_netplan_rendering(net_config, session_cloud: IntegrationCloud):
     }
     with session_cloud.launch(launch_kwargs=launch_kwargs) as client:
         result = client.execute("cat /etc/netplan/50-cloud-init.yaml")
-        if CURRENT_RELEASE < JAMMY:
-            assert result.stdout.startswith(EXPECTED_NETPLAN_HEADER)
-        else:
+        if has_netplanlib(client):
             assert EXPECTED_NETPLAN_HEADER not in result.stdout
+        else:
+            assert result.stdout.startswith(EXPECTED_NETPLAN_HEADER)
         assert expected == yaml.safe_load(result.stdout)
 
 
