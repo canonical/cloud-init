@@ -197,6 +197,7 @@ def test_oci_keep_configuration_networking_config(
     - At least one netplan file exists under '/run/systemd/network'.
     - The primary systemd network configuration file includes the 
         'KeepConfiguration=true' directive.
+    - The netplan configuration includes the 'critical: true' directive.
     """
     with session_cloud.launch(
         launch_kwargs={
