@@ -132,7 +132,6 @@ module = [
     "tests.unittests.config.test_cc_resizefs",
     "tests.unittests.config.test_cc_resolv_conf",
     "tests.unittests.config.test_cc_rh_subscription",
-    #"tests.unittests.config.test_cc_runcmd",
     "tests.unittests.config.test_cc_ubuntu_autoinstall",
     "tests.unittests.config.test_cc_update_etc_hosts",
     "tests.unittests.config.test_cc_users_groups",
