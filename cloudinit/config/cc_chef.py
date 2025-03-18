@@ -156,8 +156,9 @@ def migrate_chef_config_dirs():
                     )
                     continue
                 LOG.debug(
-                    f"Moving {os.path.join(old_dir, filename)} to"
-                    f" {migrated_dir}."
+                    "Moving %s to %s.",
+                    os.path.join(old_dir, filename),
+                    migrated_dir,
                 )
                 shutil.move(os.path.join(old_dir, filename), migrated_dir)
 
