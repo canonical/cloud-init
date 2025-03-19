@@ -219,6 +219,7 @@ class TestConvertNetJson:
                     "type": "vlan",
                     "vlan_id": 123,
                     "vlan_link": "bond0",
+                    "mac_address": "xx:xx:xx:xx:xx:00",
                 },
                 {"address": "1.1.1.1", "type": "nameserver"},
             ],
@@ -346,6 +347,7 @@ class TestConvertNetJson:
                     ],
                     "vlan_id": 123,
                     "vlan_link": "bond0",
+                    "mac_address": "xx:xx:xx:xx:xx:00",
                 },
             ],
         }
