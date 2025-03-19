@@ -57,8 +57,6 @@ Pull request checklist
 
 Before any pull request can be accepted, remember to do the following:
 
-* Make sure your GitHub username is added (alphabetically) to the in-repository
-  list that we use to track CLA signatures: `tools/.github-cla-signers`_.
 * Add or update any :ref:`unit tests<testing>` accordingly.
 * Add or update any :ref:`integration_tests` (if applicable).
 * Format code (using ``black`` and ``isort``) with ``tox -e do_format``.
