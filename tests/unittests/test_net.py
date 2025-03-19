@@ -19,7 +19,6 @@ from cloudinit import distros, net, subp, temp_utils, util
 from cloudinit.net import (
     cmdline,
     eni,
-    interface_has_own_mac,
     mask_and_ipv4_to_bcast_addr,
     natural_sort_key,
     netplan,
@@ -4981,15 +4980,6 @@ class TestGetInterfaces:
         "bonds": ["bond1"],
         "bridges": ["bridge1"],
         "vlans": ["bond1.101"],
-        "own_macs": [
-            "enp0s1",
-            "enp0s2",
-            "bridge1-nic",
-            "bridge1",
-            "bond1.101",
-            "lo",
-            "eth1",
-        ],
         "macs": {
             "enp0s1": "aa:aa:aa:aa:aa:01",
             "enp0s2": "aa:aa:aa:aa:aa:02",
@@ -5039,9 +5029,6 @@ class TestGetInterfaces:
     def _se_is_vlan(self, name):
         return name in self.data["vlans"]
 
-    def _se_interface_has_own_mac(self, name):
-        return name in self.data["own_macs"]
-
     def _se_is_bond(self, name):
         return name in self.data["bonds"]
 
@@ -5057,7 +5044,6 @@ class TestGetInterfaces:
             "get_interface_mac",
             "get_master",
             "is_bridge",
-            "interface_has_own_mac",
             "is_vlan",
             "device_driver",
             "device_devid",
@@ -5089,9 +5075,6 @@ class TestGetInterfaces:
 
     def test_gi_excludes_stolen_macs(self, mocks):
         ret = net.get_interfaces()
-        mocks["interface_has_own_mac"].assert_has_calls(
-            [mock.call("enp0s1"), mock.call("bond1")], any_order=True
-        )
         expected = [
             ("enp0s2", "aa:aa:aa:aa:aa:02", "e1000", "0x5"),
             ("enp0s1", "aa:aa:aa:aa:aa:01", "virtio_net", "0x4"),
@@ -5109,7 +5092,6 @@ class TestGetInterfaces:
         self.data["drivers"]["b1"] = None
         self.data["devices"].add("b1")
         self.data["bonds"] = []
-        self.data["own_macs"] = self.data["devices"]
         self.data["bridges"] = [f for f in self.data["devices"] if f != "b1"]
         ret = net.get_interfaces()
         assert [("b1", "aa:aa:aa:aa:aa:b1", None, "0x0")] == ret
@@ -5124,42 +5106,6 @@ class TestGetInterfaces:
         )
 
 
-class TestInterfaceHasOwnMac:
-    """Test interface_has_own_mac.  This is admittedly a bit whitebox."""
-
-    @mock.patch("cloudinit.net.read_sys_net_int", return_value=None)
-    def test_non_strict_with_no_addr_assign_type(self, m_read_sys_net_int):
-        """If nic does not have addr_assign_type, it is not "stolen".
-
-        SmartOS containers do not provide the addr_assign_type in /sys.
-
-            $ ( cd /sys/class/net/eth0/ && grep -r . *)
-            address:90:b8:d0:20:e1:b0
-            addr_len:6
-            flags:0x1043
-            ifindex:2
-            mtu:1500
-            tx_queue_len:1
-            type:1
-        """
-        assert interface_has_own_mac("eth0")
-
-    @mock.patch("cloudinit.net.read_sys_net_int", return_value=None)
-    def test_strict_with_no_addr_assign_type_raises(self, m_read_sys_net_int):
-        with pytest.raises(ValueError):
-            interface_has_own_mac("eth0", True)
-
-    @mock.patch("cloudinit.net.read_sys_net_int")
-    def test_expected_values(self, m_read_sys_net_int):
-        msg = "address_assign_type=%d said to not have own mac"
-        for address_assign_type in (0, 1, 3):
-            m_read_sys_net_int.return_value = address_assign_type
-            assert interface_has_own_mac("eth0", msg % address_assign_type)
-
-        m_read_sys_net_int.return_value = 2
-        assert not interface_has_own_mac("eth0")
-
-
 @mock.patch(
     "cloudinit.net.is_openvswitch_internal_interface",
     mock.Mock(return_value=False),
@@ -5169,18 +5115,6 @@ class TestGetInterfacesByMac:
         "bonds": ["bond1"],
         "bridges": ["bridge1"],
         "vlans": ["bond1.101"],
-        "own_macs": [
-            "enp0s1",
-            "enp0s2",
-            "bridge1-nic",
-            "bridge1",
-            "bond1.101",
-            "lo",
-            "netvsc0-vf",
-            "netvsc0",
-            "netvsc1",
-            "netvsc1-vf",
-        ],
         "macs": {
             "enp0s1": "aa:aa:aa:aa:aa:01",
             "enp0s2": "aa:aa:aa:aa:aa:02",
@@ -5214,8 +5148,8 @@ class TestGetInterfacesByMac:
             "device_driver",
             "get_interface_mac",
             "is_bridge",
-            "interface_has_own_mac",
             "is_vlan",
+            "is_bond",
             "get_ib_interface_hwaddr",
         )
         all_mocks = {}
@@ -5241,8 +5175,8 @@ class TestGetInterfacesByMac:
     def _se_is_vlan(self, name):
         return name in self.data["vlans"]
 
-    def _se_interface_has_own_mac(self, name):
-        return name in self.data["own_macs"]
+    def _se_is_bond(self, name):
+        return name in self.data["bonds"]
 
     def _se_get_ib_interface_hwaddr(self, name, ethernet_format):
         ib_hwaddr = self.data.get("ib_hwaddr", {})
@@ -5263,9 +5197,6 @@ class TestGetInterfacesByMac:
 
     def test_excludes_stolen_macs(self, mocks):
         ret = net.get_interfaces_by_mac()
-        mocks["interface_has_own_mac"].assert_has_calls(
-            [mock.call("enp0s1"), mock.call("bond1")], any_order=True
-        )
         assert {
             "aa:aa:aa:aa:aa:01": "enp0s1",
             "aa:aa:aa:aa:aa:02": "enp0s2",
@@ -5276,13 +5207,12 @@ class TestGetInterfacesByMac:
         } == ret
 
     def test_excludes_bridges(self, mocks):
-        # add a device 'b1', make all return they have their "own mac",
+        # add a device 'b1'
         # set everything other than 'b1' to be a bridge.
         # then expect b1 is the only thing left.
         self.data["macs"]["b1"] = "aa:aa:aa:aa:aa:b1"
         self.data["devices"].add("b1")
         self.data["bonds"] = []
-        self.data["own_macs"] = self.data["devices"]
         self.data["bridges"] = [f for f in self.data["devices"] if f != "b1"]
         ret = net.get_interfaces_by_mac()
         assert {"aa:aa:aa:aa:aa:b1": "b1"} == ret
@@ -5304,7 +5234,6 @@ class TestGetInterfacesByMac:
         self.data["devices"].add("b1")
         self.data["bonds"] = []
         self.data["bridges"] = []
-        self.data["own_macs"] = self.data["devices"]
         self.data["vlans"] = [f for f in self.data["devices"] if f != "b1"]
         ret = net.get_interfaces_by_mac()
         assert {"aa:aa:aa:aa:aa:b1": "b1"} == ret
@@ -5324,7 +5253,6 @@ class TestGetInterfacesByMac:
         addnics = ("greptap1", "lo", "greptap2")
         self.data["macs"].update(dict((k, empty_mac) for k in addnics))
         self.data["devices"].update(set(addnics))
-        self.data["own_macs"].extend(list(addnics))
         ret = net.get_interfaces_by_mac()
         assert "lo" == ret[empty_mac]
 
@@ -5345,7 +5273,6 @@ class TestGetInterfacesByMac:
         }
         self.data["macs"].update(addnics)
         self.data["devices"].update(set(addnics))
-        self.data["own_macs"].extend(addnics.keys())
         ret = net.get_interfaces_by_mac()
         assert "lo" == ret["00:00:00:00:00:00"]
 
@@ -5353,7 +5280,6 @@ class TestGetInterfacesByMac:
         ib_addr = "80:00:00:28:fe:80:00:00:00:00:00:00:00:11:22:03:00:33:44:56"
         ib_addr_eth_format = "00:11:22:33:44:56"
         self.data["devices"] = ["enp0s1", "ib0"]
-        self.data["own_macs"].append("ib0")
         self.data["macs"]["ib0"] = ib_addr
         self.data["ib_hwaddr"] = {
             "ib0": {True: ib_addr_eth_format, False: ib_addr}
@@ -5442,7 +5368,6 @@ class TestGetIBHwaddrsByInterface:
         ],
         "bonds": ["bond1"],
         "bridges": ["bridge1"],
-        "own_macs": ["enp0s1", "enp0s2", "bridge1-nic", "bridge1", "ib0"],
         "macs": {
             "enp0s1": "aa:aa:aa:aa:aa:01",
             "enp0s2": "aa:aa:aa:aa:aa:02",
@@ -5463,7 +5388,6 @@ class TestGetIBHwaddrsByInterface:
             "get_devicelist",
             "get_interface_mac",
             "is_bridge",
-            "interface_has_own_mac",
             "get_ib_interface_hwaddr",
         )
         all_mocks = {}
@@ -5482,9 +5406,6 @@ class TestGetIBHwaddrsByInterface:
 
     def _se_is_bridge(self, name):
         return name in self.data["bridges"]
-
-    def _se_interface_has_own_mac(self, name):
-        return name in self.data["own_macs"]
 
     def _se_get_ib_interface_hwaddr(self, name, ethernet_format):
         ib_hwaddr = self.data.get("ib_hwaddr", {})

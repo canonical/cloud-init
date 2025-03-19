@@ -730,34 +730,6 @@ class TestGetInterfaceMAC(CiTestCase):
         )
 
 
-class TestInterfaceHasOwnMAC(CiTestCase):
-    def setUp(self):
-        super(TestInterfaceHasOwnMAC, self).setUp()
-        sys_mock = mock.patch("cloudinit.net.get_sys_class_path")
-        self.m_sys_path = sys_mock.start()
-        self.sysdir = self.tmp_dir() + "/"
-        self.m_sys_path.return_value = self.sysdir
-        self.addCleanup(sys_mock.stop)
-
-    def test_interface_has_own_mac_false_when_stolen(self):
-        """Return False from interface_has_own_mac when address is stolen."""
-        write_file(os.path.join(self.sysdir, "eth1", "addr_assign_type"), "2")
-        self.assertFalse(net.interface_has_own_mac("eth1"))
-
-    def test_interface_has_own_mac_true_when_not_stolen(self):
-        """Return False from interface_has_own_mac when mac isn't stolen."""
-        valid_assign_types = ["0", "1", "3"]
-        assign_path = os.path.join(self.sysdir, "eth1", "addr_assign_type")
-        for _type in valid_assign_types:
-            write_file(assign_path, _type)
-            self.assertTrue(net.interface_has_own_mac("eth1"))
-
-    def test_interface_has_own_mac_strict_errors_on_absent_assign_type(self):
-        """When addr_assign_type is absent, interface_has_own_mac errors."""
-        with self.assertRaises(ValueError):
-            net.interface_has_own_mac("eth1", strict=True)
-
-
 @mock.patch("cloudinit.net.subp.subp")
 @pytest.mark.usefixtures("disable_netdev_info")
 class TestEphemeralIPV4Network(CiTestCase):

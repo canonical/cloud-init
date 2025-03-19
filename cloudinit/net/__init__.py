@@ -496,7 +496,6 @@ def find_candidate_nics_on_linux() -> List[str]:
         filter_openvswitch_internal=False,
         filter_slave_if_master_not_bridge_bond_openvswitch=False,
         filter_vlan=False,
-        filter_without_own_mac=False,
         filter_zero_mac=False,
         log_filtered_reasons=True,
     ):
@@ -627,26 +626,6 @@ def extract_physdevs(netcfg):
         return _version_2(netcfg)
 
     raise RuntimeError("Unknown network config version: %s" % version)
-
-
-def interface_has_own_mac(ifname, strict=False):
-    """return True if the provided interface has its own address.
-
-    Based on addr_assign_type in /sys.  Return true for any interface
-    that does not have a 'stolen' address. Examples of such devices
-    are bonds or vlans that inherit their mac from another device.
-    Possible values are:
-      0: permanent address    2: stolen from another device
-    1: randomly generated   3: set using dev_set_mac_address"""
-
-    assign_type = read_sys_net_int(ifname, "addr_assign_type")
-    if assign_type is None:
-        # None is returned if this nic had no 'addr_assign_type' entry.
-        # if strict, raise an error, if not return True.
-        if strict:
-            raise ValueError("%s had no addr_assign_type.")
-        return True
-    return assign_type in (0, 1, 3)
 
 
 def _get_current_rename_info(check_downable=True):
@@ -1031,7 +1010,6 @@ def get_interfaces(
     filter_openvswitch_internal: bool = True,
     filter_slave_if_master_not_bridge_bond_openvswitch: bool = True,
     filter_vlan: bool = True,
-    filter_without_own_mac: bool = True,
     filter_zero_mac: bool = True,
     log_filtered_reasons: bool = False,
 ) -> list:
@@ -1044,8 +1022,6 @@ def get_interfaces(
     # 16 somewhat arbitrarily chosen.  Normally a mac is 6 '00:' tokens.
     zero_mac = ":".join(("00",) * 16)
     for name in devs:
-        if filter_without_own_mac and not interface_has_own_mac(name):
-            continue
         if is_bridge(name):
             filtered_logger("Ignoring bridge interface: %s", name)
             continue

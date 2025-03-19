@@ -146,7 +146,6 @@ categories:
 
   * ``get_ib_interface_hwaddr``
   * ``get_interface_mac``
-  * ``interface_has_own_mac``
   * ``is_bond``
   * ``is_bridge``
   * ``is_physical``
