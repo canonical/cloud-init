@@ -384,6 +384,10 @@
           "items": {
             "$ref": "#/$defs/config_type_subnet"
           }
+        },
+        "mac_address": {
+          "type": "string",
+          "description": "When specifying MAC Address on a VLAN subinterface this value will be assigned to the vlan subinterface device and may be different than the MAC address of the physical interface. Specifying a MAC Address is optional. If ``mac_address`` is not present, then the VLAN subinterface will use the MAC Address values from one of the physical interface."
         }
       }
     },
