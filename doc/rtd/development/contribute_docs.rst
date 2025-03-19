@@ -52,13 +52,6 @@ write any content.
 In your first PR
 =================
 
-You will need to add your GitHub username (alphabetically) to the in-repository
-list that we use to track :ref:`CLA signatures <contributing-prerequisites>`:
-`tools/.github-cla-signers`_.
-
-Please include this in the same PR alongside your first contribution. Do
-not create a separate PR to add your name to the CLA signatures.
-
 If you need some help with your contribution, you can contact us on our
 `IRC channel <IRC_>`_. If you have already submitted a work-in-progress PR, you
 can also ask for guidance from our technical author by `tagging s-makin`_ as a
