@@ -100,7 +100,7 @@ CFG_CTRL = {
     },
 }
 
-CFG_FULL_PULL = {
+CFG_FULL_PULL: Dict[str, Any] = {
     "ansible": {
         "install_method": "distro",
         "package_name": "ansible-core",
@@ -232,10 +232,7 @@ class TestAnsible:
     def test_filter_args(self):
         """only diff should be removed"""
         out = cc_ansible.filter_args(
-            cast(
-                Dict[str, Any],
                 CFG_FULL_PULL.get("ansible", {}).get("pull", {}),
-            )
         )
         assert out == {
             "url": "https://github/holmanb/vmboot",
@@ -413,7 +410,7 @@ class TestAnsible:
     @mock.patch(M_PATH + "validate_config")
     def test_do_not_run(self, m_validate):
         """verify that if ansible key not included, don't do anything"""
-        cc_ansible.handle("", {}, get_cloud(), [])  # pyright: ignore
+        cc_ansible.handle("", {}, get_cloud(), [])
         assert not m_validate.called
 
     @mock.patch(
