@@ -2,7 +2,7 @@ import os
 import re
 from copy import deepcopy
 from textwrap import dedent
-from typing import Any, Dict, cast
+from typing import Any, Dict
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -232,7 +232,7 @@ class TestAnsible:
     def test_filter_args(self):
         """only diff should be removed"""
         out = cc_ansible.filter_args(
-                CFG_FULL_PULL.get("ansible", {}).get("pull", {}),
+            CFG_FULL_PULL.get("ansible", {}).get("pull", {}),
         )
         assert out == {
             "url": "https://github/holmanb/vmboot",
