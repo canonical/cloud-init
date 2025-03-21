@@ -3424,18 +3424,24 @@ class TestEphemeralNetworking:
         assert azure_ds._wireserver_endpoint == "168.63.129.16"
         assert azure_ds._ephemeral_dhcp_ctx.iface == lease["interface"]
 
-    def test_no_retry_missing_driver(
-        self, azure_ds, caplog, mock_ephemeral_dhcp_v4
+    def test_retry_missing_driver(
+        self, azure_ds, caplog, mock_ephemeral_dhcp_v4, mock_sleep
     ):
+        lease = {
+            "interface": "fakeEth0",
+        }
         mock_ephemeral_dhcp_v4.return_value.obtain_lease.side_effect = [
-            FileNotFoundError
+            FileNotFoundError,
+            FileNotFoundError,
+            lease,
         ]
 
-        with pytest.raises(FileNotFoundError):
-            azure_ds._setup_ephemeral_networking()
+        azure_ds._setup_ephemeral_networking()
 
         assert mock_ephemeral_dhcp_v4.return_value.mock_calls == [
-            mock.call.obtain_lease()
+            mock.call.obtain_lease(),
+            mock.call.obtain_lease(),
+            mock.call.obtain_lease(),
         ]
         assert "File not found during DHCP" in caplog.text
 
