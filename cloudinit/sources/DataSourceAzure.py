@@ -472,7 +472,6 @@ class DataSourceAzure(sources.DataSource):
                         "File not found during DHCP %r" % error,
                         logger_func=LOG.error,
                     )
-                    raise error
                 except subp.ProcessExecutionError as error:
                     # udevadm settle, ip link set dev eth0 up, etc.
                     report_diagnostic_event(
