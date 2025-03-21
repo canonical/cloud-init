@@ -59,6 +59,13 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         }
     }
 
+    default_update_events = {
+        EventScope.NETWORK: {
+            EventType.BOOT_NEW_INSTANCE,
+            EventType.BOOT,
+        }
+    }
+
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceOpenStack, self).__init__(sys_cfg, distro, paths)
         self.metadata_address = None
