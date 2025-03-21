@@ -4,7 +4,6 @@ Thank you for submitting a PR to cloud-init!
 To ease the process of reviewing your PR, do make sure to complete the following checklist **before** submitting a pull request.
 
 - [ ] I have signed the CLA: https://ubuntu.com/legal/contributors
-- [ ] I have added my Github username to ``tools/.github-cla-signers``
 - [ ] I have included a comprehensive commit message using the guide below
 - [ ] I have added unit tests to cover the new behavior under ``tests/unittests/``
   - Test files should map to source files i.e. a source file ``cloudinit/example.py`` should be tested by ``tests/unittests/test_example.py``
