@@ -71,11 +71,6 @@ class Networking(metaclass=abc.ABCMeta):
     def get_master(self, devname: DeviceName):
         return net.get_master(devname)
 
-    def interface_has_own_mac(
-        self, devname: DeviceName, *, strict: bool = False
-    ) -> bool:
-        return net.interface_has_own_mac(devname, strict=strict)
-
     def is_bond(self, devname: DeviceName) -> bool:
         return net.is_bond(devname)
 
