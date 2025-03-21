@@ -61,5 +61,4 @@ reviewer.
 .. include:: ../links.txt
 .. _cloud-init GitHub repository: https://github.com/canonical/cloud-init/tree/main/doc/rtd
 .. _Read the Docs: https://readthedocs.com/
-.. _tools/.github-cla-signers: https://github.com/canonical/cloud-init/blob/main/tools/.github-cla-signers
 .. _tagging s-makin: https://github.com/s-makin
