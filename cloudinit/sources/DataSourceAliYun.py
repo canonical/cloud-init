@@ -348,7 +348,7 @@ class DataSourceAliYun(sources.DataSource):
                 return {}
         return {self.imdsv2_token_put_header: self._api_token}
 
-    def _imds_exception_cb(self, msg, exception=None):
+    def _imds_exception_cb(self, exception=None):
         """Fail quickly on proper AWS if IMDSv2 rejects API token request
 
         Guidance from Amazon is that if IMDSv2 had disabled token requests
@@ -374,6 +374,7 @@ class DataSourceAliYun(sources.DataSource):
                         "Fatal error while requesting Ecs IMDSv2 API tokens"
                     )
                 raise exception
+        return True
 
 
 def _is_aliyun():
