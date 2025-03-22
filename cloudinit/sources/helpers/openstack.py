@@ -12,6 +12,7 @@ import copy
 import functools
 import logging
 import os
+import time
 
 from cloudinit import net, sources, subp, url_helper, util
 from cloudinit.sources import BrokenMetadata
@@ -60,6 +61,8 @@ OS_VERSIONS = (
     OS_OCATA,
     OS_ROCKY,
 )
+
+FIND_MAC_TIMEOUT = 10
 
 KNOWN_PHYSICAL_TYPES = (
     None,
@@ -756,6 +759,8 @@ def convert_net_json(network_json=None, known_macs=None):
         d for d in config if d.get("type") == "physical" and "name" not in d
     ]
 
+    # fix bug#6082: get the network card information multiple times,
+    # to avoid errors because the network card is not ready.
     if need_names or link_updates:
         if known_macs is None:
             known_macs = net.get_interfaces_by_mac()
@@ -770,13 +775,21 @@ def convert_net_json(network_json=None, known_macs=None):
         for d in need_names:
             mac = d.get("mac_address")
             if not mac:
-                raise ValueError("No mac_address or name entry for %s" % d)
+                raise ValueError("No mac_address or name entry for %s" % mac)
             if mac not in known_macs:
                 # Let's give udev a chance to catch up
                 util.udevadm_settle()
-                known_macs = net.get_interfaces_by_mac()
-                if mac not in known_macs:
-                    raise ValueError("Unable to find a system nic for %s" % d)
+                start = time.monotonic()
+                while True:
+                    known_macs = net.get_interfaces_by_mac()
+                    if mac not in known_macs:
+                        _msg = "Unable to find a system nic for mac(%s)" % mac
+                        if time.monotonic() - start > FIND_MAC_TIMEOUT:
+                            raise ValueError(_msg)
+                        time.sleep(0.1)
+                        LOG.debug(_msg)
+                        continue
+                    break
             d["name"] = known_macs[mac]
 
         for cfg, key, fmt, targets in link_updates:
