@@ -1,8 +1,12 @@
 cloud-init (25.1-0ubuntu1~24.10.1) UNRELEASED; urgency=medium
 
   * Drop cpicks which are now upstream:
-    - d/p/cpick-d75840be-fix-retry-AWS-hotplug-for-async-IMDS-5995
+    - d/p/cpick-582f16c1-test-add-OauthUrlHelper-tests 
+    - d/p/cpick-8810a2dc-test-Remove-CiTestCase-from-test_url_helper.py
+    - d/p/cpick-9311e066-fix-Update-OauthUrlHelper-to-use-readurl-exception_cb
     - d/p/cpick-84806336-chore-Add-feature-flag-for-manual-network-waiting
+    - d/p/cpick-c60771d8-test-pytestify-test_url_helper.py
+    - d/p/cpick-d75840be-fix-retry-AWS-hotplug-for-async-IMDS-5995
   * refresh patches:
     - d/p/deprecation-version-boundary.patch
     - d/p/grub-dpkg-support.patch
@@ -12,6 +16,18 @@ cloud-init (25.1-0ubuntu1~24.10.1) UNRELEASED; urgency=medium
     https://raw.githubusercontent.com/canonical/cloud-init/25.1/ChangeLog
 
  -- Brett Holman <brett.holman@canonical.com>  Mon, 24 Feb 2025 15:05:49 -0700
+
+cloud-init (24.4.1-0ubuntu0~24.10.2) oracular; urgency=medium
+
+  * cherry-pick fixes for MAAS traceback (LP: #2100963)
+    - cherry-pick c60771d8: test: pytestify test_url_helper.py
+    - cherry-pick 8810a2dc: test: Remove CiTestCase from
+      test_url_helper.py
+    - cherry-pick 582f16c1: test: add OauthUrlHelper tests
+    - cherry-pick 9311e066: fix: Update OauthUrlHelper to use readurl
+      exception_cb
+
+ -- James Falcon <james.falcon@canonical.com>  Thu, 13 Mar 2025 14:46:38 -0500
 
 cloud-init (24.4.1-0ubuntu0~24.10.1) oracular; urgency=medium
 
