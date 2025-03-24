@@ -384,42 +384,41 @@ class DataSourceOracle(sources.DataSource):
             else:
                 network = ipaddress.ip_network(vnic_dict["subnetCidrBlock"])
 
-            if self._network_config["version"] == 1:
-                if is_primary:
-                    if is_ipv6_only:
-                        subnets = [{"type": "dhcp6"}]
-                    else:
-                        subnets = [{"type": "dhcp"}]
+            if is_primary:
+                if is_ipv6_only:
+                    subnets = [{"type": "dhcp6"}]
                 else:
-                    subnets = []
-                    if vnic_dict.get("privateIp"):
-                        subnets.append(
-                            {
-                                "type": "static",
-                                "address": (
-                                    f"{vnic_dict['privateIp']}/"
-                                    f"{network.prefixlen}"
-                                ),
-                            }
-                        )
-                    if vnic_dict.get("ipv6Addresses"):
-                        subnets.append(
-                            {
-                                "type": "static",
-                                "address": (
-                                    f"{vnic_dict['ipv6Addresses'][0]}/"
-                                    f"{network.prefixlen}"
-                                ),
-                            }
-                        )
-                interface_config = {
-                    "name": name,
-                    "type": "physical",
-                    "mac_address": mac_address,
-                    "mtu": MTU,
-                    "subnets": subnets,
-                }
-                self._network_config["config"].append(interface_config)
+                    subnets = [{"type": "dhcp"}]
+            else:
+                subnets = []
+                if vnic_dict.get("privateIp"):
+                    subnets.append(
+                        {
+                            "type": "static",
+                            "address": (
+                                f"{vnic_dict['privateIp']}/"
+                                f"{network.prefixlen}"
+                            ),
+                        }
+                    )
+                if vnic_dict.get("ipv6Addresses"):
+                    subnets.append(
+                        {
+                            "type": "static",
+                            "address": (
+                                f"{vnic_dict['ipv6Addresses'][0]}/"
+                                f"{network.prefixlen}"
+                            ),
+                        }
+                    )
+            interface_config = {
+                "name": name,
+                "type": "physical",
+                "mac_address": mac_address,
+                "mtu": MTU,
+                "subnets": subnets,
+            }
+            self._network_config["config"].append(interface_config)
 
 
 class DataSourceOracleNet(DataSourceOracle):
