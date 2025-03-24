@@ -1,11 +1,11 @@
-cloud-init (25.1.1-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (25.1.1-0ubuntu1) plucky; urgency=medium
 
   * Upstream bug fix release based on upstream bugfix 25.1.1.
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/25.1.1/ChangeLog
   * d/patches: remove all cpick* quilt patches due to upstream snapshot
 
- -- James Falcon <james.falcon@canonical.com>  Mon, 24 Mar 2025 15:01:37 -0500
+ -- James Falcon <james.falcon@canonical.com>  Mon, 24 Mar 2025 15:02:52 -0500
 
 cloud-init (25.1-0ubuntu3) plucky; urgency=medium
 
