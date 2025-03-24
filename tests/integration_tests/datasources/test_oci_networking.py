@@ -181,6 +181,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 @pytest.mark.skipif(PLATFORM != "oci", reason="Test is OCI specific")
 def test_oci_keep_configuration_networking_config(
     session_cloud: IntegrationCloud,
@@ -195,7 +196,7 @@ def test_oci_keep_configuration_networking_config(
 
     Assertions:
     - At least one netplan file exists under '/run/systemd/network'.
-    - The primary systemd network configuration file includes the 
+    - The primary systemd network configuration file includes the
         'KeepConfiguration=true' directive.
     - The netplan configuration includes the 'critical: true' directive.
     """
@@ -209,12 +210,12 @@ def test_oci_keep_configuration_networking_config(
         logger.info(f"Found netplan files:\n{r.stdout}")
         primary_systemd_file: str = r.stdout.strip().splitlines()[0]
         systemd_config = client.read_from_file(primary_systemd_file)
-        assert "KeepConfiguration=true" in systemd_config, (
-            f"KeepConfiguration=true not found in {primary_systemd_file}"
-        )
+        assert (
+            "KeepConfiguration=true" in systemd_config
+        ), f"KeepConfiguration=true not found in {primary_systemd_file}"
         netplan_config = client.read_from_file(
             "/etc/netplan/50-cloud-init.yaml",
         )
-        assert "critical: true" in netplan_config, (
-            "critical: true not found in netplan config"
-        )
+        assert (
+            "critical: true" in netplan_config
+        ), "critical: true not found in netplan config"
