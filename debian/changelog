@@ -11,6 +11,9 @@ cloud-init (25.1-0ubuntu1~24.10.1) UNRELEASED; urgency=medium
     - d/p/deprecation-version-boundary.patch
     - d/p/grub-dpkg-support.patch
   * sort hunks within all patches (--sort on quilt refresh)
+  * d/cloud-init.templates:
+    - Move VMware before OVF. See GH-4030
+    - Enable CloudCIX by default
   * Upstream snapshot based on 25.1.
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/25.1/ChangeLog
