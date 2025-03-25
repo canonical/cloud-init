@@ -17,6 +17,18 @@ cloud-init (25.1-0ubuntu1~24.04.1) UNRELEASED; urgency=medium
 
  -- Brett Holman <brett.holman@canonical.com>  Mon, 24 Feb 2025 14:28:39 -0700
 
+cloud-init (24.4.1-0ubuntu0~20.04.2) focal; urgency=medium
+
+  * cherry-pick fixes for MAAS traceback (LP: #2100963)
+    - cherry-pick c60771d8: test: pytestify test_url_helper.py
+    - cherry-pick 8810a2dc: test: Remove CiTestCase from
+      test_url_helper.py
+    - cherry-pick 582f16c1: test: add OauthUrlHelper tests
+    - cherry-pick 9311e066: fix: Update OauthUrlHelper to use readurl
+      exception_cb
+
+ -- James Falcon <james.falcon@canonical.com>  Thu, 13 Mar 2025 11:28:57 -0500
+
 cloud-init (24.4.1-0ubuntu0~24.04.1) noble; urgency=medium
 
   * Add d/p/cpick-84806336-chore-Add-feature-flag-for-manual-network-waiting
