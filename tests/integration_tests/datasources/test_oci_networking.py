@@ -1,3 +1,4 @@
+import logging
 import re
 from typing import Iterator, Set
 
@@ -14,6 +15,8 @@ datasource:
   Oracle:
     configure_secondary_nics: {configure_secondary_nics}
 """
+
+logger = logging.getLogger(__name__)
 
 
 def customize_environment(
@@ -159,29 +162,6 @@ def test_oci_networking_system_cfg(client: IntegrationInstance, tmpdir):
     assert expected_netplan_cfg == netplan_cfg
 
 
-# look for "/run/systemd/network/10-netplan-*.network"
-# and look for KeepConfiguration=true in the file
-# Example:
-# [Match]
-# PermanentMACAddress=02:00:17:19:f6:8b
-# Name=ens3
-
-# [Network]
-# DHCP=ipv4
-# LinkLocalAddressing=ipv6
-# DNS=169.254.169.254
-# KeepConfiguration=true
-
-# [DHCP]
-# ClientIdentifier=mac
-# RouteMetric=100
-# UseMTU=true
-
-import logging
-
-logger = logging.getLogger(__name__)
-
-
 @pytest.mark.skipif(PLATFORM != "oci", reason="Test is OCI specific")
 def test_oci_keep_configuration_networking_config(
     session_cloud: IntegrationCloud,
@@ -207,7 +187,7 @@ def test_oci_keep_configuration_networking_config(
     ) as client:
         r = client.execute("ls /run/systemd/network/10-netplan-*.network")
         assert r.ok, "No netplan files found under /run/systemd/network"
-        logger.info(f"Found netplan files:\n{r.stdout}")
+        logger.info("Found netplan files:\n%s", r.stdout)
         primary_systemd_file: str = r.stdout.strip().splitlines()[0]
         systemd_config = client.read_from_file(primary_systemd_file)
         assert (
