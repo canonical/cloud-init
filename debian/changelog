@@ -1,4 +1,4 @@
-cloud-init (25.1.1-0ubuntu1~24.04.1) UNRELEASED; urgency=medium
+cloud-init (25.1.1-0ubuntu1~24.04.1) noble; urgency=medium
 
   * Drop cpicks which are now upstream:
     - cpick-d75840be-fix-retry-AWS-hotplug-for-async-IMDS-5995
@@ -11,7 +11,7 @@ cloud-init (25.1.1-0ubuntu1~24.04.1) UNRELEASED; urgency=medium
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/25.1.1/ChangeLog
 
- -- Chad Smith <chad.smith@canonical.com>  Tue, 25 Mar 2025 11:02:18 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 25 Mar 2025 11:02:28 -0600
 
 cloud-init (24.4.1-0ubuntu0~24.04.1) noble; urgency=medium
 
