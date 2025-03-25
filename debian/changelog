@@ -1,21 +1,22 @@
-cloud-init (25.1-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
+cloud-init (25.1.1-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
 
   * Drop cpicks which are now upstream:
     - cpick-d75840be-fix-retry-AWS-hotplug-for-async-IMDS-5995
     - cpick-84806336-chore-Add-feature-flag-for-manual-network-waiting
-  * refresh patches and sort hunks within all patches (--sort quilt refresh)
+  * refresh patches
     - d/p/deprecation-version-boundary.patch
     - d/p/no-single-process.patch
     - d/p/retain-ec2-default-net-update-events.patch
     - d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
+  * sort hunks within all patches (--sort on quilt refresh)
   * d/cloud-init.templates:
     - Move VMware before OVF. See GH-4030
     - Enable CloudCIX by default
-  * Upstream snapshot based on 25.1.
+  * Upstream snapshot based on 25.1.1. (LP: #2104165).
     List of changes from upstream can be found at
-    https://raw.githubusercontent.com/canonical/cloud-init/25.1/ChangeLog
+    https://raw.githubusercontent.com/canonical/cloud-init/25.1.1/ChangeLog
 
- -- Brett Holman <brett.holman@canonical.com>  Mon, 24 Feb 2025 14:21:09 -0700
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 25 Mar 2025 10:31:33 -0600
 
 cloud-init (24.4.1-0ubuntu0~22.04.1) jammy; urgency=medium
 
