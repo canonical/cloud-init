@@ -1,4 +1,4 @@
-cloud-init (25.1.1-0ubuntu0~20.04.1) UNRELEASED; urgency=medium
+cloud-init (25.1.1-0ubuntu0~20.04.1) focal; urgency=medium
 
   * Drop cpicks which are now upstream:
     - d/p/cpick-d75840be-fix-retry-AWS-hotplug-for-async-IMDS-5995
