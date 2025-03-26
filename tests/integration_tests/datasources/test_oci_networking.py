@@ -1,4 +1,3 @@
-import logging
 import re
 from typing import Iterator, Set
 
@@ -15,8 +14,6 @@ datasource:
   Oracle:
     configure_secondary_nics: {configure_secondary_nics}
 """
-
-logger = logging.getLogger(__name__)
 
 
 def customize_environment(
@@ -186,8 +183,12 @@ def test_oci_keep_configuration_networking_config(
         },
     ) as client:
         r = client.execute("ls /run/systemd/network/10-netplan-*.network")
-        assert r.ok, "No netplan files found under /run/systemd/network"
-        logger.info("Found netplan files:\n%s", r.stdout)
+        assert r.ok, (
+            "No netplan files found under /run/systemd/network. We are looking"
+            " for netplan files here to check that the underlying "
+            "'KeepConfiguration=true' directive is actually being applied to "
+            "the systemd network configuration."
+        )
         primary_systemd_file: str = r.stdout.strip().splitlines()[0]
         systemd_config = client.read_from_file(primary_systemd_file)
         assert (
