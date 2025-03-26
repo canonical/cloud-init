@@ -297,7 +297,7 @@ class DataSourceOracle(sources.DataSource):
         if self._is_iscsi_root():
             self._network_config = self._get_iscsi_config()
         if not self._has_network_config():
-            LOG.warning(
+            LOG.debug(
                 "Could not obtain network configuration from initramfs. "
                 "Falling back to IMDS."
             )
