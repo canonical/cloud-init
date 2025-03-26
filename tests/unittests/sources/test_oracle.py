@@ -535,6 +535,7 @@ class TestNetworkConfigFromOpcImds:
             == secondary_cfg["subnets"][0]["address"]
         )
         assert "static" == secondary_cfg["subnets"][0]["type"]
+
     @pytest.mark.parametrize("error_add_network", [None, Exception])
     @pytest.mark.parametrize(
         "configure_secondary_nics",
