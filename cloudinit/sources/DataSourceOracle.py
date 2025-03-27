@@ -364,7 +364,7 @@ class DataSourceOracle(sources.DataSource):
             is_primary = set_primary and index == 0
             mac_address = vnic_dict["macAddr"].lower()
             is_ipv6_only = vnic_dict.get(
-                "ipv6SubnetCidrBlock", False
+                "ipv6VirtualRouterIp", False
             ) and not vnic_dict.get("privateIp", False)
             if mac_address not in interfaces_by_mac:
                 LOG.warning(
