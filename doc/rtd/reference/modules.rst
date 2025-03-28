@@ -64,6 +64,8 @@ Modules
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_mounts/data.yaml
    :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_netplan_nm_patch/data.yaml
+   :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_ntp/data.yaml
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_package_update_upgrade_install/data.yaml
@@ -73,6 +75,8 @@ Modules
 .. datatemplate:yaml:: ../../module-docs/cc_power_state_change/data.yaml
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_puppet/data.yaml
+   :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_raspberry_pi/data.yaml
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_resizefs/data.yaml
    :template: modules.tmpl
