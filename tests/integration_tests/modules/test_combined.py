@@ -265,7 +265,7 @@ class TestCombined:
             # Test user-data doesn't provide install_rsyslog: true so expect
             # warnings when not installed.
             require_warnings.append(
-                "Failed to reload-or-try-restart rsyslog.service:"
+                "Failed to try-reload-or-restart rsyslog.service:"
                 " Unit rsyslog.service not found."
             )
         # Set ignore_deprecations=True as test_deprecated_message covers this
