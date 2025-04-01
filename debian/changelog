@@ -1,3 +1,10 @@
+cloud-init (25.1.1-0ubuntu2~24.04.1) UNRELEASED; urgency=medium
+
+  * d/control: Fix how cloud-init-base overwrites cloud-init files.
+    (LP: #2092333)
+
+ -- James Falcon <james.falcon@canonical.com>  Tue, 01 Apr 2025 14:05:03 -0500
+
 cloud-init (25.1.1-0ubuntu1~24.04.1) noble; urgency=medium
 
   * Drop cpicks which are now upstream:
