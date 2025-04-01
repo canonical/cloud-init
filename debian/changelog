@@ -2,6 +2,8 @@ cloud-init (25.1.1-0ubuntu2) UNRELEASED; urgency=medium
 
   * d/control: Fix how cloud-init-base overwrites cloud-init files.
     (LP: #2092333)
+  * d/cloud-init-base.postinst: don't version-gate the migration from using
+    cloud-init-base debconf values over cloud-init.
 
  -- James Falcon <james.falcon@canonical.com>  Fri, 28 Mar 2025 16:41:08 -0500
 
