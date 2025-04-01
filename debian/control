@@ -44,6 +44,7 @@ Depends: cloud-guest-utils | cloud-utils,
 Recommends: eatmydata, gdisk, gnupg, python3-apt, software-properties-common
 Suggests: openssh-server, ssh-import-id
 Breaks: python3-minimal (<< 3.12.3-0ubuntu2~)
+Provides: cloud-init-base
 Description: initialization and customization tool for cloud instances
  Cloud-init is the industry standard multi-distribution method for
  cross-platform cloud instance initialization. It is supported across all major
