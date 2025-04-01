@@ -85,7 +85,7 @@ for k in sys.argv[2:]:
       # if all these values were '_', the delete value, just delete the file.
       rm -f "$cfg_file"
    else
-      local header="# written by cloud-init debian package per preseed entries
+      local header="# written by cloud-init-base debian package per preseed entries
 # cloud-init-base/{maas-metadata-url,/maas-metadata-credentials}"
 
       local pair="" k="" v="" pload="" orig_umask=""
@@ -112,7 +112,7 @@ for k in sys.argv[2:]:
 handle_preseed_local_cloud_config() {
    local ccfg="" debconf_name="cloud-init-base/local-cloud-config"
    local cfg_file="/etc/cloud/cloud.cfg.d/90_dpkg_local_cloud_config.cfg"
-   local header="# written by cloud-init debian package per preseed entry
+   local header="# written by cloud-init-base debian package per preseed entry
 # $debconf_name"
 
    db_get "${debconf_name}" && ccfg="$RET" || :
@@ -271,10 +271,6 @@ upgrade_to_cloud_init_base() {
     migrate_debconf_to_cloud_init_base local-cloud-config
     migrate_debconf_to_cloud_init_base maas-metadata-credentials
     migrate_debconf_to_cloud_init_base maas-metadata-url
-
-    local oldver="$1" last_ver="24.4~3+really24.3.1-0ubuntu4"
-    dpkg --compare-versions "$oldver" le-nl "$last_ver" || return 0
-
     migrate_debconf_to_cloud_init_base datasources
 }
 
@@ -289,7 +285,7 @@ if [ "$1" = "configure" ]; then
          db_set cloud-init-base/datasources "$values"
       fi
       cat > /etc/cloud/cloud.cfg.d/90_dpkg.cfg <<EOF
-# to update this file, run dpkg-reconfigure cloud-init
+# to update this file, run dpkg-reconfigure cloud-init-base
 datasource_list: [ $values ]
 EOF
    fi
