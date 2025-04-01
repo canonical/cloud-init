@@ -19,12 +19,21 @@ BASE_URL_V1 = "http://169.254.169.254/hetzner/v1"
 
 BUILTIN_DS_CONFIG = {
     "metadata_url": BASE_URL_V1 + "/metadata",
+    "metadata_private_networks_url": BASE_URL_V1
+    + "/metadata/private-networks",
     "userdata_url": BASE_URL_V1 + "/userdata",
 }
 
 MD_RETRIES = 60
 MD_TIMEOUT = 2
 MD_WAIT_RETRY = 2
+
+# Do not re-configure the network on non-Hetzner network interface
+# changes. Currently, Hetzner private network addresses start with 0x86.
+EXTRA_HOTPLUG_UDEV_RULES = """
+SUBSYSTEM=="net", ATTR{address}=="86:*", GOTO="cloudinit_hook"
+GOTO="cloudinit_end"
+"""
 
 
 class DataSourceHetzner(sources.DataSource):
@@ -42,6 +51,9 @@ class DataSourceHetzner(sources.DataSource):
             ]
         )
         self.metadata_address = self.ds_cfg["metadata_url"]
+        self.metadata_private_networks_address = self.ds_cfg[
+            "metadata_private_networks_url"
+        ]
         self.userdata_address = self.ds_cfg["userdata_url"]
         self.retries = self.ds_cfg.get("retries", MD_RETRIES)
         self.timeout = self.ds_cfg.get("timeout", MD_TIMEOUT)
@@ -49,6 +61,8 @@ class DataSourceHetzner(sources.DataSource):
         self._network_config = sources.UNSET
         self.dsmode = sources.DSMODE_NETWORK
         self.metadata_full = None
+
+        self.extra_hotplug_udev_rules = EXTRA_HOTPLUG_UDEV_RULES
 
     def _get_data(self):
         (on_hetzner, serial) = get_hcloud_data()
@@ -68,6 +82,12 @@ class DataSourceHetzner(sources.DataSource):
             ):
                 md = hc_helper.read_metadata(
                     self.metadata_address,
+                    timeout=self.timeout,
+                    sec_between=self.wait_retry,
+                    retries=self.retries,
+                )
+                md["private-networks"] = hc_helper.read_metadata(
+                    self.metadata_private_networks_address,
                     timeout=self.timeout,
                     sec_between=self.wait_retry,
                     retries=self.retries,
@@ -99,6 +119,7 @@ class DataSourceHetzner(sources.DataSource):
         self.metadata["local-hostname"] = md["hostname"]
         self.metadata["network-config"] = md.get("network-config", None)
         self.metadata["public-keys"] = md.get("public-keys", None)
+        self.metadata["private-networks"] = md.get("private-networks", [])
         self.vendordata_raw = md.get("vendor_data", None)
 
         # instance-id and serial from SMBIOS should be identical
@@ -135,9 +156,87 @@ class DataSourceHetzner(sources.DataSource):
         if not _net_config:
             raise RuntimeError("Unable to get meta-data from server....")
 
-        self._network_config = _net_config
+        self._network_config_v2 = {
+            "version": 2,
+            "ethernets": {},
+        }
+        self._network_config_v2["ethernets"] = self._network_config_v1_to_v2(
+            _net_config
+        )
 
-        return self._network_config
+        for private_network in self.metadata.get("private-networks", []):
+            network_config_v2 = {
+                "match": {
+                    "macaddress": private_network["mac_address"],
+                },
+                "dhcp4": True,
+            }
+            idx = private_network["interface_num"]
+            # The key name (priv...) is just a virtual interface name.
+            # To rename the interface, "set-name" must be used, but we
+            # want to keep the OS-chosen name.
+            self._network_config_v2["ethernets"][
+                f"priv{idx}"
+            ] = network_config_v2
+
+        return self._network_config_v2
+
+    def _network_config_v1_to_v2(self, network_config_v1):
+        ethernets = {}
+
+        for network in network_config_v1["config"]:
+            networkv2 = {
+                "match": {
+                    "macaddress": network["mac_address"],
+                },
+                "set-name": network["name"],
+                "addresses": [],
+                "nameservers": {
+                    "addresses": [],
+                },
+                "routes": [],
+            }
+
+            for subnet in network["subnets"]:
+                if (
+                    "ipv4" in subnet
+                    and subnet["ipv4"]
+                    and subnet["type"] == "dhcp"
+                ):
+                    networkv2["dhcp4"] = True
+                if (
+                    "ipv6" in subnet
+                    and subnet["ipv6"]
+                    and subnet["type"] == "dhcp"
+                ):
+                    networkv2["dhcp6"] = True
+
+                if subnet["type"] == "static":
+                    if "address" in subnet:
+                        networkv2["addresses"].append(subnet["address"])
+
+                    if "dns_nameservers" in subnet:
+                        for ns in subnet["dns_nameservers"]:
+                            networkv2["nameservers"]["addresses"].append(ns)
+
+                    target = None
+                    if "ipv4" in subnet and subnet["ipv4"]:
+                        target = "0.0.0.0/0"
+                    elif "ipv6" in subnet and subnet["ipv6"]:
+                        target = "::/0"
+
+                    if "gateway" in subnet and target:
+                        networkv2["routes"].append(
+                            {
+                                "on-link": True,
+                                "to": target,
+                                "via": subnet["gateway"],
+                            }
+                        )
+
+            ethernets[network["name"]] = networkv2
+
+        return ethernets
 
 
 def get_hcloud_data():
