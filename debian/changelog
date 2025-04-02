@@ -1,3 +1,10 @@
+cloud-init (24.4.1-0ubuntu0~24.04.3) UNRELEASED; urgency=medium
+
+  * d/control: Fix how cloud-init-base overwrites cloud-init files.
+    (LP: #2092333)
+
+ -- James Falcon <james.falcon@canonical.com>  Wed, 02 Apr 2025 10:08:54 -0500
+
 cloud-init (24.4.1-0ubuntu0~24.04.2) noble; urgency=medium
 
   * cherry-pick fixes for MAAS traceback (LP: #2100963)
