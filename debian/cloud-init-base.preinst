@@ -44,9 +44,10 @@ move_sem() {
 fix_ephemeral0_micro() {
    # make ephemeral0 entries in /etc/fstab written by cloudconfig
    # 'nobootwait', so they do not block subsequent boots (LP: #634102)
-   local out="" oldver=$1 dev="" adop="nobootwait"
+   local out="" dev="" adop="nobootwait"
    local s="[[:space:]]" ns="[^[:space:]]" # space and "not space"
    local remain="${s}\+.*" first4=""
+   [ -f /etc/fstab ] || return 0
    for dev in /dev/sda2 /dev/sdb; do
       first4="${dev}$s\+$ns\+$s\+$ns\+$s\+$ns\+"
       out=$(awk '$1 == dev && $4 ~ /cloudconfig/ &&  $4 !~ op { print $1 ; }' \
