@@ -1044,8 +1044,6 @@ def get_interfaces(
     # 16 somewhat arbitrarily chosen.  Normally a mac is 6 '00:' tokens.
     zero_mac = ":".join(("00",) * 16)
     for name in devs:
-        if filter_without_own_mac and not interface_has_own_mac(name):
-            continue
         if is_bridge(name):
             filtered_logger("Ignoring bridge interface: %s", name)
             continue
@@ -1053,6 +1051,9 @@ def get_interfaces(
             continue
         if is_bond(name):
             filtered_logger("Ignoring bond interface: %s", name)
+            continue
+        if filter_without_own_mac and not interface_has_own_mac(name):
+            filtered_logger("Ignoring interface with inherited MAC: %s", name)
             continue
         if (
             filter_slave_if_master_not_bridge_bond_openvswitch
