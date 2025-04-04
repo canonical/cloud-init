@@ -18,7 +18,6 @@ from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU, MANTIC
 from tests.integration_tests.util import (
     get_feature_flag_value,
     verify_clean_boot,
-    verify_clean_log,
 )
 
 logger = logging.getLogger(__name__)
@@ -480,6 +479,7 @@ REMOVE_GPG_USERDATA = """
 #cloud-config
 runcmd:
   - DEBIAN_FRONTEND=noninteractive apt-get remove gpg -y
+  - DEBIAN_FRONTEND=noninteractive apt-get remove software-properties-common -y
 """
 
 
@@ -505,21 +505,21 @@ def test_install_missing_deps(session_cloud: IntegrationCloud):
     """
     Test the installation of missing dependencies using apt on an Ubuntu
     system. This test is divided into two stages:
-    Stage 1 (Remove 'gpg' package):
-    - Launch an instance with user-data that removes the 'gpg' package.
+    Stage 1 (Remove existing packages):
+    - Launch an instance with user-data that removes the 'gpg' and
+      'software-properties-common' packages.
       - If on Oracle Cloud, add a command to the user-data to disable the
         oracle-cloud-agent snap to prevent it from interfering with apt.
     - Verify that the cloud-init log is clean and the boot process is clean.
-    - Verify that 'gpg' is actually uninstalled using dpkg.
+    - Verify the packages are actually uninstalled using dpkg.
     - Create a snapshot of the instance after 'gpg' has been removed.
     - If KEEP_INSTANCE is False, destroy the instance after snapshotting.
-    Stage 2 (re-install 'gpg' package with user-data):
+    Stage 2 (re-install packages with user-data):
     - Launch a new instance from the snapshot created in Stage 1 with
       user-data that installs any missing recommended dependencies.
     - Verify that the cloud-init log is clean and the boot process is clean.
-    - Check the cloud-init log to ensure that 'gpg' and its dependencies are
-      installed successfully.
-    - Double check that 'gpg' is actually installed using dpkg.
+    - Check the cloud-init log to ensure that 'gpg' and
+      'software-properties-common' are installed successfully.
     """
     # Two stage install: First stage:  remove gpg noninteractively from image
     instance1 = session_cloud.launch(
@@ -527,11 +527,14 @@ def test_install_missing_deps(session_cloud: IntegrationCloud):
     )
 
     # look for r"un  gpg" using regex ('un' means uninstalled)
-    dpkg_output = instance1.execute("dpkg -l gpg")
-    assert re.search(r"un\s+gpg", dpkg_output.stdout), (
-        "gpg package is still installed. it should have been removed by "
-        "the user-data."
-    )
+    for package in ["gpg", "software-properties-common"]:
+        dpkg_output = instance1.execute(f"dpkg -l {package}")
+        assert re.search(
+            r"[ur][nc]\s+{}".format(package), dpkg_output.stdout
+        ), (
+            f"{package} package is still installed. it should have been "
+            "removed by the user-data."
+        )
 
     snapshot_id = instance1.snapshot()
     if not KEEP_INSTANCE:
@@ -548,10 +551,30 @@ def test_install_missing_deps(session_cloud: IntegrationCloud):
         launch_kwargs={"image_id": snapshot_id},
     ) as minimal_client:
         log = minimal_client.read_from_file("/var/log/cloud-init.log")
-        verify_clean_log(log)
-        verify_clean_boot(minimal_client)
         assert re.search(RE_GPG_SW_PROPERTIES_INSTALLED, log)
         gpg_installed = re.search(
             r"ii\s+gpg", minimal_client.execute("dpkg -l gpg").stdout
         )
+        software_properties_common_installed = re.search(
+            r"ii\s+software-properties-common",
+            minimal_client.execute(
+                "dpkg -l software-properties-common"
+            ).stdout,
+        )
         assert gpg_installed is not None, "gpg package is not installed."
+        assert (
+            software_properties_common_installed is not None
+        ), "software-properties-common package is not installed."
+
+        # It's a little weird that we're ignoring apt errors when testing apt,
+        # but we've already verified that we install the missing dependencies.
+        # To ensure `software-properties-common` is installed, we need to
+        # specify a ppa in our user data, and `apt update` can fail if no ppa
+        # has been uploaded for the release being tested. This isn't uncommon
+        # for the devel release and newer releases in general.
+        # Ignoring apt update errors seems preferrable to playing whack-a-mole
+        # with ppas that may or may not be available.
+        verify_clean_boot(
+            minimal_client,
+            ignore_errors=["Failed to update package using apt"],
+        )

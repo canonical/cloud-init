@@ -278,7 +278,7 @@ on. This is different than the 'platform' item. For example, the cloud name of
 Amazon Web Services is 'aws', while the platform is 'ec2'.
 
 If determining a specific name is not possible or provided in
-:file:`meta-data`, then this filed may contain the same content as 'platform'.
+:file:`meta-data`, then this field may contain the same content as 'platform'.
 
 Example output:
 

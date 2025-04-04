@@ -16,6 +16,12 @@ def setup_custom_datasource(client: IntegrationInstance, datasource_name: str):
         "/usr/lib/python3/dist-packages/cisources/"
         f"DataSource{datasource_name}.py",
     )
+    # Since our custom datasource isn't handling networking, disable
+    # cloud-init networking to avoid wait-online timeouts and errors
+    client.write_to_file(
+        "/etc/cloud/cloud.cfg.d/99-disable-networking.cfg",
+        "network: {config: disabled}",
+    )
 
 
 def verify_no_cache_boot(client: IntegrationInstance):

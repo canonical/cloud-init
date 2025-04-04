@@ -590,6 +590,11 @@ def get_feature_flag_value(client: "IntegrationInstance", key):
     return value
 
 
+def has_netplanlib(client: "IntegrationInstance") -> bool:
+    """Return True if netplan python3 pkg is installed on the instance."""
+    return client.execute("dpkg-query -W python3-netplan").ok
+
+
 def override_kernel_command_line(ds_str: str, instance: "IntegrationInstance"):
     """set the kernel command line and reboot, return after boot done
 

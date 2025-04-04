@@ -2,6 +2,7 @@
 import logging
 import os
 import re
+import time
 import uuid
 from enum import Enum
 from pathlib import Path
@@ -244,15 +245,33 @@ Pin-Priority: 1001"""
             "/etc/apt/preferences.d/cloud-init-integration-testing",
             preferences,
         )
-        assert self.execute(
-            "add-apt-repository {} -y".format(self.settings.CLOUD_INIT_SOURCE)
-        ).ok
-        # PIN this PPA as priority for cloud-init installs regardless of ver
-        r = self.execute(
-            f"DEBIAN_FRONTEND=noninteractive"
-            f" apt-get install -qy {pkg} --allow-downgrades"
-        )
-        assert r.ok, r.stderr
+        # wait up to 5 minutes for lock to be released
+        for _ in range(60):
+            r = self.execute(
+                "add-apt-repository {} -y".format(
+                    self.settings.CLOUD_INIT_SOURCE
+                )
+            )
+            if not r.ok and "Could not get lock" in r.stderr:
+                log.info("Waiting for lock to be released")
+                time.sleep(5)
+                continue
+            assert r.ok, r.stderr
+            # PIN this PPA as priority for cloud-init installs
+            r = self.execute(
+                f"DEBIAN_FRONTEND=noninteractive"
+                f" apt-get install -qy {pkg} --allow-downgrades"
+            )
+            if not r.ok and "Could not get lock" in r.stderr:
+                log.info("Waiting for lock to be released")
+                time.sleep(5)
+                continue
+            assert r.ok, r.stderr
+            break
+        else:
+            raise RuntimeError(
+                "Failed to install cloud-init from PPA after 5 minutes",
+            )
 
     @retry(tries=30, delay=1)
     def install_deb(self):

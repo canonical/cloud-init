@@ -1365,7 +1365,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 "disable": ["disable", service],
                 "restart": ["restart", service],
                 "reload": ["reload-or-restart", service],
-                "try-reload": ["reload-or-try-restart", service],
+                "try-reload": ["try-reload-or-restart", service],
                 "status": ["status", service],
             }
         else:
