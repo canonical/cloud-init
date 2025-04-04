@@ -50,7 +50,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  ListenFIFO=/run/cloud-init/hook-hotplug-cmd
 --- a/systemd/cloud-init-local.service.tmpl
 +++ b/systemd/cloud-init-local.service.tmpl
-@@ -20,7 +20,6 @@ Conflicts=shutdown.target
+@@ -21,7 +21,6 @@ Conflicts=shutdown.target
  RequiresMountsFor=/var/lib/cloud
  ConditionPathExists=!/etc/cloud/cloud-init.disabled
  ConditionKernelCommandLine=!cloud-init=disabled
