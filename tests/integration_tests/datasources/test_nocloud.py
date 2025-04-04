@@ -24,6 +24,18 @@ bootcmd:
   - touch /var/tmp/seeded_vendordata_test_file
 """
 
+# The fallback network config doesn't work on LXD, leading to
+# systemd-network-wait-online timing out and/or cloud-init raising
+# an error about wait-online.
+# This gives us a NoCloud default to work around these issues
+NETWORK_CONFIG = """\
+network:
+  version: 2
+  ethernets:
+    eth0:
+      dhcp4: true
+"""
+
 
 LXD_METADATA_NOCLOUD_SEED = """\
   /var/lib/cloud/seed/nocloud-net/meta-data:
@@ -46,6 +58,12 @@ LXD_METADATA_NOCLOUD_SEED = """\
       default: |
         #cloud-config
         {}
+  /var/lib/cloud/seed/nocloud-net/network-config:
+    when:
+    - create
+    - copy
+    create_only: false
+    template: netcfg.tpl
 """
 
 
@@ -63,6 +81,13 @@ def setup_nocloud(instance: LXDInstance):
     subp(
         ["lxc", "config", "template", "edit", instance.name, "emptycfg.tpl"],
         data="#cloud-config\n{}\n",
+    )
+    subp(
+        ["lxc", "config", "template", "create", instance.name, "netcfg.tpl"],
+    )
+    subp(
+        ["lxc", "config", "template", "edit", instance.name, "netcfg.tpl"],
+        data=NETWORK_CONFIG,
     )
     subp(
         ["lxc", "config", "metadata", "edit", instance.name],
@@ -87,8 +112,11 @@ def test_nocloud_seedfrom_vendordata(client: IntegrationInstance):
         "mkdir {seed_dir} && "
         "touch {seed_dir}/user-data && "
         "touch {seed_dir}/meta-data && "
+        "echo '{net}' > {seed_dir}/network-config && "
         "echo 'seedfrom: {seed_dir}/' > "
-        "/var/lib/cloud/seed/nocloud-net/meta-data".format(seed_dir=seed_dir)
+        "/var/lib/cloud/seed/nocloud-net/meta-data".format(
+            seed_dir=seed_dir, net=NETWORK_CONFIG
+        )
     )
     assert result.return_code == 0
 

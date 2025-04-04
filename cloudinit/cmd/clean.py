@@ -96,6 +96,7 @@ def get_parser(parser=None):
             "all",
             "ssh_config",
             "network",
+            "datasource",
         ],
         default=[],
         nargs="+",
@@ -115,7 +116,7 @@ def remove_artifacts(init, remove_logs, remove_seed=False, remove_config=None):
     @param: remove_seed: Boolean. Set True to also delete seed subdir in
         paths.cloud_dir.
     @param: remove_config: List of strings.
-        Can be any of: all, network, ssh_config.
+        Can be any of: all, network, ssh_config, datasource.
     @returns: 0 on success, 1 otherwise.
     """
     init.read_cfg()
@@ -131,6 +132,11 @@ def remove_artifacts(init, remove_logs, remove_seed=False, remove_config=None):
     ):
         for conf in GEN_SSH_CONFIG_FILES:
             del_file(conf)
+    if remove_config and set(remove_config).intersection(
+        ["all", "datasource"]
+    ):
+
+        init.fetch().clean()
 
     if not os.path.isdir(init.paths.cloud_dir):
         return 0  # Artifacts dir already cleaned
