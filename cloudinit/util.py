@@ -550,6 +550,8 @@ def get_linux_distro():
     os_release_rhel = False
     if os.path.exists("/etc/os-release"):
         os_release = load_shell_content(load_text_file("/etc/os-release"))
+        if os.path.exists("/etc/rpi-issue"):
+            os_release["ID"] = "raspberry-pi-os"
     if not os_release:
         os_release_rhel = True
         os_release = _parse_redhat_release()
@@ -625,6 +627,7 @@ def _get_variant(info):
             "opencloudos",
             "openmandriva",
             "photon",
+            "raspberry-pi-os",
             "rhel",
             "rocky",
             "suse",

@@ -23,7 +23,7 @@ SSH_IMPORT_ID_BINARY = "ssh-import-id"
 
 meta: MetaSchema = {
     "id": "cc_ssh_import_id",
-    "distros": ["alpine", "cos", "debian", "ubuntu"],
+    "distros": ["alpine", "cos", "debian", "raspberry-pi-os", "ubuntu"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": [],
 }
