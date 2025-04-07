@@ -249,7 +249,6 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_lxd"},
             {"$ref": "#/$defs/cc_mcollective"},
             {"$ref": "#/$defs/cc_mounts"},
-            {"$ref": "#/$defs/cc_netplan_nm_patch"},
             {"$ref": "#/$defs/cc_ntp"},
             {"$ref": "#/$defs/cc_package_update_upgrade_install"},
             {"$ref": "#/$defs/cc_phone_home"},
