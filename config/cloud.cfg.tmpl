@@ -215,9 +215,6 @@ cloud_final_modules:
   - salt_minion
   - reset_rmc
 {% endif %}
-{% if variant == "raspberry-pi-os" %}
-  - netplan_nm_patch
-{% endif %}
   - scripts_vendor
   - scripts_per_once
   - scripts_per_boot
