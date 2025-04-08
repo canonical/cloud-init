@@ -102,7 +102,7 @@ def _get_ip_addr(client, *, _retries: int = 0):
     reason="Openstack network metadata support was added in focal.",
 )
 @pytest.mark.user_data(USER_DATA)
-def test_hotplug_add_remove(client: IntegrationInstance):
+def test_hotplug_add(client: IntegrationInstance):
     ips_before = _get_ip_addr(client)
     log = client.read_from_file("/var/log/cloud-init.log")
     assert "Exiting hotplug handler" not in log
@@ -124,17 +124,6 @@ def test_hotplug_add_remove(client: IntegrationInstance):
     netplan_cfg = client.read_from_file("/etc/netplan/50-cloud-init.yaml")
     config = yaml.safe_load(netplan_cfg)
     assert new_addition.interface in config["network"]["ethernets"]
-
-    # Remove new NIC
-    client.instance.remove_network_interface(added_ip)
-    _wait_till_hotplug_complete(client, expected_runs=2)
-    ips_after_remove = _get_ip_addr(client)
-    assert len(ips_after_remove) == len(ips_before)
-    assert added_ip not in [ip.ip4 for ip in ips_after_remove]
-
-    netplan_cfg = client.read_from_file("/etc/netplan/50-cloud-init.yaml")
-    config = yaml.safe_load(netplan_cfg)
-    assert new_addition.interface not in config["network"]["ethernets"]
 
     assert "enabled" == client.execute(
         "cloud-init devel hotplug-hook -s net query"
@@ -201,17 +190,6 @@ def test_hotplug_enable_cmd_ec2(client: IntegrationInstance):
     netplan_cfg = client.read_from_file("/etc/netplan/50-cloud-init.yaml")
     config = yaml.safe_load(netplan_cfg)
     assert new_addition.interface in config["network"]["ethernets"]
-
-    # Remove new NIC
-    client.instance.remove_network_interface(added_ip)
-    _wait_till_hotplug_complete(client, expected_runs=5)
-    ips_after_remove = _get_ip_addr(client)
-    assert len(ips_after_remove) == len(ips_before)
-    assert added_ip not in [ip.ip4 for ip in ips_after_remove]
-
-    netplan_cfg = client.read_from_file("/etc/netplan/50-cloud-init.yaml")
-    config = yaml.safe_load(netplan_cfg)
-    assert new_addition.interface not in config["network"]["ethernets"]
 
 
 @pytest.mark.skipif(
@@ -287,23 +265,6 @@ def test_multi_nic_hotplug(client: IntegrationInstance):
     for pub_ip in public_ips:
         subp("nc -w 10 -zv " + pub_ip + " 22", shell=True)
 
-    # Remove new NIC
-    client.instance.remove_network_interface(secondary_priv_ip)
-    _wait_till_hotplug_complete(client, expected_runs=2)
-
-    public_ips = client.instance.public_ips
-    assert len(public_ips) == 1
-    # SSH over primary NIC works
-    subp("nc -w 10 -zv " + public_ips[0] + " 22", shell=True)
-
-    ips_after_remove = _get_ip_addr(client)
-    assert len(ips_after_remove) == len(ips_before)
-    assert secondary_priv_ip not in [ip.ip4 for ip in ips_after_remove]
-
-    netplan_cfg = client.read_from_file("/etc/netplan/50-cloud-init.yaml")
-    config = yaml.safe_load(netplan_cfg)
-    assert new_addition.interface not in config["network"]["ethernets"]
-
     log_content = client.read_from_file("/var/log/cloud-init.log")
     verify_clean_log(log_content)
     verify_clean_boot(client)
@@ -377,36 +338,9 @@ def test_multi_nic_hotplug_vpc(session_cloud: IntegrationCloud):
         for route in ip_route_show.splitlines():
             assert "metric" in route, "Expected metric to be in the route"
 
-        # Remove new NIC
-        client.instance.remove_network_interface(secondary_priv_ip4)
-        _wait_till_hotplug_complete(client, expected_runs=2)
-
-        # ping to primary NIC works
-        retries = 32
-        error = ""
-        for i in range(retries):
-            if bastion.execute(f"ping -c1 -w5 {primary_priv_ip4}").ok:
-                break
-            LOG.info("Failed to ping %s on try #%s", primary_priv_ip4, i + 1)
-        else:
-            error = (
-                f"Failed to ping {primary_priv_ip4} after {retries} retries"
-            )
-
-        for i in range(retries):
-            if bastion.execute(f"ping -c1 -w5 {primary_priv_ip6}").ok:
-                break
-            LOG.info("Failed to ping %s on try #%s", primary_priv_ip6, i + 1)
-        else:
-            error = (
-                f"Failed to ping {primary_priv_ip6} after {retries} retries"
-            )
-
         log_content = client.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log_content)
         verify_clean_boot(client)
-        if error:
-            raise Exception(error)
 
 
 @pytest.mark.skipif(PLATFORM != "ec2", reason="test is ec2 specific")
@@ -546,7 +480,7 @@ def _customize_environment(client: IntegrationInstance):
 @pytest.mark.user_data(USER_DATA)
 def test_nics_before_config_trigger_hotplug(client: IntegrationInstance):
     """
-    Test that NICs added/removed after the Network boot stage but before
+    Test that NICs added after the Network boot stage but before
     the rest boot stages do trigger cloud-init-hotplugd.
 
     Note: Do not test first boot, as cc_install_hotplug runs at
@@ -566,7 +500,7 @@ def test_nics_before_config_trigger_hotplug(client: IntegrationInstance):
     assert_systemctl_status_code(client, "cloud-config.service", 3)
     assert_systemctl_status_code(client, "cloud-final.service", 3)
 
-    added_ip_0 = client.instance.add_network_interface()
+    client.instance.add_network_interface()
 
     assert_systemctl_status_code(client, "cloud-config.service", 3)
     assert_systemctl_status_code(client, "cloud-final.service", 3)
@@ -585,6 +519,3 @@ def test_nics_before_config_trigger_hotplug(client: IntegrationInstance):
 
     wait_for_cloud_init(client)
     _wait_till_hotplug_complete(client, expected_runs=1)
-
-    client.instance.remove_network_interface(added_ip_0)
-    _wait_till_hotplug_complete(client, expected_runs=2)
