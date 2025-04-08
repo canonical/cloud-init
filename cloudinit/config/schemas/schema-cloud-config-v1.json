@@ -4039,7 +4039,6 @@
     "create_hostname_file": {},
     "device_aliases": {},
     "disable_ec2_metadata": {},
-    "disable_piwiz": {},
     "disable_root": {},
     "disable_root_opts": {},
     "disk_setup": {},
