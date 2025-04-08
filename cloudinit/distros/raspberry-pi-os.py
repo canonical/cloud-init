@@ -4,10 +4,11 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import subp
-from cloudinit.distros import debian
 import os
 import shutil
+
+from cloudinit import subp
+from cloudinit.distros import debian
 
 
 class Distro(debian.Distro):
@@ -59,7 +60,7 @@ class Distro(debian.Distro):
 
         if not result:
             return result
-        
+
         try:
             subp.subp(
                 [
@@ -69,30 +70,30 @@ class Distro(debian.Distro):
                 ],
                 update_env={"SUDO_USER": name},
             )
-        
+
         except subp.ProcessExecutionError as e:
-            self.log.error(f"Failed to setup user: {e}")
+            self.log.error("Failed to setup user:", e)
             return False
 
         # Alacarte fixes
         try:
             # Ensure the sudoers directory exists
             os.makedirs(
-                f"/home/{name}/.local/share/applications", 
-                exist_ok=True)
+                f"/home/{name}/.local/share/applications", exist_ok=True
+            )
             os.makedirs(
-                f"/home/{name}/.local/share/desktop-directories", 
-                exist_ok=True)
-        
+                f"/home/{name}/.local/share/desktop-directories", exist_ok=True
+            )
+
             stat_info = os.stat(f"/home/{name}")
             uid = stat_info.st_uid
             gid = stat_info.st_gid
 
-            paths = [ 
-                f"/home/{name}/.local", 
-                f"/home/{name}/.local/share", 
-                f"/home/{name}/.local/share/applications", 
-                f"/home/{name}/.local/share/desktop-directories"
+            paths = [
+                f"/home/{name}/.local",
+                f"/home/{name}/.local/share",
+                f"/home/{name}/.local/share/applications",
+                f"/home/{name}/.local/share/desktop-directories",
             ]
 
             for path in paths:
@@ -100,7 +101,7 @@ class Distro(debian.Distro):
                 os.chmod(path, 0o755)
 
         except Exception as e:
-            self.log.error(f"Failed to setup userhome: {e}")
+            self.log.error("Failed to setup userhome:", e)
             return False
 
         return True
