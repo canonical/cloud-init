@@ -4,13 +4,13 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
+
 from cloudinit import subp
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
 from cloudinit.settings import PER_INSTANCE
-import logging
-
 
 LOG = logging.getLogger(__name__)
 RPI_BASE_KEY = "rpi"
@@ -21,7 +21,7 @@ SUPPORTED_INTERFACES = {
     "i2c": "do_i2c",
     "serial": "do_serial",
     "onewire": "do_onewire",
-    "remote_gpio": "do_rgpio"
+    "remote_gpio": "do_rgpio",
 }
 RASPI_CONFIG_SERIAL_CONS_FN = "do_serial_cons"
 RASPI_CONFIG_SERIAL_HW_FN = "do_serial_hw"
@@ -164,13 +164,17 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             # check for supported ARM interfaces
             for subkey in cfg[RPI_BASE_KEY][key]:
                 if subkey not in SUPPORTED_INTERFACES.keys():
-                    LOG.warning("Invalid key for %s: %s", RPI_INTERFACES_KEY, subkey)
+                    LOG.warning(
+                        "Invalid key for %s: %s", RPI_INTERFACES_KEY, subkey
+                    )
                     continue
 
                 enable = cfg[RPI_INTERFACES_KEY][subkey]
 
                 if subkey == "serial":
-                    if not isinstance(enable, dict) and not isinstance(enable, bool):
+                    if not isinstance(enable, dict) and not isinstance(
+                        enable, bool
+                    ):
                         LOG.warning(
                             "Invalid value for %s.%s: %s",
                             RPI_INTERFACES_KEY,
@@ -185,7 +189,10 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                     configure_interface(subkey, enable)
                 else:
                     LOG.warning(
-                        "Invalid value for %s.%s: %s", RPI_INTERFACES_KEY, subkey, enable
+                        "Invalid value for %s.%s: %s",
+                        RPI_INTERFACES_KEY,
+                        subkey,
+                        enable,
                     )
         else:
             LOG.warning("Unsupported key: %s", key)
