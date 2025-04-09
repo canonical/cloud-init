@@ -51,7 +51,11 @@ class TestValidUserData:
         PR #575
         """
         result = class_client.execute("cloud-init schema --system")
-        assert result.ok
+        if PLATFORM == "ibm":
+            assert "Invalid vendor-data" in result.stdout
+            assert not result.ok
+        else:
+            assert result.ok
         assert "Valid schema user-data" in result.stdout.strip()
         result = class_client.execute("cloud-init status --long")
         assert 0 == result.return_code, (
