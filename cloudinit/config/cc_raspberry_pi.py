@@ -61,12 +61,25 @@ def is_pifive() -> bool:
 
 
 def configure_serial_interface(cfg: dict | bool, instCfg: Config) -> None:
+    def get_bool_field(name, default=False):
+        val = cfg.get(name, default)
+        if not isinstance(val, bool):
+            LOG.warning(
+                "Invalid value for %s.serial.%s: %s",
+                RPI_INTERFACES_KEY,
+                name,
+                val,
+            )
+            return default
+        return val
+
     enable_console = False
     enable_hw = False
 
     if isinstance(cfg, dict):
-        enable_console = cfg.get("console", False)
-        enable_hw = cfg.get("hardware", False)
+        enable_console = get_bool_field("console")
+        enable_hw = get_bool_field("hardware")
+
     elif isinstance(cfg, bool):
         # default to enabling console as if < pi5
         # this will also enable the hardware
@@ -139,8 +152,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     for key in cfg[RPI_BASE_KEY]:
         if key == ENABLE_RPI_CONNECT_KEY:
-            # expect it to be a dictionary
-            enable = cfg[ENABLE_RPI_CONNECT_KEY]
+            enable = cfg[RPI_BASE_KEY][key]
 
             if isinstance(enable, bool):
                 configure_rpi_connect(enable)
@@ -169,7 +181,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                     )
                     continue
 
-                enable = cfg[RPI_INTERFACES_KEY][subkey]
+                enable = cfg[RPI_BASE_KEY][key][subkey]
 
                 if subkey == "serial":
                     if not isinstance(enable, dict) and not isinstance(

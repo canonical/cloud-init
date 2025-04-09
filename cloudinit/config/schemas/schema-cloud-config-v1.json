@@ -2651,7 +2651,7 @@
         "rpi": {
           "type": "object",
           "properties": {
-            "rpi_interfaces": {
+            "interfaces": {
               "type": "object",
               "properties": {
                 "spi": {
@@ -2696,11 +2696,6 @@
                 "remote_gpio": {
                   "type": "boolean",
                   "description": "Enable remote GPIO interface. Default: ``false``.",
-                  "default": false
-                },
-                "ssh": {
-                  "type": "boolean",
-                  "description": "Enable SSH. Default: ``false``.",
                   "default": false
                 }
               }
