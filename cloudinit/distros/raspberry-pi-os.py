@@ -1,19 +1,22 @@
-# Copyright (C) 2024 Raspberry Pi Ltd. All rights reserved.
+# Copyright (C) 2024-2025 Raspberry Pi Ltd. All rights reserved.
 #
 # Author: Paul Oberosler <paul.oberosler@raspberrypi.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import os
-import shutil
+import logging
 
 from cloudinit import subp
 from cloudinit.distros import debian
 
+LOG = logging.getLogger(__name__)
+
 
 class Distro(debian.Distro):
-    def __init__(self, name, cfg, paths):
-        super().__init__(name, cfg, paths)
+    @classmethod
+    def get_logger(cls):
+        """For testing"""
+        return LOG
 
     def set_keymap(self, layout: str, model: str, variant: str, options: str):
         """Currently Raspberry Pi OS sys-mods only supports
@@ -72,36 +75,7 @@ class Distro(debian.Distro):
             )
 
         except subp.ProcessExecutionError as e:
-            self.log.error("Failed to setup user:", e)
-            return False
-
-        # Alacarte fixes
-        try:
-            # Ensure the sudoers directory exists
-            os.makedirs(
-                f"/home/{name}/.local/share/applications", exist_ok=True
-            )
-            os.makedirs(
-                f"/home/{name}/.local/share/desktop-directories", exist_ok=True
-            )
-
-            stat_info = os.stat(f"/home/{name}")
-            uid = stat_info.st_uid
-            gid = stat_info.st_gid
-
-            paths = [
-                f"/home/{name}/.local",
-                f"/home/{name}/.local/share",
-                f"/home/{name}/.local/share/applications",
-                f"/home/{name}/.local/share/desktop-directories",
-            ]
-
-            for path in paths:
-                shutil.chown(path, user=uid, group=gid)
-                os.chmod(path, 0o755)
-
-        except Exception as e:
-            self.log.error("Failed to setup userhome:", e)
+            LOG.error("Failed to setup user: %s", e)
             return False
 
         return True
