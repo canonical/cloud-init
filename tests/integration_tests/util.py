@@ -387,10 +387,19 @@ def _verify_clean_boot(
             f"{out.stdout}\nstderr: {out.stderr}"
         )
     schema = instance.execute("cloud-init schema --system --annotate")
-    assert schema.ok, (
-        f"Schema validation failed\nstdout:{schema.stdout}"
-        f"\nstderr:\n{schema.stderr}"
-    )
+    if "ibm" == PLATFORM:
+        # IBM provides invalid vendor-data resulting in schema errors
+        assert "Invalid vendor-data" in schema.stdout
+        assert not schema.ok, (
+            f"Expected IBM schema validation errors due to vendor-data, did "
+            f"IBM images resolve this?\nstdout: {schema.stdout}\n"
+            f"stderr:\n{schema.stderr}"
+        )
+    else:
+        assert schema.ok, (
+            f"Schema validation failed\nstdout:{schema.stdout}"
+            f"\nstderr:\n{schema.stderr}"
+        )
 
 
 def verify_clean_log(log: str, ignore_deprecations: bool = True):
