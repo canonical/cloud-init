@@ -70,7 +70,8 @@ class TestRaspberryPiSchema:
             ),
             (
                 {RPI_BASE_KEY: {RPI_INTERFACES_KEY: {"spi": "true"}}},
-                f"{RPI_BASE_KEY}.{RPI_INTERFACES_KEY}.spi: 'true' is not of type 'boolean'",
+                f"{RPI_BASE_KEY}.{RPI_INTERFACES_KEY}.spi: 'true'"
+                " is not of type 'boolean'",
             ),
             (
                 {
@@ -88,12 +89,14 @@ class TestRaspberryPiSchema:
                         RPI_INTERFACES_KEY: {"serial": {"console": 123}}
                     }
                 },
-                f"{RPI_BASE_KEY}.{RPI_INTERFACES_KEY}.serial.console: 123 is not of type 'boolean'",
+                f"{RPI_BASE_KEY}.{RPI_INTERFACES_KEY}.serial.console: "
+                "123 is not of type 'boolean'",
             ),
             ({RPI_BASE_KEY: {ENABLE_RPI_CONNECT_KEY: True}}, None),
             (
                 {RPI_BASE_KEY: {ENABLE_RPI_CONNECT_KEY: "true"}},
-                f"{RPI_BASE_KEY}.{ENABLE_RPI_CONNECT_KEY}: 'true' is not of type 'boolean'",
+                f"{RPI_BASE_KEY}.{ENABLE_RPI_CONNECT_KEY}: 'true'"
+                " is not of type 'boolean'",
             ),
         ],
     )
