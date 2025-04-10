@@ -13,11 +13,6 @@ LOG = logging.getLogger(__name__)
 
 
 class Distro(debian.Distro):
-    @classmethod
-    def get_logger(cls):
-        """For testing"""
-        return LOG
-
     def set_keymap(self, layout: str, model: str, variant: str, options: str):
         """Currently Raspberry Pi OS sys-mods only supports
         setting the layout"""
@@ -41,14 +36,18 @@ class Distro(debian.Distro):
                 ]
             )
         except subp.ProcessExecutionError:
-            subp.subp(
-                [
-                    "/usr/bin/raspi-config",
-                    "nonint",
-                    "do_change_locale",
-                    f"{locale}.UTF-8",
-                ]
-            )
+            if not locale.endswith(".UTF-8"):
+                LOG.info("Trying to set locale %s.UTF-8", locale)
+                subp.subp(
+                    [
+                        "/usr/bin/raspi-config",
+                        "nonint",
+                        "do_change_locale",
+                        f"{locale}.UTF-8",
+                    ]
+                )
+            else:
+                LOG.error("Failed to set locale %s")
 
     def add_user(self, name, **kwargs) -> bool:
         """

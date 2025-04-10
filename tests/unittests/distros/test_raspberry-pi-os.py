@@ -1,13 +1,15 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
+
 from cloudinit.distros import fetch
 from cloudinit.subp import ProcessExecutionError
-from tests.unittests.helpers import CiTestCase, mock
+from tests.unittests.helpers import mock
 
 M_PATH = "cloudinit.distros.raspberry-pi-os."
 
 
-class TestRaspberryPiOS(CiTestCase):
+class TestRaspberryPiOS:
     @mock.patch(M_PATH + "subp.subp")
     def test_set_keymap_calls_imager_custom(self, m_subp):
         cls = fetch("raspberry-pi-os")
@@ -81,13 +83,14 @@ class TestRaspberryPiOS(CiTestCase):
         M_PATH + "subp.subp",
         side_effect=ProcessExecutionError("rename-user failed"),
     )
-    def test_add_user_rename_fails_logs_error(self, m_subp):
+    @mock.patch(
+        "cloudinit.distros.debian.Distro.add_user", 
+        return_value=True
+    )
+    def test_add_user_rename_fails_logs_error(self, m_super_add_user, m_subp, caplog):
         cls = fetch("raspberry-pi-os")
         distro = cls("raspberry-pi-os", {}, None)
 
-        with mock.patch(
-            "cloudinit.distros.debian.Distro.add_user", return_value=True
-        ):
-            with self.assertLogs(cls.get_logger().name, level="ERROR") as cm:
-                assert distro.add_user("pi") is False
-            assert "Failed to setup user" in cm.output[0]
+        with caplog.at_level(logging.ERROR):
+            assert distro.add_user("pi") is False
+            assert "Failed to setup user" in caplog.text
