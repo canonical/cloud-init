@@ -12,6 +12,8 @@ from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
 from cloudinit.settings import PER_INSTANCE
 
+from typing import Union
+
 LOG = logging.getLogger(__name__)
 RPI_BASE_KEY = "rpi"
 RPI_INTERFACES_KEY = "interfaces"
@@ -45,7 +47,6 @@ def configure_rpi_connect(enable: bool) -> None:
         LOG.error("Failed to configure rpi-connect: %s", e)
 
 
-# TODO: test
 def require_reboot(cfg: Config) -> None:
     cfg["power_state"] = cfg.get("power_state", {})
     cfg["power_state"]["mode"] = cfg["power_state"].get("mode", "reboot")
@@ -60,9 +61,9 @@ def is_pifive() -> bool:
         return False
 
 
-def configure_serial_interface(cfg: dict | bool, instCfg: Config) -> None:
-    def get_bool_field(name, default=False):
-        val = cfg.get(name, default)
+def configure_serial_interface(cfg: Union[dict, bool], instCfg: Config) -> None:
+    def get_bool_field(cfg_dict: dict, name: str, default=False):
+        val = cfg_dict.get(name, default)
         if not isinstance(val, bool):
             LOG.warning(
                 "Invalid value for %s.serial.%s: %s",
@@ -77,8 +78,8 @@ def configure_serial_interface(cfg: dict | bool, instCfg: Config) -> None:
     enable_hw = False
 
     if isinstance(cfg, dict):
-        enable_console = get_bool_field("console")
-        enable_hw = get_bool_field("hardware")
+        enable_console = get_bool_field(cfg, "console")
+        enable_hw = get_bool_field(cfg, "hardware")
 
     elif isinstance(cfg, bool):
         # default to enabling console as if < pi5
@@ -184,9 +185,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                 enable = cfg[RPI_BASE_KEY][key][subkey]
 
                 if subkey == "serial":
-                    if not isinstance(enable, dict) and not isinstance(
-                        enable, bool
-                    ):
+                    if not isinstance(enable, (dict, bool)):
                         LOG.warning(
                             "Invalid value for %s.%s: %s",
                             RPI_INTERFACES_KEY,
