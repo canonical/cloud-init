@@ -52,7 +52,7 @@ class TestValidUserData:
         """
         result = class_client.execute("cloud-init schema --system")
         if PLATFORM == "ibm":
-            assert "Invalid vendor-data" in result.stdout
+            assert "Invalid vendor-data" in result.stderr
             assert not result.ok
         else:
             assert result.ok
