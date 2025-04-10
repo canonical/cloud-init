@@ -83,11 +83,10 @@ class TestRaspberryPiOS:
         M_PATH + "subp.subp",
         side_effect=ProcessExecutionError("rename-user failed"),
     )
-    @mock.patch(
-        "cloudinit.distros.debian.Distro.add_user", 
-        return_value=True
-    )
-    def test_add_user_rename_fails_logs_error(self, m_super_add_user, m_subp, caplog):
+    @mock.patch("cloudinit.distros.debian.Distro.add_user", return_value=True)
+    def test_add_user_rename_fails_logs_error(
+        self, m_super_add_user, m_subp, caplog
+    ):
         cls = fetch("raspberry-pi-os")
         distro = cls("raspberry-pi-os", {}, None)
 

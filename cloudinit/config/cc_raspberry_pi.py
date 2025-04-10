@@ -5,14 +5,13 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
+from typing import Union
 
 from cloudinit import subp
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
 from cloudinit.settings import PER_INSTANCE
-
-from typing import Union
 
 LOG = logging.getLogger(__name__)
 RPI_BASE_KEY = "rpi"
@@ -61,7 +60,9 @@ def is_pifive() -> bool:
         return False
 
 
-def configure_serial_interface(cfg: Union[dict, bool], instCfg: Config) -> None:
+def configure_serial_interface(
+    cfg: Union[dict, bool], instCfg: Config
+) -> None:
     def get_bool_field(cfg_dict: dict, name: str, default=False):
         val = cfg_dict.get(name, default)
         if not isinstance(val, bool):
