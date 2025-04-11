@@ -33,6 +33,7 @@ from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
+from cloudinit.sources.DataSourceIBMCloud import get_ibm_platform
 
 meta: MetaSchema = {
     "id": "cc_reset_rmc",
@@ -61,6 +62,11 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     # Ensuring node id has to be generated only once during first boot
     if cloud.datasource.platform_type == "none":
         LOG.debug("Skipping creation of new ct_node_id node")
+        return
+
+    ibm_platform, _ = get_ibm_platform()
+    if not ibm_platform:
+        LOG.debug("module disabled: not IBM platform")
         return
 
     if not os.path.isdir(RSCT_PATH):
