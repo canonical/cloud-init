@@ -1,51 +1,31 @@
 """cloudinit.signal_handler tests"""
 
-import inspect
+import re
 import signal
-from unittest.mock import Mock, patch
+import sys
 
-import pytest
-
-from cloudinit import signal_handler
-
-REENTRANT = "reentrant"
+from cloudinit.signal_handler import _handle_exit
 
 
 class TestSignalHandler:
+    """Test signal_handler.py"""
 
-    @pytest.mark.parametrize(
-        "m_args",
-        [
-            (signal.SIGINT, inspect.currentframe()),
-            (9, None),
-            (signal.SIGTERM, None),
-            (1, inspect.currentframe()),
-        ],
-    )
-    @pytest.mark.parametrize(
-        "m_suspended",
-        [
-            (REENTRANT, 0),
-            (True, 0),
-            (False, 1),
-        ],
-    )
-    def test_suspend_signal(self, m_args, m_suspended):
-        """suspend_crash should prevent crashing (exit 1) on signal
+    def test_handle_exit(self, mocker, caplog):
+        """Test handle_exit()"""
+        mocker.patch("cloudinit.signal_handler.sys.exit")
+        mocker.patch("cloudinit.log.log_util.write_to_console")
 
-        otherwise cloud-init should exit 1
-        """
-        sig, frame = m_args
-        suspended, rc = m_suspended
+        frame = sys._getframe()
+        _handle_exit(signal.Signals.SIGHUP, frame)
 
-        with patch.object(signal_handler.sys, "exit", Mock()) as m_exit:
-            if suspended is True:
-                with signal_handler.suspend_crash():
-                    signal_handler._handle_exit(sig, frame)
-            elif suspended == REENTRANT:
-                with signal_handler.suspend_crash():
-                    with signal_handler.suspend_crash():
-                        signal_handler._handle_exit(sig, frame)
-            else:
-                signal_handler._handle_exit(sig, frame)
-        m_exit.assert_called_with(rc)
+        record = caplog.records[0]
+        assert record.levelname == "INFO"
+        assert re.match(
+            (
+                r"Received signal SIGHUP resulting in exit. Cause:\n"
+                r"  Filename:.*test_signal_handler.py\n"
+                r"  Function: test_handle_exit\n"
+                r"  Line number: \d+"
+            ),
+            record.message,
+        )
