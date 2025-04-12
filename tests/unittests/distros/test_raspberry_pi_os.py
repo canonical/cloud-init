@@ -6,13 +6,13 @@ from cloudinit.distros import fetch
 from cloudinit.subp import ProcessExecutionError
 from tests.unittests.helpers import mock
 
-M_PATH = "cloudinit.distros.raspberry-pi-os."
+M_PATH = "cloudinit.distros.raspberry_pi_os."
 
 
 class TestRaspberryPiOS:
     @mock.patch(M_PATH + "subp.subp")
     def test_set_keymap_calls_imager_custom(self, m_subp):
-        cls = fetch("raspberry-pi-os")
+        cls = fetch("raspberry_pi_os")
         distro = cls("raspberry-pi-os", {}, None)
         distro.set_keymap("us", "pc105", "basic", "")
         m_subp.assert_called_once_with(
@@ -21,7 +21,7 @@ class TestRaspberryPiOS:
 
     @mock.patch(M_PATH + "subp.subp")
     def test_apply_locale_happy_path(self, m_subp):
-        cls = fetch("raspberry-pi-os")
+        cls = fetch("raspberry_pi_os")
         distro = cls("raspberry-pi-os", {}, None)
         distro.apply_locale("en_GB.UTF-8")
         m_subp.assert_called_once_with(
@@ -39,7 +39,7 @@ class TestRaspberryPiOS:
             ProcessExecutionError("Invalid locale"),  # Simulate failure
             None,  # Fallback succeeds
         ]
-        cls = fetch("raspberry-pi-os")
+        cls = fetch("raspberry_pi_os")
         distro = cls("raspberry-pi-os", {}, None)
         distro.apply_locale("en_GB")
         assert m_subp.call_count == 2
@@ -57,7 +57,7 @@ class TestRaspberryPiOS:
 
     @mock.patch(M_PATH + "subp.subp")
     def test_add_user_happy_path(self, m_subp):
-        cls = fetch("raspberry-pi-os")
+        cls = fetch("raspberry_pi_os")
         distro = cls("raspberry-pi-os", {}, None)
         # Mock the superclass add_user to return True
         with mock.patch(
@@ -71,7 +71,7 @@ class TestRaspberryPiOS:
 
     @mock.patch(M_PATH + "subp.subp")
     def test_add_user_existing_user(self, m_subp):
-        cls = fetch("raspberry-pi-os")
+        cls = fetch("raspberry_pi_os")
         distro = cls("raspberry-pi-os", {}, None)
         with mock.patch(
             "cloudinit.distros.debian.Distro.add_user", return_value=False
@@ -87,7 +87,7 @@ class TestRaspberryPiOS:
     def test_add_user_rename_fails_logs_error(
         self, m_super_add_user, m_subp, caplog
     ):
-        cls = fetch("raspberry-pi-os")
+        cls = fetch("raspberry_pi_os")
         distro = cls("raspberry-pi-os", {}, None)
 
         with caplog.at_level(logging.ERROR):
