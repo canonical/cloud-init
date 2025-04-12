@@ -183,7 +183,14 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             ansible_galaxy(galaxy_cfg, ansible)
 
         if pull_cfg:
-            run_ansible_pull(ansible, deepcopy(pull_cfg))
+            pull_cfg_type = type(pull_cfg)
+            if pull_cfg_type is dict:
+                run_ansible_pull(ansible, deepcopy(pull_cfg))
+            elif pull_cfg_type is list:
+                for cfg in pull_cfg:
+                    run_ansible_pull(ansible, deepcopy(cfg))
+            else:
+                raise ValueError(f"Unknown type for pull: {pull_cfg_type}")
 
         if setup_controller:
             ansible_controller(setup_controller, ansible)
@@ -197,10 +204,22 @@ def validate_config(cfg: dict):
     for key in required_keys:
         if not get_cfg_by_path(cfg, key):
             raise ValueError(f"Missing required key '{key}' from {cfg}")
-    if cfg.get("pull"):
-        for key in "pull/url", "pull/playbook_name":
-            if not get_cfg_by_path(cfg, key):
-                raise ValueError(f"Missing required key '{key}' from {cfg}")
+    pull_cfg = cfg.get("pull")
+    if pull_cfg:
+        pull_cfg_type = type(pull_cfg)
+        if pull_cfg_type is dict:
+            for key in "url", "playbook_name":
+                if not get_cfg_by_path(pull_cfg, key):
+                    raise ValueError(
+                        f"Missing required key '{key}' from {pull_cfg}"
+                    )
+        elif pull_cfg_type is list:
+            for c in pull_cfg:
+                for key in "url", "playbook_name":
+                    if not get_cfg_by_path(c, key):
+                        raise ValueError(
+                            f"Missing required key '{key}' from {c}"
+                        )
 
     controller_cfg = cfg.get("setup_controller")
     if controller_cfg:
@@ -217,13 +236,25 @@ def validate_config(cfg: dict):
         raise ValueError("Invalid install method {install}")
 
 
-def filter_args(cfg: dict) -> dict:
+def filter_args(cfg):
     """remove boolean false values"""
-    return {
-        key.replace("_", "-"): value
-        for (key, value) in cfg.items()
-        if value is not False
-    }
+    if type(cfg) is dict:
+        return {
+            key.replace("_", "-"): value
+            for (key, value) in cfg.items()
+            if value is not False
+        }
+    elif type(cfg) is list:
+        list_of_playbooks = []
+        for c in cfg:
+            list_of_playbooks.append(
+                {
+                    key.replace("_", "-"): value
+                    for (key, value) in c.items()
+                    if value is not False
+                }
+            )
+        return list_of_playbooks
 
 
 def run_ansible_pull(pull: AnsiblePull, cfg: dict):
