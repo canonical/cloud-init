@@ -12,6 +12,7 @@ import copy
 import functools
 import logging
 import os
+import time
 
 from cloudinit import net, sources, subp, url_helper, util
 from cloudinit.sources import BrokenMetadata
@@ -771,13 +772,30 @@ def convert_net_json(network_json=None, known_macs=None):
             mac = d.get("mac_address")
             if not mac:
                 raise ValueError("No mac_address or name entry for %s" % d)
-            if mac not in known_macs:
+            retries_left = 15
+            # Give systems which boot slowly a chance to initialize their network devices
+            while mac not in known_macs and retries_left > 0:
+                LOG.info(
+                    "Wait for system to initialize system nic %s (retries left: %i)",
+                    d,
+                    retries_left,
+                )
+                time.sleep(1)
                 # Let's give udev a chance to catch up
                 util.udevadm_settle()
                 known_macs = net.get_interfaces_by_mac()
-                if mac not in known_macs:
-                    raise ValueError("Unable to find a system nic for %s" % d)
-            d["name"] = known_macs[mac]
+                retries_left -= 1
+            if mac not in known_macs:
+                # Don't fail the whole cloud-init process if only the network interface could not be found
+                generated_name = "nic-" + mac.replace(":", "-")
+                LOG.error(
+                    "Unable to find a system nic for %s, using generated name %s",
+                    d,
+                    generated_name,
+                )
+                d["name"] = generated_name
+            else:
+                d["name"] = known_macs[mac]
 
         for cfg, key, fmt, targets in link_updates:
             if isinstance(targets, (list, tuple)):
