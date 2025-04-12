@@ -4,11 +4,13 @@ from copy import copy
 from unittest import mock
 
 import pytest
+import responses
 import yaml
 
 from cloudinit import helpers, settings, url_helper
 from cloudinit.sources import DataSourceMAAS
-from tests.unittests.helpers import populate_dir
+from tests.unittests.helpers import get_mock_paths, populate_dir
+from tests.unittests.util import MockDistro
 
 
 class TestMAASDataSource:
@@ -220,6 +222,53 @@ class TestMAASDataSource:
             klibc_net_cfg = tmpdir.join("run/net-eno.conf")
             klibc_net_cfg.write(initramfs_file)
         assert expected == ds.get_data()
+
+    @responses.activate
+    def test_get_data_with_retry(self, mocker, tmp_path):
+        """Ensure we can get data from IMDS even if some attempts fail."""
+        mocker.patch("time.sleep")
+        metadata_url = "http://169.254.169.254/MAAS/metadata"
+        response_data = {
+            "instance-id": "i-123",
+            "local-hostname": "myhostname",
+            "public-keys": "ssh-rsa AAAAB...yc2E= keyname",
+            "vendor-data": "my-vendordata",
+        }
+
+        responses.add(
+            responses.GET,
+            url=f"{metadata_url}/2012-03-01/meta-data/instance-id",
+            status=404,
+        )
+
+        for key, value in response_data.items():
+            responses.add(
+                responses.GET,
+                f"{metadata_url}/2012-03-01/meta-data/{key}",
+                value.encode(),
+            )
+
+        responses.add(
+            responses.GET,
+            url=f"{metadata_url}/2012-03-01/user-data",
+            status=404,
+        )
+        responses.add(
+            responses.GET,
+            f"{metadata_url}/2012-03-01/user-data",
+            b"my-userdata",
+        )
+
+        cfg = {"datasource": {"MAAS": {"metadata_url": metadata_url}}}
+        ds = DataSourceMAAS.DataSourceMAAS(
+            cfg, MockDistro(), get_mock_paths(tmp_path)({})
+        )
+        assert ds.get_data()
+        assert ds.metadata["instance-id"] == "i-123"
+        assert ds.metadata["local-hostname"] == "myhostname"
+        assert ds.metadata["public-keys"] == "ssh-rsa AAAAB...yc2E= keyname"
+        assert ds.vendordata_raw == "my-vendordata"
+        assert ds.userdata_raw == b"my-userdata"
 
 
 @mock.patch("cloudinit.sources.DataSourceMAAS.url_helper.OauthUrlHelper")
