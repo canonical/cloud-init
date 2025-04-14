@@ -85,6 +85,7 @@ def verify_clean_boot(
     require_deprecations: Optional[list] = None,
     require_warnings: Optional[list] = None,
     require_errors: Optional[list] = None,
+    verify_schema: Optional[bool] = True,
 ):
     """Raise exception if the client experienced unexpected conditions.
 
@@ -112,6 +113,7 @@ def verify_clean_boot(
         require
     :param require_warnings: list of expected warning messages to require
     :param require_errors: list of expected error messages to require
+    :param verify_schema: bool set True to validate cloud-init schema --system
     """
 
     def append_or_create_list(
@@ -185,6 +187,7 @@ def verify_clean_boot(
         require_deprecations=require_deprecations,
         require_warnings=require_warnings,
         require_errors=require_errors,
+        verify_schema=verify_schema,
     )
 
 
@@ -197,6 +200,7 @@ def _verify_clean_boot(
     require_deprecations: Optional[list] = None,
     require_warnings: Optional[list] = None,
     require_errors: Optional[list] = None,
+    verify_schema: Optional[bool] = True,
 ):
     ignore_deprecations = ignore_deprecations or []
     ignore_errors = ignore_errors or []
@@ -386,6 +390,8 @@ def _verify_clean_boot(
             f"Expected rc={rc}, received rc={out.return_code}\nstdout: "
             f"{out.stdout}\nstderr: {out.stderr}"
         )
+    if not verify_schema:
+        return
     schema = instance.execute("cloud-init schema --system --annotate")
     if "ibm" == PLATFORM:
         # IBM provides invalid vendor-data resulting in schema errors
