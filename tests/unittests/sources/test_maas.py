@@ -224,7 +224,7 @@ class TestMAASDataSource:
         assert expected == ds.get_data()
 
     @responses.activate
-    def test_get_data_with_retry(self, mocker, tmp_path):
+    def test_get_data_with_retry(self, mocker, tmp_path, caplog):
         """Ensure we can get data from IMDS even if some attempts fail."""
         mocker.patch("time.sleep")
         metadata_url = "http://169.254.169.254/MAAS/metadata"
@@ -269,6 +269,9 @@ class TestMAASDataSource:
         assert ds.metadata["public-keys"] == "ssh-rsa AAAAB...yc2E= keyname"
         assert ds.vendordata_raw == "my-vendordata"
         assert ds.userdata_raw == b"my-userdata"
+        assert (
+            "Please wait 1 seconds while we wait to try again" in caplog.text
+        )
 
 
 @mock.patch("cloudinit.sources.DataSourceMAAS.url_helper.OauthUrlHelper")
