@@ -19,7 +19,7 @@ from contextlib import suppress
 from socket import gaierror, getaddrinfo, inet_ntoa
 from struct import pack
 
-from cloudinit import net, sources, subp
+from cloudinit import net, performance, sources, subp
 from cloudinit import url_helper as uhelp
 from cloudinit import util
 from cloudinit.net import dhcp
@@ -66,6 +66,7 @@ class CloudStackPasswordServerClient:
         )
         return output.strip()
 
+    @performance.timed("Getting password", log_mode="always")
     def get_password(self):
         password = self._do_request("send_my_password")
         if password in ["", "saved_password"]:
@@ -212,38 +213,27 @@ class DataSourceCloudStack(sources.DataSource):
             return True
         try:
             if self.perform_dhcp_setup:
-                LOG.debug("Setting up network to reach IMDS")
-                candidate_nics = net.find_candidate_nics()
-                LOG.debug("Looking for the primary NIC in: %s", candidate_nics)
+                try:
+                    primary_nic = net.find_fallback_nic()
+                    LOG.debug("Attempting DHCP on: %s", primary_nic)
+                    with EphemeralIPNetwork(self.distro, primary_nic):
+                        vr_addr = get_vr_address(self.distro)
+                        # If vr_addr is a dict, we have the DHCP lease
+                        self.vr_addr = (
+                            vr_addr.get("dhcp-server-identifier")
+                            if isinstance(vr_addr, dict)
+                            else vr_addr
+                        )
+                        self.metadata_address = f"http://{self.vr_addr}/"
 
-                for candidate_nic in candidate_nics:
-                    network_context = EphemeralIPNetwork(
-                        self.distro,
-                        candidate_nic,
+                        return self._crawl_metadata()
+                except NoDHCPLeaseError:
+                    LOG.debug(
+                        "Unable to obtain a DHCP lease for %s",
+                        primary_nic,
                     )
-                    try:
-                        with network_context:
-                            vr_addr = get_vr_address(self.distro)
-                            # If vr_addr is a dict, we have the DHCP lease
-                            self.vr_addr = (
-                                vr_addr.get("dhcp-server-identifier")
-                                if isinstance(vr_addr, dict)
-                                else vr_addr
-                            )
-                            self.metadata_address = f"http://{self.vr_addr}/"
-
-                            if not self.wait_for_metadata_service():
-                                continue
-                            return self._crawl_metadata()
-                    except NoDHCPLeaseError:
-                        LOG.debug(
-                            "Unable to obtain a DHCP lease for %s",
-                            candidate_nic,
-                        )
-                    except Exception:
-                        LOG.debug(
-                            "Failed to crawl IMDS with %s", candidate_nic
-                        )
+                except Exception:
+                    LOG.debug("Failed to crawl IMDS with %s", primary_nic)
                 return False
             if not self.wait_for_metadata_service():
                 return False
@@ -256,20 +246,13 @@ class DataSourceCloudStack(sources.DataSource):
             )
             return False
 
+    @performance.timed("Crawling metadata", log_mode="always")
     def _crawl_metadata(self):
-        start_time = time.monotonic()
-
         self.userdata_raw = ec2.get_instance_userdata(
             self.api_ver, self.metadata_address
         )
-        LOG.debug(self.userdata_raw)
         self.metadata = ec2.get_instance_metadata(
             self.api_ver, self.metadata_address
-        )
-        LOG.debug(self.metadata)
-        LOG.debug(
-            "Crawl of metadata service took %s seconds",
-            int(time.monotonic() - start_time),
         )
 
         password_client = CloudStackPasswordServerClient(self.vr_addr)

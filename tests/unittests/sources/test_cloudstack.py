@@ -501,7 +501,6 @@ class TestDataSourceCloudStackLocal(ResponsesTestCase, CiTestCase):
         assert ds._get_data() is False
         assert m_dhcp.call_count == 1
         expected_logs = (
-            "Setting up network to reach IMDS",
             "Looking for the primary NIC in: ['enp0s4']",
             "Unable to obtain a DHCP lease for enp0s4",
         )
