@@ -7,11 +7,11 @@
 
 try:
     from argparse import ArgumentParser
-except ImportError:
+except ImportError as exc:
     raise RuntimeError(
         "Could not import argparse. Please install python3-argparse "
         "package to continue"
-    )
+    ) from exc
 
 import json
 import os
@@ -49,8 +49,8 @@ MAYBE_RELIABLE_YUM_INSTALL = [
         grep -q "^proxy=" /etc/yum.conf || return 0
         error ":: http proxy in use => forcing the use of fixed URLs in /etc/yum.repos.d/*.repo"
         sed -i --regexp-extended '/^#baseurl=/s/#// ; /^(mirrorlist|metalink)=/s/^/#/' /etc/yum.repos.d/*.repo
-        sed -i 's/download\.fedoraproject\.org/dl.fedoraproject.org/g' /etc/yum.repos.d/*.repo
-        sed -i 's/download\.example/dl.fedoraproject.org/g' /etc/yum.repos.d/*.repo
+        sed -i 's/download.fedoraproject.org/dl.fedoraproject.org/g' /etc/yum.repos.d/*.repo
+        sed -i 's/download.example/dl.fedoraproject.org/g' /etc/yum.repos.d/*.repo
     }
     configure_repos_for_proxy_use
     n=0; max=10;
@@ -68,7 +68,7 @@ MAYBE_RELIABLE_YUM_INSTALL = [
     error ":: running yum install --cacheonly --assumeyes $*"
     yum install --cacheonly --assumeyes "$@"
     configure_repos_for_proxy_use
-    """,
+    """,  # noqa
     "reliable-yum-install",
 ]
 
