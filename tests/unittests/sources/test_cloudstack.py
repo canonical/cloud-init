@@ -484,64 +484,46 @@ class TestDataSourceCloudStackLocal(ResponsesTestCase, CiTestCase):
         MOD_PATH + ".EphemeralIPNetwork",
         autospec=True,
     )
-    @mock.patch(MOD_PATH + ".net.find_candidate_nics")
-    def test_local_datasource_uses_ephemeral_dhcp(
-        self, m_find_candidate_nics, m_dhcp
+    @mock.patch(MOD_PATH + ".net.find_fallback_nic")
+    def test_local_datasource_fails_ephemeral_dhcp(
+        self, m_find_fallback_nic, m_dhcp
     ):
         self.tmp = self.tmp_dir()
         distro = MockDistro()
         ds = DataSourceCloudStackLocal(
             {}, distro, helpers.Paths({"run_dir": self.tmp})
         )
-        m_find_candidate_nics.return_value = [
-            "enp0s4",
+        fallback_nic_cases = [None, "enp0s1", "enp0s1"]
+        dhcp_results = [Exception, NoDHCPLeaseError, Exception]
+        expected_logs = [
+            ("Attempting DHCP on: None", "Failed to crawl IMDS with None"),
+            (
+                "Attempting DHCP on: enp0s1",
+                "Unable to obtain a DHCP lease for enp0s1",
+            ),
+            (
+                "Attempting DHCP on: enp0s1",
+                "Failed to crawl IMDS with enp0s1",
+            ),
         ]
-        m_dhcp.return_value.__enter__.side_effect = (NoDHCPLeaseError,)
-        mock.call(distro, iface="enp0s4"),
-        assert ds._get_data() is False
-        assert m_dhcp.call_count == 1
-        expected_logs = (
-            "Looking for the primary NIC in: ['enp0s4']",
-            "Unable to obtain a DHCP lease for enp0s4",
-        )
-        for msg in expected_logs:
-            self.assertIn(
-                msg,
-                self.logs.getvalue(),
-            )
 
-    @mock.patch(
-        MOD_PATH + ".EphemeralIPNetwork",
-        autospec=True,
-    )
-    @mock.patch(MOD_PATH + ".net.find_candidate_nics")
-    def test_local_datasource_tries_on_multi_nic(
-        self,
-        m_find_candidate_nics,
-        m_dhcp,
-    ):
-        self.tmp = self.tmp_dir()
-        distro = MockDistro()
-        ds = DataSourceCloudStackLocal(
-            {}, distro, helpers.Paths({"run_dir": self.tmp})
-        )
-
-        m_find_candidate_nics.return_value = [
-            "ens0p4",
-            "ens0p5",
-            "ens4",
-        ]
-        m_dhcp.return_value.__enter__.side_effect = (
-            NoDHCPLeaseError,
-            NoDHCPLeaseError,
-            Exception,
-        )
-        assert ds._get_data() is False
-        assert m_dhcp.call_args_list == [
-            mock.call(distro, "ens0p4"),
-            mock.call(distro, "ens0p5"),
-            mock.call(distro, "ens4"),
-        ]
+        # Each of the above cases, except the first, increments the m_dhcp call
+        # count by one. Therefore start at and expect 0, incrementing the
+        # expectation with each iteration
+        dhcp_module_call_count = 0
+        for fallback_nic, dhcp_result, logs in zip(
+            fallback_nic_cases, dhcp_results, expected_logs
+        ):
+            m_find_fallback_nic.return_value = fallback_nic
+            m_dhcp.return_value.__enter__.side_effect = dhcp_result
+            dhcp_module_call_count += 1
+            assert m_dhcp.call_count == dhcp_module_call_count - 1
+            assert ds._get_data() is False
+            for msg in logs:
+                self.assertIn(
+                    msg,
+                    self.logs.getvalue(),
+                )
 
     @mock.patch(MOD_PATH + ".CloudStackPasswordServerClient.get_password")
     @mock.patch(SOURCES_PATH + ".helpers.ec2.get_instance_metadata")
@@ -551,10 +533,10 @@ class TestDataSourceCloudStackLocal(ResponsesTestCase, CiTestCase):
         MOD_PATH + ".EphemeralIPNetwork",
         autospec=True,
     )
-    @mock.patch(MOD_PATH + ".net.find_candidate_nics")
+    @mock.patch(MOD_PATH + ".net.find_fallback_nic")
     def test_local_datasource_success(
         self,
-        m_find_candidate_nics,
+        m_find_fallback_nic,
         m_dhcp,
         m_wait_for_mds,
         m_get_userdata,
@@ -567,53 +549,13 @@ class TestDataSourceCloudStackLocal(ResponsesTestCase, CiTestCase):
             {}, distro, helpers.Paths({"run_dir": self.tmp})
         )
 
-        m_find_candidate_nics.return_value = ["enp0s4"]
+        m_find_fallback_nic.return_value = "enp0s1"
         m_dhcp.return_value.__enter__.side_effect = (None,)
         m_wait_for_mds.return_value = (True,)
         m_get_userdata.return_value = "ud"
         m_get_metadata.return_value = "md"
         m_get_password.return_value = True
 
-        assert ds._get_data() is True
-        assert ds.userdata_raw == "ud"
-        assert ds.metadata == "md"
-
-    @mock.patch(MOD_PATH + ".CloudStackPasswordServerClient.get_password")
-    @mock.patch(SOURCES_PATH + ".helpers.ec2.get_instance_metadata")
-    @mock.patch(SOURCES_PATH + ".helpers.ec2.get_instance_userdata")
-    @mock.patch(DS_PATH + ".wait_for_metadata_service")
-    @mock.patch(
-        MOD_PATH + ".EphemeralIPNetwork",
-        autospec=True,
-    )
-    @mock.patch(MOD_PATH + ".net.find_candidate_nics")
-    def test_local_datasource_success_on_secondary_nic(
-        self,
-        m_find_candidate_nics,
-        m_dhcp,
-        m_wait_for_mds,
-        m_get_userdata,
-        m_get_metadata,
-        m_get_password,
-    ):
-        distro = MockDistro()
-        self.tmp = self.tmp_dir()
-        ds = DataSourceCloudStackLocal(
-            {}, distro, helpers.Paths({"run_dir": self.tmp})
-        )
-
-        m_find_candidate_nics.return_value = ["enp0s4", "ens4"]
-        m_dhcp.return_value.__enter__.side_effect = (
-            NoDHCPLeaseError,
-            None,
-        )
-        m_wait_for_mds.return_value = (
-            False,
-            True,
-        )
-        m_get_userdata.return_value = "ud"
-        m_get_metadata.return_value = "md"
-        m_get_password.return_value = True
         assert ds._get_data() is True
         assert ds.userdata_raw == "ud"
         assert ds.metadata == "md"
