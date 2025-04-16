@@ -1,0 +1,8 @@
+#cloud-config
+rpi_interfaces:
+  ssh: true
+  # works on all Pi models
+  # only enables the UART hardware without binding it to the console
+  serial:
+    console: false
+    hardware: true
