@@ -207,7 +207,9 @@ cloud_final_modules:
 {% if variant not in ["azurelinux"] %}
   - mcollective
   - salt_minion
+{% if variant not in ["alpine"] %}
   - reset_rmc
+{% endif %}
 {% endif %}
   - scripts_vendor
   - scripts_per_once
