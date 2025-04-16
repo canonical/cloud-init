@@ -5,9 +5,18 @@ import pytest
 
 from cloudinit import helpers
 from cloudinit.distros import rhel, ubuntu
+from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.sources import DataSourceHostname
-from cloudinit.sources.DataSourceCloudStack import DataSourceCloudStack
-from tests.unittests.helpers import CiTestCase, ExitStack, mock
+from cloudinit.sources.DataSourceCloudStack import (
+    DataSourceCloudStack,
+    DataSourceCloudStackLocal,
+)
+from tests.unittests.helpers import (
+    CiTestCase,
+    ExitStack,
+    ResponsesTestCase,
+    mock,
+)
 from tests.unittests.util import MockDistro
 
 SOURCES_PATH = "cloudinit.sources"
@@ -466,3 +475,87 @@ class TestCloudStackPasswordFetching(CiTestCase):
 
     def test_password_not_saved_if_bad_request(self):
         self._check_password_not_saved_for("bad_request")
+
+
+class TestDataSourceCloudStackLocal(ResponsesTestCase, CiTestCase):
+    with_logs = True
+
+    @mock.patch(
+        MOD_PATH + ".EphemeralIPNetwork",
+        autospec=True,
+    )
+    @mock.patch(MOD_PATH + ".net.find_fallback_nic")
+    def test_local_datasource_fails_ephemeral_dhcp(
+        self, m_find_fallback_nic, m_dhcp
+    ):
+        self.tmp = self.tmp_dir()
+        distro = MockDistro()
+        ds = DataSourceCloudStackLocal(
+            {}, distro, helpers.Paths({"run_dir": self.tmp})
+        )
+        fallback_nic_cases = [None, "enp0s1", "enp0s1"]
+        dhcp_results = [Exception, NoDHCPLeaseError, Exception]
+        expected_logs = [
+            ("Attempting DHCP on: None", "Failed to crawl IMDS with None"),
+            (
+                "Attempting DHCP on: enp0s1",
+                "Unable to obtain a DHCP lease for enp0s1",
+            ),
+            (
+                "Attempting DHCP on: enp0s1",
+                "Failed to crawl IMDS with enp0s1",
+            ),
+        ]
+
+        # Each of the above cases, except the first, increments the m_dhcp call
+        # count by one. Therefore start at and expect 0, incrementing the
+        # expectation with each iteration
+        dhcp_module_call_count = 0
+        for fallback_nic, dhcp_result, logs in zip(
+            fallback_nic_cases, dhcp_results, expected_logs
+        ):
+            m_find_fallback_nic.return_value = fallback_nic
+            m_dhcp.return_value.__enter__.side_effect = dhcp_result
+            dhcp_module_call_count += 1
+            assert m_dhcp.call_count == dhcp_module_call_count - 1
+            assert ds._get_data() is False
+            for msg in logs:
+                self.assertIn(
+                    msg,
+                    self.logs.getvalue(),
+                )
+
+    @mock.patch(MOD_PATH + ".CloudStackPasswordServerClient.get_password")
+    @mock.patch(SOURCES_PATH + ".helpers.ec2.get_instance_metadata")
+    @mock.patch(SOURCES_PATH + ".helpers.ec2.get_instance_userdata")
+    @mock.patch(DS_PATH + ".wait_for_metadata_service")
+    @mock.patch(
+        MOD_PATH + ".EphemeralIPNetwork",
+        autospec=True,
+    )
+    @mock.patch(MOD_PATH + ".net.find_fallback_nic")
+    def test_local_datasource_success(
+        self,
+        m_find_fallback_nic,
+        m_dhcp,
+        m_wait_for_mds,
+        m_get_userdata,
+        m_get_metadata,
+        m_get_password,
+    ):
+        distro = MockDistro()
+        self.tmp = self.tmp_dir()
+        ds = DataSourceCloudStackLocal(
+            {}, distro, helpers.Paths({"run_dir": self.tmp})
+        )
+
+        m_find_fallback_nic.return_value = "enp0s1"
+        m_dhcp.return_value.__enter__.side_effect = (None,)
+        m_wait_for_mds.return_value = (True,)
+        m_get_userdata.return_value = "ud"
+        m_get_metadata.return_value = "md"
+        m_get_password.return_value = True
+
+        assert ds._get_data() is True
+        assert ds.userdata_raw == "ud"
+        assert ds.metadata == "md"

@@ -19,10 +19,12 @@ from contextlib import suppress
 from socket import gaierror, getaddrinfo, inet_ntoa
 from struct import pack
 
-from cloudinit import sources, subp
+from cloudinit import net, performance, sources, subp
 from cloudinit import url_helper as uhelp
 from cloudinit import util
 from cloudinit.net import dhcp
+from cloudinit.net.dhcp import NoDHCPLeaseError
+from cloudinit.net.ephemeral import EphemeralIPNetwork
 from cloudinit.sources.helpers import ec2
 
 LOG = logging.getLogger(__name__)
@@ -64,6 +66,7 @@ class CloudStackPasswordServerClient:
         )
         return output.strip()
 
+    @performance.timed("Getting password", log_mode="always")
     def get_password(self):
         password = self._do_request("send_my_password")
         if password in ["", "saved_password"]:
@@ -75,7 +78,7 @@ class CloudStackPasswordServerClient:
 
 
 class DataSourceCloudStack(sources.DataSource):
-
+    perform_dhcp_setup = False
     dsname = "CloudStack"
 
     # Setup read_url parameters per get_url_params.
@@ -91,7 +94,8 @@ class DataSourceCloudStack(sources.DataSource):
 
         self.distro = distro
         self.vr_addr = get_vr_address(self.distro)
-        if not self.vr_addr:
+
+        if not self.vr_addr and not self.perform_dhcp_setup:
             raise RuntimeError("No virtual router found!")
         self.metadata_address = f"http://{self.vr_addr}/"
         self.cfg = {}
@@ -208,38 +212,32 @@ class DataSourceCloudStack(sources.DataSource):
             LOG.debug("Using seeded cloudstack data from: %s", self.seed_dir)
             return True
         try:
+            if self.perform_dhcp_setup:
+                try:
+                    primary_nic = net.find_fallback_nic()
+                    LOG.debug("Attempting DHCP on: %s", primary_nic)
+                    with EphemeralIPNetwork(self.distro, primary_nic):
+                        vr_addr = get_vr_address(self.distro)
+                        # If vr_addr is a dict, we have the DHCP lease
+                        self.vr_addr = (
+                            vr_addr.get("dhcp-server-identifier")
+                            if isinstance(vr_addr, dict)
+                            else vr_addr
+                        )
+                        self.metadata_address = f"http://{self.vr_addr}/"
+
+                        return self._crawl_metadata()
+                except NoDHCPLeaseError:
+                    LOG.debug(
+                        "Unable to obtain a DHCP lease for %s",
+                        primary_nic,
+                    )
+                except Exception:
+                    LOG.debug("Failed to crawl IMDS with %s", primary_nic)
+                return False
             if not self.wait_for_metadata_service():
                 return False
-            start_time = time.monotonic()
-            self.userdata_raw = ec2.get_instance_userdata(
-                self.api_ver, self.metadata_address
-            )
-            self.metadata = ec2.get_instance_metadata(
-                self.api_ver, self.metadata_address
-            )
-            LOG.debug(
-                "Crawl of metadata service took %s seconds",
-                int(time.monotonic() - start_time),
-            )
-            password_client = CloudStackPasswordServerClient(self.vr_addr)
-            try:
-                set_password = password_client.get_password()
-            except Exception:
-                util.logexc(
-                    LOG,
-                    "Failed to fetch password from virtual router %s",
-                    self.vr_addr,
-                )
-            else:
-                if set_password:
-                    self.cfg = {
-                        "ssh_pwauth": True,
-                        "password": set_password,
-                        "chpasswd": {
-                            "expire": False,
-                        },
-                    }
-            return True
+            return self._crawl_metadata()
         except Exception:
             util.logexc(
                 LOG,
@@ -248,12 +246,53 @@ class DataSourceCloudStack(sources.DataSource):
             )
             return False
 
+    @performance.timed("Crawling metadata", log_mode="always")
+    def _crawl_metadata(self):
+        self.userdata_raw = ec2.get_instance_userdata(
+            self.api_ver, self.metadata_address
+        )
+        self.metadata = ec2.get_instance_metadata(
+            self.api_ver, self.metadata_address
+        )
+
+        password_client = CloudStackPasswordServerClient(self.vr_addr)
+        try:
+            set_password = password_client.get_password()
+        except Exception:
+            util.logexc(
+                LOG,
+                "Failed to fetch password from virtual router %s",
+                self.vr_addr,
+            )
+        else:
+            if set_password:
+                self.cfg = {
+                    "ssh_pwauth": True,
+                    "password": set_password,
+                    "chpasswd": {
+                        "expire": False,
+                    },
+                }
+        return True
+
     def get_instance_id(self):
         return self.metadata["instance-id"]
 
     @property
     def availability_zone(self):
         return self.metadata["availability-zone"]
+
+
+class DataSourceCloudStackLocal(DataSourceCloudStack):
+    """Run in init-local using a dhcp discovery prior to metadata crawl.
+
+    In init-local, no network is available. This subclass sets up minimal
+    networking with dhclient on a viable nic so that it can talk to the
+    metadata service. If the metadata service provides network configuration
+    then render the network configuration for that instance based on metadata.
+    """
+
+    perform_dhcp_setup = True  # Get metadata network config if present
 
 
 def get_data_server():
@@ -330,6 +369,7 @@ def get_vr_address(distro):
 
 # Used to match classes to dependencies
 datasources = [
+    (DataSourceCloudStackLocal, (sources.DEP_FILESYSTEM,)),
     (DataSourceCloudStack, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
 ]
 
