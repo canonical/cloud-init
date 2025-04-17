@@ -187,14 +187,7 @@ elif os.path.isfile("/etc/redhat-release"):
 elif os.path.isfile("/etc/system-release-cpe"):
     with open("/etc/system-release-cpe") as f:
         cpe_data = f.read().rstrip().split(":")
-
-        if cpe_data[1] == "\o":  # noqa: W605
-            # URI formatted CPE
-            inc = 0
-        else:
-            # String formatted CPE
-            inc = 1
-        (cpe_vendor, cpe_product, cpe_version) = cpe_data[2 + inc : 5 + inc]
+        (cpe_vendor, cpe_product, cpe_version) = cpe_data[3:6]
         if cpe_vendor == "amazon":
             USR_LIB_EXEC = "usr/libexec"
 
