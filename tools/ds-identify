@@ -951,11 +951,6 @@ dscheck_MAAS() {
             return ${DS_FOUND}
             ;;
     esac
-
-    # check config files written by maas for installed system.
-    if check_config "MAAS"; then
-        return "${DS_FOUND}"
-    fi
     return ${DS_NOT_FOUND}
 }
 
