@@ -561,6 +561,18 @@ class TestUpdateSshConfig:
         expected_conf_file = f"{mycfg}.d/50-cloud-init.conf"
         assert not os.path.isfile(expected_conf_file)
 
+    def test_without_sshd_config(self, tmpdir):
+        """In some cases /etc/ssh/sshd_config.d exists but /etc/ssh/sshd_config
+        doesn't. In this case we shouldn't create /etc/ssh/sshd_config but make
+        /etc/ssh/sshd_config.d/50-cloud-init.conf."""
+        mycfg = tmpdir.join("sshd_config")
+        os.mkdir(os.path.join(tmpdir, "sshd_config.d"))
+        assert ssh_util.update_ssh_config({"key": "value"}, mycfg)
+        expected_conf_file = f"{mycfg}.d/50-cloud-init.conf"
+        assert os.path.isfile(expected_conf_file)
+        assert not os.path.isfile(mycfg)
+        assert "key value\n" == util.load_text_file(expected_conf_file)
+
     @pytest.mark.parametrize(
         "cfg",
         ["Include {mycfg}.d/*.conf", "Include {mycfg}.d/*.conf # comment"],

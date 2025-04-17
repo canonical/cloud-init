@@ -13,7 +13,10 @@ else
    files=( "$@" )
 fi
 
-cmd=( "python3" -m "flake8" "${files[@]}" )
+if [ -z "$PYTHON" ]; then
+   PYTHON="python3"
+fi
+cmd=( "$PYTHON" -m "flake8" "${files[@]}" )
 
 echo "Running: " "${cmd[@]}" 1>&2
 exec "${cmd[@]}"

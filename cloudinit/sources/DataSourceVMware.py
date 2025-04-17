@@ -1,10 +1,9 @@
 # Cloud-Init DataSource for VMware
 #
-# Copyright (c) 2018-2023 VMware, Inc. All Rights Reserved.
+# Copyright (c) 2018-2025 Broadcom. All Rights Reserved.
 #
-# Authors: Anish Swaminathan <anishs@vmware.com>
-#          Andrew Kutz <akutz@vmware.com>
-#          Pengpeng Sun <pengpengs@vmware.com>
+# Authors: Andrew Kutz <andrew.kutz@broadcom.com>
+#          Pengpeng Sun <pengpeng.sun@broadcom.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
@@ -20,14 +19,18 @@ multiple transports types, including:
 
 import collections
 import copy
+import functools
 import ipaddress
 import json
 import logging
 import os
 import socket
+import sys
 import time
+from typing import Dict, Set
 
 from cloudinit import atomic_helper, dmi, net, netinfo, sources, util
+from cloudinit.event import EventScope, EventType, userdata_to_events
 from cloudinit.log import loggers
 from cloudinit.sources.helpers.vmware.imc import guestcust_util
 from cloudinit.subp import ProcessExecutionError, subp, which
@@ -52,6 +55,74 @@ LOCAL_IPV6 = "local-ipv6"
 WAIT_ON_NETWORK = "wait-on-network"
 WAIT_ON_NETWORK_IPV4 = "ipv4"
 WAIT_ON_NETWORK_IPV6 = "ipv6"
+
+SUPPORTED_UPDATE_EVENTS_GUEST_INFO_KEY = "cloudinit.updates.supported"
+ENABLED_UPDATE_EVENTS_GUEST_INFO_KEY = "cloudinit.updates.enabled"
+
+# Support network reconfiguration for the following events:
+# TODO(akutz) Add support for METADATA_CHANGE and USER_REQUEST when
+#             those events are supported by Cloud-Init.
+SUPPORTED_UPDATE_EVENTS = {
+    EventScope.NETWORK: {
+        EventType.BOOT,
+        EventType.BOOT_NEW_INSTANCE,
+        EventType.HOTPLUG,
+    }
+}
+
+# By default this datasource only configures the network when
+# booting a new instance or when a NIC is added or removed. If
+# a control plane like VM Service wishes the network to be
+# reconfigured on each boot, it should send in vendordata that
+# overrides the default update events.
+DEFAULT_UPDATE_EVENTS = {
+    EventScope.NETWORK: {
+        EventType.BOOT_NEW_INSTANCE,
+        EventType.HOTPLUG,
+    }
+}
+
+# Only trigger hook-hotplug on NICs with VMware drivers. Avoid
+# triggering the hook on Docker virtual NICs, etc.
+#
+# Please note, there is no way for this datasource to work
+# out-of-the-box with SR-IOV NICs since their driver IDs are not known
+# ahead of time. An SR-IOV NIC's driver is specific to the physical
+# NIC. Users that want to support hotplug events for SR-IOV NICs will
+# need to set "cloud-init.network-drivers" to a list of strings that
+# includes the name of the driver used by the SR-IOV NIC.
+DEFAULT_NETWORK_DRIVERS = [
+    "e1000",
+    "e1000e",
+    "vlance",
+    "vmxnet2",
+    "vmxnet3",
+    "vrdma",
+]
+
+_EXTRA_HOTPLUG_UDEV_RULES_FORMAT = """
+ENV{}=="{}", GOTO="cloudinit_hook"
+GOTO="cloudinit_end"
+"""
+
+
+def cache(function):
+    """
+    cache is a wrapper around functools.cache that no-ops when Python
+    is <3.9, the version in which functools.cache was introduced.
+    """
+    if sys.version_info[:2] < (3, 9):
+        return function
+    else:
+        return functools.cache(function)
+
+
+def get_extra_hotplug_udev_rules(driver_ids):
+    if driver_ids:
+        return _EXTRA_HOTPLUG_UDEV_RULES_FORMAT.format(
+            "{ID_NET_DRIVER}", "|".join(driver_ids)
+        )
+    return None
 
 
 class DataSourceVMware(sources.DataSource):
@@ -92,6 +163,14 @@ class DataSourceVMware(sources.DataSource):
     """
 
     dsname = "VMware"
+
+    supported_update_events = copy.deepcopy(SUPPORTED_UPDATE_EVENTS)
+
+    default_update_events = copy.deepcopy(DEFAULT_UPDATE_EVENTS)
+
+    extra_hotplug_udev_rules = get_extra_hotplug_udev_rules(
+        DEFAULT_NETWORK_DRIVERS
+    )
 
     def __init__(self, sys_cfg, distro, paths, ud_proc=None):
         sources.DataSource.__init__(self, sys_cfg, distro, paths, ud_proc)
@@ -138,6 +217,10 @@ class DataSourceVMware(sources.DataSource):
                     ),
                     (DATA_ACCESS_METHOD_IMC, self.get_imc_data_fn, True),
                 ],
+            )
+        if not hasattr(self, "extra_hotplug_udev_rules"):
+            self.extra_hotplug_udev_rules = get_extra_hotplug_udev_rules(
+                DEFAULT_NETWORK_DRIVERS
             )
 
     def __str__(self):
@@ -223,11 +306,31 @@ class DataSourceVMware(sources.DataSource):
         # etc.
         self.metadata = util.mergemanydict([self.metadata, host_info])
 
+        # Set the extra udev rules based on the configured network
+        # drivers from the metadata or based on the default drivers.
+        self.init_extra_hotplug_udev_rules()
+
         # Persist the instance data for versions of cloud-init that support
         # doing so. This occurs here rather than in the get_data call in
         # order to ensure that the network interfaces are up and can be
         # persisted with the metadata.
         self.persist_instance_data()
+
+    def activate(self, cfg, is_new_instance):
+        """activate(cfg, is_new_instance)
+
+        This is called before the init_modules will be called but after
+        the user-data and vendor-data have been fully processed.
+
+        The cfg is fully up to date config, it contains a merged view of
+           system config, datasource config, user config, vendor config.
+        It should be used rather than the sys_cfg passed to __init__.
+
+        is_new_instance is a boolean indicating if this is a new instance.
+        """
+
+        # Reflect the update events into guestinfo.
+        self.advertise_update_events(cfg)
 
     def _get_subplatform(self):
         get_key_name_fn = None
@@ -261,6 +364,44 @@ class DataSourceVMware(sources.DataSource):
                 "config": self.distro.generate_fallback_config(),
             }
         return self.metadata["network"]["config"]
+
+    def advertise_update_events(self, cfg):
+        default_events: Dict[EventScope, Set[EventType]] = copy.deepcopy(
+            self.default_update_events
+        )
+        user_events: Dict[EventScope, Set[EventType]] = userdata_to_events(
+            cfg.get("updates", {})
+        )
+        enabled_events = util.mergemanydict(
+            [
+                copy.deepcopy(user_events),
+                copy.deepcopy(default_events),
+            ]
+        )
+        return advertise_update_events(
+            self.supported_update_events,
+            enabled_events,
+            self.rpctool,
+            self.rpctool_fn,
+        )
+
+    def init_extra_hotplug_udev_rules(self):
+        rules = get_extra_hotplug_udev_rules(self.get_network_drivers())
+        if rules:
+            self.extra_hotplug_udev_rules = rules
+
+    @cache
+    def get_network_drivers(self):
+        network_drivers = DEFAULT_NETWORK_DRIVERS
+
+        if self.metadata and "network-drivers" in self.metadata:
+            network_drivers = self.metadata["network-drivers"]
+
+            # Trim any leading/trailing whitespace.
+            network_drivers = [s.strip(" ") for s in network_drivers]
+
+        LOG.info("got network drivers %s", network_drivers)
+        return network_drivers
 
     def get_instance_id(self):
         # Pull the instance ID out of the metadata if present. Otherwise
@@ -525,6 +666,69 @@ def advertise_local_ip_addrs(host_info, rpctool, rpctool_fn):
     if local_ipv6:
         guestinfo_set_value(LOCAL_IPV6, local_ipv6, rpctool, rpctool_fn)
         LOG.info("advertised local ipv6 address %s in guestinfo", local_ipv6)
+
+
+def advertise_update_events(
+    supported_update_events, enabled_update_events, rpctool, rpctool_fn
+):
+    """
+    advertise_update_events publishes the types of supported and
+    enabled events to guestinfo.
+
+    The string returned from this method adheres to the following
+    format:
+
+        SCOPE=TYPE[;TYPE][,SCOPE=TYPE[;TYPE]]
+
+    For example:
+
+        * network=boot;hotplug
+        * network=boot-new-instance
+
+    The only supported event scope at the moment is network, but there
+    may be more scopes in the future, and this format will support them.
+    """
+    if not rpctool or not rpctool_fn:
+        return None, None
+
+    def get_events_string(events):
+        event_scopes_and_types_list = []
+        for event_scope, event_types in events.items():
+            event_types_list = sorted(
+                str(event_type) for event_type in event_types
+            )
+            event_scopes_and_types_list.append(
+                "{}={}".format(event_scope, ";".join(event_types_list))
+            )
+        return ",".join(event_scopes_and_types_list)
+
+    supported_events_string = get_events_string(supported_update_events)
+    if supported_events_string:
+        guestinfo_set_value(
+            SUPPORTED_UPDATE_EVENTS_GUEST_INFO_KEY,
+            supported_events_string,
+            rpctool,
+            rpctool_fn,
+        )
+        LOG.info(
+            "advertised supported update events in guestinfo: %s",
+            supported_events_string,
+        )
+
+    enabled_events_string = get_events_string(enabled_update_events)
+    if enabled_events_string:
+        guestinfo_set_value(
+            ENABLED_UPDATE_EVENTS_GUEST_INFO_KEY,
+            enabled_events_string,
+            rpctool,
+            rpctool_fn,
+        )
+        LOG.info(
+            "advertised enabled update events in guestinfo: %s",
+            enabled_events_string,
+        )
+
+    return supported_events_string, enabled_events_string
 
 
 def handle_returned_guestinfo_val(key, val):

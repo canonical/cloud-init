@@ -86,10 +86,11 @@ re-run all stages as it did on first boot.
   remove the file. Best practice when cloning a golden image, to ensure the
   next boot of that image auto-generates a unique machine ID.
   `More details on machine-id`_.
-* :command:`--configs [all | ssh_config | network ]`: Optionally remove all
-  ``cloud-init`` generated config files. Argument `ssh_config` cleans
-  config files for ssh daemon. Argument `network` removes all generated
-  config files for network. `all` removes config files of all types.
+* :command:`--configs [all | ssh_config | network | datasource ]`: Optionally
+  remove all ``cloud-init`` generated config files. Argument `ssh_config`
+  cleans config files for ssh daemon. Argument `network` removes all generated
+  config files for network. Argument `datasource` removes files and/or configs
+  written by current datasource. `all` removes config files of all types.
 
 .. note::
 

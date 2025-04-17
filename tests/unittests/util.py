@@ -72,6 +72,8 @@ def abstract_to_concrete(abclass):
 
 
 class MockDistro(distros.Distro):
+    fallback_interface = "eth9"
+
     # MockDistro is here to test base Distro class implementations
     def __init__(self, name="testingdistro", cfg=None, paths=None):
         self._client = None

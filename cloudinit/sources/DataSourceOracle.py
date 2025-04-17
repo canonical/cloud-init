@@ -297,7 +297,7 @@ class DataSourceOracle(sources.DataSource):
         if self._is_iscsi_root():
             self._network_config = self._get_iscsi_config()
         if not self._has_network_config():
-            LOG.warning(
+            LOG.debug(
                 "Could not obtain network configuration from initramfs. "
                 "Falling back to IMDS."
             )
@@ -364,7 +364,7 @@ class DataSourceOracle(sources.DataSource):
             is_primary = set_primary and index == 0
             mac_address = vnic_dict["macAddr"].lower()
             is_ipv6_only = vnic_dict.get(
-                "ipv6SubnetCidrBlock", False
+                "ipv6VirtualRouterIp", False
             ) and not vnic_dict.get("privateIp", False)
             if mac_address not in interfaces_by_mac:
                 LOG.warning(
