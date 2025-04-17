@@ -1,4 +1,4 @@
-cloud-init (25.2~1g7a0265d3-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (25.2~1g7a0265d3-0ubuntu1) questing; urgency=medium
 
   * d/control: add Azure metapackage
     + New Azure binary package depending on cloud-init-base and
@@ -7,7 +7,7 @@ cloud-init (25.2~1g7a0265d3-0ubuntu1) UNRELEASED; urgency=medium
   * Upstream snapshot based on upstream/main at 7a0265d3.
     - Bugs fixed in this snapshot: (LP: #2106671)
 
- -- James Falcon <james.falcon@canonical.com>  Thu, 17 Apr 2025 13:18:12 -0500
+ -- James Falcon <james.falcon@canonical.com>  Thu, 17 Apr 2025 13:27:07 -0500
 
 cloud-init (25.1.1-0ubuntu2) plucky; urgency=medium
 
