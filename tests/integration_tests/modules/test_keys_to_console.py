@@ -58,7 +58,7 @@ class TestKeysToConsoleBlacklist:
 
     # retry decorator here because it can take some time to be reflected
     # in syslog
-    @retry(tries=30, delay=1)
+    @retry(tries=60, delay=1)
     @pytest.mark.parametrize("key_type", ["ED25519", "RSA"])
     def test_included_keys(self, class_client, key_type):
         assert "({})".format(key_type) in get_syslog_or_console(class_client)

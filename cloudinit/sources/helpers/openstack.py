@@ -732,6 +732,7 @@ def convert_net_json(network_json=None, known_macs=None):
                 {
                     "name": name,
                     "vlan_id": link["vlan_id"],
+                    "mac_address": link["vlan_mac_address"],
                 }
             )
             link_updates.append((cfg, "vlan_link", "%s", link["vlan_link"]))

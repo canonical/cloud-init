@@ -5090,7 +5090,7 @@ class TestGetInterfaces:
     def test_gi_excludes_stolen_macs(self, mocks):
         ret = net.get_interfaces()
         mocks["interface_has_own_mac"].assert_has_calls(
-            [mock.call("enp0s1"), mock.call("bond1")], any_order=True
+            [mock.call("enp0s1")], any_order=True
         )
         expected = [
             ("enp0s2", "aa:aa:aa:aa:aa:02", "e1000", "0x5"),

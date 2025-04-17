@@ -143,7 +143,6 @@ cloud_final_modules:
  - mcollective
  - salt-minion
  - reset_rmc
- - refresh_rmc_and_interface
  - rightscale_userdata
  - scripts-vendor
  - scripts-per-once

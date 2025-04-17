@@ -85,6 +85,7 @@ def verify_clean_boot(
     require_deprecations: Optional[list] = None,
     require_warnings: Optional[list] = None,
     require_errors: Optional[list] = None,
+    verify_schema: Optional[bool] = True,
 ):
     """Raise exception if the client experienced unexpected conditions.
 
@@ -112,6 +113,7 @@ def verify_clean_boot(
         require
     :param require_warnings: list of expected warning messages to require
     :param require_errors: list of expected error messages to require
+    :param verify_schema: bool set True to validate cloud-init schema --system
     """
 
     def append_or_create_list(
@@ -185,6 +187,7 @@ def verify_clean_boot(
         require_deprecations=require_deprecations,
         require_warnings=require_warnings,
         require_errors=require_errors,
+        verify_schema=verify_schema,
     )
 
 
@@ -197,6 +200,7 @@ def _verify_clean_boot(
     require_deprecations: Optional[list] = None,
     require_warnings: Optional[list] = None,
     require_errors: Optional[list] = None,
+    verify_schema: Optional[bool] = True,
 ):
     ignore_deprecations = ignore_deprecations or []
     ignore_errors = ignore_errors or []
@@ -386,11 +390,22 @@ def _verify_clean_boot(
             f"Expected rc={rc}, received rc={out.return_code}\nstdout: "
             f"{out.stdout}\nstderr: {out.stderr}"
         )
+    if not verify_schema:
+        return
     schema = instance.execute("cloud-init schema --system --annotate")
-    assert schema.ok, (
-        f"Schema validation failed\nstdout:{schema.stdout}"
-        f"\nstderr:\n{schema.stderr}"
-    )
+    if "ibm" == PLATFORM:
+        # IBM provides invalid vendor-data resulting in schema errors
+        assert "Invalid schema: vendor-data" in schema.stderr
+        assert not schema.ok, (
+            f"Expected IBM schema validation errors due to vendor-data, did "
+            f"IBM images resolve this?\nstdout: {schema.stdout}\n"
+            f"stderr:\n{schema.stderr}"
+        )
+    else:
+        assert schema.ok, (
+            f"Schema validation failed\nstdout:{schema.stdout}"
+            f"\nstderr:\n{schema.stderr}"
+        )
 
 
 def verify_clean_log(log: str, ignore_deprecations: bool = True):
@@ -588,6 +603,11 @@ def get_feature_flag_value(client: "IntegrationInstance", key):
     if "NameError" in value:
         raise NameError(f"name '{key}' is not defined")
     return value
+
+
+def has_netplanlib(client: "IntegrationInstance") -> bool:
+    """Return True if netplan python3 pkg is installed on the instance."""
+    return client.execute("dpkg-query -W python3-netplan").ok
 
 
 def override_kernel_command_line(ds_str: str, instance: "IntegrationInstance"):

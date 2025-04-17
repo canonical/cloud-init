@@ -232,7 +232,7 @@ def http_with_retries(
     *,
     headers: dict,
     data: Optional[bytes] = None,
-    retry_sleep: int = 5,
+    retry_sleep: int = 1,
     timeout_minutes: int = 20,
 ) -> url_helper.UrlResponse:
     """Readurl wrapper for querying wireserver.

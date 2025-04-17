@@ -79,6 +79,38 @@ STAGE_NAME = {
 LOG = logging.getLogger(__name__)
 
 
+class SubcommandAwareArgumentParser(argparse.ArgumentParser):
+    def parse_args(self, args=None, namespace=None):
+        """Override parse_args to store raw arguments for error handling."""
+        self._raw_args = args
+        return super().parse_args(args, namespace)
+
+    def error(self, message):
+        """Override error method to show subcommand usage if applicable."""
+        print(f"error: {message}\n", file=sys.stderr)
+
+        # Scan for the first valid subcommand
+
+        if not hasattr(self, "_raw_args"):
+            self._raw_args = sys.argv[1:]
+        subcommand = None
+        if self._raw_args:
+            for arg in self._raw_args:
+                if arg in self._subparsers._group_actions[0].choices:
+                    subcommand = arg
+                    break
+        # Check if the subcommand exists and show its help
+
+        if subcommand:
+            subparser = self._subparsers._group_actions[0].choices[subcommand]
+            subparser.print_help(
+                file=sys.stderr
+            )  # Print subcommand help to stderr
+        else:
+            self.print_help(file=sys.stderr)
+        sys.exit(2)
+
+
 # Used for when a logger may not be active
 # and we still want to print exceptions...
 def print_exc(msg=""):
@@ -1035,7 +1067,7 @@ def main(sysv_args=None):
     loggers.configure_root_logger()
     if not sysv_args:
         sysv_args = sys.argv
-    parser = argparse.ArgumentParser(prog=sysv_args.pop(0))
+    parser = SubcommandAwareArgumentParser(prog=sysv_args.pop(0))
 
     # Top level args
     parser.add_argument(

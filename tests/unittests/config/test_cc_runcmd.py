@@ -2,6 +2,7 @@
 import logging
 import os
 import stat
+from typing import Any, Dict
 from unittest.mock import patch
 
 import pytest
@@ -36,9 +37,9 @@ class TestRuncmd(FilesystemMockingTestCase):
 
     def test_handler_skip_if_no_runcmd(self):
         """When the provided config doesn't contain runcmd, skip it."""
-        cfg = {}
+        cfg: Dict[str, Any] = {}
         mycloud = get_cloud(paths=self.paths)
-        handle("notimportant", cfg, mycloud, None)
+        handle("notimportant", cfg, mycloud, [])
         self.assertIn(
             "Skipping module named notimportant, no 'runcmd' key",
             self.logs.getvalue(),
@@ -52,7 +53,7 @@ class TestRuncmd(FilesystemMockingTestCase):
         cc = get_cloud(paths=self.paths)
         with self.assertRaises(TypeError) as cm:
             with self.allow_subp(["/bin/sh"]):
-                handle("cc_runcmd", valid_config, cc, None)
+                handle("cc_runcmd", valid_config, cc, [])
         self.assertIn("Failed to shellify", str(cm.exception))
 
     def test_handler_invalid_command_set(self):

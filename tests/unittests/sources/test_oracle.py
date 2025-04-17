@@ -675,7 +675,7 @@ class TestNetworkConfigFromOpcImds:
             ) == caplog.record_tuples[-1][1:]
 
         assert (
-            logging.WARNING,
+            logging.DEBUG,
             "Could not obtain network configuration from initramfs."
             " Falling back to IMDS.",
         ) == caplog.record_tuples[log_initramfs_index][1:]

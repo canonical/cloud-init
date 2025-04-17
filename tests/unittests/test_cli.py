@@ -278,6 +278,22 @@ class TestCLI:
         assert f"usage: cloud-init {subcommand}" in out.getvalue()
 
     @pytest.mark.parametrize(
+        "subcommand",
+        [
+            "clean",
+            "collect-logs",
+            "status",
+        ],
+    )
+    def test_subcommand_parser_shows_usage(self, subcommand, capsys):
+        """cloud-init `subcommand` shows usage on error."""
+        # Provide --invalid-arg to `subcommand` to trigger error.
+        exit_code = self._call_main(["cloud-init", subcommand, "--invalid"])
+        _out, err = capsys.readouterr()
+        assert f"usage: cloud-init {subcommand}" in err
+        assert 2 == exit_code
+
+    @pytest.mark.parametrize(
         "args,expected_subcommands",
         [
             ([], ["schema"]),

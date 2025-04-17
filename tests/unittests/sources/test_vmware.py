@@ -1,7 +1,7 @@
-# Copyright (c) 2021-2022 VMware, Inc. All Rights Reserved.
+# Copyright (c) 2021-2025 Broadcom. All Rights Reserved.
 #
-# Authors: Andrew Kutz <akutz@vmware.com>
-#          Pengpeng Sun <pengpengs@vmware.com>
+# Authors: Andrew Kutz <andrew.kutz@broadcom.com>
+#          Pengpeng Sun <pengpeng.sun@broadcom.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
@@ -14,6 +14,7 @@ from textwrap import dedent
 import pytest
 
 from cloudinit import dmi, helpers, safeyaml, settings, util
+from cloudinit.event import EventScope
 from cloudinit.sources import DataSourceVMware
 from cloudinit.sources.helpers.vmware.imc import guestcust_util
 from cloudinit.subp import ProcessExecutionError
@@ -40,7 +41,8 @@ VMW_MULTIPLE_KEYS = [
 ]
 VMW_SINGLE_KEY = "ssh-rsa AAAAB3NzaC1yc2EAAAA... test@vmw.com"
 
-VMW_METADATA_YAML = """instance-id: cloud-vm
+VMW_METADATA_YAML = """\
+instance-id: cloud-vm
 local-hostname: cloud-vm
 network:
   version: 2
@@ -51,13 +53,15 @@ network:
       dhcp4: yes
 """
 
-VMW_USERDATA_YAML = """## template: jinja
+VMW_USERDATA_YAML = """\
+## template: jinja
 #cloud-config
 users:
 - default
 """
 
-VMW_VENDORDATA_YAML = """## template: jinja
+VMW_VENDORDATA_YAML = """\
+## template: jinja
 #cloud-config
 runcmd:
 - echo "Hello, world."
@@ -105,6 +109,27 @@ VMW_IPV6_NETIFACES_PEER_ADDR = {
     "netmask": "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff/128",
     "addr": "fd42:baa2:3dd:17a:216:3eff:fe16:db54",
 }
+
+# Please note this should be a constant, but uses formatting to avoid
+# the line-length warning from the linter.
+VMW_EXPECTED_EXTRA_HOTPLUG_UDEV_RULES = """
+ENV{ID_NET_DRIVER}=="e1000|e1000e|vlance|vmxnet2|vmxnet3|vrdma", GOTO="cloudinit_hook"
+GOTO="cloudinit_end"
+"""  # noqa: E501
+
+
+VMW_METADATA_YAML_WITH_NET_DRIVERS = """\
+instance-id: cloud-vm
+local-hostname: cloud-vm
+network-drivers:
+- vmxnet2
+- vmxnet3
+"""
+
+VMW_EXPECTED_EXTRA_HOTPLUG_UDEV_RULES_VMXNET = """
+ENV{ID_NET_DRIVER}=="vmxnet2|vmxnet3", GOTO="cloudinit_hook"
+GOTO="cloudinit_end"
+"""
 
 
 def generate_test_netdev_data(ipv4=None, ipv6=None):
@@ -414,6 +439,29 @@ class TestDataSourceVMware(CiTestCase):
         self.assertTrue(host_info[DataSourceVMware.LOCAL_IPV4])
         self.assertTrue(host_info[DataSourceVMware.LOCAL_IPV4] == "10.10.10.1")
 
+    @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_set_value")
+    def test_advertise_update_events(self, m_set_fn):
+        (
+            supported_events,
+            enabled_events,
+        ) = DataSourceVMware.advertise_update_events(
+            DataSourceVMware.SUPPORTED_UPDATE_EVENTS,
+            DataSourceVMware.DEFAULT_UPDATE_EVENTS,
+            "rpctool",
+            len,
+        )
+        self.assertEqual(2, m_set_fn.call_count)
+        self.assertEqual(
+            "network=boot;boot-new-instance;hotplug", supported_events
+        )
+        self.assertEqual("network=boot-new-instance;hotplug", enabled_events)
+
+    def test_extra_hotplug_udev_rules(self):
+        ds = get_ds(self.tmp)
+        self.assertEqual(
+            VMW_EXPECTED_EXTRA_HOTPLUG_UDEV_RULES, ds.extra_hotplug_udev_rules
+        )
+
 
 class TestDataSourceVMwareEnvVars(FilesystemMockingTestCase):
     """
@@ -467,6 +515,16 @@ class TestDataSourceVMwareEnvVars(FilesystemMockingTestCase):
                 DataSourceVMware.DATA_ACCESS_METHOD_ENVVAR,
                 DataSourceVMware.get_guestinfo_envvar_key_name("metadata"),
             ),
+        )
+
+        # Test to ensure that network is configured from metadata on each boot.
+        self.assertSetEqual(
+            DataSourceVMware.DEFAULT_UPDATE_EVENTS[EventScope.NETWORK],
+            ds.default_update_events[EventScope.NETWORK],
+        )
+        self.assertSetEqual(
+            DataSourceVMware.SUPPORTED_UPDATE_EVENTS[EventScope.NETWORK],
+            ds.supported_update_events[EventScope.NETWORK],
         )
 
     @mock.patch(
@@ -602,6 +660,16 @@ class TestDataSourceVMwareGuestInfo(FilesystemMockingTestCase):
             ),
         )
 
+        # Test to ensure that network is configured from metadata on each boot.
+        self.assertSetEqual(
+            DataSourceVMware.DEFAULT_UPDATE_EVENTS[EventScope.NETWORK],
+            ds.default_update_events[EventScope.NETWORK],
+        )
+        self.assertSetEqual(
+            DataSourceVMware.SUPPORTED_UPDATE_EVENTS[EventScope.NETWORK],
+            ds.supported_update_events[EventScope.NETWORK],
+        )
+
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
     def test_get_data_metadata_with_vmware_rpctool(self, m_which_fn, m_fn):
@@ -702,6 +770,68 @@ class TestDataSourceVMwareGuestInfo(FilesystemMockingTestCase):
         m_fn.side_effect = [data, "gz+b64", "", ""]
         self.assert_get_data_ok(m_fn, m_fn_call_count=4)
 
+    @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_set_value")
+    @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
+    @mock.patch("cloudinit.sources.DataSourceVMware.which")
+    def test_advertise_update_events(self, m_which_fn, m_get_fn, m_set_fn):
+        m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
+        m_get_fn.side_effect = [VMW_METADATA_YAML, "", "", "", "", ""]
+        ds = self.assert_get_data_ok(m_get_fn, m_fn_call_count=4)
+        supported_events, enabled_events = ds.advertise_update_events({})
+        self.assertEqual(2, m_set_fn.call_count)
+        self.assertEqual(
+            "network=boot;boot-new-instance;hotplug", supported_events
+        )
+        self.assertEqual("network=boot-new-instance;hotplug", enabled_events)
+
+    @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_set_value")
+    @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
+    @mock.patch("cloudinit.sources.DataSourceVMware.which")
+    def test_advertise_update_events_with_events_from_user_data(
+        self, m_which_fn, m_get_fn, m_set_fn
+    ):
+        m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
+        m_get_fn.side_effect = [VMW_METADATA_YAML, "", "", "", "", ""]
+        ds = self.assert_get_data_ok(m_get_fn, m_fn_call_count=4)
+        supported_events, enabled_events = ds.advertise_update_events(
+            {
+                "updates": {
+                    "network": {
+                        "when": ["boot"],
+                    },
+                },
+            }
+        )
+        self.assertEqual(2, m_set_fn.call_count)
+        self.assertEqual(
+            "network=boot;boot-new-instance;hotplug", supported_events
+        )
+        self.assertEqual("network=boot", enabled_events)
+
+    @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
+    @mock.patch("cloudinit.sources.DataSourceVMware.which")
+    def test_extra_hotplug_udev_rules_with_net_drivers(
+        self,
+        m_which_fn,
+        m_get_fn,
+    ):
+        m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
+        m_get_fn.side_effect = [
+            VMW_METADATA_YAML_WITH_NET_DRIVERS,
+            "",
+            "",
+            "",
+            "",
+            "",
+        ]
+        ds = self.assert_get_data_ok(m_get_fn, m_fn_call_count=4)
+        ds.init_extra_hotplug_udev_rules()
+
+        self.assertEqual(
+            VMW_EXPECTED_EXTRA_HOTPLUG_UDEV_RULES_VMXNET,
+            ds.extra_hotplug_udev_rules,
+        )
+
 
 class TestDataSourceVMwareGuestInfo_InvalidPlatform(FilesystemMockingTestCase):
     """
@@ -745,6 +875,81 @@ class TestDataSourceVMwareIMC(CiTestCase):
         super(TestDataSourceVMwareIMC, self).setUp()
         self.datasource = DataSourceVMware.DataSourceVMware
         self.tdir = self.tmp_dir()
+
+    def test_get_subplatform(self):
+        paths = helpers.Paths({"cloud_dir": self.tdir})
+        ds = self.datasource(
+            sys_cfg={"disable_vmware_customization": True},
+            distro={},
+            paths=paths,
+        )
+        # Prepare the conf file
+        conf_file = self.tmp_path("test-cust", self.tdir)
+        conf_content = dedent(
+            """\
+            [CLOUDINIT]
+            METADATA = test-meta
+            """
+        )
+        util.write_file(conf_file, conf_content)
+        # Prepare the meta data file
+        metadata_file = self.tmp_path("test-meta", self.tdir)
+        metadata_content = dedent(
+            """\
+            {
+              "instance-id": "cloud-vm",
+              "local-hostname": "my-host.domain.com",
+              "network": {
+                "version": 2,
+                "ethernets": {
+                  "eths": {
+                    "match": {
+                      "name": "ens*"
+                    },
+                    "dhcp4": true
+                  }
+                }
+              }
+            }
+            """
+        )
+        util.write_file(metadata_file, metadata_content)
+
+        with mock.patch(
+            MPATH + "guestcust_util.set_customization_status",
+            return_value=("msg", b""),
+        ):
+            result = wrap_and_call(
+                "cloudinit.sources.DataSourceVMware",
+                {
+                    "dmi.read_dmi_data": "vmware",
+                    "util.del_dir": True,
+                    "guestcust_util.search_file": self.tdir,
+                    "guestcust_util.wait_for_cust_cfg_file": conf_file,
+                    "guestcust_util.get_imc_dir_path": self.tdir,
+                },
+                ds._get_data,
+            )
+            self.assertTrue(result)
+
+        self.assertEqual(
+            ds.subplatform,
+            "%s (%s)"
+            % (
+                DataSourceVMware.DATA_ACCESS_METHOD_IMC,
+                DataSourceVMware.get_imc_key_name("metadata"),
+            ),
+        )
+
+        # Test to ensure that network is configured from metadata on each boot.
+        self.assertSetEqual(
+            DataSourceVMware.DEFAULT_UPDATE_EVENTS[EventScope.NETWORK],
+            ds.default_update_events[EventScope.NETWORK],
+        )
+        self.assertSetEqual(
+            DataSourceVMware.SUPPORTED_UPDATE_EVENTS[EventScope.NETWORK],
+            ds.supported_update_events[EventScope.NETWORK],
+        )
 
     def test_get_data_false_on_none_dmi_data(self):
         """When dmi for system-product-name is None, get_data returns False."""

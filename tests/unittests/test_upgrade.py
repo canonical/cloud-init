@@ -156,6 +156,7 @@ class TestUpgrade:
         "Vultr": {"netcfg"},
         "VMware": {
             "data_access_method",
+            "extra_hotplug_udev_rules",
             "rpctool",
             "rpctool_fn",
         },

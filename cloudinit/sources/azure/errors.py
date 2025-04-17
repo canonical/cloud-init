@@ -156,7 +156,8 @@ class ReportableErrorImdsInvalidMetadata(ReportableError):
         super().__init__(f"invalid IMDS metadata for key={key}")
 
         self.supporting_data["key"] = key
-        self.supporting_data["value"] = repr(value)
+        self.supporting_data["value"] = value
+        self.supporting_data["type"] = type(value).__name__
 
 
 class ReportableErrorImdsMetadataParsingException(ReportableError):
@@ -191,7 +192,12 @@ class ReportableErrorUnhandledException(ReportableError):
                 type(exception), exception, exception.__traceback__
             )
         )
-        trace_base64 = base64.b64encode(trace.encode("utf-8")).decode("utf-8")
+        trace_lines = trace.split("\n")
+        reversed_trace_lines = trace_lines[::-1]
+        reversed_trace = "\n".join(reversed_trace_lines)
+        trace_base64 = base64.b64encode(reversed_trace.encode("utf-8")).decode(
+            "utf-8"
+        )
 
         self.supporting_data["exception"] = repr(exception)
         self.supporting_data["traceback_base64"] = trace_base64

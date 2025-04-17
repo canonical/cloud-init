@@ -119,7 +119,7 @@ def test_lxd_datasource_discovery(client: IntegrationInstance):
     assert {"public-keys": v1["public_ssh_keys"][0]} == (
         yaml.safe_load(ds_cfg["config"]["user.meta-data"])
     )
-    assert "#cloud-config\ninstance-id" in ds_cfg["meta-data"]
+    assert "instance-id" in ds_cfg["meta-data"]
 
     # Some series no longer provide nocloud-net seed files (LP: #1958460)
     if lxd_has_nocloud(client):

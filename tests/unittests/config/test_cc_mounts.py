@@ -241,7 +241,7 @@ class TestSwapFileCreation:
         m_kernel_version.return_value = (4, 20)
         m_get_mount_info.return_value = ["", "xfs"]
 
-        cc_mounts.handle(None, self.cc, self.mock_cloud, [])
+        cc_mounts.handle("", self.cc, self.mock_cloud, [])
         self.m_subp.assert_has_calls(
             [
                 mock.call(
@@ -260,7 +260,7 @@ class TestSwapFileCreation:
         m_kernel_version.return_value = (3, 18)
         m_get_mount_info.return_value = ["", "xfs"]
 
-        cc_mounts.handle(None, self.cc, self.mock_cloud, [])
+        cc_mounts.handle("", self.cc, self.mock_cloud, [])
         self.m_subp.assert_has_calls(
             [
                 mock.call(
@@ -286,7 +286,7 @@ class TestSwapFileCreation:
         m_kernel_version.return_value = (4, 20)
         m_get_mount_info.return_value = ["", "btrfs"]
 
-        cc_mounts.handle(None, self.cc, self.mock_cloud, [])
+        cc_mounts.handle("", self.cc, self.mock_cloud, [])
         self.m_subp.assert_has_calls(
             [
                 mock.call(["truncate", "-s", "0", self.swap_path]),
@@ -308,7 +308,7 @@ class TestSwapFileCreation:
         m_kernel_version.return_value = (5, 14)
         m_get_mount_info.return_value = ["", "ext4"]
 
-        cc_mounts.handle(None, self.cc, self.mock_cloud, [])
+        cc_mounts.handle("", self.cc, self.mock_cloud, [])
         self.m_subp.assert_has_calls(
             [
                 mock.call(
@@ -371,7 +371,7 @@ class TestFstabHandling:
             "%s\tnone\tswap\tsw,comment=cloudconfig\t0\t0\n"
             % (self.swap_path,)
         )
-        cc_mounts.handle(None, {}, self.mock_cloud, [])
+        cc_mounts.handle("", {}, self.mock_cloud, [])
         with open(cc_mounts.FSTAB_PATH, "r") as fd:
             fstab_new_content = fd.read()
             assert fstab_expected_content == fstab_new_content
@@ -431,7 +431,7 @@ class TestFstabHandling:
         cc = {
             "swap": {"filename": "/swap.img", "size": "512", "maxsize": "512"}
         }
-        cc_mounts.handle(None, cc, self.mock_cloud, [])
+        cc_mounts.handle("", cc, self.mock_cloud, [])
         assert self.m_subp.call_args_list == expected + [
             mock.call(["mkswap", "/swap.img"]),
             mock.call(["swapon", "-a"]),
@@ -452,7 +452,7 @@ class TestFstabHandling:
         with open(cc_mounts.FSTAB_PATH, "w") as fd:
             fd.write(fstab_original_content)
 
-        cc_mounts.handle(None, {}, self.mock_cloud, [])
+        cc_mounts.handle("", {}, self.mock_cloud, [])
 
         with open(cc_mounts.FSTAB_PATH, "r") as fd:
             fstab_new_content = fd.read()
@@ -470,7 +470,7 @@ class TestFstabHandling:
         with open(cc_mounts.FSTAB_PATH, "w") as fd:
             fd.write(fstab_original_content)
 
-        cc_mounts.handle(None, {}, self.mock_cloud, [])
+        cc_mounts.handle("", {}, self.mock_cloud, [])
 
         with open(cc_mounts.FSTAB_PATH, "r") as fd:
             fstab_new_content = fd.read()
@@ -491,7 +491,7 @@ class TestFstabHandling:
         with open(cc_mounts.FSTAB_PATH, "w") as fd:
             fd.write(fstab_original_content)
 
-        cc_mounts.handle(None, {}, self.mock_cloud, [])
+        cc_mounts.handle("", {}, self.mock_cloud, [])
 
         with open(cc_mounts.FSTAB_PATH, "r") as fd:
             fstab_new_content = fd.read()
@@ -510,7 +510,7 @@ class TestFstabHandling:
         cc = {"mounts": [["/dev/vdb", "/mnt", "auto", "defaults,noexec"]]}
         with open(cc_mounts.FSTAB_PATH, "w") as fd:
             fd.write(fstab_original_content)
-        cc_mounts.handle(None, cc, self.mock_cloud, [])
+        cc_mounts.handle("", cc, self.mock_cloud, [])
         with open(cc_mounts.FSTAB_PATH, "r") as fd:
             fstab_new_content = fd.read()
             assert fstab_original_content == fstab_new_content.strip()
@@ -555,7 +555,7 @@ class TestFstabHandling:
                 ["/dev/sda3", "/mnt4", "btrfs"],
             ]
         }
-        cc_mounts.handle(None, cfg, self.mock_cloud, [])
+        cc_mounts.handle("", cfg, self.mock_cloud, [])
         with open(cc_mounts.FSTAB_PATH, "r") as fd:
             fstab_new_content = fd.read()
 

@@ -57,8 +57,6 @@ Pull request checklist
 
 Before any pull request can be accepted, remember to do the following:
 
-* Make sure your GitHub username is added (alphabetically) to the in-repository
-  list that we use to track CLA signatures: `tools/.github-cla-signers`_.
 * Add or update any :ref:`unit tests<testing>` accordingly.
 * Add or update any :ref:`integration_tests` (if applicable).
 * Format code (using ``black`` and ``isort``) with ``tox -e do_format``.
@@ -79,7 +77,6 @@ Debugging and reporting
 .. LINKS:
 .. include:: ../links.txt
 .. _quickstart documentation: https://docs.github.com/en/get-started/quickstart
-.. _tools/.github-cla-signers: https://github.com/canonical/cloud-init/blob/main/tools/.github-cla-signers
 .. _repository: https://github.com/canonical/cloud-init
 .. _contributor-agreement-canonical: https://launchpad.net/%7Econtributor-agreement-canonical/+members
 .. _PR #344: https://github.com/canonical/cloud-init/pull/344

@@ -17,27 +17,28 @@ from cloudinit.config.schema import (
 from tests.helpers import cloud_init_project_dir
 from tests.unittests.helpers import (
     SCHEMA_EMPTY_ERROR,
-    FilesystemMockingTestCase,
-    ResponsesTestCase,
     mock,
     skipIf,
     skipUnlessJsonSchema,
 )
 from tests.unittests.util import MockDistro, get_cloud
 
-CLIENT_TEMPL = cloud_init_project_dir("templates/chef_client.rb.tmpl")
+try:
+    client_path = cloud_init_project_dir("templates/chef_client.rb.tmpl")
+    with open(client_path) as stream:
+        CLIENT_TEMPL = stream.read()
+except FileNotFoundError:
+    CLIENT_TEMPL = ""
 
 
-class TestInstallChefOmnibus(ResponsesTestCase):
-    def setUp(self):
-        super(TestInstallChefOmnibus, self).setUp()
-        self.new_root = self.tmp_dir()
+class TestInstallChefOmnibus:
 
+    @responses.activate
     @mock.patch("cloudinit.config.cc_chef.OMNIBUS_URL", cc_chef.OMNIBUS_URL)
     def test_install_chef_from_omnibus_runs_chef_url_content(self):
         """install_chef_from_omnibus calls subp_blob_in_tempfile."""
         response = b'#!/bin/bash\necho "Hi Mom"'
-        self.responses.add(
+        responses.add(
             responses.GET, cc_chef.OMNIBUS_URL, body=response, status=200
         )
         ret = (None, None)  # stdout, stderr but capture=False
@@ -49,28 +50,25 @@ class TestInstallChefOmnibus(ResponsesTestCase):
             cc_chef.install_chef_from_omnibus(distro=distro)
         # admittedly whitebox, but assuming subp_blob_in_tempfile works
         # this should be fine.
-        self.assertEqual(
-            [
-                mock.call(
-                    blob=response,
-                    args=[],
-                    basename="chef-omnibus-install",
-                    capture=False,
-                    distro=distro,
-                )
-            ],
-            m_subp_blob.call_args_list,
-        )
+        assert [
+            mock.call(
+                blob=response,
+                args=[],
+                basename="chef-omnibus-install",
+                capture=False,
+                distro=distro,
+            )
+        ] == m_subp_blob.call_args_list
 
     @mock.patch("cloudinit.config.cc_chef.url_helper.readurl")
     @mock.patch("cloudinit.config.cc_chef.subp_blob_in_tempfile")
-    def test_install_chef_from_omnibus_retries_url(self, m_subp_blob, m_rdurl):
+    def test_install_chef_from_omnibus_retries_url(
+        self, m_subp_blob, m_rdurl, tmpdir
+    ):
         """install_chef_from_omnibus retries OMNIBUS_URL upon failure."""
 
         class FakeURLResponse:
-            contents = '#!/bin/bash\necho "Hi Mom" > {0}/chef.out'.format(
-                self.new_root
-            )
+            contents = f'#!/bin/bash\necho "Hi Mom" > {tmpdir}/chef.out'
 
         m_rdurl.return_value = FakeURLResponse()
 
@@ -80,10 +78,13 @@ class TestInstallChefOmnibus(ResponsesTestCase):
             "retries": cc_chef.OMNIBUS_URL_RETRIES,
             "url": cc_chef.OMNIBUS_URL,
         }
-        self.assertCountEqual(expected_kwargs, m_rdurl.call_args_list[0][1])
+        assert expected_kwargs == m_rdurl.call_args_list[0][1]
         cc_chef.install_chef_from_omnibus(retries=10, distro=distro)
         expected_kwargs = {"retries": 10, "url": cc_chef.OMNIBUS_URL}
-        self.assertCountEqual(expected_kwargs, m_rdurl.call_args_list[1][1])
+        cc_chef.install_chef_from_omnibus(
+            retries=10, distro=distro, omnibus_version="2.0"
+        )
+        assert expected_kwargs == m_rdurl.call_args_list[1][1]
         expected_subp_kwargs = {
             "args": ["-v", "2.0"],
             "basename": "chef-omnibus-install",
@@ -91,17 +92,18 @@ class TestInstallChefOmnibus(ResponsesTestCase):
             "capture": False,
             "distro": distro,
         }
-        self.assertCountEqual(
-            expected_subp_kwargs, m_subp_blob.call_args_list[0][1]
-        )
+        assert expected_subp_kwargs == m_subp_blob.call_args_list[2][1]
 
+    @responses.activate
     @mock.patch("cloudinit.config.cc_chef.OMNIBUS_URL", cc_chef.OMNIBUS_URL)
     @mock.patch("cloudinit.config.cc_chef.subp_blob_in_tempfile")
-    def test_install_chef_from_omnibus_has_omnibus_version(self, m_subp_blob):
+    def test_install_chef_from_omnibus_has_omnibus_version(
+        self, m_subp_blob, tmpdir
+    ):
         """install_chef_from_omnibus provides version arg to OMNIBUS_URL."""
-        chef_outfile = self.tmp_path("chef.out", self.new_root)
+        chef_outfile = tmpdir / "chef.out"
         response = '#!/bin/bash\necho "Hi Mom" > {0}'.format(chef_outfile)
-        self.responses.add(responses.GET, cc_chef.OMNIBUS_URL, body=response)
+        responses.add(responses.GET, cc_chef.OMNIBUS_URL, body=response)
         distro = mock.Mock()
         cc_chef.install_chef_from_omnibus(distro=distro, omnibus_version="2.0")
 
@@ -109,33 +111,27 @@ class TestInstallChefOmnibus(ResponsesTestCase):
         expected_kwargs = {
             "args": ["-v", "2.0"],
             "basename": "chef-omnibus-install",
-            "blob": response,
+            "blob": response.encode("utf-8"),
             "capture": False,
             "distro": distro,
         }
-        self.assertCountEqual(expected_kwargs, called_kwargs)
+        assert expected_kwargs == called_kwargs
 
 
-class TestChef(FilesystemMockingTestCase):
-    def setUp(self):
-        super(TestChef, self).setUp()
-        self.tmp = self.tmp_dir()
+@pytest.mark.usefixtures("fake_filesystem")
+class TestChef:
 
     def test_no_config(self):
-        self.patchUtils(self.tmp)
-        self.patchOS(self.tmp)
-
+        """No chef directories are created on when no chef config provided"""
         cfg = {}
         cc_chef.handle("chef", cfg, get_cloud(), [])
         for d in cc_chef.CHEF_DIRS:
-            self.assertFalse(os.path.isdir(d))
+            assert not os.path.isdir(d)
 
-    @skipIf(
-        not os.path.isfile(CLIENT_TEMPL), CLIENT_TEMPL + " is not available"
-    )
+    @skipIf(not CLIENT_TEMPL, "templates/chef_client.rb.tmpl is not available")
     def test_basic_config(self):
         """
-        test basic config looks sane
+        test basic config looks correct
 
         # This should create a file of the format...
         # Created by cloud-init v. 0.7.6 on Sat, 11 Oct 2014 23:57:21 +0000
@@ -151,16 +147,14 @@ class TestChef(FilesystemMockingTestCase):
         node_name              "iid-datasource-none"
         json_attribs           "/etc/chef/firstboot.json"
         file_cache_path        "/var/chef/cache"
-        file_backup_path       "/var/backups/chef"
+        file_backup_path       "/var/chef/backup"
         pid_file               "/var/run/chef/client.pid"
         Chef::Log::Formatter.show_time = true
         encrypted_data_bag_secret  "/etc/chef/encrypted_data_bag_secret"
         """
-        tpl_file = util.load_text_file(CLIENT_TEMPL)
-        self.patchUtils(self.tmp)
-        self.patchOS(self.tmp)
-
-        util.write_file("/etc/cloud/templates/chef_client.rb.tmpl", tpl_file)
+        util.write_file(
+            "/etc/cloud/templates/chef_client.rb.tmpl", CLIENT_TEMPL
+        )
         cfg = {
             "chef": {
                 "chef_license": "accept",
@@ -175,7 +169,7 @@ class TestChef(FilesystemMockingTestCase):
         }
         cc_chef.handle("chef", cfg, get_cloud(), [])
         for d in cc_chef.CHEF_DIRS:
-            self.assertTrue(os.path.isdir(d))
+            assert os.path.isdir(d)
         c = util.load_text_file(cc_chef.CHEF_RB_PATH)
 
         # the content of these keys is not expected to be rendered to tmpl
@@ -183,21 +177,18 @@ class TestChef(FilesystemMockingTestCase):
         for k, v in cfg["chef"].items():
             if k in unrendered_keys:
                 continue
-            self.assertIn(v, c)
+            assert v in c
         for k, v in cc_chef.CHEF_RB_TPL_DEFAULTS.items():
             if k in unrendered_keys:
                 continue
             # the value from the cfg overrides that in the default
             val = cfg["chef"].get(k, v)
             if isinstance(val, str):
-                self.assertIn(val, c)
+                assert val in c
         c = util.load_text_file(cc_chef.CHEF_FB_PATH)
-        self.assertEqual({}, json.loads(c))
+        assert {} == json.loads(c)
 
     def test_firstboot_json(self):
-        self.patchUtils(self.tmp)
-        self.patchOS(self.tmp)
-
         cfg = {
             "chef": {
                 "server_url": "localhost",
@@ -210,23 +201,76 @@ class TestChef(FilesystemMockingTestCase):
         }
         cc_chef.handle("chef", cfg, get_cloud(), [])
         c = util.load_text_file(cc_chef.CHEF_FB_PATH)
-        self.assertEqual(
-            {
-                "run_list": ["a", "b", "c"],
-                "c": "d",
-            },
-            json.loads(c),
-        )
+        assert {
+            "run_list": ["a", "b", "c"],
+            "c": "d",
+        } == json.loads(c)
 
-    @skipIf(
-        not os.path.isfile(CLIENT_TEMPL), CLIENT_TEMPL + " is not available"
+    @pytest.mark.parametrize(
+        "file_content, shutil_moves, expected_msg_count",
+        (
+            pytest.param({}, [], {}, id="no_migration_when_dirs_empty"),
+            pytest.param(
+                {"/var/cache/chef/cache.1": "cache1"},
+                [mock.call("/var/cache/chef/cache.1", "/var/chef/cache")],
+                {"Moving /var/cache/chef/cache.1 to /var/chef/cache": 1},
+                id="migration_when_old_cache_dir_present",
+            ),
+            pytest.param(
+                {"/var/backups/chef/backup.1": "backup1"},
+                [mock.call("/var/backups/chef/backup.1", "/var/chef/backup")],
+                {"Moving /var/backups/chef/backup.1 to /var/chef/backup": 1},
+                id="migration_when_old_backups_dir_present",
+            ),
+            pytest.param(
+                {
+                    "/var/backups/chef/backup.1": "backup1",
+                    "/var/chef/backup/backup.1": "backup1",
+                },
+                [],
+                {
+                    "Ignoring migration of /var/backups/chef/backup.1."
+                    " File already exists in /var/chef/backup": 1
+                },
+                id="migration_skips_when_migrated_file_present",
+            ),
+        ),
     )
-    def test_template_deletes(self):
-        tpl_file = util.load_text_file(CLIENT_TEMPL)
-        self.patchUtils(self.tmp)
-        self.patchOS(self.tmp)
+    def test_migrate_chef_config_dirs(
+        self, file_content, shutil_moves, expected_msg_count, caplog
+    ):
+        """When present, old backup and cache dirs migrated to defaults"""
+        cfg = {
+            "chef": {
+                "server_url": "localhost",
+                "validation_name": "bob",
+                "run_list": ["a", "b", "c"],
+                "initial_attributes": {
+                    "c": "d",
+                },
+            },
+        }
+        for file_path in file_content:
+            util.ensure_dir(os.path.dirname(file_path))
+            util.write_file(file_path, file_content[file_path])
+        util.write_file(
+            "/etc/cloud/templates/chef_client.rb.tmpl", CLIENT_TEMPL
+        )
+        with mock.patch("cloudinit.config.cc_chef.shutil.move") as m_shutil:
+            cc_chef.handle("chef", cfg, get_cloud(), [])
+        assert m_shutil.call_args_list == shutil_moves
+        if len(file_content) == 0:
+            # no files to migrate, so we don't expect any messages
+            assert "Moving" not in caplog.text
+        for expected_msg, count in expected_msg_count.items():
+            assert caplog.text.count(expected_msg) == count
 
-        util.write_file("/etc/cloud/templates/chef_client.rb.tmpl", tpl_file)
+    @skipIf(not CLIENT_TEMPL, "templates/chef_client.rb.tmpl is not available")
+    def test_template_deletes(self):
+
+        util.write_file(
+            "/etc/cloud/templates/chef_client.rb.tmpl", CLIENT_TEMPL
+        )
         cfg = {
             "chef": {
                 "server_url": "localhost",
@@ -237,19 +281,15 @@ class TestChef(FilesystemMockingTestCase):
         }
         cc_chef.handle("chef", cfg, get_cloud(), [])
         c = util.load_text_file(cc_chef.CHEF_RB_PATH)
-        self.assertNotIn("json_attribs", c)
-        self.assertNotIn("Formatter.show_time", c)
+        assert "json_attribs" not in c
+        assert "Formatter.show_time" not in c
 
-    @skipIf(
-        not os.path.isfile(CLIENT_TEMPL), CLIENT_TEMPL + " is not available"
-    )
+    @skipIf(not CLIENT_TEMPL, "templates/chef_client.rb.tmpl is not available")
     def test_validation_cert_and_validation_key(self):
         # test validation_cert content is written to validation_key path
-        tpl_file = util.load_text_file(CLIENT_TEMPL)
-        self.patchUtils(self.tmp)
-        self.patchOS(self.tmp)
-
-        util.write_file("/etc/cloud/templates/chef_client.rb.tmpl", tpl_file)
+        util.write_file(
+            "/etc/cloud/templates/chef_client.rb.tmpl", CLIENT_TEMPL
+        )
         v_path = "/etc/chef/vkey.pem"
         v_cert = "this is my cert"
         cfg = {
@@ -262,15 +302,13 @@ class TestChef(FilesystemMockingTestCase):
         }
         cc_chef.handle("chef", cfg, get_cloud(), [])
         content = util.load_text_file(cc_chef.CHEF_RB_PATH)
-        self.assertIn(v_path, content)
+        assert v_path in content
         util.load_text_file(v_path)
-        self.assertEqual(v_cert, util.load_text_file(v_path))
+        assert v_cert == util.load_text_file(v_path)
 
+    @skipIf(not CLIENT_TEMPL, "templates/chef_client.rb.tmpl is not available")
     def test_validation_cert_with_system(self):
         # test validation_cert content is not written over system file
-        tpl_file = util.load_text_file(CLIENT_TEMPL)
-        self.patchUtils(self.tmp)
-        self.patchOS(self.tmp)
 
         v_path = "/etc/chef/vkey.pem"
         v_cert = "system"
@@ -283,13 +321,15 @@ class TestChef(FilesystemMockingTestCase):
                 "validation_cert": v_cert,
             },
         }
-        util.write_file("/etc/cloud/templates/chef_client.rb.tmpl", tpl_file)
+        util.write_file(
+            "/etc/cloud/templates/chef_client.rb.tmpl", CLIENT_TEMPL
+        )
         util.write_file(v_path, expected_cert)
         cc_chef.handle("chef", cfg, get_cloud(), [])
         content = util.load_text_file(cc_chef.CHEF_RB_PATH)
-        self.assertIn(v_path, content)
+        assert v_path in content
         util.load_text_file(v_path)
-        self.assertEqual(expected_cert, util.load_text_file(v_path))
+        assert expected_cert == util.load_text_file(v_path)
 
 
 @skipUnlessJsonSchema()

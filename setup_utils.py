@@ -13,6 +13,11 @@ def is_generator(p: str) -> bool:
 
 
 def pkg_config_read(library: str, var: str) -> str:
+    pkg_config = "pkg-config"
+
+    if os.getenv("PKG_CONFIG"):
+        pkg_config = os.getenv("PKG_CONFIG")
+
     fallbacks = {
         "systemd": {
             "systemdsystemconfdir": "/etc/systemd/system",
@@ -23,7 +28,7 @@ def pkg_config_read(library: str, var: str) -> str:
             "udevdir": "/usr/lib/udev",
         },
     }
-    cmd = ["pkg-config", f"--variable={var}", library]
+    cmd = [pkg_config, f"--variable={var}", library]
     try:
         path = subprocess.check_output(cmd).decode("utf-8")  # nosec B603
         path = path.strip()

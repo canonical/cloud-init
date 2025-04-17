@@ -73,7 +73,6 @@ the codebase is encouraged.
 .. LINKS:
 .. include:: ../links.txt
 .. _quickstart documentation: https://docs.github.com/en/get-started/quickstart
-.. _tools/.github-cla-signers: https://github.com/canonical/cloud-init/blob/main/tools/.github-cla-signers
 .. _repository: https://github.com/canonical/cloud-init
 .. _contributor-agreement-canonical: https://launchpad.net/%7Econtributor-agreement-canonical/+members
 .. _PR #344: https://github.com/canonical/cloud-init/pull/344

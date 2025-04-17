@@ -38,6 +38,8 @@ MOD_PREFIX = "cc_"
 # from having to create upgrade scripts to avoid warnings about missing
 # modules.
 REMOVED_MODULES = [
+    "cc_emit_upstart",  # Removed in 22.2
+    "cc_refresh_rmc_and_interface.py",  # Removed in 23.2
     "cc_migrator",  # Removed in 24.1
     "cc_rightscale_userdata",  # Removed in 24.1
 ]

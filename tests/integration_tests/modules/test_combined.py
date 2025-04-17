@@ -26,10 +26,11 @@ from tests.integration_tests.integration_settings import (
     OS_IMAGE_TYPE,
     PLATFORM,
 )
-from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU, JAMMY
+from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU
 from tests.integration_tests.util import (
     get_feature_flag_value,
     get_inactive_modules,
+    has_netplanlib,
     lxd_has_nocloud,
     network_wait_logged,
     verify_clean_boot,
@@ -99,13 +100,13 @@ class TestCombined:
         Test that netplan config file is generated with proper permissions
         """
         log = class_client.read_from_file("/var/log/cloud-init.log")
-        if CURRENT_RELEASE < JAMMY:
+        if has_netplanlib(class_client):
+            assert "Rendered netplan config using netplan python API" in log
+        else:
             assert (
                 "No netplan python module. Fallback to write"
                 " /etc/netplan/50-cloud-init.yaml" in log
             )
-        else:
-            assert "Rendered netplan config using netplan python API" in log
         file_perms = class_client.execute(
             "stat -c %a /etc/netplan/50-cloud-init.yaml"
         )
@@ -264,7 +265,7 @@ class TestCombined:
             # Test user-data doesn't provide install_rsyslog: true so expect
             # warnings when not installed.
             require_warnings.append(
-                "Failed to reload-or-try-restart rsyslog.service:"
+                "Failed to try-reload-or-restart rsyslog.service:"
                 " Unit rsyslog.service not found."
             )
         # Set ignore_deprecations=True as test_deprecated_message covers this
@@ -309,6 +310,7 @@ class TestCombined:
                 "azure": "DataSourceAzure [seed=/dev/sr0]",
                 "ec2": "DataSourceEc2Local",
                 "gce": "DataSourceGCELocal",
+                "ibm": "DataSourceNoCloud [seed=/dev/vdb]",
                 "oci": "DataSourceOracle",
                 "openstack": "DataSourceOpenStackLocal [net,ver=2]",
                 "qemu": "DataSourceNoCloud [seed=/dev/vda][dsmode=net]",

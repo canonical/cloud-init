@@ -6,9 +6,9 @@ import pytest
 
 from cloudinit import lifecycle
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.releases import CURRENT_RELEASE, JAMMY
 from tests.integration_tests.util import (
     get_feature_flag_value,
+    has_netplanlib,
     verify_clean_boot,
     verify_clean_log,
 )
@@ -103,7 +103,7 @@ class TestSchemaDeprecations:
                 "annotate": NET_V1_ANNOTATED,
             },
         }
-        if CURRENT_RELEASE >= JAMMY:
+        if has_netplanlib(class_client):
             # Support for netplan API available
             content_responses[NET_CFG_V2] = {
                 "out": "Valid schema /root/net.yaml"

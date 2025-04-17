@@ -2,6 +2,7 @@ import os
 import re
 from copy import deepcopy
 from textwrap import dedent
+from typing import Any, Dict
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -99,7 +100,7 @@ CFG_CTRL = {
     },
 }
 
-CFG_FULL_PULL = {
+CFG_FULL_PULL: Dict[str, Any] = {
     "ansible": {
         "install_method": "distro",
         "package_name": "ansible-core",
@@ -231,7 +232,7 @@ class TestAnsible:
     def test_filter_args(self):
         """only diff should be removed"""
         out = cc_ansible.filter_args(
-            CFG_FULL_PULL.get("ansible", {}).get("pull", {})
+            CFG_FULL_PULL.get("ansible", {}).get("pull", {}),
         )
         assert out == {
             "url": "https://github/holmanb/vmboot",
@@ -300,12 +301,12 @@ class TestAnsible:
         )
         if exception:
             with raises(exception):
-                cc_ansible.handle("", cfg, get_cloud(), None)
+                cc_ansible.handle("", cfg, get_cloud(), [])
         else:
             cloud = get_cloud(mocked_distro=True)
             cloud.distro.pip_package_name = "python3-pip"
             install = cfg["ansible"]["install_method"]
-            cc_ansible.handle("", cfg, cloud, None)
+            cc_ansible.handle("", cfg, cloud, [])
             if install == "distro":
                 cloud.distro.install_packages.assert_called_once()
                 cloud.distro.install_packages.assert_called_with(
@@ -409,7 +410,7 @@ class TestAnsible:
     @mock.patch(M_PATH + "validate_config")
     def test_do_not_run(self, m_validate):
         """verify that if ansible key not included, don't do anything"""
-        cc_ansible.handle("", {}, get_cloud(), None)  # pyright: ignore
+        cc_ansible.handle("", {}, get_cloud(), [])
         assert not m_validate.called
 
     @mock.patch(

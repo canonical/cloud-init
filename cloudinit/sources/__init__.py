@@ -1021,6 +1021,14 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """
         return
 
+    def clean(self):
+        """
+        Called when the user issues 'cloud-init clean -c datasource'
+        command.
+        Individual data sources should implement their own cleanup handler.
+        """
+        return
+
 
 def normalize_pubkey_data(pubkey_data):
     keys = []
