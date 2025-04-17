@@ -9,6 +9,15 @@ cloud-init (25.2~1g7a0265d3-0ubuntu1) UNRELEASED; urgency=medium
 
  -- James Falcon <james.falcon@canonical.com>  Thu, 17 Apr 2025 13:18:12 -0500
 
+cloud-init (25.1.1-0ubuntu2) plucky; urgency=medium
+
+  * d/control: Fix how cloud-init-base overwrites cloud-init files.
+    (LP: #2092333)
+  * d/cloud-init-base.postinst: don't version-gate the migration from using
+    cloud-init-base debconf values over cloud-init.
+
+ -- James Falcon <james.falcon@canonical.com>  Tue, 01 Apr 2025 13:33:57 -0500
+
 cloud-init (25.1.1-0ubuntu1) plucky; urgency=medium
 
   * Upstream bug fix release based on upstream bugfix 25.1.1.
