@@ -1,11 +1,13 @@
-cloud-init (25.2~1gxxxxxxxx-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (25.2~1g7a0265d3-0ubuntu1) UNRELEASED; urgency=medium
 
   * d/control: add Azure metapackage
     + New Azure binary package depending on cloud-init-base and
       python3-passlib.
   * d/cloud-init-base.preinst: avoid sed of /etc/fstab when absent
+  * Upstream snapshot based on upstream/main at 7a0265d3.
+    - Bugs fixed in this snapshot: (LP: #2106671)
 
- -- James Falcon <james.falcon@canonical.com>  Tue, 25 Feb 2025 10:19:24 -0600
+ -- James Falcon <james.falcon@canonical.com>  Thu, 17 Apr 2025 13:18:12 -0500
 
 cloud-init (25.1.1-0ubuntu1) plucky; urgency=medium
 
