@@ -3965,6 +3965,9 @@
       "$ref": "#/$defs/cc_puppet"
     },
     {
+      "$ref": "#/$defs/cc_raspberry_pi"
+    },
+    {
       "$ref": "#/$defs/cc_resizefs"
     },
     {
@@ -3972,9 +3975,6 @@
     },
     {
       "$ref": "#/$defs/cc_rh_subscription"
-    },
-    {
-      "$ref": "#/$defs/cc_raspberry_pi"
     },
     {
       "$ref": "#/$defs/cc_rsyslog"

@@ -1769,6 +1769,11 @@ def _get_arch_package_mirror_info(package_mirrors, arch):
 def fetch(name: str) -> Type[Distro]:
     locs, looked_locs = importer.find_module(name, ["", __name__], ["Distro"])
     if not locs:
+        # Some distros may have a `-` in the name but an `_` in the module
+        locs, _ = importer.find_module(
+            name.replace("-", "_"), ["", __name__], ["Distro"]
+        )
+    if not locs:
         raise ImportError(
             "No distribution found for distro %s (searched %s)"
             % (name, looked_locs)

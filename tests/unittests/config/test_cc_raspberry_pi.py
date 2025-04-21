@@ -22,14 +22,14 @@ M_PATH = "cloudinit.config.cc_raspberry_pi."
 class TestHandleRaspberryPi:
     @mock.patch(M_PATH + "configure_rpi_connect")
     def test_handle_rpi_connect_enabled(self, m_connect):
-        cloud = get_cloud("raspberry-pi-os")
+        cloud = get_cloud("raspberry_pi_os")
         cfg = {RPI_BASE_KEY: {ENABLE_RPI_CONNECT_KEY: True}}
         cc_rpi.handle("cc_raspberry_pi", cfg, cloud, [])
         m_connect.assert_called_once_with(True)
 
     @mock.patch(M_PATH + "configure_interface")
     def test_handle_configure_interface_i2c(self, m_iface):
-        cloud = get_cloud("raspberry-pi-os")
+        cloud = get_cloud("raspberry_pi_os")
         cfg = {RPI_BASE_KEY: {RPI_INTERFACES_KEY: {"i2c": True}}}
         cc_rpi.handle("cc_raspberry_pi", cfg, cloud, [])
         m_iface.assert_called_once_with("i2c", True)
@@ -37,22 +37,22 @@ class TestHandleRaspberryPi:
     @mock.patch(M_PATH + "configure_serial_interface")
     @mock.patch(M_PATH + "is_pifive", return_value=True)
     def test_handle_configure_serial_interface_dict(self, m_ispi5, m_serial):
-        cloud = get_cloud("raspberry-pi-os")
+        cloud = get_cloud("raspberry_pi_os")
         serial_value = {
             "console": True,
             "hardware": True,
         }
         cfg = {RPI_BASE_KEY: {RPI_INTERFACES_KEY: {"serial": serial_value}}}
         cc_rpi.handle("cc_raspberry_pi", cfg, cloud, [])
-        m_serial.assert_called_once_with(serial_value, cfg)
+        m_serial.assert_called_once_with(serial_value, cfg, cloud)
 
     @mock.patch(M_PATH + "configure_serial_interface")
     @mock.patch(M_PATH + "is_pifive", return_value=True)
     def test_handle_configure_serial_interface_bool(self, m_ispi5, m_serial):
-        cloud = get_cloud("raspberry-pi-os")
+        cloud = get_cloud("raspberry_pi_os")
         cfg = {RPI_BASE_KEY: {RPI_INTERFACES_KEY: {"serial": True}}}
         cc_rpi.handle("cc_raspberry_pi", cfg, cloud, [])
-        m_serial.assert_called_once_with(True, cfg)
+        m_serial.assert_called_once_with(True, cfg, cloud)
 
 
 @skipUnlessJsonSchema()
