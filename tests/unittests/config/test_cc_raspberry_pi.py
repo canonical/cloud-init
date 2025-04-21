@@ -13,6 +13,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
+from cloudinit.subp import ProcessExecutionError
 from tests.unittests.helpers import mock, skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
@@ -53,6 +54,88 @@ class TestHandleRaspberryPi:
         cfg = {RPI_BASE_KEY: {RPI_INTERFACES_KEY: {"serial": True}}}
         cc_rpi.handle("cc_raspberry_pi", cfg, cloud, [])
         m_serial.assert_called_once_with(True, cfg, cloud)
+
+
+class TestRaspberryPiMethods:
+    @mock.patch("cloudinit.subp.subp")
+    def test_configure_rpi_connect_enable(self, m_subp):
+        cc_rpi.configure_rpi_connect(True)
+        m_subp.assert_called_once_with(
+            ["/usr/bin/raspi-config", "do_rpi_connect", "0"]
+        )
+
+    @mock.patch(
+        "cloudinit.subp.subp",
+        side_effect=ProcessExecutionError("1", [], "fail"),
+    )
+    def test_configure_rpi_connect_failure(self, m_subp):
+        cc_rpi.configure_rpi_connect(False)  # Should log error but not raise
+
+    @mock.patch("cloudinit.subp.subp", return_value=("ok", ""))
+    def test_is_pifive_true(self, m_subp):
+        assert cc_rpi.is_pifive() is True
+
+    @mock.patch(
+        "cloudinit.subp.subp",
+        side_effect=ProcessExecutionError("1", [], "fail"),
+    )
+    def test_is_pifive_false(self, m_subp):
+        assert cc_rpi.is_pifive() is False
+
+    @mock.patch("cloudinit.subp.subp")
+    def test_configure_interface_valid(self, m_subp):
+        cc_rpi.configure_interface("i2c", True)
+        m_subp.assert_called_once_with(
+            ["/usr/bin/raspi-config", "nonint", "do_i2c", "0"]
+        )
+
+    def test_configure_interface_invalid(self):
+        with pytest.raises(AssertionError):
+            cc_rpi.configure_interface("invalid_iface", True)
+
+    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("subprocess.Popen")
+    @mock.patch(M_PATH + "is_pifive", return_value=False)
+    def test_configure_serial_interface_dict(
+        self, m_is_pifive, m_popen, m_subp
+    ):
+        cloud = get_cloud("raspberry_pi_os")
+        m_popen.return_value.returncode = 0
+        cfg = {"console": True, "hardware": False}
+        with mock.patch("os._exit", side_effect=SystemExit) as m_exit:
+            with pytest.raises(SystemExit):
+                cc_rpi.configure_serial_interface(cfg, None, cloud)
+        m_subp.assert_any_call(
+            [
+                "/usr/bin/raspi-config",
+                "nonint",
+                cc_rpi.RASPI_CONFIG_SERIAL_CONS_FN,
+                "0",
+            ]
+        )
+        m_subp.assert_any_call(
+            [
+                "/usr/bin/raspi-config",
+                "nonint",
+                cc_rpi.RASPI_CONFIG_SERIAL_HW_FN,
+                "0",
+            ]
+        )
+        m_exit.assert_called_once_with(0)
+
+    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("subprocess.Popen")
+    @mock.patch(M_PATH + "is_pifive", return_value=True)
+    def test_configure_serial_interface_bool(
+        self, m_is_pifive, m_popen, m_subp
+    ):
+        cloud = get_cloud("raspberry_pi_os")
+        m_popen.return_value.returncode = 0
+        with mock.patch("os._exit", side_effect=SystemExit) as m_exit:
+            with pytest.raises(SystemExit):
+                cc_rpi.configure_serial_interface(True, None, cloud)
+        assert m_subp.call_count == 2
+        m_exit.assert_called_once_with(0)
 
 
 @skipUnlessJsonSchema()
