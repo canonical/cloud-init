@@ -5,6 +5,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
+import os
+import subprocess
 from typing import Union
 
 from cloudinit import subp
@@ -46,12 +48,6 @@ def configure_rpi_connect(enable: bool) -> None:
         LOG.error("Failed to configure rpi-connect: %s", e)
 
 
-def require_reboot(cfg: Config) -> None:
-    cfg["power_state"] = cfg.get("power_state", {})
-    cfg["power_state"]["mode"] = cfg["power_state"].get("mode", "reboot")
-    cfg["power_state"]["condition"] = True
-
-
 def is_pifive() -> bool:
     try:
         subp.subp(["/usr/bin/raspi-config", "nonint", "is_pifive"])
@@ -61,7 +57,7 @@ def is_pifive() -> bool:
 
 
 def configure_serial_interface(
-    cfg: Union[dict, bool], instCfg: Config
+    cfg: Union[dict, bool], instCfg: Config, cloud: Cloud
 ) -> None:
     def get_bool_field(cfg_dict: dict, name: str, default=False):
         val = cfg_dict.get(name, default)
@@ -115,9 +111,20 @@ def configure_serial_interface(
         except subp.ProcessExecutionError as e:
             LOG.error("Failed to configure serial hardware: %s", e)
 
-        require_reboot(instCfg)
+        # Reboot to apply changes
+        cmd = cloud.distro.shutdown_command(
+            mode="reboot",
+            delay="now",
+            message="Rebooting to apply serial console changes",
+        )
+        proc = subprocess.Popen(
+            cmd, stdin=subprocess.PIPE, stdout=None, stderr=subprocess.STDOUT
+        )
+        ret = proc.returncode
     except subp.ProcessExecutionError as e:
         LOG.error("Failed to configure serial console: %s", e)
+        os._exit(254)
+    os._exit(ret)
 
 
 def configure_interface(iface: str, enable: bool) -> None:
@@ -175,8 +182,13 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                 LOG.debug("Empty value for %s. Skipping...", key)
                 return
 
+            subkeys = list(cfg[RPI_BASE_KEY][key].keys())
+            # Move " serial" to the end if it exists
+            if "serial" in subkeys:
+                subkeys.append(subkeys.pop(subkeys.index("serial")))
+
             # check for supported ARM interfaces
-            for subkey in cfg[RPI_BASE_KEY][key]:
+            for subkey in subkeys:
                 if subkey not in SUPPORTED_INTERFACES.keys():
                     LOG.warning(
                         "Invalid key for %s: %s", RPI_INTERFACES_KEY, subkey
@@ -194,7 +206,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                             enable,
                         )
                     else:
-                        configure_serial_interface(enable, cfg)
+                        configure_serial_interface(enable, cfg, cloud)
                     continue
 
                 if isinstance(enable, bool):
