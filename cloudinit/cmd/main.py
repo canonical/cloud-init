@@ -523,7 +523,10 @@ def main_init(name, args):
             LOG.debug("Will wait for network connectivity before continuing")
             init.distro.wait_for_network()
         existing = "trust"
-        sys.stderr.write("%s\n" % (netinfo.debug_info()))
+        sys.stderr.write(
+            "Status of network devices in init stage (before DBUS)\n%s\n"
+            % netinfo.debug_info()
+        )
     else:
         existing = "check"
         mcfg = util.get_cfg_option_bool(init.cfg, "manual_cache_clean", False)
@@ -797,6 +800,12 @@ def main_modules(action_name, args):
             deprecated="`--mode init`",
             deprecated_version="24.1",
             extra_message="Use `cloud-init init` instead.",
+        )
+
+    if name == "final":
+        sys.stderr.write(
+            "Status of network devices in final stage (after DBUS)\n%s\n"
+            % netinfo.debug_info()
         )
 
     # Stage 5
