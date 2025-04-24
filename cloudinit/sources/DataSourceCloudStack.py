@@ -19,7 +19,7 @@ from contextlib import suppress
 from socket import gaierror, getaddrinfo, inet_ntoa
 from struct import pack
 
-from cloudinit import net, performance, sources, subp
+from cloudinit import dmi, net, performance, sources, subp
 from cloudinit import url_helper as uhelp
 from cloudinit import util
 from cloudinit.net import dhcp
@@ -28,6 +28,8 @@ from cloudinit.net.ephemeral import EphemeralIPNetwork
 from cloudinit.sources.helpers import ec2
 
 LOG = logging.getLogger(__name__)
+
+CLOUD_STACK_DMI_NAME = "CloudStack"
 
 
 class CloudStackPasswordServerClient:
@@ -86,18 +88,11 @@ class DataSourceCloudStack(sources.DataSource):
     url_timeout = 50
 
     def __init__(self, sys_cfg, distro, paths):
-        sources.DataSource.__init__(self, sys_cfg, distro, paths)
+        super().__init__(sys_cfg, distro, paths)
         self.seed_dir = os.path.join(paths.seed_dir, "cs")
         # Cloudstack has its metadata/userdata URLs located at
         # http://<virtual-router-ip>/latest/
         self.api_ver = "latest"
-
-        self.distro = distro
-        self.vr_addr = get_vr_address(self.distro)
-
-        if not self.vr_addr and not self.perform_dhcp_setup:
-            raise RuntimeError("No virtual router found!")
-        self.metadata_address = f"http://{self.vr_addr}/"
         self.cfg = {}
 
     def _get_domainname(self):
@@ -204,6 +199,11 @@ class DataSourceCloudStack(sources.DataSource):
     def get_config_obj(self):
         return self.cfg
 
+    @staticmethod
+    def ds_detect() -> bool:
+        """Check if running on this datasource"""
+        return is_platform_viable()
+
     def _get_data(self):
         seed_ret = {}
         if util.read_optional_seed(seed_ret, base=(self.seed_dir + "/")):
@@ -211,39 +211,33 @@ class DataSourceCloudStack(sources.DataSource):
             self.metadata = seed_ret["meta-data"]
             LOG.debug("Using seeded cloudstack data from: %s", self.seed_dir)
             return True
+        if self.perform_dhcp_setup:
+            primary_nic = net.find_fallback_nic()
+            LOG.debug("Attempting DHCP on: %s", primary_nic)
+            network_context = EphemeralIPNetwork(self.distro, primary_nic)
+        else:
+            network_context = util.nullcontext()
         try:
-            if self.perform_dhcp_setup:
-                try:
-                    primary_nic = net.find_fallback_nic()
-                    LOG.debug("Attempting DHCP on: %s", primary_nic)
-                    with EphemeralIPNetwork(self.distro, primary_nic):
-                        vr_addr = get_vr_address(self.distro)
-                        # If vr_addr is a dict, we have the DHCP lease
-                        self.vr_addr = (
-                            vr_addr.get("dhcp-server-identifier")
-                            if isinstance(vr_addr, dict)
-                            else vr_addr
-                        )
-                        self.metadata_address = f"http://{self.vr_addr}/"
+            with network_context:
+                vr_addr = get_vr_address(self.distro)
+                # If vr_addr is a dict, we have the DHCP lease
+                self.vr_addr = (
+                    vr_addr.get("dhcp-server-identifier")
+                    if isinstance(vr_addr, dict)
+                    else vr_addr
+                )
+                if not self.vr_addr:
+                    raise RuntimeError("No virtual router found!")
+                self.metadata_address = f"http://{self.vr_addr}/"
+                if not self.wait_for_metadata_service():
+                    return False
 
-                        return self._crawl_metadata()
-                except NoDHCPLeaseError:
-                    LOG.debug(
-                        "Unable to obtain a DHCP lease for %s",
-                        primary_nic,
-                    )
-                except Exception:
-                    LOG.debug("Failed to crawl IMDS with %s", primary_nic)
-                return False
-            if not self.wait_for_metadata_service():
-                return False
-            return self._crawl_metadata()
-        except Exception:
-            util.logexc(
-                LOG,
-                "Failed fetching from metadata service %s",
-                self.metadata_address,
-            )
+                return self._crawl_metadata()
+        except NoDHCPLeaseError:
+            LOG.warning("Unable to obtain a DHCP lease on %s", primary_nic)
+            return False
+        except Exception as e:
+            LOG.warning("Failed fetching metadata service: %s", str(e))
             return False
 
     @performance.timed("Crawling metadata", log_mode="always")
@@ -365,6 +359,14 @@ def get_vr_address(distro):
     # No virtual router found, fallback to default gateway
     LOG.debug("No DHCP found, using default gateway")
     return get_default_gateway()
+
+
+def is_platform_viable() -> bool:
+    product_name = dmi.read_dmi_data("system-product-name")
+    if not product_name:
+        LOG.debug("system-product-name not available in dmi data")
+        return False
+    return product_name.startswith(CLOUD_STACK_DMI_NAME)
 
 
 # Used to match classes to dependencies
