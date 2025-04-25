@@ -63,6 +63,7 @@ DEFAULT_LOCAL = [
     NWCS.DataSourceNWCS,
     Akamai.DataSourceAkamaiLocal,
     WSL.DataSourceWSL,
+    CloudStack.DataSourceCloudStackLocal,
 ]
 
 DEFAULT_NETWORK = [
