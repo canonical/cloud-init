@@ -4,6 +4,7 @@
 import copy
 import errno
 import ipaddress
+import logging
 import os
 from pathlib import Path
 from typing import Optional
@@ -404,6 +405,7 @@ class TestNetFindCandidateNics:
         bridge: bool = False,
         failover_standby: bool = False,
         operstate: Optional[str] = None,
+        renamed: bool = True,
     ):
         interface_path = self.sys_path / name
         interface_path.mkdir(parents=True)
@@ -441,8 +443,14 @@ class TestNetFindCandidateNics:
             (device_path / driver).write_text(driver)
             (device_path / "driver").symlink_to(driver)
 
+        if renamed:
+            (interface_path / "name_assign_type").write_text("4")
+        else:
+            (interface_path / "name_assign_type").write_text("0")
+
     @pytest.fixture(autouse=True)
     def setup(self, monkeypatch, tmpdir):
+        """Fixture to set up the test environment."""
         self.sys_path = Path(tmpdir) / "sys"
         monkeypatch.setattr(
             net, "get_sys_class_path", lambda: str(self.sys_path) + "/"
@@ -452,7 +460,11 @@ class TestNetFindCandidateNics:
             "is_container",
             lambda: False,
         )
-        monkeypatch.setattr(net.util, "udevadm_settle", lambda: None)
+
+        self.m_settle = mock.Mock(return_value=None)
+        self.m_cmdline = mock.Mock(return_value="")
+        monkeypatch.setattr("cloudinit.net.util.udevadm_settle", self.m_settle)
+        monkeypatch.setattr("cloudinit.net.util.get_cmdline", self.m_cmdline)
 
     def test_ignored_interfaces(self):
         self.create_fake_interface(
@@ -561,6 +573,48 @@ class TestNetFindCandidateNics:
 
     def test_no_nics(self):
         assert net.find_candidate_nics_on_linux() == []
+
+    def test_udevadm_settle_called_for_predictable_names(self):
+        self.create_fake_interface(name="eth0", renamed=False)
+
+        result = net.find_candidate_nics_on_linux()
+
+        assert result == ["eth0"]
+        self.m_settle.assert_called_once()
+
+    def test_udevadm_settle_not_called_for_unpredictable_names(self):
+        self.create_fake_interface(name="eth0", renamed=False)
+        self.m_cmdline.return_value = "net.ifnames=0 biosdevname=0"
+
+        result = net.find_candidate_nics_on_linux()
+
+        assert result == ["eth0"]
+        self.m_settle.assert_not_called()
+
+    def test_udevadm_settle_not_called_for_renamed_interface(self):
+        self.create_fake_interface(name="eth0", renamed=True)
+
+        result = net.find_candidate_nics_on_linux()
+
+        assert result == ["eth0"]
+        self.m_settle.assert_not_called()
+
+    def test_udevadm_settle_failure_handled_gracefully(self, caplog):
+        self.create_fake_interface(name="eth0", renamed=False)
+
+        self.m_settle.side_effect = subp.ProcessExecutionError(
+            cmd="xcmd", stderr="xstderr", stdout="xstdout", exit_code=1
+        )
+
+        with caplog.at_level(logging.ERROR):
+            result = net.find_candidate_nics_on_linux()
+            assert (
+                "udevadm failed to settle: cmd='xcmd' "
+                "stderr='xstderr' stdout='xstdout' exit_code=1" in caplog.text
+            )
+
+        assert result == ["eth0"]
+        self.m_settle.assert_called_once()
 
 
 class TestGetDeviceList(CiTestCase):
