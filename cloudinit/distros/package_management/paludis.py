@@ -23,6 +23,7 @@ CAVE_UPGRADE_COMMAND = ["resolve", "-c", "world", "-x"]
 
 CAVE_REPOS_SYNC_COMMAND = ["sync"]
 
+
 class Paludis(PackageManager):
     name = "paludis"
 
@@ -30,12 +31,12 @@ class Paludis(PackageManager):
         self,
         runner: helpers.Runners,
         *,
-        cave_command: list[str] | None = None,
-        cave_sync_subcommand: list[str] | None = None,
-        cave_system_upgrade_subcommand: list[str] | None = None,
+        cave_command: Optional[list[str]] = None,
+        cave_sync_subcommand: Optional[list[str]] = None,
+        cave_system_upgrade_subcommand: Optional[list[str]] = None,
     ):
         """Initialize Paludis package manager.
-        
+
         Args:
             runner: Helper to run commands with specific frequencies
             cave_command: Command to invoke cave (defaults to ["cave"])
@@ -43,10 +44,14 @@ class Paludis(PackageManager):
             cave_system_upgrade_subcommand: Command for system upgrade
         """
         super().__init__(runner)
-        
+
         self.cave_command = cave_command or CAVE_COMMAND
-        self.cave_sync_subcommand = cave_sync_subcommand or CAVE_REPOS_SYNC_COMMAND
-        self.cave_system_upgrade_subcommand = cave_system_upgrade_subcommand or CAVE_UPGRADE_COMMAND
+        self.cave_sync_subcommand = (
+            cave_sync_subcommand or CAVE_REPOS_SYNC_COMMAND
+        )
+        self.cave_system_upgrade_subcommand = (
+            cave_system_upgrade_subcommand or CAVE_UPGRADE_COMMAND
+        )
 
     @classmethod
     def from_config(cls, runner: helpers.Runners, cfg: Mapping) -> "Paludis":
@@ -80,7 +85,7 @@ class Paludis(PackageManager):
         Exherbo to manage configuration. Whenever a configuration is updated,
         through eclectic or by a package install, this environment file will
         get updated.
-        
+
         Returns:
             Dictionary containing environment variables key-pair
         """
@@ -95,17 +100,19 @@ class Paludis(PackageManager):
                         if "=" in line:
                             key, value = line.split("=", 1)
                             # Remove quotes if present
-                            value = value.strip('"\'')
+                            value = value.strip("\"'")
                             env_vars[key.strip()] = value
-                LOG.debug("Read %d environment variables from /etc/environment", 
-                          len(env_vars))
+                LOG.debug(
+                    "Read %d environment variables from /etc/environment",
+                    len(env_vars),
+                )
             else:
                 LOG.debug("/etc/environment file not found")
         except Exception as e:
             LOG.warning("Failed to read /etc/environment: %s", str(e))
-        
+
         return env_vars
-        
+
     def run_package_command(self, command, args=None):
         full_command = self.cave_command
 
@@ -127,7 +134,7 @@ class Paludis(PackageManager):
         # since we do not want to store artifacts into newly created
         # users
         env_vars["HOME"] = "/tmp"
-        
+
         subp.subp(
             args=full_command,
             capture=False,

@@ -3,9 +3,7 @@
 import tempfile
 from unittest import mock
 
-from cloudinit.distros.package_management.paludis import (
-    Paludis,
-)
+from cloudinit.distros.package_management.paludis import Paludis
 from tests.unittests.helpers import CiTestCase
 
 M_PATH = "cloudinit.distros.package_management.paludis.Paludis."

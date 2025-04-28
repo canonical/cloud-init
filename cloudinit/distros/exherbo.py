@@ -8,11 +8,9 @@ import logging
 from typing import List
 
 from cloudinit import distros, helpers, util
-from cloudinit.distros import PackageList
 from cloudinit.distros.package_management.package_manager import PackageManager
 from cloudinit.distros.package_management.paludis import Paludis
 from cloudinit.distros.parsers.hostname import HostnameConf
-from cloudinit.settings import PER_ALWAYS, PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
