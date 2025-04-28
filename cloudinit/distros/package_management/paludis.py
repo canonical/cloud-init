@@ -6,7 +6,7 @@
 
 import logging
 import os
-from typing import Dict, Iterable, Mapping
+from typing import Dict, Iterable, List, Mapping, Optional
 
 from cloudinit import helpers, subp, util
 from cloudinit.distros.package_management.package_manager import (
@@ -31,9 +31,9 @@ class Paludis(PackageManager):
         self,
         runner: helpers.Runners,
         *,
-        cave_command: Optional[list[str]] = None,
-        cave_sync_subcommand: Optional[list[str]] = None,
-        cave_system_upgrade_subcommand: Optional[list[str]] = None,
+        cave_command: Optional[List[str]] = None,
+        cave_sync_subcommand: Optional[List[str]] = None,
+        cave_system_upgrade_subcommand: Optional[List[str]] = None,
     ):
         """Initialize Paludis package manager.
 
