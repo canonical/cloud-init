@@ -323,7 +323,7 @@ def read_md(address=None, url_params=None, platform_check=True):
 
     # Update md with parsed project-data
     md["project-data"] = project_data    
-    
+
     ret["meta-data"] = md
     ret["success"] = True
 
