@@ -1694,6 +1694,19 @@ scbus-1 on xpt0 bus 0
             "user-supplied-value",
         )
 
+    def test_no_admin_username(self):
+        data = {"ovfcontent": construct_ovf_env(username=None)}
+
+        dsrc = self._get_ds(data)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+
+        assert dsrc.cfg == {
+            "PreprovisionedVMType": None,
+            "PreprovisionedVm": False,
+            "ProvisionGuestProxyAgent": False,
+        }
+
     def test_username_used(self):
         data = {"ovfcontent": construct_ovf_env(username="myuser")}
 
