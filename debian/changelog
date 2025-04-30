@@ -1,3 +1,9 @@
+cloud-init (25.1.1-0ubuntu2~24.10.2) UNRELEASED; urgency=medium
+
+  * Upstream snapshot based on upstream/main at 282b7296.
+
+ -- James Falcon <james.falcon@canonical.com>  Wed, 30 Apr 2025 11:46:11 -0500
+
 cloud-init (25.1.1-0ubuntu2~24.10.1) oracular; urgency=medium
 
   * d/control: Fix how cloud-init-base overwrites cloud-init files.
