@@ -251,7 +251,7 @@ apt_install() {
 install_packages() {
     get_os_info || return
     case "$OS_NAME" in
-        centos|rocky*) yum_install "$@";;
+        centos|rocky*|fedora) yum_install "$@";;
         opensuse*) zypper_install "$@";;
         debian|ubuntu) apt_install "$@" -y;;
         *) error "Do not know how to install packages on ${OS_NAME}";
@@ -358,7 +358,7 @@ wait_for_boot() {
         { errorrc "wait inside $name failed."; return; }
 
     if [ -n "${http_proxy-}" ]; then
-        if [ "$OS_NAME" = "centos" ]; then
+        if [ "$OS_NAME" = "centos" -o "$OS_NAME" = "fedora" ]; then
             debug 1 "configuring proxy ${http_proxy}"
             inside "$name" sh -c "echo proxy=$http_proxy >> /etc/yum.conf"
             inside "$name" sh -c "sed -i --regexp-extended '/^#baseurl=/s/#// ; /^(mirrorlist|metalink)=/s/^/#/' /etc/yum.repos.d/*.repo"
@@ -503,7 +503,7 @@ main() {
 
     local build_pkg="" build_srcpkg="" pkg_ext="" distflag=""
     case "$OS_NAME" in
-        centos|rocky*) distflag="--distro=redhat";;
+        centos|rocky*|fedora) distflag="--distro=redhat";;
         opensuse*) distflag="--distro=suse";;
     esac
 
@@ -512,7 +512,7 @@ main() {
             build_pkg="./packages/bddeb -d" 
             build_srcpkg="./packages/bddeb -S -d"
             pkg_ext=".deb";;
-        centos|opensuse*|rocky*)
+        centos|opensuse*|rocky*|fedora)
             build_pkg="./packages/brpm $distflag"
             build_srcpkg="./packages/brpm $distflag --srpm"
             pkg_ext=".rpm";;
