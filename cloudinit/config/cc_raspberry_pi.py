@@ -117,9 +117,7 @@ def configure_serial_interface(
             delay="now",
             message="Rebooting to apply serial console changes",
         )
-        _ = subprocess.Popen(
-            cmd, stdin=subprocess.PIPE, stdout=None, stderr=subprocess.STDOUT
-        )
+        subp.subp(cmd)
     except subp.ProcessExecutionError as e:
         LOG.error("Failed to configure serial console: %s", e)
 
