@@ -26,6 +26,7 @@ DISTRO_PKG_TYPE_MAP = {
     "centos": "redhat",
     "eurolinux": "redhat",
     "miraclelinux": "redhat",
+    "fedora": "redhat",
     "rocky": "redhat",
     "redhat": "redhat",
     "debian": "debian",
@@ -46,11 +47,21 @@ MAYBE_RELIABLE_YUM_INSTALL = [
     """
     error() { echo "$@" 1>&2; }
     configure_repos_for_proxy_use() {
-        grep -q "^proxy=" /etc/yum.conf || return 0
+        if [ -f /etc/yum.conf ]; then
+            CFG_FILE=/etc/yum.conf
+        fi
+        if [ -f /etc/dnf/dnf.conf ]; then
+            CFG_FILE=/etc/dnf/dnf.conf
+        fi
+        if [ ! "${CFG_FILE}" ]; then
+            error "No yum.conf or dnf.conf"
+            return 0
+        fi
+        grep -q "^proxy=" $CFG_FILE || return 0
         error ":: http proxy in use => forcing the use of fixed URLs in /etc/yum.repos.d/*.repo"
         sed -i --regexp-extended '/^#baseurl=/s/#// ; /^(mirrorlist|metalink)=/s/^/#/' /etc/yum.repos.d/*.repo
-        sed -i 's/download\.fedoraproject\.org/dl.fedoraproject.org/g' /etc/yum.repos.d/*.repo
-        sed -i 's/download\.example/dl.fedoraproject.org/g' /etc/yum.repos.d/*.repo
+        sed -i 's/download\\.fedoraproject\\.org/dl.fedoraproject.org/g' /etc/yum.repos.d/*.repo
+        sed -i 's/download\\.example/dl.fedoraproject.org/g' /etc/yum.repos.d/*.repo
     }
     configure_repos_for_proxy_use
     n=0; max=10;
@@ -68,7 +79,7 @@ MAYBE_RELIABLE_YUM_INSTALL = [
     error ":: running yum install --cacheonly --assumeyes $*"
     yum install --cacheonly --assumeyes "$@"
     configure_repos_for_proxy_use
-    """,
+    """,  # noqa: E501
     "reliable-yum-install",
 ]
 
@@ -95,6 +106,7 @@ CI_SYSTEM_BASE_PKGS = {
     "common": ["make", "sudo", "tar"],
     "eurolinux": ["python3-tox"],
     "miraclelinux": ["python3-tox"],
+    "fedora": ["python3-tox"],
     "redhat": ["python3-tox"],
     "centos": ["python3-tox"],
     "ubuntu": ["devscripts", "python3-dev", "libssl-dev", "tox", "sbuild"],
@@ -340,6 +352,7 @@ def pkg_install(pkg_list, distro, test_distro=False, dry_run=False):
     if distro in [
         "suse",
         "opensuse",
+        "fedora",
         "redhat",
         "rocky",
         "centos",
