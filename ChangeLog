@@ -1,3 +1,6 @@
+-25.1.2
+ - fix: ensure MAAS datasource retries on failure (#6167)
+
 25.1.1
  - test: pytestify cc_chef tests, add migration test
  - chef: migrate files in old config directories for backups and cache
