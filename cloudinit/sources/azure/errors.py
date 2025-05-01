@@ -14,7 +14,6 @@ from xml.etree import ElementTree as ET  # nosec B405
 import requests
 
 from cloudinit import subp, version
-from cloudinit.sources.azure import identity
 from cloudinit.url_helper import UrlError
 
 LOG = logging.getLogger(__name__)
@@ -42,6 +41,7 @@ class ReportableError(Exception):
         reason: str,
         *,
         supporting_data: Optional[Dict[str, Any]] = None,
+        vm_id: Optional[str] = None,
     ) -> None:
         self.agent = f"Cloud-Init/{version.version_string()}"
         self.documentation_url = "https://aka.ms/linuxprovisioningerror"
@@ -53,11 +53,7 @@ class ReportableError(Exception):
             self.supporting_data = {}
 
         self.timestamp = datetime.now(timezone.utc)
-
-        try:
-            self.vm_id = identity.query_vm_id()
-        except Exception as id_error:
-            self.vm_id = f"failed to read vm id: {id_error!r}"
+        self.vm_id = vm_id
 
     def as_encoded_report(
         self,
@@ -215,3 +211,13 @@ class ReportableErrorProxyAgentStatusFailure(ReportableError):
         self.supporting_data["exit_code"] = exception.exit_code
         self.supporting_data["stdout"] = exception.stdout
         self.supporting_data["stderr"] = exception.stderr
+
+
+class ReportableErrorVmIdentification(ReportableError):
+    def __init__(
+        self, *, exception: Exception, system_uuid: Optional[str] = None
+    ) -> None:
+        super().__init__("failure to identify Azure VM ID")
+
+        self.supporting_data["exception"] = repr(exception)
+        self.supporting_data["system_uuid"] = system_uuid

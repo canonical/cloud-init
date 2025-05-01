@@ -4043,7 +4043,6 @@ class TestProvisioning:
         assert self.mock_dmi_read_dmi_data.mock_calls == [
             mock.call("chassis-asset-tag"),
             mock.call("system-uuid"),
-            mock.call("system-uuid"),
         ]
         assert (
             self.azure_ds.metadata["instance-id"]
@@ -4120,7 +4119,6 @@ class TestProvisioning:
         # Verify DMI usage.
         assert self.mock_dmi_read_dmi_data.mock_calls == [
             mock.call("chassis-asset-tag"),
-            mock.call("system-uuid"),
             mock.call("system-uuid"),
         ]
 
@@ -5416,3 +5414,67 @@ class TestDependencyFallback:
         Python versions
         """
         assert dsaz.encrypt_pass("`")
+
+
+class TestQueryVmId:
+    @mock.patch.object(
+        identity, "query_system_uuid", side_effect=["test-system-uuid"]
+    )
+    @mock.patch.object(
+        identity, "convert_system_uuid_to_vm_id", side_effect=["test-vm-id"]
+    )
+    def test_query_vm_id_success(
+        self, mock_convert_uuid, mock_query_system_uuid, azure_ds
+    ):
+        azure_ds._query_vm_id()
+
+        assert azure_ds._system_uuid == "test-system-uuid"
+        assert azure_ds._vm_id == "test-vm-id"
+
+        mock_query_system_uuid.assert_called_once()
+        mock_convert_uuid.assert_called_once_with("test-system-uuid")
+
+    @mock.patch.object(
+        identity,
+        "query_system_uuid",
+        side_effect=[RuntimeError("test failure")],
+    )
+    def test_query_vm_id_system_uuid_failure(
+        self, mock_query_system_uuid, azure_ds
+    ):
+        with pytest.raises(errors.ReportableErrorVmIdentification) as exc_info:
+            azure_ds._query_vm_id()
+
+            assert azure_ds._system_uuid is None
+            assert azure_ds._vm_id is None
+            assert (
+                exc_info.value.reason
+                == "Failed to query system UUID: test failure"
+            )
+
+        mock_query_system_uuid.assert_called_once()
+
+    @mock.patch.object(
+        identity, "query_system_uuid", side_effect=["test-system-uuid"]
+    )
+    @mock.patch.object(
+        identity,
+        "convert_system_uuid_to_vm_id",
+        side_effect=[ValueError("test failure")],
+    )
+    def test_query_vm_id_vm_id_conversion_failure(
+        self, mock_convert_uuid, mock_query_system_uuid, azure_ds
+    ):
+        with pytest.raises(errors.ReportableErrorVmIdentification) as excinfo:
+            azure_ds._query_vm_id()
+
+            assert azure_ds._system_uuid == "test-system-uuid"
+            assert azure_ds._vm_id is None
+            assert (
+                excinfo.value.reason
+                == "Failed to convert system UUID 'test-system-uuid' "
+                "to Azure VM ID: test failure"
+            )
+
+        mock_query_system_uuid.assert_called_once()
+        mock_convert_uuid.assert_called_once_with("test-system-uuid")

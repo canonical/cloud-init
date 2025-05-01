@@ -106,6 +106,7 @@ def test_reportable_errors(
     error = errors.ReportableError(
         reason=reason,
         supporting_data=supporting_data,
+        vm_id=fake_vm_id,
     )
 
     data = [
@@ -263,3 +264,16 @@ def test_imds_invalid_metadata(value):
     assert error.supporting_data["key"] == key
     assert error.supporting_data["value"] == value
     assert error.supporting_data["type"] == type(value).__name__
+
+
+def test_vm_identification_exception():
+    exception = ValueError("foobar")
+    system_uuid = "1234-5678-90ab-cdef"
+
+    error = errors.ReportableErrorVmIdentification(
+        exception=exception, system_uuid=system_uuid
+    )
+
+    assert error.reason == "failure to identify Azure VM ID"
+    assert error.supporting_data["exception"] == repr(exception)
+    assert error.supporting_data["system_uuid"] == system_uuid
