@@ -1503,6 +1503,13 @@ class TestSchemaDocExamples:
     def test_cloud_config_schema_doc_examples(self, example_path):
         validate_cloudconfig_file(example_path, self.schema)
 
+        # Assert no use of deprecated keys
+        validate_cloudconfig_schema(
+            config=yaml.safe_load(open(example_path)),
+            schema=self.schema,
+            strict=True,
+        )
+
     @pytest.mark.parametrize(
         "example_path",
         _get_meta_doc_examples(file_glob="network-config-v1*yaml"),
