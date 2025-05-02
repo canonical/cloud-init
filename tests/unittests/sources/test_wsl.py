@@ -231,7 +231,7 @@ class TestWSLHelperFunctions:
         with caplog.at_level(logging.WARNING):
             with raises:
                 assert md_expected == wsl.load_instance_metadata(
-                    PurePath(tmpdir), "myinstance"
+                    tmpdir, "myinstance"
                 )
             warning_logs = "\n".join(
                 [
