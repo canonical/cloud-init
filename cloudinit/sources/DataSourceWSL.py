@@ -241,8 +241,8 @@ def load_ubuntu_pro_data(
     Read .ubuntupro user-data if present and return a tuple of agent and
     landscape user-data.
     """
-    pro_dir = os.path.join(user_home, ".ubuntupro/.cloud-init")
-    if not os.path.isdir(pro_dir):
+    pro_dir = cloud_init_data_dir(user_home / ".ubuntupro")
+    if pro_dir is None:
         return None, None
 
     landscape_path = PurePath(
