@@ -1,3 +1,11 @@
+cloud-init (25.1.2-0ubuntu0~22.04.1) UNRELEASED; urgency=medium
+
+  * Upstream snapshot based on 25.1.2. (LP: #2104165).
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/25.1.2/ChangeLog
+
+ -- James Falcon <james.falcon@canonical.com>  Fri, 02 May 2025 12:47:26 -0500
+
 cloud-init (25.1.1-0ubuntu1~22.04.1) jammy; urgency=medium
 
   * Drop cpicks which are now upstream:
@@ -16,7 +24,7 @@ cloud-init (25.1.1-0ubuntu1~22.04.1) jammy; urgency=medium
   * d/cloud-init.templates:
     - Move VMware before OVF. See GH-4030
     - Enable CloudCIX by default
-  * Upstream snapshot based on 25.1.1. (LP: #2104165).
+  * Upstream snapshot based on 25.1.1.
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/25.1.1/ChangeLog
 
