@@ -182,10 +182,11 @@ class TestWSLHelperFunctions:
         assert files == wsl.candidate_user_data_file_names(INSTANCE_NAME)
 
     @pytest.mark.parametrize(
-        "md_content,raises,errors,warnings,md_expected",
+        "md_content,is_from_pro,raises,errors,warnings,md_expected",
         (
             pytest.param(
                 None,
+                False,
                 does_not_raise(),
                 [],
                 [],
@@ -194,6 +195,7 @@ class TestWSLHelperFunctions:
             ),
             pytest.param(
                 "{}",
+                False,
                 pytest.raises(
                     ValueError,
                     match=(
@@ -207,6 +209,7 @@ class TestWSLHelperFunctions:
             ),
             pytest.param(
                 "{",
+                True,
                 pytest.raises(
                     ValueError,
                     match=(
@@ -221,12 +224,24 @@ class TestWSLHelperFunctions:
         ),
     )
     def test_load_instance_metadata(
-        self, md_content, raises, errors, warnings, md_expected, tmpdir, caplog
+        self,
+        md_content,
+        is_from_pro,
+        raises,
+        errors,
+        warnings,
+        md_expected,
+        tmpdir,
+        caplog,
     ):
         """meta-data file is optional. Errors are raised on invalid content."""
+        path = ".cloud-init"
+        if is_from_pro:
+            path = ".ubuntupro/.cloud-init"
+
         if md_content is not None:
-            dir = tmpdir.join(".cloud-init")
-            dir.mkdir()
+            dir = tmpdir.join(path)
+            os.makedirs(dir)
             dir.join("myinstance.meta-data").write(md_content)
         with caplog.at_level(logging.WARNING):
             with raises:
