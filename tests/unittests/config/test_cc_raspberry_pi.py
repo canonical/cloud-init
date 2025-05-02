@@ -94,48 +94,72 @@ class TestRaspberryPiMethods:
             cc_rpi.configure_interface("invalid_iface", True)
 
     @mock.patch("cloudinit.subp.subp")
-    @mock.patch("subprocess.Popen")
-    @mock.patch(M_PATH + "is_pifive", return_value=False)
-    def test_configure_serial_interface_dict(
-        self, m_is_pifive, m_popen, m_subp
-    ):
+    @mock.patch(M_PATH + "is_pifive", return_value=True)
+    def test_configure_serial_interface_dict_config(self, m_ispi5, m_subp):
         cloud = get_cloud("raspberry_pi_os")
-        m_popen.return_value.returncode = 0
         cfg = {"console": True, "hardware": False}
-        with mock.patch("os._exit", side_effect=SystemExit) as m_exit:
-            with pytest.raises(SystemExit):
-                cc_rpi.configure_serial_interface(cfg, None, cloud)
-        m_subp.assert_any_call(
-            [
-                "/usr/bin/raspi-config",
-                "nonint",
-                cc_rpi.RASPI_CONFIG_SERIAL_CONS_FN,
-                "0",
-            ]
-        )
-        m_subp.assert_any_call(
-            [
-                "/usr/bin/raspi-config",
-                "nonint",
-                cc_rpi.RASPI_CONFIG_SERIAL_HW_FN,
-                "0",
-            ]
-        )
-        m_exit.assert_called_once_with(0)
+
+        # Simulate is_pifive returning True to prevent enable_hw override
+        with mock.patch.object(
+            cloud.distro, "shutdown_command", return_value=["reboot"]
+        ):
+            cc_rpi.configure_serial_interface(cfg, {}, cloud)
+
+        expected_calls = [
+            mock.call(
+                [
+                    "/usr/bin/raspi-config",
+                    "nonint",
+                    cc_rpi.RASPI_CONFIG_SERIAL_CONS_FN,
+                    "0",
+                ]
+            ),
+            mock.call(
+                [
+                    "/usr/bin/raspi-config",
+                    "nonint",
+                    cc_rpi.RASPI_CONFIG_SERIAL_HW_FN,
+                    "1",
+                ]
+            ),
+            mock.call(["reboot"]),
+        ]
+        m_subp.assert_has_calls(expected_calls, any_order=False)
 
     @mock.patch("cloudinit.subp.subp")
-    @mock.patch("subprocess.Popen")
-    @mock.patch(M_PATH + "is_pifive", return_value=True)
-    def test_configure_serial_interface_bool(
-        self, m_is_pifive, m_popen, m_subp
+    @mock.patch(M_PATH + "is_pifive", return_value=False)
+    def test_configure_serial_interface_boolean_config_non_pi5(
+        self, m_ispi5, m_subp
     ):
         cloud = get_cloud("raspberry_pi_os")
-        m_popen.return_value.returncode = 0
-        with mock.patch("os._exit", side_effect=SystemExit) as m_exit:
-            with pytest.raises(SystemExit):
-                cc_rpi.configure_serial_interface(True, None, cloud)
-        assert m_subp.call_count == 2
-        m_exit.assert_called_once_with(0)
+
+        with mock.patch.object(
+            cloud.distro,
+            "shutdown_command",
+            return_value=["shutdown", "-r", "now"],
+        ):
+            cc_rpi.configure_serial_interface(True, {}, cloud)
+
+        expected_calls = [
+            mock.call(
+                [
+                    "/usr/bin/raspi-config",
+                    "nonint",
+                    cc_rpi.RASPI_CONFIG_SERIAL_CONS_FN,
+                    "0",
+                ]
+            ),
+            mock.call(
+                [
+                    "/usr/bin/raspi-config",
+                    "nonint",
+                    cc_rpi.RASPI_CONFIG_SERIAL_HW_FN,
+                    "0",
+                ]
+            ),
+            mock.call(["shutdown", "-r", "now"]),
+        ]
+        m_subp.assert_has_calls(expected_calls, any_order=False)
 
 
 @skipUnlessJsonSchema()

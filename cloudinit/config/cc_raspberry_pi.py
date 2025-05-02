@@ -5,8 +5,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
-import os
-import subprocess
 from typing import Union
 
 from cloudinit import subp
