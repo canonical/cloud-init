@@ -194,6 +194,15 @@ class TestWSLHelperFunctions:
                 id="default_md_on_no_md_file",
             ),
             pytest.param(
+                '{"instance-id":"iid-load-from-pro"}',
+                True,
+                does_not_raise(),
+                [],
+                [],
+                {"instance-id": "iid-load-from-pro"},
+                id="metadata_from_pro",
+            ),
+            pytest.param(
                 "{}",
                 False,
                 pytest.raises(
@@ -592,6 +601,11 @@ landscape:
 ubuntu_pro:
     token: testtoken"""
         )
+        SAMPLE_ID = "Nice-ID"
+        agent_metadata_path = ubuntu_pro_tmp.join(f"{INSTANCE_NAME}.meta-data")
+        agent_metadata_path.write(
+            f'{{"instance-id":"{SAMPLE_ID}"}}',
+        )
 
         # Run the datasource
         ds = wsl.DataSourceWSL(
@@ -613,6 +627,8 @@ ubuntu_pro:
         assert "ubuntu_pro" in userdata
         assert "landscape" in userdata
         assert "agenttest" in userdata
+        assert "installation_request_id" in userdata
+        assert SAMPLE_ID in userdata
 
     @mock.patch("cloudinit.util.get_linux_distro")
     def test_landscape_vs_local_user(self, m_get_linux_dist, tmpdir, paths):
