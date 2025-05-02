@@ -1,3 +1,11 @@
+cloud-init (25.1.2-0ubuntu0~25.04.1) UNRELEASED; urgency=medium
+
+  * Upstream snapshot based on 25.1.2. (LP: #2104165).
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/25.1.2/ChangeLog
+
+ -- James Falcon <james.falcon@canonical.com>  Fri, 02 May 2025 13:00:52 -0500
+
 cloud-init (25.1-0ubuntu2) plucky; urgency=medium
 
   * d/control: add python3-passlib dependency to cloud-init
