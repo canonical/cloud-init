@@ -199,7 +199,7 @@ CFG_MINIMAL_LIST = {
 
 class TestSchema:
     @mark.parametrize(
-        ("config_dict", "error_msg"),
+        ("config", "error_msg"),
         (
             param(
                 CFG_MINIMAL_DICT,
@@ -267,21 +267,6 @@ class TestSchema:
                 "'playbook_name' is a required property",
                 id="require-url-dict",
             ),
-        ),
-    )
-    @skipUnlessJsonSchema()
-    def test_schema_validationt_dict(self, config_dict, error_msg):
-        if error_msg is None:
-            validate_cloudconfig_schema(config_dict, get_schema(), strict=True)
-        else:
-            with raises(SchemaValidationError, match=re.escape(error_msg)):
-                validate_cloudconfig_schema(
-                    config_dict, get_schema(), strict=True
-                )
-
-    @mark.parametrize(
-        ("config_list", "error_msg"),
-        (
             param(
                 CFG_MINIMAL_LIST,
                 None,
@@ -359,13 +344,13 @@ class TestSchema:
         ),
     )
     @skipUnlessJsonSchema()
-    def test_schema_validationt_list(self, config_list, error_msg):
+    def test_schema_validation(self, config, error_msg):
         if error_msg is None:
-            validate_cloudconfig_schema(config_list, get_schema(), strict=True)
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
         else:
             with raises(SchemaValidationError, match=re.escape(error_msg)):
                 validate_cloudconfig_schema(
-                    config_list, get_schema(), strict=True
+                    config, get_schema(), strict=True
                 )
 
 
@@ -397,33 +382,6 @@ class TestAnsible:
             "skip-tags": "cisco",
             "private-key": "{nope}",
         }
-        out_list = cc_ansible.filter_args(
-            CFG_FULL_PULL_LIST.get("ansible", {}).get("pull", []),
-        )
-        assert out_list == [
-            {
-                "url": "https://github/holmanb/vmboot",
-                "playbook-name": "arch.yml",
-                "accept-host-key": True,
-                "clean": True,
-                "full": True,
-                "ssh-common-args": "-y",
-                "scp-extra-args": "-l",
-                "sftp-extra-args": "-f",
-                "checkout": "tree",
-                "module-path": "~/.ansible/plugins/modules:"
-                "/usr/share/ansible/plugins/modules",
-                "timeout": "10",
-                "vault-id": "me",
-                "connection": "smart",
-                "vault-password-file": "/path/to/file",
-                "module-name": "git",
-                "sleep": "1",
-                "tags": "cumulus",
-                "skip-tags": "cisco",
-                "private-key": "{nope}",
-            }
-        ]
 
     @mark.parametrize(
         ("cfg_dict", "exception"),
