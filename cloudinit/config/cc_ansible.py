@@ -183,14 +183,10 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             ansible_galaxy(galaxy_cfg, ansible)
 
         if pull_cfg:
-            pull_cfg_type = type(pull_cfg)
-            if pull_cfg_type is dict:
-                run_ansible_pull(ansible, deepcopy(pull_cfg))
-            elif pull_cfg_type is list:
-                for cfg in pull_cfg:
-                    run_ansible_pull(ansible, deepcopy(cfg))
-            else:
-                raise ValueError(f"Unknown type for pull: {pull_cfg_type}")
+            if isinstance(pull_cfg, dict):
+                pull_cfg = [pull_cfg]
+            for cfg in pull_cfg:
+                run_ansible_pull(ansible, deepcopy(cfg))
 
         if setup_controller:
             ansible_controller(setup_controller, ansible)
@@ -206,20 +202,24 @@ def validate_config(cfg: dict):
             raise ValueError(f"Missing required key '{key}' from {cfg}")
     pull_cfg = cfg.get("pull")
     if pull_cfg:
-        pull_cfg_type = type(pull_cfg)
-        if pull_cfg_type is dict:
-            for key in "url", "playbook_name":
-                if not get_cfg_by_path(pull_cfg, key):
+        if isinstance(pull_cfg, dict):
+            pull_cfg = [pull_cfg]
+        elif not isinstance(pull_cfg, list):
+            raise ValueError(
+                "Invalid value ansible.pull. Expected either dict of list of"
+                f" dicts but found {pull_cfg}"
+            )
+        for p_cfg in pull_cfg:
+            if not isinstance(p_cfg, dict):
+                raise ValueError(
+                    "Invalid value of ansible.pull. Expected dict but found"
+                    f" {p_cfg}"
+                )
+            for key in ("url", "playbook_name"):
+                if not get_cfg_by_path(p_cfg, key):
                     raise ValueError(
-                        f"Missing required key '{key}' from {pull_cfg}"
-                    )
-        elif pull_cfg_type is list:
-            for c in pull_cfg:
-                for key in "url", "playbook_name":
-                    if not get_cfg_by_path(c, key):
-                        raise ValueError(
-                            f"Missing required key '{key}' from {c}"
-                        )
+                        f"Missing required key '{key}' from {p_cfg}"
+                     )
 
     controller_cfg = cfg.get("setup_controller")
     if controller_cfg:
@@ -238,23 +238,11 @@ def validate_config(cfg: dict):
 
 def filter_args(cfg):
     """remove boolean false values"""
-    if type(cfg) is dict:
-        return {
-            key.replace("_", "-"): value
-            for (key, value) in cfg.items()
-            if value is not False
-        }
-    elif type(cfg) is list:
-        list_of_playbooks = []
-        for c in cfg:
-            list_of_playbooks.append(
-                {
-                    key.replace("_", "-"): value
-                    for (key, value) in c.items()
-                    if value is not False
-                }
-            )
-        return list_of_playbooks
+    return {
+        key.replace("_", "-"): value
+        for (key, value) in cfg.items()
+        if value is not False
+    }
 
 
 def run_ansible_pull(pull: AnsiblePull, cfg: dict):
