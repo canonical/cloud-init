@@ -489,7 +489,7 @@ def find_candidate_nics_on_linux() -> List[str]:
             try:
                 util.udevadm_settle()
             except subp.ProcessExecutionError as error:
-                LOG.error(
+                LOG.warning(
                     "udevadm failed to settle: "
                     "cmd=%r stderr=%r stdout=%r exit_code=%s",
                     error.cmd,
