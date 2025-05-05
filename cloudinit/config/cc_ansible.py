@@ -219,7 +219,7 @@ def validate_config(cfg: dict):
                 if not get_cfg_by_path(p_cfg, key):
                     raise ValueError(
                         f"Missing required key '{key}' from {p_cfg}"
-                     )
+                    )
 
     controller_cfg = cfg.get("setup_controller")
     if controller_cfg:

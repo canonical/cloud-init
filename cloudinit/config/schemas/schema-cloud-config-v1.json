@@ -948,11 +948,13 @@
             },
             "pull": {
               "oneOf": [
-		{"$ref": "#/$defs/ansible.pull"},
+                {
+                  "$ref": "#/$defs/ansible.pull"
+                },
                 {
                   "type": "array",
                   "items": {
-		    "$ref": "#/$defs/ansible.pull"
+                    "$ref": "#/$defs/ansible.pull"
                   }
                 }
               ]

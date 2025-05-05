@@ -349,9 +349,7 @@ class TestSchema:
             validate_cloudconfig_schema(config, get_schema(), strict=True)
         else:
             with raises(SchemaValidationError, match=re.escape(error_msg)):
-                validate_cloudconfig_schema(
-                    config, get_schema(), strict=True
-                )
+                validate_cloudconfig_schema(config, get_schema(), strict=True)
 
 
 class TestAnsible:
