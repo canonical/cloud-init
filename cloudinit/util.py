@@ -56,7 +56,7 @@ from typing import (
     Union,
     cast,
 )
-from urllib import parse
+from urllib.parse import urlparse, unquote
 
 import yaml
 
@@ -92,6 +92,54 @@ FN_ALLOWED = "_-.()" + string.digits + string.ascii_letters
 TRUE_STRINGS = ("true", "1", "on", "yes")
 FALSE_STRINGS = ("off", "0", "no", "false")
 
+class URLParserPlus:
+    def __init__(self, url):
+        parsed = urlparse(url)
+        self.original_url = url
+        self.scheme = parsed.scheme.lower()
+        self.default_ports = {
+            'http': 80,
+            'https': 443,
+            'ftp': 21,
+            'sftp': 22
+        }
+        self.port = parsed.port or self.default_ports.get(self.scheme)
+        self.iface = None
+        self.hostname = parsed.hostname
+        self.path = parsed.path
+
+        if self.scheme == 'file':
+            self.host = None
+            self.port = None
+            self.request_url = self.original_url
+            return
+
+        raw_netloc = parsed.netloc
+        match = re.match(r'\[(.*?)\](?::(\d+))?', raw_netloc)
+        if match:
+            full_host = unquote(match.group(1))
+            if '%' in full_host:
+                self.hostname, self.iface = full_host.split('%', 1)
+            else:
+                self.hostname = full_host
+        elif self.hostname and '%' in self.hostname:
+            self.hostname, self.iface = self.hostname.split('%', 1)
+
+        host = self.hostname
+        if ':' in host:  # IPv6 literal
+            host = f'[{host}]'
+        netloc = f"{host}:{self.port}" if self.port else host
+        self.request_url = f"{self.scheme}://{netloc}{self.path}"
+
+    def __repr__(self):
+        return (
+            f"URLParserPlus(original_url={self.original_url}, scheme={self.scheme}, "
+            f"hostname={self.hostname}, port={self.port}, iface={self.iface}, "
+            f"path={self.path}, request_url={self.request_url})"
+        )
+
+def url_parser_plus(url):
+    return URLParserPlus(url)
 
 def kernel_version():
     return tuple(map(int, os.uname().release.split(".")[:2]))
@@ -1292,8 +1340,8 @@ def is_resolvable(url) -> bool:
     be resolved inside the search list.
     """
     global _DNS_REDIRECT_IP
-    parsed_url = parse.urlparse(url)
-    name = parsed_url.hostname
+    parsed_url = url_parser_plus(url)
+    host = parsed_url.hostname
     if _DNS_REDIRECT_IP is None:
         badips = set()
         badnames = (
@@ -1320,9 +1368,9 @@ def is_resolvable(url) -> bool:
     try:
         # ip addresses need no resolution
         with suppress(ValueError):
-            if net.is_ip_address(parsed_url.netloc.strip("[]")):
+            if net.is_ip_address(host):
                 return True
-        result = socket.getaddrinfo(name, None)
+        result = socket.getaddrinfo(host, None)
         # check first result's sockaddr field
         addr = result[0][4][0]
         return addr not in _DNS_REDIRECT_IP
