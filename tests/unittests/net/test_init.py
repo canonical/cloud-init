@@ -606,7 +606,7 @@ class TestNetFindCandidateNics:
             cmd="xcmd", stderr="xstderr", stdout="xstdout", exit_code=1
         )
 
-        with caplog.at_level(logging.ERROR):
+        with caplog.at_level(logging.WARNING):
             result = net.find_candidate_nics_on_linux()
             assert (
                 "udevadm failed to settle: cmd='xcmd' "
