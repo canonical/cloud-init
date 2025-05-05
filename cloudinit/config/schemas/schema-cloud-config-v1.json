@@ -493,6 +493,87 @@
         }
       }
     },
+    "ansible.pull": {
+      "required": [
+        "url",
+        "playbook_name"
+      ],
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "accept_host_key": {
+          "type": "boolean",
+          "default": false
+        },
+        "clean": {
+          "type": "boolean",
+          "default": false
+        },
+        "full": {
+          "type": "boolean",
+          "default": false
+        },
+        "diff": {
+          "type": "boolean",
+          "default": false
+        },
+        "ssh_common_args": {
+          "type": "string"
+        },
+        "scp_extra_args": {
+          "type": "string"
+        },
+        "sftp_extra_args": {
+          "type": "string"
+        },
+        "private_key": {
+          "type": "string"
+        },
+        "checkout": {
+          "type": "string"
+        },
+        "module_path": {
+          "type": "string"
+        },
+        "timeout": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "connection": {
+          "type": "string"
+        },
+        "vault_id": {
+          "type": "string"
+        },
+        "vault_password_file": {
+          "type": "string"
+        },
+        "verify_commit": {
+          "type": "boolean",
+          "default": false
+        },
+        "inventory": {
+          "type": "string"
+        },
+        "module_name": {
+          "type": "string"
+        },
+        "sleep": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "string"
+        },
+        "skip_tags": {
+          "type": "string"
+        },
+        "playbook_name": {
+          "type": "string"
+        }
+      }
+    },
     "apt_configure.mirror": {
       "type": "array",
       "items": {
@@ -867,168 +948,11 @@
             },
             "pull": {
               "oneOf": [
-                {
-                  "required": [
-                    "url",
-                    "playbook_name"
-                  ],
-                  "type": "object",
-                  "additionalProperties": false,
-                  "properties": {
-                    "accept_host_key": {
-                      "type": "boolean",
-                      "default": false
-                    },
-                    "clean": {
-                      "type": "boolean",
-                      "default": false
-                    },
-                    "full": {
-                      "type": "boolean",
-                      "default": false
-                    },
-                    "diff": {
-                      "type": "boolean",
-                      "default": false
-                    },
-                    "ssh_common_args": {
-                      "type": "string"
-                    },
-                    "scp_extra_args": {
-                      "type": "string"
-                    },
-                    "sftp_extra_args": {
-                      "type": "string"
-                    },
-                    "private_key": {
-                      "type": "string"
-                    },
-                    "checkout": {
-                      "type": "string"
-                    },
-                    "module_path": {
-                      "type": "string"
-                    },
-                    "timeout": {
-                      "type": "string"
-                    },
-                    "url": {
-                      "type": "string"
-                    },
-                    "connection": {
-                      "type": "string"
-                    },
-                    "vault_id": {
-                      "type": "string"
-                    },
-                    "vault_password_file": {
-                      "type": "string"
-                    },
-                    "verify_commit": {
-                      "type": "boolean",
-                      "default": false
-                    },
-                    "inventory": {
-                      "type": "string"
-                    },
-                    "module_name": {
-                      "type": "string"
-                    },
-                    "sleep": {
-                      "type": "string"
-                    },
-                    "tags": {
-                      "type": "string"
-                    },
-                    "skip_tags": {
-                      "type": "string"
-                    },
-                    "playbook_name": {
-                      "type": "string"
-                    }
-                  }
-                },
+		{"$ref": "#/$defs/ansible.pull"},
                 {
                   "type": "array",
                   "items": {
-                    "required": [
-                      "url",
-                      "playbook_name"
-                    ],
-                    "additionalProperties": false,
-                    "properties": {
-                      "accept_host_key": {
-                        "type": "boolean",
-                        "default": false
-                      },
-                      "clean": {
-                        "type": "boolean",
-                        "default": false
-                      },
-                      "full": {
-                        "type": "boolean",
-                        "default": false
-                      },
-                      "diff": {
-                        "type": "boolean",
-                        "default": false
-                      },
-                      "ssh_common_args": {
-                        "type": "string"
-                      },
-                      "scp_extra_args": {
-                        "type": "string"
-                      },
-                      "sftp_extra_args": {
-                        "type": "string"
-                      },
-                      "private_key": {
-                        "type": "string"
-                      },
-                      "checkout": {
-                        "type": "string"
-                      },
-                      "module_path": {
-                        "type": "string"
-                      },
-                      "timeout": {
-                        "type": "string"
-                      },
-                      "url": {
-                        "type": "string"
-                      },
-                      "connection": {
-                        "type": "string"
-                      },
-                      "vault_id": {
-                        "type": "string"
-                      },
-                      "vault_password_file": {
-                        "type": "string"
-                      },
-                      "verify_commit": {
-                        "type": "boolean",
-                        "default": false
-                      },
-                      "inventory": {
-                        "type": "string"
-                      },
-                      "module_name": {
-                        "type": "string"
-                      },
-                      "sleep": {
-                        "type": "string"
-                      },
-                      "tags": {
-                        "type": "string"
-                      },
-                      "skip_tags": {
-                        "type": "string"
-                      },
-                      "playbook_name": {
-                        "type": "string"
-                      }
-                    }
+		    "$ref": "#/$defs/ansible.pull"
                   }
                 }
               ]
