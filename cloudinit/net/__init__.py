@@ -486,7 +486,17 @@ def find_candidate_nics_on_linux() -> List[str]:
                 "Found unstable nic names: %s; calling udevadm settle",
                 unstable,
             )
-            util.udevadm_settle()
+            try:
+                util.udevadm_settle()
+            except subp.ProcessExecutionError as error:
+                LOG.warning(
+                    "udevadm failed to settle: "
+                    "cmd=%r stderr=%r stdout=%r exit_code=%s",
+                    error.cmd,
+                    error.stderr,
+                    error.stdout,
+                    error.exit_code,
+                )
 
     # sort into interfaces with carrier, interfaces which could have carrier,
     # and ignore interfaces that are definitely disconnected
