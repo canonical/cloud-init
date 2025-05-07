@@ -73,6 +73,7 @@ for distro in (
 for distro in (
     "almalinux",
     "cloudlinux",
+    "rocky"
 ):
     DISTRO_OVERRIDES[distro] = DISTRO_OVERRIDES["rhel"]
 
