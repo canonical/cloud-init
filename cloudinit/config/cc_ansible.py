@@ -236,7 +236,7 @@ def validate_config(cfg: dict):
         raise ValueError("Invalid install method {install}")
 
 
-def filter_args(cfg):
+def filter_args(cfg: dict) -> dict:
     """remove boolean false values"""
     return {
         key.replace("_", "-"): value
@@ -263,7 +263,7 @@ def run_ansible_pull(pull: AnsiblePull, cfg: dict):
             f"--{key}={value}" if value is not True else f"--{key}"
             for key, value in filter_args(cfg).items()
         ],
-        playbook_name,
+        *playbook_name.split(),
     )
     if stdout:
         sys.stdout.write(f"{stdout}")
