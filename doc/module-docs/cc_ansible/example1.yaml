@@ -4,4 +4,4 @@ ansible:
   install_method: distro
   pull:
     url: https://github.com/holmanb/vmboot.git
-    playbook_name: ubuntu.yml
+    playbook_name: ubuntu.yml watermark.yml
