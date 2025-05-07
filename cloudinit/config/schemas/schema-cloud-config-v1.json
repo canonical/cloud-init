@@ -570,6 +570,7 @@
           "type": "string"
         },
         "playbook_name": {
+          "description": "Space separated list of playbooks to provide to ansible-pull",
           "type": "string"
         }
       }
