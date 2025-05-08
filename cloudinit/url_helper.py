@@ -38,7 +38,6 @@ from urllib.parse import quote, urlparse, urlsplit, urlunparse
 
 import requests
 from requests import exceptions
-from requests_toolbelt.adapters.socket_options import SocketOptionsAdapter
 
 from cloudinit import performance, util, version
 
@@ -47,6 +46,15 @@ LOG = logging.getLogger(__name__)
 REDACTED = "REDACTED"
 ExceptionCallback = Optional[Callable[["UrlError"], bool]]
 
+class HTTPAdapterWithSocketOptions(requests.adapters.HTTPAdapter):
+    def __init__(self, *args, **kwargs):
+        self.socket_options = kwargs.pop("socket_options", None)
+        super(HTTPAdapterWithSocketOptions, self).__init__(*args, **kwargs)
+
+    def init_poolmanager(self, *args, **kwargs):
+        if self.socket_options is not None:
+            kwargs["socket_options"] = self.socket_options
+        super(HTTPAdapterWithSocketOptions, self).init_poolmanager(*args, **kwargs)
 
 def _cleanurl(url):
     parsed_url = list(urlparse(url, scheme="http"))
@@ -538,9 +546,9 @@ def readurl(
         session = requests.Session()
 
     if iface is not None:
-        options = [(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, iface.encode())]
+        adapter = HTTPAdapterWithSocketOptions(socket_options=[(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, iface.encode('utf-8'))])
         for scheme in ('http://', 'https://'):
-            session.mount(scheme, SocketOptionsAdapter(socket_options=options))
+            session.mount(scheme, adapter)
 
     # Handle retrying ourselves since the built-in support
     # doesn't handle sleeping between tries...
