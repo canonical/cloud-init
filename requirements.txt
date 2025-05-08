@@ -19,9 +19,6 @@ pyyaml
 # Requests handles ssl correctly!
 requests
 
-# Add support for network interfaces in requests
-requests-toolbelt
-
 # For patching pieces of cloud-config together
 jsonpatch
 
