@@ -1,3 +1,4 @@
 #cloud-config
-rpi_interfaces:
-  serial: true
+rpi:
+  interfaces:
+    serial: true
