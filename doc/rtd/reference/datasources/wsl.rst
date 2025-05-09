@@ -204,7 +204,7 @@ include file.
     - name: j
       gecos: Agent J
       groups: users,sudo,netdev,audio
-      sudo: ALL=(ALL) NOPASSWD:ALL
+      sudo: "ALL=(ALL) NOPASSWD:ALL"
       shell: /bin/bash
       lock_passwd: true
 

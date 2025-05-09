@@ -36,7 +36,7 @@ users:
   - name: newsuper
     gecos: Big Stuff
     groups: users, admin
-    sudo: ALL=(ALL) NOPASSWD:ALL
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
     hashed-password: asdfasdf
     shell: /bin/bash
     lock_passwd: true
