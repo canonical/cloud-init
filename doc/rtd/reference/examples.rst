@@ -117,8 +117,8 @@ Adjust mount points mounted
    :language: yaml
    :linenos:
 
-``Configure instance's SSH keys``
-=================================
+Configure instance's SSH keys
+=============================
 
 .. literalinclude:: ../../examples/cloud-config-ssh-keys.txt
    :language: yaml
