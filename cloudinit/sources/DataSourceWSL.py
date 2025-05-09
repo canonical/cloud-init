@@ -148,44 +148,84 @@ class ConfigData:
     """Models a piece of configuration data as a dict if possible, while
     retaining its raw representation alongside its file path"""
 
-    def __init__(self, path: PurePath):
+    def is_cloud_config(self) -> bool:
+        return self.config_dict is not None
+
+    def __init__(self, path: PurePath, instance_id: str):
         self.raw: str = util.load_text_file(path)
         self.path: PurePath = path
 
         self.config_dict: Optional[dict] = None
 
-        if "text/cloud-config" == type_from_starts_with(self.raw):
-            self.config_dict = util.load_yaml(self.raw)
+        if "text/cloud-config" != type_from_starts_with(self.raw):
+            return
 
-    def is_cloud_config(self) -> bool:
-        return self.config_dict is not None
+        self.config_dict = util.load_yaml(self.raw)
+        if self.config_dict is None:
+            return
+        if not instance_id or instance_id == DEFAULT_INSTANCE_ID:
+            return
+        try:
+            if (
+                self.config_dict["landscape"]["client"].get(
+                    "installation_request_id"
+                )
+                is not None
+            ):
+                return
+
+            # If we don't have a landscape client installation_request_id
+            # but have valid instance-id in the metadata, let's reuse it:
+            self.config_dict["landscape"]["client"][
+                "installation_request_id"
+            ] = instance_id
+        except KeyError:
+            # client config doesn't exist, don't bother
+            pass
+
+        self.raw = "#cloud-config\n%s" % yaml.dump(self.config_dict).strip()
 
 
-def load_instance_metadata(
-    cloudinitdir: Optional[PurePath], instance_name: str
-) -> dict:
+def _load_metadata(metadata_path: PurePath) -> Optional[dict]:
     """
-    Returns the relevant metadata loaded from cloudinit dir based on the
-    instance name
+    Returns the relevant metadata loaded from the supplied metadata_path.
     """
-    metadata = {"instance-id": DEFAULT_INSTANCE_ID}
-    if cloudinitdir is None:
-        return metadata
-    metadata_path = os.path.join(
-        cloudinitdir.as_posix(), "%s.meta-data" % instance_name
-    )
-
+    metadata = None
     try:
-        metadata = util.load_yaml(util.load_text_file(metadata_path))
+        metadata = util.load_yaml(
+            util.load_text_file(metadata_path), default=""
+        )
     except FileNotFoundError:
         LOG.debug(
             "No instance metadata found at %s. Using default instance-id.",
             metadata_path,
         )
+
+    return metadata
+
+
+def load_instance_metadata(user_home: PurePath, instance_name: str) -> dict:
+    """
+    Returns the relevant metadata loaded from either the Ubuntu Pro dir
+    or the user cloud-int dir based on the instance name
+    """
+    metadata = {"instance-id": DEFAULT_INSTANCE_ID}
+    pro_dir = cloud_init_data_dir(user_home / ".ubuntupro")
+    user_dir = cloud_init_data_dir(user_home)
+    candidates = [dir for dir in [pro_dir, user_dir] if dir is not None]
+    found_at = ""
+    for dir in candidates:
+        path = dir / ("%s.meta-data" % instance_name)
+        dt = _load_metadata(path)
+        if dt is not None:
+            metadata = dt
+            found_at = path.as_posix()
+            break
+
     if not metadata or "instance-id" not in metadata:
         # Parsed metadata file invalid
         msg = (
-            f" Metadata at {metadata_path} does not contain instance-id key."
+            f"Metadata at {found_at} does not contain instance-id key."
             f" Instead received: {metadata}"
         )
         LOG.error(msg)
@@ -195,14 +235,14 @@ def load_instance_metadata(
 
 
 def load_ubuntu_pro_data(
-    user_home: PurePath,
+    user_home: PurePath, instance_id: str
 ) -> Tuple[Optional[ConfigData], Optional[ConfigData]]:
     """
     Read .ubuntupro user-data if present and return a tuple of agent and
     landscape user-data.
     """
-    pro_dir = os.path.join(user_home, ".ubuntupro/.cloud-init")
-    if not os.path.isdir(pro_dir):
+    pro_dir = cloud_init_data_dir(user_home / ".ubuntupro")
+    if pro_dir is None:
         return None, None
 
     landscape_path = PurePath(
@@ -216,12 +256,12 @@ def load_ubuntu_pro_data(
             landscape_path,
             cloud_init_data_dir(user_home),
         )
-        landscape_data = ConfigData(landscape_path)
+        landscape_data = ConfigData(landscape_path, instance_id)
 
     agent_path = PurePath(os.path.join(pro_dir, AGENT_DATA_FILE))
     agent_data = None
     if os.path.isfile(agent_path):
-        agent_data = ConfigData(agent_path)
+        agent_data = ConfigData(agent_path, instance_id)
 
     return agent_data, landscape_data
 
@@ -356,8 +396,8 @@ class DataSourceWSL(sources.DataSource):
             return False
 
         try:
-            data_dir = cloud_init_data_dir(find_home())
-            metadata = load_instance_metadata(data_dir, instance_name())
+            home = find_home()
+            metadata = load_instance_metadata(home, instance_name())
             return current == metadata.get("instance-id")
 
         except (IOError, ValueError) as err:
@@ -389,20 +429,21 @@ class DataSourceWSL(sources.DataSource):
         # Load any metadata
         try:
             self.metadata = load_instance_metadata(
-                seed_dir, self.instance_name
+                user_home, self.instance_name
             )
         except (ValueError, IOError) as err:
             LOG.error("Unable to load metadata: %s", str(err))
             return False
 
+        iid = self.metadata["instance-id"]
         # # Load Ubuntu Pro configs only on Ubuntu distros
         if self.distro.name == "ubuntu":
-            agent_data, user_data = load_ubuntu_pro_data(user_home)
+            agent_data, user_data = load_ubuntu_pro_data(user_home, iid)
 
         # Load regular user configs
         try:
             if user_data is None and seed_dir is not None:
-                user_data = ConfigData(self.find_user_data_file(seed_dir))
+                user_data = ConfigData(self.find_user_data_file(seed_dir), iid)
 
         except (ValueError, IOError) as err:
             log = LOG.info if agent_data else LOG.error
