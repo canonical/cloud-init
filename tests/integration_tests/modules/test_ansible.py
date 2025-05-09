@@ -109,7 +109,7 @@ ansible:
      - ["ansible-galaxy", "collection", "install", "community.elastic"]
   pull:
     - url: "http://0.0.0.0:8000/"
-      playbook_name: ubuntu.yml
+      playbook_names: [ubuntu.yml]
       full: true
 """
 

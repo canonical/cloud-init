@@ -15,7 +15,10 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import skipUnlessJsonSchema
+from tests.unittests.helpers import (
+    skipUnlessJsonSchema,
+    skipUnlessJsonSchemaVersionGreaterThan,
+)
 from tests.unittests.util import get_cloud
 
 try:
@@ -110,7 +113,7 @@ CFG_FULL_PULL_DICT: Dict[str, Any] = {
         },
         "pull": {
             "url": "https://github/holmanb/vmboot",
-            "playbook_name": "arch.yml",
+            "playbook_names": ["arch.yml"],
             "accept_host_key": True,
             "clean": True,
             "full": True,
@@ -145,7 +148,7 @@ CFG_FULL_PULL_LIST: Dict[str, Any] = {
         "pull": [
             {
                 "url": "https://github/holmanb/vmboot",
-                "playbook_name": "arch.yml",
+                "playbook_names": ["arch.yml"],
                 "accept_host_key": True,
                 "clean": True,
                 "full": True,
@@ -177,7 +180,7 @@ CFG_MINIMAL_DICT = {
         "run_user": "ansible",
         "pull": {
             "url": "https://github/holmanb/vmboot",
-            "playbook_name": "ubuntu.yml",
+            "playbook_names": ["ubuntu.yml"],
         },
     }
 }
@@ -190,7 +193,7 @@ CFG_MINIMAL_LIST = {
         "pull": [
             {
                 "url": "https://github/holmanb/vmboot",
-                "playbook_name": "ubuntu.yml",
+                "playbook_names": ["ubuntu.yml"],
             }
         ],
     }
@@ -198,32 +201,43 @@ CFG_MINIMAL_LIST = {
 
 
 class TestSchema:
+
     @mark.parametrize(
         ("config", "error_msg"),
         (
             param(
                 CFG_MINIMAL_DICT,
-                None,
+                "Expect **ansible.pull** as list of objects",
                 id="essentials_dict",
             ),
+            param(
+                CFG_FULL_PULL_DICT,
+                "Expect **ansible.pull** as list of objects",
+                id="all-pull-keys-dict",
+            ),
+        ),
+    )
+    @skipUnlessJsonSchemaVersionGreaterThan(version=(3, 2, 0))
+    def test_schema_validation_deprecations(self, config, error_msg):
+        with raises(SchemaValidationError, match=re.escape(error_msg)):
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+
+    @mark.parametrize(
+        ("config", "error_msg"),
+        (
             param(
                 {
                     "ansible": {
                         "install_method": "distro",
                         "pull": {
                             "url": "https://github/holmanb/vmboot",
-                            "playbook_name": "centos.yml",
+                            "playbook_names": ["centos.yml"],
                             "dance": "bossa nova",
                         },
                     }
                 },
                 "Additional properties are not allowed ",
                 id="additional-properties-dict",
-            ),
-            param(
-                CFG_FULL_PULL_DICT,
-                None,
-                id="all-pull-keys-dict",
             ),
             param(
                 CFG_CTRL,
@@ -236,7 +250,7 @@ class TestSchema:
                         "install_method": "true",
                         "pull": {
                             "url": "https://github/holmanb/vmboot",
-                            "playbook_name": "debian.yml",
+                            "playbook_names": ["debian.yml"],
                         },
                     }
                 },
@@ -248,7 +262,7 @@ class TestSchema:
                     "ansible": {
                         "install_method": "pip",
                         "pull": {
-                            "playbook_name": "fedora.yml",
+                            "playbook_names": ["fedora.yml"],
                         },
                     }
                 },
@@ -279,7 +293,7 @@ class TestSchema:
                         "pull": [
                             {
                                 "url": "https://github/holmanb/vmboot",
-                                "playbook_name": "centos.yml",
+                                "playbook_names": ["centos.yml"],
                                 "dance": "bossa nova",
                             }
                         ],
@@ -305,7 +319,7 @@ class TestSchema:
                         "pull": [
                             {
                                 "url": "https://github/holmanb/vmboot",
-                                "playbook_name": "debian.yml",
+                                "playbook_names": ["debian.yml"],
                             }
                         ],
                     }
@@ -319,7 +333,7 @@ class TestSchema:
                         "install_method": "pip",
                         "pull": [
                             {
-                                "playbook_name": "fedora.yml",
+                                "playbook_names": ["fedora.yml"],
                             }
                         ],
                     }
@@ -355,12 +369,13 @@ class TestSchema:
 class TestAnsible:
     def test_filter_args(self):
         """only diff should be removed"""
-        out_dict = cc_ansible.filter_args(
-            CFG_FULL_PULL_DICT.get("ansible", {}).get("pull", {}),
+        src_cfg = deepcopy(
+            CFG_FULL_PULL_DICT.get("ansible", {}).get("pull", {})
         )
+        src_cfg.pop("playbook_names")
+        out_dict = cc_ansible.filter_args(src_cfg)
         assert out_dict == {
             "url": "https://github/holmanb/vmboot",
-            "playbook-name": "arch.yml",
             "accept-host-key": True,
             "clean": True,
             "full": True,
@@ -392,7 +407,7 @@ class TestAnsible:
                         "package_name": "ansible-core",
                         "install_method": "distro",
                         "pull": {
-                            "playbook_name": "ubuntu.yml",
+                            "playbook_names": ["ubuntu.yml"],
                         },
                     }
                 },
@@ -456,7 +471,7 @@ class TestAnsible:
                         "install_method": "distro",
                         "pull": [
                             {
-                                "playbook_name": "ubuntu.yml",
+                                "playbook_names": ["ubuntu.yml"],
                             }
                         ],
                     }

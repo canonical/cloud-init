@@ -494,9 +494,19 @@
       }
     },
     "ansible.pull": {
-      "required": [
-        "url",
-        "playbook_name"
+      "oneOf": [
+        {
+          "required": [
+            "url",
+            "playbook_name"
+          ]
+        },
+        {
+          "required": [
+            "url",
+            "playbook_names"
+          ]
+        }
       ],
       "type": "object",
       "additionalProperties": false,
@@ -570,8 +580,18 @@
           "type": "string"
         },
         "playbook_name": {
-          "description": "Space separated list of playbooks to provide to ansible-pull",
+          "deprecated": true,
+          "deprecated_version": "25.2",
+          "deprecated_description": "Use **playbook_names** key instead.",
+          "description": "Single playbook_name to run with ansible-pull",
           "type": "string"
+        },
+        "playbook_names": {
+          "type": "array",
+          "description": "List of playbook_names to run with ansible-pull",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
@@ -948,15 +968,19 @@
               "default": "ansible"
             },
             "pull": {
+              "description": "pull playbooks from a VCS repo and run them on the host",
               "oneOf": [
-                {
-                  "$ref": "#/$defs/ansible.pull"
-                },
                 {
                   "type": "array",
                   "items": {
                     "$ref": "#/$defs/ansible.pull"
                   }
+                },
+                {
+                  "$ref": "#/$defs/ansible.pull",
+                  "deprecated": true,
+                  "deprecated_version": "25.2",
+                  "deprecated_description": "Expect **ansible.pull** as list of objects instead of a single object."
                 }
               ]
             }

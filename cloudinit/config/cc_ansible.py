@@ -7,7 +7,7 @@ import re
 import sys
 import sysconfig
 from copy import deepcopy
-from typing import Optional
+from typing import List, Optional
 
 from cloudinit import lifecycle, subp
 from cloudinit.cloud import Cloud
@@ -215,11 +215,20 @@ def validate_config(cfg: dict):
                     "Invalid value of ansible.pull. Expected dict but found"
                     f" {p_cfg}"
                 )
-            for key in ("url", "playbook_name"):
-                if not get_cfg_by_path(p_cfg, key):
-                    raise ValueError(
-                        f"Missing required key '{key}' from {p_cfg}"
-                    )
+            if not get_cfg_by_path(p_cfg, "url"):
+                raise ValueError(f"Missing required key 'url' from {p_cfg}")
+            has_playbook = get_cfg_by_path(p_cfg, "playbook_name")
+            has_playbooks = get_cfg_by_path(p_cfg, "playbook_names")
+            if not any([has_playbook, has_playbooks]):
+                raise ValueError(
+                    f"Missing required key 'playbook_names' from {p_cfg}"
+                )
+            elif all([has_playbooks, has_playbook]):
+                raise ValueError(
+                    "Key 'ansible.pull.playbook_name' and"
+                    " 'ansible.pull.playbook_names' are mutually exclusive."
+                    f" Please use 'playbook_names' in {p_cfg}"
+                )
 
     controller_cfg = cfg.get("setup_controller")
     if controller_cfg:
@@ -246,8 +255,10 @@ def filter_args(cfg: dict) -> dict:
 
 
 def run_ansible_pull(pull: AnsiblePull, cfg: dict):
-    playbook_name: str = cfg.pop("playbook_name")
-
+    playbook_name: str = cfg.pop("playbook_name", None)
+    playbook_names: List[str] = cfg.pop("playbook_names", None)
+    if playbook_name:
+        playbook_names = [playbook_name]
     v = pull.get_version()
     if not v:
         LOG.warning("Cannot parse ansible version")
@@ -263,7 +274,7 @@ def run_ansible_pull(pull: AnsiblePull, cfg: dict):
             f"--{key}={value}" if value is not True else f"--{key}"
             for key, value in filter_args(cfg).items()
         ],
-        *playbook_name.split(),
+        *playbook_names,
     )
     if stdout:
         sys.stdout.write(f"{stdout}")
