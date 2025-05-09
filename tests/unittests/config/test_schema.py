@@ -254,6 +254,7 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_phone_home"},
             {"$ref": "#/$defs/cc_power_state_change"},
             {"$ref": "#/$defs/cc_puppet"},
+            {"$ref": "#/$defs/cc_raspberry_pi"},
             {"$ref": "#/$defs/cc_resizefs"},
             {"$ref": "#/$defs/cc_resolv_conf"},
             {"$ref": "#/$defs/cc_rh_subscription"},
