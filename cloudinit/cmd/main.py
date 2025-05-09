@@ -1366,8 +1366,14 @@ def all_stages(parser):
 
 def sub_main(args):
 
-    # Subparsers.required = True and each subparser sets action=(name, functor)
-    (name, functor) = args.action
+    try:
+        # Subparsers.required = True
+        # and each subparser sets action=(name, functor)
+        (name, functor) = args.action
+    except AttributeError:
+        print('No Subcommand specified. Please specify a subcommand '
+              'in addition to the option')
+        sys.exit(1)
 
     # Setup basic logging for cloud-init:
     # - for cloud-init stages if --debug
