@@ -20,7 +20,7 @@ schema.
     - name: ansible
       gecos: Ansible User
       groups: users,admin,wheel
-      sudo: ALL=(ALL) NOPASSWD:ALL
+      sudo: "ALL=(ALL) NOPASSWD:ALL"
       shell: /bin/bash
       lock_passwd: true
       ssh_authorized_keys:
@@ -66,4 +66,3 @@ schema.
     # Ok11rJYIe7+e9B0lhku0AFwGyqlWQmS/MhIpnjHIk5tP4heHGSmzKQWJDbTskNWd6aq1G7
     # 6HWfDpX4HgoM8AAAALaG9sbWFuYkBhcmM=
     # -----END OPENSSH PRIVATE KEY-----
-

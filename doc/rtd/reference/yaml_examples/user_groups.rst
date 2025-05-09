@@ -64,7 +64,7 @@ exceptions and can be applied to already-existing users:
       passwd: $6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
     - name: barfoo
       gecos: Bar B. Foo
-      sudo: ALL=(ALL) NOPASSWD:ALL
+      sudo: "ALL=(ALL) NOPASSWD:ALL"
       groups: users, admin
       ssh_import_id:
         - lp:falcojr
@@ -77,7 +77,6 @@ exceptions and can be applied to already-existing users:
       inactive: '5'
       system: true
     - name: fizzbuzz
-      sudo: false
       shell: /bin/bash
       ssh_authorized_keys:
         - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDSL7uWGj8cgWsp... csmith@fringe
@@ -136,4 +135,3 @@ supplemental config options. This config will make the default user
 .. literalinclude:: ../../../module-docs/cc_users_groups/example7.yaml
    :language: yaml
    :linenos:
-
