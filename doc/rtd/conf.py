@@ -1,6 +1,5 @@
 import datetime
 import glob
-import itertools
 import os
 import sys
 
@@ -240,12 +239,12 @@ def render_property_template(prop_name, prop_cfg, prefix=""):
         description = f" {prop_cfg['description']}"
     else:
         description = ""
-    description += get_deprecated_str(prop_name, prop_cfg)
-    description += get_changed_str(prop_name, prop_cfg)
     jinja_vars = {
         "prefix": prefix,
         "name": prop_name,
         "description": description,
+        "deprecated": get_deprecated_str(prop_name, prop_cfg),
+        "changed": get_changed_str(prop_name, prop_cfg),
         "types": get_types_str(prop_cfg),
         "prop_cfg": prop_cfg,
     }
@@ -270,14 +269,13 @@ def flatten_schema_refs(src_cfg: dict, defs: dict):
                 if "$ref" in sub_schema:
                     reference = sub_schema.pop("$ref").replace("#/$defs/", "")
                     sub_schema.update(defs[reference])
-    for sub_schema in itertools.chain(
-        src_cfg.get("oneOf", []),
-        src_cfg.get("anyOf", []),
-        src_cfg.get("allOf", []),
-    ):
-        if "$ref" in sub_schema:
-            reference = sub_schema.pop("$ref").replace("#/$defs/", "")
-            sub_schema.update(defs[reference])
+    for key in ("anyOf", "oneOf", "allOf"):
+        if key in src_cfg:
+            for sub_schema in src_cfg[key]:
+                flatten_schema_refs(sub_schema, defs)
+    #   if "$ref" in sub_schema:
+    #       reference = sub_schema.pop("$ref").replace("#/$defs/", "")
+    #       sub_schema.update(defs[reference])
 
 
 def flatten_schema_all_of(src_cfg: dict):
@@ -295,6 +293,9 @@ def flatten_schema_all_of(src_cfg: dict):
 
 def render_nested_properties(prop_cfg, defs, prefix):
     prop_str = ""
+    if "oneOf" in prop_cfg:
+        for alt_schema in prop_cfg["oneOf"]:
+            prop_str += render_nested_properties(alt_schema, defs, prefix)
     prop_types = set(["properties", "patternProperties"])
     flatten_schema_refs(prop_cfg, defs)
     if "items" in prop_cfg:
