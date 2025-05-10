@@ -50,8 +50,7 @@ Network configuration typically comes from the cloud provider to set
 cloud-specific network configurations, or a reasonable default is set by
 cloud-init (typically cloud-init brings up an interface using DHCP).
 
-Since NoCloud is a generic datasource, network configuration may be set the
-same way as user-data, meta-data, vendor-data.
+Supporting network configuration in NoCloud datasource was add since version 24.3.
 
 See the :ref:`network configuration<network_config>` documentation for
 information on network configuration formats.
