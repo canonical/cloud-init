@@ -86,7 +86,7 @@ class AnsiblePullPip(AnsiblePull):
                 [
                     sys.executable,
                     "-c",
-                    "import site; print(site.getuserbase())",
+                    "'import site; print(site.getuserbase())'",
                 ]
             )
             ansible_path = f"{user_base}/bin/"
