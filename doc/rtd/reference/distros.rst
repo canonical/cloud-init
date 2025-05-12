@@ -15,6 +15,7 @@ Unix family of operating systems. See the complete list below.
 * Debian
 * DragonFlyBSD
 * EuroLinux
+* Exherbo
 * Fedora
 * FreeBSD
 * Gentoo
