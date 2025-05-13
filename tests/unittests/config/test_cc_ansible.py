@@ -551,9 +551,9 @@ class TestAnsible:
         distro.install_packages.assert_called_once()
 
     @mock.patch(M_PATH + "subp.which", return_value=True)
-    @mock.patch(M_PATH + "subp.subp", return_value=("stdout", "stderr"))
+    @mock.patch(M_PATH + "subp.subp", return_value=(distro_version, "stderr"))
     @mock.patch(
-        "cloudinit.distros.subp.subp", return_value=("stdout", "stderr")
+        "cloudinit.distros.subp.subp", return_value=(distro_version, "stderr")
     )
     @mark.parametrize(
         ("cfg_dict", "expected"),
@@ -600,6 +600,8 @@ class TestAnsible:
         """verify expected ansible invocation from userdata config"""
         pull_type = cfg_dict["ansible"]["install_method"]
         distro = get_cloud().distro
+        distro.do_as = MagicMock(return_value=(distro_version, ""))
+
         ansible_pull = (
             cc_ansible.AnsiblePullPip(distro, "ansible")
             if pull_type == "pip"
@@ -616,9 +618,9 @@ class TestAnsible:
             ) == os.environ.get("HOME", "/root")
 
     @mock.patch(M_PATH + "subp.which", return_value=True)
-    @mock.patch(M_PATH + "subp.subp", return_value=("stdout", "stderr"))
+    @mock.patch(M_PATH + "subp.subp", return_value=(distro_version, ""))
     @mock.patch(
-        "cloudinit.distros.subp.subp", return_value=("stdout", "stderr")
+        "cloudinit.distros.subp.subp", return_value=(distro_version, "")
     )
     @mark.parametrize(
         ("cfg_list", "expected"),
@@ -665,6 +667,7 @@ class TestAnsible:
         """verify expected ansible invocation from userdata config"""
         pull_type = cfg_list["ansible"]["install_method"]
         distro = get_cloud().distro
+        distro.do_as = MagicMock(return_value=(distro_version, ""))
         ansible_pull = (
             cc_ansible.AnsiblePullPip(distro, "ansible")
             if pull_type == "pip"
@@ -705,7 +708,10 @@ class TestAnsible:
         expected = lifecycle.Version(2, 13, 2)
         assert received == expected
 
-    @mock.patch(M_PATH + "subp.subp", return_value=("stdout", "stderr"))
+    @mock.patch(
+        M_PATH + "subp.subp",
+        side_effect=[("out", "err"), (distro_version, ""), ("out", "err")],
+    )
     @mock.patch(M_PATH + "subp.which", return_value=True)
     def test_ansible_env_var(self, m_which, m_subp):
         cc_ansible.handle("", CFG_FULL_PULL_DICT, get_cloud(), [])
