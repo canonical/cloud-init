@@ -20,6 +20,7 @@ NetBSD, OpenBSD and DragonFlyBSD:
 - AlmaLinux
 - Alpine Linux
 - AOSC OS
+- Amazon Linux 2023
 - Arch Linux
 - CentOS
 - CloudLinux
