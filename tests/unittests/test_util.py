@@ -2410,7 +2410,7 @@ class TestMultiLog:
     ):
         mocker.patch(
             "cloudinit.log.log_util.write_to_console",
-            mock.Mock(side_effect=OSError("Failed to write to console")),
+            side_effect=OSError("Failed to write to console"),
         )
         self._createConsole()
         log_util.multi_log("something", fallback_to_stdout=True)
