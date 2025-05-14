@@ -70,12 +70,10 @@ class TestReadDMIData:
 
         mocker.patch("cloudinit.dmi.subp.subp", side_effect=_sysctl_subp)
 
-    def patch_mapping(self, mocker, new_mapping):
-        mocker.patch("cloudinit.dmi.DMIDECODE_TO_KERNEL", new_mapping)
-
     def test_sysfs_used_with_key_in_mapping_and_file_on_disk(self, mocker):
-        self.patch_mapping(
-            mocker, {"mapped-key": dmi.KernelNames("mapped-value", None, None)}
+        mocker.patch(
+            "cloudinit.dmi.DMIDECODE_TO_KERNEL",
+            {"mapped-key": dmi.KernelNames("mapped-value", None, None)},
         )
         expected_dmi_value = "sys-used-correctly"
         self._create_sysfs_file("mapped-value", expected_dmi_value)
@@ -85,7 +83,7 @@ class TestReadDMIData:
         assert expected_dmi_value == dmi.read_dmi_data("mapped-key")
 
     def test_dmidecode_used_if_no_sysfs_file_on_disk(self, mocker):
-        self.patch_mapping(mocker, {})
+        mocker.patch("cloudinit.dmi.DMIDECODE_TO_KERNEL", {})
         self._create_sysfs_parent_directory()
         expected_dmi_value = "dmidecode-used"
         self._configure_dmidecode_return(
@@ -102,7 +100,7 @@ class TestReadDMIData:
             expected_dmi_value == dmi.read_dmi_data("use-dmidecode")
 
     def test_dmidecode_not_used_on_arm(self, mocker):
-        self.patch_mapping(mocker, {})
+        mocker.patch("cloudinit.dmi.DMIDECODE_TO_KERNEL", {})
         print("current =%s", subp)
         self._create_sysfs_parent_directory()
         dmi_val = "from-dmidecode"
@@ -129,13 +127,13 @@ class TestReadDMIData:
         assert expected == found
 
     def test_none_returned_if_neither_source_has_data(self, mocker):
-        self.patch_mapping(mocker, {})
+        mocker.patch("cloudinit.dmi.DMIDECODE_TO_KERNEL", {})
         self._configure_dmidecode_return(mocker, "key", "value")
         assert dmi.read_dmi_data("expect-fail") is None
 
     def test_none_returned_if_dmidecode_not_in_path(self, mocker):
         mocker.patch.object(subp, "which", lambda _: False)
-        self.patch_mapping(mocker, {})
+        mocker.patch("cloudinit.dmi.DMIDECODE_TO_KERNEL", {})
         assert dmi.read_dmi_data("expect-fail") is None
 
     def test_empty_string_returned_instead_of_foxfox(self):
