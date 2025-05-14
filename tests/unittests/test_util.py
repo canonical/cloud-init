@@ -4,7 +4,6 @@
 
 import base64
 import errno
-import io
 import json
 import logging
 import os
@@ -2368,103 +2367,95 @@ class TestGetConfigLogfiles(helpers.CiTestCase):
         )
 
 
-class TestMultiLog(helpers.FilesystemMockingTestCase):
-    def _createConsole(self, root):
-        os.mkdir(os.path.join(root, "dev"))
-        open(os.path.join(root, "dev", "console"), "a").close()
+@pytest.mark.usefixtures("fake_filesystem")
+class TestMultiLog:
+    def _createConsole(self):
+        os.mkdir("/dev")
+        open("/dev/console", "w").close()
 
-    def setUp(self):
-        super(TestMultiLog, self).setUp()
-        self.root = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, self.root)
-        self.patchOS(self.root)
-        self.patchUtils(self.root)
-        self.patchOpen(self.root)
-        self.stdout = io.StringIO()
-        self.stderr = io.StringIO()
-        self.patchStdoutAndStderr(self.stdout, self.stderr)
-
-    def test_stderr_used_by_default(self):
+    def test_stderr_used_by_default(self, capsys):
         logged_string = "test stderr output"
         log_util.multi_log(logged_string)
-        self.assertEqual(logged_string, self.stderr.getvalue())
+        assert logged_string == capsys.readouterr().err
 
-    def test_stderr_not_used_if_false(self):
+    def test_stderr_not_used_if_false(self, capsys):
         log_util.multi_log("should not see this", stderr=False)
-        self.assertEqual("", self.stderr.getvalue())
+        assert "" == capsys.readouterr().err
 
     def test_logs_go_to_console_by_default(self):
-        self._createConsole(self.root)
+        self._createConsole()
         logged_string = "something very important"
         log_util.multi_log(logged_string)
         with open("/dev/console") as f:
-            self.assertEqual(logged_string, f.read())
+            assert logged_string == f.read()
 
-    def test_logs_dont_go_to_stdout_if_console_exists(self):
-        self._createConsole(self.root)
+    def test_logs_dont_go_to_stdout_if_console_exists(self, capsys):
+        self._createConsole()
         log_util.multi_log("something")
-        self.assertEqual("", self.stdout.getvalue())
+        assert "" == capsys.readouterr().out
 
-    def test_logs_go_to_stdout_if_console_does_not_exist(self):
+    def test_logs_go_to_stdout_if_console_does_not_exist(self, capsys):
         logged_string = "something very important"
         log_util.multi_log(logged_string)
-        self.assertEqual(logged_string, self.stdout.getvalue())
+        assert "something very important" == capsys.readouterr().out
 
-    def test_logs_dont_go_to_stdout_if_fallback_to_stdout_is_false(self):
+    def test_logs_dont_go_to_stdout_if_fallback_to_stdout_is_false(
+        self, capsys
+    ):
         log_util.multi_log("something", fallback_to_stdout=False)
-        self.assertEqual("", self.stdout.getvalue())
+        assert "" == capsys.readouterr().out
 
-    @mock.patch(
-        "cloudinit.log.log_util.write_to_console",
-        mock.Mock(side_effect=OSError("Failed to write to console")),
-    )
     def test_logs_go_to_stdout_if_writing_to_console_fails_and_fallback_true(
-        self,
+        self, mocker, capsys
     ):
-        self._createConsole(self.root)
+        mocker.patch(
+            "cloudinit.log.log_util.write_to_console",
+            side_effect=OSError("Failed to write to console"),
+        )
+        self._createConsole()
         log_util.multi_log("something", fallback_to_stdout=True)
-        self.assertEqual(
-            "Failed to write to /dev/console\nsomething",
-            self.stdout.getvalue(),
+        assert (
+            "Failed to write to /dev/console\nsomething"
+            == capsys.readouterr().out
         )
 
-    @mock.patch(
-        "cloudinit.log.log_util.write_to_console",
-        mock.Mock(side_effect=OSError("Failed to write to console")),
-    )
     def test_logs_go_nowhere_if_writing_to_console_fails_and_fallback_false(
-        self,
+        self, mocker, capsys
     ):
-        self._createConsole(self.root)
-        log_util.multi_log("something", fallback_to_stdout=False)
-        self.assertEqual(
-            "Failed to write to /dev/console\n", self.stdout.getvalue()
+        mocker.patch(
+            "cloudinit.log.log_util.write_to_console",
+            mock.Mock(side_effect=OSError("Failed to write to console")),
         )
+        self._createConsole()
+        log_util.multi_log("something", fallback_to_stdout=False)
+        assert "Failed to write to /dev/console\n" == capsys.readouterr().out
 
     def test_logs_go_to_log_if_given(self):
         logger = mock.MagicMock()
         logged_string = "something very important"
-        log_util.multi_log(logged_string, log=logger)
-        self.assertEqual(
-            [((mock.ANY, logged_string), {})], logger.log.call_args_list
-        )
+        log_util.multi_log(logged_string, log=logger, console=False)
+        assert [((mock.ANY, logged_string), {})] == logger.log.call_args_list
 
     def test_newlines_stripped_from_log_call(self):
         logger = mock.MagicMock()
         expected_string = "something very important"
-        log_util.multi_log("{0}\n".format(expected_string), log=logger)
-        self.assertEqual((mock.ANY, expected_string), logger.log.call_args[0])
+        log_util.multi_log(
+            "{0}\n".format(expected_string), log=logger, console=False
+        )
+        assert mock.ANY, expected_string == logger.log.call_args[0]
 
     def test_log_level_defaults_to_debug(self):
         logger = mock.MagicMock()
-        log_util.multi_log("message", log=logger)
-        self.assertEqual((logging.DEBUG, mock.ANY), logger.log.call_args[0])
+        log_util.multi_log("message", log=logger, console=False)
+        assert logging.DEBUG, mock.ANY == logger.log.call_args[0]
 
     def test_given_log_level_used(self):
         logger = mock.MagicMock()
         log_level = mock.Mock()
-        log_util.multi_log("message", log=logger, log_level=log_level)
-        self.assertEqual((log_level, mock.ANY), logger.log.call_args[0])
+        log_util.multi_log(
+            "message", log=logger, log_level=log_level, console=False
+        )
+        assert log_level, mock.ANY == logger.log.call_args[0]
 
 
 class TestMessageFromString(helpers.TestCase):
@@ -2784,35 +2775,28 @@ class TestProcessExecutionError(helpers.TestCase):
         )
 
 
-class TestSystemIsSnappy(helpers.FilesystemMockingTestCase):
+@pytest.mark.usefixtures("fake_filesystem")
+class TestSystemIsSnappy:
     def test_id_in_os_release_quoted(self):
         """os-release containing ID="ubuntu-core" is snappy."""
         orcontent = "\n".join(['ID="ubuntu-core"', ""])
-        root_d = self.tmp_dir()
-        helpers.populate_dir(root_d, {"etc/os-release": orcontent})
-        self.reRoot(root_d)
-        self.assertTrue(util.system_is_snappy())
+        helpers.populate_dir("/", {"etc/os-release": orcontent})
+        assert util.system_is_snappy() is True
 
     def test_id_in_os_release(self):
         """os-release containing ID=ubuntu-core is snappy."""
         orcontent = "\n".join(["ID=ubuntu-core", ""])
-        root_d = self.tmp_dir()
-        helpers.populate_dir(root_d, {"etc/os-release": orcontent})
-        self.reRoot(root_d)
-        self.assertTrue(util.system_is_snappy())
+        helpers.populate_dir("/", {"etc/os-release": orcontent})
+        assert util.system_is_snappy() is True
 
-    @mock.patch(M_PATH + "get_cmdline")
-    def test_bad_content_in_os_release_no_effect(self, m_cmdline):
+    def test_bad_content_in_os_release_no_effect(self, mocker):
         """malformed os-release should not raise exception."""
-        m_cmdline.return_value = "root=/dev/sda"
+        mocker.patch(M_PATH + "get_cmdline", return_value="root=/dev/sda")
         orcontent = "\n".join(["IDubuntu-core", ""])
-        root_d = self.tmp_dir()
-        helpers.populate_dir(root_d, {"etc/os-release": orcontent})
-        self.reRoot()
-        self.assertFalse(util.system_is_snappy())
+        helpers.populate_dir("/", {"etc/os-release": orcontent})
+        assert util.system_is_snappy() is False
 
-    @mock.patch(M_PATH + "get_cmdline")
-    def test_snap_core_in_cmdline_is_snappy(self, m_cmdline):
+    def test_snap_core_in_cmdline_is_snappy(self, mocker):
         """The string snap_core= in kernel cmdline indicates snappy."""
         cmdline = (
             "BOOT_IMAGE=(loop)/kernel.img root=LABEL=writable "
@@ -2820,38 +2804,32 @@ class TestSystemIsSnappy(helpers.FilesystemMockingTestCase):
             "net.ifnames=0 init=/lib/systemd/systemd console=tty1 "
             "console=ttyS0 panic=-1"
         )
-        m_cmdline.return_value = cmdline
-        self.assertTrue(util.system_is_snappy())
-        self.assertTrue(m_cmdline.call_count > 0)
+        m_cmdline = mocker.patch(M_PATH + "get_cmdline", return_value=cmdline)
+        assert util.system_is_snappy() is True
+        assert m_cmdline.call_count > 0
 
-    @mock.patch(M_PATH + "get_cmdline")
-    def test_nothing_found_is_not_snappy(self, m_cmdline):
+    def test_nothing_found_is_not_snappy(self, mocker):
         """If no positive identification, then not snappy."""
-        m_cmdline.return_value = "root=/dev/sda"
-        self.reRoot()
-        self.assertFalse(util.system_is_snappy())
-        self.assertTrue(m_cmdline.call_count > 0)
-
-    @mock.patch(M_PATH + "get_cmdline")
-    def test_channel_ini_with_snappy_is_snappy(self, m_cmdline):
-        """A Channel.ini file with 'ubuntu-core' indicates snappy."""
-        m_cmdline.return_value = "root=/dev/sda"
-        root_d = self.tmp_dir()
-        content = "\n".join(["[Foo]", "source = 'ubuntu-core'", ""])
-        helpers.populate_dir(root_d, {"etc/system-image/channel.ini": content})
-        self.reRoot(root_d)
-        self.assertTrue(util.system_is_snappy())
-
-    @mock.patch(M_PATH + "get_cmdline")
-    def test_system_image_config_dir_is_snappy(self, m_cmdline):
-        """Existence of /etc/system-image/config.d indicates snappy."""
-        m_cmdline.return_value = "root=/dev/sda"
-        root_d = self.tmp_dir()
-        helpers.populate_dir(
-            root_d, {"etc/system-image/config.d/my.file": "_unused"}
+        m_cmdline = mocker.patch(
+            M_PATH + "get_cmdline", return_value="root=/dev/sda"
         )
-        self.reRoot(root_d)
-        self.assertTrue(util.system_is_snappy())
+        assert util.system_is_snappy() is False
+        assert m_cmdline.call_count > 0
+
+    def test_channel_ini_with_snappy_is_snappy(self, mocker):
+        """A Channel.ini file with 'ubuntu-core' indicates snappy."""
+        mocker.patch(M_PATH + "get_cmdline", return_value="root=/dev/sda")
+        content = "\n".join(["[Foo]", "source = 'ubuntu-core'", ""])
+        helpers.populate_dir("/", {"etc/system-image/channel.ini": content})
+        assert util.system_is_snappy() is True
+
+    def test_system_image_config_dir_is_snappy(self, mocker):
+        """Existence of /etc/system-image/config.d indicates snappy."""
+        mocker.patch(M_PATH + "get_cmdline", return_value="root=/dev/sda")
+        helpers.populate_dir(
+            "/", {"etc/system-image/config.d/my.file": "_unused"}
+        )
+        assert util.system_is_snappy() is True
 
 
 class TestLoadShellContent(helpers.TestCase):
