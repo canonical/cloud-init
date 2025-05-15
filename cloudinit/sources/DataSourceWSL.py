@@ -209,15 +209,22 @@ def load_instance_metadata(user_home: PurePath, instance_name: str) -> dict:
     metadata = {"instance-id": DEFAULT_INSTANCE_ID}
     pro_dir = cloud_init_data_dir(user_home / ".ubuntupro")
     user_dir = cloud_init_data_dir(user_home)
-    candidates = [dir for dir in [pro_dir, user_dir] if dir is not None]
     found_at = ""
-    for dir in candidates:
+    for dir in [pro_dir, user_dir]:
+        if dir is None:
+            continue
         path = dir / ("%s.meta-data" % instance_name)
         dt = _load_metadata(path)
         if dt is not None:
             metadata = dt
             found_at = path.as_posix()
             break
+
+    if not found_at:
+        LOG.debug(
+            "Unable to find meta-data file candidates."
+            " Using default instance-id"
+        )
 
     if not metadata or "instance-id" not in metadata:
         # Parsed metadata file invalid
