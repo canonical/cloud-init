@@ -190,11 +190,11 @@ def _load_metadata(metadata_path: PurePath) -> Optional[dict]:
     metadata = None
     try:
         metadata = util.load_yaml(
-            util.load_text_file(metadata_path), default=""
+            util.load_text_file(metadata_path), default={}
         )
     except FileNotFoundError:
         LOG.debug(
-            "No instance metadata found at %s. Using default instance-id.",
+            "No instance metadata found at %s.",
             metadata_path,
         )
 
