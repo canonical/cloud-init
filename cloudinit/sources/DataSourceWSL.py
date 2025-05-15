@@ -25,6 +25,9 @@ WSLPATH_CMD = "/usr/bin/wslpath"
 DEFAULT_INSTANCE_ID = "iid-datasource-wsl"
 LANDSCAPE_DATA_FILE = "%s.user-data"
 AGENT_DATA_FILE = "agent.yaml"
+LANDSCAPE_CFG_KEY = "landscape"
+LANDSCAPE_CLIENT_CFG_KEY = "client"
+LANDSCAPE_INSTALLATION_REQ_ID = "installation_request_id"
 
 
 def instance_name() -> str:
@@ -157,33 +160,27 @@ class ConfigData:
 
         self.config_dict: Optional[dict] = None
 
-        if "text/cloud-config" != type_from_starts_with(self.raw):
-            return
+        if "text/cloud-config" == type_from_starts_with(self.raw):
+            self.config_dict = util.load_yaml(self.raw)
 
-        self.config_dict = util.load_yaml(self.raw)
-        if self.config_dict is None:
-            return
-        if not instance_id or instance_id == DEFAULT_INSTANCE_ID:
-            return
-        try:
-            if (
-                self.config_dict["landscape"]["client"].get(
-                    "installation_request_id"
+        if (
+            self.config_dict  # Valid non-empty config
+            and instance_id
+            and instance_id != DEFAULT_INSTANCE_ID  # custom instance-id
+            and self.config_dict.get(LANDSCAPE_CFG_KEY, {}).get(
+                LANDSCAPE_CLIENT_CFG_KEY
+            )
+            is not None  # Landscape client config exists
+        ):
+            # Let's set the installation_request_id to the metadata.instance-id
+            # if not already set, and update the raw config if we modified it:
+            req_id = self.config_dict[LANDSCAPE_CFG_KEY][
+                LANDSCAPE_CLIENT_CFG_KEY
+            ].setdefault(LANDSCAPE_INSTALLATION_REQ_ID, instance_id)
+            if req_id == instance_id:
+                self.raw = (
+                    "#cloud-config\n%s" % yaml.dump(self.config_dict).strip()
                 )
-                is not None
-            ):
-                return
-
-            # If we don't have a landscape client installation_request_id
-            # but have valid instance-id in the metadata, let's reuse it:
-            self.config_dict["landscape"]["client"][
-                "installation_request_id"
-            ] = instance_id
-        except KeyError:
-            # client config doesn't exist, don't bother
-            pass
-
-        self.raw = "#cloud-config\n%s" % yaml.dump(self.config_dict).strip()
 
 
 def _load_metadata(metadata_path: PurePath) -> Optional[dict]:
