@@ -1805,6 +1805,33 @@ class TestNetworkSchema:
                 "",
                 id="GH-4710_mtu_none_and_str_address",
             ),
+            pytest.param(
+                {
+                    "network": {
+                        "version": 1,
+                        "config": [
+                            {
+                                "type": "physical",
+                                "name": "eth0",
+                                "subnets": [
+                                    {
+                                        "type": "dhcp4",
+                                        "metric": 100
+                                    },
+                                    {
+                                        "type": "dhcp6",
+                                        "metric": 1000
+                                    }
+                                ]
+                            }
+                        ],
+                    }
+                },
+                SchemaType.NETWORK_CONFIG_V1,
+                does_not_raise(),
+                "",
+                id="subnet_metric_validation",
+            ),
         ),
     )
     @mock.patch("cloudinit.net.netplan.available", return_value=False)
