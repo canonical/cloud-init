@@ -107,12 +107,24 @@ def _extract_addresses(config: dict, entry: dict, ifname, features: Callable):
         subnets = []
     for subnet in subnets:
         sn_type = subnet.get("type")
+        sn_metric = subnet.get("metric")
         if sn_type.startswith("dhcp"):
             if sn_type == "dhcp":
                 sn_type += "4"
             entry.update({sn_type: True})
+            if sn_metric is not None:
+                # Add metric to DHCP override if specified in the subnet
+                dhcp_override_key = f"{sn_type}-overrides"
+                dhcp_override = entry.get(dhcp_override_key, {})
+                dhcp_override["route-metric"] = sn_metric
+                entry.update({dhcp_override_key: dhcp_override})
         elif sn_type in IPV6_DYNAMIC_TYPES:
             entry.update({"dhcp6": True})
+            if sn_metric is not None:
+                # Add metric to DHCP6 override if specified in the subnet```
+                dhcp_override = entry.get("dhcp6-overrides", {})
+                dhcp_override["route-metric"] = sn_metric
+                entry.update({"dhcp6-overrides": dhcp_override})
         elif sn_type in ["static", "static6"]:
             addr = "%s" % subnet.get("address")
             if "prefix" in subnet:
@@ -133,6 +145,9 @@ def _extract_addresses(config: dict, entry: dict, ifname, features: Callable):
                         addr,
                     )
                     new_route["on-link"] = True
+                if sn_metric is not None:
+                    # Add metric to the default route if specified in the subnet
+                    new_route["metric"] = sn_metric
                 routes.append(new_route)
             if "dns_nameservers" in subnet:
                 nameservers += _listify(subnet.get("dns_nameservers", []))
@@ -149,8 +164,14 @@ def _extract_addresses(config: dict, entry: dict, ifname, features: Callable):
                     "via": route.get("gateway"),
                     "to": to_net,
                 }
-                if "metric" in route:
-                    new_route.update({"metric": route.get("metric", 100)})
+                # Priority for metric: 1. route's metric, 2. subnet's metric, 3. default 100
+                route_metric = route.get("metric")
+                if route_metric is not None:
+                    new_route["metric"] = route_metric
+                elif sn_metric is not None:
+                    new_route["metric"] = sn_metric
+                else:
+                    new_route["metric"] = 100
                 routes.append(new_route)
 
             addresses.append(addr)
