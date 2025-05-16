@@ -1662,7 +1662,8 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                             priority: 22
                             stp: false
                         routes:
-                        -   to: ::/0
+                        -   metric: 100
+                            to: ::/0
                             via: 2001:4800:78ff:1b::1
                 vlans:
                     bond0.200:
@@ -3121,9 +3122,11 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                      routes:
                      -   to: default
                          via: 192.168.0.1
-                     -   to: 10.1.3.0/24
+                     -   metric: 100
+                         to: 10.1.3.0/24
                          via: 192.168.0.3
-                     -   to: 2001:67c::/32
+                     -   metric: 100
+                         to: 2001:67c::/32
                          via: 2001:67c:1562::1
                      -   metric: 10000
                          to: 3001:67c::/32

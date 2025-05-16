@@ -545,6 +545,10 @@
         "ipv6": {
           "type": "boolean",
           "description": "Indicate if the subnet is IPv6. If not specified, it will be inferred from the subnet type or address. This is exists for compatibility with OpenStack's ``network_data.json`` when rendered through sysconfig."
+        },
+        "metric": {
+          "type": "boolean",
+          "description": "Specify default metric for interface and routes of this subnet. "
         }
       }
     },
