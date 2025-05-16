@@ -29,6 +29,7 @@ from cloudinit import (
     util,
 )
 from cloudinit.config import Netv1, Netv2
+from cloudinit.distros.ubuntu import Distro as Ubuntu
 from cloudinit.event import EventScope, EventType, userdata_to_events
 
 # Default handlers (used if not overridden)
@@ -1101,11 +1102,14 @@ class Init:
                 log_details=False,  # May have wifi passwords in net cfg
                 log_deprecations=True,
             )
-        # ensure all physical devices in config are present
-        self.distro.networking.wait_for_physdevs(netcfg)
 
-        # apply renames from config
-        self._apply_netcfg_names(netcfg)
+        if not isinstance(self.distro, Ubuntu):
+
+            # ensure all physical devices in config are present
+            self.distro.networking.wait_for_physdevs(netcfg)
+
+            # apply renames from config
+            self._apply_netcfg_names(netcfg)
 
         # rendering config
         LOG.info(
