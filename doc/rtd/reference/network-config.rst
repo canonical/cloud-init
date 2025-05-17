@@ -182,13 +182,13 @@ supports a wide range of networking setups. Configuration is typically stored
 in :file:`/etc/NetworkManager`.
 
 It is the default for a number of Linux distributions; notably Fedora,
-CentOS/RHEL, and their derivatives.
+CentOS/RHEL, Raspberry Pi OS, and their derivatives.
 
 ENI
 ---
 
 :file:`/etc/network/interfaces` or ``ENI`` is supported by the ``ifupdown``
-package found in Alpine Linux, Debian and Ubuntu.
+package found in Alpine Linux, Debian, Raspberry Pi OS and Ubuntu.
 
 Netplan
 -------
@@ -270,7 +270,7 @@ Example output:
 .. code-block::
 
    usage: /usr/bin/cloud-init devel net-convert [-h] -p PATH -k {eni,network_data.json,yaml,azure-imds,vmware-imc} -d PATH -D
-                                                  {alpine,arch,azurelinux,debian,ubuntu,freebsd,dragonfly,gentoo,cos,netbsd,openbsd,almalinux,amazon,centos,cloudlinux,eurolinux,fedora,mariner,miraclelinux,openmandriva,photon,rhel,rocky,virtuozzo,opensuse,sles,openEuler}
+                                                  {alpine,arch,azurelinux,debian,ubuntu,freebsd,dragonfly,gentoo,cos,netbsd,openbsd,almalinux,amazon,centos,cloudlinux,eurolinux,fedora,mariner,miraclelinux,openmandriva,photon,rhel,rocky,virtuozzo,opensuse,sles,openEuler,raspberry-pi-os}
                                                   [-m name,mac] [--debug] -O {eni,netplan,networkd,sysconfig,network-manager}
 
    options:
@@ -281,7 +281,7 @@ Example output:
                            The format of the given network config
      -d PATH, --directory PATH
                            directory to place output in
-     -D {alpine,arch,azurelinux,debian,ubuntu,freebsd,dragonfly,gentoo,cos,netbsd,openbsd,almalinux,amazon,centos,cloudlinux,eurolinux,fedora,mariner,miraclelinux,openmandriva,photon,rhel,rocky,virtuozzo,opensuse,sles,openeuler}, --distro {alpine,arch,azurelinux,debian,ubuntu,freebsd,dragonfly,gentoo,cos,netbsd,openbsd,almalinux,amazon,centos,cloudlinux,eurolinux,fedora,mariner,miraclelinux,openmandriva,photon,rhel,rocky,virtuozzo,opensuse,sles,openEuler}
+     -D {alpine,arch,azurelinux,debian,ubuntu,freebsd,dragonfly,gentoo,cos,netbsd,openbsd,almalinux,amazon,centos,cloudlinux,eurolinux,fedora,mariner,miraclelinux,openmandriva,photon,rhel,rocky,virtuozzo,opensuse,sles,openeuler}, --distro {alpine,arch,azurelinux,debian,ubuntu,freebsd,dragonfly,gentoo,cos,netbsd,openbsd,almalinux,amazon,centos,cloudlinux,eurolinux,fedora,mariner,miraclelinux,openmandriva,photon,rhel,rocky,virtuozzo,opensuse,sles,openEuler,raspberry-pi-os}
      -m name,mac, --mac name,mac
                            interface name to mac mapping
      --debug               enable debug logging to stderr.
