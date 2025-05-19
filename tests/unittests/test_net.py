@@ -2564,7 +2564,6 @@ USERCTL=no
                 expected, self._render_and_read(network_config=v2data)
             )
 
-
     def test_from_v2_routes(self):
         """verify routes (including IPv6) get rendered using v2 config.
 

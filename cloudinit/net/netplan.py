@@ -146,7 +146,7 @@ def _extract_addresses(config: dict, entry: dict, ifname, features: Callable):
                     )
                     new_route["on-link"] = True
                 if sn_metric is not None:
-                    # Add metric to the default route if specified in the subnet
+                    # Add metric to default route if specified in the subnet
                     new_route["metric"] = sn_metric
                 routes.append(new_route)
             if "dns_nameservers" in subnet:

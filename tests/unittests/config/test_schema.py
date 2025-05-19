@@ -1814,15 +1814,9 @@ class TestNetworkSchema:
                                 "type": "physical",
                                 "name": "eth0",
                                 "subnets": [
-                                    {
-                                        "type": "dhcp4",
-                                        "metric": 100
-                                    },
-                                    {
-                                        "type": "dhcp6",
-                                        "metric": 1000
-                                    }
-                                ]
+                                    {"type": "dhcp4", "metric": 100},
+                                    {"type": "dhcp6", "metric": 1000},
+                                ],
                             }
                         ],
                     }
