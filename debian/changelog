@@ -6,13 +6,6 @@ cloud-init (25.1.2-0ubuntu0~24.10.1) UNRELEASED; urgency=medium
 
  -- James Falcon <james.falcon@canonical.com>  Thu, 01 May 2025 14:50:26 -0500
 
-cloud-init (25.1.1-0ubuntu2~24.10.1) oracular; urgency=medium
-
-  * d/control: Fix how cloud-init-base overwrites cloud-init files.
-    (LP: #2092333)
-
- -- James Falcon <james.falcon@canonical.com>  Fri, 28 Mar 2025 16:50:53 -0500
-
 cloud-init (25.1.1-0ubuntu1~24.10.1) oracular; urgency=medium
 
   * Drop cpicks which are now upstream:
@@ -35,6 +28,13 @@ cloud-init (25.1.1-0ubuntu1~24.10.1) oracular; urgency=medium
     https://raw.githubusercontent.com/canonical/cloud-init/25.1.1/ChangeLog
 
  -- Chad Smith <chad.smith@canonical.com>  Tue, 25 Mar 2025 12:13:57 -0600
+
+cloud-init (24.4.1-0ubuntu0~24.10.3) oracular; urgency=medium
+
+  * d/control: Fix how cloud-init-base overwrites cloud-init files.
+    (LP: #2092333)
+
+ -- James Falcon <james.falcon@canonical.com>  Fri, 28 Mar 2025 16:50:53 -0500
 
 cloud-init (24.4.1-0ubuntu0~24.10.2) oracular; urgency=medium
 
