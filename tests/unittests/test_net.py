@@ -3708,8 +3708,7 @@ class TestNetplanNetRendering:
                       routes:
                       -   to: default
                           via: 192.168.23.1
-                      -   metric: 100
-                          to: 10.176.0.0/24
+                      -   to: 10.176.0.0/24
                           via: 10.184.225.121
                       set-name: interface0
                 """,
@@ -3744,8 +3743,7 @@ class TestNetplanNetRendering:
                       routes:
                       -   to: default
                           via: 192.168.23.1
-                      -   metric: 100
-                          to: 192.167.225.122/24
+                      -   to: 192.167.225.122/24
                           via: 192.168.23.1
                       set-name: interface0
                 """,

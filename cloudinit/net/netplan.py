@@ -164,14 +164,12 @@ def _extract_addresses(config: dict, entry: dict, ifname, features: Callable):
                     "via": route.get("gateway"),
                     "to": to_net,
                 }
-                # Priority for metric: 1. route's metric, 2. subnet's metric, 3. default 100
+                # Priority for metric: 1. route's metric, 2. subnet's metric
                 route_metric = route.get("metric")
                 if route_metric is not None:
                     new_route["metric"] = route_metric
                 elif sn_metric is not None:
                     new_route["metric"] = sn_metric
-                else:
-                    new_route["metric"] = 100
                 routes.append(new_route)
 
             addresses.append(addr)
