@@ -6,7 +6,7 @@ cloud-init (25.1.2-0ubuntu0~25.04.1) plucky; urgency=medium
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/25.1.2/ChangeLog
 
- -- James Falcon <james.falcon@canonical.com>  Fri, 02 May 2025 13:02:02 -0500
+ -- James Falcon <james.falcon@canonical.com>  Mon, 19 May 2025 14:20:17 -0500
 
 cloud-init (25.1.1-0ubuntu2) plucky; urgency=medium
 
