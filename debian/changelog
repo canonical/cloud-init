@@ -6,13 +6,6 @@ cloud-init (25.1.2-0ubuntu0~24.04.1) UNRELEASED; urgency=medium
 
  -- James Falcon <james.falcon@canonical.com>  Fri, 02 May 2025 12:42:53 -0500
 
-cloud-init (25.1.1-0ubuntu2~24.04.1) noble; urgency=medium
-
-  * d/control: Fix how cloud-init-base overwrites cloud-init files.
-    (LP: #2092333)
-
- -- James Falcon <james.falcon@canonical.com>  Tue, 01 Apr 2025 14:08:27 -0500
-
 cloud-init (25.1.1-0ubuntu1~24.04.1) noble; urgency=medium
 
   * Drop cpicks which are now upstream:
@@ -34,7 +27,14 @@ cloud-init (25.1.1-0ubuntu1~24.04.1) noble; urgency=medium
 
  -- Chad Smith <chad.smith@canonical.com>  Tue, 25 Mar 2025 11:02:28 -0600
 
-cloud-init (24.4.1-0ubuntu0~20.04.2) focal; urgency=medium
+cloud-init (24.4.1-0ubuntu0~24.04.3) noble; urgency=medium
+
+  * d/control: Fix how cloud-init-base overwrites cloud-init files.
+    (LP: #2092333)
+
+ -- James Falcon <james.falcon@canonical.com>  Wed, 02 Apr 2025 10:09:15 -0500
+
+cloud-init (24.4.1-0ubuntu0~20.04.2) noble; urgency=medium
 
   * cherry-pick fixes for MAAS traceback (LP: #2100963)
     - cherry-pick c60771d8: test: pytestify test_url_helper.py
