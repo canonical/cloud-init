@@ -192,7 +192,9 @@ class TestNetworkConfig:
     def test_provided_network_config(self, lxd_ds, mocker):
         def _get_data(self):
             self._crawled_metadata = copy.deepcopy(DEVICES)
-            self._crawled_metadata["network-config"] = "hi"
+            self._crawled_metadata["network-config"] = {
+                "test-key": {"test-inner-key": "hi"}
+            }
 
         mocker.patch.object(
             lxd.DataSourceLXD,
