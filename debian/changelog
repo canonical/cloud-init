@@ -15,7 +15,7 @@ cloud-init (25.1-0ubuntu1~24.04.1) UNRELEASED; urgency=medium
 
  -- James Falcon <james.falcon@canonical.com>  Fri, 04 Apr 2025 16:33:09 -0500
 
-cloud-init (24.4.1-0ubuntu0~20.04.2) focal; urgency=medium
+cloud-init (24.4.1-0ubuntu0~20.04.2) noble; urgency=medium
 
   * cherry-pick fixes for MAAS traceback (LP: #2100963)
     - cherry-pick c60771d8: test: pytestify test_url_helper.py
