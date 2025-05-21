@@ -24,8 +24,8 @@ class TestLandscape:
         """Empty landscape cloud-config section does no work."""
         mycloud = get_cloud()
         mycloud.distro = mock.MagicMock()
-        cfg = {"landscape": {}}
-        cc_landscape.handle("notimportant", cfg, mycloud, None)
+        cfg: dict[str, dict] = {"landscape": {}}
+        cc_landscape.handle("notimportant", cfg, mycloud, [])
         assert mycloud.distro.install_packages.called is False
 
     def test_handler_error_on_invalid_landscape_type(self, m_subp):
@@ -33,7 +33,7 @@ class TestLandscape:
         mycloud = get_cloud("ubuntu")
         cfg = {"landscape": "wrongtype"}
         with pytest.raises(RuntimeError) as exc:
-            cc_landscape.handle("notimportant", cfg, mycloud, None)
+            cc_landscape.handle("notimportant", cfg, mycloud, [])
         assert "'landscape' key existed in config, but not a dict" in str(
             exc.value
         )
@@ -42,7 +42,7 @@ class TestLandscape:
         """handler restarts landscape-client after install."""
         mycloud = get_cloud("ubuntu")
         mycloud.distro = mock.MagicMock()
-        cfg = {"landscape": {"client": {}}}
+        cfg: dict[str, dict[str, dict]] = {"landscape": {"client": {}}}
         wrap_and_call(
             "cloudinit.config.cc_landscape",
             {
@@ -137,7 +137,7 @@ class TestLandscape:
         client_fn.write("[client]\ncomputer_title = My PC\n")
         mycloud = get_cloud("ubuntu")
         mycloud.distro = mock.MagicMock()
-        cfg = {"landscape": {"client": {}}}
+        cfg: dict[str, dict[str, dict]] = {"landscape": {"client": {}}}
         expected_calls = [
             mock.call(
                 ["landscape-config", "--silent", "--is-registered"], rcs=[5]
@@ -231,7 +231,7 @@ class TestLandscape:
             "Stdout: Could not register client\nStderr: -"
         )
         with pytest.raises(RuntimeError, match=match):
-            cc_landscape.handle("notimportant", cfg, mycloud, None)
+            cc_landscape.handle("notimportant", cfg, mycloud, [])
 
     @mock.patch(f"{MPATH}.merge_together")
     def test_handler_client_is_already_registered(
@@ -244,7 +244,7 @@ class TestLandscape:
         m_subp.side_effect = subp.ProcessExecutionError(
             "Client already registered to Landscape", exit_code=0
         )
-        cc_landscape.handle("notimportant", cfg, mycloud, None)
+        cc_landscape.handle("notimportant", cfg, mycloud, [])
         assert "Client already registered to Landscape" in caplog.text
 
 

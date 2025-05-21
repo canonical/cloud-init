@@ -267,7 +267,7 @@ def check_seed_contents(content, seed):
     Either return a (userdata, metadata, vendordata) tuple or
     Raise MAASSeedDirMalformed or MAASSeedDirNone
     """
-    ret = {}
+    ret: dict = {}
     missing = []
     for spath, dpath, _binary, optional in DS_FIELDS:
         if spath not in content:
