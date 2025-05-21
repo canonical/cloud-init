@@ -202,7 +202,7 @@ class TestNetworkConfig:
             autospec=True,
             side_effect=_get_data,
         )
-        assert lxd_ds.network_config == "hi"
+        assert lxd_ds.network_config == {"test-key": {"test-inner-key": "hi"}}
 
     @pytest.mark.parametrize(
         "devices_to_remove,expected_config",
