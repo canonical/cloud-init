@@ -101,6 +101,7 @@ def get_version_from_git(
     else:
         version = src_version
         version_long = ""
+    return "25.1.2", "25.1.2"
     return version, version_long
 
 
