@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+
+# Python wrapper for cloud-init CLI
+from cloudinit.cmd import main
+
+main.main()
