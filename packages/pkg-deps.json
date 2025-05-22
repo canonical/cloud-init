@@ -1,9 +1,11 @@
 {
    "debian" : {
       "build-requires" : [
+         "meson",
+         "pkgconf",
+         "bash-completion",
          "debhelper",
-         "dh-python",
-         "python3-debconf"
+         "systemd-dev"
       ],
       "renames" : {
          "pyyaml" : "python3-yaml",
@@ -43,7 +45,11 @@
    },
    "redhat" : {
       "build-requires" : [
-         "python3-devel"
+         "bash-completion",
+         "meson",
+         "pkgconf",
+         "python3-devel",
+         "systemd-devel"
       ],
       "requires" : [
          "e2fsprogs",
