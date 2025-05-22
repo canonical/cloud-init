@@ -31,6 +31,7 @@ from tests.unittests.helpers import (
     example_netdev,
     mock,
     populate_dir,
+    resourceLocation,
 )
 from tests.unittests.util import MockDistro
 
@@ -1262,7 +1263,7 @@ class TestDhcpcd:
         ),
     )
     def test_parse_raw_lease(self, lease_file, option_245):
-        lease = load_binary_file(f"tests/data/net/dhcp/{lease_file}")
+        lease = load_binary_file(resourceLocation(f"net/dhcp/{lease_file}"))
         assert option_245 == Dhcpcd.parse_unknown_options_from_packet(
             lease, 245
         )
