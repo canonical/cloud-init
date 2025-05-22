@@ -2,13 +2,14 @@
 
 include /usr/share/dpkg/pkg-info.mk
 
-INIT_SYSTEM ?= systemd
-export PYBUILD_INSTALL_ARGS=--init-system=$(INIT_SYSTEM)
-
 %:
-	dh $@ --with python3 --buildsystem pybuild
+	dh $@ --buildsystem meson
+
+override_dh_auto_configure:
+	dh_auto_configure -- -Dinit_system=systemd -Dlibexecdir=lib
 
 override_dh_auto_test:
+
 ifeq (,$(findstring nocheck,$(DEB_BUILD_OPTIONS)))
 	http_proxy= make PYVER=python3 check
 else
