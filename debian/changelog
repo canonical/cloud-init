@@ -1,9 +1,9 @@
-cloud-init (24.4.1-0ubuntu0~20.04.3) UNRELEASED; urgency=medium
+cloud-init (24.4.1-0ubuntu0~20.04.3) focal; urgency=medium
 
   * cherry-pick 7a0265d3: fix: ensure MAAS datasource retries on failure
     (#6167) (LP: #2106671)
 
- -- James Falcon <james.falcon@canonical.com>  Fri, 23 May 2025 15:41:05 -0500
+ -- James Falcon <james.falcon@canonical.com>  Fri, 23 May 2025 15:43:28 -0500
 
 cloud-init (24.4.1-0ubuntu0~20.04.2) focal; urgency=medium
 
