@@ -154,21 +154,32 @@ class DataSourceEc2(sources.DataSource):
             if util.is_FreeBSD():
                 LOG.debug("FreeBSD doesn't support running dhclient with -sf")
                 return False
-            try:
-                with EphemeralIPNetwork(
-                    self.distro,
-                    self.distro.fallback_interface,
-                    ipv4=True,
-                    ipv6=True,
-                ) as netw:
-                    self._crawled_metadata = self.crawl_metadata()
+            candidate_nics = net.find_candidate_nics()
+            LOG.debug("Looking for the primary NIC in: %s", candidate_nics)
+            assert (
+                len(candidate_nics) >= 1
+            ), "The instance has to have at least one candidate NIC"
+            for candidate_nic in candidate_nics:
+                try:
+                    with EphemeralIPNetwork(
+                        self.distro,
+                        candidate_nic,
+                        ipv4=True,
+                        ipv6=True,
+                    ) as netw:
+                        self._crawled_metadata = self.crawl_metadata()
+                        if self._crawled_metadata:
+                            self.distro.fallback_interface = candidate_nic
+                            LOG.debug("Primary NIC found: %s.", candidate_nic)
+                            LOG.debug(
+                                "Crawled metadata service%s",
+                                f" {netw.state_msg}" if netw.state_msg else "",
+                            )
+                            break
+                except NoDHCPLeaseError:
                     LOG.debug(
-                        "Crawled metadata service%s",
-                        f" {netw.state_msg}" if netw.state_msg else "",
+                        "Unable to obtain a DHCP lease for %s", candidate_nic
                     )
-
-            except NoDHCPLeaseError:
-                return False
         else:
             self._crawled_metadata = self.crawl_metadata()
         if not self._crawled_metadata:
