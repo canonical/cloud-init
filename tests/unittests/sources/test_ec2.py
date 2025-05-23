@@ -918,14 +918,14 @@ class TestEc2:
     @pytest.mark.usefixtures("disable_netdev_info")
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv6Network")
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
-    @mock.patch("cloudinit.distros.net.find_fallback_nic")
+    @mock.patch("cloudinit.distros.net.find_candidate_nics")
     @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
     @mock.patch("cloudinit.sources.DataSourceEc2.util.is_FreeBSD")
     def test_ec2_local_performs_dhcp_on_non_bsd(
         self,
         m_is_bsd,
         m_dhcp,
-        m_fallback_nic,
+        m_candidate_nics,
         m_net4,
         m_net6,
         caplog,
@@ -940,7 +940,7 @@ class TestEc2:
         When the platform data is valid, return True.
         """
 
-        m_fallback_nic.return_value = "eth9"
+        m_candidate_nics.return_value = ["eth9"]
         m_is_bsd.return_value = False
         m_dhcp.return_value = {
             "interface": "eth9",
