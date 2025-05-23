@@ -1,0 +1,102 @@
+From 7a0265d36e01e649f72005548f17dca9ac0150ad Mon Sep 17 00:00:00 2001
+From: James Falcon <james.falcon@canonical.com>
+Date: Wed, 16 Apr 2025 08:35:15 -0500
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/cloud-init/+bug/2106671
+Subject: [PATCH] fix: ensure MAAS datasource retries on failure (#6167)
+
+All MAAS requests get an `exception_cb` added dynamically via the
+`OauthUrlHelper`. Ensure these callbacks adhere to the requirement
+added in 1a515532 that an `exception_cb` return True if the exception
+is not to be raised from the handler.
+
+LP: #2106671
+---
+ cloudinit/url_helper.py              |  2 +-
+ tests/unittests/sources/test_maas.py | 54 +++++++++++++++++++++++++++-
+ 2 files changed, 54 insertions(+), 2 deletions(-)
+
+--- a/cloudinit/url_helper.py
++++ b/cloudinit/url_helper.py
+@@ -1097,7 +1097,7 @@ class OauthUrlHelper:
+         return self._wrapped(readurl, args, kwargs)
+ 
+     def _exception_cb(self, extra_exception_cb, exception):
+-        ret = None
++        ret = True
+         try:
+             if extra_exception_cb:
+                 ret = extra_exception_cb(exception)
+--- a/tests/unittests/sources/test_maas.py
++++ b/tests/unittests/sources/test_maas.py
+@@ -4,11 +4,13 @@ from copy import copy
+ from unittest import mock
+ 
+ import pytest
++import responses
+ import yaml
+ 
+ from cloudinit import helpers, settings, url_helper
+ from cloudinit.sources import DataSourceMAAS
+-from tests.unittests.helpers import populate_dir
++from tests.unittests.helpers import get_mock_paths, populate_dir
++from tests.unittests.util import MockDistro
+ 
+ 
+ class TestMAASDataSource:
+@@ -221,6 +223,56 @@ class TestMAASDataSource:
+             klibc_net_cfg.write(initramfs_file)
+         assert expected == ds.get_data()
+ 
++    @responses.activate
++    def test_get_data_with_retry(self, mocker, tmp_path, caplog):
++        """Ensure we can get data from IMDS even if some attempts fail."""
++        mocker.patch("time.sleep")
++        metadata_url = "http://169.254.169.254/MAAS/metadata"
++        response_data = {
++            "instance-id": "i-123",
++            "local-hostname": "myhostname",
++            "public-keys": "ssh-rsa AAAAB...yc2E= keyname",
++            "vendor-data": "my-vendordata",
++        }
++
++        responses.add(
++            responses.GET,
++            url=f"{metadata_url}/2012-03-01/meta-data/instance-id",
++            status=404,
++        )
++
++        for key, value in response_data.items():
++            responses.add(
++                responses.GET,
++                f"{metadata_url}/2012-03-01/meta-data/{key}",
++                value.encode(),
++            )
++
++        responses.add(
++            responses.GET,
++            url=f"{metadata_url}/2012-03-01/user-data",
++            status=404,
++        )
++        responses.add(
++            responses.GET,
++            f"{metadata_url}/2012-03-01/user-data",
++            b"my-userdata",
++        )
++
++        cfg = {"datasource": {"MAAS": {"metadata_url": metadata_url}}}
++        ds = DataSourceMAAS.DataSourceMAAS(
++            cfg, MockDistro(), get_mock_paths(tmp_path)({})
++        )
++        assert ds.get_data()
++        assert ds.metadata["instance-id"] == "i-123"
++        assert ds.metadata["local-hostname"] == "myhostname"
++        assert ds.metadata["public-keys"] == "ssh-rsa AAAAB...yc2E= keyname"
++        assert ds.vendordata_raw == "my-vendordata"
++        assert ds.userdata_raw == b"my-userdata"
++        assert (
++            "Please wait 1 seconds while we wait to try again" in caplog.text
++        )
++
+ 
+ @mock.patch("cloudinit.sources.DataSourceMAAS.url_helper.OauthUrlHelper")
+ class TestGetOauthHelper:
