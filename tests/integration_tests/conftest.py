@@ -337,6 +337,10 @@ def _client(
         yield instance
         test_failed = request.session.testsfailed - previous_failures > 0
         _collect_artifacts(instance, request.node.nodeid, test_failed)
+        instance.test_failed = test_failed
+        if test_failed:
+            session_cloud.has_failed_test = True
+
     # conflicting requirements:
     # - pytest thinks that it can cleanup loggers after tests run
     # - pycloudlib thinks that at garbage collection is a good place to

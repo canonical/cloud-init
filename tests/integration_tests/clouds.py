@@ -66,6 +66,7 @@ class IntegrationCloud(ABC):
         self.cloud_instance = self._get_cloud_instance()
         self.initial_image_id = self._get_initial_image()
         self.snapshot_id: Optional[str] = None
+        self.has_failed_test = False
 
     @property
     def image_id(self):
@@ -173,7 +174,14 @@ class IntegrationCloud(ABC):
         return IntegrationInstance(self, cloud_instance, settings)
 
     def destroy(self):
-        if self.settings.KEEP_IMAGE or self.settings.KEEP_INSTANCE:
+        if (
+            self.settings.KEEP_IMAGE
+            or self.settings.KEEP_INSTANCE is True
+            or (
+                self.settings.KEEP_INSTANCE == "ON_ERROR"
+                and self.has_failed_test
+            )
+        ):
             log.info(
                 "NOT cleaning cloud instance because KEEP_IMAGE or "
                 "KEEP_INSTANCE is True"
