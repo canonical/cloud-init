@@ -349,6 +349,6 @@ Pin-Priority: 1001"""
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if not self.settings.KEEP_INSTANCE:
-            conftest.REAPER.reap(self)
+            self.cloud.reaper.reap(self)
         else:
             log.info("Keeping Instance, public ip: %s", self.ip())
