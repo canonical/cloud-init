@@ -962,7 +962,7 @@ deb-src http://ubuntu.com//ubuntu universe multiverse
 deb http://ubuntu.com/ubuntu/ xenial-proposed main"""
 
         # disable nothing
-        disabled = []
+        disabled: list = []
         expect = """deb http://ubuntu.com//ubuntu xenial main
 deb http://ubuntu.com//ubuntu xenial-updates main
 deb http://ubuntu.com//ubuntu xenial-security main
