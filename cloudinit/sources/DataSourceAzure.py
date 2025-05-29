@@ -1388,13 +1388,13 @@ class DataSourceAzure(sources.DataSource):
         @param host_only: Only report to host (error may be recoverable).
         @return: The success status of sending the failure signal.
         """
-        error.vm_id = self._vm_id
+        encoded_report = error.as_encoded_report(vm_id=self._vm_id)
         report_diagnostic_event(
-            f"Azure datasource failure occurred: {error.as_encoded_report()}",
+            f"Azure datasource failure occurred: {encoded_report}",
             logger_func=LOG.error,
         )
         report_dmesg_to_kvp()
-        reported = kvp.report_failure_to_host(error)
+        reported = kvp.report_via_kvp(encoded_report)
         if host_only:
             return reported
 
@@ -1454,7 +1454,7 @@ class DataSourceAzure(sources.DataSource):
         :returns: List of SSH keys, if requested.
         """
         report_dmesg_to_kvp()
-        kvp.report_success_to_host()
+        kvp.report_success_to_host(vm_id=self._vm_id)
 
         try:
             data = get_metadata_from_fabric(

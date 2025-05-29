@@ -40,19 +40,19 @@ def telemetry_reporter(tmp_path):
 
 
 class TestReportFailureToHost:
-    def test_report_failure_to_host(self, caplog, telemetry_reporter, mocker):
+    def test_report_via_kvp(self, caplog, telemetry_reporter, mocker):
         mocker.patch(
             "cloudinit.sources.azure.identity.query_vm_id", return_value="foo"
         )
         error = errors.ReportableError(reason="test")
-        assert kvp.report_failure_to_host(error) is True
+        assert kvp.report_via_kvp(error) is True
         assert (
             "KVP handler not enabled, skipping host report." not in caplog.text
         )
 
         report = {
             "key": "PROVISIONING_REPORT",
-            "value": error.as_encoded_report(),
+            "value": error.as_encoded_report(vm_id="fake-vm-id"),
         }
         assert report in list(telemetry_reporter._iterate_kvps(0))
 
@@ -62,7 +62,7 @@ class TestReportFailureToHost:
         )
         error = errors.ReportableError(reason="test")
 
-        assert kvp.report_failure_to_host(error) is False
+        assert kvp.report_via_kvp(error) is False
         assert "KVP handler not enabled, skipping host report." in caplog.text
 
 

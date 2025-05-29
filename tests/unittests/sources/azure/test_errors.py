@@ -106,7 +106,6 @@ def test_reportable_errors(
     error = errors.ReportableError(
         reason=reason,
         supporting_data=supporting_data,
-        vm_id=fake_vm_id,
     )
 
     data = [
@@ -121,7 +120,7 @@ def test_reportable_errors(
         "documentation_url=https://aka.ms/linuxprovisioningerror",
     ]
 
-    assert error.as_encoded_report() == "|".join(data)
+    assert error.as_encoded_report(vm_id=fake_vm_id) == "|".join(data)
 
 
 def test_dhcp_lease(mocker):
@@ -245,7 +244,7 @@ def test_unhandled_exception():
     assert trace.endswith("Traceback (most recent call last):")
 
     quoted_value = quote_csv_value(f"exception={source_error!r}")
-    assert f"|{quoted_value}|" in error.as_encoded_report()
+    assert f"|{quoted_value}|" in error.as_encoded_report(vm_id="test-vm-id")
 
 
 @pytest.mark.parametrize(

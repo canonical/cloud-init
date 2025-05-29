@@ -209,9 +209,9 @@ def mock_report_dmesg_to_kvp():
 
 
 @pytest.fixture
-def mock_kvp_report_failure_to_host():
+def mock_kvp_report_via_kvp():
     with mock.patch(
-        MOCKPATH + "kvp.report_failure_to_host",
+        MOCKPATH + "kvp.report_via_kvp",
         return_value=True,
         autospec=True,
     ) as m:
@@ -3477,7 +3477,7 @@ class TestEphemeralNetworking:
         self,
         azure_ds,
         mock_ephemeral_dhcp_v4,
-        mock_kvp_report_failure_to_host,
+        mock_kvp_report_via_kvp,
         mock_sleep,
     ):
         lease = {
@@ -3504,8 +3504,7 @@ class TestEphemeralNetworking:
         assert azure_ds._ephemeral_dhcp_ctx.iface == "fakeEth0"
 
         error_reasons = [
-            c[0][0].reason
-            for c in mock_kvp_report_failure_to_host.call_args_list
+            c[0][0].reason for c in mock_kvp_report_via_kvp.call_args_list
         ]
         assert error_reasons == ["failure to find DHCP interface"]
 
@@ -3581,7 +3580,7 @@ class TestEphemeralNetworking:
         self,
         azure_ds,
         mock_ephemeral_dhcp_v4,
-        mock_kvp_report_failure_to_host,
+        mock_kvp_report_via_kvp,
         mock_sleep,
         error_class,
         error_reason,
@@ -3611,8 +3610,7 @@ class TestEphemeralNetworking:
         assert azure_ds._ephemeral_dhcp_ctx.iface == "fakeEth0"
 
         error_reasons = [
-            c[0][0].reason
-            for c in mock_kvp_report_failure_to_host.call_args_list
+            c[0][0].reason for c in mock_kvp_report_via_kvp.call_args_list
         ]
         assert error_reasons == [error_reason] * 10
 
@@ -3627,7 +3625,7 @@ class TestEphemeralNetworking:
         self,
         azure_ds,
         mock_ephemeral_dhcp_v4,
-        mock_kvp_report_failure_to_host,
+        mock_kvp_report_via_kvp,
         mock_sleep,
         mock_time,
         mock_monotonic,
@@ -3659,8 +3657,7 @@ class TestEphemeralNetworking:
         assert azure_ds._ephemeral_dhcp_ctx is None
 
         error_reasons = [
-            c[0][0].reason
-            for c in mock_kvp_report_failure_to_host.call_args_list
+            c[0][0].reason for c in mock_kvp_report_via_kvp.call_args_list
         ]
         assert error_reasons == [error_reason] * 3
 
@@ -3752,7 +3749,7 @@ class TestProvisioning:
         mock_dmi_read_dmi_data,
         mock_get_interfaces,
         mock_get_interface_mac,
-        mock_kvp_report_failure_to_host,
+        mock_kvp_report_via_kvp,
         mock_kvp_report_success_to_host,
         mock_netlink,
         mock_readurl,
@@ -3782,7 +3779,7 @@ class TestProvisioning:
         self.mock_dmi_read_dmi_data = mock_dmi_read_dmi_data
         self.mock_get_interfaces = mock_get_interfaces
         self.mock_get_interface_mac = mock_get_interface_mac
-        self.mock_kvp_report_failure_to_host = mock_kvp_report_failure_to_host
+        self.mock_kvp_report_via_kvp = mock_kvp_report_via_kvp
         self.mock_kvp_report_success_to_host = mock_kvp_report_success_to_host
         self.mock_netlink = mock_netlink
         self.mock_readurl = mock_readurl
@@ -3895,7 +3892,7 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert not self.mock_kvp_report_failure_to_host.mock_calls
+        assert not self.mock_kvp_report_via_kvp.mock_calls
         assert not self.mock_azure_report_failure_to_fabric.mock_calls
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
@@ -3980,7 +3977,7 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert not self.mock_kvp_report_failure_to_host.mock_calls
+        assert not self.mock_kvp_report_via_kvp.mock_calls
         assert not self.mock_azure_report_failure_to_fabric.mock_calls
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
@@ -4063,7 +4060,7 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 1
+        assert len(self.mock_kvp_report_via_kvp.mock_calls) == 1
         assert len(self.mock_azure_report_failure_to_fabric.mock_calls) == 1
         assert not self.mock_kvp_report_success_to_host.mock_calls
 
@@ -4125,7 +4122,7 @@ class TestProvisioning:
         # Verify reports via KVP.
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
-        assert self.mock_kvp_report_failure_to_host.mock_calls == [
+        assert self.mock_kvp_report_via_kvp.mock_calls == [
             mock.call(
                 errors.ReportableErrorImdsInvalidMetadata(
                     key="extended.compute.ppsType", value=pps_type
@@ -4247,7 +4244,7 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert not self.mock_kvp_report_failure_to_host.mock_calls
+        assert not self.mock_kvp_report_via_kvp.mock_calls
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 2
 
         # Verify dmesg reported via KVP.
@@ -4374,7 +4371,7 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert not self.mock_kvp_report_failure_to_host.mock_calls
+        assert not self.mock_kvp_report_via_kvp.mock_calls
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 2
 
         # Verify dmesg reported via KVP.
@@ -4503,7 +4500,7 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert not self.mock_kvp_report_failure_to_host.mock_calls
+        assert not self.mock_kvp_report_via_kvp.mock_calls
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 2
 
         # Verify dmesg reported via KVP.
@@ -4639,7 +4636,7 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert not self.mock_kvp_report_failure_to_host.mock_calls
+        assert not self.mock_kvp_report_via_kvp.mock_calls
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 2
 
         # Verify dmesg reported via KVP.
@@ -4880,7 +4877,7 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert not self.mock_kvp_report_failure_to_host.mock_calls
+        assert not self.mock_kvp_report_via_kvp.mock_calls
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
     @pytest.mark.parametrize("pps_type", ["Savable", "Running", "Unknown"])
@@ -4912,7 +4909,7 @@ class TestProvisioning:
         assert self.mock_netlink.mock_calls == []
 
         # Verify reports via KVP.
-        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 2
+        assert len(self.mock_kvp_report_via_kvp.mock_calls) == 2
         assert not self.mock_kvp_report_success_to_host.mock_calls
 
     @pytest.mark.parametrize(
@@ -4985,7 +4982,7 @@ class TestProvisioning:
         assert self.wrapped_util_write_file.mock_calls == []
 
         # Verify reports via KVP. Ignore failure reported after sleep().
-        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 1
+        assert len(self.mock_kvp_report_via_kvp.mock_calls) == 1
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
     def test_imds_failure_results_in_provisioning_failure(self):
@@ -5028,7 +5025,7 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 1
+        assert len(self.mock_kvp_report_via_kvp.mock_calls) == 1
         assert not self.mock_kvp_report_success_to_host.mock_calls
 
 
@@ -5115,7 +5112,7 @@ class TestGetMetadataFromImds:
         exception,
         mock_azure_report_failure_to_fabric,
         mock_imds_fetch_metadata_with_api_fallback,
-        mock_kvp_report_failure_to_host,
+        mock_kvp_report_via_kvp,
         mock_time,
         mock_monotonic,
         monkeypatch,
@@ -5150,10 +5147,10 @@ class TestGetMetadataFromImds:
             == expected_duration
         )
 
-        reported_error = mock_kvp_report_failure_to_host.call_args[0][0]
+        reported_error = mock_kvp_report_via_kvp.call_args[0][0]
         assert isinstance(reported_error, reported_error_type)
         assert reported_error.supporting_data["exception"] == repr(exception)
-        assert mock_kvp_report_failure_to_host.mock_calls == [
+        assert mock_kvp_report_via_kvp.mock_calls == [
             mock.call(reported_error)
         ]
 
@@ -5176,16 +5173,16 @@ class TestReportFailure:
         azure_ds,
         kvp_enabled,
         mock_azure_report_failure_to_fabric,
-        mock_kvp_report_failure_to_host,
+        mock_kvp_report_via_kvp,
         mock_kvp_report_success_to_host,
         mock_report_dmesg_to_kvp,
     ):
-        mock_kvp_report_failure_to_host.return_value = kvp_enabled
+        mock_kvp_report_via_kvp.return_value = kvp_enabled
         error = errors.ReportableError(reason="foo")
 
         assert azure_ds._report_failure(error, host_only=True) == kvp_enabled
 
-        assert mock_kvp_report_failure_to_host.mock_calls == [mock.call(error)]
+        assert mock_kvp_report_via_kvp.mock_calls == [mock.call(error)]
         assert mock_kvp_report_success_to_host.mock_calls == []
         assert mock_azure_report_failure_to_fabric.mock_calls == []
         assert mock_report_dmesg_to_kvp.mock_calls == [mock.call()]

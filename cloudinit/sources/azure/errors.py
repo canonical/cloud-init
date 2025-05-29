@@ -37,11 +37,7 @@ def encode_report(
 
 class ReportableError(Exception):
     def __init__(
-        self,
-        reason: str,
-        *,
-        supporting_data: Optional[Dict[str, Any]] = None,
-        vm_id: Optional[str] = None,
+        self, reason: str, *, supporting_data: Optional[Dict[str, Any]] = None
     ) -> None:
         self.agent = f"Cloud-Init/{version.version_string()}"
         self.documentation_url = "https://aka.ms/linuxprovisioningerror"
@@ -53,10 +49,11 @@ class ReportableError(Exception):
             self.supporting_data = {}
 
         self.timestamp = datetime.now(timezone.utc)
-        self.vm_id = vm_id
 
     def as_encoded_report(
         self,
+        *,
+        vm_id: Optional[str],
     ) -> str:
         data = [
             "result=error",
@@ -65,7 +62,7 @@ class ReportableError(Exception):
         ]
         data += [f"{k}={v}" for k, v in self.supporting_data.items()]
         data += [
-            f"vm_id={self.vm_id}",
+            f"vm_id={vm_id}",
             f"timestamp={self.timestamp.isoformat()}",
             f"documentation_url={self.documentation_url}",
         ]
