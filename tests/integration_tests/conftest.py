@@ -315,16 +315,14 @@ def _client(
         if not isinstance(session_cloud, _LxdIntegrationCloud):
             pytest.skip("lxd_use_exec requires LXD")
         launch_kwargs["execute_via_ssh"] = False
-    local_launch_kwargs = {}
     if lxd_setup is not None:
         if not isinstance(session_cloud, _LxdIntegrationCloud):
             pytest.skip("lxd_setup requires LXD")
-        local_launch_kwargs["lxd_setup"] = lxd_setup
 
     with session_cloud.launch(
         user_data=user_data,
         launch_kwargs=launch_kwargs,
-        **local_launch_kwargs,
+        lxd_setup=lxd_setup,
     ) as instance:
         if lxd_use_exec is not None and isinstance(
             instance.instance, LXDInstance
