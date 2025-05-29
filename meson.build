@@ -131,3 +131,26 @@ foreach man_page : ['cloud-init.1', 'cloud-id.1', 'cloud-init-per.1']
     install_tag: 'docs'
   )
 endforeach
+
+# Prerequisite for using install_deps or install_test_deps:
+# python3 -m venv venv
+# source ./venv/bin/activate
+# meson setup builddir
+# meson -C builddir compile install_deps
+run_target(
+  'install_deps',
+  command: [python, '-m', 'pip', 'install', '-r', 'requirements.txt'],
+)
+run_target(
+  'install_test_deps',
+  command: [python, '-m', 'pip', 'install', '-r', meson.project_source_root() / 'test-requirements.txt'],
+)
+
+# CLI: meson compile -C buildir py3
+test(
+  'py3',
+  python,
+  args: ['-m', 'pytest', meson.project_source_root() / 'tests' / 'unittests'],
+  timeout: 180,
+  is_parallel: true
+)
