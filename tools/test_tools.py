@@ -7,8 +7,6 @@ import pytest
 import setuptools
 
 
-from setup_utils import version_to_pep440
-
 try:
     validate_version = setuptools.dist.Distribution._validate_version  # type: ignore  # noqa: E501
     setuptools.sic  # pylint: disable=no-member,pointless-statement
@@ -35,6 +33,12 @@ if not spec.loader:
     pytest.fail("Could not import read-version")
 spec.loader.exec_module(read_version)
 
+
+def version_to_pep440(version: str) -> str:
+    # read-version can spit out something like 22.4-15-g7f97aee24
+    # which is invalid under PEP 440. If we replace the first - with a +
+    # that should give us a valid version.
+    return version.replace("-", "+", 1)
 
 def assert_valid_version(version):
     response = validate_version(version)
