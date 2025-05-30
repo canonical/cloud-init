@@ -1,0 +1,7 @@
+#cloud-config
+rpi:
+  interfaces:
+    serial:
+      # Pi 5 only | disabling hardware while enabling console
+      console: true
+      hardware: false

@@ -84,6 +84,7 @@ distros = [
     "alpine",
     "debian",
     "fedora",
+    "raspberry-pi-os",
     "rhel",
     "opensuse",
     "opensuse-microos",
@@ -158,10 +159,16 @@ def disable_default_ca_certs(distro_name, distro_cfg):
     """
     if distro_name in ["rhel", "photon"]:
         remove_default_ca_certs(distro_cfg)
-    elif distro_name in ["alpine", "aosc", "debian", "ubuntu"]:
+    elif distro_name in [
+        "alpine",
+        "aosc",
+        "debian",
+        "raspberry-pi-os",
+        "ubuntu",
+    ]:
         disable_system_ca_certs(distro_cfg)
 
-        if distro_name in ["debian", "ubuntu"]:
+        if distro_name in ["debian", "raspberry-pi-os", "ubuntu"]:
             debconf_sel = (
                 "ca-certificates ca-certificates/trust_new_crts " + "select no"
             )
