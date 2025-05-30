@@ -686,7 +686,8 @@ class TestDHCPDiscoveryClean:
         my_pid = 1
         write_file(pid_file, "%d\n" % my_pid)
 
-        def dhcp_log_func(out, err):
+        def dhcp_log_func(interface, out, err):
+            assert interface == "eth9"
             assert out == dhclient_out
             assert err == dhclient_err
 
