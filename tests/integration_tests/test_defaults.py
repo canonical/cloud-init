@@ -96,3 +96,11 @@ class TestDefaults:
         assert "640" == perms
         assert "root" == user
         assert "adm" == group
+
+
+    def test_my_warning(self, class_client: IntegrationInstance):
+        """
+        Verify that the 'my_warning' module is inactive by default.
+        """
+        log = class_client.read_from_file("/var/log/cloud-init.log")
+        assert "THIS IS A TEST WARNING" in log
