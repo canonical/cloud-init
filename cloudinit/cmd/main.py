@@ -538,6 +538,7 @@ def main_init(name, args):
 
         init.purge_cache()
 
+    LOG.warning("THIS IS A TEST WARNING")
     # Stage 5
     bring_up_interfaces = _should_bring_up_interfaces(init, args)
     try:
