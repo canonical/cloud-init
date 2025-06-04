@@ -91,6 +91,10 @@ re-run all stages as it did on first boot.
   cleans config files for ssh daemon. Argument `network` removes all generated
   config files for network. Argument `datasource` removes files and/or configs
   written by current datasource. `all` removes config files of all types.
+* :command:`--seed`: Remove the cloud-init seed directory
+  (e.g., :file:`/var/lib/cloud/seed/`)
+  which stores instance metadata used initializing a datasource.
+  Useful when regenerating metadata from a new or updated seed source.
 
 .. note::
 
