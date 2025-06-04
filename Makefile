@@ -74,7 +74,7 @@ clean_pytest:
 	rm -rf .cache htmlcov
 
 clean_packaging:
-	rm -rf srpm cloud_init.egg-info/ \
+	rm -rf srpm builddir cloud_init.egg-info/ \
 		cloud-init-*.tar.gz \
 		cloud-init-*.tar.gz.asc \
 		cloud-init.dsc \
