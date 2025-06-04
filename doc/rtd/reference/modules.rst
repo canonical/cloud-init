@@ -74,6 +74,8 @@ Modules
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_puppet/data.yaml
    :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_raspberry_pi/data.yaml
+   :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_resizefs/data.yaml
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_resolv_conf/data.yaml
