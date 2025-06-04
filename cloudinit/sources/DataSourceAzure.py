@@ -1406,7 +1406,8 @@ class DataSourceAzure(sources.DataSource):
                     logger_func=LOG.debug,
                 )
                 report_failure_to_fabric(
-                    endpoint=self._wireserver_endpoint, error=error
+                    endpoint=self._wireserver_endpoint,
+                    encoded_report=encoded_report,
                 )
                 self._negotiated = True
                 return True
@@ -1429,7 +1430,8 @@ class DataSourceAzure(sources.DataSource):
                 # Reporting failure will fail, but it will emit telemetry.
                 pass
             report_failure_to_fabric(
-                endpoint=self._wireserver_endpoint, error=error
+                endpoint=self._wireserver_endpoint,
+                encoded_report=encoded_report,
             )
             self._negotiated = True
             return True

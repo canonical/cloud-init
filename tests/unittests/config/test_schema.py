@@ -456,6 +456,9 @@ class TestValidateCloudConfigSchema:
         """When strict is False validate_cloudconfig_schema emits warnings."""
         schema = {"properties": {"p1": {"type": "string"}}}
         validate_cloudconfig_schema({"p1": -1}, schema=schema, strict=False)
+        assert (
+            caplog.record_tuples and len(caplog.record_tuples) == 1
+        ), caplog.record_tuples
         [(module, log_level, log_msg)] = caplog.record_tuples
         assert "cloudinit.config.schema" == module
         assert logging.WARNING == log_level

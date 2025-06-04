@@ -141,7 +141,7 @@ def mock_monotonic():
         yield m
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def mock_dmi_read_dmi_data():
     def fake_read(key: str) -> str:
         if key == "system-uuid":
@@ -2032,7 +2032,8 @@ scbus-1 on xpt0 bus 0
             error = errors.ReportableError(reason="foo")
             self.assertTrue(dsrc._report_failure(error))
             self.m_report_failure_to_fabric.assert_called_once_with(
-                endpoint="168.63.129.16", error=error
+                endpoint="168.63.129.16",
+                encoded_report=error.as_encoded_report(vm_id=dsrc._vm_id),
             )
 
     def test_dsaz_report_failure_uses_cached_ephemeral_dhcp_ctx_lease(self):
@@ -2051,7 +2052,8 @@ scbus-1 on xpt0 bus 0
 
             # ensure called with cached ephemeral dhcp lease option 245
             self.m_report_failure_to_fabric.assert_called_once_with(
-                endpoint="test-ep", error=error
+                endpoint="test-ep",
+                encoded_report=error.as_encoded_report(vm_id=dsrc._vm_id),
             )
 
     def test_dsaz_report_failure_no_net_uses_new_ephemeral_dhcp_lease(self):
@@ -2074,7 +2076,8 @@ scbus-1 on xpt0 bus 0
             # ensure called with the newly discovered
             # ephemeral dhcp lease option 245
             self.m_report_failure_to_fabric.assert_called_once_with(
-                endpoint="1.2.3.4", error=error
+                endpoint="1.2.3.4",
+                encoded_report=error.as_encoded_report(vm_id=dsrc._vm_id),
             )
 
     def test_exception_fetching_fabric_data_doesnt_propagate(self):
@@ -3503,10 +3506,11 @@ class TestEphemeralNetworking:
         assert azure_ds._wireserver_endpoint == "168.63.129.16"
         assert azure_ds._ephemeral_dhcp_ctx.iface == "fakeEth0"
 
-        error_reasons = [
-            c[0][0].reason for c in mock_kvp_report_via_kvp.call_args_list
-        ]
-        assert error_reasons == ["failure to find DHCP interface"]
+        assert len(mock_kvp_report_via_kvp.call_args_list) == 1
+        for call in mock_kvp_report_via_kvp.call_args_list:
+            assert call[0][0].startswith(
+                "result=error|reason=failure to find DHCP interface"
+            )
 
     def test_retry_process_error(
         self,
@@ -3609,10 +3613,9 @@ class TestEphemeralNetworking:
         assert azure_ds._wireserver_endpoint == "168.63.129.16"
         assert azure_ds._ephemeral_dhcp_ctx.iface == "fakeEth0"
 
-        error_reasons = [
-            c[0][0].reason for c in mock_kvp_report_via_kvp.call_args_list
-        ]
-        assert error_reasons == [error_reason] * 10
+        assert len(mock_kvp_report_via_kvp.call_args_list) == 10
+        for call in mock_kvp_report_via_kvp.call_args_list:
+            assert call[0][0].startswith(f"result=error|reason={error_reason}")
 
     @pytest.mark.parametrize(
         "error_class,error_reason",
@@ -3656,10 +3659,9 @@ class TestEphemeralNetworking:
         assert azure_ds._wireserver_endpoint == "168.63.129.16"
         assert azure_ds._ephemeral_dhcp_ctx is None
 
-        error_reasons = [
-            c[0][0].reason for c in mock_kvp_report_via_kvp.call_args_list
-        ]
-        assert error_reasons == [error_reason] * 3
+        assert len(mock_kvp_report_via_kvp.call_args_list) == 3
+        for call in mock_kvp_report_via_kvp.call_args_list:
+            assert call[0][0].startswith(f"result=error|reason={error_reason}")
 
 
 class TestCheckIfPrimary:
@@ -4126,7 +4128,7 @@ class TestProvisioning:
             mock.call(
                 errors.ReportableErrorImdsInvalidMetadata(
                     key="extended.compute.ppsType", value=pps_type
-                ),
+                ).as_encoded_report(vm_id=self.azure_ds._vm_id),
             ),
         ]
 
@@ -5148,11 +5150,7 @@ class TestGetMetadataFromImds:
         )
 
         reported_error = mock_kvp_report_via_kvp.call_args[0][0]
-        assert isinstance(reported_error, reported_error_type)
-        assert reported_error.supporting_data["exception"] == repr(exception)
-        assert mock_kvp_report_via_kvp.mock_calls == [
-            mock.call(reported_error)
-        ]
+        assert type(exception).__name__ in reported_error
 
         connection_error = isinstance(
             exception, url_helper.UrlError
@@ -5160,7 +5158,7 @@ class TestGetMetadataFromImds:
         report_skipped = not route_configured_for_imds and connection_error
         if report_failure and not report_skipped:
             assert mock_azure_report_failure_to_fabric.mock_calls == [
-                mock.call(endpoint=mock.ANY, error=reported_error)
+                mock.call(endpoint=mock.ANY, encoded_report=reported_error)
             ]
         else:
             assert mock_azure_report_failure_to_fabric.mock_calls == []
@@ -5182,7 +5180,9 @@ class TestReportFailure:
 
         assert azure_ds._report_failure(error, host_only=True) == kvp_enabled
 
-        assert mock_kvp_report_via_kvp.mock_calls == [mock.call(error)]
+        assert mock_kvp_report_via_kvp.mock_calls == [
+            mock.call(error.as_encoded_report(vm_id=azure_ds._vm_id))
+        ]
         assert mock_kvp_report_success_to_host.mock_calls == []
         assert mock_azure_report_failure_to_fabric.mock_calls == []
         assert mock_report_dmesg_to_kvp.mock_calls == [mock.call()]

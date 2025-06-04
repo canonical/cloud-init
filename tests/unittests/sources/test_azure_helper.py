@@ -1394,15 +1394,13 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
             SentinelException,
             azure_helper.report_failure_to_fabric,
             "test_endpoint",
-            "test-report",
+            encoded_report="test-report",
         )
         self.assertEqual(1, self.m_shim.return_value.clean_up.call_count)
 
     def test_report_failure_to_fabric_calls_shim_report_failure(
         self,
     ):
-        error = errors.ReportableError(reason="test")
-
         azure_helper.report_failure_to_fabric(
             endpoint="test_endpoint",
             encoded_report="test",
@@ -1410,7 +1408,7 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
         # default err message description should be shown to the user
         # if an empty description is passed in
         self.m_shim.return_value.register_with_azure_and_report_failure.assert_called_once_with(  # noqa: E501
-            description=error.as_encoded_report(vm_id=None),
+            description="test",
         )
 
     def test_instantiates_shim_with_kwargs(self):
