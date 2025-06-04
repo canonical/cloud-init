@@ -10,6 +10,7 @@
                  "mariner": "MarinerOS", "rhel": "Cloud User",
                  "netbsd": "NetBSD", "openbsd": "openBSD",
                  "openmandriva": "OpenMandriva admin", "photon": "PhotonOS",
+                 "raspberry-pi-os": "Raspberry Pi OS",
                  "ubuntu": "Ubuntu", "unknown": "Ubuntu"}) %}
 {% set groups = ({"alpine": "adm, wheel", "aosc": "wheel", "arch": "wheel, users",
                   "azurelinux": "wheel",
@@ -17,6 +18,7 @@
                   "gentoo": "users, wheel", "mariner": "wheel",
                   "photon": "wheel",
                   "openmandriva": "wheel, users, systemd-journal",
+                  "raspberry-pi-os": "adm, dialout, cdrom, audio, users, sudo, video, games, plugdev, input, gpio, spi, i2c, netdev, render, lpadmin",
                   "suse": "cdrom, users",
                   "ubuntu": "adm, cdrom, dip, lxd, sudo",
                   "unknown": "adm, cdrom, dip, lxd, sudo"}) %}
@@ -24,7 +26,8 @@
                   "freebsd": "/bin/tcsh", "netbsd": "/bin/sh",
                   "openbsd": "/bin/ksh"}) %}
 {% set usernames = ({"amazon": "ec2-user", "centos": "cloud-user",
-                     "openmandriva": "omv", "rhel": "cloud-user",
+                     "openmandriva": "omv", "raspberry-pi-os": "pi",
+                     "rhel": "cloud-user",
                      "unknown": "ubuntu"}) %}
 {% if is_bsd %}
 syslog_fix_perms: root:wheel
@@ -137,6 +140,9 @@ cloud_init_modules:
   - users_groups
   - ssh
   - set_passwords
+{% if variant == "raspberry-pi-os" %}
+  - raspberry_pi
+{% endif %}
 
 # The modules that run in the 'config' stage
 cloud_config_modules:
@@ -229,8 +235,8 @@ system_info:
   # This will affect which distro class gets used
 {% if variant in ["alpine", "amazon", "aosc", "arch", "azurelinux", "debian", "fedora",
                   "freebsd", "gentoo", "mariner", "netbsd", "openbsd",
-                  "OpenCloudOS", "openeuler", "openmandriva", "photon", "suse",
-                  "TencentOS", "ubuntu"] or is_rhel %}
+                  "OpenCloudOS", "openeuler", "openmandriva", "photon",
+                  "raspberry-pi-os", "suse", "TencentOS", "ubuntu"] or is_rhel %}
   distro: {{ variant }}
 {% elif variant == "dragonfly" %}
   distro: dragonflybsd
@@ -247,8 +253,8 @@ system_info:
 {% endif %}
 {% if variant in ["alpine", "amazon", "aosc", "arch", "azurelinux", "debian", "fedora",
                   "gentoo", "mariner", "OpenCloudOS", "openeuler",
-                  "openmandriva", "photon", "suse", "TencentOS", "ubuntu",
-                  "unknown"]
+                  "openmandriva", "photon", "raspberry-pi-os",
+                  "suse", "TencentOS", "ubuntu", "unknown"]
                  or is_bsd or is_rhel %}
     lock_passwd: True
 {% endif %}
@@ -307,6 +313,10 @@ system_info:
 {% elif variant == "openmandriva" %}
   network:
     renderers: ['network-manager', 'networkd']
+{% elif variant == "raspberry-pi-os" %}
+  network:
+    renderers: ['netplan', 'network-manager']
+    activators: ['netplan', 'network-manager']
 {% elif variant in ["ubuntu", "unknown"] %}
 {# SRU_BLOCKER: do not ship network renderers on Xenial, Bionic or Eoan #}
   network:
@@ -326,6 +336,8 @@ system_info:
 {% if variant in ["debian", "ubuntu", "unknown"] %}
   # Automatically discover the best ntp_client
   ntp_client: auto
+{% elif variant == "raspberry-pi-os" %}
+  ntp_client: 'systemd-timesyncd'
 {% endif %}
 {% if variant in ["alpine", "amazon", "aosc", "arch", "azurelinux", "debian", "fedora",
                   "gentoo", "mariner", "OpenCloudOS", "openeuler",
@@ -346,6 +358,19 @@ system_info:
       failsafe:
         primary: https://deb.debian.org/debian
         security: https://deb.debian.org/debian-security
+{% elif variant == "raspberry-pi-os" %}
+  package_mirrors:
+    - arches: [arm64]
+      failsafe:
+        primary: 
+          - https://deb.debian.org/debian
+          - http://archive.raspberrypi.com/debian/
+        security: https://deb.debian.org/debian-security
+    - arches: [armhf]
+      failsafe:
+        primary: 
+          - http://raspbian.raspberrypi.com/raspbian/
+          - http://archive.raspberrypi.com/debian/
 {% elif variant in ["ubuntu", "unknown"] %}
   package_mirrors:
     - arches: [i386, amd64]
@@ -373,7 +398,7 @@ system_info:
         primary: http://ports.ubuntu.com/ubuntu-ports
         security: http://ports.ubuntu.com/ubuntu-ports
 {% endif %}
-{% if variant in ["debian", "ubuntu", "unknown"] %}
+{% if variant in ["debian", "raspberry-pi-os", "ubuntu", "unknown"] %}
   ssh_svcname: ssh
 {% elif variant in ["alpine", "amazon", "aosc", "arch", "azurelinux", "fedora",
                     "gentoo", "mariner", "OpenCloudOS", "openeuler",

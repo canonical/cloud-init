@@ -39,6 +39,7 @@ NetBSD, OpenBSD and DragonFlyBSD:
 - OpenCloudOS
 - OpenMandriva
 - Photon OS
+- Raspberry Pi OS
 - Red Hat Enterprise Linux (RHEL)
 - Rocky Linux
 - SLES/openSUSE
