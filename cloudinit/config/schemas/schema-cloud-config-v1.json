@@ -43,6 +43,7 @@
         "power-state-change",
         "power_state_change",
         "puppet",
+        "raspberry_pi",
         "reset-rmc",
         "reset_rmc",
         "resizefs",
@@ -2644,6 +2645,70 @@
         }
       }
     },
+    "cc_raspberry_pi": {
+      "type": "object",
+      "properties": {
+        "rpi": {
+          "type": "object",
+          "properties": {
+            "interfaces": {
+              "type": "object",
+              "properties": {
+                "spi": {
+                  "type": "boolean",
+                  "description": "Enable SPI interface. Default: ``false``.",
+                  "default": false
+                },
+                "i2c": {
+                  "type": "boolean",
+                  "description": "Enable I2C interface. Default: ``false``.",
+                  "default": false
+                },
+                "serial": {
+                  "default": false,
+                  "description": "Enable serial console. Default: ``false``.",
+                  "oneOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "console": {
+                          "type": "boolean",
+                          "description": "Enable serial console. Default: ``false``.",
+                          "default": false
+                        },
+                        "hardware": {
+                          "type": "boolean",
+                          "description": "Enable UART hardware. Default: ``false``.",
+                          "default": false
+                        }
+                      }
+                    }
+                  ]
+                },
+                "onewire": {
+                  "type": "boolean",
+                  "description": "Enable 1-Wire interface. Default: ``false``.",
+                  "default": false
+                },
+                "remote_gpio": {
+                  "type": "boolean",
+                  "description": "Enable remote GPIO interface. Default: ``false``.",
+                  "default": false
+                }
+              }
+            },
+            "enable_rpi_connect": {
+              "type": "boolean",
+              "default": false,
+              "description": "Install and enable Raspberry Pi Connect. Default: ``false``."
+            }
+          }
+        }
+      }
+    },
     "cc_rsyslog": {
       "type": "object",
       "properties": {
@@ -3900,6 +3965,9 @@
       "$ref": "#/$defs/cc_puppet"
     },
     {
+      "$ref": "#/$defs/cc_raspberry_pi"
+    },
+    {
       "$ref": "#/$defs/cc_resizefs"
     },
     {
@@ -4049,6 +4117,7 @@
     "resize_rootfs": {},
     "resolv_conf": {},
     "rh_subscription": {},
+    "rpi": {},
     "rsyslog": {},
     "runcmd": {},
     "salt_minion": {},
