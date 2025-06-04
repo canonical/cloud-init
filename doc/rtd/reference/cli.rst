@@ -92,7 +92,7 @@ re-run all stages as it did on first boot.
   config files for network. Argument `datasource` removes files and/or configs
   written by current datasource. `all` removes config files of all types.
 * :command:`--seed`: Remove the cloud-init seed directory (e.g., :file:`/var/lib/cloud/seed/`) 
-  which stores instance metadata used for simulating a cloud environment. 
+  which stores instance metadata used initializing a datasource. 
   Useful when regenerating metadata from a new or updated seed source.
   
 .. note::
