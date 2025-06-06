@@ -141,7 +141,7 @@ def mock_monotonic():
         yield m
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def mock_dmi_read_dmi_data():
     def fake_read(key: str) -> str:
         if key == "system-uuid":
@@ -209,9 +209,9 @@ def mock_report_dmesg_to_kvp():
 
 
 @pytest.fixture
-def mock_kvp_report_failure_to_host():
+def mock_kvp_report_via_kvp():
     with mock.patch(
-        MOCKPATH + "kvp.report_failure_to_host",
+        MOCKPATH + "kvp.report_via_kvp",
         return_value=True,
         autospec=True,
     ) as m:
@@ -2032,7 +2032,8 @@ scbus-1 on xpt0 bus 0
             error = errors.ReportableError(reason="foo")
             self.assertTrue(dsrc._report_failure(error))
             self.m_report_failure_to_fabric.assert_called_once_with(
-                endpoint="168.63.129.16", error=error
+                endpoint="168.63.129.16",
+                encoded_report=error.as_encoded_report(vm_id=dsrc._vm_id),
             )
 
     def test_dsaz_report_failure_uses_cached_ephemeral_dhcp_ctx_lease(self):
@@ -2051,7 +2052,8 @@ scbus-1 on xpt0 bus 0
 
             # ensure called with cached ephemeral dhcp lease option 245
             self.m_report_failure_to_fabric.assert_called_once_with(
-                endpoint="test-ep", error=error
+                endpoint="test-ep",
+                encoded_report=error.as_encoded_report(vm_id=dsrc._vm_id),
             )
 
     def test_dsaz_report_failure_no_net_uses_new_ephemeral_dhcp_lease(self):
@@ -2074,7 +2076,8 @@ scbus-1 on xpt0 bus 0
             # ensure called with the newly discovered
             # ephemeral dhcp lease option 245
             self.m_report_failure_to_fabric.assert_called_once_with(
-                endpoint="1.2.3.4", error=error
+                endpoint="1.2.3.4",
+                encoded_report=error.as_encoded_report(vm_id=dsrc._vm_id),
             )
 
     def test_exception_fetching_fabric_data_doesnt_propagate(self):
@@ -3477,7 +3480,7 @@ class TestEphemeralNetworking:
         self,
         azure_ds,
         mock_ephemeral_dhcp_v4,
-        mock_kvp_report_failure_to_host,
+        mock_kvp_report_via_kvp,
         mock_sleep,
     ):
         lease = {
@@ -3503,11 +3506,11 @@ class TestEphemeralNetworking:
         assert azure_ds._wireserver_endpoint == "168.63.129.16"
         assert azure_ds._ephemeral_dhcp_ctx.iface == "fakeEth0"
 
-        error_reasons = [
-            c[0][0].reason
-            for c in mock_kvp_report_failure_to_host.call_args_list
-        ]
-        assert error_reasons == ["failure to find DHCP interface"]
+        assert len(mock_kvp_report_via_kvp.call_args_list) == 1
+        for call in mock_kvp_report_via_kvp.call_args_list:
+            assert call[0][0].startswith(
+                "result=error|reason=failure to find DHCP interface"
+            )
 
     def test_retry_process_error(
         self,
@@ -3581,7 +3584,7 @@ class TestEphemeralNetworking:
         self,
         azure_ds,
         mock_ephemeral_dhcp_v4,
-        mock_kvp_report_failure_to_host,
+        mock_kvp_report_via_kvp,
         mock_sleep,
         error_class,
         error_reason,
@@ -3610,11 +3613,9 @@ class TestEphemeralNetworking:
         assert azure_ds._wireserver_endpoint == "168.63.129.16"
         assert azure_ds._ephemeral_dhcp_ctx.iface == "fakeEth0"
 
-        error_reasons = [
-            c[0][0].reason
-            for c in mock_kvp_report_failure_to_host.call_args_list
-        ]
-        assert error_reasons == [error_reason] * 10
+        assert len(mock_kvp_report_via_kvp.call_args_list) == 10
+        for call in mock_kvp_report_via_kvp.call_args_list:
+            assert call[0][0].startswith(f"result=error|reason={error_reason}")
 
     @pytest.mark.parametrize(
         "error_class,error_reason",
@@ -3627,7 +3628,7 @@ class TestEphemeralNetworking:
         self,
         azure_ds,
         mock_ephemeral_dhcp_v4,
-        mock_kvp_report_failure_to_host,
+        mock_kvp_report_via_kvp,
         mock_sleep,
         mock_time,
         mock_monotonic,
@@ -3658,11 +3659,9 @@ class TestEphemeralNetworking:
         assert azure_ds._wireserver_endpoint == "168.63.129.16"
         assert azure_ds._ephemeral_dhcp_ctx is None
 
-        error_reasons = [
-            c[0][0].reason
-            for c in mock_kvp_report_failure_to_host.call_args_list
-        ]
-        assert error_reasons == [error_reason] * 3
+        assert len(mock_kvp_report_via_kvp.call_args_list) == 3
+        for call in mock_kvp_report_via_kvp.call_args_list:
+            assert call[0][0].startswith(f"result=error|reason={error_reason}")
 
 
 class TestCheckIfPrimary:
@@ -3752,7 +3751,7 @@ class TestProvisioning:
         mock_dmi_read_dmi_data,
         mock_get_interfaces,
         mock_get_interface_mac,
-        mock_kvp_report_failure_to_host,
+        mock_kvp_report_via_kvp,
         mock_kvp_report_success_to_host,
         mock_netlink,
         mock_readurl,
@@ -3782,7 +3781,7 @@ class TestProvisioning:
         self.mock_dmi_read_dmi_data = mock_dmi_read_dmi_data
         self.mock_get_interfaces = mock_get_interfaces
         self.mock_get_interface_mac = mock_get_interface_mac
-        self.mock_kvp_report_failure_to_host = mock_kvp_report_failure_to_host
+        self.mock_kvp_report_via_kvp = mock_kvp_report_via_kvp
         self.mock_kvp_report_success_to_host = mock_kvp_report_success_to_host
         self.mock_netlink = mock_netlink
         self.mock_readurl = mock_readurl
@@ -3895,7 +3894,7 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert not self.mock_kvp_report_failure_to_host.mock_calls
+        assert not self.mock_kvp_report_via_kvp.mock_calls
         assert not self.mock_azure_report_failure_to_fabric.mock_calls
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
@@ -3980,7 +3979,7 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert not self.mock_kvp_report_failure_to_host.mock_calls
+        assert not self.mock_kvp_report_via_kvp.mock_calls
         assert not self.mock_azure_report_failure_to_fabric.mock_calls
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
@@ -4043,7 +4042,6 @@ class TestProvisioning:
         assert self.mock_dmi_read_dmi_data.mock_calls == [
             mock.call("chassis-asset-tag"),
             mock.call("system-uuid"),
-            mock.call("system-uuid"),
         ]
         assert (
             self.azure_ds.metadata["instance-id"]
@@ -4064,7 +4062,7 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 1
+        assert len(self.mock_kvp_report_via_kvp.mock_calls) == 1
         assert len(self.mock_azure_report_failure_to_fabric.mock_calls) == 1
         assert not self.mock_kvp_report_success_to_host.mock_calls
 
@@ -4121,17 +4119,16 @@ class TestProvisioning:
         assert self.mock_dmi_read_dmi_data.mock_calls == [
             mock.call("chassis-asset-tag"),
             mock.call("system-uuid"),
-            mock.call("system-uuid"),
         ]
 
         # Verify reports via KVP.
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
-        assert self.mock_kvp_report_failure_to_host.mock_calls == [
+        assert self.mock_kvp_report_via_kvp.mock_calls == [
             mock.call(
                 errors.ReportableErrorImdsInvalidMetadata(
                     key="extended.compute.ppsType", value=pps_type
-                ),
+                ).as_encoded_report(vm_id=self.azure_ds._vm_id),
             ),
         ]
 
@@ -4249,7 +4246,7 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert not self.mock_kvp_report_failure_to_host.mock_calls
+        assert not self.mock_kvp_report_via_kvp.mock_calls
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 2
 
         # Verify dmesg reported via KVP.
@@ -4376,7 +4373,7 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert not self.mock_kvp_report_failure_to_host.mock_calls
+        assert not self.mock_kvp_report_via_kvp.mock_calls
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 2
 
         # Verify dmesg reported via KVP.
@@ -4505,7 +4502,7 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert not self.mock_kvp_report_failure_to_host.mock_calls
+        assert not self.mock_kvp_report_via_kvp.mock_calls
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 2
 
         # Verify dmesg reported via KVP.
@@ -4641,7 +4638,7 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert not self.mock_kvp_report_failure_to_host.mock_calls
+        assert not self.mock_kvp_report_via_kvp.mock_calls
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 2
 
         # Verify dmesg reported via KVP.
@@ -4882,7 +4879,7 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert not self.mock_kvp_report_failure_to_host.mock_calls
+        assert not self.mock_kvp_report_via_kvp.mock_calls
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
     @pytest.mark.parametrize("pps_type", ["Savable", "Running", "Unknown"])
@@ -4914,7 +4911,7 @@ class TestProvisioning:
         assert self.mock_netlink.mock_calls == []
 
         # Verify reports via KVP.
-        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 2
+        assert len(self.mock_kvp_report_via_kvp.mock_calls) == 2
         assert not self.mock_kvp_report_success_to_host.mock_calls
 
     @pytest.mark.parametrize(
@@ -4987,7 +4984,7 @@ class TestProvisioning:
         assert self.wrapped_util_write_file.mock_calls == []
 
         # Verify reports via KVP. Ignore failure reported after sleep().
-        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 1
+        assert len(self.mock_kvp_report_via_kvp.mock_calls) == 1
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
     def test_imds_failure_results_in_provisioning_failure(self):
@@ -5030,7 +5027,7 @@ class TestProvisioning:
         assert self.patched_reported_ready_marker_path.exists() is False
 
         # Verify reports via KVP.
-        assert len(self.mock_kvp_report_failure_to_host.mock_calls) == 1
+        assert len(self.mock_kvp_report_via_kvp.mock_calls) == 1
         assert not self.mock_kvp_report_success_to_host.mock_calls
 
 
@@ -5117,7 +5114,7 @@ class TestGetMetadataFromImds:
         exception,
         mock_azure_report_failure_to_fabric,
         mock_imds_fetch_metadata_with_api_fallback,
-        mock_kvp_report_failure_to_host,
+        mock_kvp_report_via_kvp,
         mock_time,
         mock_monotonic,
         monkeypatch,
@@ -5152,12 +5149,8 @@ class TestGetMetadataFromImds:
             == expected_duration
         )
 
-        reported_error = mock_kvp_report_failure_to_host.call_args[0][0]
-        assert isinstance(reported_error, reported_error_type)
-        assert reported_error.supporting_data["exception"] == repr(exception)
-        assert mock_kvp_report_failure_to_host.mock_calls == [
-            mock.call(reported_error)
-        ]
+        reported_error = mock_kvp_report_via_kvp.call_args[0][0]
+        assert type(exception).__name__ in reported_error
 
         connection_error = isinstance(
             exception, url_helper.UrlError
@@ -5165,7 +5158,7 @@ class TestGetMetadataFromImds:
         report_skipped = not route_configured_for_imds and connection_error
         if report_failure and not report_skipped:
             assert mock_azure_report_failure_to_fabric.mock_calls == [
-                mock.call(endpoint=mock.ANY, error=reported_error)
+                mock.call(endpoint=mock.ANY, encoded_report=reported_error)
             ]
         else:
             assert mock_azure_report_failure_to_fabric.mock_calls == []
@@ -5178,16 +5171,18 @@ class TestReportFailure:
         azure_ds,
         kvp_enabled,
         mock_azure_report_failure_to_fabric,
-        mock_kvp_report_failure_to_host,
+        mock_kvp_report_via_kvp,
         mock_kvp_report_success_to_host,
         mock_report_dmesg_to_kvp,
     ):
-        mock_kvp_report_failure_to_host.return_value = kvp_enabled
+        mock_kvp_report_via_kvp.return_value = kvp_enabled
         error = errors.ReportableError(reason="foo")
 
         assert azure_ds._report_failure(error, host_only=True) == kvp_enabled
 
-        assert mock_kvp_report_failure_to_host.mock_calls == [mock.call(error)]
+        assert mock_kvp_report_via_kvp.mock_calls == [
+            mock.call(error.as_encoded_report(vm_id=azure_ds._vm_id))
+        ]
         assert mock_kvp_report_success_to_host.mock_calls == []
         assert mock_azure_report_failure_to_fabric.mock_calls == []
         assert mock_report_dmesg_to_kvp.mock_calls == [mock.call()]
@@ -5416,3 +5411,67 @@ class TestDependencyFallback:
         Python versions
         """
         assert dsaz.encrypt_pass("`")
+
+
+class TestQueryVmId:
+    @mock.patch.object(
+        identity, "query_system_uuid", side_effect=["test-system-uuid"]
+    )
+    @mock.patch.object(
+        identity, "convert_system_uuid_to_vm_id", side_effect=["test-vm-id"]
+    )
+    def test_query_vm_id_success(
+        self, mock_convert_uuid, mock_query_system_uuid, azure_ds
+    ):
+        azure_ds._query_vm_id()
+
+        assert azure_ds._system_uuid == "test-system-uuid"
+        assert azure_ds._vm_id == "test-vm-id"
+
+        mock_query_system_uuid.assert_called_once()
+        mock_convert_uuid.assert_called_once_with("test-system-uuid")
+
+    @mock.patch.object(
+        identity,
+        "query_system_uuid",
+        side_effect=[RuntimeError("test failure")],
+    )
+    def test_query_vm_id_system_uuid_failure(
+        self, mock_query_system_uuid, azure_ds
+    ):
+        with pytest.raises(errors.ReportableErrorVmIdentification) as exc_info:
+            azure_ds._query_vm_id()
+
+            assert azure_ds._system_uuid is None
+            assert azure_ds._vm_id is None
+            assert (
+                exc_info.value.reason
+                == "Failed to query system UUID: test failure"
+            )
+
+        mock_query_system_uuid.assert_called_once()
+
+    @mock.patch.object(
+        identity, "query_system_uuid", side_effect=["test-system-uuid"]
+    )
+    @mock.patch.object(
+        identity,
+        "convert_system_uuid_to_vm_id",
+        side_effect=[ValueError("test failure")],
+    )
+    def test_query_vm_id_vm_id_conversion_failure(
+        self, mock_convert_uuid, mock_query_system_uuid, azure_ds
+    ):
+        with pytest.raises(errors.ReportableErrorVmIdentification) as excinfo:
+            azure_ds._query_vm_id()
+
+            assert azure_ds._system_uuid == "test-system-uuid"
+            assert azure_ds._vm_id is None
+            assert (
+                excinfo.value.reason
+                == "Failed to convert system UUID 'test-system-uuid' "
+                "to Azure VM ID: test failure"
+            )
+
+        mock_query_system_uuid.assert_called_once()
+        mock_convert_uuid.assert_called_once_with("test-system-uuid")
