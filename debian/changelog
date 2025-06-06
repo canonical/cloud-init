@@ -1,3 +1,9 @@
+cloud-init (25.2~3gf731cdf3-0ubuntu1) UNRELEASED; urgency=medium
+
+  * Upstream snapshot based on upstream/main at f731cdf3.
+
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 06 Jun 2025 14:05:10 -0600
+
 cloud-init (25.2~2ge2bef781-0ubuntu1) questing; urgency=medium
 
   * Upstream snapshot based on upstream/main at e2bef781.
