@@ -95,6 +95,23 @@ to ``True``.
 
             KEEP_INSTANCE = True
 
+To keep the instance only if the test was unsuccessful, set ``KEEP_INSTANCE``
+variable to ``ON_ERROR``.
+
+.. tab-set::
+
+    .. tab-item:: Inline environment variable
+
+        .. code-block:: bash
+
+            CLOUD_INIT_KEEP_INSTANCE=ON_ERROR tox -e integration_tests
+
+    .. tab-item:: user_settings.py file
+
+        .. code-block:: python
+
+            KEEP_INSTANCE = "ON_ERROR"
+
 
 Use in-place cloud-init source code
 -------------------------------------
