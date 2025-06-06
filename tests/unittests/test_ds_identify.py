@@ -526,21 +526,6 @@ class TestDsIdentify(DsIdentifyBase):
         for var in expected_vars:
             self.assertIn("{0}=".format(var), err)
 
-    @pytest.mark.xfail(reason="GH-4796")
-    def test_maas_not_detected_1(self):
-        """Don't incorrectly identify maas
-
-        In ds-identify the function check_config() attempts to parse yaml keys
-        in bash, but it sometimes introduces false positives. The maas
-        datasource uses check_config() and the existence of a "MAAS" key to
-        identify itself (which is a very poor identifier - clouds should have
-        stricter identifiers). Since the MAAS datasource is at the begining of
-        the list, this is particularly troublesome and more concerning than
-        NoCloud false positives, for example.
-        """
-        config = "LXD-kvm-not-MAAS-1"
-        self._test_ds_found(config)
-
     def test_maas_not_detected_2(self):
         """Don't incorrectly identify maas
 
@@ -556,24 +541,6 @@ class TestDsIdentify(DsIdentifyBase):
         NoCloud false positives, for example.
         """
         config = "LXD-kvm-not-MAAS-2"
-        self._test_ds_found(config)
-
-    @pytest.mark.xfail(reason="GH-4796")
-    def test_maas_not_detected_3(self):
-        """Don't incorrectly identify maas
-
-        The bug reported in 4794 combined with the previously existing bug
-        reported in 4796 made for very loose MAAS false-positives.
-
-        In ds-identify the function check_config() attempts to parse yaml keys
-        in bash, but it sometimes introduces false positives. The maas
-        datasource uses check_config() and the existence of a "MAAS" key to
-        identify itself (which is a very poor identifier - clouds should have
-        stricter identifiers). Since the MAAS datasource is at the begining of
-        the list, this is particularly troublesome and more concerning than
-        NoCloud false positives, for example.
-        """
-        config = "LXD-kvm-not-MAAS-3"
         self._test_ds_found(config)
 
     def test_flow_sequence_control(self):

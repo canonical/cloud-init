@@ -37,6 +37,18 @@ write_files:
              - python3-pip
          roles:
            - apt
+  - path: /root/playbooks/watermark.yml
+    content: |
+       ---
+       - hosts: 127.0.0.1
+         connection: local
+         become: true
+         tasks:
+           - name: create a watermark file to assert multiple playbooks run
+             copy:
+               content: |
+                 cloud-init was here
+               dest: /MULTIPLAYBOOK_RUN
   - path: /root/playbooks/roles/apt/tasks/main.yml
     content: |
        ---
@@ -94,20 +106,21 @@ ansible:
   package_name: {package}
   galaxy:
     actions:
-     - ["ansible-galaxy", "collection", "install", "community.grafana"]
+     - ["ansible-galaxy", "collection", "install", "community.elastic"]
   pull:
-    url: "http://0.0.0.0:8000/"
-    playbook_name: ubuntu.yml
-    full: true
+    - url: "http://0.0.0.0:8000/"
+      playbook_names: [ubuntu.yml]
+      full: true
 """
 
-SETUP_REPO = f"cd {REPO_D}                                    &&\
-git config --global user.name auto                            &&\
-git config --global user.email autom@tic.io                   &&\
-git config --global init.defaultBranch main                   &&\
-git init {REPO_D}                                             &&\
-git add {REPO_D}/roles/apt/tasks/main.yml {REPO_D}/ubuntu.yml &&\
-git commit -m auto                                            &&\
+SETUP_REPO = f"cd {REPO_D}                                    && \
+git config --global user.name auto                            && \
+git config --global user.email autom@tic.io                   && \
+git config --global init.defaultBranch main                   && \
+git init {REPO_D}                                             && \
+git add {REPO_D}/roles/apt/tasks/main.yml {REPO_D}/ubuntu.yml && \
+git add {REPO_D}/watermark.yml                                && \
+git commit -m auto                                            && \
 (cd {REPO_D}/.git; git update-server-info)"
 
 ANSIBLE_CONTROL = """\
@@ -132,7 +145,7 @@ users:
   gecos: Ansible User
   shell: /bin/bash
   groups: users,admin,wheel,lxd
-  sudo: ALL=(ALL) NOPASSWD:ALL
+  sudo: "ALL=(ALL) NOPASSWD:ALL"
 
 # Initialize lxd using cloud-init.
 # --------------------------------
@@ -270,15 +283,17 @@ def _test_ansible_pull_from_local_server(my_client):
     verify_clean_log(log)
     verify_clean_boot(my_client)
     output_log = my_client.read_from_file("/var/log/cloud-init-output.log")
-    assert "ok=3" in output_log
+    assert "ok=5" in output_log
     assert "SUCCESS: config-ansible ran successfully" in log
 
     # binary location is dependent on install-type, check the filepath
     # to ensure that the installed collection directory exists
     output = my_client.execute(
-        "ls /root/.ansible/collections/ansible_collections/community/grafana"
+        "ls /root/.ansible/collections/ansible_collections/community/elastic"
     )
     assert not output.stderr.strip() and output.ok
+    playbook2_content = my_client.read_from_file("/MULTIPLAYBOOK_RUN")
+    assert "cloud-init was here" == playbook2_content
 
 
 # temporarily disable this test on jenkins until firewall rules are in place
@@ -304,7 +319,6 @@ def test_ansible_pull_pip(client: IntegrationInstance):
 @pytest.mark.user_data(
     USER_DATA + INSTALL_METHOD.format(package="ansible", method="distro")
 )
-@pytest.mark.skip("This test is currently broken and needs to be fixed")
 def test_ansible_pull_distro(client):
     push_and_enable_systemd_unit(client, "repo_server.service", REPO_SERVER)
     push_and_enable_systemd_unit(client, "repo_waiter.service", REPO_WAITER)

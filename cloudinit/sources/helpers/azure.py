@@ -282,10 +282,29 @@ def http_with_retries(
 
 
 def build_minimal_ovf(
-    username: str, hostname: str, disableSshPwd: str
+    *,
+    username: Optional[str],
+    hostname: Optional[str],
+    disable_ssh_password_auth: Optional[bool],
 ) -> bytes:
-    OVF_ENV_TEMPLATE = textwrap.dedent(
-        """\
+    if username:
+        ns_username = f"<ns1:UserName>{username}</ns1:UserName>"
+    else:
+        ns_username = ""
+
+    if disable_ssh_password_auth is None:
+        ns_disable_ssh_password_auth = ""
+    else:
+        ns_disable_ssh_password_auth = (
+            "<ns1:DisableSshPasswordAuthentication>"
+            f"{str(disable_ssh_password_auth).lower()}"
+            "</ns1:DisableSshPasswordAuthentication>"
+        )
+
+    ns_hostname = f"<ns1:HostName>{hostname}</ns1:HostName>"
+
+    return textwrap.dedent(
+        f"""\
         <ns0:Environment xmlns:ns0="http://schemas.dmtf.org/ovf/environment/1"
          xmlns:ns1="http://schemas.microsoft.com/windowsazure"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
@@ -294,10 +313,9 @@ def build_minimal_ovf(
             <ns1:LinuxProvisioningConfigurationSet>
               <ns1:ConfigurationSetType>LinuxProvisioningConfiguration
               </ns1:ConfigurationSetType>
-              <ns1:UserName>{username}</ns1:UserName>
-              <ns1:DisableSshPasswordAuthentication>{disableSshPwd}
-              </ns1:DisableSshPasswordAuthentication>
-              <ns1:HostName>{hostname}</ns1:HostName>
+              {ns_username}
+              {ns_disable_ssh_password_auth}
+              {ns_hostname}
             </ns1:LinuxProvisioningConfigurationSet>
           </ns1:ProvisioningSection>
           <ns1:PlatformSettingsSection>
@@ -308,11 +326,7 @@ def build_minimal_ovf(
           </ns1:PlatformSettingsSection>
         </ns0:Environment>
         """
-    )
-    ret = OVF_ENV_TEMPLATE.format(
-        username=username, hostname=hostname, disableSshPwd=disableSshPwd
-    )
-    return ret.encode("utf-8")
+    ).encode("utf-8")
 
 
 class AzureEndpointHttpClient:
@@ -1102,7 +1116,7 @@ class OvfEnvXml:
             required=False,
         )
         self.username = self._parse_property(
-            config_set, "UserName", required=True
+            config_set, "UserName", required=False
         )
         self.password = self._parse_property(
             config_set, "UserPassword", required=False

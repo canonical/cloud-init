@@ -10,7 +10,7 @@ import logging
 import os
 import time
 
-from cloudinit import signal_handler, subp, util
+from cloudinit import subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -48,10 +48,7 @@ def _fire_reboot(
     wait_attempts: int = 6, initial_sleep: int = 1, backoff: int = 2
 ):
     """Run a reboot command and panic if it doesn't happen fast enough."""
-    # systemd will kill cloud-init with a signal
-    # this is expected so don't behave as if this is a failure state
-    with signal_handler.suspend_crash():
-        subp.subp(REBOOT_CMD)
+    subp.subp(REBOOT_CMD)
     start = time.monotonic()
     wait_time = initial_sleep
     for _i in range(wait_attempts):
