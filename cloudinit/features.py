@@ -98,6 +98,16 @@ Note that in addition to this flag, downstream patches are also likely needed
 to modify the systemd unit files.
 """
 
+STRIP_INVALID_MTU = False
+"""
+If ``STRIP_INVALID_MTU`` is True, then cloud-init will strip invalid MTU
+values from rendered v2 netplan configuration. Cloud-init allowed these values
+prior to 24.2, so this flag is used to maintain compatibility with
+previously generated network configurations.
+
+(This flag can be removed when Noble is no longer supported.)
+"""
+
 DEPRECATION_INFO_BOUNDARY = "devel"
 """
 DEPRECATION_INFO_BOUNDARY is used by distros to configure at which upstream

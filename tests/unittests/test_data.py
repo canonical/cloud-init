@@ -472,20 +472,7 @@ c: 4
             init_tmp.paths.get_ipath("cloud_config"), "", 0o600
         )
 
-    # Since features are intended to be overridden downstream, mock them
-    # all here so new feature flags don't require a new change to this
-    # unit test.
-    @mock.patch.multiple(
-        "cloudinit.features",
-        ERROR_ON_USER_DATA_FAILURE=True,
-        ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES=True,
-        EXPIRE_APPLIES_TO_HASHED_USERS=False,
-        NETPLAN_CONFIG_ROOT_READ_ONLY=True,
-        DEPRECATION_INFO_BOUNDARY="devel",
-        NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH=False,
-        APT_DEB822_SOURCE_LIST_FILE=True,
-    )
-    def test_shellscript(self, init_tmp, tmpdir, caplog):
+    def test_shellscript(self, init_tmp, caplog):
         """Raw text starting #!/bin/sh is treated as script."""
         script = "#!/bin/sh\necho hello\n"
         init_tmp.datasource = FakeDataSource(script)
@@ -507,16 +494,32 @@ c: 4
                 mock.call(init_tmp.paths.get_ipath("cloud_config"), "", 0o600),
             ]
         )
+
+    def test_expected_artifacts(self, init_tmp, tmpdir, caplog, mocker):
+        """Test combined_cloud_config and instance_data_sensitive contents."""
+        init_tmp.datasource = FakeDataSource()
+
+        mocker.patch("cloudinit.util.write_file")
+        mocker.patch.object(init_tmp, "_reset")
+        mocker.patch(
+            "cloudinit.features.get_features",
+            return_value={
+                "ERROR_ON_USER_DATA_FAILURE": True,
+                "ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES": False,
+                "SOME_FAKE_FEATURE": True,
+            },
+        )
+
+        with caplog.at_level(logging.WARNING):
+            init_tmp.fetch()
+            init_tmp.consume_data()
+            assert caplog.records == []  # No warnings
+
         expected = {
             "features": {
                 "ERROR_ON_USER_DATA_FAILURE": True,
-                "ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES": True,
-                "EXPIRE_APPLIES_TO_HASHED_USERS": False,
-                "NETPLAN_CONFIG_ROOT_READ_ONLY": True,
-                "DEPRECATION_INFO_BOUNDARY": "devel",
-                "NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH": False,
-                "APT_DEB822_SOURCE_LIST_FILE": True,
-                "MANUAL_NETWORK_WAIT": True,
+                "ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES": False,
+                "SOME_FAKE_FEATURE": True,
             },
             "system_info": {
                 "default_user": {"name": "ubuntu"},
