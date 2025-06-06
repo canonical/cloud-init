@@ -1,3 +1,10 @@
+cloud-init (25.2~2ge2bef781-0ubuntu1) UNRELEASED; urgency=medium
+
+  * Upstream snapshot based on upstream/main at e2bef781.
+    - Bugs fixed in this snapshot: (LP: #2100232)
+
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 12 May 2025 17:46:37 -0600
+
 cloud-init (25.2~1g7a0265d3-0ubuntu1) questing; urgency=medium
 
   * d/control: add Azure metapackage
