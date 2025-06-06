@@ -1,4 +1,4 @@
-cloud-init (25.2~2ge2bef781-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (25.2~2ge2bef781-0ubuntu1) questing; urgency=medium
 
   * Upstream snapshot based on upstream/main at e2bef781.
     - Bugs fixed in this snapshot: (LP: #2100232)
