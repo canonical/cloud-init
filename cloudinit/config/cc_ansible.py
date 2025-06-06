@@ -269,15 +269,22 @@ def run_ansible_pull(pull: AnsiblePull, cfg: dict):
                 f"Ansible version {v.major}.{v.minor}.{v.patch}"
                 "doesn't support --diff flag, exiting."
             )
-    stdout = pull.pull(
-        *[
-            f"--{key}={value}" if value is not True else f"--{key}"
-            for key, value in filter_args(cfg).items()
-        ],
-        *playbook_names,
-    )
-    if stdout:
-        sys.stdout.write(f"{stdout}")
+    pull_args = [
+        f"--{key}={value}" if value is not True else f"--{key}"
+        for key, value in filter_args(cfg).items()
+    ]
+    if v and v >= lifecycle.Version(2, 12, 0):
+        # Multiple playbook support was resolved in 2.12.
+        # https://github.com/ansible/ansible/pull/73172
+        stdout = pull.pull(*pull_args, *playbook_names)
+        if stdout:
+            sys.stdout.write(f"{stdout}")
+    else:
+        # Older ansible must pull separate playbooks
+        for playbook in playbook_names:
+            stdout = pull.pull(*pull_args, playbook)
+            if stdout:
+                sys.stdout.write(f"{stdout}")
 
 
 def ansible_galaxy(cfg: dict, ansible: AnsiblePull):

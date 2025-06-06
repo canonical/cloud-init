@@ -2,7 +2,7 @@
 [Unit]
 # https://docs.cloud-init.io/en/latest/explanation/boot.html
 Description=Cloud-init: Network Stage
-{% if variant not in ["almalinux", "cloudlinux", "photon", "rhel"] %}
+{% if variant not in ["almalinux", "cloudlinux", "photon", "raspberry-pi-os", "rhel"] %}
 DefaultDependencies=no
 {% endif %}
 Wants=cloud-init-local.service
@@ -12,12 +12,12 @@ After=cloud-init-local.service
 {% if variant not in ["ubuntu"] %}
 After=systemd-networkd-wait-online.service
 {% endif %}
-{% if variant in ["ubuntu", "unknown", "debian"] %}
+{% if variant in ["ubuntu", "unknown", "debian", "raspberry-pi-os"] %}
 After=networking.service
 {% endif %}
 {% if variant in ["almalinux", "centos", "cloudlinux", "eurolinux", "fedora",
-                  "miraclelinux", "openeuler", "OpenCloudOS", "openmandriva", "rhel", "rocky",
-                  "suse", "TencentOS", "virtuozzo"] %}
+                  "miraclelinux", "openeuler", "OpenCloudOS", "openmandriva", "raspberry-pi-os", 
+                  "rhel", "rocky", "suse", "TencentOS", "virtuozzo"] %}
 After=NetworkManager.service
 After=NetworkManager-wait-online.service
 {% endif %}
@@ -28,6 +28,9 @@ After=wicked.service
 After=dbus.service
 {% endif %}
 Before=network-online.target
+{% if variant == "raspberry-pi-os" %}
+Before=avahi-daemon.service
+{% endif %}
 Before=sshd-keygen.service
 Before=sshd.service
 Before=systemd-user-sessions.service

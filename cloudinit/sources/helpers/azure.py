@@ -968,12 +968,14 @@ def report_failure_to_fabric(endpoint: str, error: "errors.ReportableError"):
         shim.clean_up()
 
 
-def dhcp_log_cb(out, err):
+def dhcp_log_cb(interface: str, out: str, err: str) -> None:
     report_diagnostic_event(
-        "dhclient output stream: %s" % out, logger_func=LOG.debug
+        f"dhcp client stdout for interface={interface}: {out}",
+        logger_func=LOG.debug,
     )
     report_diagnostic_event(
-        "dhclient error stream: %s" % err, logger_func=LOG.debug
+        f"dhcp client stderr for interface={interface}: {err}",
+        logger_func=LOG.debug,
     )
 
 

@@ -83,7 +83,9 @@ class NoDHCPLeaseMissingDhclientError(NoDHCPLeaseError):
 
 
 def maybe_perform_dhcp_discovery(
-    distro, nic=None, dhcp_log_func=None
+    distro,
+    nic=None,
+    dhcp_log_func: Optional[Callable[[str, str, str], None]] = None,
 ) -> Dict[str, Any]:
     """Perform dhcp discovery if nic valid and dhclient command exists.
 
@@ -91,8 +93,8 @@ def maybe_perform_dhcp_discovery(
     skip dhcp_discovery and return an empty dict.
 
     @param nic: Name of the network interface we want to run dhclient on.
-    @param dhcp_log_func: A callable accepting the dhclient output and error
-        streams.
+    @param dhcp_log_func: Callable accepting the interface and client's
+        stdout, stderr streams.
     @return: A list of dicts representing dhcp options for each lease obtained
         from the dhclient discovery if run, otherwise an empty list is
         returned.
@@ -203,7 +205,7 @@ class DhcpClient(abc.ABC):
     def dhcp_discovery(
         self,
         interface: str,
-        dhcp_log_func: Optional[Callable] = None,
+        dhcp_log_func: Optional[Callable[[str, str, str], None]] = None,
         distro=None,
     ) -> Dict[str, Any]:
         """Run dhcp client on the interface without scripts or filesystem
@@ -211,8 +213,8 @@ class DhcpClient(abc.ABC):
 
         @param interface: Name of the network interface on which to send a
             dhcp request
-        @param dhcp_log_func: A callable accepting the client output and
-            error streams.
+        @param dhcp_log_func: Callable accepting the interface and client's
+            stdout, stderr streams.
         @param distro: a distro object for network interface manipulation
         @return: dict of lease options representing the most recent dhcp lease
             parsed from the dhclient.lease file
@@ -294,15 +296,15 @@ class IscDhclient(DhcpClient):
     def dhcp_discovery(
         self,
         interface: str,
-        dhcp_log_func: Optional[Callable] = None,
+        dhcp_log_func: Optional[Callable[[str, str, str], None]] = None,
         distro=None,
     ) -> Dict[str, Any]:
         """Run dhclient on the interface without scripts/filesystem artifacts.
 
         @param interface: Name of the network interface on which to send a
             dhcp request
-        @param dhcp_log_func: A callable accepting the dhclient output and
-            error streams.
+        @param dhcp_log_func: Callable accepting the interface and client's
+            stdout, stderr streams.
         @param distro: a distro object for network interface manipulation
         @return: dict of lease options representing the most recent dhcp lease
             parsed from the dhclient.lease file
@@ -420,7 +422,7 @@ class IscDhclient(DhcpClient):
                 0.01 * 1000,
             )
         if dhcp_log_func is not None:
-            dhcp_log_func(out, err)
+            dhcp_log_func(interface, out, err)
         lease = self.get_newest_lease(interface)
         if lease:
             return lease
@@ -616,15 +618,15 @@ class Dhcpcd(DhcpClient):
     def dhcp_discovery(
         self,
         interface: str,
-        dhcp_log_func: Optional[Callable] = None,
+        dhcp_log_func: Optional[Callable[[str, str, str], None]] = None,
         distro=None,
     ) -> Dict[str, Any]:
         """Run dhcpcd on the interface without scripts/filesystem artifacts.
 
         @param interface: Name of the network interface on which to send a
             dhcp request
-        @param dhcp_log_func: A callable accepting the client output and
-            error streams.
+        @param dhcp_log_func: Callable accepting the interface and client's
+            stdout, stderr streams.
         @param distro: a distro object for network interface manipulation
         @return: dict of lease options representing the most recent dhcp lease
             parsed from the dhclient.lease file
@@ -668,7 +670,7 @@ class Dhcpcd(DhcpClient):
                 timeout=self.timeout,
             )
             if dhcp_log_func is not None:
-                dhcp_log_func(out, err)
+                dhcp_log_func(interface, out, err)
             lease = self.get_newest_lease(interface)
             # Attempt cleanup and leave breadcrumbs if it fails, but return
             # the lease regardless of failure to clean up dhcpcd.
@@ -919,14 +921,14 @@ class Udhcpc(DhcpClient):
     def dhcp_discovery(
         self,
         interface: str,
-        dhcp_log_func: Optional[Callable] = None,
+        dhcp_log_func: Optional[Callable[[str, str, str], None]] = None,
         distro=None,
     ) -> Dict[str, Any]:
         """Run udhcpc on the interface without scripts or filesystem artifacts.
 
         @param interface: Name of the network interface on which to run udhcpc.
-        @param dhcp_log_func: A callable accepting the udhcpc output and
-            error streams.
+        @param dhcp_log_func: Callable accepting the interface and client's
+            stdout, stderr streams.
         @return: A list of dicts of representing the dhcp leases parsed from
             the udhcpc lease file.
         """
@@ -984,7 +986,7 @@ class Udhcpc(DhcpClient):
             raise NoDHCPLeaseError from error
 
         if dhcp_log_func is not None:
-            dhcp_log_func(out, err)
+            dhcp_log_func(interface, out, err)
 
         return self.get_newest_lease(interface)
 

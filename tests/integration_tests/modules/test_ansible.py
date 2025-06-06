@@ -1,5 +1,8 @@
+import re
+
 import pytest
 
+from cloudinit.lifecycle import Version
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, FOCAL
@@ -7,6 +10,8 @@ from tests.integration_tests.util import (
     push_and_enable_systemd_unit,
     verify_clean_boot,
     verify_clean_log,
+    verify_ordered_items_in_text,
+    wait_for_cloud_init,
 )
 
 # This works by setting up a local repository and web server
@@ -109,7 +114,7 @@ ansible:
      - ["ansible-galaxy", "collection", "install", "community.elastic"]
   pull:
     - url: "http://0.0.0.0:8000/"
-      playbook_names: [ubuntu.yml]
+      playbook_names: [ubuntu.yml, watermark.yml]
       full: true
 """
 
@@ -279,11 +284,21 @@ def _test_ansible_pull_from_local_server(my_client):
     assert not setup.return_code
     my_client.execute("cloud-init clean --logs")
     my_client.restart()
+    wait_for_cloud_init(my_client)
     log = my_client.read_from_file("/var/log/cloud-init.log")
     verify_clean_log(log)
     verify_clean_boot(my_client)
     output_log = my_client.read_from_file("/var/log/cloud-init-output.log")
-    assert "ok=5" in output_log
+    result = my_client.execute("ansible-pull --version").splitlines()[0]
+    ansible_match = re.search(r"[\d\/.]+", result)
+    assert ansible_match, f"Unable to parse ansible-pull version {result}"
+    ansible_version = Version.from_str(ansible_match.group(0))
+    if ansible_version >= Version(2, 12, 0):
+        verify_ansible_ok_logs = ["ok=5"]
+    else:
+        # Older ansible-pull versions have to run playbooks separately
+        verify_ansible_ok_logs = ["ok=3", "ok=2"]
+    verify_ordered_items_in_text(verify_ansible_ok_logs, output_log)
     assert "SUCCESS: config-ansible ran successfully" in log
 
     # binary location is dependent on install-type, check the filepath

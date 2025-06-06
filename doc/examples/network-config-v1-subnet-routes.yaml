@@ -6,7 +6,9 @@ network:
       mac_address: '00:11:22:33:44:55'
       subnets:
         - type: dhcp
+          metric: 200
         - type: static
+          metric: 100
           address: 10.184.225.122
           netmask: 255.255.255.252
           routes:

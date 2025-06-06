@@ -22,6 +22,7 @@ DISTRO_VARIANTS = [
     "netbsd",
     "openbsd",
     "photon",
+    "raspberry-pi-os",
     "rhel",
     "suse",
     "ubuntu",
@@ -93,6 +94,7 @@ class TestRenderCloudCfg:
             "amazon": "ec2-user",
             "rhel": "cloud-user",
             "centos": "cloud-user",
+            "raspberry-pi-os": "pi",
             "unknown": "ubuntu",
         }
         default_user = system_cfg["system_info"]["default_user"]["name"]
@@ -105,6 +107,7 @@ class TestRenderCloudCfg:
             ("netbsd", ["netbsd"]),
             ("openbsd", ["openbsd"]),
             ("ubuntu", ["netplan", "eni", "sysconfig"]),
+            ("raspberry-pi-os", ["netplan", "network-manager"]),
         ),
     )
     def test_variant_sets_network_renderer_priority_in_cloud_cfg(
