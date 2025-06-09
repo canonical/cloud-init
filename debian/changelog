@@ -10,13 +10,17 @@ cloud-init (25.1-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
   * refresh patches
     - d/p/cli-retain-file-argument-as-main-cmd-arg.patch
     - d/p/deprecation-version-boundary.patch
+    - d/p/grub-dpkg-support.patch
+    - d/p/keep-dhclient-as-priority-client.patch
+    - d/p/no-nocloud-network.patch
     - d/p/no-single-process.patch
     - d/p/retain-ec2-default-net-update-events.patch
+    - d/p/retain-old-groups.patch
     - d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
   * sort hunks within all patches (--sort on quilt refresh)
-  * Upstream snapshot based on upstream/main at a87e4da8.
+  * Upstream snapshot based on upstream/main at f731cdf3.
 
- -- James Falcon <james.falcon@canonical.com>  Fri, 04 Apr 2025 16:21:18 -0500
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 09 Jun 2025 13:37:29 -0600
 
 cloud-init (24.4.1-0ubuntu0~22.04.2) jammy; urgency=medium
 
