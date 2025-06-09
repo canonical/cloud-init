@@ -28,7 +28,7 @@ For a full list of keys, refer to the `Ansible module`_ schema.
       gecos: Ansible User
       shell: /bin/bash
       groups: users,admin,wheel,lxd
-      sudo: ALL=(ALL) NOPASSWD:ALL
+      sudo: "ALL=(ALL) NOPASSWD:ALL"
 
     # Initialize LXD using cloud-init
     # -------------------------------

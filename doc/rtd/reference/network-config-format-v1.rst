@@ -310,6 +310,7 @@ Valid keys for ``subnets`` include the following:
 - ``dns_nameservers``: Specify a list of IPv4 DNS server IPs.
 - ``dns_search``: Specify a list of DNS search paths.
 - ``routes``: Specify a list of routes for a given interface.
+- ``metric``: Integer which sets the metric cost of routes within this subnet.
 
 Subnet types are one of the following:
 

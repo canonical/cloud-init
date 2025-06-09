@@ -1,12 +1,23 @@
-{% macro print_prop(name, types, description, prefix) -%}
+{% macro print_prop(name, types, description, deprecated, changed, prefix) -%}
 {% set descr_suffix = description.splitlines()[0]|d('') -%}
 {% set descr_lines = description.splitlines()[1:]|d([]) -%}
+{% set deprecated_lines = deprecated.splitlines()|d([]) -%}
+{% set changed_lines = changed.splitlines()|d([]) -%}
 {{prefix}}* **{{name}}:** ({{types}}){{ descr_suffix }}
 {% for line in descr_lines -%}
 {{prefix ~ '  '}}{{ line }}
 {% endfor -%}
+{% for line in deprecated_lines -%}
+{{prefix ~ '  '}}{{ line }}
+{% endfor -%}
+{% for line in changed_lines -%}
+{{prefix ~ '  '}}{{ line }}
+{% endfor -%}
 {%- endmacro -%}
 {% set ns = namespace(is_obj_type=false) -%}
+{% for alt_schema in prop_cfg.get("oneOf", []) -%}
+  {% if ('properties' in alt_schema or 'patternProperties' in alt_schema) %}{% set ns.is_obj_type = true -%}{% endif -%}
+{% endfor -%}
 {% if ('properties' in prop_cfg or 'patternProperties' in prop_cfg) %}{% set ns.is_obj_type = true -%}{% endif -%}
 {% for key, val in prop_cfg.get('items', {}).items() -%}
   {% if key in ('properties', 'patternProperties') -%}{% set ns.is_obj_type = true -%}{% endif -%}
@@ -19,4 +30,4 @@
 {% if ns.is_obj_type -%}
 {% set description = description ~ " Each object in **" ~ name ~ "** list supports the following keys:" -%}
 {% endif -%}
-{{ print_prop(name, types, description, prefix ) -}}
+{{ print_prop(name, types, description, deprecated, changed, prefix ) -}}

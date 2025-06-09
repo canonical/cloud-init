@@ -1097,7 +1097,7 @@ class OauthUrlHelper:
         return self._wrapped(readurl, args, kwargs)
 
     def _exception_cb(self, extra_exception_cb, exception):
-        ret = None
+        ret = True
         try:
             if extra_exception_cb:
                 ret = extra_exception_cb(exception)

@@ -310,6 +310,7 @@ class TestCombined:
                 "azure": "DataSourceAzure [seed=/dev/sr0]",
                 "ec2": "DataSourceEc2Local",
                 "gce": "DataSourceGCELocal",
+                "ibm": "DataSourceNoCloud [seed=/dev/vdb]",
                 "oci": "DataSourceOracle",
                 "openstack": "DataSourceOpenStackLocal [net,ver=2]",
                 "qemu": "DataSourceNoCloud [seed=/dev/vda][dsmode=net]",

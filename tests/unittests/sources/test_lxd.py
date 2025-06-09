@@ -192,7 +192,9 @@ class TestNetworkConfig:
     def test_provided_network_config(self, lxd_ds, mocker):
         def _get_data(self):
             self._crawled_metadata = copy.deepcopy(DEVICES)
-            self._crawled_metadata["network-config"] = "hi"
+            self._crawled_metadata["network-config"] = {
+                "test-key": {"test-inner-key": "hi"}
+            }
 
         mocker.patch.object(
             lxd.DataSourceLXD,
@@ -200,7 +202,7 @@ class TestNetworkConfig:
             autospec=True,
             side_effect=_get_data,
         )
-        assert lxd_ds.network_config == "hi"
+        assert lxd_ds.network_config == {"test-key": {"test-inner-key": "hi"}}
 
     @pytest.mark.parametrize(
         "devices_to_remove,expected_config",
