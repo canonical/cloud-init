@@ -6,7 +6,7 @@ Last-Update: 2024-08-02
 
 --- a/cloudinit/cmd/status.py
 +++ b/cloudinit/cmd/status.py
-@@ -318,9 +318,8 @@ def systemd_failed(wait: bool) -> bool:
+@@ -318,9 +318,8 @@
      for service in [
          "cloud-final.service",
          "cloud-config.service",
@@ -19,7 +19,7 @@ Last-Update: 2024-08-02
              stdout = query_systemctl(
 --- a/cloudinit/config/cc_mounts.py
 +++ b/cloudinit/config/cc_mounts.py
-@@ -519,7 +519,7 @@ def handle(name: str, cfg: Config, cloud
+@@ -519,7 +519,7 @@
      # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
      uses_systemd = cloud.distro.uses_systemd()
      default_mount_options = (
@@ -30,7 +30,7 @@ Last-Update: 2024-08-02
      )
 --- a/cloudinit/config/schemas/schema-cloud-config-v1.json
 +++ b/cloudinit/config/schemas/schema-cloud-config-v1.json
-@@ -2034,12 +2034,12 @@
+@@ -2073,12 +2073,12 @@
          },
          "mount_default_fields": {
            "type": "array",
@@ -47,7 +47,7 @@ Last-Update: 2024-08-02
            ],
 --- a/systemd/cloud-config.service
 +++ b/systemd/cloud-config.service
-@@ -9,14 +9,7 @@ ConditionEnvironment=!KERNEL_CMDLINE=clo
+@@ -9,14 +9,7 @@
  
  [Service]
  Type=oneshot
@@ -75,7 +75,7 @@ Last-Update: 2024-08-02
 +After=cloud-init-local.service cloud-init.service
 --- a/systemd/cloud-final.service
 +++ b/systemd/cloud-final.service
-@@ -12,16 +12,10 @@ ConditionEnvironment=!KERNEL_CMDLINE=clo
+@@ -12,16 +12,10 @@
  
  [Service]
  Type=oneshot
@@ -96,7 +96,7 @@ Last-Update: 2024-08-02
  # Output needs to appear in instance console output
 --- a/systemd/cloud-init-local.service.tmpl
 +++ b/systemd/cloud-init-local.service.tmpl
-@@ -7,6 +7,7 @@ DefaultDependencies=no
+@@ -7,6 +7,7 @@
  {% endif %}
  Wants=network-pre.target
  After=hv_kvp_daemon.service
@@ -104,7 +104,7 @@ Last-Update: 2024-08-02
  Before=auditd.service
  Before=network-pre.target
  Before=shutdown.target
-@@ -17,6 +18,7 @@ Before=firewalld.target
+@@ -17,6 +18,7 @@
  Before=sysinit.target
  {% endif %}
  Conflicts=shutdown.target
@@ -112,7 +112,7 @@ Last-Update: 2024-08-02
  ConditionPathExists=!/etc/cloud/cloud-init.disabled
  ConditionKernelCommandLine=!cloud-init=disabled
  ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
-@@ -26,14 +28,7 @@ Type=oneshot
+@@ -26,14 +28,7 @@
  {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
  ExecStartPre=/sbin/restorecon /run/cloud-init
  {% endif %}
@@ -141,7 +141,7 @@ Last-Update: 2024-08-02
 -# https://www.freedesktop.org/software/systemd/man/latest/systemd-remount-fs.service.html
 -[Unit]
 -Description=Cloud-init: Single Process
--{% if variant in ["almalinux", "cloudlinux", "ubuntu", "unknown", "debian", "rhel"] %}
+-{% if variant in ["almalinux", "cloudlinux", "ubuntu", "unknown", "debian", "raspberry-pi-os", "rhel"] %}
 -DefaultDependencies=no
 -{% endif %}
 -{% if variant in ["almalinux", "cloudlinux", "rhel"] %}
@@ -175,12 +175,12 @@ Last-Update: 2024-08-02
 -WantedBy=cloud-init.target
 --- a/systemd/cloud-init-network.service.tmpl
 +++ /dev/null
-@@ -1,64 +0,0 @@
+@@ -1,67 +0,0 @@
 -## template:jinja
 -[Unit]
 -# https://docs.cloud-init.io/en/latest/explanation/boot.html
 -Description=Cloud-init: Network Stage
--{% if variant not in ["almalinux", "cloudlinux", "photon", "rhel"] %}
+-{% if variant not in ["almalinux", "cloudlinux", "photon", "raspberry-pi-os", "rhel"] %}
 -DefaultDependencies=no
 -{% endif %}
 -Wants=cloud-init-local.service
@@ -190,12 +190,12 @@ Last-Update: 2024-08-02
 -{% if variant not in ["ubuntu"] %}
 -After=systemd-networkd-wait-online.service
 -{% endif %}
--{% if variant in ["ubuntu", "unknown", "debian"] %}
+-{% if variant in ["ubuntu", "unknown", "debian", "raspberry-pi-os"] %}
 -After=networking.service
 -{% endif %}
 -{% if variant in ["almalinux", "centos", "cloudlinux", "eurolinux", "fedora",
--                  "miraclelinux", "openeuler", "OpenCloudOS", "openmandriva", "rhel", "rocky",
--                  "suse", "TencentOS", "virtuozzo"] %}
+-                  "miraclelinux", "openeuler", "OpenCloudOS", "openmandriva", "raspberry-pi-os", 
+-                  "rhel", "rocky", "suse", "TencentOS", "virtuozzo"] %}
 -After=NetworkManager.service
 -After=NetworkManager-wait-online.service
 -{% endif %}
@@ -206,6 +206,9 @@ Last-Update: 2024-08-02
 -After=dbus.service
 -{% endif %}
 -Before=network-online.target
+-{% if variant == "raspberry-pi-os" %}
+-Before=avahi-daemon.service
+-{% endif %}
 -Before=sshd-keygen.service
 -Before=sshd.service
 -Before=systemd-user-sessions.service
@@ -242,12 +245,12 @@ Last-Update: 2024-08-02
 -WantedBy=cloud-init.target
 --- /dev/null
 +++ b/systemd/cloud-init.service.tmpl
-@@ -0,0 +1,56 @@
+@@ -0,0 +1,59 @@
 +## template:jinja
 +[Unit]
 +# https://docs.cloud-init.io/en/latest/explanation/boot.html
 +Description=Cloud-init: Network Stage
-+{% if variant not in ["almalinux", "cloudlinux", "photon", "rhel"] %}
++{% if variant not in ["almalinux", "cloudlinux", "photon", "raspberry-pi-os", "rhel"] %}
 +DefaultDependencies=no
 +{% endif %}
 +Wants=cloud-init-local.service
@@ -255,12 +258,12 @@ Last-Update: 2024-08-02
 +Wants=sshd.service
 +After=cloud-init-local.service
 +After=systemd-networkd-wait-online.service
-+{% if variant in ["ubuntu", "unknown", "debian"] %}
++{% if variant in ["ubuntu", "unknown", "debian", "raspberry-pi-os"] %}
 +After=networking.service
 +{% endif %}
 +{% if variant in ["almalinux", "centos", "cloudlinux", "eurolinux", "fedora",
-+                  "miraclelinux", "openeuler", "OpenCloudOS", "openmandriva", "rhel", "rocky",
-+                  "suse", "TencentOS", "virtuozzo"] %}
++                  "miraclelinux", "openeuler", "OpenCloudOS", "openmandriva", "raspberry-pi-os",
++                  "rhel", "rocky", "suse", "TencentOS", "virtuozzo"] %}
 +
 +After=NetworkManager.service
 +After=NetworkManager-wait-online.service
@@ -272,6 +275,9 @@ Last-Update: 2024-08-02
 +After=dbus.service
 +{% endif %}
 +Before=network-online.target
++{% if variant == "raspberry-pi-os" %}
++Before=avahi-daemon.service
++{% endif %}
 +Before=sshd-keygen.service
 +Before=sshd.service
 +Before=systemd-user-sessions.service
@@ -301,7 +307,7 @@ Last-Update: 2024-08-02
 +WantedBy=cloud-init.target
 --- a/tests/unittests/config/test_cc_mounts.py
 +++ b/tests/unittests/config/test_cc_mounts.py
-@@ -566,9 +566,9 @@ class TestFstabHandling:
+@@ -566,9 +566,9 @@
              LABEL=keepme	none	ext4	defaults	0	0
              LABEL=UEFI
              /dev/sda4	/mnt2	auto	nofail,comment=cloudconfig	1	2
