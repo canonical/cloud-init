@@ -773,9 +773,9 @@ class DataSourceAzure(sources.DataSource):
         if self.seed == "IMDS" and not crawled_data["files"]:
             try:
                 contents = build_minimal_ovf(
-                    username=imds_username,  # pyright: ignore
-                    hostname=imds_hostname,  # pyright: ignore
-                    disableSshPwd=imds_disable_password,  # pyright: ignore
+                    username=imds_username,
+                    hostname=imds_hostname,
+                    disable_ssh_password_auth=imds_disable_password,
                 )
                 crawled_data["files"] = {"ovf-env.xml": contents}
             except Exception as e:

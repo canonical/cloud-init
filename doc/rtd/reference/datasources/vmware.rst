@@ -426,7 +426,7 @@ this datasource using the GuestInfo keys transport:
        - default
        - name: akutz
          primary_group: akutz
-         sudo: ALL=(ALL) NOPASSWD:ALL
+         sudo: "ALL=(ALL) NOPASSWD:ALL"
          groups: sudo, wheel
          lock_passwd: true
          ssh_authorized_keys:
@@ -555,4 +555,3 @@ the meta-data key ``network``. Valid encodings are ``base64`` and
 .. _VMware vSphere Product Documentation: https://docs.vmware.com/en/VMware-vSphere/8.0/vsphere-vm-administration/GUID-EB5F090E-723C-4470-B640-50B35D1EC016.html#GUID-9A5093A5-C54F-4502-941B-3F9C0F573A39__GUID-40C60643-A2EB-4B05-8927-B51AF7A6CC5E
 .. _property: https://vdc-repo.vmware.com/vmwb-repository/dcr-public/723e7f8b-4f21-448b-a830-5f22fd931b01/5a8257bd-7f41-4423-9a73-03307535bd42/doc/vim.vm.ConfigInfo.html
 .. _govc: https://github.com/vmware/govmomi/blob/master/govc
-

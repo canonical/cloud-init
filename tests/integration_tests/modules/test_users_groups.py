@@ -38,7 +38,7 @@ users:
 AHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
   - name: barfoo
     gecos: Bar B. Foo
-    sudo: ALL=(ALL) NOPASSWD:ALL
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
     groups: [cloud-users, secret]
     lock_passwd: true
   - name: nopassworduser

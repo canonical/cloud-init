@@ -21,7 +21,7 @@ LOG = logging.getLogger(__name__)
 
 meta: MetaSchema = {
     "id": "cc_byobu",
-    "distros": ["ubuntu", "debian"],
+    "distros": ["ubuntu", "debian", "raspberry-pi-os"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": [],
 }

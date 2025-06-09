@@ -10,11 +10,12 @@ from tests.integration_tests.util import (
 
 DATASOURCE_LIST_FILE = "/etc/cloud/cloud.cfg.d/90_dpkg.cfg"
 MAP_PLATFORM_TO_DATASOURCE = {
+    "ec2": "aws",
+    "ibm": "nocloud",
     "lxd_container": "lxd",
     "lxd_vm": "lxd",
-    "qemu": "nocloud",
-    "ec2": "aws",
     "oci": "oracle",
+    "qemu": "nocloud",
 }
 
 

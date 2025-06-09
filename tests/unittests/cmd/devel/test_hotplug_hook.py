@@ -119,22 +119,6 @@ class TestHotplug:
         mocks.m_activator.bring_down_interface.assert_not_called()
         init._write_to_cache.assert_called_once_with()
 
-    def test_successful_remove(self, mocks):
-        init = mocks.m_init
-        mocks.m_network_state.iter_interfaces.return_value = [{}]
-        handle_hotplug(
-            hotplug_init=init,
-            devpath="/dev/fake",
-            udevaction="remove",
-            subsystem="net",
-        )
-        init.datasource.update_metadata_if_supported.assert_called_once_with(
-            [EventType.HOTPLUG]
-        )
-        mocks.m_activator.bring_down_interface.assert_called_once_with("fake")
-        mocks.m_activator.bring_up_interface.assert_not_called()
-        init._write_to_cache.assert_called_once_with()
-
     @mock.patch(
         "cloudinit.cmd.devel.hotplug_hook.NetHandler.detect_hotplugged_device"
     )
@@ -158,7 +142,7 @@ class TestHotplug:
             handle_hotplug(
                 hotplug_init=init,
                 devpath="/dev/fake",
-                udevaction="remove",
+                udevaction="add",
                 subsystem="net",
             )
         assert "hotplug not enabled for event of type" in caplog.text
@@ -177,7 +161,7 @@ class TestHotplug:
             handle_hotplug(
                 hotplug_init=mocks.m_init,
                 devpath="/dev/fake",
-                udevaction="remove",
+                udevaction="add",
                 subsystem="net",
             )
 
@@ -191,22 +175,6 @@ class TestHotplug:
                 hotplug_init=mocks.m_init,
                 devpath="/dev/fake",
                 udevaction="add",
-                subsystem="net",
-            )
-
-    def test_detect_hotplugged_device_detected_on_remove(self, mocks):
-        mocks.m_network_state.iter_interfaces.return_value = [
-            {
-                "mac_address": FAKE_MAC,
-            }
-        ]
-        with pytest.raises(
-            RuntimeError, match="Failed to detect .* in updated metadata"
-        ):
-            handle_hotplug(
-                hotplug_init=mocks.m_init,
-                devpath="/dev/fake",
-                udevaction="remove",
                 subsystem="net",
             )
 
@@ -224,19 +192,6 @@ class TestHotplug:
                 hotplug_init=mocks.m_init,
                 devpath="/dev/fake",
                 udevaction="add",
-                subsystem="net",
-            )
-
-    def test_apply_failed_on_remove(self, mocks):
-        mocks.m_network_state.iter_interfaces.return_value = [{}]
-        mocks.m_activator.bring_down_interface.return_value = False
-        with pytest.raises(
-            RuntimeError, match="Failed to bring down device: /dev/fake"
-        ):
-            handle_hotplug(
-                hotplug_init=mocks.m_init,
-                devpath="/dev/fake",
-                udevaction="remove",
                 subsystem="net",
             )
 

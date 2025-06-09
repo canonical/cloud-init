@@ -251,7 +251,7 @@ apt_install() {
 install_packages() {
     get_os_info || return
     case "$OS_NAME" in
-        centos|rocky*) yum_install "$@";;
+        centos|rocky*|fedora) yum_install "$@";;
         opensuse*) zypper_install "$@";;
         debian|ubuntu) apt_install "$@" -y;;
         *) error "Do not know how to install packages on ${OS_NAME}";
@@ -358,12 +358,27 @@ wait_for_boot() {
         { errorrc "wait inside $name failed."; return; }
 
     if [ -n "${http_proxy-}" ]; then
-        if [ "$OS_NAME" = "centos" ]; then
+        if [ "$OS_NAME" = "centos" -o "$OS_NAME" = "fedora" ]; then
             debug 1 "configuring proxy ${http_proxy}"
             inside "$name" sh -c "echo proxy=$http_proxy >> /etc/yum.conf"
             inside "$name" sh -c "sed -i --regexp-extended '/^#baseurl=/s/#// ; /^(mirrorlist|metalink)=/s/^/#/' /etc/yum.repos.d/*.repo"
             inside "$name" sh -c "sed -i 's/download\.fedoraproject\.org/dl.fedoraproject.org/g' /etc/yum.repos.d/*.repo"
             inside "$name" sh -c "sed -i 's/download\.example/dl.fedoraproject.org/g' /etc/yum.repos.d/*.repo"
+	    if [ "$OS_NAME" = "centos" ]; then
+	        CENTOS_REPO="/etc/yum.repos.d/centos.repo"
+		inside "$name" sh -c "grep -q baseurl $CENTOS_REPO"
+		if [ $? -eq 1 ]; then
+		    # CentOS 9 does not provide baseurl definitions
+		    inside "$name" sh -c "sed -i '/\[baseos\]/a baseurl=https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os' ${CENTOS_REPO}"
+		    inside "$name" sh -c "sed -i '/\[appstream\]/a baseurl=https://mirror.stream.centos.org/9-stream/AppStream/x86_64/os' ${CENTOS_REPO}"
+		    inside "$name" sh -c "sed -i '/\[crb\]/a baseurl=https://mirror.stream.centos.org/9-stream/CRB/x86_64/os' ${CENTOS_REPO}"
+                    CENTOS_EXTRAS_REPO="/etc/yum.repos.d/centos-addons.repo"
+		    inside "$name" sh -c "sed -i '/\[extras-common\]/a baseurl=https://mirror.stream.centos.org/SIGs/9-stream/extras/x86_64/extras-common' ${CENTOS_EXTRAS_REPO}"
+		    inside "$name" sh -c "dnf install -y 'dnf-command(config-manager)'"
+	            inside "$name" sh -c "dnf config-manager --set-enabled crb"
+	            inside "$name" sh -c "dnf config-manager --set-disabled epel-cisco-openh264" || true
+                fi
+	    fi
         else
             debug 1 "do not know how to configure proxy on $OS_NAME"
         fi
@@ -503,7 +518,7 @@ main() {
 
     local build_pkg="" build_srcpkg="" pkg_ext="" distflag=""
     case "$OS_NAME" in
-        centos|rocky*) distflag="--distro=redhat";;
+        centos|rocky*|fedora) distflag="--distro=redhat";;
         opensuse*) distflag="--distro=suse";;
     esac
 
@@ -512,7 +527,7 @@ main() {
             build_pkg="./packages/bddeb -d" 
             build_srcpkg="./packages/bddeb -S -d"
             pkg_ext=".deb";;
-        centos|opensuse*|rocky*)
+        centos|opensuse*|rocky*|fedora)
             build_pkg="./packages/brpm $distflag"
             build_srcpkg="./packages/brpm $distflag --srpm"
             pkg_ext=".rpm";;
