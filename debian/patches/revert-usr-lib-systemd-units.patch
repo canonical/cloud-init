@@ -1,0 +1,26 @@
+Description: Revert systemdunint dir changes on jammy due debhelper
+ On Jammy, debhelper 13.6ubuntu1 doesn't recognize cloud-init unit
+ files installed in /usr/lib instead of /lib. This results in
+ not providing debhelper scripts in cloud-init.postinst to enable
+ cloud-init services which leaves VMs without any cloud-configuration
+ for clean boots. Revert commit 05473492
+Author: Chad Smith <chad.smith@canonical.com>
+Bug: https://bugs.launchpad.net/ubuntu/+source/cloud-init/+bug/2113797
+Last-Update: 2025-08-03
+--- a/setup_utils.py
++++ b/setup_utils.py
+@@ -21,11 +21,11 @@ def pkg_config_read(library: str, var: s
+     fallbacks = {
+         "systemd": {
+             "systemdsystemconfdir": "/etc/systemd/system",
+-            "systemdsystemunitdir": "/usr/lib/systemd/system",
+-            "systemdsystemgeneratordir": "/usr/lib/systemd/system-generators",
++            "systemdsystemunitdir": "/lib/systemd/system",
++            "systemdsystemgeneratordir": "/lib/systemd/system-generators",
+         },
+         "udev": {
+-            "udevdir": "/usr/lib/udev",
++            "udevdir": "/lib/udev",
+         },
+     }
+     cmd = [pkg_config, f"--variable={var}", library]
