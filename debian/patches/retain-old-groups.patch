@@ -7,9 +7,9 @@ Last-Update: 2023-07-24
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/config/cloud.cfg.tmpl
 +++ b/config/cloud.cfg.tmpl
-@@ -18,7 +18,7 @@
-                   "photon": "wheel",
+@@ -20,7 +20,7 @@
                    "openmandriva": "wheel, users, systemd-journal",
+                   "raspberry-pi-os": "adm, dialout, cdrom, audio, users, sudo, video, games, plugdev, input, gpio, spi, i2c, netdev, render, lpadmin",
                    "suse": "cdrom, users",
 -                  "ubuntu": "adm, cdrom, dip, lxd, sudo",
 +                  "ubuntu": "adm, audio, cdrom, dialout, dip, floppy, lxd, netdev, plugdev, sudo, video",
