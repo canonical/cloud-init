@@ -1,3 +1,12 @@
+cloud-init (25.1.2-0ubuntu0~22.04.2) UNRELEASED; urgency=medium
+
+  * New bugfix release. (LP: #2113797)
+    - Revert relocation of systemd units and service files from /usr/lib
+      back to /lib so debhelper correctly enables cloud-init services in
+      postinst
+
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 09 Jun 2025 17:00:37 -0600
+
 cloud-init (25.1.2-0ubuntu0~22.04.1) jammy; urgency=medium
 
   * Upstream snapshot based on 25.1.2. (LP: #2104165).
