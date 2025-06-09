@@ -1,4 +1,4 @@
-cloud-init (25.1.2-0ubuntu0~22.04.2) UNRELEASED; urgency=medium
+cloud-init (25.1.2-0ubuntu0~22.04.2) jammy; urgency=medium
 
   * New bugfix release. (LP: #2113797)
     - Revert relocation of systemd units and service files from /usr/lib
