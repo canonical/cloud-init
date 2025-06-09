@@ -4,7 +4,7 @@ Last-Update: 2024-02-20
 
 --- a/config/cloud.cfg.tmpl
 +++ b/config/cloud.cfg.tmpl
-@@ -308,7 +308,7 @@ system_info:
+@@ -320,7 +320,7 @@ system_info:
  {% elif variant in ["ubuntu", "unknown"] %}
  {# SRU_BLOCKER: do not ship network renderers on Xenial, Bionic or Eoan #}
    network:
