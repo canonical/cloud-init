@@ -4,7 +4,7 @@
 # This script checks if cloud-init has hotplug hooked and if
 # cloud-init is ready; if so invoke cloud-init hotplug-hook
 
-fifo=/run/cloud-init/hook-hotplug-cmd
+fifo=/run/cloud-init/share/hook-hotplug-cmd
 log_file=/run/cloud-init/hook-hotplug.log
 
 should_run() {
