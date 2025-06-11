@@ -120,7 +120,7 @@ def test_reportable_errors(
         "documentation_url=https://aka.ms/linuxprovisioningerror",
     ]
 
-    assert error.as_encoded_report() == "|".join(data)
+    assert error.as_encoded_report(vm_id=fake_vm_id) == "|".join(data)
 
 
 def test_dhcp_lease(mocker):
@@ -244,7 +244,7 @@ def test_unhandled_exception():
     assert trace.endswith("Traceback (most recent call last):")
 
     quoted_value = quote_csv_value(f"exception={source_error!r}")
-    assert f"|{quoted_value}|" in error.as_encoded_report()
+    assert f"|{quoted_value}|" in error.as_encoded_report(vm_id="test-vm-id")
 
 
 @pytest.mark.parametrize(
@@ -263,3 +263,16 @@ def test_imds_invalid_metadata(value):
     assert error.supporting_data["key"] == key
     assert error.supporting_data["value"] == value
     assert error.supporting_data["type"] == type(value).__name__
+
+
+def test_vm_identification_exception():
+    exception = ValueError("foobar")
+    system_uuid = "1234-5678-90ab-cdef"
+
+    error = errors.ReportableErrorVmIdentification(
+        exception=exception, system_uuid=system_uuid
+    )
+
+    assert error.reason == "failure to identify Azure VM ID"
+    assert error.supporting_data["exception"] == repr(exception)
+    assert error.supporting_data["system_uuid"] == system_uuid
