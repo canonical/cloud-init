@@ -4,7 +4,7 @@ import re
 import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.releases import IS_UBUNTU
+from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU, PLUCKY
 
 USER_DATA = """\
 #cloud-config
@@ -39,7 +39,10 @@ class TestCleanCommand:
     def test_clean_rotated_logs(self, client: IntegrationInstance):
         """Clean with log params alters expected files without error"""
         assert client.execute("cloud-init status --wait --long").ok
-        assert client.execute("logrotate /etc/logrotate.d/cloud-init").ok
+        package = (
+            "cloud-init" if CURRENT_RELEASE < PLUCKY else "cloud-init-base"
+        )
+        assert client.execute(f"logrotate /etc/logrotate.d/{package}").ok
         log_paths = (
             "/var/log/cloud-init.log",
             "/var/log/cloud-init.log.1.gz",

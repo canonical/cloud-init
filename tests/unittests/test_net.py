@@ -3372,6 +3372,110 @@ class TestNetplanNetRendering:
                 """,
                 id="default_generation",
             ),
+            # Asserts a netconf v1 with subnet metrics for dhcp4 and dhcp6
+            # is properly rendered in Netplan v2
+            pytest.param(
+                """
+                version: 1
+                config:
+                  - type: physical
+                    name: eth0
+                    mac_address: '00:11:22:33:44:55'
+                    subnets:
+                      - type: dhcp4
+                        metric: 100
+                      - type: dhcp6
+                        metric: 200
+                """,
+                """
+                network:
+                  version: 2
+                  ethernets:
+                    eth0:
+                      dhcp4: true
+                      dhcp4-overrides:
+                        route-metric: 100
+                      dhcp6: true
+                      dhcp6-overrides:
+                        route-metric: 200
+                      match:
+                        macaddress: 00:11:22:33:44:55
+                      set-name: eth0
+                """,
+                id="subnet_metric_in_dhcp",
+            ),
+            # Asserts a netconf v1 with gateway and metric
+            # is properly rendered in Netplan v2
+            pytest.param(
+                """
+                version: 1
+                config:
+                  - type: physical
+                    name: eth0
+                    mac_address: '00:11:22:33:44:55'
+                    subnets:
+                      - type: static
+                        address: 192.168.1.10/24
+                        gateway: 192.168.1.1
+                        metric: 100
+                """,
+                """
+                network:
+                  version: 2
+                  ethernets:
+                    eth0:
+                      addresses:
+                      - 192.168.1.10/24
+                      match:
+                        macaddress: 00:11:22:33:44:55
+                      routes:
+                        - to: default
+                          via: 192.168.1.1
+                          metric: 100
+                      set-name: eth0
+                """,
+                id="gateway_with_metric",
+            ),
+            # Asserts a netconf v1 with static routes and metrics
+            # is properly rendered in Netplan v2
+            pytest.param(
+                """
+                version: 1
+                config:
+                  - type: physical
+                    name: eth0
+                    mac_address: '00:11:22:33:44:55'
+                    subnets:
+                      - type: static
+                        address: 192.168.1.10/24
+                        routes:
+                          - destination: 10.0.0.0/8
+                            gateway: 192.168.1.254
+                            metric: 100
+                          - destination: 172.16.0.0/12
+                            gateway: 192.168.1.254
+                            metric: 200
+                """,
+                """
+                network:
+                  version: 2
+                  ethernets:
+                    eth0:
+                      addresses:
+                      - 192.168.1.10/24
+                      match:
+                        macaddress: 00:11:22:33:44:55
+                      routes:
+                        - to: 10.0.0.0/8
+                          via: 192.168.1.254
+                          metric: 100
+                        - to: 172.16.0.0/12
+                          via: 192.168.1.254
+                          metric: 200
+                      set-name: eth0
+                """,
+                id="static_routes_with_metrics",
+            ),
             # Asserts a netconf v1 with a physical device and two gateways
             # does not produce deprecated keys, `gateway{46}`, in Netplan v2
             pytest.param(
@@ -5090,7 +5194,7 @@ class TestGetInterfaces:
     def test_gi_excludes_stolen_macs(self, mocks):
         ret = net.get_interfaces()
         mocks["interface_has_own_mac"].assert_has_calls(
-            [mock.call("enp0s1"), mock.call("bond1")], any_order=True
+            [mock.call("enp0s1")], any_order=True
         )
         expected = [
             ("enp0s2", "aa:aa:aa:aa:aa:02", "e1000", "0x5"),

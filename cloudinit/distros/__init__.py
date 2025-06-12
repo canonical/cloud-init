@@ -64,7 +64,7 @@ OSFAMILIES = {
     "alpine": ["alpine"],
     "aosc": ["aosc"],
     "arch": ["arch"],
-    "debian": ["debian", "ubuntu"],
+    "debian": ["debian", "ubuntu", "raspberry-pi-os"],
     "freebsd": ["freebsd", "dragonfly"],
     "gentoo": ["gentoo", "cos"],
     "netbsd": ["netbsd"],
@@ -1365,7 +1365,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 "disable": ["disable", service],
                 "restart": ["restart", service],
                 "reload": ["reload-or-restart", service],
-                "try-reload": ["reload-or-try-restart", service],
+                "try-reload": ["try-reload-or-restart", service],
                 "status": ["status", service],
             }
         else:
@@ -1768,6 +1768,11 @@ def _get_arch_package_mirror_info(package_mirrors, arch):
 
 def fetch(name: str) -> Type[Distro]:
     locs, looked_locs = importer.find_module(name, ["", __name__], ["Distro"])
+    if not locs:
+        # Some distros may have a `-` in the name but an `_` in the module
+        locs, _ = importer.find_module(
+            name.replace("-", "_"), ["", __name__], ["Distro"]
+        )
     if not locs:
         raise ImportError(
             "No distribution found for distro %s (searched %s)"

@@ -231,6 +231,8 @@ Type ``vlan`` requires the following keys:
 - ``name``: Set the name of the VLAN
 - ``vlan_link``: Specify the underlying link via its ``name``.
 - ``vlan_id``: Specify the VLAN numeric id.
+- ``mac_address``: Optional, specify VLAN subinterface MAC address. If not
+  set MAC address from physical interface is used.
 
 The following optional keys are supported:
 
@@ -308,6 +310,7 @@ Valid keys for ``subnets`` include the following:
 - ``dns_nameservers``: Specify a list of IPv4 DNS server IPs.
 - ``dns_search``: Specify a list of DNS search paths.
 - ``routes``: Specify a list of routes for a given interface.
+- ``metric``: Integer which sets the metric cost of routes within this subnet.
 
 Subnet types are one of the following:
 

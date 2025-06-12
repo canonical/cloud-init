@@ -1,3 +1,28 @@
+-25.1.2
+ - fix: ensure MAAS datasource retries on failure (#6167)
+
+25.1.1
+ - test: pytestify cc_chef tests, add migration test
+ - chef: migrate files in old config directories for backups and cache
+ - fix: correct the path for Chef's backups (#5994)
+ - fix(Azure): don't reraise FileNotFoundError during ephemeral setup (#6113)
+ - fix(azure): handle unexpected exceptions during obtain_lease() (#6092)
+   [Ksenija Stanojevic]
+ - Allow to set mac_address for VLAN subinterface (#6081)
+   [jumpojoy] (GH: 5364)
+ - fix: Remove erroneous EC2 reference from 503 warning (#6077)
+ - fix: NM reload and bring up individual network conns (#6073) [Ani Sinha]
+ - fix: stop warning on dual-stack request failure (#6044)
+ - fix: install_method: pip cannot find ansible-pull command path (#6021)
+   [Hasan Aliyev] (GH: 5720)
+ - fix: Fix DataSourceAliYun exception_cb signature (#6068) (GH: 6066)
+ - fix: Update OauthUrlHelper to use readurl exception_cb signature
+   (GH: 6065)
+ - test: add OauthUrlHelper tests
+ - test: Remove CiTestCase from test_url_helper.py
+ - test: pytestify test_url_helper.py
+ - fix: track more removed modules (#6043)
+
 25.1
  - ci: fix post-merge packaging CI (#6038)
  - feat(azure): Fix imds-based ssh_pwauth (#6002) [Ksenija Stanojevic]

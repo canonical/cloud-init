@@ -1694,6 +1694,19 @@ scbus-1 on xpt0 bus 0
             "user-supplied-value",
         )
 
+    def test_no_admin_username(self):
+        data = {"ovfcontent": construct_ovf_env(username=None)}
+
+        dsrc = self._get_ds(data)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+
+        assert dsrc.cfg == {
+            "PreprovisionedVMType": None,
+            "PreprovisionedVm": False,
+            "ProvisionGuestProxyAgent": False,
+        }
+
     def test_username_used(self):
         data = {"ovfcontent": construct_ovf_env(username="myuser")}
 
@@ -3423,6 +3436,27 @@ class TestEphemeralNetworking:
         assert mock_sleep.mock_calls == []
         assert azure_ds._wireserver_endpoint == "168.63.129.16"
         assert azure_ds._ephemeral_dhcp_ctx.iface == lease["interface"]
+
+    def test_retry_missing_driver(
+        self, azure_ds, caplog, mock_ephemeral_dhcp_v4, mock_sleep
+    ):
+        lease = {
+            "interface": "fakeEth0",
+        }
+        mock_ephemeral_dhcp_v4.return_value.obtain_lease.side_effect = [
+            FileNotFoundError,
+            FileNotFoundError,
+            lease,
+        ]
+
+        azure_ds._setup_ephemeral_networking()
+
+        assert mock_ephemeral_dhcp_v4.return_value.mock_calls == [
+            mock.call.obtain_lease(),
+            mock.call.obtain_lease(),
+            mock.call.obtain_lease(),
+        ]
+        assert "File not found during DHCP" in caplog.text
 
     def test_no_retry_missing_dhclient_error(
         self,

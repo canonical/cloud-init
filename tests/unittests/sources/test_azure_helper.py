@@ -1571,11 +1571,6 @@ class TestOvfEnvXml:
         "ovf,error",
         [
             (
-                construct_ovf_env(username=None),
-                "unexpected metadata parsing ovf-env.xml: "
-                "missing configuration for 'UserName'",
-            ),
-            (
                 construct_ovf_env(hostname=None),
                 "unexpected metadata parsing ovf-env.xml: "
                 "missing configuration for 'HostName'",

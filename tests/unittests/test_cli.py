@@ -278,6 +278,22 @@ class TestCLI:
         assert f"usage: cloud-init {subcommand}" in out.getvalue()
 
     @pytest.mark.parametrize(
+        "subcommand",
+        [
+            "clean",
+            "collect-logs",
+            "status",
+        ],
+    )
+    def test_subcommand_parser_shows_usage(self, subcommand, capsys):
+        """cloud-init `subcommand` shows usage on error."""
+        # Provide --invalid-arg to `subcommand` to trigger error.
+        exit_code = self._call_main(["cloud-init", subcommand, "--invalid"])
+        _out, err = capsys.readouterr()
+        assert f"usage: cloud-init {subcommand}" in err
+        assert 2 == exit_code
+
+    @pytest.mark.parametrize(
         "args,expected_subcommands",
         [
             ([], ["schema"]),
@@ -329,6 +345,32 @@ class TestCLI:
         assert "features" == parseargs.action[0]
         assert False is parseargs.debug
         assert False is parseargs.force
+
+    def test_all_stages_with_tty(self, mocker):
+        """Ensure all stages get called when using a tty."""
+        mocker.patch("cloudinit.cmd.main.os.isatty", return_value=True)
+        mocker.patch("cloudinit.cmd.main.sys.stdin.fileno")
+        mocker.patch("cloudinit.cmd.main.socket.sd_notify")
+        mocker.patch("cloudinit.cmd.main.socket.os.makedirs")
+        mocker.patch("cloudinit.cmd.main.socket.os.remove")
+        mocker.patch("cloudinit.cmd.main.socket.socket")
+        m_sub_main = mocker.patch(
+            "cloudinit.cmd.main.sub_main", return_value=0
+        )
+
+        self._call_main(["cloud-init", "--all-stages"])
+        assert m_sub_main.call_count == 4
+        assert m_sub_main.call_args_list[0][0][0].subcommand == "init"
+        assert m_sub_main.call_args_list[0][0][0].local is True
+
+        assert m_sub_main.call_args_list[1][0][0].subcommand == "init"
+        assert m_sub_main.call_args_list[1][0][0].local is False
+
+        assert m_sub_main.call_args_list[2][0][0].subcommand == "modules"
+        assert m_sub_main.call_args_list[2][0][0].mode == "config"
+
+        assert m_sub_main.call_args_list[3][0][0].subcommand == "modules"
+        assert m_sub_main.call_args_list[3][0][0].mode == "final"
 
 
 class TestSignalHandling:

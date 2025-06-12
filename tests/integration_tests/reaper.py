@@ -132,6 +132,7 @@ class _Reaper:
         # first destroy all newly reaped instances
         while not self.reaped_instances.empty():
             instance = self.reaped_instances.get_nowait()
+            instance_id = instance.instance.id
             success = self._destroy(instance)
             if not success:
                 LOG.warning(
@@ -141,7 +142,7 @@ class _Reaper:
                 # failure to delete, add to the ledger
                 new_undead_instances.append(instance)
             else:
-                LOG.info("Reaper: destroyed %s", instance.instance.id)
+                LOG.info("Reaper: destroyed %s", instance_id)
 
         # every instance has tried at least once and the reaper has been
         # instructed to tear down - so do it
@@ -175,9 +176,10 @@ class _Reaper:
             if self.exit_reaper.is_set() and self.reaped_instances.empty():
                 # don't retry instances if the exit_reaper Event is set
                 break
+            instance_id = instance.instance.id
             if self._destroy(instance):
                 self.undead_ledger.remove(instance)
-                LOG.info("Reaper: destroyed %s (undead)", instance.instance.id)
+                LOG.info("Reaper: destroyed %s (undead)", instance_id)
 
         self._update_undead_ledger(new_undead_instances)
         return False

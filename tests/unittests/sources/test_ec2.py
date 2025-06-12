@@ -918,14 +918,14 @@ class TestEc2:
     @pytest.mark.usefixtures("disable_netdev_info")
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv6Network")
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
-    @mock.patch("cloudinit.distros.net.find_fallback_nic")
+    @mock.patch("cloudinit.distros.net.find_candidate_nics")
     @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
     @mock.patch("cloudinit.sources.DataSourceEc2.util.is_FreeBSD")
     def test_ec2_local_performs_dhcp_on_non_bsd(
         self,
         m_is_bsd,
         m_dhcp,
-        m_fallback_nic,
+        m_candidate_nics,
         m_net4,
         m_net6,
         caplog,
@@ -940,7 +940,7 @@ class TestEc2:
         When the platform data is valid, return True.
         """
 
-        m_fallback_nic.return_value = "eth9"
+        m_candidate_nics.return_value = ["eth9"]
         m_is_bsd.return_value = False
         m_dhcp.return_value = {
             "interface": "eth9",
@@ -972,6 +972,73 @@ class TestEc2:
             router="192.168.2.1",
             static_routes=None,
         )
+
+    @responses.activate
+    @pytest.mark.usefixtures("disable_netdev_info")
+    @mock.patch("cloudinit.net.ephemeral.EphemeralIPv6Network")
+    @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
+    @mock.patch("cloudinit.distros.net.find_candidate_nics")
+    @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
+    @mock.patch("cloudinit.sources.DataSourceEc2.util.is_FreeBSD")
+    def test_ec2_local_get_metadata_via_iterating_nics(
+        self,
+        m_is_bsd,
+        m_dhcp,
+        m_candidate_nics,
+        m_net4,
+        m_net6,
+        caplog,
+        mocker,
+        tmpdir,
+        disable_netdev_info,
+    ):
+        """DataSourceEc2Local iterates over candidate NICs and fetches metadata
+        until successful"""
+
+        m_candidate_nics.return_value = ["eth0", "eth1", "eth2"]
+        m_is_bsd.return_value = False
+        m_dhcp.side_effect = (
+            {
+                "interface": "eth0",
+                "fixed-address": "10.0.2.6",
+                "routers": "10.0.2.1",
+                "subnet-mask": "255.255.255.0",
+                "broadcast-address": "10.0.2.255",
+            },
+            {
+                "interface": "eth1",
+                "fixed-address": "192.168.2.7",
+                "routers": "192.168.2.1",
+                "subnet-mask": "255.255.255.0",
+                "broadcast-address": "192.168.2.255",
+            },
+            {
+                "interface": "eth2",
+                "fixed-address": "10.0.2.8",
+                "routers": "10.0.2.1",
+                "subnet-mask": "255.255.255.0",
+                "broadcast-address": "10.0.2.255",
+            },
+        )
+        self.datasource = ec2.DataSourceEc2Local
+        ds = self._setup_ds(
+            platform_data=self.valid_platform_data,
+            sys_cfg={"datasource": {"Ec2": {"strict_id": False}}},
+            md={"md": DEFAULT_METADATA},
+            distro=MockDistro("", {}, {}),
+            mocker=mocker,
+            tmpdir=tmpdir,
+        )
+        crawled_metadata = ds.crawl_metadata()
+        mocker.patch.object(
+            ds, "crawl_metadata", side_effect=[{}, crawled_metadata]
+        )
+
+        ret = ds.get_data()
+        assert True is ret
+        assert 2 == m_dhcp.call_count
+        assert 2 == m_net4.call_count
+        assert "eth1" == ds.distro.fallback_interface
 
     @responses.activate
     def test_get_instance_tags(self, mocker, tmpdir):

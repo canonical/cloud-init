@@ -325,6 +325,76 @@ If either of the above values are true, then the datasource will sleep for a
 second, check the network status, and repeat until one or both addresses from
 the specified families are available.
 
+Update Event support
+--------------------
+
+The VMware datasource supports the following types of update events:
+
+* Network -- ``boot``, ``boot-new-instance``, and ``hotplug``
+
+This means the guest will reconfigure networking from the network
+configuration provided via guestinfo, IMC, etc. each time the guest
+boots or even when a new network interface is added.
+
+It is possible to override the data source's default set of configured
+update events by specifying which events to use via user data.
+For example, the following snippet from user data would disable the
+`hotplug` event:
+
+   .. code-block:: yaml
+
+       #cloud-config
+       updates:
+         network:
+           when: ["boot", "boot-new-instance"]
+
+Determining the supported and enabled update events
+---------------------------------------------------
+
+This datasource also advertises the scope and type of the supported
+and enabled events.
+
+The ``guestinfo`` key ``guestinfo.cloudinit.updates.supported``
+contains a list of the supported scopes and types that adheres to the
+format ``SCOPE=TYPE[;TYPE][,SCOPE=TYPE[;TYPE]]``, for example:
+
+* ``network=boot;hotplug``
+* ``network=boot-new-instance``
+
+The value is based on the events supported by the datasource, whether
+or not the event is enabled. To inspect which events are enabled, use
+``guestinfo.cloudinit.updates.enabled``.
+
+This allows a consumer to determine if different versions of the
+datasource have different supported event types, regardless of which
+events are enabled.
+
+Network drivers and the hotplug update event
+--------------------------------------------
+
+By default, this datasource only responds to hotplug events if the
+driver is one of the following:
+
+* ``e1000``
+* ``e1000e``
+* ``vlance``
+* ``vmxnet2``
+* ``vmxnet3``
+* ``vrdma``
+
+This prevents responding unintentionally to interfaces created by
+Docker or other programs. However, it is also possible to override this
+list by setting ``metadata.network-drivers`` to a list of drivers:
+
+   .. code-block:: yaml
+
+       network-drivers:
+       - vmxnet2
+       - vmxnet3
+
+The above snippet means only NICs that use either the ``vmxnet2`` or
+``vmxnet3`` drivers will respond to hotplug events.
+
 Walkthrough of GuestInfo keys transport
 =======================================
 
@@ -356,7 +426,7 @@ this datasource using the GuestInfo keys transport:
        - default
        - name: akutz
          primary_group: akutz
-         sudo: ALL=(ALL) NOPASSWD:ALL
+         sudo: "ALL=(ALL) NOPASSWD:ALL"
          groups: sudo, wheel
          lock_passwd: true
          ssh_authorized_keys:
@@ -485,4 +555,3 @@ the meta-data key ``network``. Valid encodings are ``base64`` and
 .. _VMware vSphere Product Documentation: https://docs.vmware.com/en/VMware-vSphere/8.0/vsphere-vm-administration/GUID-EB5F090E-723C-4470-B640-50B35D1EC016.html#GUID-9A5093A5-C54F-4502-941B-3F9C0F573A39__GUID-40C60643-A2EB-4B05-8927-B51AF7A6CC5E
 .. _property: https://vdc-repo.vmware.com/vmwb-repository/dcr-public/723e7f8b-4f21-448b-a830-5f22fd931b01/5a8257bd-7f41-4423-9a73-03307535bd42/doc/vim.vm.ConfigInfo.html
 .. _govc: https://github.com/vmware/govmomi/blob/master/govc
-

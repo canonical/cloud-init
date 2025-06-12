@@ -283,7 +283,7 @@ class EphemeralDHCPv4:
         distro,
         iface=None,
         connectivity_urls_data: Optional[List[Dict[str, Any]]] = None,
-        dhcp_log_func=None,
+        dhcp_log_func: Optional[Callable[[str, str, str], None]] = None,
     ):
         self.iface = iface
         self._ephipv4: Optional[EphemeralIPv4Network] = None

@@ -19,7 +19,7 @@ users:
   gecos: Ansible User
   shell: /bin/bash
   groups: users,admin,wheel,lxd
-  sudo: ALL=(ALL) NOPASSWD:ALL
+  sudo: "ALL=(ALL) NOPASSWD:ALL"
 
 # Initialize lxd using cloud-init.
 # --------------------------------
