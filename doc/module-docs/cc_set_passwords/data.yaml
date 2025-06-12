@@ -4,7 +4,15 @@ cc_set_passwords:
     ``chpasswd`` and ``password``.
     
     The ``ssh_pwauth`` config key determines whether or not sshd will be
-    configured to accept password authentication.
+    configured to accept password authentication. Disabling SSH password
+    authentication is limited to setting the specific sshd_config value
+    ``PasswordAuthentication no`` in sshd_config.
+
+    .. note::
+       If your image uses PAM for authentication, providing
+       ``PasswordAuthentication no`` may not be sufficient if your
+       distribution default is to provide ``KbdInteractiveAuthentication yes``
+       in sshd_config. See Example 3 for suggested user-data in this case.
     
     The ``chpasswd`` config key accepts a dictionary containing either (or
     both) of ``users`` and ``expire``.
@@ -36,5 +44,10 @@ cc_set_passwords:
       - Set the password for user3 to be a randomly generated password, which
         will be written to the system console.
     file: cc_set_passwords/example2.yaml
+  - comment: |
+      Example 3: Disable SSH password authentication and PAM interactive
+      password authentication by manually supplementing cloud-init's default
+      sshd_config.
+    file: cc_set_passwords/example3.yaml
   name: Set Passwords
   title: Set user passwords and enable/disable SSH password auth
