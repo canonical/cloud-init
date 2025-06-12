@@ -332,24 +332,28 @@ class DataSourceAzure(sources.DataSource):
         self._iso_dev = None
         self._network_config = None
         self._ephemeral_dhcp_ctx: Optional[EphemeralDHCPv4] = None
-        self._route_configured_for_imds = False
-        self._route_configured_for_wireserver = False
-        self._wireserver_endpoint = DEFAULT_WIRESERVER_ENDPOINT
         self._reported_ready_marker_file = os.path.join(
             paths.cloud_dir, "data", "reported_ready"
         )
+        self._route_configured_for_imds = False
+        self._route_configured_for_wireserver = False
+        self._system_uuid = None
+        self._vm_id = None
+        self._wireserver_endpoint = DEFAULT_WIRESERVER_ENDPOINT
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         super()._unpickle(ci_pkl_version)
 
         self._ephemeral_dhcp_ctx = None
         self._iso_dev = None
-        self._route_configured_for_imds = False
-        self._route_configured_for_wireserver = False
-        self._wireserver_endpoint = DEFAULT_WIRESERVER_ENDPOINT
         self._reported_ready_marker_file = os.path.join(
             self.paths.cloud_dir, "data", "reported_ready"
         )
+        self._route_configured_for_imds = False
+        self._route_configured_for_wireserver = False
+        self._system_uuid = None
+        self._vm_id = None
+        self._wireserver_endpoint = DEFAULT_WIRESERVER_ENDPOINT
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -620,6 +624,13 @@ class DataSourceAzure(sources.DataSource):
         @raise: InvalidMetaDataException when the expected metadata service is
             unavailable, broken or disabled.
         """
+        self._query_vm_id()
+        report_diagnostic_event(
+            "Azure VM ID: %s System UUID: %s"
+            % (self._vm_id, self._system_uuid),
+            logger_func=LOG.info,
+        )
+
         crawled_data = {}
         # azure removes/ejects the cdrom containing the ovf-env.xml
         # file on reboot.  So, in order to successfully reboot we
@@ -1037,22 +1048,46 @@ class DataSourceAzure(sources.DataSource):
         # quickly (local check only) if self.instance_id is still valid
         return sources.instance_id_matches_system_uuid(self.get_instance_id())
 
+    def _query_vm_id(self):
+        """Query the system UUID and VM IDs, if needed.
+
+        They are initialized to None, check only if they are unset.
+
+        Raise as reportable error on failure.
+        """
+        if not self._system_uuid:
+            try:
+                self._system_uuid = identity.query_system_uuid()
+            except RuntimeError as error:
+                raise errors.ReportableErrorVmIdentification(exception=error)
+
+        if not self._vm_id:
+            try:
+                self._vm_id = identity.convert_system_uuid_to_vm_id(
+                    self._system_uuid
+                )
+            except ValueError as error:
+                raise errors.ReportableErrorVmIdentification(
+                    exception=error, system_uuid=self._system_uuid
+                )
+
     def _iid(self, previous=None):
+        self._query_vm_id()
+
         prev_iid_path = os.path.join(
             self.paths.get_cpath("data"), "instance-id"
         )
-        system_uuid = identity.query_system_uuid()
         if os.path.exists(prev_iid_path):
             previous = util.load_text_file(prev_iid_path).strip()
-            swapped_id = identity.byte_swap_system_uuid(system_uuid)
+            swapped_id = identity.byte_swap_system_uuid(self._system_uuid)
 
             # Older kernels than 4.15 will have UPPERCASE product_uuid.
             # We don't want Azure to react to an UPPER/lower difference as
             # a new instance id as it rewrites SSH host keys.
             # LP: #1835584
-            if previous.lower() in [system_uuid, swapped_id]:
+            if previous.lower() in [self._system_uuid, swapped_id]:
                 return previous
-        return system_uuid
+        return self._system_uuid
 
     @azure_ds_telemetry_reporter
     def _wait_for_nic_detach(self, nl_sock):
@@ -1353,12 +1388,13 @@ class DataSourceAzure(sources.DataSource):
         @param host_only: Only report to host (error may be recoverable).
         @return: The success status of sending the failure signal.
         """
+        encoded_report = error.as_encoded_report(vm_id=self._vm_id)
         report_diagnostic_event(
-            f"Azure datasource failure occurred: {error.as_encoded_report()}",
+            f"Azure datasource failure occurred: {encoded_report}",
             logger_func=LOG.error,
         )
         report_dmesg_to_kvp()
-        reported = kvp.report_failure_to_host(error)
+        reported = kvp.report_via_kvp(encoded_report)
         if host_only:
             return reported
 
@@ -1370,7 +1406,8 @@ class DataSourceAzure(sources.DataSource):
                     logger_func=LOG.debug,
                 )
                 report_failure_to_fabric(
-                    endpoint=self._wireserver_endpoint, error=error
+                    endpoint=self._wireserver_endpoint,
+                    encoded_report=encoded_report,
                 )
                 self._negotiated = True
                 return True
@@ -1393,7 +1430,8 @@ class DataSourceAzure(sources.DataSource):
                 # Reporting failure will fail, but it will emit telemetry.
                 pass
             report_failure_to_fabric(
-                endpoint=self._wireserver_endpoint, error=error
+                endpoint=self._wireserver_endpoint,
+                encoded_report=encoded_report,
             )
             self._negotiated = True
             return True
@@ -1418,7 +1456,7 @@ class DataSourceAzure(sources.DataSource):
         :returns: List of SSH keys, if requested.
         """
         report_dmesg_to_kvp()
-        kvp.report_success_to_host()
+        kvp.report_success_to_host(vm_id=self._vm_id)
 
         try:
             data = get_metadata_from_fabric(

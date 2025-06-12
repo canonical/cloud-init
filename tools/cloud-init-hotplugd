@@ -9,7 +9,7 @@
 # upon a network device event). Anything received via the pipe is then
 # passed on via the "cloud-init devel hotplug-hook handle" command.
 
-PIPE="/run/cloud-init/hook-hotplug-cmd"
+PIPE="/run/cloud-init/share/hook-hotplug-cmd"
 
 mkfifo -m700 $PIPE
 
