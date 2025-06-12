@@ -1,4 +1,4 @@
-cloud-init (25.2~4geb9c1239-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (25.2~4geb9c1239-0ubuntu1) questing; urgency=medium
 
   * d/cloud-init-base.postinst: move existing hotplug-cmd fifo to root-only
     share dir (CVE-2024-11584)
@@ -8,7 +8,7 @@ cloud-init (25.2~4geb9c1239-0ubuntu1) UNRELEASED; urgency=medium
     - security: make ds-identify behavior strict datasource discovery on
       non-x86 platforms without DMI data (LP: #2069607) (CVE-2024-11584)
 
- -- Chad Smith <chad.smith@canonical.com>  Thu, 12 Jun 2025 13:21:35 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 12 Jun 2025 13:24:29 -0600
 
 cloud-init (25.2~3gf731cdf3-0ubuntu1) questing; urgency=medium
 
