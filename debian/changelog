@@ -1,3 +1,10 @@
+cloud-init (25.2~4geb9c1239-0ubuntu2) UNRELEASED; urgency=medium
+
+  * d/changelog: correct switched CVE references in prior release changelog
+    entry for 25.2~4geb9c1239-0ubuntu1 
+
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 12 Jun 2025 15:08:06 -0600
+
 cloud-init (25.2~4geb9c1239-0ubuntu1) questing; urgency=medium
 
   * d/cloud-init-base.postinst: move existing hotplug-cmd fifo to root-only
