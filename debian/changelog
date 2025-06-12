@@ -10,12 +10,11 @@ cloud-init (25.1-0ubuntu1~24.10.1) UNRELEASED; urgency=medium
   * refresh patches:
     - d/p/deprecation-version-boundary.patch
     - d/p/grub-dpkg-support.patch
+    - d/p/no-remove-networkd-online.patch
   * sort hunks within all patches (--sort on quilt refresh)
-  * Upstream snapshot based on 25.1.
-    List of changes from upstream can be found at
-    https://raw.githubusercontent.com/canonical/cloud-init/25.1/ChangeLog
+  * Upstream snapshot based on f731cdf3.
 
- -- Brett Holman <brett.holman@canonical.com>  Mon, 24 Feb 2025 15:05:49 -0700
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 12 Jun 2025 07:14:43 -0600
 
 cloud-init (24.4.1-0ubuntu0~24.10.2) oracular; urgency=medium
 
