@@ -28,7 +28,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
          return
 --- a/cloudinit/config/schemas/schema-cloud-config-v1.json
 +++ b/cloudinit/config/schemas/schema-cloud-config-v1.json
-@@ -1616,8 +1616,8 @@
+@@ -1655,8 +1655,8 @@
            "properties": {
              "enabled": {
                "type": "boolean",
