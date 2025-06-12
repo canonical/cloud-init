@@ -4,6 +4,7 @@ import copy
 import io
 import logging
 import os
+import re
 import textwrap
 from tempfile import SpooledTemporaryFile
 from typing import Callable, List, Optional
@@ -265,6 +266,7 @@ def netplan_api_write_yaml_file(net_config_content: str) -> bool:
             CLOUDINIT_NETPLAN_FILE,
         )
         return False
+    net_config_content = _maybe_strip_invalid_mtu(net_config_content)
     try:
         with SpooledTemporaryFile(mode="w") as f:
             f.write(net_config_content)
@@ -292,6 +294,29 @@ def netplan_api_write_yaml_file(net_config_content: str) -> bool:
         return False
     LOG.debug("Rendered netplan config using netplan python API")
     return True
+
+
+def _maybe_strip_invalid_mtu(net_config_content: str):
+    """Strip invalid MTU from the netplan config.
+
+    This is a fix for https://github.com/canonical/cloud-init/issues/6239
+    A 0 MTU value is NOT valid, but cloud-init accepted it prior to 24.2,
+    so rejecting it after c465de8 is a breaking change for existing releases.
+    """
+    if features.STRIP_INVALID_MTU:
+        # Using regex here is admittedly not great, but this is post-processing
+        # of the netplan config, and we'd have to be dealing with some very
+        # gnarly yaml to get a multiline mtu: 0 entry. The alternative is
+        # another round trip of yaml parsing, which is more expensive. Unless
+        # there's a demonstrated need for proper yaml parsing, the added
+        # complexity does not seem worth it.
+        net_config_content = re.sub(
+            r"^\s*mtu:\s*0\s*\n",
+            "",
+            net_config_content,
+            flags=re.MULTILINE,
+        )
+    return net_config_content
 
 
 def has_netplan_config_changed(cfg_file: str, content: str) -> bool:
