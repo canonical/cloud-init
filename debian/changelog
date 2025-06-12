@@ -4,9 +4,9 @@ cloud-init (25.2~4geb9c1239-0ubuntu1) questing; urgency=medium
     share dir (CVE-2024-11584)
   * Upstream snapshot based on upstream/main at eb9c1239.
     - Bugs fixed in this snapshot: (LP: #2069607)
-    - security: make hotplug socket only writable by root (CVE-2024-6174)
+    - security: make hotplug socket only writable by root (CVE-2024-11584)
     - security: make ds-identify behavior strict datasource discovery on
-      non-x86 platforms without DMI data (LP: #2069607) (CVE-2024-11584)
+      non-x86 platforms without DMI data (LP: #2069607) (CVE-2024-6174)
 
  -- Chad Smith <chad.smith@canonical.com>  Thu, 12 Jun 2025 13:24:29 -0600
 
