@@ -11,6 +11,54 @@ releases.
     many operating system vendors patch out breaking changes in
     cloud-init to ensure consistent behavior on their platform.
 
+25.1.3
+======
+
+Strict datasource identity before network
+-----------------------------------------
+Affects detection of Ec2, OpenStack or AltCloud datasources for non-x86
+architectures where DMI may not be accessible.
+
+Datasource detection provided by ds-identify in cloud-init now requires strict
+identification based on DMI platform information, kernel command line or
+`datasource_list:` system configuration in /etc/cloud/cloud.cfg.d.
+
+Prior to this change, ds-identify would allow non-x86 architectures without
+strict identifying platform information to run in a discovery mode which would
+attempt to reach out to well known static link-local IPs to attempt to
+retrieve configuration once system networking is up.
+
+To mitigate the potential of a bad-actor in a local network responding
+to such provisioning requests from cloud-init clients, ds-identify will no
+longer allow this late discovery mode for platforms unable to expose clear
+identifying characteristics of a known cloud-init datasource.
+
+The most likely affected cloud platforms are AltCloud, Ec2 and OpenStack for
+non-x86 architectures where DMI data is not exposed by the kernel.
+
+If your non-x86 architecture or images no longer detect the proper datasource,
+any of the following steps can ensure proper detection of cloud-init config:
+
+- Provide kernel commandline containing ``ds=<lowercase_datasource_name>``
+  which forces ds-identify to discover a specific datasource.
+- Image creators: provide a config file part such as
+  :file:`/etc/cloud/cloud.cfg.d/*.cfg` containing the
+  case-sensitive ``datasource_list: [ <datasource_name> ]`` to force cloud-init
+  to use a specific datasource without performing discovery.
+
+For example, to force OpenStack discovery in cloud-init any of the following
+approaches work:
+
+- OpenStack: `attach a ConfigDrive`_ as an alternative config source
+- Kernel command line containing ``ds=openstack``
+- Custom images provide :file:`/etc/cloud/cloud.cfg.d/91-set-datasource.cfg`
+  containing:
+
+.. code-block:: yaml
+
+   datasource_list: [ OpenStack ]
+
+
 25.1
 ====
 
@@ -162,5 +210,6 @@ Workarounds include updating the kernel command line and optionally configuring
 a ``datasource_list`` in ``/etc/cloud/cloud.cfg.d/*.cfg``.
 
 
+.. _attach a ConfigDrive: https://docs.openstack.org/nova/2024.1/admin/config-drive.html
 .. _this patch: https://github.com/canonical/cloud-init/blob/ubuntu/noble/debian/patches/no-single-process.patch
 .. _Python3 equivalent:  https://github.com/canonical/cloud-init/pull/5489#issuecomment-2408210561
