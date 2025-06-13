@@ -1,3 +1,18 @@
+cloud-init (25.1.3-0ubuntu0~24.10.1) UNRELEASED; urgency=medium
+
+  * d/cloud-init-base.postinst: move existing hotplug-cmd fifo to root-only
+    share dir (CVE-2024-11584)
+  * Upstream security bugfix release based on 25.1.3.
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/25.1.3/ChangeLog
+    - Bugs fixed in this snapshot:
+    - security: make hotplug socket only writable by root (LP: #2114229)
+      (CVE-2024-11584)
+    - security: make ds-identify behavior strict datasource discovery on
+      non-x86 platforms without DMI data (LP: #2069607) (CVE-2024-6174)
+
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 12 Jun 2025 20:19:22 -0600
+
 cloud-init (25.1.2-0ubuntu0~24.10.1) oracular; urgency=medium
 
   * Upstream snapshot based on 25.1.2. (LP: #2104165).
