@@ -208,9 +208,9 @@ system_info:
 """
 
 POLICY_FOUND_ONLY = "search,found=all,maybe=none,notfound=disabled"
-POLICY_FOUND_OR_MAYBE = "search,found=all,maybe=all,notfound=disabled"
-DI_DEFAULT_POLICY = "search,found=all,maybe=all,notfound=disabled"
-DI_DEFAULT_POLICY_NO_DMI = "search,found=all,maybe=all,notfound=enabled"
+POLICY_FOUND_OR_MAYBE = "search,found=all,maybe=none,notfound=disabled"
+DI_DEFAULT_POLICY = "search,found=all,maybe=none,notfound=disabled"
+DI_DEFAULT_POLICY_NO_DMI = "search,found=all,maybe=none,notfound=enabled"
 DI_EC2_STRICT_ID_DEFAULT = "true"
 OVF_MATCH_STRING = "http://schemas.dmtf.org/ovf/environment/1"
 
@@ -947,7 +947,7 @@ class TestDsIdentify(DsIdentifyBase):
         self._test_ds_found("OpenStack-AssetTag-Compute")
 
     def test_openstack_on_non_intel_is_maybe(self):
-        """On non-Intel, openstack without dmi info is maybe.
+        """On non-Intel, openstack without dmi info is none.
 
         nova does not identify itself on platforms other than intel.
         https://bugs.launchpad.net/cloud-init/+bugs?field.tag=dsid-nova"""
@@ -967,10 +967,9 @@ class TestDsIdentify(DsIdentifyBase):
 
         # updating the uname to ppc64 though should get a maybe.
         data.update({"mocks": [MOCK_VIRT_IS_KVM, MOCK_UNAME_IS_PPC64]})
-        (_, _, err, _, _) = self._check_via_dict(
-            data, RC_FOUND, dslist=["OpenStack", "None"]
-        )
+        (_, _, err, _, _) = self._check_via_dict(data, RC_NOT_FOUND)
         self.assertIn("check for 'OpenStack' returned maybe", err)
+        self.assertIn("No ds found", err)
 
     def test_default_ovf_is_found(self):
         """OVF is identified found when ovf/ovf-env.xml seed file exists."""

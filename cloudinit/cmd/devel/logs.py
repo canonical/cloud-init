@@ -295,7 +295,7 @@ def _get_run_dir(run_dir: pathlib.Path) -> Iterator[pathlib.Path]:
     Note that this only globs the top-level directory as there are currently
     no relevant files within subdirectories.
     """
-    return (p for p in run_dir.glob("*") if p.name != "hook-hotplug-cmd")
+    return run_dir.glob("*")
 
 
 def _collect_logs_into_tmp_dir(
