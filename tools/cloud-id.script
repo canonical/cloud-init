@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+
+# Python wrapper for cloud-id command
+from cloudinit.cmd import cloud_id
+
+cloud_id.main()
