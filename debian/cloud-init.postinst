@@ -367,6 +367,25 @@ rename_hook_hotplug_udev_rule() {
     fi
 }
 
+move_socket_fifo_to_share_dir() {
+   # This change arrived in cloud-init 25.1.3
+   local old_fifo_dir="/run/cloud-init/"
+   local new_fifo_dir="/run/cloud-init/share/"
+
+    # Move the socket fifo to /run/cloud-init/share
+    # The old location was /run/cloud-init/hook-hotplug-cmd
+    if [ -p "${old_fifo_dir}hook-hotplug-cmd" ]; then
+        # Ensure the share directory exists
+        mkdir -p "${new_fifo_dir}"
+        chmod 700 "${new_fifo_dir}"
+
+        mv -f "${old_fifo_dir}hook-hotplug-cmd" "${new_fifo_dir}"
+        chmod 600 "${new_fifo_dir}hook-hotplug-cmd"
+
+        invoke-rc.d cloud-init-hotplugd.socket restart || true
+    fi
+}
+
 if [ "$1" = "configure" ]; then
    if db_get cloud-init/datasources; then
       values="$RET"
@@ -402,6 +421,8 @@ EOF
    change_cloud_init_output_log_permissions "$2"
 
    rename_hook_hotplug_udev_rule
+
+   move_socket_fifo_to_share_dir
 fi
 
 #DEBHELPER#
