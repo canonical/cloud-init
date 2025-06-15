@@ -182,10 +182,11 @@ class TestWSLHelperFunctions:
         assert files == wsl.candidate_user_data_file_names(INSTANCE_NAME)
 
     @pytest.mark.parametrize(
-        "md_content,raises,errors,warnings,md_expected",
+        "md_content,is_from_pro,raises,errors,warnings,md_expected",
         (
             pytest.param(
                 None,
+                False,
                 does_not_raise(),
                 [],
                 [],
@@ -193,7 +194,17 @@ class TestWSLHelperFunctions:
                 id="default_md_on_no_md_file",
             ),
             pytest.param(
+                '{"instance-id":"iid-load-from-pro"}',
+                True,
+                does_not_raise(),
+                [],
+                [],
+                {"instance-id": "iid-load-from-pro"},
+                id="metadata_from_pro",
+            ),
+            pytest.param(
                 "{}",
+                False,
                 pytest.raises(
                     ValueError,
                     match=(
@@ -207,6 +218,7 @@ class TestWSLHelperFunctions:
             ),
             pytest.param(
                 "{",
+                True,
                 pytest.raises(
                     ValueError,
                     match=(
@@ -221,15 +233,29 @@ class TestWSLHelperFunctions:
         ),
     )
     def test_load_instance_metadata(
-        self, md_content, raises, errors, warnings, md_expected, tmpdir, caplog
+        self,
+        md_content,
+        is_from_pro,
+        raises,
+        errors,
+        warnings,
+        md_expected,
+        tmpdir,
+        caplog,
     ):
         """meta-data file is optional. Errors are raised on invalid content."""
+        path = ".cloud-init"
+        if is_from_pro:
+            path = ".ubuntupro/.cloud-init"
+
         if md_content is not None:
-            tmpdir.join("myinstance.meta-data").write(md_content)
+            dir = tmpdir.join(path)
+            os.makedirs(dir)
+            dir.join("myinstance.meta-data").write(md_content)
         with caplog.at_level(logging.WARNING):
             with raises:
                 assert md_expected == wsl.load_instance_metadata(
-                    PurePath(tmpdir), "myinstance"
+                    tmpdir, "myinstance"
                 )
             warning_logs = "\n".join(
                 [
@@ -317,11 +343,11 @@ class TestMergeAgentLandscapeData:
         if agent_yaml is not None:
             agent_path = tmpdir.join("agent.yaml")
             agent_path.write(agent_yaml)
-            agent_data = wsl.ConfigData(agent_path)
+            agent_data = wsl.ConfigData(agent_path, "")
         if landscape_user_data is not None:
             landscape_ud_path = tmpdir.join("instance_name.user_data")
             landscape_ud_path.write(landscape_user_data)
-            user_data = wsl.ConfigData(landscape_ud_path)
+            user_data = wsl.ConfigData(landscape_ud_path, "")
         assert expected == wsl.merge_agent_landscape_data(
             agent_data, user_data
         )
@@ -575,6 +601,11 @@ landscape:
 ubuntu_pro:
     token: testtoken"""
         )
+        SAMPLE_ID = "Nice-ID"
+        agent_metadata_path = ubuntu_pro_tmp.join(f"{INSTANCE_NAME}.meta-data")
+        agent_metadata_path.write(
+            f'{{"instance-id":"{SAMPLE_ID}"}}',
+        )
 
         # Run the datasource
         ds = wsl.DataSourceWSL(
@@ -596,6 +627,8 @@ ubuntu_pro:
         assert "ubuntu_pro" in userdata
         assert "landscape" in userdata
         assert "agenttest" in userdata
+        assert "installation_request_id" in userdata
+        assert SAMPLE_ID in userdata
 
     @mock.patch("cloudinit.util.get_linux_distro")
     def test_landscape_vs_local_user(self, m_get_linux_dist, tmpdir, paths):
