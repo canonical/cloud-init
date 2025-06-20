@@ -440,14 +440,22 @@ class DataSourceWSL(sources.DataSource):
             return False
 
         iid = self.metadata["instance-id"]
-        # # Load Ubuntu Pro configs only on Ubuntu distros
+        # Load Ubuntu Pro configs only on Ubuntu distros
         if self.distro.name == "ubuntu":
+            _, version_id, _ = util.get_linux_distro()
+            if version_id < "25.04":
+                # landscape-config doesn't support the installation_request_id
+                # before Ubuntu 25.04 as of Jun-2025, so we cannot use it yet.
+                # That's expected to change soon, as the Landscape
+                # team is SRU'ing that and other features to older releases.
+                # TODO: remove this check when the SRUs are done.
+                iid = ""
             agent_data, user_data = load_ubuntu_pro_data(user_home, iid)
 
         # Load regular user configs
         try:
             if user_data is None and seed_dir is not None:
-                user_data = ConfigData(self.find_user_data_file(seed_dir), iid)
+                user_data = ConfigData(self.find_user_data_file(seed_dir), "")
 
         except (ValueError, IOError) as err:
             log = LOG.info if agent_data else LOG.error

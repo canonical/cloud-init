@@ -577,9 +577,9 @@ write_files:
     def test_interaction_with_pro(self, m_get_linux_dist, tmpdir, paths):
         """Validates the interaction of user-data and Pro For WSL agent data"""
 
-        m_get_linux_dist.return_value = SAMPLE_LINUX_DISTRO
+        m_get_linux_dist.return_value = ("ubuntu", "25.10", "plucky")
 
-        user_file = tmpdir.join(".cloud-init", "ubuntu-24.04.user-data")
+        user_file = tmpdir.join(".cloud-init", "ubuntu-25.10.user-data")
         user_file.dirpath().mkdir()
         user_file.write("#cloud-config\nwrite_files:\n- path: /etc/wsl.conf")
 
