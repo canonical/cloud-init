@@ -3,7 +3,7 @@
 # set up mount points
 # 'mounts' contains a list of lists
 #  the inner list are entries for an /etc/fstab line
-#  ie : [ fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno ]
+#  ie : [ fs_spec, fs_file, fs_vfstype, fs_mntops, fs_freq, fs_passno ]
 #
 # default:
 # mounts:

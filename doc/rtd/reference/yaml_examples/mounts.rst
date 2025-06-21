@@ -44,7 +44,7 @@ contains entries for an ``/etc/fstab`` line, e.g.:
 
 .. code-block:: yaml
 
-   [ fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno ]
+   [ fs_spec, fs_file, fs_vfstype, fs_mntops, fs_freq, fs_passno ]
 
 With defaults:
 

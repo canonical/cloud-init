@@ -2068,7 +2068,7 @@
             "minItems": 1,
             "maxItems": 6
           },
-          "description": "List of lists. Each inner list entry is a list of ``/etc/fstab`` mount declarations of the format: [ fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno ]. A mount declaration with less than 6 items will get remaining values from **mount_default_fields**. A mount declaration with only `fs_spec` and no `fs_file` mountpoint will be skipped.",
+          "description": "List of lists. Each inner list entry is a list of ``/etc/fstab`` mount declarations of the format: [ fs_spec, fs_file, fs_vfstype, fs_mntops, fs_freq, fs_passno ]. A mount declaration with less than 6 items will get remaining values from **mount_default_fields**. A mount declaration with only `fs_spec` and no `fs_file` mountpoint will be skipped.",
           "minItems": 1
         },
         "mount_default_fields": {
