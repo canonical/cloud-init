@@ -1,3 +1,12 @@
+cloud-init (25.2~5g009c4cfd-0ubuntu1) UNRELEASED; urgency=medium
+
+  * Upstream snapshot based on upstream/main at 009c4cfd.
+    - Bugs fixed in this snapshot:
+      + fix: disable cloud-init when non-x86 environments have no DMI-data
+        and no strict datasources detected (LP: #2069607) (CVE-2024-6174)
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 24 Jun 2025 14:55:26 -0600
+
 cloud-init (25.2~4geb9c1239-0ubuntu2) questing; urgency=medium
 
   * d/changelog: correct switched CVE references in prior release changelog
