@@ -9,7 +9,7 @@ Bug: https://bugs.launchpad.net/ubuntu/+source/cloud-init/+bug/2113797
 Last-Update: 2025-06-09
 --- a/setup_utils.py
 +++ b/setup_utils.py
-@@ -16,11 +16,11 @@
+@@ -16,11 +16,11 @@ def pkg_config_read(library: str, var: s
      fallbacks = {
          "systemd": {
              "systemdsystemconfdir": "/etc/systemd/system",
