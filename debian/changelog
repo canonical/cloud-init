@@ -1,4 +1,4 @@
-cloud-init (25.1.4-0ubuntu0~22.04.1) UNRELEASED; urgency=medium
+cloud-init (25.1.4-0ubuntu0~22.04.1) jammy-security; urgency=medium
 
   * refresh patches:
     - d/p/revert-usr-lib-systemd-units.patch
@@ -9,7 +9,7 @@ cloud-init (25.1.4-0ubuntu0~22.04.1) UNRELEASED; urgency=medium
       + fix: disable cloud-init when non-x86 environments have no DMI-data
         and no strict datasources detected (LP: #2069607) (CVE-2024-6174)
 
- -- Chad Smith <chad.smith@canonical.com>  Tue, 24 Jun 2025 15:15:01 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 24 Jun 2025 15:15:25 -0600
 
 cloud-init (25.1.3-0ubuntu0~22.04.1) jammy; urgency=medium
 
