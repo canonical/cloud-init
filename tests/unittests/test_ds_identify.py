@@ -209,7 +209,7 @@ system_info:
 POLICY_FOUND_ONLY = "search,found=all,maybe=none,notfound=disabled"
 POLICY_FOUND_OR_MAYBE = "search,found=all,maybe=none,notfound=disabled"
 DI_DEFAULT_POLICY = "search,found=all,maybe=none,notfound=disabled"
-DI_DEFAULT_POLICY_NO_DMI = "search,found=all,maybe=none,notfound=enabled"
+DI_DEFAULT_POLICY_NO_DMI = "search,found=all,maybe=none,notfound=disabled"
 DI_EC2_STRICT_ID_DEFAULT = "true"
 OVF_MATCH_STRING = "http://schemas.dmtf.org/ovf/environment/1"
 
@@ -923,7 +923,7 @@ class TestDsIdentify(DsIdentifyBase):
         data.update(
             {
                 "policy_dmi": POLICY_FOUND_OR_MAYBE,
-                "policy_no_dmi": POLICY_FOUND_OR_MAYBE,
+                "policy_no_dmi": DI_DEFAULT_POLICY_NO_DMI,
             }
         )
 
@@ -936,6 +936,8 @@ class TestDsIdentify(DsIdentifyBase):
         (_, _, err, _, _) = self._check_via_dict(data, RC_NOT_FOUND)
         self.assertIn("check for 'OpenStack' returned maybe", err)
         self.assertIn("No ds found", err)
+        self.assertIn("Disabled cloud-init", err)
+        self.assertIn("returning 1", err)
 
     def test_default_ovf_is_found(self):
         """OVF is identified found when ovf/ovf-env.xml seed file exists."""
