@@ -1,9 +1,9 @@
-cloud-init (25.2~4geb9c1239-0ubuntu2) UNRELEASED; urgency=medium
+cloud-init (25.2~4geb9c1239-0ubuntu2) questing; urgency=medium
 
   * d/changelog: correct switched CVE references in prior release changelog
     entry for 25.2~4geb9c1239-0ubuntu1 
 
- -- Chad Smith <chad.smith@canonical.com>  Thu, 12 Jun 2025 15:08:06 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 24 Jun 2025 10:11:34 -0600
 
 cloud-init (25.2~4geb9c1239-0ubuntu1) questing; urgency=medium
 
