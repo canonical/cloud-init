@@ -1,4 +1,4 @@
-cloud-init (24.4.1-0ubuntu0~20.04.3+esm1) UNRELEASED; urgency=medium
+cloud-init (24.4.1-0ubuntu0~20.04.3+esm1) focal-security; urgency=medium
 
   * d/cloud-init.postinst: move existing hotplug-cmd fifo to root-only
     share dir (CVE-2024-11584)
@@ -9,7 +9,7 @@ cloud-init (24.4.1-0ubuntu0~20.04.3+esm1) UNRELEASED; urgency=medium
   * cherry-pick 8b45006c: fix: Make hotplug socket writable only by root
     (LP: #2114229) (CVE-2024-11584)
 
- -- Chad Smith <chad.smith@canonical.com>  Wed, 25 Jun 2025 08:59:25 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 25 Jun 2025 09:09:01 -0600
 
 cloud-init (24.4.1-0ubuntu0~20.04.3) focal; urgency=medium
 
