@@ -1,3 +1,10 @@
+cloud-init (24.4.1-0ubuntu0~20.04.4) UNRELEASED; urgency=medium
+
+  * cherry-pick 8c3ae1bb: fix: Don't attempt to identify non-x86 OpenStack
+    instances (LP: #2069607) (CVE-2024-6174)
+
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 25 Jun 2025 08:51:01 -0600
+
 cloud-init (24.4.1-0ubuntu0~20.04.3) focal; urgency=medium
 
   * cherry-pick 7a0265d3: fix: ensure MAAS datasource retries on failure
