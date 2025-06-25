@@ -24,3 +24,4 @@ cpick-582f16c1-test-add-OauthUrlHelper-tests
 cpick-9311e066-fix-Update-OauthUrlHelper-to-use-readurl-exception_cb
 cpick-7a0265d3-fix-ensure-MAAS-datasource-retries-on-failure-6167
 cpick-8c3ae1bb-fix-Don-t-attempt-to-identify-non-x86-OpenStack
+cpick-8b45006c-fix-Make-hotplug-socket-writable-only-by-root-25

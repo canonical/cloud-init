@@ -1,0 +1,85 @@
+From 8b45006c4765fd75f20ce244571b563dbc49d4f2 Mon Sep 17 00:00:00 2001
+From: James Falcon <therealfalcon@gmail.com>
+Date: Wed, 11 Jun 2025 16:22:32 -0500
+Subject: [PATCH] fix: Make hotplug socket writable only by root (#25)
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/cloud-init/+bug/2114229
+
+The 'hook-hotplug-cmd' was writable by all users, allowing any user
+to trigger the hotplug hook script. This script should only be run
+by root via a udev trigger.
+
+Also move socket into 'share' directory and update references
+accordingly. Since the 'share' directory is only readable by root,
+this adds another layer of security while also being in a consistent
+location with the other sockets used by cloud-init.
+
+CVE-2024-11584
+---
+ cloudinit/cmd/devel/logs.py         | 2 +-
+ systemd/cloud-init-hotplugd.service | 2 +-
+ systemd/cloud-init-hotplugd.socket  | 5 +++--
+ tools/cloud-init-hotplugd           | 2 +-
+ tools/hook-hotplug                  | 2 +-
+ 5 files changed, 7 insertions(+), 6 deletions(-)
+
+--- a/cloudinit/cmd/devel/logs.py
++++ b/cloudinit/cmd/devel/logs.py
+@@ -295,7 +295,7 @@ def _get_run_dir(run_dir: pathlib.Path)
+     Note that this only globs the top-level directory as there are currently
+     no relevant files within subdirectories.
+     """
+-    return (p for p in run_dir.glob("*") if p.name != "hook-hotplug-cmd")
++    return run_dir.glob("*")
+ 
+ 
+ def _collect_logs_into_tmp_dir(
+--- a/systemd/cloud-init-hotplugd.service
++++ b/systemd/cloud-init-hotplugd.service
+@@ -1,5 +1,5 @@
+ # Paired with cloud-init-hotplugd.socket to read from the FIFO
+-# /run/cloud-init/hook-hotplug-cmd which is created during a udev network
++# hook-hotplug-cmd which is created during a udev network
+ # add or remove event as processed by 90-cloud-init-hook-hotplug.rules.
+ 
+ # On start, read args from the FIFO, process and provide structured arguments
+--- a/systemd/cloud-init-hotplugd.socket
++++ b/systemd/cloud-init-hotplugd.socket
+@@ -1,5 +1,5 @@
+ # cloud-init-hotplugd.socket listens on the FIFO file
+-# /run/cloud-init/hook-hotplug-cmd which is created during a udev network
++# hook-hotplug-cmd which is created during a udev network
+ # add or remove event as processed by 90-cloud-init-hook-hotplug.rules.
+ 
+ # Known bug with an enforcing SELinux policy: LP: #1936229
+@@ -13,7 +13,8 @@ ConditionPathExists=!/etc/cloud/cloud-in
+ ConditionKernelCommandLine=!cloud-init=disabled
+ 
+ [Socket]
+-ListenFIFO=/run/cloud-init/hook-hotplug-cmd
++ListenFIFO=/run/cloud-init/share/hook-hotplug-cmd
++SocketMode=0600
+ 
+ [Install]
+ WantedBy=cloud-config.target
+--- a/tools/cloud-init-hotplugd
++++ b/tools/cloud-init-hotplugd
+@@ -9,7 +9,7 @@
+ # upon a network device event). Anything received via the pipe is then
+ # passed on via the "cloud-init devel hotplug-hook handle" command.
+ 
+-PIPE="/run/cloud-init/hook-hotplug-cmd"
++PIPE="/run/cloud-init/share/hook-hotplug-cmd"
+ 
+ mkfifo -m700 $PIPE
+ 
+--- a/tools/hook-hotplug
++++ b/tools/hook-hotplug
+@@ -4,7 +4,7 @@
+ # This script checks if cloud-init has hotplug hooked and if
+ # cloud-init is ready; if so invoke cloud-init hotplug-hook
+ 
+-fifo=/run/cloud-init/hook-hotplug-cmd
++fifo=/run/cloud-init/share/hook-hotplug-cmd
+ log_file=/run/cloud-init/hook-hotplug.log
+ 
+ should_run() {
