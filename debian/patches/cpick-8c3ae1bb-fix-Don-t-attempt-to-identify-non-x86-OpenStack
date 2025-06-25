@@ -1,0 +1,93 @@
+From 8c3ae1bb9f1d80fbf217b41a222ee434e7f58900 Mon Sep 17 00:00:00 2001
+From: Brett Holman <brett.holman@canonical.com>
+Date: Thu, 22 Aug 2024 16:54:53 -0600
+Subject: [PATCH] fix: Don't attempt to identify non-x86 OpenStack instances
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/cloud-init/+bug/2069607
+
+This causes cloud-init to attempt to reach out to the OpenStack Nova
+datasource in non-Nova deployments on non-x86 architectures.
+
+Change default policy of ds-identify to disallow discovery of datasources
+without strict identifiable artifacts in either kernel cmdline, DMI
+platform information or system configuration files. This prevents
+cloud-init from attempting to reach out to well-known hard-codded link-local
+IP addresses for configuration information unless the platform strictly
+identifies as a specific datasource.
+
+CVE-2024-6174
+LP: #2069607
+BREAKING_CHANGE: This may break non-x86 OpenStack Nova users. Affected users
+    may wish to use ConfigDrive as a workaround.
+---
+ doc/rtd/reference/breaking_changes.rst | 49 ++++++++++++++++++++++++++
+ tests/unittests/test_ds_identify.py    | 13 ++++---
+ tools/ds-identify                      |  8 ++---
+ 3 files changed, 59 insertions(+), 11 deletions(-)
+
+--- a/tests/unittests/test_ds_identify.py
++++ b/tests/unittests/test_ds_identify.py
+@@ -44,9 +44,9 @@
+ 
+ 
+ POLICY_FOUND_ONLY = "search,found=all,maybe=none,notfound=disabled"
+-POLICY_FOUND_OR_MAYBE = "search,found=all,maybe=all,notfound=disabled"
+-DI_DEFAULT_POLICY = "search,found=all,maybe=all,notfound=disabled"
+-DI_DEFAULT_POLICY_NO_DMI = "search,found=all,maybe=all,notfound=enabled"
++POLICY_FOUND_OR_MAYBE = "search,found=all,maybe=none,notfound=disabled"
++DI_DEFAULT_POLICY = "search,found=all,maybe=none,notfound=disabled"
++DI_DEFAULT_POLICY_NO_DMI = "search,found=all,maybe=none,notfound=enabled"
+ DI_EC2_STRICT_ID_DEFAULT = "true"
+ OVF_MATCH_STRING = 'http://schemas.dmtf.org/ovf/environment/1'
+ 
+@@ -474,7 +474,7 @@
+         self._test_ds_found('OpenStack-AssetTag-Compute')
+ 
+     def test_openstack_on_non_intel_is_maybe(self):
+-        """On non-Intel, openstack without dmi info is maybe.
++        """On non-Intel, openstack without dmi info is none.
+ 
+         nova does not identify itself on platforms other than intel.
+            https://bugs.launchpad.net/cloud-init/+bugs?field.tag=dsid-nova"""
+@@ -490,9 +490,9 @@
+ 
+         # updating the uname to ppc64 though should get a maybe.
+         data.update({'mocks': [MOCK_VIRT_IS_KVM, MOCK_UNAME_IS_PPC64]})
+-        (_, _, err, _, _) = self._check_via_dict(
+-            data, RC_FOUND, dslist=['OpenStack', 'None'])
++        (_, _, err, _, _) = self._check_via_dict(data, RC_NOT_FOUND)
+         self.assertIn("check for 'OpenStack' returned maybe", err)
++        self.assertIn("No ds found", err)
+ 
+     def test_default_ovf_is_found(self):
+         """OVF is identified found when ovf/ovf-env.xml seed file exists."""
+--- a/tools/ds-identify
++++ b/tools/ds-identify
+@@ -14,7 +14,7 @@
+ #   The format is:
+ #        <mode>,found=value,maybe=value,notfound=value
+ #   default setting is:
+-#     search,found=all,maybe=all,notfound=disabled
++#     search,found=all,maybe=none,notfound=disabled
+ #
+ #   kernel command line option: ci.di.policy=<policy>
+ #   example line in /etc/cloud/ds-identify.cfg:
+@@ -40,7 +40,7 @@
+ #         first: use the first found do no further checking
+ #         all: enable all DS_FOUND
+ #
+-#      maybe: (default=all)
++#      maybe: (default=none)
+ #       if nothing returned 'found', then how to handle maybe.
+ #       no network sources are allowed to return 'maybe'.
+ #         all: enable all DS_MAYBE
+@@ -94,8 +94,8 @@
+ 
+ DI_BLKID_EXPORT_OUT=""
+ DI_GEOM_LABEL_STATUS_OUT=""
+-DI_DEFAULT_POLICY="report,found=all,maybe=all,notfound=${DI_ENABLED}"
+-DI_DEFAULT_POLICY_NO_DMI="report,found=all,maybe=all,notfound=${DI_ENABLED}"
++DI_DEFAULT_POLICY="report,found=all,maybe=none,notfound=${DI_ENABLED}"
++DI_DEFAULT_POLICY_NO_DMI="report,found=all,maybe=none,notfound=${DI_ENABLED}"
+ DI_DMI_CHASSIS_ASSET_TAG=""
+ DI_DMI_PRODUCT_NAME=""
+ DI_DMI_SYS_VENDOR=""
