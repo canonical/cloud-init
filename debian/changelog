@@ -1,3 +1,10 @@
+cloud-init (21.1-19-gbad84ad4-0ubuntu1~16.04.4+esm2) UNRELEASED; urgency=medium
+
+  * cherry-pick 8c3ae1bb: fix: Don't attempt to identify non-x86 OpenStack
+    instances (LP: #2069607) (CVE-2024-6174)
+
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 25 Jun 2025 10:39:13 -0600
+
 cloud-init (21.1-19-gbad84ad4-0ubuntu1~16.04.4+esm1) xenial; urgency=medium
 
   * Add +esm1 version suffix for uploads to xenial-infra-security PPA
