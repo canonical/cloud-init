@@ -1,9 +1,15 @@
-cloud-init (24.4.1-0ubuntu0~20.04.4) UNRELEASED; urgency=medium
+cloud-init (24.4.1-0ubuntu0~20.04.3+esm1) UNRELEASED; urgency=medium
 
+  * d/cloud-init.postinst: move existing hotplug-cmd fifo to root-only
+    share dir (CVE-2024-11584)
   * cherry-pick 8c3ae1bb: fix: Don't attempt to identify non-x86 OpenStack
     instances (LP: #2069607) (CVE-2024-6174)
+  * cherry-pick e3f42adc: fix: strict disable in ds-identify on no
+    datasources found (LP: #2069607) (CVE-2024-6174)
+  * cherry-pick 8b45006c: fix: Make hotplug socket writable only by root
+    (LP: #2114229) (CVE-2024-11584)
 
- -- Chad Smith <chad.smith@canonical.com>  Wed, 25 Jun 2025 08:51:01 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 25 Jun 2025 08:59:25 -0600
 
 cloud-init (24.4.1-0ubuntu0~20.04.3) focal; urgency=medium
 
