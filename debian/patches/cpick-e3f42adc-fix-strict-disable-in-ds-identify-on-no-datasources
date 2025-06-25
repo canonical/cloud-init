@@ -1,0 +1,73 @@
+From e3f42adc2674a38fb29e414cfbf96f884934b2d2 Mon Sep 17 00:00:00 2001
+From: Chad Smith <chad.smith@canonical.com>
+Date: Tue, 24 Jun 2025 09:12:52 -0600
+Subject: [PATCH] fix: strict disable in ds-identify on no datasources found
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/cloud-init/+bug/2069607
+
+Take the CVE-2024-6174 strict detection fix one step further.
+
+Commit 8c3ae1b took a step to ignore DS_MAYBE datasource discovery.
+But, if no datasources are met the DS_FOUND conditions, ds-identify was
+still leaving cloud-init enabled. This resulted in cloud-init python
+code attempting to discover all datasources later in boot based on
+the default datasource_list.
+
+ds-identify will now assert that at least one datasource is found. If
+no datasources, ds-identify will exit 1 which disables cloud-init boot
+stages and results in no boot configuration operations from cloud-init.
+
+OpenStack images which cannot identify a valid datasource with DMI-data
+or kernel command line ci.ds=OpenStack parameter will need to either:
+- provide image-based configuration in either /etc/cloud/cloud.cfg.* to set
+   datasource_list: [ OpenStack ]
+- provide --config-drive true to openstack server create
+- attach a nocloud disk labelled CIDATA containing user-data and
+  meta-data files
+
+CVE-2024-6174
+LP: #2069607
+---
+ tests/unittests/test_ds_identify.py | 6 ++++--
+ tools/ds-identify                   | 2 +-
+ 2 files changed, 5 insertions(+), 3 deletions(-)
+
+--- a/tests/unittests/test_ds_identify.py
++++ b/tests/unittests/test_ds_identify.py
+@@ -46,7 +46,7 @@
+ POLICY_FOUND_ONLY = "search,found=all,maybe=none,notfound=disabled"
+ POLICY_FOUND_OR_MAYBE = "search,found=all,maybe=none,notfound=disabled"
+ DI_DEFAULT_POLICY = "search,found=all,maybe=none,notfound=disabled"
+-DI_DEFAULT_POLICY_NO_DMI = "search,found=all,maybe=none,notfound=enabled"
++DI_DEFAULT_POLICY_NO_DMI = "search,found=all,maybe=none,notfound=disabled"
+ DI_EC2_STRICT_ID_DEFAULT = "true"
+ OVF_MATCH_STRING = 'http://schemas.dmtf.org/ovf/environment/1'
+ 
+@@ -482,7 +482,7 @@
+         data = copy.deepcopy(VALID_CFG['OpenStack'])
+         del data['files'][P_PRODUCT_NAME]
+         data.update({'policy_dmi': POLICY_FOUND_OR_MAYBE,
+-                     'policy_no_dmi': POLICY_FOUND_OR_MAYBE})
++                     "policy_no_dmi": DI_DEFAULT_POLICY_NO_DMI})
+ 
+         # this should show not found as default uname in tests is intel.
+         # and intel openstack requires positive identification.
+@@ -493,6 +493,8 @@
+         (_, _, err, _, _) = self._check_via_dict(data, RC_NOT_FOUND)
+         self.assertIn("check for 'OpenStack' returned maybe", err)
+         self.assertIn("No ds found", err)
++        self.assertIn("Disabled cloud-init", err)
++        self.assertIn("returning 1", err)
+ 
+     def test_default_ovf_is_found(self):
+         """OVF is identified found when ovf/ovf-env.xml seed file exists."""
+--- a/tools/ds-identify
++++ b/tools/ds-identify
+@@ -95,7 +95,7 @@
+ DI_BLKID_EXPORT_OUT=""
+ DI_GEOM_LABEL_STATUS_OUT=""
+ DI_DEFAULT_POLICY="report,found=all,maybe=none,notfound=${DI_ENABLED}"
+-DI_DEFAULT_POLICY_NO_DMI="report,found=all,maybe=none,notfound=${DI_ENABLED}"
++DI_DEFAULT_POLICY_NO_DMI="report,found=all,maybe=none,notfound=${DI_DISABLED}"
+ DI_DMI_CHASSIS_ASSET_TAG=""
+ DI_DMI_PRODUCT_NAME=""
+ DI_DMI_SYS_VENDOR=""

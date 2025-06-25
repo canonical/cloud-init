@@ -10,3 +10,4 @@ cpick-83f6bbfb-Fix-unpickle-for-source-paths-missing-run_dir-863
 cpick-d132356c-fix-error-on-upgrade-caused-by-new-vendordata2
 backport-redact-sensitive-json-keys-cloud-init-log-640.patch
 cpick-8c3ae1bb-fix-Don-t-attempt-to-identify-non-x86-OpenStack
+cpick-e3f42adc-fix-strict-disable-in-ds-identify-on-no-datasources
