@@ -23,3 +23,4 @@ cpick-8810a2dc-test-Remove-CiTestCase-from-test_url_helper.py
 cpick-582f16c1-test-add-OauthUrlHelper-tests
 cpick-9311e066-fix-Update-OauthUrlHelper-to-use-readurl-exception_cb
 cpick-7a0265d3-fix-ensure-MAAS-datasource-retries-on-failure-6167
+cpick-8c3ae1bb-fix-Don-t-attempt-to-identify-non-x86-OpenStack
