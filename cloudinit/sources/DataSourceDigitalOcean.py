@@ -91,7 +91,7 @@ class DataSourceDigitalOcean(sources.DataSource):
         self.metadata["public-keys"] = md.get("public_keys")
         self.metadata["availability_zone"] = md.get("region", "default")
         self.vendordata_raw = md.get("vendor_data", None)
-        self.userdata_raw = md.get("user_data", None)
+        self.userdata_raw = util.maybe_b64decode(md.get("user_data", None))
 
         if ipv4LL_nic:
             do_helper.del_ipv4_link_local(self.distro, ipv4LL_nic)
