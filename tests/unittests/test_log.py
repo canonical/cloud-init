@@ -13,25 +13,32 @@ import pytest
 from cloudinit import lifecycle, util
 from cloudinit.analyze.dump import CLOUD_INIT_ASCTIME_FMT
 from cloudinit.log import loggers
-from tests.unittests.helpers import CiTestCase
 
 
-class TestCloudInitLogger(CiTestCase):
-    def setUp(self):
-        # set up a logger like cloud-init does in setup_logging, but instead
-        # of sys.stderr, we'll plug in a StringIO() object so we can see
-        # what gets logged
-        logging.Formatter.converter = time.gmtime
-        self.ci_logs = io.StringIO()
-        self.ci_root = logging.getLogger()
-        console = logging.StreamHandler(self.ci_logs)
-        console.setFormatter(logging.Formatter(loggers.DEFAULT_LOG_FORMAT))
-        console.setLevel(logging.DEBUG)
-        self.ci_root.addHandler(console)
-        self.ci_root.setLevel(logging.DEBUG)
-        self.LOG = logging.getLogger("test_cloudinit_logger")
+@pytest.fixture
+def ci_logs():
+    return io.StringIO()
 
-    def test_logger_uses_gmtime(self):
+
+@pytest.fixture
+def log(ci_logs):
+    # set up a logger like cloud-init does in setup_logging, but instead
+    # of sys.stderr, we'll plug in a StringIO() object so we can see
+    # what gets logged
+    logging.Formatter.converter = time.gmtime
+    ci_root = logging.getLogger()
+    console = logging.StreamHandler(ci_logs)
+    console.setFormatter(logging.Formatter(loggers.DEFAULT_LOG_FORMAT))
+    console.setLevel(logging.DEBUG)
+    ci_root.addHandler(console)
+    ci_root.setLevel(logging.DEBUG)
+    LOG = logging.getLogger("test_cloudinit_logger")
+    return LOG
+
+
+class TestCloudInitLogger:
+
+    def test_logger_uses_gmtime(self, log, ci_logs):
         """Test that log message have timestamp in UTC (gmtime)"""
 
         # Log a message, extract the timestamp from the log entry
@@ -56,7 +63,7 @@ class TestCloudInitLogger(CiTestCase):
             datetime.datetime.now(datetime.timezone.utc)
             - datetime.timedelta(0, 0.5)
         )
-        self.LOG.error("Test message")
+        log.error("Test message")
         utc_after = remove_tz(
             datetime.datetime.now(datetime.timezone.utc)
             + datetime.timedelta(0, 0.5)
@@ -64,16 +71,16 @@ class TestCloudInitLogger(CiTestCase):
 
         # extract timestamp from log:
         # 2017-08-23 14:19:43,069 - test_log.py[ERROR]: Test message
-        logstr = self.ci_logs.getvalue().splitlines()[0]
+        logstr = ci_logs.getvalue().splitlines()[0]
         timestampstr = logstr.split(" - ")[0]
         parsed_dt = datetime.datetime.strptime(
             timestampstr, CLOUD_INIT_ASCTIME_FMT
         )
 
-        self.assertLess(utc_before, parsed_dt)
-        self.assertLess(parsed_dt, utc_after)
-        self.assertLess(utc_before, utc_after)
-        self.assertGreater(utc_after, parsed_dt)
+        assert utc_before < parsed_dt
+        assert parsed_dt < utc_after
+        assert utc_before < utc_after
+        assert utc_after > parsed_dt
 
 
 class TestDeprecatedLogs:
