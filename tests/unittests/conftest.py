@@ -7,11 +7,17 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import atomic_helper, lifecycle, util
+from cloudinit import atomic_helper, lifecycle
+from cloudinit import user_data as ud
+from cloudinit import util
 from cloudinit.gpg import GPG
 from cloudinit.log import loggers
 from tests.hypothesis import HAS_HYPOTHESIS
-from tests.unittests.helpers import example_netdev, retarget_many_wrapper
+from tests.unittests.helpers import (
+    example_netdev,
+    get_mock_paths,
+    retarget_many_wrapper,
+)
 
 
 @pytest.fixture
@@ -170,3 +176,9 @@ if HAS_HYPOTHESIS:
 
     settings.register_profile("ci", max_examples=1000)
     settings.load_profile(os.getenv("HYPOTHESIS_PROFILE", "default"))
+
+
+@pytest.fixture
+def ud_proc(tmp_path):
+    paths = get_mock_paths(tmp_path)({})
+    return ud.UserDataProcessor(paths)

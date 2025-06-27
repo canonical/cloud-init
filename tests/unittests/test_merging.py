@@ -100,7 +100,7 @@ def make_dict(max_depth, seed=None):
     return _make_dict(0, max_depth, rand)
 
 
-class TestSimpleRun(helpers.ResourceUsingTestCase):
+class TestSimpleRun(helpers.CiTestCase):
     def _load_merge_files(self):
         merge_root = helpers.resourceLocation("merge_sources")
         tests = []

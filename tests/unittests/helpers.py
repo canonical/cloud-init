@@ -287,28 +287,14 @@ class CiTestCase(TestCase):
         return random_string(length)
 
 
-class ResourceUsingTestCase(CiTestCase):
-    def setUp(self):
-        super(ResourceUsingTestCase, self).setUp()
-        self.resource_path = None
-
-    def getCloudPaths(self, ds=None):
-        tmpdir = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, tmpdir)
-        cp = ch.Paths(
-            {"cloud_dir": tmpdir, "templates_dir": resourceLocation()}, ds=ds
-        )
-        return cp
-
-
-class FilesystemMockingTestCase(ResourceUsingTestCase):
+class FilesystemMockingTestCase(CiTestCase):
     def setUp(self):
         super(FilesystemMockingTestCase, self).setUp()
         self.patched_funcs = ExitStack()
 
     def tearDown(self):
         self.patched_funcs.close()
-        ResourceUsingTestCase.tearDown(self)
+        CiTestCase.tearDown(self)
 
     def replicateTestRoot(self, example_root, target_root):
         real_root = resourceLocation()

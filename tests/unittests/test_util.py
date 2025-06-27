@@ -2171,7 +2171,7 @@ class TestLoadYaml(helpers.CiTestCase):
         )
 
 
-class TestMountinfoParsing(helpers.ResourceUsingTestCase):
+class TestMountinfoParsing(helpers.CiTestCase):
     def test_invalid_mountinfo(self):
         line = (
             "20 1 252:1 / / rw,relatime - ext4 /dev/mapper/vg0-root"
