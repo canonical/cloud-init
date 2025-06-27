@@ -2171,7 +2171,7 @@ class TestLoadYaml(helpers.CiTestCase):
         )
 
 
-class TestMountinfoParsing(helpers.CiTestCase):
+class TestMountinfoParsing:
     def test_invalid_mountinfo(self):
         line = (
             "20 1 252:1 / / rw,relatime - ext4 /dev/mapper/vg0-root"
@@ -2184,49 +2184,49 @@ class TestMountinfoParsing(helpers.CiTestCase):
                 expected = None
             else:
                 expected = ("/dev/mapper/vg0-root", "ext4", "/")
-            self.assertEqual(expected, util.parse_mount_info("/", lines))
+            assert expected == util.parse_mount_info("/", lines)
 
     def test_precise_ext4_root(self):
         lines = helpers.readResource("mountinfo_precise_ext4.txt").splitlines()
 
         expected = ("/dev/mapper/vg0-root", "ext4", "/")
-        self.assertEqual(expected, util.parse_mount_info("/", lines))
-        self.assertEqual(expected, util.parse_mount_info("/usr", lines))
-        self.assertEqual(expected, util.parse_mount_info("/usr/bin", lines))
+        assert expected == util.parse_mount_info("/", lines)
+        assert expected == util.parse_mount_info("/usr", lines)
+        assert expected == util.parse_mount_info("/usr/bin", lines)
 
         expected = ("/dev/md0", "ext4", "/boot")
-        self.assertEqual(expected, util.parse_mount_info("/boot", lines))
-        self.assertEqual(expected, util.parse_mount_info("/boot/grub", lines))
+        assert expected == util.parse_mount_info("/boot", lines)
+        assert expected == util.parse_mount_info("/boot/grub", lines)
 
         expected = ("/dev/mapper/vg0-root", "ext4", "/")
-        self.assertEqual(expected, util.parse_mount_info("/home", lines))
-        self.assertEqual(expected, util.parse_mount_info("/home/me", lines))
+        assert expected == util.parse_mount_info("/home", lines)
+        assert expected == util.parse_mount_info("/home/me", lines)
 
         expected = ("tmpfs", "tmpfs", "/run")
-        self.assertEqual(expected, util.parse_mount_info("/run", lines))
+        assert expected == util.parse_mount_info("/run", lines)
 
         expected = ("none", "tmpfs", "/run/lock")
-        self.assertEqual(expected, util.parse_mount_info("/run/lock", lines))
+        assert expected == util.parse_mount_info("/run/lock", lines)
 
     def test_raring_btrfs_root(self):
         lines = helpers.readResource("mountinfo_raring_btrfs.txt").splitlines()
 
         expected = ("/dev/vda1", "btrfs", "/")
-        self.assertEqual(expected, util.parse_mount_info("/", lines))
-        self.assertEqual(expected, util.parse_mount_info("/usr", lines))
-        self.assertEqual(expected, util.parse_mount_info("/usr/bin", lines))
-        self.assertEqual(expected, util.parse_mount_info("/boot", lines))
-        self.assertEqual(expected, util.parse_mount_info("/boot/grub", lines))
+        assert expected == util.parse_mount_info("/", lines)
+        assert expected == util.parse_mount_info("/usr", lines)
+        assert expected == util.parse_mount_info("/usr/bin", lines)
+        assert expected == util.parse_mount_info("/boot", lines)
+        assert expected == util.parse_mount_info("/boot/grub", lines)
 
         expected = ("/dev/vda1", "btrfs", "/home")
-        self.assertEqual(expected, util.parse_mount_info("/home", lines))
-        self.assertEqual(expected, util.parse_mount_info("/home/me", lines))
+        assert expected == util.parse_mount_info("/home", lines)
+        assert expected == util.parse_mount_info("/home/me", lines)
 
         expected = ("tmpfs", "tmpfs", "/run")
-        self.assertEqual(expected, util.parse_mount_info("/run", lines))
+        assert expected == util.parse_mount_info("/run", lines)
 
         expected = ("none", "tmpfs", "/run/lock")
-        self.assertEqual(expected, util.parse_mount_info("/run/lock", lines))
+        assert expected == util.parse_mount_info("/run/lock", lines)
 
     @mock.patch("cloudinit.subp.subp")
     def test_parse_mount_with_ext(self, mount_out):
@@ -2236,16 +2236,16 @@ class TestMountinfoParsing(helpers.CiTestCase):
         )
         # this one is valid and exists in mount_parse_ext.txt
         ret = util.parse_mount("/var")
-        self.assertEqual(("/dev/mapper/vg00-lv_var", "ext4", "/var"), ret)
+        assert ("/dev/mapper/vg00-lv_var", "ext4", "/var") == ret
         # another one that is valid and exists
         ret = util.parse_mount("/")
-        self.assertEqual(("/dev/mapper/vg00-lv_root", "ext4", "/"), ret)
+        assert ("/dev/mapper/vg00-lv_root", "ext4", "/") == ret
         # this one exists in mount_parse_ext.txt
         ret = util.parse_mount("/sys/kernel/debug")
-        self.assertEqual(("none", "debugfs", "/sys/kernel/debug"), ret)
+        assert ("none", "debugfs", "/sys/kernel/debug") == ret
         # this one does not exist in mount_parse_ext.txt
         ret = util.parse_mount("/var/tmp/cloud-init")
-        self.assertEqual(("/dev/mapper/vg00-lv_var", "ext4", "/var"), ret)
+        assert ("/dev/mapper/vg00-lv_var", "ext4", "/var") == ret
 
     @mock.patch("cloudinit.subp.subp")
     def test_parse_mount_with_zfs(self, mount_out):
@@ -2255,13 +2255,13 @@ class TestMountinfoParsing(helpers.CiTestCase):
         )
         # this one is valid and exists in mount_parse_zfs.txt
         ret = util.parse_mount("/var")
-        self.assertEqual(("vmzroot/ROOT/freebsd/var", "zfs", "/var"), ret)
+        assert ("vmzroot/ROOT/freebsd/var", "zfs", "/var") == ret
         # this one is the root, valid and also exists in mount_parse_zfs.txt
         ret = util.parse_mount("/")
-        self.assertEqual(("vmzroot/ROOT/freebsd", "zfs", "/"), ret)
+        assert ("vmzroot/ROOT/freebsd", "zfs", "/") == ret
         # this one does not exist in mount_parse_ext.txt
         ret = util.parse_mount("/var/tmp/cloud-init")
-        self.assertEqual(("vmzroot/var/tmp", "zfs", "/var/tmp"), ret)
+        assert ("vmzroot/var/tmp", "zfs", "/var/tmp") == ret
 
 
 class TestIsX86(helpers.CiTestCase):
