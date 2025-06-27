@@ -16,6 +16,7 @@ import logging
 import os
 import threading
 import time
+import socket
 from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 from email.utils import parsedate
 from functools import partial
@@ -45,6 +46,15 @@ LOG = logging.getLogger(__name__)
 REDACTED = "REDACTED"
 ExceptionCallback = Optional[Callable[["UrlError"], bool]]
 
+class HTTPAdapterWithSocketOptions(requests.adapters.HTTPAdapter):
+    def __init__(self, *args, **kwargs):
+        self.socket_options = kwargs.pop("socket_options", None)
+        super(HTTPAdapterWithSocketOptions, self).__init__(*args, **kwargs)
+
+    def init_poolmanager(self, *args, **kwargs):
+        if self.socket_options is not None:
+            kwargs["socket_options"] = self.socket_options
+        super(HTTPAdapterWithSocketOptions, self).init_poolmanager(*args, **kwargs)
 
 def _cleanurl(url):
     parsed_url = list(urlparse(url, scheme="http"))
@@ -500,8 +510,10 @@ def readurl(
     downloaded.
     """
     url = _cleanurl(url)
+    parsed_url = util.url_parser_plus(url)
+    iface = parsed_url.iface
     req_args = {
-        "url": url,
+        "url": parsed_url.request_url,
         "stream": stream,
     }
     req_args.update(_get_ssl_args(url, ssl_details))
@@ -534,12 +546,19 @@ def readurl(
     if session is None:
         session = requests.Session()
 
+    if iface is not None:
+        adapter = HTTPAdapterWithSocketOptions(socket_options=[(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, iface.encode('utf-8'))])
+        for scheme in ('http://', 'https://'):
+            session.mount(scheme, adapter)
+
     # Handle retrying ourselves since the built-in support
     # doesn't handle sleeping between tries...
     for i in count():
         if headers_cb:
             headers = headers_cb(url)
 
+        headers["Host"] = parsed_url.hostname
+        
         if "User-Agent" not in headers:
             headers["User-Agent"] = user_agent
 
