@@ -18,15 +18,15 @@ def count_messages(root):
     return am
 
 
-class TestLaunchFilter(helpers.ResourceUsingTestCase):
+class TestLaunchFilter:
     def assertCounts(self, message, expected_counts):
         orig_message = copy.deepcopy(message)
         for index, count in expected_counts.items():
             index = util.safe_int(index)
             filtered_message = launch_index.Filter(index).apply(message)
-            self.assertEqual(count_messages(filtered_message), count)
+            assert count_messages(filtered_message) == count
         # Ensure original message still ok/not modified
-        self.assertTrue(self.equivalentMessage(message, orig_message))
+        assert self.equivalentMessage(message, orig_message) is True
 
     def equivalentMessage(self, msg1, msg2):
         msg1_count = count_messages(msg1)
@@ -51,11 +51,10 @@ class TestLaunchFilter(helpers.ResourceUsingTestCase):
                 return False
         return True
 
-    def testMultiEmailIndex(self):
+    def testMultiEmailIndex(self, ud_proc):
         test_data = helpers.readResource("filter_cloud_multipart_2.email")
-        ud_proc = ud.UserDataProcessor(self.getCloudPaths())
         message = ud_proc.process(test_data)
-        self.assertTrue(count_messages(message) > 0)
+        assert count_messages(message) > 0
         # This file should have the following
         # indexes -> amount mapping in it
         expected_counts = {
@@ -66,11 +65,10 @@ class TestLaunchFilter(helpers.ResourceUsingTestCase):
         }
         self.assertCounts(message, expected_counts)
 
-    def testHeaderEmailIndex(self):
+    def testHeaderEmailIndex(self, ud_proc):
         test_data = helpers.readResource("filter_cloud_multipart_header.email")
-        ud_proc = ud.UserDataProcessor(self.getCloudPaths())
         message = ud_proc.process(test_data)
-        self.assertTrue(count_messages(message) > 0)
+        assert count_messages(message) > 0
         # This file should have the following
         # indexes -> amount mapping in it
         expected_counts = {
@@ -81,11 +79,10 @@ class TestLaunchFilter(helpers.ResourceUsingTestCase):
         }
         self.assertCounts(message, expected_counts)
 
-    def testConfigEmailIndex(self):
+    def testConfigEmailIndex(self, ud_proc):
         test_data = helpers.readResource("filter_cloud_multipart_1.email")
-        ud_proc = ud.UserDataProcessor(self.getCloudPaths())
         message = ud_proc.process(test_data)
-        self.assertTrue(count_messages(message) > 0)
+        assert count_messages(message) > 0
         # This file should have the following
         # indexes -> amount mapping in it
         expected_counts = {
@@ -95,21 +92,19 @@ class TestLaunchFilter(helpers.ResourceUsingTestCase):
         }
         self.assertCounts(message, expected_counts)
 
-    def testNoneIndex(self):
+    def testNoneIndex(self, ud_proc):
         test_data = helpers.readResource("filter_cloud_multipart.yaml")
-        ud_proc = ud.UserDataProcessor(self.getCloudPaths())
         message = ud_proc.process(test_data)
         start_count = count_messages(message)
-        self.assertTrue(start_count > 0)
+        assert start_count > 0
         filtered_message = launch_index.Filter(None).apply(message)
-        self.assertTrue(self.equivalentMessage(message, filtered_message))
+        assert self.equivalentMessage(message, filtered_message)
 
-    def testIndexes(self):
+    def testIndexes(self, ud_proc):
         test_data = helpers.readResource("filter_cloud_multipart.yaml")
-        ud_proc = ud.UserDataProcessor(self.getCloudPaths())
         message = ud_proc.process(test_data)
         start_count = count_messages(message)
-        self.assertTrue(start_count > 0)
+        assert start_count > 0
         # This file should have the following
         # indexes -> amount mapping in it
         expected_counts = {

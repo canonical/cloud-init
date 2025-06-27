@@ -770,26 +770,21 @@ class TestConsumeUserDataHttp:
         assert cc.get("included") is True
 
 
-class TestUDProcess(helpers.ResourceUsingTestCase):
-    def test_bytes_in_userdata(self):
+class TestUDProcess:
+    def test_bytes_in_userdata(self, ud_proc):
         msg = b"#cloud-config\napt_update: True\n"
-        ud_proc = ud.UserDataProcessor(self.getCloudPaths())
         message = ud_proc.process(msg)
-        self.assertTrue(count_messages(message) == 1)
+        assert count_messages(message) == 1
 
-    def test_string_in_userdata(self):
+    def test_string_in_userdata(self, ud_proc):
         msg = "#cloud-config\napt_update: True\n"
-
-        ud_proc = ud.UserDataProcessor(self.getCloudPaths())
         message = ud_proc.process(msg)
-        self.assertTrue(count_messages(message) == 1)
+        assert count_messages(message) == 1
 
-    def test_compressed_in_userdata(self):
+    def test_compressed_in_userdata(self, ud_proc):
         msg = gzip_text("#cloud-config\napt_update: True\n")
-
-        ud_proc = ud.UserDataProcessor(self.getCloudPaths())
         message = ud_proc.process(msg)
-        self.assertTrue(count_messages(message) == 1)
+        assert count_messages(message) == 1
 
 
 class TestConvertString(helpers.TestCase):

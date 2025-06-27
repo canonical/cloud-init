@@ -20,14 +20,11 @@ from urllib.parse import urlsplit, urlunsplit
 
 import responses
 
-from cloudinit import atomic_helper, cloud, distros
-from cloudinit import helpers as ch
-from cloudinit import subp, util
+from cloudinit import atomic_helper, subp, util
 from cloudinit.config.schema import (
     SchemaValidationError,
     validate_cloudconfig_schema,
 )
-from cloudinit.sources import DataSourceNone
 from cloudinit.templater import JINJA_AVAILABLE
 from tests.helpers import cloud_init_project_dir
 from tests.hypothesis_jsonschema import HAS_HYPOTHESIS_JSONSCHEMA
@@ -262,53 +259,19 @@ class CiTestCase(TestCase):
             dir = self.tmp_dir()
         return os.path.normpath(os.path.abspath(os.path.join(dir, path)))
 
-    def tmp_cloud(self, distro, sys_cfg=None, metadata=None):
-        """Create a cloud with tmp working directory paths.
-
-        @param distro: Name of the distro to attach to the cloud.
-        @param metadata: Optional metadata to set on the datasource.
-
-        @return: The built cloud instance.
-        """
-        self.new_root = self.tmp_dir()
-        if not sys_cfg:
-            sys_cfg = {}
-        MockPaths = get_mock_paths(self.new_root)
-        self.paths = MockPaths({})
-        cls = distros.fetch(distro)
-        mydist = cls(distro, sys_cfg, self.paths)
-        myds = DataSourceNone.DataSourceNone(sys_cfg, mydist, self.paths)
-        if metadata:
-            myds.metadata.update(metadata)
-        return cloud.Cloud(myds, self.paths, sys_cfg, mydist, None)
-
     @classmethod
     def random_string(cls, length=8):
         return random_string(length)
 
 
-class ResourceUsingTestCase(CiTestCase):
-    def setUp(self):
-        super(ResourceUsingTestCase, self).setUp()
-        self.resource_path = None
-
-    def getCloudPaths(self, ds=None):
-        tmpdir = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, tmpdir)
-        cp = ch.Paths(
-            {"cloud_dir": tmpdir, "templates_dir": resourceLocation()}, ds=ds
-        )
-        return cp
-
-
-class FilesystemMockingTestCase(ResourceUsingTestCase):
+class FilesystemMockingTestCase(CiTestCase):
     def setUp(self):
         super(FilesystemMockingTestCase, self).setUp()
         self.patched_funcs = ExitStack()
 
     def tearDown(self):
         self.patched_funcs.close()
-        ResourceUsingTestCase.tearDown(self)
+        CiTestCase.tearDown(self)
 
     def replicateTestRoot(self, example_root, target_root):
         real_root = resourceLocation()
@@ -459,24 +422,6 @@ class CiRequestsMock(responses.RequestsMock):
                 f"Expected URL '{url}' to be called {count} times. "
                 f"Called {call_count} times."
             )
-
-
-def get_mock_paths(temp_dir):
-    class MockPaths(ch.Paths):
-        def __init__(self, path_cfgs: dict, ds=None):
-            super().__init__(path_cfgs=path_cfgs, ds=ds)
-
-            self.cloud_dir: str = path_cfgs.get(
-                "cloud_dir", f"{temp_dir}/var/lib/cloud"
-            )
-            self.run_dir: str = path_cfgs.get(
-                "run_dir", f"{temp_dir}/run/cloud/"
-            )
-            self.template_dir: str = path_cfgs.get(
-                "templates_dir", f"{temp_dir}/etc/cloud/templates/"
-            )
-
-    return MockPaths
 
 
 class ResponsesTestCase(CiTestCase):

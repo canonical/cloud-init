@@ -7,7 +7,11 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import atomic_helper, lifecycle, util
+from cloudinit import atomic_helper
+from cloudinit import helpers as ch
+from cloudinit import lifecycle
+from cloudinit import user_data as ud
+from cloudinit import util
 from cloudinit.gpg import GPG
 from cloudinit.log import loggers
 from tests.hypothesis import HAS_HYPOTHESIS
@@ -170,3 +174,28 @@ if HAS_HYPOTHESIS:
 
     settings.register_profile("ci", max_examples=1000)
     settings.load_profile(os.getenv("HYPOTHESIS_PROFILE", "default"))
+
+
+@pytest.fixture
+def MockPaths(tmp_path):
+    class _MockPaths(ch.Paths):
+        def __init__(self, path_cfgs: dict, ds=None):
+            super().__init__(path_cfgs=path_cfgs, ds=ds)
+
+            self.cloud_dir: str = path_cfgs.get(
+                "cloud_dir", f"{tmp_path}/var/lib/cloud"
+            )
+            self.run_dir: str = path_cfgs.get(
+                "run_dir", f"{tmp_path}/run/cloud/"
+            )
+            self.template_dir: str = path_cfgs.get(
+                "templates_dir", f"{tmp_path}/etc/cloud/templates/"
+            )
+
+    return _MockPaths
+
+
+@pytest.fixture
+def ud_proc(MockPaths):
+    paths = MockPaths({})
+    return ud.UserDataProcessor(paths)

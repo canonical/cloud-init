@@ -7,7 +7,6 @@ from pathlib import Path
 
 from cloudinit import sources
 from tests.helpers import cloud_init_project_dir, get_top_level_dir
-from tests.unittests.helpers import ResourceUsingTestCase
 
 
 class MyDataSource(sources.DataSource):
@@ -17,24 +16,24 @@ class MyDataSource(sources.DataSource):
         return self._instance_id
 
 
-class TestPaths(ResourceUsingTestCase):
-    def test_get_ipath_and_instance_id_with_slashes(self):
+class TestPaths:
+    def test_get_ipath_and_instance_id_with_slashes(self, MockPaths):
         myds = MyDataSource(sys_cfg={}, distro=None, paths={})
         myds._instance_id = "/foo/bar"
         safe_iid = "_foo_bar"
-        mypaths = self.getCloudPaths(myds)
+        mypaths = MockPaths({}, myds)
 
-        self.assertEqual(
-            os.path.join(mypaths.cloud_dir, "instances", safe_iid),
-            mypaths.get_ipath(),
+        assert (
+            os.path.join(mypaths.cloud_dir, "instances", safe_iid)
+            == mypaths.get_ipath()
         )
 
-    def test_get_ipath_and_empty_instance_id_returns_none(self):
+    def test_get_ipath_and_empty_instance_id_returns_none(self, MockPaths):
         myds = MyDataSource(sys_cfg={}, distro=None, paths={})
         myds._instance_id = None
-        mypaths = self.getCloudPaths(myds)
+        mypaths = MockPaths({}, myds)
 
-        self.assertIsNone(mypaths.get_ipath())
+        assert mypaths.get_ipath() is None
 
 
 class Testcloud_init_project_dir:

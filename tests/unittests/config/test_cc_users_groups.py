@@ -15,6 +15,7 @@ from tests.unittests.helpers import (
     mock,
     skipUnlessJsonSchema,
 )
+from tests.unittests.util import get_cloud
 
 MODPATH = "cloudinit.config.cc_users_groups"
 
@@ -39,9 +40,7 @@ class TestHandleUsersGroups(CiTestCase):
             }
         }
         metadata = {}
-        cloud = self.tmp_cloud(
-            distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata
-        )
+        cloud = get_cloud(distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata)
         cc_users_groups.handle("modulename", cfg, cloud, None)
         m_user.assert_not_called()
         m_group.assert_not_called()
@@ -59,9 +58,7 @@ class TestHandleUsersGroups(CiTestCase):
             }
         }
         metadata = {}
-        cloud = self.tmp_cloud(
-            distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata
-        )
+        cloud = get_cloud(distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata)
         cc_users_groups.handle("modulename", cfg, cloud, None)
         self.assertCountEqual(
             m_user.call_args_list,
@@ -105,7 +102,7 @@ class TestHandleUsersGroups(CiTestCase):
         with mock.patch(
             "cloudinit.distros.networking.subp.subp", return_value=("", None)
         ):
-            cloud = self.tmp_cloud(
+            cloud = get_cloud(
                 distro="freebsd", sys_cfg=sys_cfg, metadata=metadata
             )
         cc_users_groups.handle("modulename", cfg, cloud, None)
@@ -141,9 +138,7 @@ class TestHandleUsersGroups(CiTestCase):
             }
         }
         metadata = {"public-keys": ["key1"]}
-        cloud = self.tmp_cloud(
-            distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata
-        )
+        cloud = get_cloud(distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata)
         cc_users_groups.handle("modulename", cfg, cloud, None)
         self.assertCountEqual(
             m_user.call_args_list,
@@ -182,9 +177,7 @@ class TestHandleUsersGroups(CiTestCase):
             }
         }
         metadata = {"public-keys": ["key1"]}
-        cloud = self.tmp_cloud(
-            distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata
-        )
+        cloud = get_cloud(distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata)
         cc_users_groups.handle("modulename", cfg, cloud, None)
         self.assertCountEqual(
             m_user.call_args_list,
@@ -216,7 +209,7 @@ class TestHandleUsersGroups(CiTestCase):
                 },
             ]
         }
-        cloud = self.tmp_cloud(distro="ubuntu", sys_cfg={}, metadata={})
+        cloud = get_cloud(distro="ubuntu", sys_cfg={}, metadata={})
         with self.assertRaises(ValueError) as context_manager:
             cc_users_groups.handle("modulename", cfg, cloud, None)
         m_group.assert_not_called()
@@ -244,9 +237,7 @@ class TestHandleUsersGroups(CiTestCase):
             }
         }
         metadata = {"public-keys": ["key1"]}
-        cloud = self.tmp_cloud(
-            distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata
-        )
+        cloud = get_cloud(distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata)
         with self.assertRaises(ValueError) as context_manager:
             cc_users_groups.handle("modulename", cfg, cloud, None)
         m_group.assert_not_called()
@@ -269,9 +260,7 @@ class TestHandleUsersGroups(CiTestCase):
             }
         }
         metadata = {"public-keys": ["key1"]}
-        cloud = self.tmp_cloud(
-            distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata
-        )
+        cloud = get_cloud(distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata)
         cc_users_groups.handle("modulename", cfg, cloud, None)
         self.assertCountEqual(
             m_user.call_args_list,
@@ -295,9 +284,7 @@ class TestHandleUsersGroups(CiTestCase):
         # System config defines *no* default user for the distro.
         sys_cfg = {}
         metadata = {}  # no public-keys defined
-        cloud = self.tmp_cloud(
-            distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata
-        )
+        cloud = get_cloud(distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata)
         cc_users_groups.handle("modulename", cfg, cloud, None)
         m_user.assert_called_once_with("me2", default=False)
         m_group.assert_not_called()

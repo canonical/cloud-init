@@ -8,7 +8,6 @@ import pytest
 from cloudinit import helpers, subp
 from cloudinit.distros.package_management import apt
 from cloudinit.distros.package_management.apt import APT_GET_COMMAND, Apt
-from tests.unittests.helpers import get_mock_paths
 from tests.unittests.util import FakeDataSource
 
 M_PATH = "cloudinit.distros.package_management.apt.Apt."
@@ -120,8 +119,7 @@ class TestPackageCommand:
 
 
 @pytest.fixture(scope="function")
-def apt_paths(tmpdir):
-    MockPaths = get_mock_paths(str(tmpdir))
+def apt_paths(MockPaths, tmpdir):
     with mock.patch.object(
         apt,
         "APT_LOCK_FILES",
