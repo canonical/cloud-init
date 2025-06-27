@@ -24,6 +24,7 @@ from tests.unittests.helpers import (
     FilesystemMockingTestCase,
     skipUnlessJsonSchema,
 )
+from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
 
@@ -172,7 +173,7 @@ class TestWriteFiles(FilesystemMockingTestCase):
                 }
             ]
         }
-        cc = self.tmp_cloud("ubuntu")
+        cc = get_cloud("ubuntu")
         handle("ignored", cfg, cc, [])
         assert content == util.load_text_file(file_path)
         self.assertNotIn(
@@ -193,7 +194,7 @@ class TestWriteFiles(FilesystemMockingTestCase):
                 }
             ]
         }
-        cc = self.tmp_cloud("ubuntu")
+        cc = get_cloud("ubuntu")
         handle("ignored", cfg, cc, [])
         self.assertEqual(
             util.load_text_file(src_path), util.load_text_file(dst_path)
@@ -220,7 +221,7 @@ class TestWriteFiles(FilesystemMockingTestCase):
                 }
             ]
         }
-        cc = self.tmp_cloud("ubuntu")
+        cc = get_cloud("ubuntu")
         handle("ignored", cfg, cc, [])
         self.assertEqual(content, util.load_text_file(path))
 
@@ -240,7 +241,7 @@ class TestWriteFiles(FilesystemMockingTestCase):
                 }
             ]
         }
-        cc = self.tmp_cloud("ubuntu")
+        cc = get_cloud("ubuntu")
         handle("ignored", cfg, cc, [])
         self.assertEqual(content, util.load_text_file(dst_path))
 
@@ -248,7 +249,7 @@ class TestWriteFiles(FilesystemMockingTestCase):
         self.patchUtils(self.tmp)
         file_path = "/tmp/deferred.file"
         config = {"write_files": [{"path": file_path, "defer": True}]}
-        cc = self.tmp_cloud("ubuntu")
+        cc = get_cloud("ubuntu")
         handle("cc_write_file", config, cc, [])
         with self.assertRaises(FileNotFoundError):
             util.load_text_file(file_path)

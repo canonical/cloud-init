@@ -20,14 +20,13 @@ from urllib.parse import urlsplit, urlunsplit
 
 import responses
 
-from cloudinit import atomic_helper, cloud, distros
+from cloudinit import atomic_helper
 from cloudinit import helpers as ch
 from cloudinit import subp, util
 from cloudinit.config.schema import (
     SchemaValidationError,
     validate_cloudconfig_schema,
 )
-from cloudinit.sources import DataSourceNone
 from cloudinit.templater import JINJA_AVAILABLE
 from tests.helpers import cloud_init_project_dir
 from tests.hypothesis_jsonschema import HAS_HYPOTHESIS_JSONSCHEMA
@@ -261,26 +260,6 @@ class CiTestCase(TestCase):
         if dir is None:
             dir = self.tmp_dir()
         return os.path.normpath(os.path.abspath(os.path.join(dir, path)))
-
-    def tmp_cloud(self, distro, sys_cfg=None, metadata=None):
-        """Create a cloud with tmp working directory paths.
-
-        @param distro: Name of the distro to attach to the cloud.
-        @param metadata: Optional metadata to set on the datasource.
-
-        @return: The built cloud instance.
-        """
-        self.new_root = self.tmp_dir()
-        if not sys_cfg:
-            sys_cfg = {}
-        MockPaths = get_mock_paths(self.new_root)
-        self.paths = MockPaths({})
-        cls = distros.fetch(distro)
-        mydist = cls(distro, sys_cfg, self.paths)
-        myds = DataSourceNone.DataSourceNone(sys_cfg, mydist, self.paths)
-        if metadata:
-            myds.metadata.update(metadata)
-        return cloud.Cloud(myds, self.paths, sys_cfg, mydist, None)
 
     @classmethod
     def random_string(cls, length=8):
