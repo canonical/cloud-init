@@ -7,17 +7,15 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import atomic_helper, lifecycle
+from cloudinit import atomic_helper
+from cloudinit import helpers as ch
+from cloudinit import lifecycle
 from cloudinit import user_data as ud
 from cloudinit import util
 from cloudinit.gpg import GPG
 from cloudinit.log import loggers
 from tests.hypothesis import HAS_HYPOTHESIS
-from tests.unittests.helpers import (
-    example_netdev,
-    get_mock_paths,
-    retarget_many_wrapper,
-)
+from tests.unittests.helpers import example_netdev, retarget_many_wrapper
 
 
 @pytest.fixture
@@ -179,6 +177,25 @@ if HAS_HYPOTHESIS:
 
 
 @pytest.fixture
-def ud_proc(tmp_path):
-    paths = get_mock_paths(tmp_path)({})
+def MockPaths(tmp_path):
+    class _MockPaths(ch.Paths):
+        def __init__(self, path_cfgs: dict, ds=None):
+            super().__init__(path_cfgs=path_cfgs, ds=ds)
+
+            self.cloud_dir: str = path_cfgs.get(
+                "cloud_dir", f"{tmp_path}/var/lib/cloud"
+            )
+            self.run_dir: str = path_cfgs.get(
+                "run_dir", f"{tmp_path}/run/cloud/"
+            )
+            self.template_dir: str = path_cfgs.get(
+                "templates_dir", f"{tmp_path}/etc/cloud/templates/"
+            )
+
+    return _MockPaths
+
+
+@pytest.fixture
+def ud_proc(MockPaths):
+    paths = MockPaths({})
     return ud.UserDataProcessor(paths)

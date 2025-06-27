@@ -20,9 +20,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 import responses
 
-from cloudinit import atomic_helper
-from cloudinit import helpers as ch
-from cloudinit import subp, util
+from cloudinit import atomic_helper, subp, util
 from cloudinit.config.schema import (
     SchemaValidationError,
     validate_cloudconfig_schema,
@@ -424,24 +422,6 @@ class CiRequestsMock(responses.RequestsMock):
                 f"Expected URL '{url}' to be called {count} times. "
                 f"Called {call_count} times."
             )
-
-
-def get_mock_paths(temp_dir):
-    class MockPaths(ch.Paths):
-        def __init__(self, path_cfgs: dict, ds=None):
-            super().__init__(path_cfgs=path_cfgs, ds=ds)
-
-            self.cloud_dir: str = path_cfgs.get(
-                "cloud_dir", f"{temp_dir}/var/lib/cloud"
-            )
-            self.run_dir: str = path_cfgs.get(
-                "run_dir", f"{temp_dir}/run/cloud/"
-            )
-            self.template_dir: str = path_cfgs.get(
-                "templates_dir", f"{temp_dir}/etc/cloud/templates/"
-            )
-
-    return MockPaths
 
 
 class ResponsesTestCase(CiTestCase):

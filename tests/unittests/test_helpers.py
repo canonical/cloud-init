@@ -7,7 +7,6 @@ from pathlib import Path
 
 from cloudinit import sources
 from tests.helpers import cloud_init_project_dir, get_top_level_dir
-from tests.unittests.helpers import get_mock_paths
 
 
 class MyDataSource(sources.DataSource):
@@ -18,21 +17,21 @@ class MyDataSource(sources.DataSource):
 
 
 class TestPaths:
-    def test_get_ipath_and_instance_id_with_slashes(self, tmp_path):
+    def test_get_ipath_and_instance_id_with_slashes(self, MockPaths):
         myds = MyDataSource(sys_cfg={}, distro=None, paths={})
         myds._instance_id = "/foo/bar"
         safe_iid = "_foo_bar"
-        mypaths = get_mock_paths(tmp_path)({}, myds)
+        mypaths = MockPaths({}, myds)
 
         assert (
             os.path.join(mypaths.cloud_dir, "instances", safe_iid)
             == mypaths.get_ipath()
         )
 
-    def test_get_ipath_and_empty_instance_id_returns_none(self, tmp_path):
+    def test_get_ipath_and_empty_instance_id_returns_none(self, MockPaths):
         myds = MyDataSource(sys_cfg={}, distro=None, paths={})
         myds._instance_id = None
-        mypaths = get_mock_paths(tmp_path)({}, myds)
+        mypaths = MockPaths({}, myds)
 
         assert mypaths.get_ipath() is None
 
