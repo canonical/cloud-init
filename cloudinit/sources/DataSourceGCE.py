@@ -317,7 +317,7 @@ def read_md(address=None, url_params=None, platform_check=True):
         elif encoding:
             LOG.warning("unknown user-data-encoding: %s, ignoring", encoding)
         ret["user-data"] = ud
-        
+
     # Update md with parsed instance-data
     md["instance-data"] = instance_data
 
