@@ -355,6 +355,27 @@ def merge_agent_landscape_data(
     )
 
 
+def landscape_supports_field(field: str):
+    """Checks if the landscape-config binary supports the intended
+    configuration field, returning False if not or if attempting
+    to run that binary fails.
+    """
+    try:
+        flag = "--" + field.replace("_", "-")
+        # landscape-config is the command that understand the config fields,
+        # not landscape-client itself.
+        out, _ = subp.subp("landscape-config --help")
+        return flag in out
+
+    except subp.ProcessExecutionError as err:
+        LOG.warning(
+            "Unable to verify if landscape-client supports %s: %s",
+            field,
+            err.reason,
+        )
+        return False
+
+
 class DataSourceWSL(sources.DataSource):
     dsname = "WSL"
 
@@ -442,13 +463,10 @@ class DataSourceWSL(sources.DataSource):
         iid = self.metadata["instance-id"]
         # Load Ubuntu Pro configs only on Ubuntu distros
         if self.distro.name == "ubuntu":
-            _, version_id, _ = util.get_linux_distro()
-            if version_id < "25.04":
-                # landscape-config doesn't support the installation_request_id
-                # before Ubuntu 25.04 as of Jun-2025, so we cannot use it yet.
-                # That's expected to change soon, as the Landscape
-                # team is SRU'ing that and other features to older releases.
-                # TODO: remove this check when the SRUs are done.
+            if not landscape_supports_field(LANDSCAPE_INSTALLATION_REQ_ID):
+                # Prevents reusing metadata.instance-id as
+                # landscape.installation_request_id if the
+                # current version of landscape_client doesn't support it.
                 iid = ""
             agent_data, user_data = load_ubuntu_pro_data(user_home, iid)
 

@@ -282,6 +282,28 @@ class TestWSLHelperFunctions:
         else:
             assert "" == error_logs
 
+    @mock.patch("cloudinit.util.subp.subp")
+    def test_landscape_supports_field(self, m_subp):
+        LANDSCAPE_HELP_OUTPUT = """\
+        Usage: landscape-config [options]
+
+        Options:
+          --version             show program's version number and exit
+          -h, --help            show this help message and exit
+          --installation-request-id Only set this value if this computer is a
+                                    instance managed by Landscape, in which
+                                    it to be the request id that Landscape
+                                    to the installation activity for the host
+          --access-group=ACCESS_GROUP
+                                Suggested access group for this computer.
+          --tags=TAGS           Comma separated list of tag names to be sent
+                                to the server.
+        """
+        m_subp.return_value = util.subp.SubpResult(LANDSCAPE_HELP_OUTPUT, "")
+        assert wsl.landscape_supports_field("non_sense") is False
+        assert wsl.landscape_supports_field("tags") is True
+        assert wsl.landscape_supports_field("installation-request-id") is True
+
 
 SAMPLE_CFG = {"datasource_list": ["NoCloud", "WSL"]}
 
@@ -367,6 +389,10 @@ class TestWSLDataSource:
         mocker.patch(
             "cloudinit.sources.DataSourceWSL.subp.which",
             return_value="/usr/bin/wslpath",
+        )
+        mocker.patch(
+            "cloudinit.sources.DataSourceWSL.landscape_supports_field",
+            return_value=True,
         )
 
     def test_metadata_id_default(self, tmpdir, paths):
