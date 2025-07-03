@@ -1,8 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
 import os
-import shutil
-import tempfile
 from io import BytesIO
 
 import configobj
@@ -46,22 +44,24 @@ plugin.yaml = /etc/mcollective/facts.yaml
 """
 
 
-class TestConfig(t_help.FilesystemMockingTestCase):
-    def setUp(self):
-        super(TestConfig, self).setUp()
-        self.tmp = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, self.tmp)
-        # "./": make os.path.join behave correctly with abs path as second arg
-        self.server_cfg = os.path.join(
-            self.tmp, "./" + cc_mcollective.SERVER_CFG
-        )
-        self.pubcert_file = os.path.join(
-            self.tmp, "./" + cc_mcollective.PUBCERT_FILE
-        )
-        self.pricert_file = os.path.join(
-            self.tmp, self.tmp, "./" + cc_mcollective.PRICERT_FILE
-        )
+class TestConfig:
 
+    @pytest.fixture
+    def cfg_paths(self, tmpdir):
+        # "./": make os.path.join behave correctly with abs path as second arg
+        return {
+            "server_cfg": os.path.join(
+                tmpdir, "./" + cc_mcollective.SERVER_CFG
+            ),
+            "pubcert_file": os.path.join(
+                tmpdir, "./" + cc_mcollective.PUBCERT_FILE
+            ),
+            "pricert_file": os.path.join(
+                tmpdir, "./" + cc_mcollective.PRICERT_FILE
+            ),
+        }
+
+    @pytest.mark.usefixtures("fake_filesystem")
     def test_basic_config(self):
         cfg = {
             "mcollective": {
@@ -84,30 +84,34 @@ class TestConfig(t_help.FilesystemMockingTestCase):
         }
         expected = cfg["mcollective"]["conf"]
 
-        self.patchUtils(self.tmp)
         cc_mcollective.configure(cfg["mcollective"]["conf"])
         contents = util.load_binary_file(cc_mcollective.SERVER_CFG)
         contents = configobj.ConfigObj(BytesIO(contents))
-        self.assertEqual(expected, dict(contents))
+        assert expected == dict(contents)
 
-    def test_existing_config_is_saved(self):
+    def test_existing_config_is_saved(self, cfg_paths):
         cfg = {"loglevel": "warn"}
-        util.write_file(self.server_cfg, STOCK_CONFIG)
-        cc_mcollective.configure(config=cfg, server_cfg=self.server_cfg)
-        self.assertTrue(os.path.exists(self.server_cfg))
-        self.assertTrue(os.path.exists(self.server_cfg + ".old"))
-        self.assertEqual(
-            util.load_text_file(self.server_cfg + ".old"), STOCK_CONFIG
+        util.write_file(cfg_paths["server_cfg"], STOCK_CONFIG)
+        cc_mcollective.configure(
+            config=cfg, server_cfg=cfg_paths["server_cfg"]
+        )
+        assert os.path.exists(cfg_paths["server_cfg"])
+        assert os.path.exists(cfg_paths["server_cfg"] + ".old")
+        assert (
+            util.load_text_file(cfg_paths["server_cfg"] + ".old")
+            == STOCK_CONFIG
         )
 
-    def test_existing_updated(self):
+    def test_existing_updated(self, cfg_paths):
         cfg = {"loglevel": "warn"}
-        util.write_file(self.server_cfg, STOCK_CONFIG)
-        cc_mcollective.configure(config=cfg, server_cfg=self.server_cfg)
-        cfgobj = configobj.ConfigObj(self.server_cfg)
-        self.assertEqual(cfg["loglevel"], cfgobj["loglevel"])
+        util.write_file(cfg_paths["server_cfg"], STOCK_CONFIG)
+        cc_mcollective.configure(
+            config=cfg, server_cfg=cfg_paths["server_cfg"]
+        )
+        cfgobj = configobj.ConfigObj(cfg_paths["server_cfg"])
+        assert cfg["loglevel"] == cfgobj["loglevel"]
 
-    def test_certificats_written(self):
+    def test_certificats_written(self, cfg_paths):
         # check public-cert and private-cert keys in config get written
         cfg = {
             "loglevel": "debug",
@@ -117,29 +121,31 @@ class TestConfig(t_help.FilesystemMockingTestCase):
 
         cc_mcollective.configure(
             config=cfg,
-            server_cfg=self.server_cfg,
-            pricert_file=self.pricert_file,
-            pubcert_file=self.pubcert_file,
+            server_cfg=cfg_paths["server_cfg"],
+            pricert_file=cfg_paths["pricert_file"],
+            pubcert_file=cfg_paths["pubcert_file"],
         )
 
-        found = configobj.ConfigObj(self.server_cfg)
+        found = configobj.ConfigObj(cfg_paths["server_cfg"])
 
         # make sure these didnt get written in
-        self.assertFalse("public-cert" in found)
-        self.assertFalse("private-cert" in found)
+        assert "public-cert" not in found
+        assert "private-cert" not in found
 
         # these need updating to the specified paths
-        self.assertEqual(found["plugin.ssl_server_public"], self.pubcert_file)
-        self.assertEqual(found["plugin.ssl_server_private"], self.pricert_file)
+        assert found["plugin.ssl_server_public"] == cfg_paths["pubcert_file"]
+        assert found["plugin.ssl_server_private"] == cfg_paths["pricert_file"]
 
         # and the security provider should be ssl
-        self.assertEqual(found["securityprovider"], "ssl")
+        assert found["securityprovider"] == "ssl"
 
-        self.assertEqual(
-            util.load_text_file(self.pricert_file), cfg["private-cert"]
+        assert (
+            util.load_text_file(cfg_paths["pricert_file"])
+            == cfg["private-cert"]
         )
-        self.assertEqual(
-            util.load_text_file(self.pubcert_file), cfg["public-cert"]
+        assert (
+            util.load_text_file(cfg_paths["pubcert_file"])
+            == cfg["public-cert"]
         )
 
 

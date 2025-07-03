@@ -20,7 +20,6 @@ from cloudinit.sources.helpers.vmware.imc import guestcust_util
 from cloudinit.subp import ProcessExecutionError
 from tests.unittests.helpers import (
     CiTestCase,
-    FilesystemMockingTestCase,
     mock,
     populate_dir,
     wrap_and_call,
@@ -463,336 +462,311 @@ class TestDataSourceVMware(CiTestCase):
         )
 
 
-class TestDataSourceVMwareEnvVars(FilesystemMockingTestCase):
+class TestDataSourceVMwareEnvVars:
     """
     Test the envvar transport.
     """
 
-    def setUp(self):
-        super(TestDataSourceVMwareEnvVars, self).setUp()
-        self.tmp = self.tmp_dir()
-        os.environ[DataSourceVMware.VMX_GUESTINFO] = "1"
-        self.create_system_files()
-
-    def tearDown(self):
-        del os.environ[DataSourceVMware.VMX_GUESTINFO]
-        return super().tearDown()
-
-    def create_system_files(self):
-        rootd = self.tmp_dir()
+    @pytest.fixture(autouse=True)
+    def env_and_files(self, monkeypatch, fake_filesystem):
+        monkeypatch.setenv(DataSourceVMware.VMX_GUESTINFO, "1")
         populate_dir(
-            rootd,
-            {
-                DataSourceVMware.PRODUCT_UUID_FILE_PATH: PRODUCT_UUID,
-            },
+            "", {DataSourceVMware.PRODUCT_UUID_FILE_PATH: PRODUCT_UUID}
         )
-        self.assertTrue(self.reRoot(rootd))
 
-    def assert_get_data_ok(self, m_fn, m_fn_call_count=6):
-        ds = get_ds(self.tmp)
+    def assert_get_data_ok(self, tmpdir, m_fn, m_fn_call_count=6):
+        ds = get_ds(tmpdir)
         ret = ds.get_data()
-        self.assertTrue(ret)
-        self.assertEqual(m_fn_call_count, m_fn.call_count)
-        self.assertEqual(
-            ds.data_access_method, DataSourceVMware.DATA_ACCESS_METHOD_ENVVAR
+        assert ret
+        assert m_fn_call_count == m_fn.call_count
+        assert (
+            ds.data_access_method == DataSourceVMware.DATA_ACCESS_METHOD_ENVVAR
         )
         return ds
 
-    def assert_metadata(self, metadata, m_fn, m_fn_call_count=6):
-        ds = self.assert_get_data_ok(m_fn, m_fn_call_count)
-        assert_metadata(self, ds, metadata)
+    def assert_metadata(self, metadata, tmpdir, m_fn, m_fn_call_count=6):
+        ds = self.assert_get_data_ok(tmpdir, m_fn, m_fn_call_count)
+        assert_metadata(ds, metadata)
 
     @mock.patch(
         "cloudinit.sources.DataSourceVMware.guestinfo_envvar_get_value"
     )
-    def test_get_subplatform(self, m_fn):
+    def test_get_subplatform(self, m_fn, tmpdir):
         m_fn.side_effect = [VMW_METADATA_YAML, "", "", "", "", ""]
-        ds = self.assert_get_data_ok(m_fn, m_fn_call_count=4)
-        self.assertEqual(
-            ds.subplatform,
-            "%s (%s)"
-            % (
-                DataSourceVMware.DATA_ACCESS_METHOD_ENVVAR,
-                DataSourceVMware.get_guestinfo_envvar_key_name("metadata"),
-            ),
+        ds = self.assert_get_data_ok(tmpdir, m_fn, m_fn_call_count=4)
+        assert ds.subplatform == "%s (%s)" % (
+            DataSourceVMware.DATA_ACCESS_METHOD_ENVVAR,
+            DataSourceVMware.get_guestinfo_envvar_key_name("metadata"),
         )
 
         # Test to ensure that network is configured from metadata on each boot.
-        self.assertSetEqual(
-            DataSourceVMware.DEFAULT_UPDATE_EVENTS[EventScope.NETWORK],
-            ds.default_update_events[EventScope.NETWORK],
+        assert (
+            DataSourceVMware.DEFAULT_UPDATE_EVENTS[EventScope.NETWORK]
+            == ds.default_update_events[EventScope.NETWORK]
         )
-        self.assertSetEqual(
-            DataSourceVMware.SUPPORTED_UPDATE_EVENTS[EventScope.NETWORK],
-            ds.supported_update_events[EventScope.NETWORK],
+        assert (
+            DataSourceVMware.SUPPORTED_UPDATE_EVENTS[EventScope.NETWORK]
+            == ds.supported_update_events[EventScope.NETWORK]
         )
 
     @mock.patch(
         "cloudinit.sources.DataSourceVMware.guestinfo_envvar_get_value"
     )
-    def test_get_data_metadata_only(self, m_fn):
+    def test_get_data_metadata_only(self, m_fn, tmpdir):
         m_fn.side_effect = [VMW_METADATA_YAML, "", "", "", "", ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(tmpdir, m_fn, m_fn_call_count=4)
 
     @mock.patch(
         "cloudinit.sources.DataSourceVMware.guestinfo_envvar_get_value"
     )
-    def test_get_data_userdata_only(self, m_fn):
+    def test_get_data_userdata_only(self, m_fn, tmpdir):
         m_fn.side_effect = ["", VMW_USERDATA_YAML, "", ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(tmpdir, m_fn, m_fn_call_count=4)
 
     @mock.patch(
         "cloudinit.sources.DataSourceVMware.guestinfo_envvar_get_value"
     )
-    def test_get_data_vendordata_only(self, m_fn):
+    def test_get_data_vendordata_only(self, m_fn, tmpdir):
         m_fn.side_effect = ["", "", VMW_VENDORDATA_YAML, ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(tmpdir, m_fn, m_fn_call_count=4)
 
     @mock.patch(
         "cloudinit.sources.DataSourceVMware.guestinfo_envvar_get_value"
     )
-    def test_get_data_metadata_base64(self, m_fn):
+    def test_get_data_metadata_base64(self, m_fn, tmpdir):
         data = base64.b64encode(VMW_METADATA_YAML.encode("utf-8"))
         m_fn.side_effect = [data, "base64", "", ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(tmpdir, m_fn, m_fn_call_count=4)
 
     @mock.patch(
         "cloudinit.sources.DataSourceVMware.guestinfo_envvar_get_value"
     )
-    def test_get_data_metadata_b64(self, m_fn):
+    def test_get_data_metadata_b64(self, m_fn, tmpdir):
         data = base64.b64encode(VMW_METADATA_YAML.encode("utf-8"))
         m_fn.side_effect = [data, "b64", "", ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(tmpdir, m_fn, m_fn_call_count=4)
 
     @mock.patch(
         "cloudinit.sources.DataSourceVMware.guestinfo_envvar_get_value"
     )
-    def test_get_data_metadata_gzip_base64(self, m_fn):
+    def test_get_data_metadata_gzip_base64(self, m_fn, tmpdir):
         data = VMW_METADATA_YAML.encode("utf-8")
         data = gzip.compress(data)
         data = base64.b64encode(data)
         m_fn.side_effect = [data, "gzip+base64", "", ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(tmpdir, m_fn, m_fn_call_count=4)
 
     @mock.patch(
         "cloudinit.sources.DataSourceVMware.guestinfo_envvar_get_value"
     )
-    def test_get_data_metadata_gz_b64(self, m_fn):
+    def test_get_data_metadata_gz_b64(self, m_fn, tmpdir):
         data = VMW_METADATA_YAML.encode("utf-8")
         data = gzip.compress(data)
         data = base64.b64encode(data)
         m_fn.side_effect = [data, "gz+b64", "", ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(tmpdir, m_fn, m_fn_call_count=4)
 
     @mock.patch(
         "cloudinit.sources.DataSourceVMware.guestinfo_envvar_get_value"
     )
-    def test_metadata_single_ssh_key(self, m_fn):
+    def test_metadata_single_ssh_key(self, m_fn, tmpdir):
         metadata = DataSourceVMware.load_json_or_yaml(VMW_METADATA_YAML)
         metadata["public_keys"] = VMW_SINGLE_KEY
         metadata_yaml = safeyaml.dumps(metadata)
         m_fn.side_effect = [metadata_yaml, "", "", ""]
-        self.assert_metadata(metadata, m_fn, m_fn_call_count=4)
+        self.assert_metadata(metadata, tmpdir, m_fn, m_fn_call_count=4)
 
     @mock.patch(
         "cloudinit.sources.DataSourceVMware.guestinfo_envvar_get_value"
     )
-    def test_metadata_multiple_ssh_keys(self, m_fn):
+    def test_metadata_multiple_ssh_keys(self, m_fn, tmpdir):
         metadata = DataSourceVMware.load_json_or_yaml(VMW_METADATA_YAML)
         metadata["public_keys"] = VMW_MULTIPLE_KEYS
         metadata_yaml = safeyaml.dumps(metadata)
         m_fn.side_effect = [metadata_yaml, "", "", ""]
-        self.assert_metadata(metadata, m_fn, m_fn_call_count=4)
+        self.assert_metadata(metadata, tmpdir, m_fn, m_fn_call_count=4)
 
 
-class TestDataSourceVMwareGuestInfo(FilesystemMockingTestCase):
+class TestDataSourceVMwareGuestInfo:
     """
     Test the guestinfo transport on a VMware platform.
     """
 
-    def setUp(self):
-        super(TestDataSourceVMwareGuestInfo, self).setUp()
-        self.tmp = self.tmp_dir()
-        self.create_system_files()
-
-    def create_system_files(self):
-        rootd = self.tmp_dir()
+    @pytest.fixture(autouse=True)
+    def create_files(self, fake_filesystem):
         populate_dir(
-            rootd,
+            "",
             {
                 DataSourceVMware.PRODUCT_UUID_FILE_PATH: PRODUCT_UUID,
                 PRODUCT_NAME_FILE_PATH: PRODUCT_NAME,
             },
         )
-        self.assertTrue(self.reRoot(rootd))
 
-    def assert_get_data_ok(self, m_fn, m_fn_call_count=6):
-        ds = get_ds(self.tmp)
+    def assert_get_data_ok(self, tmpdir, m_fn, m_fn_call_count=6):
+        ds = get_ds(tmpdir)
         ret = ds.get_data()
-        self.assertTrue(ret)
-        self.assertEqual(m_fn_call_count, m_fn.call_count)
-        self.assertEqual(
-            ds.data_access_method,
-            DataSourceVMware.DATA_ACCESS_METHOD_GUESTINFO,
+        assert ret
+        assert m_fn_call_count == m_fn.call_count
+        assert (
+            ds.data_access_method
+            == DataSourceVMware.DATA_ACCESS_METHOD_GUESTINFO
         )
         return ds
 
-    def assert_metadata(self, metadata, m_fn, m_fn_call_count=6):
-        ds = self.assert_get_data_ok(m_fn, m_fn_call_count)
-        assert_metadata(self, ds, metadata)
+    def assert_metadata(self, metadata, tmpdir, m_fn, m_fn_call_count=6):
+        ds = self.assert_get_data_ok(tmpdir, m_fn, m_fn_call_count)
+        assert_metadata(ds, metadata)
 
     def test_ds_valid_on_vmware_platform(self):
         system_type = dmi.read_dmi_data("system-product-name")
-        self.assertEqual(system_type, PRODUCT_NAME)
+        assert system_type == PRODUCT_NAME
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
-    def test_get_subplatform(self, m_which_fn, m_fn):
+    def test_get_subplatform(self, m_which_fn, m_fn, tmpdir):
         m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
         m_fn.side_effect = [VMW_METADATA_YAML, "", "", "", "", ""]
-        ds = self.assert_get_data_ok(m_fn, m_fn_call_count=4)
-        self.assertEqual(
-            ds.subplatform,
-            "%s (%s)"
-            % (
-                DataSourceVMware.DATA_ACCESS_METHOD_GUESTINFO,
-                DataSourceVMware.get_guestinfo_key_name("metadata"),
-            ),
+        ds = self.assert_get_data_ok(tmpdir, m_fn, m_fn_call_count=4)
+        assert ds.subplatform == "%s (%s)" % (
+            DataSourceVMware.DATA_ACCESS_METHOD_GUESTINFO,
+            DataSourceVMware.get_guestinfo_key_name("metadata"),
         )
 
         # Test to ensure that network is configured from metadata on each boot.
-        self.assertSetEqual(
-            DataSourceVMware.DEFAULT_UPDATE_EVENTS[EventScope.NETWORK],
-            ds.default_update_events[EventScope.NETWORK],
+        assert (
+            DataSourceVMware.DEFAULT_UPDATE_EVENTS[EventScope.NETWORK]
+            == ds.default_update_events[EventScope.NETWORK]
         )
-        self.assertSetEqual(
-            DataSourceVMware.SUPPORTED_UPDATE_EVENTS[EventScope.NETWORK],
-            ds.supported_update_events[EventScope.NETWORK],
+        assert (
+            DataSourceVMware.SUPPORTED_UPDATE_EVENTS[EventScope.NETWORK]
+            == ds.supported_update_events[EventScope.NETWORK]
         )
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
-    def test_get_data_metadata_with_vmware_rpctool(self, m_which_fn, m_fn):
+    def test_get_data_metadata_with_vmware_rpctool(
+        self, m_which_fn, m_fn, tmpdir
+    ):
         m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
         m_fn.side_effect = [VMW_METADATA_YAML, "", "", ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(tmpdir, m_fn, m_fn_call_count=4)
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.exec_vmware_rpctool")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
     def test_get_data_metadata_non_zero_exit_code_fallback_to_vmtoolsd(
-        self, m_which_fn, m_exec_vmware_rpctool_fn, m_fn
+        self, m_which_fn, m_exec_vmware_rpctool_fn, m_fn, tmpdir
     ):
         m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
         m_exec_vmware_rpctool_fn.side_effect = ProcessExecutionError(
             exit_code=1
         )
         m_fn.side_effect = [VMW_METADATA_YAML, "", "", ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(tmpdir, m_fn, m_fn_call_count=4)
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.exec_vmware_rpctool")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
     def test_get_data_metadata_vmware_rpctool_not_found_fallback_to_vmtoolsd(
-        self, m_which_fn, m_exec_vmware_rpctool_fn, m_fn
+        self, m_which_fn, m_exec_vmware_rpctool_fn, m_fn, tmpdir
     ):
         m_which_fn.side_effect = ["vmtoolsd", None]
         m_fn.side_effect = [VMW_METADATA_YAML, "", "", ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(tmpdir, m_fn, m_fn_call_count=4)
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
-    def test_get_data_userdata_only(self, m_which_fn, m_fn):
+    def test_get_data_userdata_only(self, m_which_fn, m_fn, tmpdir):
         m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
         m_fn.side_effect = ["", VMW_USERDATA_YAML, "", ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(tmpdir, m_fn, m_fn_call_count=4)
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
-    def test_get_data_vendordata_only(self, m_which_fn, m_fn):
+    def test_get_data_vendordata_only(self, m_which_fn, m_fn, tmpdir):
         m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
         m_fn.side_effect = ["", "", VMW_VENDORDATA_YAML, ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(tmpdir, m_fn, m_fn_call_count=4)
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
-    def test_metadata_single_ssh_key(self, m_which_fn, m_fn):
+    def test_metadata_single_ssh_key(self, m_which_fn, m_fn, tmpdir):
         m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
         metadata = DataSourceVMware.load_json_or_yaml(VMW_METADATA_YAML)
         metadata["public_keys"] = VMW_SINGLE_KEY
         metadata_yaml = safeyaml.dumps(metadata)
         m_fn.side_effect = [metadata_yaml, "", "", ""]
-        self.assert_metadata(metadata, m_fn, m_fn_call_count=4)
+        self.assert_metadata(metadata, tmpdir, m_fn, m_fn_call_count=4)
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
-    def test_metadata_multiple_ssh_keys(self, m_which_fn, m_fn):
+    def test_metadata_multiple_ssh_keys(self, m_which_fn, m_fn, tmpdir):
         m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
         metadata = DataSourceVMware.load_json_or_yaml(VMW_METADATA_YAML)
         metadata["public_keys"] = VMW_MULTIPLE_KEYS
         metadata_yaml = safeyaml.dumps(metadata)
         m_fn.side_effect = [metadata_yaml, "", "", ""]
-        self.assert_metadata(metadata, m_fn, m_fn_call_count=4)
+        self.assert_metadata(metadata, tmpdir, m_fn, m_fn_call_count=4)
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
-    def test_get_data_metadata_base64(self, m_which_fn, m_fn):
+    def test_get_data_metadata_base64(self, m_which_fn, m_fn, tmpdir):
         m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
         data = base64.b64encode(VMW_METADATA_YAML.encode("utf-8"))
         m_fn.side_effect = [data, "base64", "", ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(tmpdir, m_fn, m_fn_call_count=4)
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
-    def test_get_data_metadata_b64(self, m_which_fn, m_fn):
+    def test_get_data_metadata_b64(self, m_which_fn, m_fn, tmpdir):
         m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
         data = base64.b64encode(VMW_METADATA_YAML.encode("utf-8"))
         m_fn.side_effect = [data, "b64", "", ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(tmpdir, m_fn, m_fn_call_count=4)
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
-    def test_get_data_metadata_gzip_base64(self, m_which_fn, m_fn):
+    def test_get_data_metadata_gzip_base64(self, m_which_fn, m_fn, tmpdir):
         m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
         data = VMW_METADATA_YAML.encode("utf-8")
         data = gzip.compress(data)
         data = base64.b64encode(data)
         m_fn.side_effect = [data, "gzip+base64", "", ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(tmpdir, m_fn, m_fn_call_count=4)
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
-    def test_get_data_metadata_gz_b64(self, m_which_fn, m_fn):
+    def test_get_data_metadata_gz_b64(self, m_which_fn, m_fn, tmpdir):
         m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
         data = VMW_METADATA_YAML.encode("utf-8")
         data = gzip.compress(data)
         data = base64.b64encode(data)
         m_fn.side_effect = [data, "gz+b64", "", ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(tmpdir, m_fn, m_fn_call_count=4)
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_set_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
-    def test_advertise_update_events(self, m_which_fn, m_get_fn, m_set_fn):
+    def test_advertise_update_events(
+        self, m_which_fn, m_get_fn, m_set_fn, tmpdir
+    ):
         m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
         m_get_fn.side_effect = [VMW_METADATA_YAML, "", "", "", "", ""]
-        ds = self.assert_get_data_ok(m_get_fn, m_fn_call_count=4)
+        ds = self.assert_get_data_ok(tmpdir, m_get_fn, m_fn_call_count=4)
         supported_events, enabled_events = ds.advertise_update_events({})
-        self.assertEqual(2, m_set_fn.call_count)
-        self.assertEqual(
-            "network=boot;boot-new-instance;hotplug", supported_events
-        )
-        self.assertEqual("network=boot-new-instance;hotplug", enabled_events)
+        assert 2 == m_set_fn.call_count
+        assert "network=boot;boot-new-instance;hotplug" == supported_events
+        assert "network=boot-new-instance;hotplug" == enabled_events
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_set_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
     def test_advertise_update_events_with_events_from_user_data(
-        self, m_which_fn, m_get_fn, m_set_fn
+        self, m_which_fn, m_get_fn, m_set_fn, tmpdir
     ):
         m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
         m_get_fn.side_effect = [VMW_METADATA_YAML, "", "", "", "", ""]
-        ds = self.assert_get_data_ok(m_get_fn, m_fn_call_count=4)
+        ds = self.assert_get_data_ok(tmpdir, m_get_fn, m_fn_call_count=4)
         supported_events, enabled_events = ds.advertise_update_events(
             {
                 "updates": {
@@ -802,11 +776,9 @@ class TestDataSourceVMwareGuestInfo(FilesystemMockingTestCase):
                 },
             }
         )
-        self.assertEqual(2, m_set_fn.call_count)
-        self.assertEqual(
-            "network=boot;boot-new-instance;hotplug", supported_events
-        )
-        self.assertEqual("network=boot", enabled_events)
+        assert 2 == m_set_fn.call_count
+        assert "network=boot;boot-new-instance;hotplug" == supported_events
+        assert "network=boot" == enabled_events
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
@@ -814,6 +786,7 @@ class TestDataSourceVMwareGuestInfo(FilesystemMockingTestCase):
         self,
         m_which_fn,
         m_get_fn,
+        tmpdir,
     ):
         m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
         m_get_fn.side_effect = [
@@ -824,44 +797,36 @@ class TestDataSourceVMwareGuestInfo(FilesystemMockingTestCase):
             "",
             "",
         ]
-        ds = self.assert_get_data_ok(m_get_fn, m_fn_call_count=4)
+        ds = self.assert_get_data_ok(tmpdir, m_get_fn, m_fn_call_count=4)
         ds.init_extra_hotplug_udev_rules()
 
-        self.assertEqual(
-            VMW_EXPECTED_EXTRA_HOTPLUG_UDEV_RULES_VMXNET,
-            ds.extra_hotplug_udev_rules,
+        assert (
+            VMW_EXPECTED_EXTRA_HOTPLUG_UDEV_RULES_VMXNET
+            == ds.extra_hotplug_udev_rules
         )
 
 
-class TestDataSourceVMwareGuestInfo_InvalidPlatform(FilesystemMockingTestCase):
+class TestDataSourceVMwareGuestInfo_InvalidPlatform:
     """
     Test the guestinfo transport on a non-VMware platform.
     """
 
-    def setUp(self):
-        super(TestDataSourceVMwareGuestInfo_InvalidPlatform, self).setUp()
-        self.tmp = self.tmp_dir()
-        self.create_system_files()
-
-    def create_system_files(self):
-        rootd = self.tmp_dir()
+    @pytest.fixture(autouse=True)
+    def create_files(self, fake_filesystem, tmpdir):
         populate_dir(
-            rootd,
-            {
-                DataSourceVMware.PRODUCT_UUID_FILE_PATH: PRODUCT_UUID,
-            },
+            str(tmpdir),
+            {DataSourceVMware.PRODUCT_UUID_FILE_PATH: PRODUCT_UUID},
         )
-        self.assertTrue(self.reRoot(rootd))
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
-    def test_ds_invalid_on_non_vmware_platform(self, m_fn):
+    def test_ds_invalid_on_non_vmware_platform(self, m_fn, tmpdir):
         system_type = dmi.read_dmi_data("system-product-name")
-        self.assertEqual(system_type, None)
+        assert system_type is None
 
         m_fn.side_effect = [VMW_METADATA_YAML, "", "", "", "", ""]
-        ds = get_ds(self.tmp)
+        ds = get_ds(tmpdir)
         ret = ds.get_data()
-        self.assertFalse(ret)
+        assert not ret
 
 
 class TestDataSourceVMwareIMC(CiTestCase):
@@ -1639,18 +1604,16 @@ class TestDataSourceVMwareIMC_MarkerFiles(CiTestCase):
         self.assertTrue(os.path.exists(markerfilepath))
 
 
-def assert_metadata(test_obj, ds, metadata):
-    test_obj.assertEqual(metadata.get("instance-id"), ds.get_instance_id())
-    test_obj.assertEqual(
-        metadata.get("local-hostname"), ds.get_hostname().hostname
-    )
+def assert_metadata(ds, metadata):
+    assert metadata.get("instance-id") == ds.get_instance_id()
+    assert metadata.get("local-hostname") == ds.get_hostname().hostname
 
     expected_public_keys = metadata.get("public_keys")
     if not isinstance(expected_public_keys, list):
         expected_public_keys = [expected_public_keys]
 
-    test_obj.assertEqual(expected_public_keys, ds.get_public_ssh_keys())
-    test_obj.assertIsInstance(ds.get_public_ssh_keys(), list)
+    assert expected_public_keys == ds.get_public_ssh_keys()
+    assert isinstance(ds.get_public_ssh_keys(), list)
 
 
 def get_ds(temp_dir):

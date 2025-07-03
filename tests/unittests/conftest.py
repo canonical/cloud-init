@@ -50,6 +50,7 @@ FS_FUNCS = {
         ("symlink", 2),
         ("stat", 1),
         ("scandir", 1),
+        ("utime", 2),
     ],
     util: [
         ("write_file", 1),

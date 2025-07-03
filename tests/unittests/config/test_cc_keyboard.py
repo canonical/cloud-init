@@ -14,11 +14,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import (
-    FilesystemMockingTestCase,
-    populate_dir,
-    skipUnlessJsonSchema,
-)
+from tests.unittests.helpers import populate_dir, skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
 
@@ -82,13 +78,12 @@ class TestKeyboardSchema:
                 validate_cloudconfig_schema(config, schema, strict=True)
 
 
-class TestKeyboard(FilesystemMockingTestCase):
-    with_logs = True
+class TestKeyboard:
 
-    def setUp(self):
-        super(TestKeyboard, self).setUp()
-        self.root_d = self.tmp_dir()
-        self.root_d = self.reRoot()
+    @pytest.fixture
+    def keymap_file(self, tmpdir):
+        keymap_dir = os.path.join(tmpdir, "usr/share/bkeymaps/us")
+        populate_dir(keymap_dir, {"us.bmap.gz": "# Test\n"})
 
     @mock.patch("cloudinit.distros.Distro.uses_systemd")
     @mock.patch("cloudinit.distros.subp.subp")
@@ -131,25 +126,21 @@ class TestKeyboard(FilesystemMockingTestCase):
             ["service", "console-setup", "restart"], capture=True, rcs=None
         )
 
+    @pytest.mark.usefixtures("fake_filesystem", "keymap_file")
     @mock.patch("cloudinit.distros.subp.subp")
-    def test_alpine_linux_cmd(self, m_subp, *args):
+    def test_alpine_linux_cmd(self, m_subp):
         """Alpine Linux runs setup-keymap"""
         cfg = {"keyboard": {"layout": "us", "variant": "us"}}
         layout = "us"
         variant = "us"
         cloud = get_cloud("alpine")
 
-        # Create a dummy directory and file for keymap
-        keymap_dir = "/usr/share/bkeymaps/%s" % "us"
-        keymap_file = "%s/%s.bmap.gz" % (keymap_dir, "us")
-        os.makedirs("%s%s" % (self.root_d, keymap_dir))
-        populate_dir(self.root_d, {keymap_file: "# Test\n"})
-
         cc_keyboard.handle("cc_keyboard", cfg, cloud, [])
         m_subp.assert_called_once_with(["setup-keymap", layout, variant])
 
+    @pytest.mark.usefixtures("fake_filesystem", "keymap_file")
     @mock.patch("cloudinit.distros.subp.subp")
-    def test_alpine_linux_ignore_model(self, m_subp):
+    def test_alpine_linux_ignore_model(self, m_subp, caplog):
         """Alpine Linux ignores model setting"""
         cfg = {
             "keyboard": {
@@ -162,16 +153,8 @@ class TestKeyboard(FilesystemMockingTestCase):
         variant = "us"
         cloud = get_cloud("alpine")
 
-        keymap_dir = "/usr/share/bkeymaps/%s" % "us"
-        keymap_file = "%s/%s.bmap.gz" % (keymap_dir, "us")
-        os.makedirs("%s%s" % (self.root_d, keymap_dir))
-        populate_dir(self.root_d, {keymap_file: "# Test\n"})
-
         cc_keyboard.handle("cc_keyboard", cfg, cloud, [])
-        assert (
-            "Keyboard model is ignored for Alpine Linux."
-            in self.logs.getvalue()
-        )
+        assert "Keyboard model is ignored for Alpine Linux." in caplog.text
         m_subp.assert_called_once_with(
             [
                 "setup-keymap",
