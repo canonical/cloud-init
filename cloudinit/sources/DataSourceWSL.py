@@ -25,6 +25,9 @@ WSLPATH_CMD = "/usr/bin/wslpath"
 DEFAULT_INSTANCE_ID = "iid-datasource-wsl"
 LANDSCAPE_DATA_FILE = "%s.user-data"
 AGENT_DATA_FILE = "agent.yaml"
+LANDSCAPE_CFG_KEY = "landscape"
+LANDSCAPE_CLIENT_CFG_KEY = "client"
+LANDSCAPE_INSTALLATION_REQ_ID = "installation_request_id"
 
 
 def instance_name() -> str:
@@ -148,7 +151,10 @@ class ConfigData:
     """Models a piece of configuration data as a dict if possible, while
     retaining its raw representation alongside its file path"""
 
-    def __init__(self, path: PurePath):
+    def is_cloud_config(self) -> bool:
+        return self.config_dict is not None
+
+    def __init__(self, path: PurePath, instance_id: str):
         self.raw: str = util.load_text_file(path)
         self.path: PurePath = path
 
@@ -157,35 +163,73 @@ class ConfigData:
         if "text/cloud-config" == type_from_starts_with(self.raw):
             self.config_dict = util.load_yaml(self.raw)
 
-    def is_cloud_config(self) -> bool:
-        return self.config_dict is not None
+        if (
+            self.config_dict  # Valid non-empty config
+            and instance_id
+            and instance_id != DEFAULT_INSTANCE_ID  # custom instance-id
+            and self.config_dict.get(LANDSCAPE_CFG_KEY, {}).get(
+                LANDSCAPE_CLIENT_CFG_KEY
+            )
+            is not None  # Landscape client config exists
+        ):
+            # Let's set the installation_request_id to the metadata.instance-id
+            # if not already set, and update the raw config if we modified it:
+            req_id = self.config_dict[LANDSCAPE_CFG_KEY][
+                LANDSCAPE_CLIENT_CFG_KEY
+            ].setdefault(LANDSCAPE_INSTALLATION_REQ_ID, instance_id)
+            if req_id == instance_id:
+                self.raw = (
+                    "#cloud-config\n%s" % yaml.dump(self.config_dict).strip()
+                )
 
 
-def load_instance_metadata(
-    cloudinitdir: Optional[PurePath], instance_name: str
-) -> dict:
+def _load_metadata(metadata_path: PurePath) -> Optional[dict]:
     """
-    Returns the relevant metadata loaded from cloudinit dir based on the
-    instance name
+    Returns the relevant metadata loaded from the supplied metadata_path.
     """
-    metadata = {"instance-id": DEFAULT_INSTANCE_ID}
-    if cloudinitdir is None:
-        return metadata
-    metadata_path = os.path.join(
-        cloudinitdir.as_posix(), "%s.meta-data" % instance_name
-    )
-
+    metadata = None
     try:
-        metadata = util.load_yaml(util.load_text_file(metadata_path))
+        metadata = util.load_yaml(
+            util.load_text_file(metadata_path), default={}
+        )
     except FileNotFoundError:
         LOG.debug(
-            "No instance metadata found at %s. Using default instance-id.",
+            "No instance metadata found at %s.",
             metadata_path,
         )
+
+    return metadata
+
+
+def load_instance_metadata(user_home: PurePath, instance_name: str) -> dict:
+    """
+    Returns the relevant metadata loaded from either the Ubuntu Pro dir
+    or the user cloud-int dir based on the instance name
+    """
+    metadata = {"instance-id": DEFAULT_INSTANCE_ID}
+    pro_dir = cloud_init_data_dir(user_home / ".ubuntupro")
+    user_dir = cloud_init_data_dir(user_home)
+    found_at = ""
+    for dir in [pro_dir, user_dir]:
+        if dir is None:
+            continue
+        path = dir / ("%s.meta-data" % instance_name)
+        dt = _load_metadata(path)
+        if dt is not None:
+            metadata = dt
+            found_at = path.as_posix()
+            break
+
+    if not found_at:
+        LOG.debug(
+            "Unable to find meta-data file candidates."
+            " Using default instance-id"
+        )
+
     if not metadata or "instance-id" not in metadata:
         # Parsed metadata file invalid
         msg = (
-            f" Metadata at {metadata_path} does not contain instance-id key."
+            f"Metadata at {found_at} does not contain instance-id key."
             f" Instead received: {metadata}"
         )
         LOG.error(msg)
@@ -195,14 +239,14 @@ def load_instance_metadata(
 
 
 def load_ubuntu_pro_data(
-    user_home: PurePath,
+    user_home: PurePath, instance_id: str
 ) -> Tuple[Optional[ConfigData], Optional[ConfigData]]:
     """
     Read .ubuntupro user-data if present and return a tuple of agent and
     landscape user-data.
     """
-    pro_dir = os.path.join(user_home, ".ubuntupro/.cloud-init")
-    if not os.path.isdir(pro_dir):
+    pro_dir = cloud_init_data_dir(user_home / ".ubuntupro")
+    if pro_dir is None:
         return None, None
 
     landscape_path = PurePath(
@@ -216,12 +260,12 @@ def load_ubuntu_pro_data(
             landscape_path,
             cloud_init_data_dir(user_home),
         )
-        landscape_data = ConfigData(landscape_path)
+        landscape_data = ConfigData(landscape_path, instance_id)
 
     agent_path = PurePath(os.path.join(pro_dir, AGENT_DATA_FILE))
     agent_data = None
     if os.path.isfile(agent_path):
-        agent_data = ConfigData(agent_path)
+        agent_data = ConfigData(agent_path, instance_id)
 
     return agent_data, landscape_data
 
@@ -311,6 +355,27 @@ def merge_agent_landscape_data(
     )
 
 
+def landscape_supports_field(field: str):
+    """Checks if the landscape-config binary supports the intended
+    configuration field, returning False if not or if attempting
+    to run that binary fails.
+    """
+    try:
+        flag = "--" + field.replace("_", "-")
+        # landscape-config is the command that understand the config fields,
+        # not landscape-client itself.
+        out, _ = subp.subp(["landscape-config", "--help"])
+        return flag in out
+
+    except subp.ProcessExecutionError as err:
+        LOG.warning(
+            "Unable to verify if landscape-client supports %s: %s",
+            field,
+            err.reason,
+        )
+        return False
+
+
 class DataSourceWSL(sources.DataSource):
     dsname = "WSL"
 
@@ -356,8 +421,8 @@ class DataSourceWSL(sources.DataSource):
             return False
 
         try:
-            data_dir = cloud_init_data_dir(find_home())
-            metadata = load_instance_metadata(data_dir, instance_name())
+            home = find_home()
+            metadata = load_instance_metadata(home, instance_name())
             return current == metadata.get("instance-id")
 
         except (IOError, ValueError) as err:
@@ -389,20 +454,26 @@ class DataSourceWSL(sources.DataSource):
         # Load any metadata
         try:
             self.metadata = load_instance_metadata(
-                seed_dir, self.instance_name
+                user_home, self.instance_name
             )
         except (ValueError, IOError) as err:
             LOG.error("Unable to load metadata: %s", str(err))
             return False
 
-        # # Load Ubuntu Pro configs only on Ubuntu distros
+        iid = self.metadata["instance-id"]
+        # Load Ubuntu Pro configs only on Ubuntu distros
         if self.distro.name == "ubuntu":
-            agent_data, user_data = load_ubuntu_pro_data(user_home)
+            if not landscape_supports_field(LANDSCAPE_INSTALLATION_REQ_ID):
+                # Prevents reusing metadata.instance-id as
+                # landscape.installation_request_id if the
+                # current version of landscape_client doesn't support it.
+                iid = ""
+            agent_data, user_data = load_ubuntu_pro_data(user_home, iid)
 
         # Load regular user configs
         try:
             if user_data is None and seed_dir is not None:
-                user_data = ConfigData(self.find_user_data_file(seed_dir))
+                user_data = ConfigData(self.find_user_data_file(seed_dir), "")
 
         except (ValueError, IOError) as err:
             log = LOG.info if agent_data else LOG.error
