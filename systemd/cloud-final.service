@@ -1,8 +1,11 @@
+## template:jinja
 [Unit]
 # https://docs.cloud-init.io/en/latest/explanation/boot.html
 Description=Cloud-init: Final Stage
 After=network-online.target time-sync.target cloud-config.service rc-local.service
+{% if variant in ["ubuntu", "unknown", "debian"] %}
 After=multi-user.target
+{% endif %}
 Before=apt-daily.service
 Wants=network-online.target cloud-config.service
 ConditionPathExists=!/etc/cloud/cloud-init.disabled
