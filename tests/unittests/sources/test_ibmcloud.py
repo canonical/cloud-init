@@ -5,8 +5,6 @@ import copy
 import json
 from textwrap import dedent
 
-import pytest
-
 from cloudinit import util
 from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceIBMCloud as ibm
@@ -336,58 +334,60 @@ class TestReadMD(test_helpers.CiTestCase):
         )
 
 
-class TestIsIBMProvisioning:
+class TestIsIBMProvisioning(test_helpers.FilesystemMockingTestCase):
     """Test the _is_ibm_provisioning method."""
 
     inst_log = "/root/swinstall.log"
     prov_cfg = "/root/provisioningConfiguration.cfg"
     boot_ref = "/proc/1/environ"
+    with_logs = True
 
-    @pytest.mark.usefixtures("fake_filesystem")
+    def _call_with_root(self, rootd):
+        self.reRoot(rootd)
+        return ibm._is_ibm_provisioning()
+
     def test_no_config(self):
         """No provisioning config means not provisioning."""
-        assert not ibm._is_ibm_provisioning()
+        self.assertFalse(self._call_with_root(self.tmp_dir()))
 
-    @pytest.mark.usefixtures("fake_filesystem")
-    def test_config_only(self, tmpdir):
+    def test_config_only(self):
         """A provisioning config without a log means provisioning."""
-        test_helpers.populate_dir(str(tmpdir), {self.prov_cfg: "key=value"})
-        assert ibm._is_ibm_provisioning()
+        rootd = self.tmp_dir()
+        test_helpers.populate_dir(rootd, {self.prov_cfg: "key=value"})
+        self.assertTrue(self._call_with_root(rootd))
 
-    @pytest.mark.usefixtures("fake_filesystem")
-    def test_config_with_old_log(self, caplog, tmpdir):
+    def test_config_with_old_log(self):
         """A config with a log from previous boot is not provisioning."""
+        rootd = self.tmp_dir()
         data = {
             self.prov_cfg: ("key=value\nkey2=val2\n", -10),
             self.inst_log: ("log data\n", -30),
             self.boot_ref: ("PWD=/", 0),
         }
-        test_helpers.populate_dir_with_ts(str(tmpdir), data)
-        assert not ibm._is_ibm_provisioning()
-        assert "from previous boot" in caplog.text
+        test_helpers.populate_dir_with_ts(rootd, data)
+        self.assertFalse(self._call_with_root(rootd=rootd))
+        self.assertIn("from previous boot", self.logs.getvalue())
 
-    @pytest.mark.usefixtures("fake_filesystem")
-    def test_config_with_new_log(self, caplog, tmpdir):
+    def test_config_with_new_log(self):
         """A config with a log from this boot is provisioning."""
+        rootd = self.tmp_dir()
         data = {
             self.prov_cfg: ("key=value\nkey2=val2\n", -10),
             self.inst_log: ("log data\n", 30),
             self.boot_ref: ("PWD=/", 0),
         }
-        test_helpers.populate_dir_with_ts(str(tmpdir), data)
-        assert ibm._is_ibm_provisioning()
-        assert "from current boot" in caplog.text
+        test_helpers.populate_dir_with_ts(rootd, data)
+        self.assertTrue(self._call_with_root(rootd=rootd))
+        self.assertIn("from current boot", self.logs.getvalue())
 
-    @pytest.mark.usefixtures("fake_filesystem")
-    def test_config_and_log_no_reference(self, caplog, tmpdir):
+    def test_config_and_log_no_reference(self):
         """If the config and log existed, but no reference, assume not."""
-        data = {
-            self.prov_cfg: "key=value",
-            self.inst_log: "log data\n",
-        }
-        test_helpers.populate_dir(str(tmpdir), data)
-        assert not ibm._is_ibm_provisioning()
-        assert "no reference file" in caplog.text
+        rootd = self.tmp_dir()
+        test_helpers.populate_dir(
+            rootd, {self.prov_cfg: "key=value", self.inst_log: "log data\n"}
+        )
+        self.assertFalse(self._call_with_root(rootd=rootd))
+        self.assertIn("no reference file", self.logs.getvalue())
 
 
 class TestDataSourceIBMCloud(test_helpers.CiTestCase):
