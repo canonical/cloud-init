@@ -364,7 +364,7 @@ def landscape_supports_field(field: str):
         flag = "--" + field.replace("_", "-")
         # landscape-config is the command that understand the config fields,
         # not landscape-client itself.
-        out, _ = subp.subp("landscape-config --help")
+        out, _ = subp.subp(["landscape-config", "--help"])
         return flag in out
 
     except subp.ProcessExecutionError as err:
