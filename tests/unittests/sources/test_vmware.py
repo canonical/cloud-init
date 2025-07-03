@@ -468,10 +468,11 @@ class TestDataSourceVMwareEnvVars:
     """
 
     @pytest.fixture(autouse=True)
-    def env_and_files(self, monkeypatch, fake_filesystem):
+    def env_and_files(self, fake_filesystem, monkeypatch, tmpdir):
         monkeypatch.setenv(DataSourceVMware.VMX_GUESTINFO, "1")
         populate_dir(
-            "", {DataSourceVMware.PRODUCT_UUID_FILE_PATH: PRODUCT_UUID}
+            str(tmpdir),
+            {DataSourceVMware.PRODUCT_UUID_FILE_PATH: PRODUCT_UUID},
         )
 
     def assert_get_data_ok(self, tmpdir, m_fn, m_fn_call_count=6):
@@ -593,9 +594,9 @@ class TestDataSourceVMwareGuestInfo:
     """
 
     @pytest.fixture(autouse=True)
-    def create_files(self, fake_filesystem):
+    def create_files(self, fake_filesystem, tmpdir):
         populate_dir(
-            "",
+            str(tmpdir),
             {
                 DataSourceVMware.PRODUCT_UUID_FILE_PATH: PRODUCT_UUID,
                 PRODUCT_NAME_FILE_PATH: PRODUCT_NAME,
