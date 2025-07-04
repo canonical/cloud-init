@@ -8,7 +8,7 @@ Last-Update: 2024-11-11
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/cloudinit/config/cc_grub_dpkg.py
 +++ b/cloudinit/config/cc_grub_dpkg.py
-@@ -22,7 +22,7 @@
+@@ -22,7 +22,7 @@ meta: MetaSchema = {
      "id": "cc_grub_dpkg",
      "distros": ["ubuntu", "debian"],
      "frequency": PER_INSTANCE,
@@ -17,7 +17,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  }
  
  LOG = logging.getLogger(__name__)
-@@ -113,7 +113,7 @@
+@@ -113,7 +113,7 @@ def handle(name: str, cfg: Config, cloud
      if not mycfg:
          mycfg = {}
  
@@ -41,7 +41,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                "type": "string",
 --- a/tests/unittests/config/test_cc_grub_dpkg.py
 +++ b/tests/unittests/config/test_cc_grub_dpkg.py
-@@ -248,7 +248,7 @@
+@@ -248,7 +248,7 @@ class TestHandle:
          """Test setting of correct debconf database entries"""
          m_is_efi_booted.return_value = is_uefi
          m_fetch_idevs.return_value = fetch_idevs_output
