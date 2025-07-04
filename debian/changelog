@@ -19,8 +19,13 @@ cloud-init (25.1-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
     - d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
   * sort hunks within all patches (--sort on quilt refresh)
   * Upstream snapshot based on upstream/main at f731cdf3.
+  * refresh patches:
+    - d/p/grub-dpkg-support.patch
+    - d/p/no-nocloud-network.patch
+    - d/p/no-single-process.patch
+  * Upstream snapshot based on upstream/main at ab2cc28d.
 
- -- Chad Smith <chad.smith@canonical.com>  Mon, 09 Jun 2025 13:37:29 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 03 Jul 2025 20:42:20 -0600
 
 cloud-init (24.4.1-0ubuntu0~22.04.2) jammy; urgency=medium
 
