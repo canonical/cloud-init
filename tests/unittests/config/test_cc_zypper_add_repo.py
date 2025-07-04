@@ -5,6 +5,8 @@ import glob
 import logging
 import os
 
+import pytest
+
 from cloudinit import util
 from cloudinit.config import cc_zypper_add_repo
 from tests.unittests import helpers
@@ -12,11 +14,11 @@ from tests.unittests import helpers
 LOG = logging.getLogger(__name__)
 
 
-class TestConfig(helpers.FilesystemMockingTestCase):
-    def setUp(self):
-        super(TestConfig, self).setUp()
-        self.tmp = self.tmp_dir()
-        self.zypp_conf = "etc/zypp/zypp.conf"
+ZYPP_CONF = "etc/zypp/zypp.conf"
+
+
+@pytest.mark.usefixtures("fake_filesystem")
+class TestConfig:
 
     def test_bad_repo_config(self):
         """Config has no baseurl, no file should be written"""
@@ -25,16 +27,14 @@ class TestConfig(helpers.FilesystemMockingTestCase):
                 {"id": "foo", "name": "suse-test", "enabled": "1"},
             ]
         }
-        self.patchUtils(self.tmp)
         cc_zypper_add_repo._write_repos(cfg["repos"], "/etc/zypp/repos.d")
-        self.assertRaises(
-            IOError, util.load_text_file, "/etc/zypp/repos.d/foo.repo"
-        )
+        with pytest.raises(IOError):
+            util.load_text_file("/etc/zypp/repos.d/foo.repo")
 
-    def test_write_repos(self):
+    def test_write_repos(self, tmp_path):
         """Verify valid repos get written"""
         cfg = self._get_base_config_repos()
-        root_d = self.tmp_dir()
+        root_d = str(tmp_path)
         cc_zypper_add_repo._write_repos(cfg["zypper"]["repos"], root_d)
         repos = glob.glob("%s/*.repo" % root_d)
         expected_repos = ["testing-foo.repo", "testing-bar.repo"]
@@ -46,7 +46,7 @@ class TestConfig(helpers.FilesystemMockingTestCase):
                 assert 'Found repo with name "%s"; unexpected' % repo_name
         # Validation that the content gets properly written is in another test
 
-    def test_write_repo(self):
+    def test_write_repo(self, tmp_path):
         """Verify the content of a repo file"""
         cfg = {
             "repos": [
@@ -57,7 +57,7 @@ class TestConfig(helpers.FilesystemMockingTestCase):
                 },
             ]
         }
-        root_d = self.tmp_dir()
+        root_d = str(tmp_path)
         cc_zypper_add_repo._write_repos(cfg["repos"], root_d)
         contents = util.load_text_file("%s/testing-foo.repo" % root_d)
         parser = configparser.ConfigParser()
@@ -71,21 +71,19 @@ class TestConfig(helpers.FilesystemMockingTestCase):
             }
         }
         for section in expected:
-            self.assertTrue(
-                parser.has_section(section),
-                "Contains section {0}".format(section),
+            assert parser.has_section(section), "Contains section {0}".format(
+                section
             )
             for k, v in expected[section].items():
-                self.assertEqual(parser.get(section, k), v)
+                assert parser.get(section, k) == v
 
-    def test_config_write(self):
+    def test_config_write(self, tmp_path):
         """Write valid configuration data"""
         cfg = {"config": {"download.deltarpm": "False", "reposdir": "foo"}}
-        root_d = self.tmp_dir()
-        helpers.populate_dir(root_d, {self.zypp_conf: "# Zypp config\n"})
-        self.reRoot(root_d)
+        root_d = str(tmp_path)
+        helpers.populate_dir(root_d, {ZYPP_CONF: "# Zypp config\n"})
         cc_zypper_add_repo._write_zypp_config(cfg["config"])
-        cfg_out = os.path.join(root_d, self.zypp_conf)
+        cfg_out = os.path.join(root_d, ZYPP_CONF)
         contents = util.load_text_file(cfg_out)
         expected = [
             "# Zypp config",
@@ -95,9 +93,9 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         ]
         for item in contents.split("\n"):
             if item not in expected:
-                self.assertIsNone(item)
+                assert item is None
 
-    def test_config_write_skip_configdir(self):
+    def test_config_write_skip_configdir(self, tmp_path):
         """Write configuration but skip writing 'configdir' setting"""
         cfg = {
             "config": {
@@ -106,11 +104,10 @@ class TestConfig(helpers.FilesystemMockingTestCase):
                 "configdir": "bar",
             }
         }
-        root_d = self.tmp_dir()
-        helpers.populate_dir(root_d, {self.zypp_conf: "# Zypp config\n"})
-        self.reRoot(root_d)
+        root_d = str(tmp_path)
+        helpers.populate_dir(root_d, {ZYPP_CONF: "# Zypp config\n"})
         cc_zypper_add_repo._write_zypp_config(cfg["config"])
-        cfg_out = os.path.join(root_d, self.zypp_conf)
+        cfg_out = os.path.join(root_d, ZYPP_CONF)
         contents = util.load_text_file(cfg_out)
         expected = [
             "# Zypp config",
@@ -120,48 +117,45 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         ]
         for item in contents.split("\n"):
             if item not in expected:
-                self.assertIsNone(item)
+                assert item is None
         # Not finding teh right path for mocking :(
         # assert mock_logging.warning.called
 
-    def test_empty_config_section_no_new_data(self):
+    def test_empty_config_section_no_new_data(self, tmp_path):
         """When the config section is empty no new data should be written to
         zypp.conf"""
         cfg = self._get_base_config_repos()
         cfg["zypper"]["config"] = None
-        root_d = self.tmp_dir()
-        helpers.populate_dir(root_d, {self.zypp_conf: "# No data"})
-        self.reRoot(root_d)
+        root_d = str(tmp_path)
+        helpers.populate_dir(root_d, {ZYPP_CONF: "# No data"})
         cc_zypper_add_repo._write_zypp_config(cfg.get("config", {}))
-        cfg_out = os.path.join(root_d, self.zypp_conf)
+        cfg_out = os.path.join(root_d, ZYPP_CONF)
         contents = util.load_text_file(cfg_out)
-        self.assertEqual(contents, "# No data")
+        assert contents == "# No data"
 
-    def test_empty_config_value_no_new_data(self):
+    def test_empty_config_value_no_new_data(self, tmp_path):
         """When the config section is not empty but there are no values
         no new data should be written to zypp.conf"""
         cfg = self._get_base_config_repos()
         cfg["zypper"]["config"] = {"download.deltarpm": None}
-        root_d = self.tmp_dir()
-        helpers.populate_dir(root_d, {self.zypp_conf: "# No data"})
-        self.reRoot(root_d)
+        root_d = str(tmp_path)
+        helpers.populate_dir(root_d, {ZYPP_CONF: "# No data"})
         cc_zypper_add_repo._write_zypp_config(cfg.get("config", {}))
-        cfg_out = os.path.join(root_d, self.zypp_conf)
+        cfg_out = os.path.join(root_d, ZYPP_CONF)
         contents = util.load_text_file(cfg_out)
-        self.assertEqual(contents, "# No data")
+        assert contents == "# No data"
 
-    def test_handler_full_setup(self):
+    def test_handler_full_setup(self, tmp_path):
         """Test that the handler ends up calling the renderers"""
         cfg = self._get_base_config_repos()
         cfg["zypper"]["config"] = {
             "download.deltarpm": "False",
         }
-        root_d = self.tmp_dir()
+        root_d = str(tmp_path)
         os.makedirs("%s/etc/zypp/repos.d" % root_d)
-        helpers.populate_dir(root_d, {self.zypp_conf: "# Zypp config\n"})
-        self.reRoot(root_d)
+        helpers.populate_dir(root_d, {ZYPP_CONF: "# Zypp config\n"})
         cc_zypper_add_repo.handle("zypper_add_repo", cfg, None, [])
-        cfg_out = os.path.join(root_d, self.zypp_conf)
+        cfg_out = os.path.join(root_d, ZYPP_CONF)
         contents = util.load_text_file(cfg_out)
         expected = [
             "# Zypp config",
@@ -170,7 +164,7 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         ]
         for item in contents.split("\n"):
             if item not in expected:
-                self.assertIsNone(item)
+                assert item is None
         repos = glob.glob("%s/etc/zypp/repos.d/*.repo" % root_d)
         expected_repos = ["testing-foo.repo", "testing-bar.repo"]
         if len(repos) != 2:
@@ -180,25 +174,24 @@ class TestConfig(helpers.FilesystemMockingTestCase):
             if repo_name not in expected_repos:
                 assert 'Found repo with name "%s"; unexpected' % repo_name
 
-    def test_no_config_section_no_new_data(self):
+    def test_no_config_section_no_new_data(self, tmp_path):
         """When there is no config section no new data should be written to
         zypp.conf"""
         cfg = self._get_base_config_repos()
-        root_d = self.tmp_dir()
-        helpers.populate_dir(root_d, {self.zypp_conf: "# No data"})
-        self.reRoot(root_d)
+        root_d = str(tmp_path)
+        helpers.populate_dir(root_d, {ZYPP_CONF: "# No data"})
         cc_zypper_add_repo._write_zypp_config(cfg.get("config", {}))
-        cfg_out = os.path.join(root_d, self.zypp_conf)
+        cfg_out = os.path.join(root_d, ZYPP_CONF)
         contents = util.load_text_file(cfg_out)
-        self.assertEqual(contents, "# No data")
+        assert contents == "# No data"
 
-    def test_no_repo_data(self):
+    def test_no_repo_data(self, tmp_path):
         """When there is no repo data nothing should happen"""
-        root_d = self.tmp_dir()
-        self.reRoot(root_d)
+        # fake_filesystem creates a `tmp` dir a more under tmp_path
+        root_d = str(tmp_path / "isolated")
         cc_zypper_add_repo._write_repos(None, root_d)
         content = glob.glob("%s/*" % root_d)
-        self.assertEqual(len(content), 0)
+        assert len(content) == 0
 
     def _get_base_config_repos(self):
         """Basic valid repo configuration"""

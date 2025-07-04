@@ -423,7 +423,7 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
 
     def test_maybe_get_writable_device_path_returns_command_line_root(self):
         """When root device is UUID in kernel command_line, update devpath."""
-        # XXX Long-term we want to use FilesystemMocking test to avoid
+        # XXX Long-term we want to use fake_filesystem test to avoid
         # touching os.stat.
         FakeStat = namedtuple(
             "FakeStat", ["st_mode", "st_size", "st_mtime"]
