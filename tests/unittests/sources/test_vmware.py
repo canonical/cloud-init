@@ -237,7 +237,11 @@ class TestDataSourceVMware:
     # TODO migrate this entire test suite to pytest then parameterize
     @mock.patch("cloudinit.netinfo.route_info")
     @mock.patch("cloudinit.netinfo.netdev_info")
-    def test_get_default_ip_addrs_ipv4only(self, m_netdev_info, m_route_info):
+    def test_get_default_ip_addrs_ipv4only(
+        self,
+        m_netdev_info,
+        m_route_info,
+    ):
         """Test get_default_ip_addrs use cases"""
         m_route_info.return_value = {
             "ipv4": [VMW_IPV4_ROUTEINFO],
@@ -252,7 +256,11 @@ class TestDataSourceVMware:
 
     @mock.patch("cloudinit.netinfo.route_info")
     @mock.patch("cloudinit.netinfo.netdev_info")
-    def test_get_default_ip_addrs_ipv6only(self, m_netdev_info, m_route_info):
+    def test_get_default_ip_addrs_ipv6only(
+        self,
+        m_netdev_info,
+        m_route_info,
+    ):
         m_route_info.return_value = {
             "ipv4": [],
             "ipv6": [VMW_IPV6_ROUTEINFO],
@@ -266,7 +274,11 @@ class TestDataSourceVMware:
 
     @mock.patch("cloudinit.netinfo.route_info")
     @mock.patch("cloudinit.netinfo.netdev_info")
-    def test_get_default_ip_addrs_dualstack(self, m_netdev_info, m_route_info):
+    def test_get_default_ip_addrs_dualstack(
+        self,
+        m_netdev_info,
+        m_route_info,
+    ):
         m_route_info.return_value = {
             "ipv4": [VMW_IPV4_ROUTEINFO],
             "ipv6": [VMW_IPV6_ROUTEINFO],
@@ -281,7 +293,11 @@ class TestDataSourceVMware:
 
     @mock.patch("cloudinit.netinfo.route_info")
     @mock.patch("cloudinit.netinfo.netdev_info")
-    def test_get_default_ip_addrs_multiaddr(self, m_netdev_info, m_route_info):
+    def test_get_default_ip_addrs_multiaddr(
+        self,
+        m_netdev_info,
+        m_route_info,
+    ):
         m_route_info.return_value = {
             "ipv4": [VMW_IPV4_ROUTEINFO],
             "ipv6": [],
@@ -310,7 +326,11 @@ class TestDataSourceVMware:
 
     @mock.patch("cloudinit.netinfo.route_info")
     @mock.patch("cloudinit.netinfo.netdev_info")
-    def test_get_default_ip_addrs_nodefault(self, m_netdev_info, m_route_info):
+    def test_get_default_ip_addrs_nodefault(
+        self,
+        m_netdev_info,
+        m_route_info,
+    ):
         m_route_info.return_value = {
             "ipv4": [
                 {
@@ -1365,7 +1385,7 @@ class TestDataSourceVMwareIMC:
             assert result == (None, None, None)
         assert "Meta data file is not found" in caplog.text
 
-    def test_get_data_cloudinit_userdata(self, caplog, DS, tmpdir):
+    def test_get_data_cloudinit_userdata(self, DS, tmpdir):
         """
         Test user data can be loaded to cloud-init user data.
         """
