@@ -17,6 +17,7 @@ from tests.unittests.helpers import (
     FilesystemMockingTestCase,
     skipUnlessJsonSchema,
 )
+from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
 
@@ -43,7 +44,7 @@ class TestWriteFilesDeferred(FilesystemMockingTestCase):
                 {"path": "/tmp/not_deferred.file"},
             ]
         }
-        cc = self.tmp_cloud("ubuntu")
+        cc = get_cloud("ubuntu")
         handle("cc_write_files_deferred", config, cc, [])
         self.assertEqual(util.load_text_file("/tmp/deferred.file"), expected)
         with self.assertRaises(FileNotFoundError):

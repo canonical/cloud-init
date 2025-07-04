@@ -104,6 +104,7 @@ def _iface_add_attrs(iface, index, ipv4_subnet_mtu):
     ignore_map = [
         "control",
         "device_id",
+        "dns",
         "driver",
         "index",
         "inet",

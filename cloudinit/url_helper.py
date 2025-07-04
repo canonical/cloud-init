@@ -433,7 +433,8 @@ def _handle_error(
     if error.code and error.code == 503:
         LOG.warning(
             "Endpoint returned a 503 error. "
-            "HTTP endpoint is overloaded. Retrying."
+            "HTTP endpoint is overloaded. Retrying URL (%s).",
+            error.url,
         )
         if error.headers:
             return _get_retry_after(error.headers.get("Retry-After", "1"))

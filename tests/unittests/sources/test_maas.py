@@ -9,7 +9,7 @@ import yaml
 
 from cloudinit import helpers, settings, url_helper
 from cloudinit.sources import DataSourceMAAS
-from tests.unittests.helpers import get_mock_paths, populate_dir
+from tests.unittests.helpers import populate_dir
 from tests.unittests.util import MockDistro
 
 
@@ -224,7 +224,11 @@ class TestMAASDataSource:
         assert expected == ds.get_data()
 
     @responses.activate
+<<<<<<< HEAD
     def test_get_data_with_retry(self, mocker, tmp_path, caplog):
+=======
+    def test_get_data_with_retry(self, mocker, MockPaths, caplog):
+>>>>>>> upstream/main
         """Ensure we can get data from IMDS even if some attempts fail."""
         mocker.patch("time.sleep")
         metadata_url = "http://169.254.169.254/MAAS/metadata"
@@ -260,9 +264,7 @@ class TestMAASDataSource:
         )
 
         cfg = {"datasource": {"MAAS": {"metadata_url": metadata_url}}}
-        ds = DataSourceMAAS.DataSourceMAAS(
-            cfg, MockDistro(), get_mock_paths(tmp_path)({})
-        )
+        ds = DataSourceMAAS.DataSourceMAAS(cfg, MockDistro(), MockPaths({}))
         assert ds.get_data()
         assert ds.metadata["instance-id"] == "i-123"
         assert ds.metadata["local-hostname"] == "myhostname"
