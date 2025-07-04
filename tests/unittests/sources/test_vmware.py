@@ -169,8 +169,8 @@ class TestDataSourceVMware:
     Test common functionality that is not transport specific.
     """
 
-    def test_no_data_access_method(self):
-        ds = get_ds()
+    def test_no_data_access_method(self, DS):
+        ds = DS(settings.CFG_BUILTIN, helpers.Paths({}))
         with mock.patch(
             "cloudinit.sources.DataSourceVMware.is_vmware_platform",
             return_value=False,
@@ -428,8 +428,8 @@ class TestDataSourceVMware:
         assert "network=boot;boot-new-instance;hotplug" == supported_events
         assert "network=boot-new-instance;hotplug" == enabled_events
 
-    def test_extra_hotplug_udev_rules(self):
-        ds = get_ds()
+    def test_extra_hotplug_udev_rules(self, DS):
+        ds = DS(settings.CFG_BUILTIN, helpers.Paths({}))
         assert (
             VMW_EXPECTED_EXTRA_HOTPLUG_UDEV_RULES
             == ds.extra_hotplug_udev_rules
@@ -449,8 +449,8 @@ class TestDataSourceVMwareEnvVars:
             {DataSourceVMware.PRODUCT_UUID_FILE_PATH: PRODUCT_UUID},
         )
 
-    def assert_get_data_ok(self, m_fn, m_fn_call_count=6):
-        ds = get_ds()
+    def assert_get_data_ok(self, DS, m_fn, m_fn_call_count=6):
+        ds = DS(settings.CFG_BUILTIN, helpers.Paths({}))
         ret = ds.get_data()
         assert ret
         assert m_fn_call_count == m_fn.call_count
@@ -459,16 +459,16 @@ class TestDataSourceVMwareEnvVars:
         )
         return ds
 
-    def assert_metadata(self, metadata, m_fn, m_fn_call_count=6):
-        ds = self.assert_get_data_ok(m_fn, m_fn_call_count)
+    def assert_metadata(self, DS, metadata, m_fn, m_fn_call_count=6):
+        ds = self.assert_get_data_ok(DS, m_fn, m_fn_call_count)
         assert_metadata(ds, metadata)
 
     @mock.patch(
         "cloudinit.sources.DataSourceVMware.guestinfo_envvar_get_value"
     )
-    def test_get_subplatform(self, m_fn):
+    def test_get_subplatform(self, m_fn, DS):
         m_fn.side_effect = [VMW_METADATA_YAML, "", "", "", "", ""]
-        ds = self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        ds = self.assert_get_data_ok(DS, m_fn, m_fn_call_count=4)
         assert ds.subplatform == "%s (%s)" % (
             DataSourceVMware.DATA_ACCESS_METHOD_ENVVAR,
             DataSourceVMware.get_guestinfo_envvar_key_name("metadata"),
@@ -487,79 +487,79 @@ class TestDataSourceVMwareEnvVars:
     @mock.patch(
         "cloudinit.sources.DataSourceVMware.guestinfo_envvar_get_value"
     )
-    def test_get_data_metadata_only(self, m_fn):
+    def test_get_data_metadata_only(self, m_fn, DS):
         m_fn.side_effect = [VMW_METADATA_YAML, "", "", "", "", ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(DS, m_fn, m_fn_call_count=4)
 
     @mock.patch(
         "cloudinit.sources.DataSourceVMware.guestinfo_envvar_get_value"
     )
-    def test_get_data_userdata_only(self, m_fn):
+    def test_get_data_userdata_only(self, m_fn, DS):
         m_fn.side_effect = ["", VMW_USERDATA_YAML, "", ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(DS, m_fn, m_fn_call_count=4)
 
     @mock.patch(
         "cloudinit.sources.DataSourceVMware.guestinfo_envvar_get_value"
     )
-    def test_get_data_vendordata_only(self, m_fn):
+    def test_get_data_vendordata_only(self, m_fn, DS):
         m_fn.side_effect = ["", "", VMW_VENDORDATA_YAML, ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(DS, m_fn, m_fn_call_count=4)
 
     @mock.patch(
         "cloudinit.sources.DataSourceVMware.guestinfo_envvar_get_value"
     )
-    def test_get_data_metadata_base64(self, m_fn):
+    def test_get_data_metadata_base64(self, m_fn, DS):
         data = base64.b64encode(VMW_METADATA_YAML.encode("utf-8"))
         m_fn.side_effect = [data, "base64", "", ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(DS, m_fn, m_fn_call_count=4)
 
     @mock.patch(
         "cloudinit.sources.DataSourceVMware.guestinfo_envvar_get_value"
     )
-    def test_get_data_metadata_b64(self, m_fn):
+    def test_get_data_metadata_b64(self, m_fn, DS):
         data = base64.b64encode(VMW_METADATA_YAML.encode("utf-8"))
         m_fn.side_effect = [data, "b64", "", ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(DS, m_fn, m_fn_call_count=4)
 
     @mock.patch(
         "cloudinit.sources.DataSourceVMware.guestinfo_envvar_get_value"
     )
-    def test_get_data_metadata_gzip_base64(self, m_fn):
+    def test_get_data_metadata_gzip_base64(self, m_fn, DS):
         data = VMW_METADATA_YAML.encode("utf-8")
         data = gzip.compress(data)
         data = base64.b64encode(data)
         m_fn.side_effect = [data, "gzip+base64", "", ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(DS, m_fn, m_fn_call_count=4)
 
     @mock.patch(
         "cloudinit.sources.DataSourceVMware.guestinfo_envvar_get_value"
     )
-    def test_get_data_metadata_gz_b64(self, m_fn):
+    def test_get_data_metadata_gz_b64(self, m_fn, DS):
         data = VMW_METADATA_YAML.encode("utf-8")
         data = gzip.compress(data)
         data = base64.b64encode(data)
         m_fn.side_effect = [data, "gz+b64", "", ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(DS, m_fn, m_fn_call_count=4)
 
     @mock.patch(
         "cloudinit.sources.DataSourceVMware.guestinfo_envvar_get_value"
     )
-    def test_metadata_single_ssh_key(self, m_fn):
+    def test_metadata_single_ssh_key(self, m_fn, DS):
         metadata = DataSourceVMware.load_json_or_yaml(VMW_METADATA_YAML)
         metadata["public_keys"] = VMW_SINGLE_KEY
         metadata_yaml = safeyaml.dumps(metadata)
         m_fn.side_effect = [metadata_yaml, "", "", ""]
-        self.assert_metadata(metadata, m_fn, m_fn_call_count=4)
+        self.assert_metadata(DS, metadata, m_fn, m_fn_call_count=4)
 
     @mock.patch(
         "cloudinit.sources.DataSourceVMware.guestinfo_envvar_get_value"
     )
-    def test_metadata_multiple_ssh_keys(self, m_fn):
+    def test_metadata_multiple_ssh_keys(self, m_fn, DS):
         metadata = DataSourceVMware.load_json_or_yaml(VMW_METADATA_YAML)
         metadata["public_keys"] = VMW_MULTIPLE_KEYS
         metadata_yaml = safeyaml.dumps(metadata)
         m_fn.side_effect = [metadata_yaml, "", "", ""]
-        self.assert_metadata(metadata, m_fn, m_fn_call_count=4)
+        self.assert_metadata(DS, metadata, m_fn, m_fn_call_count=4)
 
 
 class TestDataSourceVMwareGuestInfo:
@@ -577,8 +577,8 @@ class TestDataSourceVMwareGuestInfo:
             },
         )
 
-    def assert_get_data_ok(self, m_fn, m_fn_call_count=6):
-        ds = get_ds()
+    def assert_get_data_ok(self, DS, m_fn, m_fn_call_count=6):
+        ds = DS(settings.CFG_BUILTIN, helpers.Paths({}))
         ret = ds.get_data()
         assert ret
         assert m_fn_call_count == m_fn.call_count
@@ -588,8 +588,8 @@ class TestDataSourceVMwareGuestInfo:
         )
         return ds
 
-    def assert_metadata(self, metadata, m_fn, m_fn_call_count=6):
-        ds = self.assert_get_data_ok(m_fn, m_fn_call_count)
+    def assert_metadata(self, DS, metadata, m_fn, m_fn_call_count=6):
+        ds = self.assert_get_data_ok(DS, m_fn, m_fn_call_count)
         assert_metadata(ds, metadata)
 
     def test_ds_valid_on_vmware_platform(self):
@@ -598,10 +598,10 @@ class TestDataSourceVMwareGuestInfo:
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
-    def test_get_subplatform(self, m_which_fn, m_fn):
+    def test_get_subplatform(self, m_which_fn, m_fn, DS):
         m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
         m_fn.side_effect = [VMW_METADATA_YAML, "", "", "", "", ""]
-        ds = self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        ds = self.assert_get_data_ok(DS, m_fn, m_fn_call_count=4)
         assert ds.subplatform == "%s (%s)" % (
             DataSourceVMware.DATA_ACCESS_METHOD_GUESTINFO,
             DataSourceVMware.get_guestinfo_key_name("metadata"),
@@ -619,111 +619,111 @@ class TestDataSourceVMwareGuestInfo:
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
-    def test_get_data_metadata_with_vmware_rpctool(self, m_which_fn, m_fn):
+    def test_get_data_metadata_with_vmware_rpctool(self, m_which_fn, m_fn, DS):
         m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
         m_fn.side_effect = [VMW_METADATA_YAML, "", "", ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(DS, m_fn, m_fn_call_count=4)
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.exec_vmware_rpctool")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
     def test_get_data_metadata_non_zero_exit_code_fallback_to_vmtoolsd(
-        self, m_which_fn, m_exec_vmware_rpctool_fn, m_fn
+        self, m_which_fn, m_exec_vmware_rpctool_fn, m_fn, DS
     ):
         m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
         m_exec_vmware_rpctool_fn.side_effect = ProcessExecutionError(
             exit_code=1
         )
         m_fn.side_effect = [VMW_METADATA_YAML, "", "", ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(DS, m_fn, m_fn_call_count=4)
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.exec_vmware_rpctool")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
     def test_get_data_metadata_vmware_rpctool_not_found_fallback_to_vmtoolsd(
-        self, m_which_fn, m_exec_vmware_rpctool_fn, m_fn
+        self, m_which_fn, m_exec_vmware_rpctool_fn, m_fn, DS
     ):
         m_which_fn.side_effect = ["vmtoolsd", None]
         m_fn.side_effect = [VMW_METADATA_YAML, "", "", ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(DS, m_fn, m_fn_call_count=4)
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
-    def test_get_data_userdata_only(self, m_which_fn, m_fn):
+    def test_get_data_userdata_only(self, m_which_fn, m_fn, DS):
         m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
         m_fn.side_effect = ["", VMW_USERDATA_YAML, "", ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(DS, m_fn, m_fn_call_count=4)
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
-    def test_get_data_vendordata_only(self, m_which_fn, m_fn):
+    def test_get_data_vendordata_only(self, m_which_fn, m_fn, DS):
         m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
         m_fn.side_effect = ["", "", VMW_VENDORDATA_YAML, ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(DS, m_fn, m_fn_call_count=4)
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
-    def test_metadata_single_ssh_key(self, m_which_fn, m_fn):
+    def test_metadata_single_ssh_key(self, m_which_fn, m_fn, DS):
         m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
         metadata = DataSourceVMware.load_json_or_yaml(VMW_METADATA_YAML)
         metadata["public_keys"] = VMW_SINGLE_KEY
         metadata_yaml = safeyaml.dumps(metadata)
         m_fn.side_effect = [metadata_yaml, "", "", ""]
-        self.assert_metadata(metadata, m_fn, m_fn_call_count=4)
+        self.assert_metadata(DS, metadata, m_fn, m_fn_call_count=4)
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
-    def test_metadata_multiple_ssh_keys(self, m_which_fn, m_fn):
+    def test_metadata_multiple_ssh_keys(self, m_which_fn, m_fn, DS):
         m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
         metadata = DataSourceVMware.load_json_or_yaml(VMW_METADATA_YAML)
         metadata["public_keys"] = VMW_MULTIPLE_KEYS
         metadata_yaml = safeyaml.dumps(metadata)
         m_fn.side_effect = [metadata_yaml, "", "", ""]
-        self.assert_metadata(metadata, m_fn, m_fn_call_count=4)
+        self.assert_metadata(DS, metadata, m_fn, m_fn_call_count=4)
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
-    def test_get_data_metadata_base64(self, m_which_fn, m_fn):
+    def test_get_data_metadata_base64(self, m_which_fn, m_fn, DS):
         m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
         data = base64.b64encode(VMW_METADATA_YAML.encode("utf-8"))
         m_fn.side_effect = [data, "base64", "", ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(DS, m_fn, m_fn_call_count=4)
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
-    def test_get_data_metadata_b64(self, m_which_fn, m_fn):
+    def test_get_data_metadata_b64(self, m_which_fn, m_fn, DS):
         m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
         data = base64.b64encode(VMW_METADATA_YAML.encode("utf-8"))
         m_fn.side_effect = [data, "b64", "", ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(DS, m_fn, m_fn_call_count=4)
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
-    def test_get_data_metadata_gzip_base64(self, m_which_fn, m_fn):
+    def test_get_data_metadata_gzip_base64(self, m_which_fn, m_fn, DS):
         m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
         data = VMW_METADATA_YAML.encode("utf-8")
         data = gzip.compress(data)
         data = base64.b64encode(data)
         m_fn.side_effect = [data, "gzip+base64", "", ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(DS, m_fn, m_fn_call_count=4)
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
-    def test_get_data_metadata_gz_b64(self, m_which_fn, m_fn):
+    def test_get_data_metadata_gz_b64(self, m_which_fn, m_fn, DS):
         m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
         data = VMW_METADATA_YAML.encode("utf-8")
         data = gzip.compress(data)
         data = base64.b64encode(data)
         m_fn.side_effect = [data, "gz+b64", "", ""]
-        self.assert_get_data_ok(m_fn, m_fn_call_count=4)
+        self.assert_get_data_ok(DS, m_fn, m_fn_call_count=4)
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_set_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
-    def test_advertise_update_events(self, m_which_fn, m_get_fn, m_set_fn):
+    def test_advertise_update_events(self, m_which_fn, m_get_fn, m_set_fn, DS):
         m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
         m_get_fn.side_effect = [VMW_METADATA_YAML, "", "", "", "", ""]
-        ds = self.assert_get_data_ok(m_get_fn, m_fn_call_count=4)
+        ds = self.assert_get_data_ok(DS, m_get_fn, m_fn_call_count=4)
         supported_events, enabled_events = ds.advertise_update_events({})
         assert 2 == m_set_fn.call_count
         assert "network=boot;boot-new-instance;hotplug" == supported_events
@@ -733,11 +733,11 @@ class TestDataSourceVMwareGuestInfo:
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
     def test_advertise_update_events_with_events_from_user_data(
-        self, m_which_fn, m_get_fn, m_set_fn
+        self, m_which_fn, m_get_fn, m_set_fn, DS
     ):
         m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
         m_get_fn.side_effect = [VMW_METADATA_YAML, "", "", "", "", ""]
-        ds = self.assert_get_data_ok(m_get_fn, m_fn_call_count=4)
+        ds = self.assert_get_data_ok(DS, m_get_fn, m_fn_call_count=4)
         supported_events, enabled_events = ds.advertise_update_events(
             {
                 "updates": {
@@ -754,7 +754,7 @@ class TestDataSourceVMwareGuestInfo:
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
     @mock.patch("cloudinit.sources.DataSourceVMware.which")
     def test_extra_hotplug_udev_rules_with_net_drivers(
-        self, m_which_fn, m_get_fn
+        self, m_which_fn, m_get_fn, DS
     ):
         m_which_fn.side_effect = ["vmtoolsd", "vmware-rpctool"]
         m_get_fn.side_effect = [
@@ -765,7 +765,7 @@ class TestDataSourceVMwareGuestInfo:
             "",
             "",
         ]
-        ds = self.assert_get_data_ok(m_get_fn, m_fn_call_count=4)
+        ds = self.assert_get_data_ok(DS, m_get_fn, m_fn_call_count=4)
         ds.init_extra_hotplug_udev_rules()
 
         assert (
@@ -787,12 +787,12 @@ class TestDataSourceVMwareGuestInfo_InvalidPlatform:
         )
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_get_value")
-    def test_ds_invalid_on_non_vmware_platform(self, m_fn):
+    def test_ds_invalid_on_non_vmware_platform(self, m_fn, DS):
         system_type = dmi.read_dmi_data("system-product-name")
         assert system_type is None
 
         m_fn.side_effect = [VMW_METADATA_YAML, "", "", "", "", ""]
-        ds = get_ds()
+        ds = DS(settings.CFG_BUILTIN, helpers.Paths({}))
         ret = ds.get_data()
         assert not ret
 
@@ -802,15 +802,9 @@ class TestDataSourceVMwareIMC:
     Test the VMware Guest OS Customization transport
     """
 
-    datasource = DataSourceVMware.DataSourceVMware
-
-    def test_get_subplatform(self, tmpdir):
+    def test_get_subplatform(self, DS, tmpdir):
         paths = helpers.Paths({"cloud_dir": tmpdir})
-        ds = self.datasource(
-            sys_cfg={"disable_vmware_customization": True},
-            distro={},
-            paths=paths,
-        )
+        ds = DS({"disable_vmware_customization": True}, paths)
         # Prepare the conf file
         conf_file = os.path.join(tmpdir, "test-cust")
         conf_content = dedent(
@@ -875,10 +869,10 @@ class TestDataSourceVMwareIMC:
             == ds.supported_update_events[EventScope.NETWORK]
         )
 
-    def test_get_data_false_on_none_dmi_data(self, caplog, tmpdir):
+    def test_get_data_false_on_none_dmi_data(self, caplog, DS, tmpdir):
         """When dmi for system-product-name is None, get_data returns False."""
         paths = helpers.Paths({"cloud_dir": tmpdir})
-        ds = self.datasource(sys_cfg={}, distro={}, paths=paths)
+        ds = DS({}, paths)
         result = wrap_and_call(
             "cloudinit.sources.DataSourceVMware",
             {
@@ -889,19 +883,20 @@ class TestDataSourceVMwareIMC:
         assert not result, "Expected False return from ds.get_data"
         assert "No system-product-name found" in caplog.text
 
-    def test_get_imc_data_vmware_customization_disabled(self, caplog, tmpdir):
+    def test_get_imc_data_vmware_customization_disabled(
+        self, caplog, DS, tmpdir
+    ):
         """
         When vmware customization is disabled via sys_cfg and
         allow_raw_data is disabled via ds_cfg, log a message.
         """
         paths = helpers.Paths({"cloud_dir": tmpdir})
-        ds = self.datasource(
-            sys_cfg={
+        ds = DS(
+            {
                 "disable_vmware_customization": True,
                 "datasource": {"VMware": {"allow_raw_data": False}},
             },
-            distro={},
-            paths=paths,
+            paths,
         )
         conf_file = os.path.join(tmpdir, "test-cust")
         conf_content = dedent(
@@ -922,20 +917,19 @@ class TestDataSourceVMwareIMC:
         assert "Customization for VMware platform is disabled" in caplog.text
 
     def test_get_imc_data_vmware_customization_sys_cfg_disabled(
-        self, caplog, tmpdir
+        self, caplog, DS, tmpdir
     ):
         """
         When vmware customization is disabled via sys_cfg and
         no meta data is found, log a message.
         """
         paths = helpers.Paths({"cloud_dir": tmpdir})
-        ds = self.datasource(
-            sys_cfg={
+        ds = DS(
+            {
                 "disable_vmware_customization": True,
                 "datasource": {"VMware": {"allow_raw_data": True}},
             },
-            distro={},
-            paths=paths,
+            paths,
         )
         conf_file = os.path.join(tmpdir, "test-cust")
         conf_content = dedent(
@@ -960,19 +954,18 @@ class TestDataSourceVMwareIMC:
             "No allowed customization configuration data found" in caplog.text
         )
 
-    def test_get_imc_data_allow_raw_data_disabled(self, caplog, tmpdir):
+    def test_get_imc_data_allow_raw_data_disabled(self, caplog, DS, tmpdir):
         """
         When allow_raw_data is disabled via ds_cfg and
         meta data is found, log a message.
         """
         paths = helpers.Paths({"cloud_dir": tmpdir})
-        ds = self.datasource(
-            sys_cfg={
+        ds = DS(
+            {
                 "disable_vmware_customization": False,
                 "datasource": {"VMware": {"allow_raw_data": False}},
             },
-            distro={},
-            paths=paths,
+            paths,
         )
 
         # Prepare the conf file
@@ -1000,17 +993,15 @@ class TestDataSourceVMwareIMC:
         )
 
     @pytest.mark.allow_subp_for("vmware-rpctool")
-    def test_get_imc_data_vmware_customization_enabled(self, caplog, tmpdir):
+    def test_get_imc_data_vmware_customization_enabled(
+        self, caplog, DS, tmpdir
+    ):
         """
         When cloud-init workflow for vmware is enabled via sys_cfg log a
         message.
         """
         paths = helpers.Paths({"cloud_dir": tmpdir})
-        ds = self.datasource(
-            sys_cfg={"disable_vmware_customization": False},
-            distro={},
-            paths=paths,
-        )
+        ds = DS({"disable_vmware_customization": False}, paths)
         conf_file = os.path.join(tmpdir, "test-cust")
         conf_content = dedent(
             """\
@@ -1039,17 +1030,13 @@ class TestDataSourceVMwareIMC:
         custom_script = os.path.join(tmpdir, "test-script")
         assert "Script %s not found!!" % custom_script in caplog.text
 
-    def test_get_imc_data_cust_script_disabled(self, caplog, tmpdir):
+    def test_get_imc_data_cust_script_disabled(self, caplog, DS, tmpdir):
         """
         If custom script is disabled by VMware tools configuration,
         log a message.
         """
         paths = helpers.Paths({"cloud_dir": tmpdir})
-        ds = self.datasource(
-            sys_cfg={"disable_vmware_customization": False},
-            distro={},
-            paths=paths,
-        )
+        ds = DS({"disable_vmware_customization": False}, paths)
         # Prepare the conf file
         conf_file = os.path.join(tmpdir, "test-cust")
         conf_content = dedent(
@@ -1086,17 +1073,13 @@ class TestDataSourceVMwareIMC:
                 assert result == (None, None, None)
         assert "Custom script is disabled by VM Administrator" in caplog.text
 
-    def test_get_imc_data_cust_script_enabled(self, caplog, tmpdir):
+    def test_get_imc_data_cust_script_enabled(self, caplog, DS, tmpdir):
         """
         If custom script is enabled by VMware tools configuration,
         execute the script.
         """
         paths = helpers.Paths({"cloud_dir": tmpdir})
-        ds = self.datasource(
-            sys_cfg={"disable_vmware_customization": False},
-            distro={},
-            paths=paths,
-        )
+        ds = DS({"disable_vmware_customization": False}, paths)
         # Prepare the conf file
         conf_file = os.path.join(tmpdir, "test-cust")
         conf_content = dedent(
@@ -1134,17 +1117,15 @@ class TestDataSourceVMwareIMC:
         custom_script = os.path.join(tmpdir, "test-script")
         assert "Script %s not found!!" % custom_script in caplog.text
 
-    def test_get_imc_data_force_run_post_script_is_yes(self, caplog, tmpdir):
+    def test_get_imc_data_force_run_post_script_is_yes(
+        self, caplog, DS, tmpdir
+    ):
         """
         If DEFAULT-RUN-POST-CUST-SCRIPT is yes, custom script could run if
         enable-custom-scripts is not defined in VM Tools configuration
         """
         paths = helpers.Paths({"cloud_dir": tmpdir})
-        ds = self.datasource(
-            sys_cfg={"disable_vmware_customization": False},
-            distro={},
-            paths=paths,
-        )
+        ds = DS({"disable_vmware_customization": False}, paths)
         # Prepare the conf file
         conf_file = os.path.join(tmpdir, "test-cust")
         # set DEFAULT-RUN-POST-CUST-SCRIPT = yes so that enable-custom-scripts
@@ -1189,17 +1170,13 @@ class TestDataSourceVMwareIMC:
         custom_script = os.path.join(tmpdir, "test-script")
         assert "Script %s not found!!" % custom_script in caplog.text
 
-    def test_get_data_cloudinit_metadata_json(self, tmpdir):
+    def test_get_data_cloudinit_metadata_json(self, DS, tmpdir):
         """
         Test metadata can be loaded to cloud-init metadata and network.
         The metadata format is json.
         """
         paths = helpers.Paths({"cloud_dir": tmpdir})
-        ds = self.datasource(
-            sys_cfg={"disable_vmware_customization": True},
-            distro={},
-            paths=paths,
-        )
+        ds = DS({"disable_vmware_customization": True}, paths)
         # Prepare the conf file
         conf_file = os.path.join(tmpdir, "test-cust")
         conf_content = dedent(
@@ -1253,17 +1230,13 @@ class TestDataSourceVMwareIMC:
         assert 2 == ds.network_config["version"]
         assert ds.network_config["ethernets"]["eths"]["dhcp4"]
 
-    def test_get_data_cloudinit_metadata_yaml(self, tmpdir):
+    def test_get_data_cloudinit_metadata_yaml(self, DS, tmpdir):
         """
         Test metadata can be loaded to cloud-init metadata and network.
         The metadata format is yaml.
         """
         paths = helpers.Paths({"cloud_dir": tmpdir})
-        ds = self.datasource(
-            sys_cfg={"disable_vmware_customization": True},
-            distro={},
-            paths=paths,
-        )
+        ds = DS({"disable_vmware_customization": True}, paths)
         # Prepare the conf file
         conf_file = os.path.join(tmpdir, "test-cust")
         conf_content = dedent(
@@ -1311,16 +1284,14 @@ class TestDataSourceVMwareIMC:
         assert 2 == ds.network_config["version"]
         assert ds.network_config["ethernets"]["nics"]["dhcp4"]
 
-    def test_get_imc_data_cloudinit_metadata_not_valid(self, caplog, tmpdir):
+    def test_get_imc_data_cloudinit_metadata_not_valid(
+        self, caplog, DS, tmpdir
+    ):
         """
         Test metadata is not JSON or YAML format, log a message
         """
         paths = helpers.Paths({"cloud_dir": tmpdir})
-        ds = self.datasource(
-            sys_cfg={"disable_vmware_customization": True},
-            distro={},
-            paths=paths,
-        )
+        ds = DS({"disable_vmware_customization": True}, paths)
 
         # Prepare the conf file
         conf_file = os.path.join(tmpdir, "test-cust")
@@ -1357,16 +1328,14 @@ class TestDataSourceVMwareIMC:
             "expected '<document start>', but found '<scalar>'" in caplog.text
         )
 
-    def test_get_imc_data_cloudinit_metadata_not_found(self, caplog, tmpdir):
+    def test_get_imc_data_cloudinit_metadata_not_found(
+        self, caplog, DS, tmpdir
+    ):
         """
         Test metadata file can't be found, log a message
         """
         paths = helpers.Paths({"cloud_dir": tmpdir})
-        ds = self.datasource(
-            sys_cfg={"disable_vmware_customization": True},
-            distro={},
-            paths=paths,
-        )
+        ds = DS({"disable_vmware_customization": True}, paths)
         # Prepare the conf file
         conf_file = os.path.join(tmpdir, "test-cust")
         conf_content = dedent(
@@ -1396,16 +1365,12 @@ class TestDataSourceVMwareIMC:
             assert result == (None, None, None)
         assert "Meta data file is not found" in caplog.text
 
-    def test_get_data_cloudinit_userdata(self, caplog, tmpdir):
+    def test_get_data_cloudinit_userdata(self, caplog, DS, tmpdir):
         """
         Test user data can be loaded to cloud-init user data.
         """
         paths = helpers.Paths({"cloud_dir": tmpdir})
-        ds = self.datasource(
-            sys_cfg={"disable_vmware_customization": False},
-            distro={},
-            paths=paths,
-        )
+        ds = DS({"disable_vmware_customization": False}, paths)
 
         # Prepare the conf file
         conf_file = os.path.join(tmpdir, "test-cust")
@@ -1459,16 +1424,14 @@ class TestDataSourceVMwareIMC:
         assert "cloud-vm" == ds.metadata["instance-id"]
         assert userdata_content == ds.userdata_raw
 
-    def test_get_imc_data_cloudinit_userdata_not_found(self, caplog, tmpdir):
+    def test_get_imc_data_cloudinit_userdata_not_found(
+        self, caplog, DS, tmpdir
+    ):
         """
         Test userdata file can't be found.
         """
         paths = helpers.Paths({"cloud_dir": tmpdir})
-        ds = self.datasource(
-            sys_cfg={"disable_vmware_customization": True},
-            distro={},
-            paths=paths,
-        )
+        ds = DS({"disable_vmware_customization": True}, paths)
 
         # Prepare the conf file
         conf_file = os.path.join(tmpdir, "test-cust")
@@ -1555,8 +1518,8 @@ def assert_metadata(ds, metadata):
     assert isinstance(ds.get_public_ssh_keys(), list)
 
 
-def get_ds():
-    ds = DataSourceVMware.DataSourceVMware(
-        settings.CFG_BUILTIN, None, helpers.Paths({})
+@pytest.fixture
+def DS():
+    return lambda sys_cfg, paths: DataSourceVMware.DataSourceVMware(
+        sys_cfg, {}, paths
     )
-    return ds
