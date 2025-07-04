@@ -19,7 +19,7 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import helpers, subp, util
+from cloudinit import subp, util
 
 
 @pytest.fixture(autouse=True, scope="function")
@@ -195,22 +195,6 @@ def mocked_responses():
 
     with _responses.RequestsMock(assert_all_requests_are_fired=False) as rsps:
         yield rsps
-
-
-@pytest.fixture
-def paths(tmpdir):
-    """
-    Return a helpers.Paths object configured to use a tmpdir.
-
-    (This uses the builtin tmpdir fixture.)
-    """
-    dirs = {
-        "cloud_dir": tmpdir.mkdir("cloud_dir").strpath,
-        "docs_dir": tmpdir.mkdir("docs_dir").strpath,
-        "run_dir": tmpdir.mkdir("run_dir").strpath,
-        "templates_dir": tmpdir.mkdir("templates_dir").strpath,
-    }
-    return helpers.Paths(dirs)
 
 
 @pytest.fixture(autouse=True, scope="session")

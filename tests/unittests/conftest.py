@@ -7,9 +7,7 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import atomic_helper
-from cloudinit import helpers as ch
-from cloudinit import lifecycle
+from cloudinit import atomic_helper, helpers, lifecycle
 from cloudinit import user_data as ud
 from cloudinit import util
 from cloudinit.gpg import GPG
@@ -177,25 +175,21 @@ if HAS_HYPOTHESIS:
 
 
 @pytest.fixture
-def MockPaths(tmp_path):
-    class _MockPaths(ch.Paths):
-        def __init__(self, path_cfgs: dict, ds=None):
-            super().__init__(path_cfgs=path_cfgs, ds=ds)
+def paths(tmpdir) -> helpers.Paths:
+    """
+    Return a helpers.Paths object configured to use a tmpdir.
 
-            self.cloud_dir: str = path_cfgs.get(
-                "cloud_dir", f"{tmp_path}/var/lib/cloud"
-            )
-            self.run_dir: str = path_cfgs.get(
-                "run_dir", f"{tmp_path}/run/cloud/"
-            )
-            self.template_dir: str = path_cfgs.get(
-                "templates_dir", f"{tmp_path}/etc/cloud/templates/"
-            )
-
-    return _MockPaths
+    (This uses the builtin tmpdir fixture.)
+    """
+    dirs = {
+        "cloud_dir": tmpdir.mkdir("cloud_dir").strpath,
+        "docs_dir": tmpdir.mkdir("docs_dir").strpath,
+        "run_dir": tmpdir.mkdir("run_dir").strpath,
+        "templates_dir": tmpdir.mkdir("templates_dir").strpath,
+    }
+    return helpers.Paths(dirs)
 
 
 @pytest.fixture
-def ud_proc(MockPaths):
-    paths = MockPaths({})
+def ud_proc(paths):
     return ud.UserDataProcessor(paths)
