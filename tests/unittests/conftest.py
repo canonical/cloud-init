@@ -43,6 +43,7 @@ FS_FUNCS = {
         ("relpath", 1),
     ],
     os: [
+        ("chown", 2),
         ("listdir", 1),
         ("mkdir", 1),
         ("rmdir", 1),
@@ -80,8 +81,18 @@ FS_FUNCS = {
 
 
 @pytest.fixture
-def fake_filesystem(mocker, tmpdir):
-    """Mocks fs functions to operate under `tmpdir`"""
+def fake_filesystem_hook():
+    """A hook to interact with the real filesystem before mocking it in
+    fake_filesystem"""
+
+
+@pytest.fixture
+def fake_filesystem(mocker, tmpdir, fake_filesystem_hook):
+    """Mocks fs functions to operate under `tmpdir`
+
+    fix_cloud_init_project_dir requested to sort it before this fixture to
+    bypass fs faking.
+    """
     # This allows fake_filesystem to be used with production code that
     # creates temporary directories. Functions like TemporaryDirectory()
     # attempt to create a directory under "/tmp" assuming that it already
