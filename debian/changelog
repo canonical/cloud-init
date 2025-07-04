@@ -1,12 +1,5 @@
 cloud-init (25.1-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
 
-  * Drop cpicks which are now upstream:
-    - cpick-d75840be-fix-retry-AWS-hotplug-for-async-IMDS-5995
-    - cpick-84806336-chore-Add-feature-flag-for-manual-network-waiting
-    - d/p/cpick-c60771d8-test-pytestify-test_url_helper.py
-    - d/p/cpick-8810a2dc-test-Remove-CiTestCase-from-test_url_helper.py
-    - d/p/cpick-582f16c1-test-add-OauthUrlHelper-tests
-    - d/p/cpick-9311e066-fix-Update-OauthUrlHelper-to-use-readurl-exception_cb
   * refresh patches
     - d/p/cli-retain-file-argument-as-main-cmd-arg.patch
     - d/p/deprecation-version-boundary.patch
@@ -18,14 +11,65 @@ cloud-init (25.1-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
     - d/p/retain-old-groups.patch
     - d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
   * sort hunks within all patches (--sort on quilt refresh)
-  * Upstream snapshot based on upstream/main at f731cdf3.
-  * refresh patches:
-    - d/p/grub-dpkg-support.patch
-    - d/p/no-nocloud-network.patch
-    - d/p/no-single-process.patch
   * Upstream snapshot based on upstream/main at ab2cc28d.
 
  -- Chad Smith <chad.smith@canonical.com>  Thu, 03 Jul 2025 20:42:20 -0600
+
+cloud-init (25.1.3-0ubuntu0~22.04.1) jammy; urgency=medium
+
+  * d/cloud-init-base.postinst: move existing hotplug-cmd fifo to root-only
+    share dir (CVE-2024-11584)
+  * Upstream security bugfix release based on 25.1.3.
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/25.1.3/ChangeLog
+    - Bugs fixed in this snapshot:
+    - security: make hotplug socket only writable by root (LP: #2114229)
+      (CVE-2024-11584)
+    - security: make ds-identify behavior strict datasource discovery on
+      non-x86 platforms without DMI data (LP: #2069607) (CVE-2024-6174)
+
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 12 Jun 2025 20:28:18 -0600
+
+cloud-init (25.1.2-0ubuntu0~22.04.2) jammy; urgency=medium
+
+  * New bugfix release. (LP: #2113797)
+    - Revert relocation of systemd units and service files from /usr/lib
+      back to /lib so debhelper correctly enables cloud-init services in
+      postinst
+
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 09 Jun 2025 17:00:37 -0600
+
+cloud-init (25.1.2-0ubuntu0~22.04.1) jammy; urgency=medium
+
+  * Upstream snapshot based on 25.1.2. (LP: #2104165).
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/25.1.2/ChangeLog
+
+ -- James Falcon <james.falcon@canonical.com>  Fri, 02 May 2025 12:47:51 -0500
+
+cloud-init (25.1.1-0ubuntu1~22.04.1) jammy; urgency=medium
+
+  * Drop cpicks which are now upstream:
+    - d/p/cpick-d75840be-fix-retry-AWS-hotplug-for-async-IMDS-5995
+    - d/p/cpick-84806336-chore-Add-feature-flag-for-manual-network-waiting
+    - d/p/cpick-c60771d8-test-pytestify-test_url_helper.py
+    - d/p/cpick-8810a2dc-test-Remove-CiTestCase-from-test_url_helper.py
+    - d/p/cpick-582f16c1-test-add-OauthUrlHelper-tests
+    - d/p/cpick-9311e066-fix-Update-OauthUrlHelper-to-use-readurl-exception_cb
+  * refresh patches
+    - d/p/deprecation-version-boundary.patch
+    - d/p/no-single-process.patch
+    - d/p/retain-ec2-default-net-update-events.patch
+    - d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
+  * sort hunks within all patches (--sort on quilt refresh)
+  * d/cloud-init.templates:
+    - Move VMware before OVF. See GH-4030
+    - Enable CloudCIX by default
+  * Upstream snapshot based on 25.1.1.
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/25.1.1/ChangeLog
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 25 Mar 2025 10:33:28 -0600
 
 cloud-init (24.4.1-0ubuntu0~22.04.2) jammy; urgency=medium
 
