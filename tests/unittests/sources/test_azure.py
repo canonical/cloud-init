@@ -7,6 +7,7 @@ import json
 import os
 import stat
 import xml.etree.ElementTree as ET
+from contextlib import ExitStack
 from pathlib import Path
 
 import passlib.hash
@@ -28,7 +29,6 @@ from cloudinit.util import (
 )
 from tests.unittests.helpers import (
     CiTestCase,
-    ExitStack,
     example_netdev,
     mock,
     populate_dir,

@@ -4,12 +4,13 @@ import logging
 import os
 import shutil
 import tempfile
+from contextlib import ExitStack
 
 import pytest
 
 from cloudinit import handlers, helpers, settings, url_helper, util
 from cloudinit.cmd import main
-from tests.unittests.helpers import ExitStack, TestCase, mock
+from tests.unittests.helpers import TestCase, mock
 
 
 class FakeModule(handlers.Handler):

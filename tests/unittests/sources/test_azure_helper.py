@@ -4,6 +4,7 @@
 import os
 import re
 import unittest
+from contextlib import ExitStack
 from textwrap import dedent
 from xml.etree import ElementTree as ET
 from xml.sax.saxutils import escape, unescape
@@ -17,7 +18,7 @@ from cloudinit.sources.azure import errors
 from cloudinit.sources.helpers import azure as azure_helper
 from cloudinit.sources.helpers.azure import WALinuxAgentShim as wa_shim
 from cloudinit.util import load_text_file
-from tests.unittests.helpers import CiTestCase, ExitStack, mock
+from tests.unittests.helpers import CiTestCase, mock
 from tests.unittests.sources.test_azure import construct_ovf_env
 from tests.unittests.util import MockDistro
 
