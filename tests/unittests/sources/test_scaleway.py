@@ -2,7 +2,6 @@
 
 import json
 import socket
-import sys
 from urllib.parse import SplitResult, urlsplit
 
 import requests
@@ -12,7 +11,11 @@ from requests.exceptions import ConnectionError, ConnectTimeout
 from cloudinit import helpers, settings, sources
 from cloudinit.distros import ubuntu
 from cloudinit.sources import DataSourceScaleway
-from tests.unittests.helpers import CiTestCase, ResponsesTestCase, mock
+from tests.unittests.helpers import (
+    CiTestCase,
+    mock,
+    responses_assert_call_count,
+)
 
 
 class DataResponses:
@@ -188,7 +191,7 @@ def _fix_mocking_url(url: str) -> str:
     ).geturl()
 
 
-class TestDataSourceScaleway(ResponsesTestCase):
+class TestDataSourceScaleway(CiTestCase):
     def setUp(self):
         tmp = self.tmp_dir()
         distro = ubuntu.Distro("", {}, {})
@@ -204,7 +207,7 @@ class TestDataSourceScaleway(ResponsesTestCase):
             # The trailing / at the end of the URL is needed to
             # workaround a bug in responses 3.6 which does not match
             # the URL otherwise.
-            self.responses.add_callback(
+            responses.add_callback(
                 responses.GET,
                 f"{url}/",
                 callback=MetadataResponses.get_ok,
@@ -223,18 +226,21 @@ class TestDataSourceScaleway(ResponsesTestCase):
             return_value="scalewaynic0",
         )
 
+    @responses.activate
     def test_set_metadata_url_ipv4_ok(self):
 
         self.datasource._set_metadata_url([self.base_urls[0]])
 
         self.assertTrue(self.base_urls[0] in self.datasource.metadata_url)
 
+    @responses.activate
     def test_set_metadata_url_ipv6_ok(self):
 
         self.datasource._set_metadata_url([self.base_urls[1]])
 
         self.assertTrue(self.base_urls[1] in self.datasource.metadata_url)
 
+    @responses.activate
     @mock.patch(
         "cloudinit.sources.DataSourceScaleway.DataSourceScaleway"
         ".override_ds_detect"
@@ -248,34 +254,34 @@ class TestDataSourceScaleway(ResponsesTestCase):
 
         self.datasource._set_metadata_url([self.base_urls[0]])
 
-        self.responses.reset()
-        self.responses.add_callback(
+        responses.reset()
+        responses.add_callback(
             responses.GET,
             f"{self.base_urls[0]}/",
             callback=MetadataResponses.get_ok,
         )
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             f"{self.base_urls[1]}/",
             callback=MetadataResponses.get_ok,
         )
         # Use _fix_mocking_url to workaround py3.6 bug in responses
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             _fix_mocking_url(f"{self.base_urls[0]}/conf?format=json"),
             callback=MetadataResponses.get_ok,
         )
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             _fix_mocking_url(f"{self.base_urls[1]}/conf?format=json"),
             callback=MetadataResponses.get_ok,
         )
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             f"{self.base_urls[0]}/user_data/cloud-init",
             callback=DataResponses.get_ok,
         )
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             f"{self.base_urls[0]}/vendor_data/cloud-init",
             callback=DataResponses.get_ok,
@@ -309,6 +315,7 @@ class TestDataSourceScaleway(ResponsesTestCase):
         self.assertIsNone(self.datasource.availability_zone)
         self.assertIsNone(self.datasource.region)
 
+    @responses.activate
     @mock.patch(
         "cloudinit.sources.DataSourceScaleway.DataSourceScaleway"
         ".override_ds_detect"
@@ -324,46 +331,45 @@ class TestDataSourceScaleway(ResponsesTestCase):
 
         self.datasource._set_metadata_url([self.base_urls[0]])
 
-        self.responses.reset()
-        self.responses.add_callback(
+        responses.reset()
+        responses.add_callback(
             responses.GET,
             f"{self.base_urls[0]}/",
             callback=ConnectTimeout,
         )
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             f"{self.base_urls[1]}/",
             callback=MetadataResponses.get_ok,
         )
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             _fix_mocking_url(f"{self.base_urls[1]}/conf?format=json"),
             callback=MetadataResponses.get_ok,
         )
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             _fix_mocking_url(f"{self.base_urls[1]}/user_data/cloud-init"),
             callback=DataResponses.get_ok,
         )
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             f"{self.base_urls[1]}/vendor_data/cloud-init",
             callback=DataResponses.get_ok,
         )
         self.datasource.get_data()
 
-        if sys.version_info.minor >= 7:
-            self.responses.assert_call_count(
-                f"{self.datasource.metadata_urls[0]}",
-                1,
-            )
-            self.responses.assert_call_count(
-                f"{self.datasource.metadata_urls[1]}",
-                1,
-            )
-            self.responses.assert_call_count(
-                f"{self.datasource.metadata_urls[1]}/conf?format=json", 1
-            )
+        responses_assert_call_count(
+            f"{self.datasource.metadata_urls[0]}",
+            1,
+        )
+        responses_assert_call_count(
+            f"{self.datasource.metadata_urls[1]}",
+            1,
+        )
+        responses_assert_call_count(
+            f"{self.datasource.metadata_urls[1]}/conf?format=json", 1
+        )
 
         self.assertEqual(
             self.datasource.get_instance_id(),
@@ -392,6 +398,7 @@ class TestDataSourceScaleway(ResponsesTestCase):
         self.assertIsNone(self.datasource.availability_zone)
         self.assertIsNone(self.datasource.region)
 
+    @responses.activate
     @mock.patch(
         "cloudinit.sources.DataSourceScaleway.DataSourceScaleway"
         ".override_ds_detect"
@@ -409,35 +416,28 @@ class TestDataSourceScaleway(ResponsesTestCase):
         self.datasource._set_metadata_url([self.base_urls[0]])
 
         # Remove callbacks defined at class initialization
-        self.responses.reset()
-        self.responses.add_callback(
+        responses.reset()
+        responses.add_callback(
             responses.GET,
             f"{self.base_urls[0]}/",
             callback=ConnectTimeout,
         )
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             f"{self.base_urls[1]}/",
             callback=ConnectTimeout,
         )
         self.datasource.max_wait = 0
         ret = self.datasource.get_data()
-        # assert_call_count is not available in responses for py3.6
-        if sys.version_info.minor >= 7:
-            self.responses.assert_call_count(
-                f"{self.datasource.metadata_urls[0]}",
-                2,
-            )
-            self.responses.assert_call_count(
-                f"{self.datasource.metadata_urls[1]}",
-                2,
-            )
+        responses_assert_call_count(f"{self.datasource.metadata_urls[0]}", 2)
+        responses_assert_call_count(f"{self.datasource.metadata_urls[1]}", 2)
 
         self.assertFalse(ret)
         self.assertEqual(self.datasource.metadata, {})
         self.assertIsNone(self.datasource.get_userdata_raw())
         self.assertIsNone(self.datasource.get_vendordata_raw())
 
+    @responses.activate
     @mock.patch(
         "cloudinit.sources.DataSourceScaleway.DataSourceScaleway"
         ".override_ds_detect"
@@ -454,17 +454,17 @@ class TestDataSourceScaleway(ResponsesTestCase):
         # Make user and vendor data APIs return HTTP/404, which means there is
         # no user / vendor data for the server.
 
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             _fix_mocking_url(self.datasource.metadata_url),
             callback=MetadataResponses.get_ok,
         )
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             _fix_mocking_url(self.datasource.userdata_url),
             callback=DataResponses.empty,
         )
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             _fix_mocking_url(self.datasource.vendordata_url),
             callback=DataResponses.empty,
@@ -476,6 +476,7 @@ class TestDataSourceScaleway(ResponsesTestCase):
         self.assertIsNone(self.datasource.get_userdata_raw())
         self.assertIsNone(self.datasource.get_vendordata_raw())
 
+    @responses.activate
     @mock.patch("cloudinit.url_helper.time.sleep", lambda x: None)
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4")
     def test_metadata_connection_errors_legacy_ipv4_url(self, dhcpv4):
@@ -490,9 +491,9 @@ class TestDataSourceScaleway(ResponsesTestCase):
             "http://169.254.42.42",
         ]
 
-        self.responses.reset()
+        responses.reset()
         with self.assertRaises(ConnectionError):
-            self.responses.add_callback(
+            responses.add_callback(
                 responses.GET,
                 f"{self.datasource.metadata_urls[0]}/",
                 callback=ConnectionError,
@@ -502,6 +503,7 @@ class TestDataSourceScaleway(ResponsesTestCase):
         self.assertIsNone(self.datasource.get_userdata_raw())
         self.assertIsNone(self.datasource.get_vendordata_raw())
 
+    @responses.activate
     @mock.patch(
         "cloudinit.sources.DataSourceScaleway.DataSourceScaleway"
         ".override_ds_detect"
@@ -536,13 +538,13 @@ class TestDataSourceScaleway(ResponsesTestCase):
         ]
 
         self.datasource.has_ipv4 = True
-        self.responses.reset()
-        self.responses.add_callback(
+        responses.reset()
+        responses.add_callback(
             responses.GET,
             self.datasource.metadata_urls[0],
             callback=ConnectionError,
         )
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             self.datasource.metadata_urls[1],
             callback=ConnectionError,
@@ -551,18 +553,18 @@ class TestDataSourceScaleway(ResponsesTestCase):
         self.datasource.get_data()
         # url_helper.wait_on_url tests both URL in list each time so
         # called twice for each URL
-        if sys.version_info.minor >= 7:
-            self.responses.assert_call_count(
-                f"{self.datasource.metadata_urls[0]}",
-                2,
-            )
-            self.responses.assert_call_count(
-                f"{self.datasource.metadata_urls[1]}",
-                2,
-            )
+        responses_assert_call_count(
+            f"{self.datasource.metadata_urls[0]}",
+            2,
+        )
+        responses_assert_call_count(
+            f"{self.datasource.metadata_urls[1]}",
+            2,
+        )
         self.assertIsNone(self.datasource.get_userdata_raw())
         self.assertIsNone(self.datasource.get_vendordata_raw())
 
+    @responses.activate
     @mock.patch(
         "cloudinit.sources.DataSourceScaleway.DataSourceScaleway"
         ".override_ds_detect"
@@ -578,12 +580,12 @@ class TestDataSourceScaleway(ResponsesTestCase):
 
         self.datasource._set_metadata_url([self.base_urls[0]])
 
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             _fix_mocking_url(self.datasource.metadata_url),
             callback=MetadataResponses.get_ok,
         )
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             _fix_mocking_url(self.datasource.vendordata_url),
             callback=DataResponses.empty,
@@ -603,7 +605,7 @@ class TestDataSourceScaleway(ResponsesTestCase):
                 return DataResponses.rate_limited(request)
             return DataResponses.get_ok(request)
 
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             _fix_mocking_url(self.datasource.userdata_url),
             callback=_callback,

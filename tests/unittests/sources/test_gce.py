@@ -61,7 +61,7 @@ GUEST_ATTRIBUTES_URL = (
 )
 
 
-class TestDataSourceGCE(test_helpers.ResponsesTestCase):
+class TestDataSourceGCE(test_helpers.CiTestCase):
     with_logs = True
 
     def _make_distro(self, dtype, def_user=None):
@@ -120,17 +120,19 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
             else:
                 return (404, request.headers, "")
 
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             MD_URL_RE,
             callback=_request_callback,
         )
 
+    @responses.activate
     def test_connection(self):
         self._set_mock_metadata(check_headers=HEADERS)
         success = self.ds.get_data()
         self.assertTrue(success)
 
+    @responses.activate
     def test_metadata(self):
         # UnicodeDecodeError if set to ds.userdata instead of userdata_raw
         meta = GCE_META.copy()
@@ -151,6 +153,7 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
             self.ds.get_userdata_raw(),
         )
 
+    @responses.activate
     def test_metadata_partial(self):
         """test partial metadata (missing user-data in particular)"""
         self._set_mock_metadata(GCE_META_PARTIAL)
@@ -163,6 +166,7 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         shostname = GCE_META_PARTIAL.get("instance/hostname").split(".")[0]
         self.assertEqual(shostname, self.ds.get_hostname().hostname)
 
+    @responses.activate
     def test_userdata_no_encoding(self):
         """check that user-data is read."""
         self._set_mock_metadata(GCE_USER_DATA_TEXT)
@@ -172,6 +176,7 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
             self.ds.get_userdata_raw(),
         )
 
+    @responses.activate
     def test_metadata_encoding(self):
         """user-data is base64 encoded if user-data-encoding is 'base64'."""
         self._set_mock_metadata(GCE_META_ENCODING)
@@ -181,6 +186,7 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         decoded = b64decode(instance_data.get("user-data"))
         self.assertEqual(decoded, self.ds.get_userdata_raw())
 
+    @responses.activate
     def test_missing_required_keys_return_false(self):
         for required_key in [
             "instance/id",
@@ -191,13 +197,15 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
             del meta[required_key]
             self._set_mock_metadata(meta)
             self.assertEqual(False, self.ds.get_data())
-            self.responses.reset()
+            responses.reset()
 
+    @responses.activate
     def test_no_ssh_keys_metadata(self):
         self._set_mock_metadata()
         self.ds.get_data()
         self.assertEqual([], self.ds.get_public_ssh_keys())
 
+    @responses.activate
     def test_cloudinit_ssh_keys(self):
         valid_key = "ssh-rsa VALID {0}"
         invalid_key = "ssh-rsa INVALID {0}"
@@ -235,6 +243,7 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         expected = [valid_key.format(key) for key in range(3)]
         self.assertEqual(set(expected), set(self.ds.get_public_ssh_keys()))
 
+    @responses.activate
     @mock.patch(M_PATH + "ug_util")
     def test_default_user_ssh_keys(self, mock_ug_util):
         mock_ug_util.normalize_users_groups.return_value = None, None
@@ -281,6 +290,7 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         expected = [valid_key.format(key) for key in range(3)]
         self.assertEqual(set(expected), set(ubuntu_ds.get_public_ssh_keys()))
 
+    @responses.activate
     def test_instance_ssh_keys_override(self):
         valid_key = "ssh-rsa VALID {0}"
         invalid_key = "ssh-rsa INVALID {0}"
@@ -304,6 +314,7 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         expected = [valid_key.format(key) for key in range(2)]
         self.assertEqual(set(expected), set(self.ds.get_public_ssh_keys()))
 
+    @responses.activate
     def test_block_project_ssh_keys_override(self):
         valid_key = "ssh-rsa VALID {0}"
         invalid_key = "ssh-rsa INVALID {0}"
@@ -326,6 +337,7 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         expected = [valid_key.format(0)]
         self.assertEqual(set(expected), set(self.ds.get_public_ssh_keys()))
 
+    @responses.activate
     def test_only_last_part_of_zone_used_for_availability_zone(self):
         self._set_mock_metadata()
         r = self.ds.get_data()
@@ -401,6 +413,7 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         self.ds.publish_host_keys(hostkeys)
         m_readurl.assert_has_calls(readurl_expected_calls, any_order=True)
 
+    @responses.activate
     @mock.patch(
         M_PATH + "EphemeralDHCPv4",
         autospec=True,
@@ -418,6 +431,7 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         ds._get_data()
         assert m_dhcp.call_count == 1
 
+    @responses.activate
     @mock.patch(M_PATH + "read_md")
     @mock.patch(
         M_PATH + "EphemeralDHCPv4",
@@ -479,6 +493,7 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
                 self.logs.getvalue(),
             )
 
+    @responses.activate
     @mock.patch(
         M_PATH + "EphemeralDHCPv4",
         autospec=True,
@@ -489,6 +504,7 @@ class TestDataSourceGCE(test_helpers.ResponsesTestCase):
         ds._get_data()
         assert m_dhcp.call_count == 0
 
+    @responses.activate
     @mock.patch(
         M_PATH + "EphemeralDHCPv4",
         autospec=True,
