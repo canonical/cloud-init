@@ -9,6 +9,7 @@ import base64
 import gzip
 import os
 from contextlib import ExitStack
+from logging import DEBUG
 from textwrap import dedent
 
 import pytest
@@ -18,12 +19,7 @@ from cloudinit.event import EventScope
 from cloudinit.sources import DataSourceVMware
 from cloudinit.sources.helpers.vmware.imc import guestcust_util
 from cloudinit.subp import ProcessExecutionError
-from tests.unittests.helpers import (
-    CiTestCase,
-    mock,
-    populate_dir,
-    wrap_and_call,
-)
+from tests.unittests.helpers import mock, populate_dir, wrap_and_call
 
 MPATH = "cloudinit.sources.DataSourceVMware."
 PRODUCT_NAME_FILE_PATH = "/sys/class/dmi/id/product_name"
@@ -168,16 +164,10 @@ def common_patches():
         yield
 
 
-class TestDataSourceVMware(CiTestCase):
+class TestDataSourceVMware:
     """
     Test common functionality that is not transport specific.
     """
-
-    with_logs = True
-
-    def setUp(self):
-        super(TestDataSourceVMware, self).setUp()
-        self.tmp = self.tmp_dir()
 
     def test_no_data_access_method(self):
         ds = get_ds()
@@ -186,67 +176,63 @@ class TestDataSourceVMware(CiTestCase):
             return_value=False,
         ):
             ret = ds.get_data()
-        self.assertFalse(ret)
+        assert not ret
 
     def test_convert_to_netifaces_ipv4_format(self):
         netifaces_format = DataSourceVMware.convert_to_netifaces_ipv4_format(
             VMW_IPV4_NETDEV_ADDR
         )
-        self.assertEqual(netifaces_format, VMW_IPV4_NETIFACES_ADDR)
+        assert netifaces_format == VMW_IPV4_NETIFACES_ADDR
 
     def test_convert_to_netifaces_ipv6_format(self):
         netifaces_format = DataSourceVMware.convert_to_netifaces_ipv6_format(
             VMW_IPV6_NETDEV_ADDR
         )
-        self.assertEqual(netifaces_format, VMW_IPV6_NETIFACES_ADDR)
+        assert netifaces_format == VMW_IPV6_NETIFACES_ADDR
         netifaces_format = DataSourceVMware.convert_to_netifaces_ipv6_format(
             VMW_IPV6_NETDEV_PEER_ADDR
         )
-        self.assertEqual(netifaces_format, VMW_IPV6_NETIFACES_PEER_ADDR)
+        assert netifaces_format == VMW_IPV6_NETIFACES_PEER_ADDR
 
     @mock.patch("cloudinit.sources.DataSourceVMware.get_default_ip_addrs")
     def test_get_host_info_ipv4(self, m_fn_ipaddr):
         m_fn_ipaddr.return_value = ("10.10.10.1", None)
         host_info = DataSourceVMware.get_host_info()
-        self.assertTrue(host_info)
-        self.assertTrue(host_info["hostname"])
-        self.assertTrue(host_info["hostname"] == "host.cloudinit.test")
-        self.assertTrue(host_info["local-hostname"])
-        self.assertTrue(host_info["local_hostname"])
-        self.assertTrue(host_info[DataSourceVMware.LOCAL_IPV4])
-        self.assertTrue(host_info[DataSourceVMware.LOCAL_IPV4] == "10.10.10.1")
-        self.assertFalse(host_info.get(DataSourceVMware.LOCAL_IPV6))
+        assert host_info
+        assert host_info["hostname"]
+        assert host_info["hostname"] == "host.cloudinit.test"
+        assert host_info["local-hostname"]
+        assert host_info["local_hostname"]
+        assert host_info[DataSourceVMware.LOCAL_IPV4]
+        assert host_info[DataSourceVMware.LOCAL_IPV4] == "10.10.10.1"
+        assert not host_info.get(DataSourceVMware.LOCAL_IPV6)
 
     @mock.patch("cloudinit.sources.DataSourceVMware.get_default_ip_addrs")
     def test_get_host_info_ipv6(self, m_fn_ipaddr):
         m_fn_ipaddr.return_value = (None, "2001:db8::::::8888")
         host_info = DataSourceVMware.get_host_info()
-        self.assertTrue(host_info)
-        self.assertTrue(host_info["hostname"])
-        self.assertTrue(host_info["hostname"] == "host.cloudinit.test")
-        self.assertTrue(host_info["local-hostname"])
-        self.assertTrue(host_info["local_hostname"])
-        self.assertTrue(host_info[DataSourceVMware.LOCAL_IPV6])
-        self.assertTrue(
-            host_info[DataSourceVMware.LOCAL_IPV6] == "2001:db8::::::8888"
-        )
-        self.assertFalse(host_info.get(DataSourceVMware.LOCAL_IPV4))
+        assert host_info
+        assert host_info["hostname"]
+        assert host_info["hostname"] == "host.cloudinit.test"
+        assert host_info["local-hostname"]
+        assert host_info["local_hostname"]
+        assert host_info[DataSourceVMware.LOCAL_IPV6]
+        assert host_info[DataSourceVMware.LOCAL_IPV6] == "2001:db8::::::8888"
+        assert not host_info.get(DataSourceVMware.LOCAL_IPV4)
 
     @mock.patch("cloudinit.sources.DataSourceVMware.get_default_ip_addrs")
     def test_get_host_info_dual(self, m_fn_ipaddr):
         m_fn_ipaddr.return_value = ("10.10.10.1", "2001:db8::::::8888")
         host_info = DataSourceVMware.get_host_info()
-        self.assertTrue(host_info)
-        self.assertTrue(host_info["hostname"])
-        self.assertTrue(host_info["hostname"] == "host.cloudinit.test")
-        self.assertTrue(host_info["local-hostname"])
-        self.assertTrue(host_info["local_hostname"])
-        self.assertTrue(host_info[DataSourceVMware.LOCAL_IPV4])
-        self.assertTrue(host_info[DataSourceVMware.LOCAL_IPV4] == "10.10.10.1")
-        self.assertTrue(host_info[DataSourceVMware.LOCAL_IPV6])
-        self.assertTrue(
-            host_info[DataSourceVMware.LOCAL_IPV6] == "2001:db8::::::8888"
-        )
+        assert host_info
+        assert host_info["hostname"]
+        assert host_info["hostname"] == "host.cloudinit.test"
+        assert host_info["local-hostname"]
+        assert host_info["local_hostname"]
+        assert host_info[DataSourceVMware.LOCAL_IPV4]
+        assert host_info[DataSourceVMware.LOCAL_IPV4] == "10.10.10.1"
+        assert host_info[DataSourceVMware.LOCAL_IPV6]
+        assert host_info[DataSourceVMware.LOCAL_IPV6] == "2001:db8::::::8888"
 
     # TODO migrate this entire test suite to pytest then parameterize
     @mock.patch("cloudinit.netinfo.route_info")
@@ -265,8 +251,8 @@ class TestDataSourceVMware(CiTestCase):
             ipv4=[VMW_IPV4_NETDEV_ADDR]
         )
         ipv4, ipv6 = DataSourceVMware.get_default_ip_addrs()
-        self.assertEqual(ipv4, "10.85.130.116")
-        self.assertEqual(ipv6, None)
+        assert ipv4 == "10.85.130.116"
+        assert ipv6 is None
 
     @mock.patch("cloudinit.netinfo.route_info")
     @mock.patch("cloudinit.netinfo.netdev_info")
@@ -283,8 +269,8 @@ class TestDataSourceVMware(CiTestCase):
             ipv6=[VMW_IPV6_NETDEV_ADDR]
         )
         ipv4, ipv6 = DataSourceVMware.get_default_ip_addrs()
-        self.assertEqual(ipv4, None)
-        self.assertEqual(ipv6, "fd42:baa2:3dd:17a:216:3eff:fe16:db54/64")
+        assert ipv4 is None
+        assert ipv6 == "fd42:baa2:3dd:17a:216:3eff:fe16:db54/64"
 
     @mock.patch("cloudinit.netinfo.route_info")
     @mock.patch("cloudinit.netinfo.netdev_info")
@@ -302,8 +288,8 @@ class TestDataSourceVMware(CiTestCase):
             ipv6=[VMW_IPV6_NETDEV_ADDR],
         )
         ipv4, ipv6 = DataSourceVMware.get_default_ip_addrs()
-        self.assertEqual(ipv4, "10.85.130.116")
-        self.assertEqual(ipv6, "fd42:baa2:3dd:17a:216:3eff:fe16:db54/64")
+        assert ipv4 == "10.85.130.116"
+        assert ipv6 == "fd42:baa2:3dd:17a:216:3eff:fe16:db54/64"
 
     @mock.patch("cloudinit.netinfo.route_info")
     @mock.patch("cloudinit.netinfo.netdev_info")
@@ -335,8 +321,8 @@ class TestDataSourceVMware(CiTestCase):
             ],
         )
         ipv4, ipv6 = DataSourceVMware.get_default_ip_addrs()
-        self.assertEqual(ipv4, None)
-        self.assertEqual(ipv6, None)
+        assert ipv4 is None
+        assert ipv6 is None
 
     @mock.patch("cloudinit.netinfo.route_info")
     @mock.patch("cloudinit.netinfo.netdev_info")
@@ -363,11 +349,11 @@ class TestDataSourceVMware(CiTestCase):
             ipv6=[VMW_IPV6_NETDEV_ADDR],
         )
         ipv4, ipv6 = DataSourceVMware.get_default_ip_addrs()
-        self.assertEqual(ipv4, None)
-        self.assertEqual(ipv6, None)
+        assert ipv4 is None
+        assert ipv6 is None
 
     @mock.patch("cloudinit.sources.DataSourceVMware.get_host_info")
-    def test_wait_on_network(self, m_fn):
+    def test_wait_on_network(self, m_fn, caplog):
         metadata = {
             DataSourceVMware.WAIT_ON_NETWORK: {
                 DataSourceVMware.WAIT_ON_NETWORK_IPV4: True,
@@ -421,22 +407,31 @@ class TestDataSourceVMware(CiTestCase):
 
         host_info = DataSourceVMware.wait_on_network(metadata)
 
-        logs = self.logs.getvalue()
         expected_logs = [
-            "DEBUG: waiting on network: wait4=True, "
-            "ready4=False, wait6=False, ready6=False\n",
-            "DEBUG: waiting on network complete\n",
+            (
+                "cloudinit.sources.DataSourceVMware",
+                DEBUG,
+                (
+                    "waiting on network: wait4=True, "
+                    "ready4=False, wait6=False, ready6=False"
+                ),
+            ),
+            (
+                "cloudinit.sources.DataSourceVMware",
+                DEBUG,
+                "waiting on network complete",
+            ),
         ]
         for log in expected_logs:
-            self.assertIn(log, logs)
+            assert log in caplog.record_tuples
 
-        self.assertTrue(host_info)
-        self.assertTrue(host_info["hostname"])
-        self.assertTrue(host_info["hostname"] == "host.cloudinit.test")
-        self.assertTrue(host_info["local-hostname"])
-        self.assertTrue(host_info["local_hostname"])
-        self.assertTrue(host_info[DataSourceVMware.LOCAL_IPV4])
-        self.assertTrue(host_info[DataSourceVMware.LOCAL_IPV4] == "10.10.10.1")
+        assert host_info
+        assert host_info["hostname"]
+        assert host_info["hostname"] == "host.cloudinit.test"
+        assert host_info["local-hostname"]
+        assert host_info["local_hostname"]
+        assert host_info[DataSourceVMware.LOCAL_IPV4]
+        assert host_info[DataSourceVMware.LOCAL_IPV4] == "10.10.10.1"
 
     @mock.patch("cloudinit.sources.DataSourceVMware.guestinfo_set_value")
     def test_advertise_update_events(self, m_set_fn):
@@ -449,16 +444,15 @@ class TestDataSourceVMware(CiTestCase):
             "rpctool",
             len,
         )
-        self.assertEqual(2, m_set_fn.call_count)
-        self.assertEqual(
-            "network=boot;boot-new-instance;hotplug", supported_events
-        )
-        self.assertEqual("network=boot-new-instance;hotplug", enabled_events)
+        assert 2 == m_set_fn.call_count
+        assert "network=boot;boot-new-instance;hotplug" == supported_events
+        assert "network=boot-new-instance;hotplug" == enabled_events
 
     def test_extra_hotplug_udev_rules(self):
         ds = get_ds()
-        self.assertEqual(
-            VMW_EXPECTED_EXTRA_HOTPLUG_UDEV_RULES, ds.extra_hotplug_udev_rules
+        assert (
+            VMW_EXPECTED_EXTRA_HOTPLUG_UDEV_RULES
+            == ds.extra_hotplug_udev_rules
         )
 
 
@@ -903,27 +897,22 @@ class TestDataSourceVMwareGuestInfo_InvalidPlatform:
         assert not ret
 
 
-class TestDataSourceVMwareIMC(CiTestCase):
+class TestDataSourceVMwareIMC:
     """
     Test the VMware Guest OS Customization transport
     """
 
-    with_logs = True
+    datasource = DataSourceVMware.DataSourceVMware
 
-    def setUp(self):
-        super(TestDataSourceVMwareIMC, self).setUp()
-        self.datasource = DataSourceVMware.DataSourceVMware
-        self.tdir = self.tmp_dir()
-
-    def test_get_subplatform(self):
-        paths = helpers.Paths({"cloud_dir": self.tdir})
+    def test_get_subplatform(self, tmpdir):
+        paths = helpers.Paths({"cloud_dir": tmpdir})
         ds = self.datasource(
             sys_cfg={"disable_vmware_customization": True},
             distro={},
             paths=paths,
         )
         # Prepare the conf file
-        conf_file = self.tmp_path("test-cust", self.tdir)
+        conf_file = os.path.join(tmpdir, "test-cust")
         conf_content = dedent(
             """\
             [CLOUDINIT]
@@ -932,7 +921,7 @@ class TestDataSourceVMwareIMC(CiTestCase):
         )
         util.write_file(conf_file, conf_content)
         # Prepare the meta data file
-        metadata_file = self.tmp_path("test-meta", self.tdir)
+        metadata_file = os.path.join(tmpdir, "test-meta")
         metadata_content = dedent(
             """\
             {
@@ -963,36 +952,32 @@ class TestDataSourceVMwareIMC(CiTestCase):
                 {
                     "dmi.read_dmi_data": "vmware",
                     "util.del_dir": True,
-                    "guestcust_util.search_file": self.tdir,
+                    "guestcust_util.search_file": tmpdir,
                     "guestcust_util.wait_for_cust_cfg_file": conf_file,
-                    "guestcust_util.get_imc_dir_path": self.tdir,
+                    "guestcust_util.get_imc_dir_path": tmpdir,
                 },
                 ds._get_data,
             )
-            self.assertTrue(result)
+            assert result
 
-        self.assertEqual(
-            ds.subplatform,
-            "%s (%s)"
-            % (
-                DataSourceVMware.DATA_ACCESS_METHOD_IMC,
-                DataSourceVMware.get_imc_key_name("metadata"),
-            ),
+        assert ds.subplatform == "%s (%s)" % (
+            DataSourceVMware.DATA_ACCESS_METHOD_IMC,
+            DataSourceVMware.get_imc_key_name("metadata"),
         )
 
         # Test to ensure that network is configured from metadata on each boot.
-        self.assertSetEqual(
-            DataSourceVMware.DEFAULT_UPDATE_EVENTS[EventScope.NETWORK],
-            ds.default_update_events[EventScope.NETWORK],
+        assert (
+            DataSourceVMware.DEFAULT_UPDATE_EVENTS[EventScope.NETWORK]
+            == ds.default_update_events[EventScope.NETWORK]
         )
-        self.assertSetEqual(
-            DataSourceVMware.SUPPORTED_UPDATE_EVENTS[EventScope.NETWORK],
-            ds.supported_update_events[EventScope.NETWORK],
+        assert (
+            DataSourceVMware.SUPPORTED_UPDATE_EVENTS[EventScope.NETWORK]
+            == ds.supported_update_events[EventScope.NETWORK]
         )
 
-    def test_get_data_false_on_none_dmi_data(self):
+    def test_get_data_false_on_none_dmi_data(self, caplog, tmpdir):
         """When dmi for system-product-name is None, get_data returns False."""
-        paths = helpers.Paths({"cloud_dir": self.tdir})
+        paths = helpers.Paths({"cloud_dir": tmpdir})
         ds = self.datasource(sys_cfg={}, distro={}, paths=paths)
         result = wrap_and_call(
             "cloudinit.sources.DataSourceVMware",
@@ -1001,15 +986,15 @@ class TestDataSourceVMwareIMC(CiTestCase):
             },
             ds.get_data,
         )
-        self.assertFalse(result, "Expected False return from ds.get_data")
-        self.assertIn("No system-product-name found", self.logs.getvalue())
+        assert not result, "Expected False return from ds.get_data"
+        assert "No system-product-name found" in caplog.text
 
-    def test_get_imc_data_vmware_customization_disabled(self):
+    def test_get_imc_data_vmware_customization_disabled(self, caplog, tmpdir):
         """
         When vmware customization is disabled via sys_cfg and
         allow_raw_data is disabled via ds_cfg, log a message.
         """
-        paths = helpers.Paths({"cloud_dir": self.tdir})
+        paths = helpers.Paths({"cloud_dir": tmpdir})
         ds = self.datasource(
             sys_cfg={
                 "disable_vmware_customization": True,
@@ -1018,7 +1003,7 @@ class TestDataSourceVMwareIMC(CiTestCase):
             distro={},
             paths=paths,
         )
-        conf_file = self.tmp_path("test-cust", self.tdir)
+        conf_file = os.path.join(tmpdir, "test-cust")
         conf_content = dedent(
             """\
             [MISC]
@@ -1033,18 +1018,17 @@ class TestDataSourceVMwareIMC(CiTestCase):
             },
             ds.get_imc_data_fn,
         )
-        self.assertEqual(result, (None, None, None))
-        self.assertIn(
-            "Customization for VMware platform is disabled",
-            self.logs.getvalue(),
-        )
+        assert result == (None, None, None)
+        assert "Customization for VMware platform is disabled" in caplog.text
 
-    def test_get_imc_data_vmware_customization_sys_cfg_disabled(self):
+    def test_get_imc_data_vmware_customization_sys_cfg_disabled(
+        self, caplog, tmpdir
+    ):
         """
         When vmware customization is disabled via sys_cfg and
         no meta data is found, log a message.
         """
-        paths = helpers.Paths({"cloud_dir": self.tdir})
+        paths = helpers.Paths({"cloud_dir": tmpdir})
         ds = self.datasource(
             sys_cfg={
                 "disable_vmware_customization": True,
@@ -1053,7 +1037,7 @@ class TestDataSourceVMwareIMC(CiTestCase):
             distro={},
             paths=paths,
         )
-        conf_file = self.tmp_path("test-cust", self.tdir)
+        conf_file = os.path.join(tmpdir, "test-cust")
         conf_content = dedent(
             """\
             [MISC]
@@ -1066,23 +1050,22 @@ class TestDataSourceVMwareIMC(CiTestCase):
             {
                 "dmi.read_dmi_data": "vmware",
                 "util.del_dir": True,
-                "guestcust_util.search_file": self.tdir,
+                "guestcust_util.search_file": tmpdir,
                 "guestcust_util.wait_for_cust_cfg_file": conf_file,
             },
             ds.get_imc_data_fn,
         )
-        self.assertEqual(result, (None, None, None))
-        self.assertIn(
-            "No allowed customization configuration data found",
-            self.logs.getvalue(),
+        assert result == (None, None, None)
+        assert (
+            "No allowed customization configuration data found" in caplog.text
         )
 
-    def test_get_imc_data_allow_raw_data_disabled(self):
+    def test_get_imc_data_allow_raw_data_disabled(self, caplog, tmpdir):
         """
         When allow_raw_data is disabled via ds_cfg and
         meta data is found, log a message.
         """
-        paths = helpers.Paths({"cloud_dir": self.tdir})
+        paths = helpers.Paths({"cloud_dir": tmpdir})
         ds = self.datasource(
             sys_cfg={
                 "disable_vmware_customization": False,
@@ -1093,7 +1076,7 @@ class TestDataSourceVMwareIMC(CiTestCase):
         )
 
         # Prepare the conf file
-        conf_file = self.tmp_path("test-cust", self.tdir)
+        conf_file = os.path.join(tmpdir, "test-cust")
         conf_content = dedent(
             """\
             [CLOUDINIT]
@@ -1106,29 +1089,29 @@ class TestDataSourceVMwareIMC(CiTestCase):
             {
                 "dmi.read_dmi_data": "vmware",
                 "util.del_dir": True,
-                "guestcust_util.search_file": self.tdir,
+                "guestcust_util.search_file": tmpdir,
                 "guestcust_util.wait_for_cust_cfg_file": conf_file,
             },
             ds.get_imc_data_fn,
         )
-        self.assertEqual(result, (None, None, None))
-        self.assertIn(
-            "No allowed customization configuration data found",
-            self.logs.getvalue(),
+        assert result == (None, None, None)
+        assert (
+            "No allowed customization configuration data found" in caplog.text
         )
 
-    def test_get_imc_data_vmware_customization_enabled(self):
+    @pytest.mark.allow_subp_for("vmware-rpctool")
+    def test_get_imc_data_vmware_customization_enabled(self, caplog, tmpdir):
         """
         When cloud-init workflow for vmware is enabled via sys_cfg log a
         message.
         """
-        paths = helpers.Paths({"cloud_dir": self.tdir})
+        paths = helpers.Paths({"cloud_dir": tmpdir})
         ds = self.datasource(
             sys_cfg={"disable_vmware_customization": False},
             distro={},
             paths=paths,
         )
-        conf_file = self.tmp_path("test-cust", self.tdir)
+        conf_file = os.path.join(tmpdir, "test-cust")
         conf_content = dedent(
             """\
             [CUSTOM-SCRIPT]
@@ -1147,31 +1130,28 @@ class TestDataSourceVMwareIMC(CiTestCase):
                 {
                     "dmi.read_dmi_data": "vmware",
                     "util.del_dir": True,
-                    "guestcust_util.search_file": self.tdir,
+                    "guestcust_util.search_file": tmpdir,
                     "guestcust_util.wait_for_cust_cfg_file": conf_file,
                 },
                 ds.get_imc_data_fn,
             )
-            self.assertEqual(result, (None, None, None))
-        custom_script = self.tmp_path("test-script", self.tdir)
-        self.assertIn(
-            "Script %s not found!!" % custom_script,
-            self.logs.getvalue(),
-        )
+            assert result == (None, None, None)
+        custom_script = os.path.join(tmpdir, "test-script")
+        assert "Script %s not found!!" % custom_script in caplog.text
 
-    def test_get_imc_data_cust_script_disabled(self):
+    def test_get_imc_data_cust_script_disabled(self, caplog, tmpdir):
         """
         If custom script is disabled by VMware tools configuration,
         log a message.
         """
-        paths = helpers.Paths({"cloud_dir": self.tdir})
+        paths = helpers.Paths({"cloud_dir": tmpdir})
         ds = self.datasource(
             sys_cfg={"disable_vmware_customization": False},
             distro={},
             paths=paths,
         )
         # Prepare the conf file
-        conf_file = self.tmp_path("test-cust", self.tdir)
+        conf_file = os.path.join(tmpdir, "test-cust")
         conf_content = dedent(
             """\
             [CUSTOM-SCRIPT]
@@ -1182,7 +1162,7 @@ class TestDataSourceVMwareIMC(CiTestCase):
         )
         util.write_file(conf_file, conf_content)
         # Prepare the custom sript
-        customscript = self.tmp_path("test-script", self.tdir)
+        customscript = os.path.join(tmpdir, "test-script")
         util.write_file(customscript, "This is the post cust script")
 
         with mock.patch(
@@ -1198,30 +1178,27 @@ class TestDataSourceVMwareIMC(CiTestCase):
                     {
                         "dmi.read_dmi_data": "vmware",
                         "util.del_dir": True,
-                        "guestcust_util.search_file": self.tdir,
+                        "guestcust_util.search_file": tmpdir,
                         "guestcust_util.wait_for_cust_cfg_file": conf_file,
                     },
                     ds.get_imc_data_fn,
                 )
-                self.assertEqual(result, (None, None, None))
-        self.assertIn(
-            "Custom script is disabled by VM Administrator",
-            self.logs.getvalue(),
-        )
+                assert result == (None, None, None)
+        assert "Custom script is disabled by VM Administrator" in caplog.text
 
-    def test_get_imc_data_cust_script_enabled(self):
+    def test_get_imc_data_cust_script_enabled(self, caplog, tmpdir):
         """
         If custom script is enabled by VMware tools configuration,
         execute the script.
         """
-        paths = helpers.Paths({"cloud_dir": self.tdir})
+        paths = helpers.Paths({"cloud_dir": tmpdir})
         ds = self.datasource(
             sys_cfg={"disable_vmware_customization": False},
             distro={},
             paths=paths,
         )
         # Prepare the conf file
-        conf_file = self.tmp_path("test-cust", self.tdir)
+        conf_file = os.path.join(tmpdir, "test-cust")
         conf_content = dedent(
             """\
             [CUSTOM-SCRIPT]
@@ -1247,32 +1224,29 @@ class TestDataSourceVMwareIMC(CiTestCase):
                     {
                         "dmi.read_dmi_data": "vmware",
                         "util.del_dir": True,
-                        "guestcust_util.search_file": self.tdir,
+                        "guestcust_util.search_file": tmpdir,
                         "guestcust_util.wait_for_cust_cfg_file": conf_file,
                     },
                     ds.get_imc_data_fn,
                 )
-                self.assertEqual(result, (None, None, None))
+                assert result == (None, None, None)
         # Verify custom script is trying to be executed
-        custom_script = self.tmp_path("test-script", self.tdir)
-        self.assertIn(
-            "Script %s not found!!" % custom_script,
-            self.logs.getvalue(),
-        )
+        custom_script = os.path.join(tmpdir, "test-script")
+        assert "Script %s not found!!" % custom_script in caplog.text
 
-    def test_get_imc_data_force_run_post_script_is_yes(self):
+    def test_get_imc_data_force_run_post_script_is_yes(self, caplog, tmpdir):
         """
         If DEFAULT-RUN-POST-CUST-SCRIPT is yes, custom script could run if
         enable-custom-scripts is not defined in VM Tools configuration
         """
-        paths = helpers.Paths({"cloud_dir": self.tdir})
+        paths = helpers.Paths({"cloud_dir": tmpdir})
         ds = self.datasource(
             sys_cfg={"disable_vmware_customization": False},
             distro={},
             paths=paths,
         )
         # Prepare the conf file
-        conf_file = self.tmp_path("test-cust", self.tdir)
+        conf_file = os.path.join(tmpdir, "test-cust")
         # set DEFAULT-RUN-POST-CUST-SCRIPT = yes so that enable-custom-scripts
         # default value is TRUE
         conf_content = dedent(
@@ -1304,33 +1278,30 @@ class TestDataSourceVMwareIMC(CiTestCase):
                     {
                         "dmi.read_dmi_data": "vmware",
                         "util.del_dir": True,
-                        "guestcust_util.search_file": self.tdir,
+                        "guestcust_util.search_file": tmpdir,
                         "guestcust_util.wait_for_cust_cfg_file": conf_file,
                     },
                     ds.get_imc_data_fn,
                 )
-                self.assertEqual(result, (None, None, None))
+                assert result == (None, None, None)
         # Verify custom script still runs although it is
         # disabled by VMware Tools
-        custom_script = self.tmp_path("test-script", self.tdir)
-        self.assertIn(
-            "Script %s not found!!" % custom_script,
-            self.logs.getvalue(),
-        )
+        custom_script = os.path.join(tmpdir, "test-script")
+        assert "Script %s not found!!" % custom_script in caplog.text
 
-    def test_get_data_cloudinit_metadata_json(self):
+    def test_get_data_cloudinit_metadata_json(self, tmpdir):
         """
         Test metadata can be loaded to cloud-init metadata and network.
         The metadata format is json.
         """
-        paths = helpers.Paths({"cloud_dir": self.tdir})
+        paths = helpers.Paths({"cloud_dir": tmpdir})
         ds = self.datasource(
             sys_cfg={"disable_vmware_customization": True},
             distro={},
             paths=paths,
         )
         # Prepare the conf file
-        conf_file = self.tmp_path("test-cust", self.tdir)
+        conf_file = os.path.join(tmpdir, "test-cust")
         conf_content = dedent(
             """\
             [CLOUDINIT]
@@ -1339,7 +1310,7 @@ class TestDataSourceVMwareIMC(CiTestCase):
         )
         util.write_file(conf_file, conf_content)
         # Prepare the meta data file
-        metadata_file = self.tmp_path("test-meta", self.tdir)
+        metadata_file = os.path.join(tmpdir, "test-meta")
         metadata_content = dedent(
             """\
             {
@@ -1370,31 +1341,31 @@ class TestDataSourceVMwareIMC(CiTestCase):
                 {
                     "dmi.read_dmi_data": "vmware",
                     "util.del_dir": True,
-                    "guestcust_util.search_file": self.tdir,
+                    "guestcust_util.search_file": tmpdir,
                     "guestcust_util.wait_for_cust_cfg_file": conf_file,
-                    "guestcust_util.get_imc_dir_path": self.tdir,
+                    "guestcust_util.get_imc_dir_path": tmpdir,
                 },
                 ds._get_data,
             )
-            self.assertTrue(result)
-        self.assertEqual("cloud-vm", ds.metadata["instance-id"])
-        self.assertEqual("my-host.domain.com", ds.metadata["local-hostname"])
-        self.assertEqual(2, ds.network_config["version"])
-        self.assertTrue(ds.network_config["ethernets"]["eths"]["dhcp4"])
+            assert result
+        assert "cloud-vm" == ds.metadata["instance-id"]
+        assert "my-host.domain.com" == ds.metadata["local-hostname"]
+        assert 2 == ds.network_config["version"]
+        assert ds.network_config["ethernets"]["eths"]["dhcp4"]
 
-    def test_get_data_cloudinit_metadata_yaml(self):
+    def test_get_data_cloudinit_metadata_yaml(self, tmpdir):
         """
         Test metadata can be loaded to cloud-init metadata and network.
         The metadata format is yaml.
         """
-        paths = helpers.Paths({"cloud_dir": self.tdir})
+        paths = helpers.Paths({"cloud_dir": tmpdir})
         ds = self.datasource(
             sys_cfg={"disable_vmware_customization": True},
             distro={},
             paths=paths,
         )
         # Prepare the conf file
-        conf_file = self.tmp_path("test-cust", self.tdir)
+        conf_file = os.path.join(tmpdir, "test-cust")
         conf_content = dedent(
             """\
             [CLOUDINIT]
@@ -1403,7 +1374,7 @@ class TestDataSourceVMwareIMC(CiTestCase):
         )
         util.write_file(conf_file, conf_content)
         # Prepare the meta data file
-        metadata_file = self.tmp_path("test-meta", self.tdir)
+        metadata_file = os.path.join(tmpdir, "test-meta")
         metadata_content = dedent(
             """\
             instance-id: cloud-vm
@@ -1428,23 +1399,23 @@ class TestDataSourceVMwareIMC(CiTestCase):
                 {
                     "dmi.read_dmi_data": "vmware",
                     "util.del_dir": True,
-                    "guestcust_util.search_file": self.tdir,
+                    "guestcust_util.search_file": tmpdir,
                     "guestcust_util.wait_for_cust_cfg_file": conf_file,
-                    "guestcust_util.get_imc_dir_path": self.tdir,
+                    "guestcust_util.get_imc_dir_path": tmpdir,
                 },
                 ds._get_data,
             )
-            self.assertTrue(result)
-        self.assertEqual("cloud-vm", ds.metadata["instance-id"])
-        self.assertEqual("my-host.domain.com", ds.metadata["local-hostname"])
-        self.assertEqual(2, ds.network_config["version"])
-        self.assertTrue(ds.network_config["ethernets"]["nics"]["dhcp4"])
+            assert result
+        assert "cloud-vm" == ds.metadata["instance-id"]
+        assert "my-host.domain.com" == ds.metadata["local-hostname"]
+        assert 2 == ds.network_config["version"]
+        assert ds.network_config["ethernets"]["nics"]["dhcp4"]
 
-    def test_get_imc_data_cloudinit_metadata_not_valid(self):
+    def test_get_imc_data_cloudinit_metadata_not_valid(self, caplog, tmpdir):
         """
         Test metadata is not JSON or YAML format, log a message
         """
-        paths = helpers.Paths({"cloud_dir": self.tdir})
+        paths = helpers.Paths({"cloud_dir": tmpdir})
         ds = self.datasource(
             sys_cfg={"disable_vmware_customization": True},
             distro={},
@@ -1452,7 +1423,7 @@ class TestDataSourceVMwareIMC(CiTestCase):
         )
 
         # Prepare the conf file
-        conf_file = self.tmp_path("test-cust", self.tdir)
+        conf_file = os.path.join(tmpdir, "test-cust")
         conf_content = dedent(
             """\
             [CLOUDINIT]
@@ -1462,7 +1433,7 @@ class TestDataSourceVMwareIMC(CiTestCase):
         util.write_file(conf_file, conf_content)
 
         # Prepare the meta data file
-        metadata_file = self.tmp_path("test-meta", self.tdir)
+        metadata_file = os.path.join(tmpdir, "test-meta")
         metadata_content = "[This is not json or yaml format]a=b"
         util.write_file(metadata_file, metadata_content)
 
@@ -1475,30 +1446,29 @@ class TestDataSourceVMwareIMC(CiTestCase):
                 {
                     "dmi.read_dmi_data": "vmware",
                     "util.del_dir": True,
-                    "guestcust_util.search_file": self.tdir,
+                    "guestcust_util.search_file": tmpdir,
                     "guestcust_util.wait_for_cust_cfg_file": conf_file,
-                    "guestcust_util.get_imc_dir_path": self.tdir,
+                    "guestcust_util.get_imc_dir_path": tmpdir,
                 },
                 ds.get_data,
             )
-        self.assertFalse(result)
-        self.assertIn(
-            "expected '<document start>', but found '<scalar>'",
-            self.logs.getvalue(),
+        assert not result
+        assert (
+            "expected '<document start>', but found '<scalar>'" in caplog.text
         )
 
-    def test_get_imc_data_cloudinit_metadata_not_found(self):
+    def test_get_imc_data_cloudinit_metadata_not_found(self, caplog, tmpdir):
         """
         Test metadata file can't be found, log a message
         """
-        paths = helpers.Paths({"cloud_dir": self.tdir})
+        paths = helpers.Paths({"cloud_dir": tmpdir})
         ds = self.datasource(
             sys_cfg={"disable_vmware_customization": True},
             distro={},
             paths=paths,
         )
         # Prepare the conf file
-        conf_file = self.tmp_path("test-cust", self.tdir)
+        conf_file = os.path.join(tmpdir, "test-cust")
         conf_content = dedent(
             """\
             [CLOUDINIT]
@@ -1517,20 +1487,20 @@ class TestDataSourceVMwareIMC(CiTestCase):
                 {
                     "dmi.read_dmi_data": "vmware",
                     "util.del_dir": True,
-                    "guestcust_util.search_file": self.tdir,
+                    "guestcust_util.search_file": tmpdir,
                     "guestcust_util.wait_for_cust_cfg_file": conf_file,
-                    "guestcust_util.get_imc_dir_path": self.tdir,
+                    "guestcust_util.get_imc_dir_path": tmpdir,
                 },
                 ds.get_imc_data_fn,
             )
-            self.assertEqual(result, (None, None, None))
-        self.assertIn("Meta data file is not found", self.logs.getvalue())
+            assert result == (None, None, None)
+        assert "Meta data file is not found" in caplog.text
 
-    def test_get_data_cloudinit_userdata(self):
+    def test_get_data_cloudinit_userdata(self, caplog, tmpdir):
         """
         Test user data can be loaded to cloud-init user data.
         """
-        paths = helpers.Paths({"cloud_dir": self.tdir})
+        paths = helpers.Paths({"cloud_dir": tmpdir})
         ds = self.datasource(
             sys_cfg={"disable_vmware_customization": False},
             distro={},
@@ -1538,7 +1508,7 @@ class TestDataSourceVMwareIMC(CiTestCase):
         )
 
         # Prepare the conf file
-        conf_file = self.tmp_path("test-cust", self.tdir)
+        conf_file = os.path.join(tmpdir, "test-cust")
         conf_content = dedent(
             """\
             [CLOUDINIT]
@@ -1549,7 +1519,7 @@ class TestDataSourceVMwareIMC(CiTestCase):
         util.write_file(conf_file, conf_content)
 
         # Prepare the meta data file
-        metadata_file = self.tmp_path("test-meta", self.tdir)
+        metadata_file = os.path.join(tmpdir, "test-meta")
         metadata_content = dedent(
             """\
             instance-id: cloud-vm
@@ -1566,7 +1536,7 @@ class TestDataSourceVMwareIMC(CiTestCase):
         util.write_file(metadata_file, metadata_content)
 
         # Prepare the user data file
-        userdata_file = self.tmp_path("test-user", self.tdir)
+        userdata_file = os.path.join(tmpdir, "test-user")
         userdata_content = "This is the user data"
         util.write_file(userdata_file, userdata_content)
 
@@ -1579,21 +1549,21 @@ class TestDataSourceVMwareIMC(CiTestCase):
                 {
                     "dmi.read_dmi_data": "vmware",
                     "util.del_dir": True,
-                    "guestcust_util.search_file": self.tdir,
+                    "guestcust_util.search_file": tmpdir,
                     "guestcust_util.wait_for_cust_cfg_file": conf_file,
-                    "guestcust_util.get_imc_dir_path": self.tdir,
+                    "guestcust_util.get_imc_dir_path": tmpdir,
                 },
                 ds._get_data,
             )
-            self.assertTrue(result)
-        self.assertEqual("cloud-vm", ds.metadata["instance-id"])
-        self.assertEqual(userdata_content, ds.userdata_raw)
+            assert result
+        assert "cloud-vm" == ds.metadata["instance-id"]
+        assert userdata_content == ds.userdata_raw
 
-    def test_get_imc_data_cloudinit_userdata_not_found(self):
+    def test_get_imc_data_cloudinit_userdata_not_found(self, caplog, tmpdir):
         """
         Test userdata file can't be found.
         """
-        paths = helpers.Paths({"cloud_dir": self.tdir})
+        paths = helpers.Paths({"cloud_dir": tmpdir})
         ds = self.datasource(
             sys_cfg={"disable_vmware_customization": True},
             distro={},
@@ -1601,7 +1571,7 @@ class TestDataSourceVMwareIMC(CiTestCase):
         )
 
         # Prepare the conf file
-        conf_file = self.tmp_path("test-cust", self.tdir)
+        conf_file = os.path.join(tmpdir, "test-cust")
         conf_content = dedent(
             """\
             [CLOUDINIT]
@@ -1612,7 +1582,7 @@ class TestDataSourceVMwareIMC(CiTestCase):
         util.write_file(conf_file, conf_content)
 
         # Prepare the meta data file
-        metadata_file = self.tmp_path("test-meta", self.tdir)
+        metadata_file = os.path.join(tmpdir, "test-meta")
         metadata_content = dedent(
             """\
             instance-id: cloud-vm
@@ -1639,43 +1609,38 @@ class TestDataSourceVMwareIMC(CiTestCase):
                 {
                     "dmi.read_dmi_data": "vmware",
                     "util.del_dir": True,
-                    "guestcust_util.search_file": self.tdir,
+                    "guestcust_util.search_file": tmpdir,
                     "guestcust_util.wait_for_cust_cfg_file": conf_file,
-                    "guestcust_util.get_imc_dir_path": self.tdir,
+                    "guestcust_util.get_imc_dir_path": tmpdir,
                 },
                 ds.get_imc_data_fn,
             )
-            self.assertEqual(result, (None, None, None))
-        self.assertIn("Userdata file is not found", self.logs.getvalue())
+            assert result == (None, None, None)
+        assert "Userdata file is not found" in caplog.text
 
 
-class TestDataSourceVMwareIMC_MarkerFiles(CiTestCase):
-    def setUp(self):
-        super(TestDataSourceVMwareIMC_MarkerFiles, self).setUp()
-        self.tdir = self.tmp_dir()
+class TestDataSourceVMwareIMC_MarkerFiles:
 
-    def test_false_when_markerid_none(self):
+    def test_false_when_markerid_none(self, tmpdir):
         """Return False when markerid provided is None."""
-        self.assertFalse(
-            guestcust_util.check_marker_exists(
-                markerid=None, marker_dir=self.tdir
-            )
+        assert not guestcust_util.check_marker_exists(
+            markerid=None, marker_dir=tmpdir
         )
 
-    def test_markerid_file_exist(self):
+    def test_markerid_file_exist(self, tmpdir):
         """Return False when markerid file path does not exist,
         True otherwise."""
-        self.assertFalse(guestcust_util.check_marker_exists("123", self.tdir))
-        marker_file = self.tmp_path(".markerfile-123.txt", self.tdir)
+        assert not guestcust_util.check_marker_exists("123", tmpdir)
+        marker_file = os.path.join(tmpdir, ".markerfile-123.txt")
         util.write_file(marker_file, "")
-        self.assertTrue(guestcust_util.check_marker_exists("123", self.tdir))
+        assert guestcust_util.check_marker_exists("123", tmpdir)
 
-    def test_marker_file_setup(self):
+    def test_marker_file_setup(self, tmpdir):
         """Test creation of marker files."""
-        markerfilepath = self.tmp_path(".markerfile-hi.txt", self.tdir)
-        self.assertFalse(os.path.exists(markerfilepath))
-        guestcust_util.setup_marker_files(marker_id="hi", marker_dir=self.tdir)
-        self.assertTrue(os.path.exists(markerfilepath))
+        markerfilepath = os.path.join(tmpdir, ".markerfile-hi.txt")
+        assert not os.path.exists(markerfilepath)
+        guestcust_util.setup_marker_files(marker_id="hi", marker_dir=tmpdir)
+        assert os.path.exists(markerfilepath)
 
 
 def assert_metadata(ds, metadata):
