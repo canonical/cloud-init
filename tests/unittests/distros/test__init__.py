@@ -1,8 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import os
-import shutil
-import tempfile
 from unittest import mock
 
 import pytest
@@ -10,7 +8,6 @@ import pytest
 from cloudinit import distros, util
 from cloudinit.distros.ubuntu import Distro
 from cloudinit.net.dhcp import Dhcpcd, IscDhclient, Udhcpc
-from tests.unittests import helpers
 
 M_PATH = "cloudinit.distros."
 
@@ -54,22 +51,13 @@ gpmi = distros._get_package_mirror_info
 gapmi = distros._get_arch_package_mirror_info
 
 
-class TestGenericDistro(helpers.FilesystemMockingTestCase):
-    with_logs = True
-
-    def setUp(self):
-        super(TestGenericDistro, self).setUp()
-        # Make a temp directoy for tests to use.
-        self.tmp = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, self.tmp)
-
+@pytest.mark.usefixtures("fake_filesystem")
+class TestGenericDistro:
     def _write_load_doas(self, user, rules):
         cls = distros.fetch("ubuntu")
         d = cls("ubuntu", {}, None)
-        if not os.path.exists(os.path.join(self.tmp, "etc")):
-            os.makedirs(os.path.join(self.tmp, "etc"))
-        self.patchOS(self.tmp)
-        self.patchUtils(self.tmp)
+        if not os.path.exists("/etc"):
+            os.makedirs("/etc")
         d.write_doas_rules(user, rules)
         contents = util.load_text_file(d.doas_fn)
         return contents, cls, d
@@ -77,10 +65,8 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
     def _write_load_sudoers(self, _user, rules):
         cls = distros.fetch("ubuntu")
         d = cls("ubuntu", {}, None)
-        os.makedirs(os.path.join(self.tmp, "etc"))
-        os.makedirs(os.path.join(self.tmp, "etc", "sudoers.d"))
-        self.patchOS(self.tmp)
-        self.patchUtils(self.tmp)
+        os.makedirs("/etc")
+        os.makedirs(os.path.join("/etc", "sudoers.d"))
         d.write_sudo_rules("harlowja", rules)
         contents = util.load_text_file(d.ci_sudoers_fn)
         return contents, cls, d
@@ -98,7 +84,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         rules = ["permit nopass harlowja"]
         contents = self._write_load_doas("harlowja", rules)[0]
         expected = ["permit nopass harlowja"]
-        self.assertEqual(len(expected), self._count_in(expected, contents))
+        assert len(expected) == self._count_in(expected, contents)
 
     def test_doas_ensure_rules_list(self):
         rules = [
@@ -112,7 +98,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
             "permit nopass harlowja cmd pwd",
             "permit nopass harlowja cmd df",
         ]
-        self.assertEqual(len(expected), self._count_in(expected, contents))
+        assert len(expected) == self._count_in(expected, contents)
 
     def test_doas_ensure_handle_duplicates(self):
         rules = [
@@ -129,7 +115,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
             "permit nopass harlowja cmd pwd",
             "permit nopass harlowja cmd df",
         ]
-        self.assertEqual(len(expected), self._count_in(expected, contents))
+        assert len(expected) == self._count_in(expected, contents)
 
     def test_doas_ensure_new(self):
         rules = [
@@ -138,12 +124,11 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
             "permit nopass harlowja cmd df",
         ]
         contents = self._write_load_doas("harlowja", rules)[0]
-        self.assertIn("# Created by cloud-init v.", contents)
-        self.assertIn("harlowja", contents)
-        self.assertEqual(4, contents.count("harlowja"))
+        assert "# Created by cloud-init v." in contents
+        assert "harlowja" in contents
+        assert 4 == contents.count("harlowja")
 
     def test_doas_ensure_append(self):
-        self.patchUtils(self.tmp)
         util.write_file("/etc/doas.conf", "# root user\npermit nopass root\n")
         rules = [
             "permit nopass harlowja cmd ls",
@@ -151,22 +136,22 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
             "permit nopass harlowja cmd df",
         ]
         contents = self._write_load_doas("harlowja", rules)[0]
-        self.assertIn("root", contents)
-        self.assertEqual(2, contents.count("root"))
-        self.assertIn("harlowja", contents)
-        self.assertEqual(4, contents.count("harlowja"))
+        assert "root" in contents
+        assert 2 == contents.count("root")
+        assert "harlowja" in contents
+        assert 4 == contents.count("harlowja")
 
     def test_sudoers_ensure_rules(self):
         rules = "ALL=(ALL:ALL) ALL"
         contents = self._write_load_sudoers("harlowja", rules)[0]
         expected = ["harlowja ALL=(ALL:ALL) ALL"]
-        self.assertEqual(len(expected), self._count_in(expected, contents))
+        assert len(expected) == self._count_in(expected, contents)
         not_expected = [
             "harlowja A",
             "harlowja L",
             "harlowja L",
         ]
-        self.assertEqual(0, self._count_in(not_expected, contents))
+        assert 0 == self._count_in(not_expected, contents)
 
     def test_sudoers_ensure_rules_list(self):
         rules = [
@@ -180,13 +165,13 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
             "harlowja B-ALL=(ALL:ALL) ALL",
             "harlowja C-ALL=(ALL:ALL) ALL",
         ]
-        self.assertEqual(len(expected), self._count_in(expected, contents))
+        assert len(expected) == self._count_in(expected, contents)
         not_expected = [
             "harlowja A",
             "harlowja L",
             "harlowja L",
         ]
-        self.assertEqual(0, self._count_in(not_expected, contents))
+        assert 0 == self._count_in(not_expected, contents)
 
     def test_sudoers_ensure_handle_duplicates(self):
         rules = [
@@ -203,123 +188,101 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
             "harlowja B-ALL=(ALL:ALL) ALL",
             "harlowja C-ALL=(ALL:ALL) ALL",
         ]
-        self.assertEqual(len(expected), self._count_in(expected, contents))
+        assert len(expected) == self._count_in(expected, contents)
         not_expected = [
             "harlowja A",
             "harlowja L",
             "harlowja L",
         ]
-        self.assertEqual(0, self._count_in(not_expected, contents))
+        assert 0 == self._count_in(not_expected, contents)
 
     def test_sudoers_ensure_new(self):
         cls = distros.fetch("ubuntu")
         d = cls("ubuntu", {}, None)
-        self.patchOS(self.tmp)
-        self.patchUtils(self.tmp)
         d.ensure_sudo_dir("/b")
         contents = util.load_text_file("/etc/sudoers")
-        self.assertIn("includedir /b", contents)
-        self.assertTrue(os.path.isdir("/b"))
+        assert "includedir /b" in contents
+        assert os.path.isdir("/b")
 
-    def test_sudoers_ensure_append(self):
+    def test_sudoers_ensure_append(self, caplog):
         cls = distros.fetch("ubuntu")
         d = cls("ubuntu", {}, None)
-        self.patchOS(self.tmp)
-        self.patchUtils(self.tmp)
         util.write_file("/etc/sudoers", "josh, josh\n")
         d.ensure_sudo_dir("/b")
         contents = util.load_text_file("/etc/sudoers")
-        self.assertIn("includedir /b", contents)
-        self.assertTrue(os.path.isdir("/b"))
-        self.assertIn("josh", contents)
-        self.assertEqual(2, contents.count("josh"))
-        self.assertIn(
-            "Added '#includedir /b' to /etc/sudoers", self.logs.getvalue()
-        )
+        assert "includedir /b" in contents
+        assert os.path.isdir("/b")
+        assert "josh" in contents
+        assert 2 == contents.count("josh")
+        assert "Added '#includedir /b' to /etc/sudoers" in caplog.text
 
     def test_sudoers_ensure_append_sudoer_file(self):
         cls = distros.fetch("ubuntu")
         d = cls("ubuntu", {}, None)
-        self.patchOS(self.tmp)
-        self.patchUtils(self.tmp)
         util.write_file("/etc/sudoers", "josh, josh\n")
         d.ensure_sudo_dir("/b", "/etc/sudoers")
         contents = util.load_text_file("/etc/sudoers")
-        self.assertIn("includedir /b", contents)
-        self.assertTrue(os.path.isdir("/b"))
-        self.assertIn("josh", contents)
-        self.assertEqual(2, contents.count("josh"))
+        assert "includedir /b" in contents
+        assert os.path.isdir("/b")
+        assert "josh" in contents
+        assert 2 == contents.count("josh")
 
-    def test_usr_sudoers_ensure_new(self):
+    def test_usr_sudoers_ensure_new(self, caplog):
         cls = distros.fetch("ubuntu")
         d = cls("ubuntu", {}, None)
-        self.patchOS(self.tmp)
-        self.patchUtils(self.tmp)
         util.write_file("/usr/etc/sudoers", "josh, josh\n")
         d.ensure_sudo_dir("/b")
         contents = util.load_text_file("/etc/sudoers")
-        self.assertIn("josh", contents)
-        self.assertEqual(2, contents.count("josh"))
-        self.assertIn("includedir /b", contents)
-        self.assertTrue(os.path.isdir("/b"))
-        self.assertIn(
-            "Using content from '/usr/etc/sudoers", self.logs.getvalue()
-        )
+        assert "josh" in contents
+        assert 2 == contents.count("josh")
+        assert "includedir /b" in contents
+        assert os.path.isdir("/b")
+        assert "Using content from '/usr/etc/sudoers" in caplog.text
 
     def test_usr_sudoers_ensure_no_etc_create_when_include_in_usr_etc(self):
         cls = distros.fetch("ubuntu")
         d = cls("ubuntu", {}, None)
-        self.patchOS(self.tmp)
-        self.patchUtils(self.tmp)
         util.write_file("/usr/etc/sudoers", "#includedir /b")
         d.ensure_sudo_dir("/b")
-        self.assertTrue(not os.path.exists("/etc/sudoers"))
+        assert not os.path.exists("/etc/sudoers")
 
     def test_sudoers_ensure_only_one_includedir(self):
         cls = distros.fetch("ubuntu")
         d = cls("ubuntu", {}, None)
-        self.patchOS(self.tmp)
-        self.patchUtils(self.tmp)
         for char in ["#", "@"]:
             util.write_file("/etc/sudoers", "{}includedir /b".format(char))
             d.ensure_sudo_dir("/b")
             contents = util.load_text_file("/etc/sudoers")
-            self.assertIn("includedir /b", contents)
-            self.assertTrue(os.path.isdir("/b"))
-            self.assertEqual(1, contents.count("includedir /b"))
+            assert "includedir /b" in contents
+            assert os.path.isdir("/b")
+            assert 1 == contents.count("includedir /b")
 
     def test_arch_package_mirror_info_unknown(self):
         """for an unknown arch, we should get back that with arch 'default'."""
         arch_mirrors = gapmi(package_mirrors, arch="unknown")
-        self.assertEqual(unknown_arch_info, arch_mirrors)
+        assert unknown_arch_info == arch_mirrors
 
     def test_arch_package_mirror_info_known(self):
         arch_mirrors = gapmi(package_mirrors, arch="amd64")
-        self.assertEqual(package_mirrors[0], arch_mirrors)
+        assert package_mirrors[0] == arch_mirrors
 
     def test_systemd_in_use(self):
         cls = distros.fetch("ubuntu")
         d = cls("ubuntu", {}, None)
-        self.patchOS(self.tmp)
-        self.patchUtils(self.tmp)
         os.makedirs("/run/systemd/system")
-        self.assertTrue(d.uses_systemd())
+        assert d.uses_systemd()
 
     def test_systemd_not_in_use(self):
         cls = distros.fetch("ubuntu")
         d = cls("ubuntu", {}, None)
-        self.patchOS(self.tmp)
-        self.patchUtils(self.tmp)
-        self.assertFalse(d.uses_systemd())
+        assert not d.uses_systemd()
 
     def test_systemd_symlink(self):
         cls = distros.fetch("ubuntu")
         d = cls("ubuntu", {}, None)
-        self.patchOS(self.tmp)
-        self.patchUtils(self.tmp)
         os.makedirs("/run/systemd")
         os.symlink("/", "/run/systemd/system")
-        self.assertFalse(d.uses_systemd())
+        assert not d.uses_systemd()
 
     @mock.patch("cloudinit.distros.debian.read_system_locale")
     def test_get_locale_ubuntu(self, m_locale):
@@ -328,7 +291,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         cls = distros.fetch("ubuntu")
         d = cls("ubuntu", {}, None)
         locale = d.get_locale()
-        self.assertEqual("C.UTF-8", locale)
+        assert "C.UTF-8" == locale
 
     @mock.patch("cloudinit.distros.rhel.Distro._read_system_locale")
     def test_get_locale_rhel(self, m_locale):
@@ -337,7 +300,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         cls = distros.fetch("rhel")
         d = cls("rhel", {}, None)
         locale = d.get_locale()
-        self.assertEqual("C.UTF-8", locale)
+        assert "C.UTF-8" == locale
 
     def test_expire_passwd_uses_chpasswd(self):
         """Test ubuntu.expire_passwd uses the passwd command."""

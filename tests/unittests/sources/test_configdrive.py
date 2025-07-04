@@ -2,13 +2,14 @@
 
 import json
 import os
+from contextlib import ExitStack
 from copy import copy, deepcopy
 
 from cloudinit import helpers, settings, util
 from cloudinit.net import eni, network_state
 from cloudinit.sources import DataSourceConfigDrive as ds
 from cloudinit.sources.helpers import openstack
-from tests.unittests.helpers import CiTestCase, ExitStack, mock, populate_dir
+from tests.unittests.helpers import CiTestCase, mock, populate_dir
 
 PUBKEY = "ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460\n"
 EC2_META = {
