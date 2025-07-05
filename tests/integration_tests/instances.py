@@ -15,7 +15,7 @@ from pycloudlib.lxd.instance import LXDInstance
 from pycloudlib.result import Result
 
 from tests.helpers import cloud_init_project_dir
-from tests.integration_tests import conftest, integration_settings
+from tests.integration_tests import integration_settings
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.util import ASSETS_DIR
 
@@ -351,4 +351,4 @@ Pin-Priority: 1001"""
         ):
             log.info("Keeping Instance, public ip: %s", self.ip())
         else:
-            conftest.REAPER.reap(self)
+            self.cloud.reaper.reap(self)
