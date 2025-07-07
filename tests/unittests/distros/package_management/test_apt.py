@@ -119,13 +119,14 @@ class TestPackageCommand:
 
 
 @pytest.fixture(scope="function")
-def apt_paths(MockPaths, tmpdir):
+def apt_paths(paths, tmpdir):
     with mock.patch.object(
         apt,
         "APT_LOCK_FILES",
         [f"{tmpdir}/{FILE}" for FILE in apt.APT_LOCK_FILES],
     ):
-        yield MockPaths({}, FakeDataSource())
+        paths.datasource = FakeDataSource()
+        yield paths
 
 
 class TestUpdatePackageSources:

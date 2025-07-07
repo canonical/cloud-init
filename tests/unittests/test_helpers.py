@@ -17,23 +17,23 @@ class MyDataSource(sources.DataSource):
 
 
 class TestPaths:
-    def test_get_ipath_and_instance_id_with_slashes(self, MockPaths):
+    def test_get_ipath_and_instance_id_with_slashes(self, paths):
         myds = MyDataSource(sys_cfg={}, distro=None, paths={})
         myds._instance_id = "/foo/bar"
+        paths.datasource = myds
         safe_iid = "_foo_bar"
-        mypaths = MockPaths({}, myds)
 
         assert (
-            os.path.join(mypaths.cloud_dir, "instances", safe_iid)
-            == mypaths.get_ipath()
+            os.path.join(paths.cloud_dir, "instances", safe_iid)
+            == paths.get_ipath()
         )
 
-    def test_get_ipath_and_empty_instance_id_returns_none(self, MockPaths):
+    def test_get_ipath_and_empty_instance_id_returns_none(self, paths):
         myds = MyDataSource(sys_cfg={}, distro=None, paths={})
         myds._instance_id = None
-        mypaths = MockPaths({}, myds)
+        paths.datasource = myds
 
-        assert mypaths.get_ipath() is None
+        assert paths.get_ipath() is None
 
 
 class Testcloud_init_project_dir:

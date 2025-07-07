@@ -224,7 +224,7 @@ class TestMAASDataSource:
         assert expected == ds.get_data()
 
     @responses.activate
-    def test_get_data_with_retry(self, mocker, MockPaths, caplog):
+    def test_get_data_with_retry(self, mocker, paths, caplog):
         """Ensure we can get data from IMDS even if some attempts fail."""
         mocker.patch("time.sleep")
         metadata_url = "http://169.254.169.254/MAAS/metadata"
@@ -260,7 +260,7 @@ class TestMAASDataSource:
         )
 
         cfg = {"datasource": {"MAAS": {"metadata_url": metadata_url}}}
-        ds = DataSourceMAAS.DataSourceMAAS(cfg, MockDistro(), MockPaths({}))
+        ds = DataSourceMAAS.DataSourceMAAS(cfg, MockDistro(), paths)
         assert ds.get_data()
         assert ds.metadata["instance-id"] == "i-123"
         assert ds.metadata["local-hostname"] == "myhostname"
