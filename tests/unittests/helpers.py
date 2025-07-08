@@ -25,6 +25,7 @@ from cloudinit.config.schema import (
     SchemaValidationError,
     validate_cloudconfig_schema,
 )
+from cloudinit.helpers import Paths
 from cloudinit.templater import JINJA_AVAILABLE
 from tests.helpers import cloud_init_project_dir
 from tests.hypothesis_jsonschema import HAS_HYPOTHESIS_JSONSCHEMA
@@ -391,49 +392,54 @@ class FilesystemMockingTestCase(CiTestCase):
             self.patched_funcs.close()
 
 
-class CiRequestsMock(responses.RequestsMock):
-    def assert_call_count(self, url: str, count: int) -> bool:
-        """Focal and older have a version of responses which does
-        not carry this attribute. This can be removed when focal
-        is no longer supported.
-        """
-        if hasattr(super(), "_ensure_url_default_path"):
-            return super().assert_call_count(url, count)
+def responses_assert_call_count(url: str, count: int) -> bool:
+    """Focal and older have a version of responses which does
+    not carry this attribute. This can be removed when focal
+    is no longer supported.
+    """
+    if hasattr(responses, "assert_call_count"):
+        return responses.assert_call_count(url, count)
 
-        def _ensure_url_default_path(url):
-            if isinstance(url, str):
-                url_parts = list(urlsplit(url))
-                if url_parts[2] == "":
-                    url_parts[2] = "/"
-                    url = urlunsplit(url_parts)
-            return url
+    def _ensure_url_default_path(url):
+        if isinstance(url, str):
+            url_parts = list(urlsplit(url))
+            if url_parts[2] == "":
+                url_parts[2] = "/"
+                url = urlunsplit(url_parts)
+        return url
 
-        call_count = len(
-            [
-                1
-                for call in self.calls
-                if call.request.url == _ensure_url_default_path(url)
-            ]
+    call_count = len(
+        [
+            1
+            for call in responses.calls
+            if call.request.url == _ensure_url_default_path(url)
+        ]
+    )
+    if call_count == count:
+        return True
+    else:
+        raise AssertionError(
+            f"Expected URL '{url}' to be called {count} times. "
+            f"Called {call_count} times."
         )
-        if call_count == count:
-            return True
-        else:
-            raise AssertionError(
-                f"Expected URL '{url}' to be called {count} times. "
-                f"Called {call_count} times."
+
+
+def get_mock_paths(temp_dir):
+    class MockPaths(Paths):
+        def __init__(self, path_cfgs: dict, ds=None):
+            super().__init__(path_cfgs=path_cfgs, ds=ds)
+
+            self.cloud_dir: str = path_cfgs.get(
+                "cloud_dir", f"{temp_dir}/var/lib/cloud"
+            )
+            self.run_dir: str = path_cfgs.get(
+                "run_dir", f"{temp_dir}/run/cloud/"
+            )
+            self.template_dir: str = path_cfgs.get(
+                "templates_dir", f"{temp_dir}/etc/cloud/templates/"
             )
 
-
-class ResponsesTestCase(CiTestCase):
-    def setUp(self):
-        super().setUp()
-        self.responses = CiRequestsMock(assert_all_requests_are_fired=False)
-        self.responses.start()
-
-    def tearDown(self):
-        self.responses.stop()
-        self.responses.reset()
-        super().tearDown()
+    return MockPaths
 
 
 class SchemaTestCaseMixin(unittest.TestCase):

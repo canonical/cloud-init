@@ -72,6 +72,7 @@ for distro in (
 
 for distro in (
     "almalinux",
+    "centos",
     "cloudlinux",
     "rocky",
 ):
@@ -80,6 +81,7 @@ for distro in (
 distros = [
     "almalinux",
     "aosc",
+    "centos",
     "cloudlinux",
     "alpine",
     "debian",
