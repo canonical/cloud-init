@@ -7,7 +7,7 @@ Last-Update: 2024-08-02
 
 --- a/cloudinit/sources/DataSourceNoCloud.py
 +++ b/cloudinit/sources/DataSourceNoCloud.py
-@@ -184,7 +184,7 @@
+@@ -184,7 +184,7 @@ class DataSourceNoCloud(sources.DataSour
  
              # This could throw errors, but the user told us to do it
              # so if errors are raised, let them raise
@@ -16,7 +16,7 @@ Last-Update: 2024-08-02
              LOG.debug("Using seeded cache data from %s", seedfrom)
  
              # Values in the command line override those from the seed
-@@ -193,7 +193,6 @@
+@@ -193,7 +193,6 @@ class DataSourceNoCloud(sources.DataSour
              )
              mydata["user-data"] = ud
              mydata["vendor-data"] = vd
@@ -26,7 +26,7 @@ Last-Update: 2024-08-02
          # Now that we have exhausted any other places merge in the defaults
 --- a/cloudinit/util.py
 +++ b/cloudinit/util.py
-@@ -1015,7 +1015,6 @@
+@@ -1015,7 +1015,6 @@ def read_seeded(base="", ext="", timeout
          ud_url = base.replace("%s", "user-data" + ext)
          vd_url = base.replace("%s", "vendor-data" + ext)
          md_url = base.replace("%s", "meta-data" + ext)
@@ -34,7 +34,7 @@ Last-Update: 2024-08-02
      else:
          if features.NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH:
              if base[-1] != "/" and parse.urlparse(base).query == "":
-@@ -1024,17 +1023,7 @@
+@@ -1024,17 +1023,7 @@ def read_seeded(base="", ext="", timeout
          ud_url = "%s%s%s" % (base, "user-data", ext)
          vd_url = "%s%s%s" % (base, "vendor-data", ext)
          md_url = "%s%s%s" % (base, "meta-data", ext)
@@ -54,7 +54,7 @@ Last-Update: 2024-08-02
      )
 --- a/tests/unittests/test_util.py
 +++ b/tests/unittests/test_util.py
-@@ -2489,7 +2489,7 @@
+@@ -2489,7 +2489,7 @@ class TestReadOptionalSeed:
                  {
                      "meta-data": {"md": "val"},
                      "user-data": b"ud",
@@ -63,7 +63,7 @@ Last-Update: 2024-08-02
                      "vendor-data": None,
                  },
                  True,
-@@ -2544,7 +2544,7 @@
+@@ -2544,7 +2544,7 @@ class TestReadSeeded:
          assert found_md == {"key1": "val1"}
          assert found_ud == ud
          assert found_vd == vd
@@ -72,7 +72,7 @@ Last-Update: 2024-08-02
  
      @pytest.mark.parametrize(
          "base, feature_flag, req_urls",
-@@ -2553,7 +2553,6 @@
+@@ -2553,7 +2553,6 @@ class TestReadSeeded:
                  "http://10.0.0.1/%s?qs=1",
                  True,
                  [
@@ -80,7 +80,7 @@ Last-Update: 2024-08-02
                      "http://10.0.0.1/meta-data?qs=1",
                      "http://10.0.0.1/user-data?qs=1",
                      "http://10.0.0.1/vendor-data?qs=1",
-@@ -2564,7 +2563,6 @@
+@@ -2564,7 +2563,6 @@ class TestReadSeeded:
                  "https://10.0.0.1:8008/",
                  True,
                  [
@@ -88,7 +88,7 @@ Last-Update: 2024-08-02
                      "https://10.0.0.1:8008/meta-data",
                      "https://10.0.0.1:8008/user-data",
                      "https://10.0.0.1:8008/vendor-data",
-@@ -2575,7 +2573,6 @@
+@@ -2575,7 +2573,6 @@ class TestReadSeeded:
                  "https://10.0.0.1:8008",
                  True,
                  [
@@ -96,7 +96,7 @@ Last-Update: 2024-08-02
                      "https://10.0.0.1:8008/meta-data",
                      "https://10.0.0.1:8008/user-data",
                      "https://10.0.0.1:8008/vendor-data",
-@@ -2586,7 +2583,6 @@
+@@ -2586,7 +2583,6 @@ class TestReadSeeded:
                  "https://10.0.0.1:8008",
                  False,
                  [
@@ -104,7 +104,7 @@ Last-Update: 2024-08-02
                      "https://10.0.0.1:8008meta-data",
                      "https://10.0.0.1:8008user-data",
                      "https://10.0.0.1:8008vendor-data",
-@@ -2597,7 +2593,6 @@
+@@ -2597,7 +2593,6 @@ class TestReadSeeded:
                  "https://10.0.0.1:8008?qs=",
                  True,
                  [
@@ -112,7 +112,7 @@ Last-Update: 2024-08-02
                      "https://10.0.0.1:8008?qs=meta-data",
                      "https://10.0.0.1:8008?qs=user-data",
                      "https://10.0.0.1:8008?qs=vendor-data",
-@@ -2636,7 +2631,7 @@
+@@ -2636,7 +2631,7 @@ class TestReadSeeded:
          # user-data, vendor-data read raw. It could be scripts or other format
          assert found_ud == "/user-data: 1"
          assert found_vd == "/vendor-data: 1"
@@ -121,7 +121,7 @@ Last-Update: 2024-08-02
          assert [
              mock.call(req_url, timeout=5, retries=10) for req_url in req_urls
          ] == m_read.call_args_list
-@@ -2666,7 +2661,7 @@
+@@ -2666,7 +2661,7 @@ class TestReadSeededWithoutVendorData(he
          self.assertEqual(found_md, {"key1": "val1"})
          self.assertEqual(found_ud, ud)
          self.assertEqual(found_vd, vd)

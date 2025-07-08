@@ -6,7 +6,7 @@ Last-Update: 2024-08-02
 
 --- a/cloudinit/cmd/status.py
 +++ b/cloudinit/cmd/status.py
-@@ -318,9 +318,8 @@
+@@ -318,9 +318,8 @@ def systemd_failed(wait: bool) -> bool:
      for service in [
          "cloud-final.service",
          "cloud-config.service",
@@ -19,8 +19,8 @@ Last-Update: 2024-08-02
              stdout = query_systemctl(
 --- a/cloudinit/config/cc_mounts.py
 +++ b/cloudinit/config/cc_mounts.py
-@@ -519,7 +519,7 @@
-     # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
+@@ -519,7 +519,7 @@ def handle(name: str, cfg: Config, cloud
+     # fs_spec, fs_file, fs_vfstype, fs_mntops, fs_freq, fs_passno
      uses_systemd = cloud.distro.uses_systemd()
      default_mount_options = (
 -        "defaults,nofail,x-systemd.after=cloud-init-network.service,_netdev"
@@ -47,7 +47,7 @@ Last-Update: 2024-08-02
            ],
 --- a/systemd/cloud-config.service
 +++ b/systemd/cloud-config.service
-@@ -9,14 +9,7 @@
+@@ -9,14 +9,7 @@ ConditionEnvironment=!KERNEL_CMDLINE=clo
  
  [Service]
  Type=oneshot
@@ -75,7 +75,7 @@ Last-Update: 2024-08-02
 +After=cloud-init-local.service cloud-init.service
 --- a/systemd/cloud-final.service
 +++ b/systemd/cloud-final.service
-@@ -12,16 +12,10 @@
+@@ -12,16 +12,10 @@ ConditionEnvironment=!KERNEL_CMDLINE=clo
  
  [Service]
  Type=oneshot
@@ -96,7 +96,7 @@ Last-Update: 2024-08-02
  # Output needs to appear in instance console output
 --- a/systemd/cloud-init-local.service.tmpl
 +++ b/systemd/cloud-init-local.service.tmpl
-@@ -7,6 +7,7 @@
+@@ -7,6 +7,7 @@ DefaultDependencies=no
  {% endif %}
  Wants=network-pre.target
  After=hv_kvp_daemon.service
@@ -104,7 +104,7 @@ Last-Update: 2024-08-02
  Before=auditd.service
  Before=network-pre.target
  Before=shutdown.target
-@@ -17,6 +18,7 @@
+@@ -17,6 +18,7 @@ Before=firewalld.target
  Before=sysinit.target
  {% endif %}
  Conflicts=shutdown.target
@@ -112,7 +112,7 @@ Last-Update: 2024-08-02
  ConditionPathExists=!/etc/cloud/cloud-init.disabled
  ConditionKernelCommandLine=!cloud-init=disabled
  ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
-@@ -26,14 +28,7 @@
+@@ -26,14 +28,7 @@ Type=oneshot
  {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
  ExecStartPre=/sbin/restorecon /run/cloud-init
  {% endif %}
@@ -307,7 +307,7 @@ Last-Update: 2024-08-02
 +WantedBy=cloud-init.target
 --- a/tests/unittests/config/test_cc_mounts.py
 +++ b/tests/unittests/config/test_cc_mounts.py
-@@ -566,9 +566,9 @@
+@@ -566,9 +566,9 @@ class TestFstabHandling:
              LABEL=keepme	none	ext4	defaults	0	0
              LABEL=UEFI
              /dev/sda4	/mnt2	auto	nofail,comment=cloudconfig	1	2
