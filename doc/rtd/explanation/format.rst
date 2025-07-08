@@ -388,7 +388,7 @@ as binary data and so may be processed automatically.
 +--------------------+-----------------------------+-------------------------+
 |Cloud config archive|#cloud-config-archive        |text/cloud-config-archive|
 +--------------------+-----------------------------+-------------------------+
-|Jinja template      |## template: jinja           |text/jinja               |
+|Jinja template      |## template: jinja           |text/jinja2              |
 +--------------------+-----------------------------+-------------------------+
 |Include file        |#include                     |text/x-include-url       |
 +--------------------+-----------------------------+-------------------------+
