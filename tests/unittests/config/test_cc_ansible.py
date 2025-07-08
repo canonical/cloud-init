@@ -1,5 +1,6 @@
 import os
 import re
+from contextlib import nullcontext
 from copy import deepcopy
 from textwrap import dedent
 from typing import Any, Dict
@@ -15,6 +16,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
+from cloudinit.subp import ProcessExecutionError
 from tests.unittests.helpers import (
     skipUnlessJsonSchema,
     skipUnlessJsonSchemaVersionGreaterThan,
@@ -549,6 +551,61 @@ class TestAnsible:
         with mock.patch("builtins.__import__", side_effect=ImportError):
             cc_ansible.AnsiblePullPip(distro, "ansible").install("")
         distro.install_packages.assert_called_once()
+
+    @mark.parametrize(
+        "mocked_doas_kwargs,expected_result,expected_present_logs,expected_absent_logs",
+        [
+            (
+                {"return_value": ("", "")},
+                nullcontext(),
+                ["Upgraded pip"],
+                ["Failed at upgrading pip"],
+            ),
+            # When do_as raises a ProcessExecutionError, __upgrade_pip will
+            #  catch it then return without raising it
+            (
+                {"side_effect": ProcessExecutionError()},
+                nullcontext(),
+                ["Failed at upgrading pip"],
+                ["Upgraded pip"],
+            ),
+            # The below use case is to ensure that the function will raise the
+            # error if the error is not ProcessExecutionError (i.e. something
+            # went really sideways with do_as and not simply a non-zero exit
+            # by the executed command)
+            (
+                {"side_effect": ZeroDivisionError()},
+                raises(ZeroDivisionError),
+                [],
+                ["Failed at upgrading pip", "Upgraded pip"],
+            ),
+        ],
+    )
+    def test_upgrade_pip(
+        self,
+        mocked_doas_kwargs,
+        expected_result,
+        expected_present_logs,
+        expected_absent_logs,
+        caplog,
+    ):
+        distro = get_cloud(mocked_distro=True).distro
+        base_cmd = ["echo", "abc"]
+        ansiblePullPip = cc_ansible.AnsiblePullPip(distro, "ansible")
+        ansiblePullPip.do_as = MagicMock(**mocked_doas_kwargs)
+        with expected_result as e:
+            assert ansiblePullPip._AnsiblePullPip__upgrade_pip(base_cmd) == e
+
+            ansiblePullPip.do_as.assert_called_once()
+            ansiblePullPip.do_as.assert_called_with(
+                [*base_cmd, "--upgrade", "pip"]
+            )
+
+            for expected_present_log in expected_present_logs:
+                assert expected_present_log in caplog.text
+
+            for expected_absent_log in expected_absent_logs:
+                assert expected_absent_log not in caplog.text
 
     @mock.patch(M_PATH + "subp.which", return_value=True)
     @mock.patch(M_PATH + "subp.subp", return_value=(distro_version, "stderr"))
