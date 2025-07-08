@@ -126,8 +126,24 @@ class AnsiblePullPip(AnsiblePull):
             if self.run_user:
                 cmd.append("--user")
 
-            self.do_as([*cmd, "--upgrade", "pip"])
+            self.__upgrade_pip(cmd)
+            LOG.info("Installing the %s package", pkg_name)
             self.do_as([*cmd, pkg_name])
+            LOG.info("Installed the %s package", pkg_name)
+
+    def __upgrade_pip(self, cmd: list):
+        LOG.info("Upgrading pip")
+        try:
+            self.do_as([*cmd, "--upgrade", "pip"])
+        except subp.ProcessExecutionError as e:
+            base_message = (
+                "Failed at upgrading pip. This is usually not critical"
+                "so the script will skip this step."
+            )
+            LOG.warning(base_message)
+            LOG.debug("%s\n%s", base_message, e)
+        else:
+            LOG.info("Upgraded pip")
 
     def is_installed(self) -> bool:
         cmd = [sys.executable, "-m", "pip", "list"]
