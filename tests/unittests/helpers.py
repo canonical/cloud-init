@@ -485,7 +485,7 @@ def populate_dir_with_ts(path, data):
         os.utime(os.path.sep.join((path, fpath)), (ts, ts))
 
 
-def dir2dict(startdir, prefix=None):
+def dir2dict(startdir, prefix=None, filter=None):
     flist = {}
     if prefix is None:
         prefix = startdir
@@ -493,6 +493,8 @@ def dir2dict(startdir, prefix=None):
         for fname in files:
             fpath = os.path.join(root, fname)
             key = fpath[len(prefix) :]
+            if filter is not None and not filter(fpath):
+                continue
             flist[key] = util.load_text_file(fpath)
     return flist
 
