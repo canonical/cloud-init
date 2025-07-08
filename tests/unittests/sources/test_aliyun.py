@@ -97,7 +97,7 @@ bootcmd:
 - echo hello world > /tmp/vendor"""
 
 
-class TestAliYunDatasource(test_helpers.ResponsesTestCase):
+class TestAliYunDatasource(test_helpers.CiTestCase):
     def setUp(self):
         super(TestAliYunDatasource, self).setUp()
         cfg = {"datasource": {"AliYun": {"timeout": "1", "max_wait": "1"}}}
@@ -198,7 +198,7 @@ class TestAliYunDatasource(test_helpers.ResponsesTestCase):
                     register_helper(register, url, v)
                 register(base_url, "\n".join(vals) + "\n")
 
-        register = functools.partial(self.responses.add, responses.GET)
+        register = functools.partial(responses.add, responses.GET)
         register_helper(register, base_url, data)
 
     def regist_default_server(self, register_json_meta_path=True):
@@ -213,7 +213,7 @@ class TestAliYunDatasource(test_helpers.ResponsesTestCase):
         )
 
         self.register_mock_metaserver(self.identity_url, self.default_identity)
-        self.responses.add(responses.PUT, self.token_url, "API-TOKEN")
+        responses.add(responses.PUT, self.token_url, "API-TOKEN")
 
     def _test_get_data(self):
         self.assertEqual(self.ds.metadata, self.default_metadata)
@@ -238,6 +238,7 @@ class TestAliYunDatasource(test_helpers.ResponsesTestCase):
             self.default_metadata["hostname"], self.ds.get_hostname().hostname
         )
 
+    @responses.activate
     @mock.patch("cloudinit.sources.DataSourceEc2.util.is_resolvable")
     @mock.patch("cloudinit.sources.DataSourceAliYun._is_aliyun")
     def test_with_mock_server(self, m_is_aliyun, m_resolv):
@@ -256,6 +257,7 @@ class TestAliYunDatasource(test_helpers.ResponsesTestCase):
             "metadata (http://100.100.100.200)", self.ds.subplatform
         )
 
+    @responses.activate
     @mock.patch("cloudinit.sources.DataSourceEc2.util.is_resolvable")
     @mock.patch("cloudinit.sources.DataSourceAliYun._is_aliyun")
     def test_with_mock_server_without_json_path(self, m_is_aliyun, m_resolv):
@@ -274,6 +276,7 @@ class TestAliYunDatasource(test_helpers.ResponsesTestCase):
             "metadata (http://100.100.100.200)", self.ds.subplatform
         )
 
+    @responses.activate
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv6Network")
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
     @mock.patch("cloudinit.sources.DataSourceEc2.util.is_resolvable")
@@ -320,6 +323,7 @@ class TestAliYunDatasource(test_helpers.ResponsesTestCase):
             "metadata (http://100.100.100.200)", self.ds.subplatform
         )
 
+    @responses.activate
     @mock.patch("cloudinit.sources.DataSourceAliYun._is_aliyun")
     def test_returns_false_when_not_on_aliyun(self, m_is_aliyun):
         """If is_aliyun returns false, then get_data should return False."""

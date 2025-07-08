@@ -516,7 +516,7 @@ def mount_if_needed(
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """Handle the mounts configuration."""
-    # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
+    # fs_spec, fs_file, fs_vfstype, fs_mntops, fs_freq, fs_passno
     uses_systemd = cloud.distro.uses_systemd()
     default_mount_options = (
         "defaults,nofail,x-systemd.after=cloud-init-network.service,_netdev"

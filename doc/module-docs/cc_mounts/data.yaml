@@ -3,7 +3,7 @@ cc_mounts:
     This module can add or remove mount points from ``/etc/fstab`` as well as
     configure swap. The ``mounts`` config key takes a list of ``fstab`` entries
     to add. Each entry is specified as a list of ``[ fs_spec, fs_file,
-    fs_vfstype, fs_mntops, fs-freq, fs_passno ]``.
+    fs_vfstype, fs_mntops, fs_freq, fs_passno ]``.
     
     For more information on these options, consult the manual for
     ``/etc/fstab``. When specifying the ``fs_spec``, if the device name starts

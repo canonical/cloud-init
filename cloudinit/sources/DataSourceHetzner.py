@@ -78,6 +78,12 @@ class DataSourceHetzner(sources.DataSource):
                     sec_between=self.wait_retry,
                     retries=self.retries,
                 )
+                pn = hc_helper.read_metadata(
+                    self.metadata_address + "/private-networks",
+                    timeout=self.timeout,
+                    sec_between=self.wait_retry,
+                    retries=self.retries,
+                )
         except NoDHCPLeaseError as e:
             LOG.error("Bailing, DHCP Exception: %s", e)
             raise
@@ -99,6 +105,7 @@ class DataSourceHetzner(sources.DataSource):
         self.metadata["local-hostname"] = md["hostname"]
         self.metadata["network-config"] = md.get("network-config", None)
         self.metadata["public-keys"] = md.get("public-keys", None)
+        self.metadata["private-networks"] = pn
         self.vendordata_raw = md.get("vendor_data", None)
 
         # instance-id and serial from SMBIOS should be identical

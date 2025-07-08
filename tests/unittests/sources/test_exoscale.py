@@ -16,7 +16,7 @@ from cloudinit.sources.DataSourceExoscale import (
     get_password,
     read_metadata,
 )
-from tests.unittests.helpers import ResponsesTestCase, mock
+from tests.unittests.helpers import mock
 
 TEST_PASSWORD_URL = "{}:{}/{}/".format(
     METADATA_URL, PASSWORD_SERVER_PORT, API_VERSION
@@ -27,176 +27,157 @@ TEST_METADATA_URL = "{}/{}/meta-data/".format(METADATA_URL, API_VERSION)
 TEST_USERDATA_URL = "{}/{}/user-data".format(METADATA_URL, API_VERSION)
 
 
-class TestDatasourceExoscale(ResponsesTestCase):
-    def setUp(self):
-        super(TestDatasourceExoscale, self).setUp()
-        self.tmp = self.tmp_dir()
-        self.password_url = TEST_PASSWORD_URL
-        self.metadata_url = TEST_METADATA_URL
-        self.userdata_url = TEST_USERDATA_URL
-
+class TestDatasourceExoscale:
+    @responses.activate
     def test_password_saved(self):
         """The password is not set when it is not found
         in the metadata service."""
-        self.responses.add(
-            responses.GET, self.password_url, body="saved_password"
-        )
-        self.assertFalse(get_password())
+        responses.add(responses.GET, TEST_PASSWORD_URL, body="saved_password")
+        assert not get_password()
 
+    @responses.activate
     def test_password_empty(self):
         """No password is set if the metadata service returns
         an empty string."""
-        self.responses.add(responses.GET, self.password_url, body="")
-        self.assertFalse(get_password())
+        responses.add(responses.GET, TEST_PASSWORD_URL, body="")
+        assert not get_password()
 
+    @responses.activate
     def test_password(self):
         """The password is set to what is found in the metadata
         service."""
         expected_password = "p@ssw0rd"
-        self.responses.add(
-            responses.GET, self.password_url, body=expected_password
-        )
+        responses.add(responses.GET, TEST_PASSWORD_URL, body=expected_password)
         password = get_password()
-        self.assertEqual(expected_password, password)
+        assert expected_password == password
 
-    def test_activate_removes_set_passwords_semaphore(self):
+    def test_activate_removes_set_passwords_semaphore(self, tmp_path):
         """Allow set_passwords to run every boot by removing the semaphore."""
-        path = helpers.Paths({"cloud_dir": self.tmp})
-        sem_dir = self.tmp_path("instance/sem", dir=self.tmp)
+        path = helpers.Paths({"cloud_dir": str(tmp_path)})
+        sem_dir = str(tmp_path / "instance/sem")
         util.ensure_dir(sem_dir)
         sem_file = os.path.join(sem_dir, "config_set_passwords")
         with open(sem_file, "w") as stream:
             stream.write("")
         ds = DataSourceExoscale({}, None, path)
         ds.activate(None, None)
-        self.assertFalse(os.path.exists(sem_file))
+        assert not os.path.exists(sem_file)
 
-    def test_get_data(self):
+    @responses.activate
+    def test_get_data(self, tmp_path):
         """The datasource conforms to expected behavior when supplied
         full test data."""
-        path = helpers.Paths({"run_dir": self.tmp})
+        path = helpers.Paths({"run_dir": str(tmp_path)})
         ds = DataSourceExoscale({}, None, path)
         ds.ds_detect = lambda: True
         expected_password = "p@ssw0rd"
         expected_id = "12345"
         expected_hostname = "myname"
         expected_userdata = "#cloud-config"
-        self.responses.add(
-            responses.GET, self.userdata_url, body=expected_userdata
-        )
-        self.responses.add(
-            responses.GET, self.password_url, body=expected_password
-        )
-        self.responses.add(
+        responses.add(responses.GET, TEST_USERDATA_URL, body=expected_userdata)
+        responses.add(responses.GET, TEST_PASSWORD_URL, body=expected_password)
+        responses.add(
             responses.GET,
-            self.metadata_url,
+            TEST_METADATA_URL,
             body="instance-id\nlocal-hostname",
         )
-        self.responses.add(
+        responses.add(
             responses.GET,
-            "{}local-hostname".format(self.metadata_url),
+            "{}local-hostname".format(TEST_METADATA_URL),
             body=expected_hostname,
         )
-        self.responses.add(
+        responses.add(
             responses.GET,
-            "{}instance-id".format(self.metadata_url),
+            "{}instance-id".format(TEST_METADATA_URL),
             body=expected_id,
         )
-        self.assertTrue(ds._check_and_get_data())
-        self.assertEqual(ds.userdata_raw.decode("utf-8"), "#cloud-config")
-        self.assertEqual(
-            ds.metadata,
-            {"instance-id": expected_id, "local-hostname": expected_hostname},
-        )
-        self.assertEqual(
-            ds.get_config_obj(),
-            {
-                "ssh_pwauth": True,
-                "password": expected_password,
-                "chpasswd": {
-                    "expire": False,
-                },
+        assert ds._check_and_get_data()
+        assert ds.userdata_raw.decode("utf-8") == "#cloud-config"
+        assert ds.metadata == {
+            "instance-id": expected_id,
+            "local-hostname": expected_hostname,
+        }
+        assert ds.get_config_obj() == {
+            "ssh_pwauth": True,
+            "password": expected_password,
+            "chpasswd": {
+                "expire": False,
             },
-        )
+        }
 
-    def test_get_data_saved_password(self):
+    @responses.activate
+    def test_get_data_saved_password(self, tmp_path):
         """The datasource conforms to expected behavior when saved_password is
         returned by the password server."""
-        path = helpers.Paths({"run_dir": self.tmp})
+        path = helpers.Paths({"run_dir": str(tmp_path)})
         ds = DataSourceExoscale({}, None, path)
         ds.ds_detect = lambda: True
         expected_answer = "saved_password"
         expected_id = "12345"
         expected_hostname = "myname"
         expected_userdata = "#cloud-config"
-        self.responses.add(
-            responses.GET, self.userdata_url, body=expected_userdata
-        )
-        self.responses.add(
-            responses.GET, self.password_url, body=expected_answer
-        )
-        self.responses.add(
+        responses.add(responses.GET, TEST_USERDATA_URL, body=expected_userdata)
+        responses.add(responses.GET, TEST_PASSWORD_URL, body=expected_answer)
+        responses.add(
             responses.GET,
-            self.metadata_url,
+            TEST_METADATA_URL,
             body="instance-id\nlocal-hostname",
         )
-        self.responses.add(
+        responses.add(
             responses.GET,
-            "{}local-hostname".format(self.metadata_url),
+            "{}local-hostname".format(TEST_METADATA_URL),
             body=expected_hostname,
         )
-        self.responses.add(
+        responses.add(
             responses.GET,
-            "{}instance-id".format(self.metadata_url),
+            "{}instance-id".format(TEST_METADATA_URL),
             body=expected_id,
         )
-        self.assertTrue(ds._check_and_get_data())
-        self.assertEqual(ds.userdata_raw.decode("utf-8"), "#cloud-config")
-        self.assertEqual(
-            ds.metadata,
-            {"instance-id": expected_id, "local-hostname": expected_hostname},
-        )
-        self.assertEqual(ds.get_config_obj(), {})
+        assert ds._check_and_get_data()
+        assert ds.userdata_raw.decode("utf-8") == "#cloud-config"
+        assert ds.metadata == {
+            "instance-id": expected_id,
+            "local-hostname": expected_hostname,
+        }
+        assert ds.get_config_obj() == {}
 
-    def test_get_data_no_password(self):
+    @responses.activate
+    def test_get_data_no_password(self, tmp_path):
         """The datasource conforms to expected behavior when no password is
         returned by the password server."""
-        path = helpers.Paths({"run_dir": self.tmp})
+        path = helpers.Paths({"run_dir": str(tmp_path)})
         ds = DataSourceExoscale({}, None, path)
         ds.ds_detect = lambda: True
         expected_answer = ""
         expected_id = "12345"
         expected_hostname = "myname"
         expected_userdata = "#cloud-config"
-        self.responses.add(
-            responses.GET, self.userdata_url, body=expected_userdata
-        )
-        self.responses.add(
-            responses.GET, self.password_url, body=expected_answer
-        )
-        self.responses.add(
+        responses.add(responses.GET, TEST_USERDATA_URL, body=expected_userdata)
+        responses.add(responses.GET, TEST_PASSWORD_URL, body=expected_answer)
+        responses.add(
             responses.GET,
-            self.metadata_url,
+            TEST_METADATA_URL,
             body="instance-id\nlocal-hostname",
         )
-        self.responses.add(
+        responses.add(
             responses.GET,
-            "{}local-hostname".format(self.metadata_url),
+            "{}local-hostname".format(TEST_METADATA_URL),
             body=expected_hostname,
         )
-        self.responses.add(
+        responses.add(
             responses.GET,
-            "{}instance-id".format(self.metadata_url),
+            "{}instance-id".format(TEST_METADATA_URL),
             body=expected_id,
         )
-        self.assertTrue(ds._check_and_get_data())
-        self.assertEqual(ds.userdata_raw.decode("utf-8"), "#cloud-config")
-        self.assertEqual(
-            ds.metadata,
-            {"instance-id": expected_id, "local-hostname": expected_hostname},
-        )
-        self.assertEqual(ds.get_config_obj(), {})
+        assert ds._check_and_get_data()
+        assert ds.userdata_raw.decode("utf-8") == "#cloud-config"
+        assert ds.metadata == {
+            "instance-id": expected_id,
+            "local-hostname": expected_hostname,
+        }
+        assert ds.get_config_obj() == {}
 
+    @responses.activate
     @mock.patch("cloudinit.sources.DataSourceExoscale.get_password")
     def test_read_metadata_when_password_server_unreachable(self, m_password):
         """The read_metadata function returns partial results in case the
@@ -206,35 +187,31 @@ class TestDatasourceExoscale(ResponsesTestCase):
         expected_userdata = "#cloud-config"
 
         m_password.side_effect = requests.Timeout("Fake Connection Timeout")
-        self.responses.add(
-            responses.GET, self.userdata_url, body=expected_userdata
-        )
-        self.responses.add(
+        responses.add(responses.GET, TEST_USERDATA_URL, body=expected_userdata)
+        responses.add(
             responses.GET,
-            self.metadata_url,
+            TEST_METADATA_URL,
             body="instance-id\nlocal-hostname",
         )
-        self.responses.add(
+        responses.add(
             responses.GET,
-            "{}local-hostname".format(self.metadata_url),
+            "{}local-hostname".format(TEST_METADATA_URL),
             body=expected_hostname,
         )
-        self.responses.add(
+        responses.add(
             responses.GET,
-            "{}instance-id".format(self.metadata_url),
+            "{}instance-id".format(TEST_METADATA_URL),
             body=expected_id,
         )
 
         result = read_metadata()
 
-        self.assertIsNone(result.get("password"))
-        self.assertEqual(
-            result.get("user-data").decode("utf-8"), expected_userdata
-        )
+        assert result.get("password") is None
+        assert result.get("user-data").decode("utf-8") == expected_userdata
 
-    def test_non_viable_platform(self):
+    def test_non_viable_platform(self, tmp_path):
         """The datasource fails fast when the platform is not viable."""
-        path = helpers.Paths({"run_dir": self.tmp})
+        path = helpers.Paths({"run_dir": str(tmp_path)})
         ds = DataSourceExoscale({}, None, path)
         ds.ds_detect = lambda: False
-        self.assertFalse(ds._check_and_get_data())
+        assert not ds._check_and_get_data()

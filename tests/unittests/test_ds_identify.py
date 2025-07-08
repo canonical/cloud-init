@@ -18,7 +18,6 @@ from cloudinit.sources import DataSourceOracle as ds_oracle
 from cloudinit.sources import DataSourceSmartOS as ds_smartos
 from tests.helpers import cloud_init_project_dir
 from tests.unittests.helpers import (
-    CiTestCase,
     dir2dict,
     populate_dir,
     populate_dir_with_ts,
@@ -207,9 +206,9 @@ system_info:
 """
 
 POLICY_FOUND_ONLY = "search,found=all,maybe=none,notfound=disabled"
-POLICY_FOUND_OR_MAYBE = "search,found=all,maybe=all,notfound=disabled"
-DI_DEFAULT_POLICY = "search,found=all,maybe=all,notfound=disabled"
-DI_DEFAULT_POLICY_NO_DMI = "search,found=all,maybe=all,notfound=enabled"
+POLICY_FOUND_OR_MAYBE = "search,found=all,maybe=none,notfound=disabled"
+DI_DEFAULT_POLICY = "search,found=all,maybe=none,notfound=disabled"
+DI_DEFAULT_POLICY_NO_DMI = "search,found=all,maybe=none,notfound=disabled"
 DI_EC2_STRICT_ID_DEFAULT = "true"
 OVF_MATCH_STRING = "http://schemas.dmtf.org/ovf/environment/1"
 
@@ -304,16 +303,15 @@ CallReturn = namedtuple(
 )
 
 
-class DsIdentifyBase(CiTestCase):
+class DsIdentifyBase:
     dsid_path = cloud_init_project_dir("tools/ds-identify")
-    allowed_subp = ["sh"]
 
     # set to true to write out the mocked ds-identify for inspection
     debug_mode = True
 
     def call(
         self,
-        rootd=None,
+        rootd,
         mocks=None,
         no_mocks=None,
         func="main",
@@ -336,11 +334,8 @@ class DsIdentifyBase(CiTestCase):
         if cloudcfg not in files:
             files[cloudcfg] = DEFAULT_CLOUD_CONFIG
 
-        if rootd is None:
-            rootd = self.tmp_dir()
-
         unset = "_unset"
-        wrap = self.tmp_path(path="_shwrap", dir=rootd)
+        wrap = os.path.join(rootd, "_shwrap")
         populate_dir(rootd, files)
 
         # DI_DEFAULT_POLICY* are declared always as to not rely
@@ -450,7 +445,7 @@ class DsIdentifyBase(CiTestCase):
 
         return CallReturn(rc, out, err, cfg, dir2dict(rootd))
 
-    def _call_via_dict(self, data, rootd=None, **kwargs):
+    def _call_via_dict(self, data, rootd, **kwargs):
         # return output of self.call with a dict input like VALID_CFG[item]
         xwargs = {"rootd": rootd}
         passthrough = (
@@ -470,25 +465,25 @@ class DsIdentifyBase(CiTestCase):
                 xwargs[k] = kwargs[k]
         return self.call(**xwargs)
 
-    def _test_ds_found(self, name):
+    def _test_ds_found(self, name, rootd):
         data = copy.deepcopy(VALID_CFG[name])
         dslist = []
         for ds in data.pop("ds").split(","):
             dslist.append(ds.strip())
         dslist.append(DS_NONE)
-        return self._check_via_dict(data, RC_FOUND, dslist=dslist)
+        return self._check_via_dict(data, rootd, RC_FOUND, dslist=dslist)
 
-    def _test_ds_not_found(self, name):
+    def _test_ds_not_found(self, name, rootd):
         data = copy.deepcopy(VALID_CFG[name])
-        return self._check_via_dict(data, RC_NOT_FOUND)
+        return self._check_via_dict(data, rootd, RC_NOT_FOUND)
 
-    def _check_via_dict(self, data, rc, dslist=None, **kwargs):
-        ret = self._call_via_dict(data, **kwargs)
+    def _check_via_dict(self, data, rootd, rc, dslist=None, **kwargs):
+        ret = self._call_via_dict(data, rootd, **kwargs)
         good = False
         try:
-            self.assertEqual(rc, ret.rc)
+            assert rc == ret.rc
             if dslist is not None:
-                self.assertEqual(dslist, ret.cfg.get("datasource_list"))
+                assert dslist == ret.cfg.get("datasource_list")
             good = True
         finally:
             if not good:
@@ -498,11 +493,12 @@ class DsIdentifyBase(CiTestCase):
         return ret
 
 
+@pytest.mark.allow_subp_for("sh")
 class TestDsIdentify(DsIdentifyBase):
-    def test_wb_print_variables(self):
+    def test_wb_print_variables(self, tmp_path):
         """_print_info reports an array of discovered variables to stderr."""
         data = VALID_CFG["Azure-dmi-detection"]
-        _, _, err, _, _ = self._call_via_dict(data)
+        _, _, err, _, _ = self._call_via_dict(data, str(tmp_path))
         expected_vars = [
             "DMI_PRODUCT_NAME",
             "DMI_SYS_VENDOR",
@@ -524,166 +520,405 @@ class TestDsIdentify(DsIdentifyBase):
             "ON_NOTFOUND",
         ]
         for var in expected_vars:
-            self.assertIn("{0}=".format(var), err)
+            assert "{0}=".format(var) in err
 
-    def test_maas_not_detected_2(self):
-        """Don't incorrectly identify maas
+    @pytest.mark.parametrize(
+        "config,found",
+        [
+            # Don't incorrectly identify maas
+            #
+            # The bug reported in 4794 combined with the previously existing
+            # bug reported in 4796 made for very loose MAAS false-positives.
+            #
+            # In ds-identify the function check_config() attempts to parse yaml
+            # keys in bash, but it sometimes introduces false positives. The
+            # maas datasource uses check_config() and the existence of a "MAAS"
+            # key to identify itself (which is a very poor identifier - clouds
+            # should have stricter identifiers). Since the MAAS datasource is
+            # at the begining of the list, this is particularly troublesome and
+            # more concerning than NoCloud false positives, for example.
+            pytest.param("LXD-kvm-not-MAAS-2", True, id="mass_not_detected_2"),
+            # Don't detect incorrect config when invalid datasource_list
+            # provided
+            #
+            # If unparsable list is provided we just ignore it. Some users
+            # might assume that since the rest of the configuration is yaml
+            # that multi-line yaml lists are valid (they aren't). When this
+            # happens, just run ds-identify and figure it out for ourselves
+            # which platform to run.
+            pytest.param(
+                "Azure-parse-invalid", True, id="azure_invalid_configuration"
+            ),
+            # Azure datasource is detected from DMI chassis-asset-tag
+            pytest.param(
+                "Azure-dmi-detection",
+                True,
+                id="azure_dmi_detection_from_chassis_asset_tag",
+            ),
+            # Azure datasource is detected due to presence of a seed file.
+            #
+            # The seed file tested  is /var/lib/cloud/seed/azure/ovf-env.xml.
+            pytest.param(
+                "Azure-seed-detection", True, id="azure_seed_file_detection"
+            ),
+            # EC2: hvm instances use dmi serial and uuid starting with 'ec2'.
+            pytest.param("Ec2-hvm", True, id="aws_ec2_hvm"),
+            # EC2: hvm instances use dmi serial and uuid starting with 'ec2'
+            #
+            # test using SYSTEMD_VIRTUALIZATION, not systemd-detect-virt
+            pytest.param("Ec2-hvm-env", True, id="aws_ec2_hvm_env"),
+            # EC2: hvm instances use system-uuid and may have swapped
+            # endianness
+            #
+            # test using SYSTEMD_VIRTUALIZATION, not systemd-detect-virt
+            pytest.param(
+                "Ec2-hvm-swap-endianness", True, id="aws_ec2_hvm_endian"
+            ),
+            # EC2: sys/hypervisor/uuid starts with ec2.
+            pytest.param("Ec2-xen", True, id="aws_ec2_xen"),
+            # EC2: product_serial ends with '.brightbox.com'
+            pytest.param("Ec2-brightbox", True, id="brightbox_is_ec2"),
+            # EC2: bobrightbox.com in product_serial is not brightbox
+            pytest.param(
+                "Ec2-brightbox-negative",
+                False,
+                id="brightbox_is_not_brightbox",
+            ),
+            # NoCloud identified on FreeBSD via label by geom.
+            pytest.param("NoCloud-fbsd", True, id="freebsd_nocloud"),
+            # GCE identifies itself with product_name.
+            pytest.param("GCE", True, id="gce_by_product_name"),
+            # GCE identifies itself with product_name.
+            #
+            # Uses SYSTEMD_VIRTUALIZATION
+            pytest.param("GCE_ENV", True, id="gce_by_product_name_env"),
+            # Older gce compute instances must be identified by serial.
+            pytest.param("GCE-serial", True, id="gce_by_serial"),
+            # LXD KVM has race on absent /dev/lxd/socket. Use DMI board_name.
+            pytest.param("LXD-kvm", True, id="lxd_kvm"),
+            # LXD KVM on host systems with a kernel > 5.10 need to match "qemu"
+            #
+            # LXD provides `hv_passthrough` when launching kvm instances when
+            # host kernel is > 5.10. This results in systemd being unable to
+            # detect the virtualized CPUID="Linux KVM Hv" as type "kvm" and
+            # results in systemd-detect-virt returning "qemu" in this case.
+            #
+            # Assert ds-identify can match systemd-detect-virt="qemu" and
+            # /sys/class/dmi/id/board_name = LXD.
+            # Once systemd 251 is available on a target distro, the virtualized
+            # CPUID will be represented properly as "kvm"
+            pytest.param(
+                "LXD-kvm-qemu-kernel-gt-5.10", True, id="lxd_kvm_jammy"
+            ),
+            # LXD KVM on host systems with a kernel > 5.10 need to match "qemu"
+            #
+            # LXD provides `hv_passthrough` when launching kvm instances when
+            # host kernel is > 5.10. This results in systemd being unable to
+            # detect the virtualized CPUID="Linux KVM Hv" as type "kvm" and
+            # results in systemd-detect-virt returning "qemu" in this case.
+            #
+            # Assert ds-identify can match systemd-detect-virt="qemu" and
+            # /sys/class/dmi/id/board_name = LXD.
+            # Once systemd 251 is available on a target distro, the virtualized
+            # CPUID will be represented properly as "kvm"
+            pytest.param(
+                "LXD-kvm-qemu-kernel-gt-5.10-env", True, id="lxd_kvm_jammy_env"
+            ),
+            # LXD containers will have /dev/lxd/socket at generator time.
+            pytest.param("LXD", True, id="lxd_containers"),
+            # ConfigDrive datasource has a disk with LABEL=config-2.
+            pytest.param("ConfigDrive", True, id="config_drive"),
+            # Rbx datasource has a disk with LABEL=CLOUDMD.
+            pytest.param("RbxCloud", True, id="rbx_cloud"),
+            # Rbx datasource has a disk with LABEL=cloudmd.
+            pytest.param("RbxCloudLower", True, id="rbx_cloud_lower"),
+            # ConfigDrive datasource has a disk with LABEL=CONFIG-2.
+            pytest.param("ConfigDriveUpper", True, id="config_drive_upper"),
+            # Config Drive seed directory.
+            pytest.param("ConfigDrive-seed", True, id="config_drive_seed"),
+            # Multi-line yaml is unsupported
+            pytest.param(
+                "LXD-kvm-not-azure",
+                True,
+                marks=[
+                    pytest.mark.xfail(
+                        reason=(
+                            "not supported: yaml parser implemented in POSIX"
+                            " shell"
+                        )
+                    )
+                ],
+                id="multiline_yaml",
+            ),
+            # Template provisioned with user-data first boot.
+            #
+            # Template provisioning with user-data has METADATA disk.
+            # datasource should return found.
+            pytest.param(
+                "IBMCloud-metadata", True, id="ibmcloud_template_userdata"
+            ),
+            # Launched by os code always has config-2 disk.
+            pytest.param("IBMCloud-config-2", True, id="ibmcloud_os_code"),
+            # Test that Aliyun cloud is identified by product id.
+            pytest.param("AliYun", True, id="ibmcloud_os_code"),
+            # On Intel, openstack must be identified.
+            pytest.param(
+                "OpenStack", True, id="default_openstack_intel_is_found"
+            ),
+            # Open Telecom identification.
+            pytest.param(
+                "OpenStack-OpenTelekom",
+                True,
+                id="openstack_open_telekom_cloud",
+            ),
+            # SAP Converged Cloud identification
+            pytest.param(
+                "OpenStack-SAPCCloud", True, id="openstack_sap_ccloud"
+            ),
+            pytest.param(
+                "OpenStack-SAPCCloud-env", True, id="openstack_sap_ccloud-env"
+            ),
+            # Open Huawei Cloud identification.
+            pytest.param(
+                "OpenStack-HuaweiCloud", True, id="openstack_huawei_cloud"
+            ),
+            # Open Samsung Cloud Platform identification.
+            pytest.param(
+                "OpenStack-SamsungCloudPlatform",
+                True,
+                id="openstack_samsung_cloud_platform",
+            ),
+            # OpenStack identification via asset tag OpenStack Nova.
+            pytest.param(
+                "OpenStack-AssetTag-Nova", True, id="openstack_asset_tag_nova"
+            ),
+            # OpenStack identification via asset tag OpenStack Compute.
+            pytest.param(
+                "OpenStack-AssetTag-Compute",
+                True,
+                id="openstack_asset_tag_compute",
+            ),
+            # OVF is identified found when ovf/ovf-env.xml seed file exists.
+            pytest.param("OVF-seed", True, id="default_ovf_is_found"),
+            # OVF is identified when iso9660 cdrom path contains ovf schema.
+            pytest.param(
+                "OVF",
+                True,
+                id="ovf_on_vmware_iso_found_by_cdrom_with_ovf_schema_match",
+            ),
+            # OVF guest info is found on vmware.
+            pytest.param(
+                "OVF-guestinfo", True, id="ovf_on_vmware_guestinfo_found"
+            ),
+            # NoCloud is found with iso9660 filesystem on non-cdrom disk.
+            pytest.param("NoCloud", True, id="default_nocloud_as_vdb_iso9660"),
+            # NoCloud is found with uppercase filesystem label.
+            pytest.param("NoCloudUpper", True, id="nocloud_upper"),
+            # NoCloud seed definition can go in /etc/cloud/cloud.cfg[.d]
+            pytest.param("NoCloud-cfg", True, id="nocloud_seed_in_cfg"),
+            # NoCloud fatboot label - LP: #184166.
+            pytest.param("NoCloud-fatboot", True, id="nocloud_fatboot"),
+            # Nocloud seed directory.
+            pytest.param("NoCloud-seed", True, id="nocloud_seed"),
+            # Nocloud seed directory ubuntu core writable
+            pytest.param(
+                "NoCloud-seed-ubuntu-core",
+                True,
+                id="nocloud_seed_ubuntu_core_writable",
+            ),
+            # Hetzner cloud is identified in sys_vendor.
+            pytest.param("Hetzner", True, id="hetzner_found"),
+            # CloudCIX cloud is identified in dmi product-name
+            pytest.param("CloudCIX", True, id="cloudcix_found"),
+            # NWCS is identified in sys_vendor.
+            pytest.param("NWCS", True, id="nwcs_found"),
+            # SmartOS cloud identified by SmartDC in dmi.
+            pytest.param("SmartOS-bhyve", True, id="smartos_bhyve"),
+            # SmartOS cloud identified on lxbrand container.
+            pytest.param("SmartOS-lxbrand", True, id="smartos_lxbrand"),
+            pytest.param(
+                "SmartOS-lxbrand-env", True, id="smartos_lxbrand-env"
+            ),
+            # EC2: chassis asset tag ends with 'zstack.io'
+            pytest.param("Ec2-ZStack", True, id="zstack_is_ec2"),
+            # EC2: e24cloud identified by sys_vendor
+            pytest.param("Ec2-E24Cloud", True, id="e24cloud_is_ec2"),
+            # EC2: bobrightbox.com in product_serial is not brightbox'
+            pytest.param(
+                "Ec2-E24Cloud-negative", False, id="e24cloud_not_active"
+            ),
+            # EC2: outscale identified by sys_vendor and product_name
+            pytest.param("Ec2-Outscale", True, id="outscale_is_ec2"),
+            # EC2: outscale in sys_vendor is not outscale'
+            pytest.param(
+                "Ec2-Outscale-negative-sysvendor",
+                False,
+                id="outscale_not_active_sysvendor",
+            ),
+            # EC2: outscale in product_name is not outscale'
+            pytest.param(
+                "Ec2-Outscale-negative-productname",
+                False,
+                id="outscale_not_active_productname",
+            ),
+            # VMware: no valid transports
+            pytest.param(
+                "VMware-NoValidTransports",
+                False,
+                id="vmware_no_valid_transports",
+            ),
+            # VMware is identified when vmware customization is enabled.
+            pytest.param(
+                "VMware-vmware-customization",
+                True,
+                id="vmware_on_vmware_when_vmware_customization_is_enabled",
+            ),
+            # VMware and OVF are identified when:
+            # 1. On VMware platform.
+            # 2. VMware customization is enabled.
+            # 3. iso9660 cdrom path contains ovf schema.
+            pytest.param(
+                "VMware-OVF-on-vmware-with-vmware-customization-and-ovf-schema",
+                True,
+                id="vmware_ovf_on_vmware_with_vmware_customization_and_ovf_"
+                "schema",
+            ),
+            # OVF is identified when:
+            # 1. Not on VMware platform.
+            # 2. VMware customization is enabled.
+            # 3. iso9660 cdrom path contains ovf schema.
+            pytest.param(
+                "OVF-not-on-vmware-with-vmware-customization-and-ovf-schema",
+                True,
+                id="ovf_not_on_vmware_with_vmware_customization_and_ovf_"
+                "schema",
+            ),
+            # VMware: envvar transport no data
+            pytest.param(
+                "VMware-EnvVar-NoData", False, id="vmware_envvar_no_data"
+            ),
+            # VMware: envvar transport success if no virt id
+            pytest.param(
+                "VMware-EnvVar-NoVirtID", True, id="vmware_envvar_no_virt_id"
+            ),
+            # VMware: envvar transport activated by metadata
+            pytest.param(
+                "VMware-EnvVar-Metadata",
+                True,
+                id="vmware_envvar_activated_by_metadata",
+            ),
+            # VMware: envvar transport activated by userdata
+            pytest.param(
+                "VMware-EnvVar-Userdata",
+                True,
+                id="vmware_envvar_activated_by_userdata",
+            ),
+            # VMware: envvar transport activated by vendordata
+            pytest.param(
+                "VMware-EnvVar-Vendordata",
+                True,
+                id="vmware_envvar_activated_by_vendordata",
+            ),
+            # VMware: guestinfo transport no data
+            pytest.param(
+                "VMware-GuestInfo-NoData-Rpctool",
+                False,
+                id="vmware_guestinfo_no_data_rcptool",
+            ),
+            pytest.param(
+                "VMware-GuestInfo-NoData-Vmtoolsd",
+                False,
+                id="vmware_guestinfo_no_data_vmtoolsd",
+            ),
+            # VMware: guestinfo transport fails if no virt id
+            pytest.param(
+                "VMware-GuestInfo-NoVirtID",
+                False,
+                id="vmware_guestinfo_no_virt_id",
+            ),
+            # VMware: guestinfo transport activated by metadata
+            pytest.param(
+                "VMware-GuestInfo-Metadata",
+                True,
+                id="vmware_guestinfo_activated_by_metadata",
+            ),
+            # VMware: guestinfo transport activated by userdata
+            pytest.param(
+                "VMware-GuestInfo-Userdata",
+                True,
+                id="vmware_guestinfo_activated_by_userdata",
+            ),
+            # VMware: guestinfo transport activated by vendordata
+            pytest.param(
+                "VMware-GuestInfo-Vendordata",
+                True,
+                id="vmware_guestinfo_activated_by_vendordata",
+            ),
+            # VMware and OVF are identified when:
+            # 1. On VMware platform.
+            # 2. guestinfo transport activated by metadata
+            # 3. iso9660 cdrom path contains ovf schema.
+            pytest.param(
+                "VMware-OVF-on-vmware-with-guestinfo-metadata-and-ovf-schema",
+                True,
+                id="vmware_ovf_on_vmware_with_guestinfo_metadata_and_ovf_"
+                "schema",
+            ),
+            # OVF is identified when:
+            # 1. Not on VMware platform.
+            # 2. guestinfo transport activated by metadata
+            # 3. iso9660 cdrom path contains ovf schema.
+            pytest.param(
+                "OVF-not-on-vmware-with-guestinfo-metadata-and-ovf-schema",
+                True,
+                id="ovf_not_on_vmware_with_guestinfo_metadata_and_ovf_schema",
+            ),
+            # ds-identify finds Akamai by system-manufacturer dmi field
+            pytest.param("Akamai", True, id="akamai_found_by_sys_vendor"),
+            # Test *BSD code paths
+            #
+            # FreeBSD doesn't have /sys so we use kenv(1) here.
+            # OpenBSD uses sysctl(8).
+            # Other BSD systems fallback to dmidecode(8).
+            # BSDs also doesn't have systemd-detect-virt(8), so we use
+            # sysctl(8) to query kern.vm_guest, and optionally map it:
+            #
+            # Test that kenv(1) works on systems which don't have /sys
+            pytest.param("Hetzner-kenv", True, id="bsd_dmi_kenv"),
+            # Test that sysctl(8) works on systems which don't have /sys
+            pytest.param("Hetzner-sysctl", True, id="bsd_dmi_sysctl"),
+            # Test that dmidecode(8) works on systems which don't have /sys
+            pytest.param("Hetzner-dmidecode", True, id="bsd_dmi_dmidecode"),
+            # Simple positive test of Oracle by chassis id.
+            pytest.param("Oracle", True, id="oracle_found_by_chassis"),
+            # Simple negative test for WSL due other virt.
+            pytest.param("Not-WSL", False, id="wsl_not_found_virt"),
+            # Negative test by lack of host filesystem mount points.
+            pytest.param("WSL-no-host-mounts", False, id="wsl_no_fs_mounts"),
+        ],
+    )
+    def test_ds_found_not_found(self, config, found, tmp_path):
+        test_func = self._test_ds_found if found else self._test_ds_not_found
+        test_func(config, str(tmp_path))
 
-        The bug reported in 4794 combined with the previously existing bug
-        reported in 4796 made for very loose MAAS false-positives.
-
-        In ds-identify the function check_config() attempts to parse yaml keys
-        in bash, but it sometimes introduces false positives. The maas
-        datasource uses check_config() and the existence of a "MAAS" key to
-        identify itself (which is a very poor identifier - clouds should have
-        stricter identifiers). Since the MAAS datasource is at the begining of
-        the list, this is particularly troublesome and more concerning than
-        NoCloud false positives, for example.
-        """
-        config = "LXD-kvm-not-MAAS-2"
-        self._test_ds_found(config)
-
-    def test_flow_sequence_control(self):
+    def test_flow_sequence_control(self, tmp_path):
         """ensure that an invalid key in the flow_sequence tests produces no
         datasource list match
 
         control test: this test serves as a control test for test_flow_sequence
         """
         data = copy.deepcopy(VALID_CFG["flow_sequence-control"])
-        self._check_via_dict(data, RC_NOT_FOUND)
+        self._check_via_dict(data, str(tmp_path), RC_NOT_FOUND)
 
-    def test_flow_sequence(self):
+    def test_flow_sequence(self, tmp_path):
         """correctly identify flow sequences"""
         for i in range(1, 10):
             data = copy.deepcopy(VALID_CFG[f"flow_sequence-{i}"])
-            self._check_via_dict(data, RC_FOUND, dslist=[data.get("ds")])
+            self._check_via_dict(
+                data, str(tmp_path), RC_FOUND, dslist=[data.get("ds")]
+            )
 
-    def test_azure_invalid_configuration(self):
-        """Don't detect incorrect config when invalid datasource_list provided
-
-        If unparsable list is provided we just ignore it. Some users
-        might assume that since the rest of the configuration is yaml that
-        multi-line yaml lists are valid (they aren't). When this happens, just
-        run ds-identify and figure it out for ourselves which platform to run.
-        """
-        self._test_ds_found("Azure-parse-invalid")
-
-    def test_azure_dmi_detection_from_chassis_asset_tag(self):
-        """Azure datasource is detected from DMI chassis-asset-tag"""
-        self._test_ds_found("Azure-dmi-detection")
-
-    def test_azure_seed_file_detection(self):
-        """Azure datasource is detected due to presence of a seed file.
-
-        The seed file tested  is /var/lib/cloud/seed/azure/ovf-env.xml."""
-        self._test_ds_found("Azure-seed-detection")
-
-    def test_aws_ec2_hvm(self):
-        """EC2: hvm instances use dmi serial and uuid starting with 'ec2'."""
-        self._test_ds_found("Ec2-hvm")
-
-    def test_aws_ec2_hvm_env(self):
-        """EC2: hvm instances use dmi serial and uuid starting with 'ec2'
-
-        test using SYSTEMD_VIRTUALIZATION, not systemd-detect-virt
-        """
-        self._test_ds_found("Ec2-hvm-env")
-
-    def test_aws_ec2_hvm_endian(self):
-        """EC2: hvm instances use system-uuid and may have swapped endianness
-
-        test using SYSTEMD_VIRTUALIZATION, not systemd-detect-virt
-        """
-        self._test_ds_found("Ec2-hvm-swap-endianness")
-
-    def test_aws_ec2_xen(self):
-        """EC2: sys/hypervisor/uuid starts with ec2."""
-        self._test_ds_found("Ec2-xen")
-
-    def test_brightbox_is_ec2(self):
-        """EC2: product_serial ends with '.brightbox.com'"""
-        self._test_ds_found("Ec2-brightbox")
-
-    def test_bobrightbox_is_not_brightbox(self):
-        """EC2: bobrightbox.com in product_serial is not brightbox'"""
-        self._test_ds_not_found("Ec2-brightbox-negative")
-
-    def test_freebsd_nocloud(self):
-        """NoCloud identified on FreeBSD via label by geom."""
-        self._test_ds_found("NoCloud-fbsd")
-
-    def test_gce_by_product_name(self):
-        """GCE identifies itself with product_name."""
-        self._test_ds_found("GCE")
-
-    def test_gce_by_product_name_env(self):
-        """GCE identifies itself with product_name.
-
-        Uses SYSTEMD_VIRTUALIZATION
-        """
-        self._test_ds_found("GCE_ENV")
-
-    def test_gce_by_serial(self):
-        """Older gce compute instances must be identified by serial."""
-        self._test_ds_found("GCE-serial")
-
-    def test_lxd_kvm(self):
-        """LXD KVM has race on absent /dev/lxd/socket. Use DMI board_name."""
-        self._test_ds_found("LXD-kvm")
-
-    def test_lxd_kvm_jammy(self):
-        """LXD KVM on host systems with a kernel > 5.10 need to match "qemu".
-        LXD provides `hv_passthrough` when launching kvm instances when host
-        kernel is > 5.10. This results in systemd being unable to detect the
-        virtualized CPUID="Linux KVM Hv" as type "kvm" and results in
-        systemd-detect-virt returning "qemu" in this case.
-
-        Assert ds-identify can match systemd-detect-virt="qemu" and
-        /sys/class/dmi/id/board_name = LXD.
-        Once systemd 251 is available on a target distro, the virtualized
-        CPUID will be represented properly as "kvm"
-        """
-        self._test_ds_found("LXD-kvm-qemu-kernel-gt-5.10")
-
-    def test_lxd_kvm_jammy_env(self):
-        """LXD KVM on host systems with a kernel > 5.10 need to match "qemu".
-        LXD provides `hv_passthrough` when launching kvm instances when host
-        kernel is > 5.10. This results in systemd being unable to detect the
-        virtualized CPUID="Linux KVM Hv" as type "kvm" and results in
-        systemd-detect-virt returning "qemu" in this case.
-
-        Assert ds-identify can match systemd-detect-virt="qemu" and
-        /sys/class/dmi/id/board_name = LXD.
-        Once systemd 251 is available on a target distro, the virtualized
-        CPUID will be represented properly as "kvm"
-        """
-        self._test_ds_found("LXD-kvm-qemu-kernel-gt-5.10-env")
-
-    def test_lxd_containers(self):
-        """LXD containers will have /dev/lxd/socket at generator time."""
-        self._test_ds_found("LXD")
-
-    def test_config_drive(self):
-        """ConfigDrive datasource has a disk with LABEL=config-2."""
-        self._test_ds_found("ConfigDrive")
-
-    def test_rbx_cloud(self):
-        """Rbx datasource has a disk with LABEL=CLOUDMD."""
-        self._test_ds_found("RbxCloud")
-
-    def test_rbx_cloud_lower(self):
-        """Rbx datasource has a disk with LABEL=cloudmd."""
-        self._test_ds_found("RbxCloudLower")
-
-    def test_config_drive_upper(self):
-        """ConfigDrive datasource has a disk with LABEL=CONFIG-2."""
-        self._test_ds_found("ConfigDriveUpper")
-
-    def test_config_drive_seed(self):
-        """Config Drive seed directory."""
-        self._test_ds_found("ConfigDrive-seed")
-
-    def test_config_drive_interacts_with_ibmcloud_config_disk(self):
+    def test_config_drive_interacts_with_ibmcloud_config_disk(self, tmp_path):
         """Verify ConfigDrive interaction with IBMCloud.
 
         If ConfigDrive is enabled and not IBMCloud, then ConfigDrive
@@ -697,24 +932,15 @@ class TestDsIdentify(DsIdentifyBase):
 
         # with list including IBMCloud, config drive should be not found.
         files[cfgpath] = "datasource_list: [ ConfigDrive, IBMCloud ]\n"
-        ret = self._check_via_dict(data, shell_true)
-        self.assertEqual(ret.cfg.get("datasource_list"), ["IBMCloud", "None"])
+        ret = self._check_via_dict(data, str(tmp_path / "ibm"), shell_true)
+        assert ret.cfg.get("datasource_list") == ["IBMCloud", "None"]
 
         # But if IBMCloud is not enabled, config drive should claim this.
         files[cfgpath] = "datasource_list: [ ConfigDrive, NoCloud ]\n"
-        ret = self._check_via_dict(data, shell_true)
-        self.assertEqual(
-            ret.cfg.get("datasource_list"), ["ConfigDrive", "None"]
-        )
+        ret = self._check_via_dict(data, str(tmp_path), shell_true)
+        assert ret.cfg.get("datasource_list") == ["ConfigDrive", "None"]
 
-    @pytest.mark.xfail(
-        reason=("not supported: yaml parser implemented in POSIX shell")
-    )
-    def test_multiline_yaml(self):
-        """Multi-line yaml is unsupported"""
-        self._test_ds_found("LXD-kvm-not-azure")
-
-    def test_ibmcloud_template_userdata_in_provisioning(self):
+    def test_ibmcloud_template_userdata_in_provisioning(self, tmp_path):
         """Template provisioned with user-data during provisioning stage.
 
         Template provisioning with user-data has METADATA disk,
@@ -725,16 +951,9 @@ class TestDsIdentify(DsIdentifyBase):
             m for m in data["mocks"] if m["name"] == "is_ibm_provisioning"
         ][0]
         isprov_m["ret"] = shell_true
-        self._check_via_dict(data, RC_NOT_FOUND)
+        self._check_via_dict(data, str(tmp_path), RC_NOT_FOUND)
 
-    def test_ibmcloud_template_userdata(self):
-        """Template provisioned with user-data first boot.
-
-        Template provisioning with user-data has METADATA disk.
-        datasource should return found."""
-        self._test_ds_found("IBMCloud-metadata")
-
-    def test_ibmcloud_template_no_userdata_in_provisioning(self):
+    def test_ibmcloud_template_no_userdata_in_provisioning(self, tmp_path):
         """Template provisioned with no user-data during provisioning.
 
         no disks attached.  Datasource should return not found."""
@@ -742,19 +961,17 @@ class TestDsIdentify(DsIdentifyBase):
         data["mocks"].append(
             {"name": "is_ibm_provisioning", "ret": shell_true}
         )
-        self._check_via_dict(data, RC_NOT_FOUND)
+        self._check_via_dict(data, str(tmp_path), RC_NOT_FOUND)
 
-    def test_ibmcloud_template_no_userdata(self):
+    def test_ibmcloud_template_no_userdata(self, tmp_path):
         """Template provisioned with no user-data first boot.
 
         no disks attached.  Datasource should return found."""
-        self._check_via_dict(VALID_CFG["IBMCloud-nodisks"], RC_NOT_FOUND)
+        self._check_via_dict(
+            VALID_CFG["IBMCloud-nodisks"], str(tmp_path), RC_NOT_FOUND
+        )
 
-    def test_ibmcloud_os_code(self):
-        """Launched by os code always has config-2 disk."""
-        self._test_ds_found("IBMCloud-config-2")
-
-    def test_ibmcloud_os_code_different_uuid(self):
+    def test_ibmcloud_os_code_different_uuid(self, tmp_path):
         """IBM cloud config-2 disks must be explicit match on UUID.
 
         If the UUID is not 9796-932E then we actually expect ConfigDrive."""
@@ -770,10 +987,10 @@ class TestDsIdentify(DsIdentifyBase):
             ds_ibm.IBM_CONFIG_UUID, "DEAD-BEEF"
         )
         self._check_via_dict(
-            data, rc=RC_FOUND, dslist=["ConfigDrive", DS_NONE]
+            data, str(tmp_path), rc=RC_FOUND, dslist=["ConfigDrive", DS_NONE]
         )
 
-    def test_ibmcloud_with_nocloud_seed(self):
+    def test_ibmcloud_with_nocloud_seed(self, tmp_path):
         """NoCloud seed should be preferred over IBMCloud.
 
         A nocloud seed should be preferred over IBMCloud even if enabled.
@@ -783,12 +1000,12 @@ class TestDsIdentify(DsIdentifyBase):
         if not files:
             data["files"] = files
         files.update(VALID_CFG["NoCloud-seed"]["files"])
-        ret = self._check_via_dict(data, shell_true)
-        self.assertEqual(
-            ["NoCloud", "IBMCloud", "None"], ret.cfg.get("datasource_list")
+        ret = self._check_via_dict(data, str(tmp_path), shell_true)
+        assert ["NoCloud", "IBMCloud", "None"] == ret.cfg.get(
+            "datasource_list"
         )
 
-    def test_ibmcloud_with_configdrive_seed(self):
+    def test_ibmcloud_with_configdrive_seed(self, tmp_path):
         """ConfigDrive seed should be preferred over IBMCloud.
 
         A ConfigDrive seed should be preferred over IBMCloud even if enabled.
@@ -799,26 +1016,28 @@ class TestDsIdentify(DsIdentifyBase):
         if not files:
             data["files"] = files
         files.update(VALID_CFG["ConfigDrive-seed"]["files"])
-        ret = self._check_via_dict(data, shell_true)
-        self.assertEqual(
-            ["ConfigDrive", "IBMCloud", "None"], ret.cfg.get("datasource_list")
+        ret = self._check_via_dict(data, str(tmp_path), shell_true)
+        assert ["ConfigDrive", "IBMCloud", "None"] == ret.cfg.get(
+            "datasource_list"
         )
 
-    def test_policy_disabled(self):
+    def test_policy_disabled(self, tmp_path):
         """A Builtin policy of 'disabled' should return not found.
 
         Even though a search would find something, the builtin policy of
         disabled should cause the return of not found."""
         mydata = copy.deepcopy(VALID_CFG["Ec2-hvm"])
-        self._check_via_dict(mydata, rc=RC_NOT_FOUND, policy_dmi="disabled")
+        self._check_via_dict(
+            mydata, str(tmp_path), rc=RC_NOT_FOUND, policy_dmi="disabled"
+        )
 
-    def test_policy_config_disable_overrides_builtin(self):
+    def test_policy_config_disable_overrides_builtin(self, tmp_path):
         """explicit policy: disabled in config file should cause not found."""
         mydata = copy.deepcopy(VALID_CFG["Ec2-hvm"])
         mydata["files"][P_DSID_CFG] = "\n".join(["policy: disabled", ""])
-        self._check_via_dict(mydata, rc=RC_NOT_FOUND)
+        self._check_via_dict(mydata, str(tmp_path), rc=RC_NOT_FOUND)
 
-    def test_single_entry_defines_datasource(self):
+    def test_single_entry_defines_datasource(self, tmp_path):
         """If config has a single entry in datasource_list, that is used.
 
         Test the valid Ec2-hvm, but provide a config file that specifies
@@ -827,9 +1046,11 @@ class TestDsIdentify(DsIdentifyBase):
         mydata = copy.deepcopy(VALID_CFG["Ec2-hvm"])
         cfgpath = "etc/cloud/cloud.cfg.d/myds.cfg"
         mydata["files"][cfgpath] = 'datasource_list: ["NoCloud"]\n'
-        self._check_via_dict(mydata, rc=RC_FOUND, dslist=["NoCloud"])
+        self._check_via_dict(
+            mydata, str(tmp_path), rc=RC_FOUND, dslist=["NoCloud"]
+        )
 
-    def test_configured_list_with_none(self):
+    def test_configured_list_with_none(self, tmp_path):
         """When datasource_list already contains None, None is not added.
 
         The explicitly configured datasource_list has 'None' in it.  That
@@ -837,9 +1058,11 @@ class TestDsIdentify(DsIdentifyBase):
         mydata = copy.deepcopy(VALID_CFG["GCE"])
         cfgpath = "etc/cloud/cloud.cfg.d/myds.cfg"
         mydata["files"][cfgpath] = 'datasource_list: ["Ec2", "None"]\n'
-        self._check_via_dict(mydata, rc=RC_FOUND, dslist=["Ec2", DS_NONE])
+        self._check_via_dict(
+            mydata, str(tmp_path), rc=RC_FOUND, dslist=["Ec2", DS_NONE]
+        )
 
-    def test_nocloud_seedfrom(self):
+    def test_nocloud_seedfrom(self, tmp_path):
         """Check seedfrom system config detects nocloud.
 
         Verify that a cloud.cfg.d/ that contains more than two datasources in
@@ -848,11 +1071,12 @@ class TestDsIdentify(DsIdentifyBase):
         """
         self._check_via_dict(
             copy.deepcopy(VALID_CFG["NoCloud-seedfrom"]),
+            str(tmp_path),
             rc=RC_FOUND,
             dslist=["NoCloud", DS_NONE],
         )
 
-    def test_nocloud_userdata_and_metadata(self):
+    def test_nocloud_userdata_and_metadata(self, tmp_path):
         """Check seedfrom system config detects nocloud.
 
         Verify that a cloud.cfg.d/ that contains more than two datasources in
@@ -861,59 +1085,28 @@ class TestDsIdentify(DsIdentifyBase):
         """
         self._check_via_dict(
             copy.deepcopy(VALID_CFG["NoCloud-user-data-meta-data"]),
+            str(tmp_path),
             rc=RC_FOUND,
             dslist=["NoCloud", DS_NONE],
         )
 
-    def test_aliyun_identified(self):
-        """Test that Aliyun cloud is identified by product id."""
-        self._test_ds_found("AliYun")
-
-    def test_aliyun_over_ec2(self):
+    def test_aliyun_over_ec2(self, tmp_path):
         """Even if all other factors identified Ec2, AliYun should be used."""
         mydata = copy.deepcopy(VALID_CFG["Ec2-xen"])
-        self._test_ds_found("AliYun")
+        self._test_ds_found("AliYun", str(tmp_path))
         prod_name = VALID_CFG["AliYun"]["files"][P_PRODUCT_NAME]
         mydata["files"][P_PRODUCT_NAME] = prod_name
         policy = "search,found=first,maybe=none,notfound=disabled"
         self._check_via_dict(
-            mydata, rc=RC_FOUND, dslist=["AliYun", DS_NONE], policy_dmi=policy
+            mydata,
+            str(tmp_path),
+            rc=RC_FOUND,
+            dslist=["AliYun", DS_NONE],
+            policy_dmi=policy,
         )
 
-    def test_default_openstack_intel_is_found(self):
-        """On Intel, openstack must be identified."""
-        self._test_ds_found("OpenStack")
-
-    def test_openstack_open_telekom_cloud(self):
-        """Open Telecom identification."""
-        self._test_ds_found("OpenStack-OpenTelekom")
-
-    def test_openstack_sap_ccloud(self):
-        """SAP Converged Cloud identification"""
-        self._test_ds_found("OpenStack-SAPCCloud")
-
-    def test_openstack_sap_ccloud_env(self):
-        """SAP Converged Cloud identification"""
-        self._test_ds_found("OpenStack-SAPCCloud-env")
-
-    def test_openstack_huawei_cloud(self):
-        """Open Huawei Cloud identification."""
-        self._test_ds_found("OpenStack-HuaweiCloud")
-
-    def test_openstack_samsung_cloud_platform(self):
-        """Open Samsung Cloud Platform identification."""
-        self._test_ds_found("OpenStack-SamsungCloudPlatform")
-
-    def test_openstack_asset_tag_nova(self):
-        """OpenStack identification via asset tag OpenStack Nova."""
-        self._test_ds_found("OpenStack-AssetTag-Nova")
-
-    def test_openstack_asset_tag_copute(self):
-        """OpenStack identification via asset tag OpenStack Compute."""
-        self._test_ds_found("OpenStack-AssetTag-Compute")
-
-    def test_openstack_on_non_intel_is_maybe(self):
-        """On non-Intel, openstack without dmi info is maybe.
+    def test_openstack_on_non_intel_is_maybe(self, tmp_path):
+        """On non-Intel, openstack without dmi info is none.
 
         nova does not identify itself on platforms other than intel.
         https://bugs.launchpad.net/cloud-init/+bugs?field.tag=dsid-nova"""
@@ -923,55 +1116,58 @@ class TestDsIdentify(DsIdentifyBase):
         data.update(
             {
                 "policy_dmi": POLICY_FOUND_OR_MAYBE,
-                "policy_no_dmi": POLICY_FOUND_OR_MAYBE,
+                "policy_no_dmi": DI_DEFAULT_POLICY_NO_DMI,
             }
         )
 
         # this should show not found as default uname in tests is intel.
         # and intel openstack requires positive identification.
-        self._check_via_dict(data, RC_NOT_FOUND, dslist=None)
+        self._check_via_dict(
+            data, str(tmp_path / "0"), RC_NOT_FOUND, dslist=None
+        )
 
         # updating the uname to ppc64 though should get a maybe.
         data.update({"mocks": [MOCK_VIRT_IS_KVM, MOCK_UNAME_IS_PPC64]})
         (_, _, err, _, _) = self._check_via_dict(
-            data, RC_FOUND, dslist=["OpenStack", "None"]
+            data, str(tmp_path / "1"), RC_NOT_FOUND
         )
-        self.assertIn("check for 'OpenStack' returned maybe", err)
+        assert "check for 'OpenStack' returned maybe" in err
+        assert "No ds found" in err
+        assert "Disabled cloud-init" in err
+        assert "returning 1" in err
 
-    def test_default_ovf_is_found(self):
-        """OVF is identified found when ovf/ovf-env.xml seed file exists."""
-        self._test_ds_found("OVF-seed")
-
-    def test_default_ovf_with_detect_virt_none_not_found(self):
+    def test_default_ovf_with_detect_virt_none_not_found(self, tmp_path):
         """OVF identifies not found when detect_virt returns "none"."""
         self._check_via_dict(
-            {"ds": "OVF"}, rc=RC_NOT_FOUND, policy_dmi="disabled"
+            {"ds": "OVF"},
+            str(tmp_path),
+            rc=RC_NOT_FOUND,
+            policy_dmi="disabled",
         )
 
-    def test_default_ovf_returns_not_found_on_azure(self):
+    def test_default_ovf_returns_not_found_on_azure(self, tmp_path):
         """OVF datasource won't be found as false positive on Azure."""
         ovfonazure = copy.deepcopy(VALID_CFG["OVF"])
         # Set azure asset tag to assert OVF content not found
         ovfonazure["files"][
             P_CHASSIS_ASSET_TAG
         ] = "7783-7084-3265-9085-8269-3286-77\n"
-        self._check_via_dict(ovfonazure, RC_FOUND, dslist=["Azure", DS_NONE])
+        self._check_via_dict(
+            ovfonazure, str(tmp_path), RC_FOUND, dslist=["Azure", DS_NONE]
+        )
 
-    def test_ovf_on_vmware_iso_found_by_cdrom_with_ovf_schema_match(self):
-        """OVF is identified when iso9660 cdrom path contains ovf schema."""
-        self._test_ds_found("OVF")
-
-    def test_ovf_on_vmware_guestinfo_found(self):
-        """OVF guest info is found on vmware."""
-        self._test_ds_found("OVF-guestinfo")
-
-    def test_ovf_on_vmware_iso_found_by_cdrom_with_matching_fs_label(self):
+    def test_ovf_on_vmware_iso_found_by_cdrom_with_matching_fs_label(
+        self, tmp_path
+    ):
         """OVF is identified by well-known iso9660 labels."""
         ovf_cdrom_by_label = copy.deepcopy(VALID_CFG["OVF"])
         # Unset matching cdrom ovf schema content
         ovf_cdrom_by_label["files"]["dev/sr0"] = "No content match"
         self._check_via_dict(
-            ovf_cdrom_by_label, rc=RC_NOT_FOUND, policy_dmi="disabled"
+            ovf_cdrom_by_label,
+            str(tmp_path),
+            rc=RC_NOT_FOUND,
+            policy_dmi="disabled",
         )
 
         # Add recognized labels
@@ -996,103 +1192,76 @@ class TestDsIdentify(DsIdentifyBase):
                 ]
             )
             self._check_via_dict(
-                ovf_cdrom_by_label, rc=RC_FOUND, dslist=["OVF", DS_NONE]
+                ovf_cdrom_by_label,
+                str(tmp_path),
+                rc=RC_FOUND,
+                dslist=["OVF", DS_NONE],
             )
 
-    def test_ovf_on_vmware_iso_found_by_cdrom_with_different_size(self):
+    def test_ovf_on_vmware_iso_found_by_cdrom_with_different_size(
+        self, tmp_path
+    ):
         """OVF is identified by well-known iso9660 labels."""
         ovf_cdrom_with_size = copy.deepcopy(VALID_CFG["OVF"])
 
         # Set cdrom size to 20480 (10MB in 512 byte units)
         ovf_cdrom_with_size["files"]["sys/class/block/sr0/size"] = "20480\n"
         self._check_via_dict(
-            ovf_cdrom_with_size, rc=RC_NOT_FOUND, policy_dmi="disabled"
+            ovf_cdrom_with_size,
+            str(tmp_path),
+            rc=RC_NOT_FOUND,
+            policy_dmi="disabled",
         )
 
         # Set cdrom size to 204800 (100MB in 512 byte units)
         ovf_cdrom_with_size["files"]["sys/class/block/sr0/size"] = "204800\n"
         self._check_via_dict(
-            ovf_cdrom_with_size, rc=RC_NOT_FOUND, policy_dmi="disabled"
+            ovf_cdrom_with_size,
+            str(tmp_path),
+            rc=RC_NOT_FOUND,
+            policy_dmi="disabled",
         )
 
         # Set cdrom size to 18432 (9MB in 512 byte units)
         ovf_cdrom_with_size["files"]["sys/class/block/sr0/size"] = "18432\n"
         self._check_via_dict(
-            ovf_cdrom_with_size, rc=RC_FOUND, dslist=["OVF", DS_NONE]
+            ovf_cdrom_with_size,
+            str(tmp_path),
+            rc=RC_FOUND,
+            dslist=["OVF", DS_NONE],
         )
 
         # Set cdrom size to 2048 (1MB in 512 byte units)
         ovf_cdrom_with_size["files"]["sys/class/block/sr0/size"] = "2048\n"
         self._check_via_dict(
-            ovf_cdrom_with_size, rc=RC_FOUND, dslist=["OVF", DS_NONE]
+            ovf_cdrom_with_size,
+            str(tmp_path),
+            rc=RC_FOUND,
+            dslist=["OVF", DS_NONE],
         )
 
-    def test_default_nocloud_as_vdb_iso9660(self):
-        """NoCloud is found with iso9660 filesystem on non-cdrom disk."""
-        self._test_ds_found("NoCloud")
-
-    def test_nocloud_upper(self):
-        """NoCloud is found with uppercase filesystem label."""
-        self._test_ds_found("NoCloudUpper")
-
-    def test_nocloud_seed_in_cfg(self):
-        """NoCloud seed definition can go in /etc/cloud/cloud.cfg[.d]"""
-        self._test_ds_found("NoCloud-cfg")
-
-    def test_nocloud_fatboot(self):
-        """NoCloud fatboot label - LP: #184166."""
-        self._test_ds_found("NoCloud-fatboot")
-
-    def test_nocloud_seed(self):
-        """Nocloud seed directory."""
-        self._test_ds_found("NoCloud-seed")
-
-    def test_nocloud_seed_ubuntu_core_writable(self):
-        """Nocloud seed directory ubuntu core writable"""
-        self._test_ds_found("NoCloud-seed-ubuntu-core")
-
-    def test_hetzner_found(self):
-        """Hetzner cloud is identified in sys_vendor."""
-        self._test_ds_found("Hetzner")
-
-    def test_cloudcix_found(self):
-        """CloudCIX cloud is identified in dmi product-name"""
-        self._test_ds_found("CloudCIX")
-
-    def test_nwcs_found(self):
-        """NWCS is identified in sys_vendor."""
-        self._test_ds_found("NWCS")
-
-    def test_smartos_bhyve(self):
-        """SmartOS cloud identified by SmartDC in dmi."""
-        self._test_ds_found("SmartOS-bhyve")
-
-    def test_smartos_lxbrand(self):
-        """SmartOS cloud identified on lxbrand container."""
-        self._test_ds_found("SmartOS-lxbrand")
-
-    def test_smartos_lxbrand_env(self):
-        """SmartOS cloud identified on lxbrand container."""
-        self._test_ds_found("SmartOS-lxbrand-env")
-
-    def test_smartos_lxbrand_requires_socket(self):
+    def test_smartos_lxbrand_requires_socket(self, tmp_path):
         """SmartOS cloud should not be identified if no socket file."""
         mycfg = copy.deepcopy(VALID_CFG["SmartOS-lxbrand"])
         del mycfg["files"][ds_smartos.METADATA_SOCKFILE]
-        self._check_via_dict(mycfg, rc=RC_NOT_FOUND, policy_dmi="disabled")
+        self._check_via_dict(
+            mycfg, str(tmp_path), rc=RC_NOT_FOUND, policy_dmi="disabled"
+        )
 
-    def test_smartos_lxbrand_requires_socket_env(self):
+    def test_smartos_lxbrand_requires_socket_env(self, tmp_path):
         """SmartOS cloud should not be identified if no socket file."""
         mycfg = copy.deepcopy(VALID_CFG["SmartOS-lxbrand-env"])
         del mycfg["files"][ds_smartos.METADATA_SOCKFILE]
-        self._check_via_dict(mycfg, rc=RC_NOT_FOUND, policy_dmi="disabled")
+        self._check_via_dict(
+            mycfg, str(tmp_path), rc=RC_NOT_FOUND, policy_dmi="disabled"
+        )
 
-    def test_path_env_gets_set_from_main(self):
+    def test_path_env_gets_set_from_main(self, tmp_path):
         """PATH environment should always have some tokens when main is run.
 
         We explicitly call main as we want to ensure it updates PATH."""
         cust = copy.deepcopy(VALID_CFG["NoCloud"])
-        rootd = self.tmp_dir()
+        rootd = str(tmp_path)
         mpp = "main-printpath"
         pre = "MYPATH="
         cust["files"][mpp] = (
@@ -1100,75 +1269,21 @@ class TestDsIdentify(DsIdentifyBase):
         )
         ret = self._check_via_dict(
             cust,
+            rootd,
             RC_FOUND,
             func=".",
             args=[os.path.join(rootd, mpp)],
-            rootd=rootd,
         )
         match = [
             line for line in ret.stdout.splitlines() if line.startswith(pre)
         ][0]
         toks = match.replace(pre, "").split(":")
         expected = ["/sbin", "/bin", "/usr/sbin", "/usr/bin", "/mycust/path"]
-        self.assertEqual(
-            expected,
-            [p for p in expected if p in toks],
-            "path did not have expected tokens",
-        )
+        assert expected == [
+            p for p in expected if p in toks
+        ], "path did not have expected tokens"
 
-    def test_zstack_is_ec2(self):
-        """EC2: chassis asset tag ends with 'zstack.io'"""
-        self._test_ds_found("Ec2-ZStack")
-
-    def test_e24cloud_is_ec2(self):
-        """EC2: e24cloud identified by sys_vendor"""
-        self._test_ds_found("Ec2-E24Cloud")
-
-    def test_e24cloud_not_active(self):
-        """EC2: bobrightbox.com in product_serial is not brightbox'"""
-        self._test_ds_not_found("Ec2-E24Cloud-negative")
-
-    def test_outscale_is_ec2(self):
-        """EC2: outscale identified by sys_vendor and product_name"""
-        self._test_ds_found("Ec2-Outscale")
-
-    def test_outscale_not_active_sysvendor(self):
-        """EC2: outscale in sys_vendor is not outscale'"""
-        self._test_ds_not_found("Ec2-Outscale-negative-sysvendor")
-
-    def test_outscale_not_active_productname(self):
-        """EC2: outscale in product_name is not outscale'"""
-        self._test_ds_not_found("Ec2-Outscale-negative-productname")
-
-    def test_vmware_no_valid_transports(self):
-        """VMware: no valid transports"""
-        self._test_ds_not_found("VMware-NoValidTransports")
-
-    def test_vmware_on_vmware_when_vmware_customization_is_enabled(self):
-        """VMware is identified when vmware customization is enabled."""
-        self._test_ds_found("VMware-vmware-customization")
-
-    def test_vmware_ovf_on_vmware_with_vmware_customization_and_ovf_schema(
-        self,
-    ):
-        """VMware and OVF are identified when:
-        1. On VMware platform.
-        2. VMware customization is enabled.
-        3. iso9660 cdrom path contains ovf schema."""
-        self._test_ds_found(
-            "VMware-OVF-on-vmware-with-vmware-customization-and-ovf-schema"
-        )
-
-    def test_ovf_not_on_vmware_with_vmware_customization_and_ovf_schema(self):
-        """OVF is identified when:
-        1. Not on VMware platform.
-        2. VMware customization is enabled.
-        3. iso9660 cdrom path contains ovf schema."""
-        self._test_ds_found(
-            "OVF-not-on-vmware-with-vmware-customization-and-ovf-schema"
-        )
-
-    def test_vmware_on_vmware_open_vm_tools_64(self):
+    def test_vmware_on_vmware_open_vm_tools_64(self, tmp_path):
         """VMware is identified when open-vm-tools installed in /usr/lib64."""
         cust64 = copy.deepcopy(VALID_CFG["VMware-vmware-customization"])
         p32 = "usr/lib/vmware-tools/plugins/vmsvc/libdeployPkgPlugin.so"
@@ -1176,10 +1291,10 @@ class TestDsIdentify(DsIdentifyBase):
         cust64["files"][open64] = cust64["files"][p32]
         del cust64["files"][p32]
         self._check_via_dict(
-            cust64, RC_FOUND, dslist=[cust64.get("ds"), DS_NONE]
+            cust64, str(tmp_path), RC_FOUND, dslist=[cust64.get("ds"), DS_NONE]
         )
 
-    def test_vmware_on_vmware_open_vm_tools_x86_64_linux_gnu(self):
+    def test_vmware_on_vmware_open_vm_tools_x86_64_linux_gnu(self, tmp_path):
         """VMware is identified when open-vm-tools installed in
         /usr/lib/x86_64-linux-gnu."""
         cust64 = copy.deepcopy(VALID_CFG["VMware-vmware-customization"])
@@ -1191,10 +1306,10 @@ class TestDsIdentify(DsIdentifyBase):
         cust64["files"][x86] = cust64["files"][p32]
         del cust64["files"][p32]
         self._check_via_dict(
-            cust64, RC_FOUND, dslist=[cust64.get("ds"), DS_NONE]
+            cust64, str(tmp_path), RC_FOUND, dslist=[cust64.get("ds"), DS_NONE]
         )
 
-    def test_vmware_on_vmware_open_vm_tools_aarch64_linux_gnu(self):
+    def test_vmware_on_vmware_open_vm_tools_aarch64_linux_gnu(self, tmp_path):
         """VMware is identified when open-vm-tools installed in
         /usr/lib/aarch64-linux-gnu."""
         cust64 = copy.deepcopy(VALID_CFG["VMware-vmware-customization"])
@@ -1206,10 +1321,10 @@ class TestDsIdentify(DsIdentifyBase):
         cust64["files"][aarch64] = cust64["files"][p32]
         del cust64["files"][p32]
         self._check_via_dict(
-            cust64, RC_FOUND, dslist=[cust64.get("ds"), DS_NONE]
+            cust64, str(tmp_path), RC_FOUND, dslist=[cust64.get("ds"), DS_NONE]
         )
 
-    def test_vmware_on_vmware_open_vm_tools_i386_linux_gnu(self):
+    def test_vmware_on_vmware_open_vm_tools_i386_linux_gnu(self, tmp_path):
         """VMware is identified when open-vm-tools installed in
         /usr/lib/i386-linux-gnu."""
         cust64 = copy.deepcopy(VALID_CFG["VMware-vmware-customization"])
@@ -1221,121 +1336,29 @@ class TestDsIdentify(DsIdentifyBase):
         cust64["files"][i386] = cust64["files"][p32]
         del cust64["files"][p32]
         self._check_via_dict(
-            cust64, RC_FOUND, dslist=[cust64.get("ds"), DS_NONE]
-        )
-
-    def test_vmware_envvar_no_data(self):
-        """VMware: envvar transport no data"""
-        self._test_ds_not_found("VMware-EnvVar-NoData")
-
-    def test_vmware_envvar_no_virt_id(self):
-        """VMware: envvar transport success if no virt id"""
-        self._test_ds_found("VMware-EnvVar-NoVirtID")
-
-    def test_vmware_envvar_activated_by_metadata(self):
-        """VMware: envvar transport activated by metadata"""
-        self._test_ds_found("VMware-EnvVar-Metadata")
-
-    def test_vmware_envvar_activated_by_userdata(self):
-        """VMware: envvar transport activated by userdata"""
-        self._test_ds_found("VMware-EnvVar-Userdata")
-
-    def test_vmware_envvar_activated_by_vendordata(self):
-        """VMware: envvar transport activated by vendordata"""
-        self._test_ds_found("VMware-EnvVar-Vendordata")
-
-    def test_vmware_guestinfo_no_data(self):
-        """VMware: guestinfo transport no data"""
-        self._test_ds_not_found("VMware-GuestInfo-NoData-Rpctool")
-        self._test_ds_not_found("VMware-GuestInfo-NoData-Vmtoolsd")
-
-    def test_vmware_guestinfo_no_virt_id(self):
-        """VMware: guestinfo transport fails if no virt id"""
-        self._test_ds_not_found("VMware-GuestInfo-NoVirtID")
-
-    def test_vmware_guestinfo_activated_by_metadata(self):
-        """VMware: guestinfo transport activated by metadata"""
-        self._test_ds_found("VMware-GuestInfo-Metadata")
-
-    def test_vmware_guestinfo_activated_by_userdata(self):
-        """VMware: guestinfo transport activated by userdata"""
-        self._test_ds_found("VMware-GuestInfo-Userdata")
-
-    def test_vmware_guestinfo_activated_by_vendordata(self):
-        """VMware: guestinfo transport activated by vendordata"""
-        self._test_ds_found("VMware-GuestInfo-Vendordata")
-
-    def test_vmware_ovf_on_vmware_with_guestinfo_metadata_and_ovf_schema(self):
-        """VMware and OVF are identified when:
-        1. On VMware platform.
-        2. guestinfo transport activated by metadata
-        3. iso9660 cdrom path contains ovf schema."""
-        self._test_ds_found(
-            "VMware-OVF-on-vmware-with-guestinfo-metadata-and-ovf-schema"
-        )
-
-    def test_ovf_not_on_vmware_with_guestinfo_metadata_and_ovf_schema(self):
-        """OVF is identified when:
-        1. Not on VMware platform.
-        2. guestinfo transport activated by metadata
-        3. iso9660 cdrom path contains ovf schema."""
-        self._test_ds_found(
-            "OVF-not-on-vmware-with-guestinfo-metadata-and-ovf-schema"
+            cust64, str(tmp_path), RC_FOUND, dslist=[cust64.get("ds"), DS_NONE]
         )
 
 
+@pytest.mark.allow_subp_for("sh")
 class TestAkamai(DsIdentifyBase):
-    def test_found_by_sys_vendor(self):
-        """ds-identify finds Akamai by system-manufacturer dmi field"""
-        self._test_ds_found("Akamai")
-
-    def test_found_by_sys_vendor_akamai(self):
+    def test_found_by_sys_vendor_akamai(self, tmp_path):
         """
         ds-identify finds Akamai by system-manufacturer dmi field when set with
         name "Akamai" (expected in the future)
         """
         cfg = copy.deepcopy(VALID_CFG["Akamai"])
         cfg["mocks"][0]["RET"] = "Akamai"
-        self._check_via_dict(cfg, rc=RC_FOUND)
+        self._check_via_dict(cfg, str(tmp_path), rc=RC_FOUND)
 
-    def test_not_found(self):
+    def test_not_found(self, tmp_path):
         """ds-identify does not find Akamai by system-manufacturer field"""
         cfg = copy.deepcopy(VALID_CFG["Akamai"])
         cfg["mocks"][0]["RET"] = "Other"
-        self._check_via_dict(cfg, rc=RC_NOT_FOUND)
+        self._check_via_dict(cfg, str(tmp_path), rc=RC_NOT_FOUND)
 
 
-class TestBSDNoSys(DsIdentifyBase):
-    """Test *BSD code paths
-
-    FreeBSD doesn't have /sys so we use kenv(1) here.
-    OpenBSD uses sysctl(8).
-    Other BSD systems fallback to dmidecode(8).
-    BSDs also doesn't have systemd-detect-virt(8), so we use sysctl(8) to query
-    kern.vm_guest, and optionally map it"""
-
-    def test_dmi_kenv(self):
-        """Test that kenv(1) works on systems which don't have /sys
-
-        This will be used on FreeBSD systems.
-        """
-        self._test_ds_found("Hetzner-kenv")
-
-    def test_dmi_sysctl(self):
-        """Test that sysctl(8) works on systems which don't have /sys
-
-        This will be used on OpenBSD systems.
-        """
-        self._test_ds_found("Hetzner-sysctl")
-
-    def test_dmi_dmidecode(self):
-        """Test that dmidecode(8) works on systems which don't have /sys
-
-        This will be used on all other BSD systems.
-        """
-        self._test_ds_found("Hetzner-dmidecode")
-
-
+@pytest.mark.allow_subp_for("sh")
 class TestIsIBMProvisioning(DsIdentifyBase):
     """Test the is_ibm_provisioning method in ds-identify."""
 
@@ -1344,19 +1367,23 @@ class TestIsIBMProvisioning(DsIdentifyBase):
     boot_ref = "/proc/1/environ"
     funcname = "is_ibm_provisioning"
 
-    def test_no_config(self):
+    def test_no_config(self, tmp_path):
         """No provisioning config means not provisioning."""
-        ret = self.call(files={}, func=self.funcname)
-        self.assertEqual(shell_false, ret.rc)
+        ret = self.call(str(tmp_path), files={}, func=self.funcname)
+        assert shell_false == ret.rc
 
-    def test_config_only(self):
+    def test_config_only(self, tmp_path):
         """A provisioning config without a log means provisioning."""
-        ret = self.call(files={self.prov_cfg: "key=value"}, func=self.funcname)
-        self.assertEqual(shell_true, ret.rc)
+        ret = self.call(
+            str(tmp_path),
+            files={self.prov_cfg: "key=value"},
+            func=self.funcname,
+        )
+        assert shell_true == ret.rc
 
-    def test_config_with_old_log(self):
+    def test_config_with_old_log(self, tmp_path):
         """A config with a log from previous boot is not provisioning."""
-        rootd = self.tmp_dir()
+        rootd = str(tmp_path)
         data = {
             self.prov_cfg: ("key=value\nkey2=val2\n", -10),
             self.inst_log: ("log data\n", -30),
@@ -1364,12 +1391,12 @@ class TestIsIBMProvisioning(DsIdentifyBase):
         }
         populate_dir_with_ts(rootd, data)
         ret = self.call(rootd=rootd, func=self.funcname)
-        self.assertEqual(shell_false, ret.rc)
-        self.assertIn("from previous boot", ret.stderr)
+        assert shell_false == ret.rc
+        assert "from previous boot" in ret.stderr
 
-    def test_config_with_new_log(self):
+    def test_config_with_new_log(self, tmp_path):
         """A config with a log from this boot is provisioning."""
-        rootd = self.tmp_dir()
+        rootd = str(tmp_path)
         data = {
             self.prov_cfg: ("key=value\nkey2=val2\n", -10),
             self.inst_log: ("log data\n", 30),
@@ -1377,32 +1404,22 @@ class TestIsIBMProvisioning(DsIdentifyBase):
         }
         populate_dir_with_ts(rootd, data)
         ret = self.call(rootd=rootd, func=self.funcname)
-        self.assertEqual(shell_true, ret.rc)
-        self.assertIn("from current boot", ret.stderr)
+        assert shell_true == ret.rc
+        assert "from current boot" in ret.stderr
 
 
 class TestOracle(DsIdentifyBase):
-    def test_found_by_chassis(self):
-        """Simple positive test of Oracle by chassis id."""
-        self._test_ds_found("Oracle")
-
-    def test_not_found(self):
+    @pytest.mark.allow_subp_for("sh")
+    def test_not_found(self, tmp_path):
         """Simple negative test of Oracle."""
         mycfg = copy.deepcopy(VALID_CFG["Oracle"])
         mycfg["files"][P_CHASSIS_ASSET_TAG] = "Not Oracle"
-        self._check_via_dict(mycfg, rc=RC_NOT_FOUND)
+        self._check_via_dict(mycfg, str(tmp_path), rc=RC_NOT_FOUND)
 
 
+@pytest.mark.allow_subp_for("sh")
 class TestWSL(DsIdentifyBase):
-    def test_not_found_virt(self):
-        """Simple negative test for WSL due other virt."""
-        self._test_ds_not_found("Not-WSL")
-
-    def test_no_fs_mounts(self):
-        """Negative test by lack of host filesystem mount points."""
-        self._test_ds_not_found("WSL-no-host-mounts")
-
-    def test_no_userprofile(self):
+    def test_no_userprofile(self, tmp_path):
         """Negative test by failing to read the %USERPROFILE% environment
         variable.
         """
@@ -1414,12 +1431,12 @@ class TestWSL(DsIdentifyBase):
                 "RET": "\r\n",
             },
         )
-        self._check_via_dict(data, RC_NOT_FOUND)
+        self._check_via_dict(data, str(tmp_path), RC_NOT_FOUND)
 
-    def test_no_cloudinitdir_in_userprofile(self):
+    def test_no_cloudinitdir_in_userprofile(self, tmp_path):
         """Negative test by not finding %USERPROFILE%/.cloud-init."""
         data = copy.deepcopy(VALID_CFG["WSL-supported"])
-        userprofile = self.tmp_dir()
+        userprofile = str(tmp_path)
         data["mocks"].append(
             {
                 "name": "WSL_profile_dir",
@@ -1427,12 +1444,12 @@ class TestWSL(DsIdentifyBase):
                 "RET": userprofile,
             },
         )
-        self._check_via_dict(data, RC_NOT_FOUND)
+        self._check_via_dict(data, str(tmp_path), RC_NOT_FOUND)
 
-    def test_empty_cloudinitdir(self):
+    def test_empty_cloudinitdir(self, tmp_path):
         """Negative test by lack of host filesystem mount points."""
         data = copy.deepcopy(VALID_CFG["WSL-supported"])
-        userprofile = self.tmp_dir()
+        userprofile = str(tmp_path)
         data["mocks"].append(
             {
                 "name": "WSL_profile_dir",
@@ -1442,14 +1459,14 @@ class TestWSL(DsIdentifyBase):
         )
         cloudinitdir = os.path.join(userprofile, ".cloud-init")
         os.mkdir(cloudinitdir)
-        self._check_via_dict(data, RC_NOT_FOUND)
+        self._check_via_dict(data, str(tmp_path), RC_NOT_FOUND)
 
-    def test_found_fail_due_instance_name_parsing(self):
+    def test_found_fail_due_instance_name_parsing(self, tmp_path):
         """WSL datasource detection fail due parsing error even though the file
         exists.
         """
         data = copy.deepcopy(VALID_CFG["WSL-supported-debian"])
-        userprofile = self.tmp_dir()
+        userprofile = str(tmp_path)
         data["mocks"].append(
             {
                 "name": "WSL_profile_dir",
@@ -1468,13 +1485,13 @@ class TestWSL(DsIdentifyBase):
         os.mkdir(cloudinitdir)
         filename = os.path.join(cloudinitdir, "cant-findme.user-data")
         Path(filename).touch()
-        self._check_via_dict(data, RC_NOT_FOUND)
+        self._check_via_dict(data, str(tmp_path), RC_NOT_FOUND)
         Path(filename).unlink()
 
-    def test_found_via_userdata_version_codename(self):
+    def test_found_via_userdata_version_codename(self, tmp_path):
         """WSL datasource detected by VERSION_CODENAME when no VERSION_ID"""
         data = copy.deepcopy(VALID_CFG["WSL-supported-debian"])
-        userprofile = self.tmp_dir()
+        userprofile = str(tmp_path)
         data["mocks"].append(
             {
                 "name": "WSL_profile_dir",
@@ -1486,15 +1503,17 @@ class TestWSL(DsIdentifyBase):
         os.mkdir(cloudinitdir)
         filename = os.path.join(cloudinitdir, "debian-trixie.user-data")
         Path(filename).touch()
-        self._check_via_dict(data, RC_FOUND, dslist=[data.get("ds"), DS_NONE])
+        self._check_via_dict(
+            data, str(tmp_path), RC_FOUND, dslist=[data.get("ds"), DS_NONE]
+        )
         Path(filename).unlink()
 
-    def test_found_via_userdata(self):
+    def test_found_via_userdata(self, tmp_path):
         """
         WSL datasource is found on applicable userdata files in cloudinitdir.
         """
         data = copy.deepcopy(VALID_CFG["WSL-supported"])
-        userprofile = self.tmp_dir()
+        userprofile = str(tmp_path)
         data["mocks"].append(
             {
                 "name": "WSL_profile_dir",
@@ -1529,16 +1548,19 @@ class TestWSL(DsIdentifyBase):
             os.path.join(cloudinitdir, "default.user-data"),
         ]
 
-        for filename in userdata_files:
+        for i, filename in enumerate(userdata_files):
             Path(filename).touch()
             self._check_via_dict(
-                data, RC_FOUND, dslist=[data.get("ds"), DS_NONE]
+                data,
+                str(tmp_path / str(i)),
+                RC_FOUND,
+                dslist=[data.get("ds"), DS_NONE],
             )
             # Delete one by one
             Path(filename).unlink()
 
         # Until there is none, making the datasource no longer viable.
-        self._check_via_dict(data, RC_NOT_FOUND)
+        self._check_via_dict(data, str(tmp_path / "-final"), RC_NOT_FOUND)
 
 
 def blkid_out(disks=None):

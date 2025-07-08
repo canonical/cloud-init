@@ -20,14 +20,12 @@ from urllib.parse import urlsplit, urlunsplit
 
 import responses
 
-from cloudinit import atomic_helper, cloud, distros
-from cloudinit import helpers as ch
-from cloudinit import subp, util
+from cloudinit import atomic_helper, subp, util
 from cloudinit.config.schema import (
     SchemaValidationError,
     validate_cloudconfig_schema,
 )
-from cloudinit.sources import DataSourceNone
+from cloudinit.helpers import Paths
 from cloudinit.templater import JINJA_AVAILABLE
 from tests.helpers import cloud_init_project_dir
 from tests.hypothesis_jsonschema import HAS_HYPOTHESIS_JSONSCHEMA
@@ -262,53 +260,19 @@ class CiTestCase(TestCase):
             dir = self.tmp_dir()
         return os.path.normpath(os.path.abspath(os.path.join(dir, path)))
 
-    def tmp_cloud(self, distro, sys_cfg=None, metadata=None):
-        """Create a cloud with tmp working directory paths.
-
-        @param distro: Name of the distro to attach to the cloud.
-        @param metadata: Optional metadata to set on the datasource.
-
-        @return: The built cloud instance.
-        """
-        self.new_root = self.tmp_dir()
-        if not sys_cfg:
-            sys_cfg = {}
-        MockPaths = get_mock_paths(self.new_root)
-        self.paths = MockPaths({})
-        cls = distros.fetch(distro)
-        mydist = cls(distro, sys_cfg, self.paths)
-        myds = DataSourceNone.DataSourceNone(sys_cfg, mydist, self.paths)
-        if metadata:
-            myds.metadata.update(metadata)
-        return cloud.Cloud(myds, self.paths, sys_cfg, mydist, None)
-
     @classmethod
     def random_string(cls, length=8):
         return random_string(length)
 
 
-class ResourceUsingTestCase(CiTestCase):
-    def setUp(self):
-        super(ResourceUsingTestCase, self).setUp()
-        self.resource_path = None
-
-    def getCloudPaths(self, ds=None):
-        tmpdir = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, tmpdir)
-        cp = ch.Paths(
-            {"cloud_dir": tmpdir, "templates_dir": resourceLocation()}, ds=ds
-        )
-        return cp
-
-
-class FilesystemMockingTestCase(ResourceUsingTestCase):
+class FilesystemMockingTestCase(CiTestCase):
     def setUp(self):
         super(FilesystemMockingTestCase, self).setUp()
         self.patched_funcs = ExitStack()
 
     def tearDown(self):
         self.patched_funcs.close()
-        ResourceUsingTestCase.tearDown(self)
+        CiTestCase.tearDown(self)
 
     def replicateTestRoot(self, example_root, target_root):
         real_root = resourceLocation()
@@ -428,41 +392,40 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
             self.patched_funcs.close()
 
 
-class CiRequestsMock(responses.RequestsMock):
-    def assert_call_count(self, url: str, count: int) -> bool:
-        """Focal and older have a version of responses which does
-        not carry this attribute. This can be removed when focal
-        is no longer supported.
-        """
-        if hasattr(super(), "_ensure_url_default_path"):
-            return super().assert_call_count(url, count)
+def responses_assert_call_count(url: str, count: int) -> bool:
+    """Focal and older have a version of responses which does
+    not carry this attribute. This can be removed when focal
+    is no longer supported.
+    """
+    if hasattr(responses, "assert_call_count"):
+        return responses.assert_call_count(url, count)
 
-        def _ensure_url_default_path(url):
-            if isinstance(url, str):
-                url_parts = list(urlsplit(url))
-                if url_parts[2] == "":
-                    url_parts[2] = "/"
-                    url = urlunsplit(url_parts)
-            return url
+    def _ensure_url_default_path(url):
+        if isinstance(url, str):
+            url_parts = list(urlsplit(url))
+            if url_parts[2] == "":
+                url_parts[2] = "/"
+                url = urlunsplit(url_parts)
+        return url
 
-        call_count = len(
-            [
-                1
-                for call in self.calls
-                if call.request.url == _ensure_url_default_path(url)
-            ]
+    call_count = len(
+        [
+            1
+            for call in responses.calls
+            if call.request.url == _ensure_url_default_path(url)
+        ]
+    )
+    if call_count == count:
+        return True
+    else:
+        raise AssertionError(
+            f"Expected URL '{url}' to be called {count} times. "
+            f"Called {call_count} times."
         )
-        if call_count == count:
-            return True
-        else:
-            raise AssertionError(
-                f"Expected URL '{url}' to be called {count} times. "
-                f"Called {call_count} times."
-            )
 
 
 def get_mock_paths(temp_dir):
-    class MockPaths(ch.Paths):
+    class MockPaths(Paths):
         def __init__(self, path_cfgs: dict, ds=None):
             super().__init__(path_cfgs=path_cfgs, ds=ds)
 
@@ -477,18 +440,6 @@ def get_mock_paths(temp_dir):
             )
 
     return MockPaths
-
-
-class ResponsesTestCase(CiTestCase):
-    def setUp(self):
-        super().setUp()
-        self.responses = CiRequestsMock(assert_all_requests_are_fired=False)
-        self.responses.start()
-
-    def tearDown(self):
-        self.responses.stop()
-        self.responses.reset()
-        super().tearDown()
 
 
 class SchemaTestCaseMixin(unittest.TestCase):

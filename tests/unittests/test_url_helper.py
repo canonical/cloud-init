@@ -478,7 +478,7 @@ class TestReadUrl:
             )
         assert m_request.call_count == 1
 
-    def test_exception_503(self, mocker):
+    def test_exception_503(self, mocker, caplog):
         mocker.patch("time.sleep")
 
         retry_response = requests.Response()
@@ -490,7 +490,12 @@ class TestReadUrl:
         m_request = mocker.patch("requests.Session.request", autospec=True)
         m_request.side_effect = (retry_response, retry_response, good_response)
 
-        readurl("http://some/path")
+        with caplog.at_level(logging.WARNING):
+            readurl("http://some/path")
+        assert 2 == caplog.text.count(
+            "Endpoint returned a 503 error. HTTP endpoint is overloaded."
+            " Retrying URL (http://some/path)."
+        ), "Did not find expected logged 503 URL"
         assert m_request.call_count == 3
 
 

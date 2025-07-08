@@ -7,7 +7,9 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import atomic_helper, lifecycle, util
+from cloudinit import atomic_helper, helpers, lifecycle
+from cloudinit import user_data as ud
+from cloudinit import util
 from cloudinit.gpg import GPG
 from cloudinit.log import loggers
 from tests.hypothesis import HAS_HYPOTHESIS
@@ -170,3 +172,24 @@ if HAS_HYPOTHESIS:
 
     settings.register_profile("ci", max_examples=1000)
     settings.load_profile(os.getenv("HYPOTHESIS_PROFILE", "default"))
+
+
+@pytest.fixture
+def paths(tmpdir) -> helpers.Paths:
+    """
+    Return a helpers.Paths object configured to use a tmpdir.
+
+    (This uses the builtin tmpdir fixture.)
+    """
+    dirs = {
+        "cloud_dir": tmpdir.mkdir("cloud_dir").strpath,
+        "docs_dir": tmpdir.mkdir("docs_dir").strpath,
+        "run_dir": tmpdir.mkdir("run_dir").strpath,
+        "templates_dir": tmpdir.mkdir("templates_dir").strpath,
+    }
+    return helpers.Paths(dirs)
+
+
+@pytest.fixture
+def ud_proc(paths):
+    return ud.UserDataProcessor(paths)

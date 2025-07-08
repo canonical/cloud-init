@@ -12,7 +12,7 @@ def read_metadata(url, timeout=2, sec_between=2, retries=30):
     )
     if not response.ok():
         raise RuntimeError("unable to read metadata at %s" % url)
-    return util.load_yaml(response.contents.decode())
+    return util.load_yaml(response.contents.decode(), allowed=(dict, list))
 
 
 def read_userdata(url, timeout=2, sec_between=2, retries=30):
