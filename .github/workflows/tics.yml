@@ -1,0 +1,44 @@
+name: TICS static code analysis
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # Every Saturday 2:00 AM UTC
+  workflow_dispatch: # Allows manual triggering
+  # TODO: This is just for testing it. Drop it before merging!
+  # Running on pull_request_target instead of pull_request because this workflow
+  # uses secrets, and thus we need to ensure it runs under this project's code base.
+  pull_request_target:
+    branches: [main]
+
+jobs:
+  tiobe-scan:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout the project
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y python3-venv
+
+      - name: Install python dependencies
+        run: |
+          python3 -m venv tiobe_venv
+          source tiobe_venv/bin/activate
+          pip install -r requirements.txt -r test-requirements.txt -r requirements-all.txt
+
+      - name: Run tests to create coverage.xml
+        run: |
+          mkdir -p .cover
+          source tiobe_venv/bin/activate
+          python3 -m pytest --cov=cloudinit --cov-report=xml:.cover/coverage.xml
+
+      - name: Run TICS analysis with github-action
+        uses: tiobe/tics-github-action@v3
+        with:
+          mode: qserver
+          project: cloud-init
+          branchdir: .
+          viewerUrl: https://canonical.tiobe.com/tiobeweb/TICS/api/cfg?name=default
+          ticsAuthToken: ${{ secrets.TICSAUTHTOKEN }}
+          installTics: true
