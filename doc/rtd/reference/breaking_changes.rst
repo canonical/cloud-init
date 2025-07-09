@@ -101,7 +101,15 @@ anything that was installed to ``/lib`` is now installed to ``/usr/lib``.
 This shouldn't affect any systemd-based distributions as they have all
 transitioned to the ``/usr`` merge. However, this could affect older
 stable releases, non-systemd and non-Linux distributions. See
-`this commit <https://github.com/canonical/cloud-init/commit/0547349214fcfb827e58c1de5e4ad7d23d08cc7f>`_
+`commit 054734921 <https://github.com/canonical/cloud-init/commit/0547349214fcfb827e58c1de5e4ad7d23d08cc7f>`_
+for more details.
+
+24.4
+====
+
+Cloud-init's `cloud-final.service` order was standardized. This caused a
+change to the systemd boot order on some distributions. See
+`commit 245f94674 <https://github.com/canonical/cloud-init/pull/5830/commits/245f94674f8c14cbe09d9944a12b994913720450>`_
 for more details.
 
 24.3
