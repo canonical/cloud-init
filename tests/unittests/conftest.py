@@ -7,13 +7,22 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import atomic_helper, helpers, lifecycle
+from cloudinit import atomic_helper, distros, helpers, lifecycle
 from cloudinit import user_data as ud
 from cloudinit import util
 from cloudinit.gpg import GPG
 from cloudinit.log import loggers
 from tests.hypothesis import HAS_HYPOTHESIS
 from tests.unittests.helpers import example_netdev, retarget_many_wrapper
+
+
+@pytest.fixture
+def Distro(paths):
+    def _get_distro(name, cfg=None):
+        cls = distros.fetch(name)
+        return cls(name, cfg or {}, paths)
+
+    return _get_distro
 
 
 @pytest.fixture
@@ -41,6 +50,7 @@ FS_FUNCS = {
         ("relpath", 1),
     ],
     os: [
+        ("chown", 2),
         ("listdir", 1),
         ("mkdir", 1),
         ("rmdir", 1),
@@ -78,8 +88,23 @@ FS_FUNCS = {
 
 
 @pytest.fixture
-def fake_filesystem(mocker, tmpdir):
-    """Mocks fs functions to operate under `tmpdir`"""
+def fake_filesystem_hook():
+    """A hook to interact with the real filesystem before mocking it in
+    fake_filesystem.
+
+    Fixtures needing to access the real filesystem in tests that use
+    fake_filesystem, can depend on this fixture to ensure they run before
+    fake_filesystem.
+    """
+
+
+@pytest.fixture
+def fake_filesystem(mocker, tmpdir, fake_filesystem_hook):
+    """Mocks fs functions to operate under `tmpdir`
+
+    This fixture is sorted after fix_cloud_init_hook to allow fixtures sorted
+    before fake_cloud_init_hook to access the real filesystem.
+    """
     # This allows fake_filesystem to be used with production code that
     # creates temporary directories. Functions like TemporaryDirectory()
     # attempt to create a directory under "/tmp" assuming that it already
