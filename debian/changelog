@@ -11,6 +11,9 @@ cloud-init (25.1-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
     - d/p/retain-ec2-default-net-update-events.patch
     - d/p/retain-old-groups.patch
     - d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
+  * add d/p/strip-invalid-mtu.patch
+    - Provides backwards compatibility for an other invalid
+      MTU in a netplan config.
   * sort hunks within all patches (--sort on quilt refresh)
   * Upstream snapshot based on upstream/main at 2b6c7e65.
 
