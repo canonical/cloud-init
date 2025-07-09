@@ -13,9 +13,9 @@ cloud-init (25.1-0ubuntu1~24.04.1) UNRELEASED; urgency=medium
     - d/p/deprecation-version-boundary.patch
     - d/p/no-single-process.patch
   * sort hunks within all patches (--sort on quilt refresh)
-  * Upstream snapshot based on upstream/main at ff1d9f04.
+  * Upstream snapshot based on upstream/main at 2b6c7e65.
 
- -- Chad Smith <chad.smith@canonical.com>  Tue, 08 Jul 2025 12:23:51 -0600
+ -- James Falcon <james.falcon@canonical.com>  Wed, 09 Jul 2025 15:42:21 -0500
 
 cloud-init (24.4.1-0ubuntu0~20.04.2) noble; urgency=medium
 
