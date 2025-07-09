@@ -16,14 +16,3 @@ Last-Update: 2025-01-16
  """
  On Ubuntu systems, cloud-init-network.service will start immediately after
  cloud-init-local.service and manually wait for network online when necessary.
---- a/tests/unittests/test_data.py
-+++ b/tests/unittests/test_data.py
-@@ -516,7 +516,7 @@ c: 4
-                 "DEPRECATION_INFO_BOUNDARY": "devel",
-                 "NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH": False,
-                 "APT_DEB822_SOURCE_LIST_FILE": True,
--                "MANUAL_NETWORK_WAIT": True,
-+                "MANUAL_NETWORK_WAIT": False,
-             },
-             "system_info": {
-                 "default_user": {"name": "ubuntu"},

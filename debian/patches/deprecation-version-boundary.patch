@@ -9,8 +9,8 @@ Last-Update: 2024-06-28
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/cloudinit/features.py
 +++ b/cloudinit/features.py
-@@ -98,7 +98,7 @@ Note that in addition to this flag, down
- to modify the systemd unit files.
+@@ -108,7 +108,7 @@ previously generated network configurati
+ (This flag can be removed when Noble is no longer supported.)
  """
  
 -DEPRECATION_INFO_BOUNDARY = "devel"
