@@ -1,0 +1,18 @@
+Description: Strip invalid MTU values from rendered v2
+  netplan configure. This maintains backwards compatibility
+  as these values are invalid netplan, but were allowed prior to 24.2
+Author: James Falcon <james.falcon@canonical.com>
+Bug: https://github.com/canonical/cloud-init/issues/6239
+Last-Update: 2025-07-09
+
+--- a/cloudinit/features.py
++++ b/cloudinit/features.py
+@@ -98,7 +98,7 @@ Note that in addition to this flag, down
+ to modify the systemd unit files.
+ """
+ 
+-STRIP_INVALID_MTU = False
++STRIP_INVALID_MTU = True
+ """
+ If ``STRIP_INVALID_MTU`` is True, then cloud-init will strip invalid MTU
+ values from rendered v2 netplan configuration. Cloud-init allowed these values

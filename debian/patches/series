@@ -3,3 +3,4 @@ no-single-process.patch
 no-nocloud-network.patch
 grub-dpkg-support.patch
 no-remove-networkd-online.patch
+strip-invalid-mtu.patch
