@@ -3,6 +3,7 @@
 
 import random
 import tempfile
+from contextlib import ExitStack
 
 import pytest
 
@@ -12,12 +13,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import (
-    CiTestCase,
-    ExitStack,
-    mock,
-    skipUnlessJsonSchema,
-)
+from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 
 
 class TestIsDiskUsed:
