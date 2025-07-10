@@ -590,22 +590,24 @@ class TestAnsible:
         caplog,
     ):
         distro = get_cloud(mocked_distro=True).distro
+        pip = cc_ansible.AnsiblePullPip(distro, "ansible")
         base_cmd = ["echo", "abc"]
-        ansiblePullPip = cc_ansible.AnsiblePullPip(distro, "ansible")
-        ansiblePullPip.do_as = MagicMock(**mocked_doas_kwargs)
-        with expected_result as e:
-            assert ansiblePullPip._AnsiblePullPip__upgrade_pip(base_cmd) == e
+        with mock.patch.object(
+            pip, "do_as", **mocked_doas_kwargs
+        ) as mocked_doas:
+            with expected_result as e:
+                assert (
+                    getattr(pip, "_AnsiblePullPip__upgrade_pip")(base_cmd) == e
+                )
 
-            ansiblePullPip.do_as.assert_called_once()
-            ansiblePullPip.do_as.assert_called_with(
-                [*base_cmd, "--upgrade", "pip"]
-            )
+                mocked_doas.assert_called_once()
+                mocked_doas.assert_called_with([*base_cmd, "--upgrade", "pip"])
 
-            for expected_present_log in expected_present_logs:
-                assert expected_present_log in caplog.text
+                for expected_present_log in expected_present_logs:
+                    assert expected_present_log in caplog.text
 
-            for expected_absent_log in expected_absent_logs:
-                assert expected_absent_log not in caplog.text
+                for expected_absent_log in expected_absent_logs:
+                    assert expected_absent_log not in caplog.text
 
     @mock.patch(M_PATH + "subp.which", return_value=True)
     @mock.patch(M_PATH + "subp.subp", return_value=(distro_version, "stderr"))
