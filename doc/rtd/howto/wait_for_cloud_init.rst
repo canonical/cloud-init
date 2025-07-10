@@ -9,7 +9,7 @@ to doing some other task.
 CLI
 ===
 
-Cloud-init's command `cloud-init status --wait` will exit once cloud-init has
+Cloud-init's command ``cloud-init status --wait`` will exit once cloud-init has
 completed.
 
 SystemD
@@ -17,7 +17,7 @@ SystemD
 
 Systems using systemd may be configured to start a service after cloud-init
 completes. This may be accomplished by including
-`After=cloud-init.target multi-user.target` in the unit file. For example:
+``After=cloud-init.target multi-user.target`` in the unit file. For example:
 
 .. code-block::
 
