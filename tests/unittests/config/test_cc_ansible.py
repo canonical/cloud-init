@@ -589,6 +589,8 @@ class TestAnsible:
         expected_absent_logs,
         caplog,
     ):
+        """assert __upgrade_pip will succeed
+        or will catch an exception and not fail"""
         distro = get_cloud(mocked_distro=True).distro
         pip = cc_ansible.AnsiblePullPip(distro, "ansible")
         base_cmd = ["echo", "abc"]

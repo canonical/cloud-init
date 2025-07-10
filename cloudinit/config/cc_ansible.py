@@ -132,13 +132,15 @@ class AnsiblePullPip(AnsiblePull):
             LOG.info("Installed the %s package", pkg_name)
 
     def __upgrade_pip(self, cmd: list):
+        """Try to upgrade pip then not raise an exception
+        if the pip upgrade fails"""
         LOG.info("Upgrading pip")
         try:
             self.do_as([*cmd, "--upgrade", "pip"])
         except subp.ProcessExecutionError as e:
             base_message = (
                 "Failed at upgrading pip. This is usually not critical"
-                "so the script will skip this step."
+                " so the script will skip this step."
             )
             LOG.warning(base_message)
             LOG.debug("%s\n%s", base_message, e)
