@@ -25,3 +25,4 @@ knowledge and become better at using and configuring ``cloud-init``.
    failure_states.rst
    exported_errors.rst
    return_codes.rst
+   net-device-info.rst
