@@ -2,8 +2,8 @@ Security Hardening
 ******************
 
 Cloud-init's use case is automating cloud instance initialization, with support
-across distributions and platforms. There is a myriad of ways to harden this
-space.
+across distributions and platforms. There are a myriad of ways to imrpove the
+security posture of a cloud-init configured machine.
 
 Follow the security hardening guidelines provided by the OSes and cloud
 platforms that your cloud-init configuration is targeting.
@@ -17,7 +17,8 @@ Updated packages
 ================
 
 To ensure the available security fixes are applied to you VMs images upon
-launch, it is recommended to update the packages
+launch, it is recommended by `Ubuntu security team guidelines`_ to update
+the packages
 
 .. note::
 
@@ -33,8 +34,6 @@ launch, it is recommended to update the packages
   package_upgrade: true
 
 
-Ubuntu's security guidelines: https://documentation.ubuntu.com/server/explanation/security/security_suggestions/#keep-your-system-up-to-date
-
 No plain text passwords
 =======================
 
@@ -43,12 +42,14 @@ as ``#cloud-config`` or run scripts by the end-user at VM launch time which
 provides credentials in the form of clear passwords or credentials encoded in
 URLs for services.
 
-It is advised to not provide clear-text passwords or credentials in any
-``runcmd`` / ``bootcmd`` or user-data scripts #/bin/bash, etc because that
-config user-data may be accessible to others on a local network based on a
-given cloud platform's instance metadata service and instead obtain those
-credentials to service-endpoints from a vault service or configuration
-management service such as Puppet, Chef, Ansible, Saltstack, etc.
+
+It is recommended not to include plain-text passwords or credentials in any
+``runcmd``, ``bootcmd``, or user-data scripts (e.g., ``#!/bin/bash``), as this
+configuration user-data may be accessible to others on the local network
+depending on the cloud platform's instance metadata service (IMDS).
+Instead, retrieve credentials for service endpoints from a secure
+vault or configuration management service such as Puppet, Chef, Ansible,
+or SaltStack.
 
 While creating users with the
 :ref:`Users and Groups module <mod_cc_users_groups>`, do not use the
@@ -66,8 +67,7 @@ We recommend using the :ref:`SSH module <mod_cc_ssh>` with ``ssh_import_id`` or
 
 
 
-More info:
-https://documentation.ubuntu.com/server/how-to/security/openssh-server/#ssh-keys
+More info on `managing SSH-keys for openssh-server`_.
 
 SSH Host keys
 =============
@@ -78,3 +78,7 @@ which can be validated prior to any SSH client connection to the launched VM.
 It provides assurance that you are connecting to the virtual machine you
 intended to launch, and not being intercepted by a man-in-the-middle (MITM)
 attack.
+
+
+.. _Ubuntu security team guidelines: https://documentation.ubuntu.com/server/explanation/security/security_suggestions/#keep-your-system-up-to-date
+.. _managing SSH-keys for openssh-server: https://documentation.ubuntu.com/server/how-to/security/openssh-server/#ssh-keys
