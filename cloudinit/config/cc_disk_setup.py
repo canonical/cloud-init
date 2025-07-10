@@ -7,6 +7,7 @@
 
 """Disk Setup: Configure partitions and filesystems."""
 
+import json
 import logging
 import os
 import shlex
@@ -767,7 +768,7 @@ sgdisk_to_gpt_id = {
 }
 
 
-def check_partition_gpt_layout(device, layout):
+def check_partition_gpt_layout_sgdisk(device, layout):
     prt_cmd = ["sgdisk", "-p", device]
     try:
         out, _err = subp.subp(prt_cmd, update_env=LANG_C_ENV)
@@ -798,6 +799,31 @@ def check_partition_gpt_layout(device, layout):
             break
 
     return [line.strip().split()[5] for line in out_lines]
+
+
+def check_partition_gpt_layout_sfdisk(device, layout):
+    # Use sfdisk's JSON output for reliability
+    prt_cmd = ["sfdisk", "-l", "-J", device]
+    try:
+        out, _err = subp.subp(prt_cmd, update_env=LANG_C_ENV)
+        ptable = json.loads(out)["partitiontable"]
+        if "partitions" in ptable:
+            partitions = ptable["partitions"]
+        else:
+            partitions = []
+
+    except Exception as e:
+        raise RuntimeError(
+            "Error running partition command on %s\n%s" % (device, e)
+        ) from e
+
+    return [p["type"] for p in partitions]
+
+
+def check_partition_gpt_layout(device, layout):
+    if subp.which("sgdisk"):
+        return check_partition_gpt_layout_sgdisk(device, layout)
+    return check_partition_gpt_layout_sfdisk(device, layout)
 
 
 def partition_type_matches(found_type, expected_type):
@@ -1058,7 +1084,7 @@ def exec_mkpart_mbr(device, layout):
     read_parttbl(device)
 
 
-def exec_mkpart_gpt(device, layout):
+def exec_mkpart_gpt_sgdisk(device, layout):
     try:
         subp.subp(["sgdisk", "-Z", device])
         for index, (partition_type, (start, end)) in enumerate(layout):
@@ -1081,6 +1107,38 @@ def exec_mkpart_gpt(device, layout):
     except Exception:
         LOG.warning("Failed to partition device %s", device)
         raise
+
+
+def exec_mkpart_gpt_sfdisk(device, layout):
+    cmd = ""
+    # Promote partition types to GPT partition GUIDs
+    for partition_type, (start, end) in layout:
+        partition_type = str(partition_type).ljust(4, "0")
+        if len(partition_type) == 4 and partition_type in sgdisk_to_gpt_id:
+            partition_type = sgdisk_to_gpt_id[partition_type]
+        if len(partition_type) != 36:
+            if partition_type != "None":
+                LOG.warning(
+                    "Unknown GPT partition type %s, using Linux",
+                    partition_type,
+                )
+            partition_type = "0FC63DAF-8483-4772-8E79-3D69D8477DE4"
+        if str(end) != "0":
+            cmd += ",%s,%s\n" % (end, partition_type)
+        else:
+            cmd += ",,%s\n" % partition_type
+    try:
+        subp.subp(["sfdisk", "-X", "gpt", "--force", device], data="%s" % cmd)
+    except Exception:
+        LOG.warning("Failed to partition device %s", device)
+        raise
+
+
+def exec_mkpart_gpt(device, layout):
+    if subp.which("sgdisk"):
+        exec_mkpart_gpt_sgdisk(device, layout)
+    else:
+        exec_mkpart_gpt_sfdisk(device, layout)
 
     read_parttbl(device)
 
