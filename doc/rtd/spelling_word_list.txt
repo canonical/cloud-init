@@ -190,6 +190,7 @@ setup-keymap
 shellscript
 shortid
 sigonly
+simplestreams
 sk
 sle
 sles
