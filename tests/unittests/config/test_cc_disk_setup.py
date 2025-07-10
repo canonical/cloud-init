@@ -104,6 +104,40 @@ class TestGetPartitionMbrLayout:
         ) == cc_disk_setup.get_partition_mbr_layout(disk_size, [33, [66, 82]])
 
 
+class TestCheckPartitionLayout:
+    @mock.patch(
+        "cloudinit.config.cc_disk_setup.check_partition_mbr_layout",
+        return_value=["83"],
+    )
+    def test_simple_mbr(self, *args):
+        assert cc_disk_setup.check_partition_layout("mbr", "/dev/xvdb1", True)
+        assert cc_disk_setup.check_partition_layout(
+            "mbr", "/dev/xvdb1", [(100, 83)]
+        )
+
+    @mock.patch(
+        "cloudinit.config.cc_disk_setup.check_partition_gpt_layout",
+        return_value=["8300"],
+    )
+    def test_simple1_gpt(self, *args):
+        assert cc_disk_setup.check_partition_layout(
+            "gpt", "/dev/xvdb1", [(100, 83)]
+        )
+        assert cc_disk_setup.check_partition_layout(
+            "gpt", "/dev/xvdb1", [(100, 8300)]
+        )
+        assert (
+            cc_disk_setup.check_partition_layout(
+                "gpt", "/dev/xvdb1", [(100, 8301)]
+            )
+            is False
+        )
+        Linux_GUID = "0FC63DAF-8483-4772-8E79-3D69D8477DE4"
+        assert cc_disk_setup.check_partition_layout(
+            "gpt", "/dev/xvdb1", [(100, Linux_GUID)]
+        )
+
+
 class TestUpdateFsSetupDevices:
     def test_regression_1634678(self):
         # Cf. https://bugs.launchpad.net/cloud-init/+bug/1634678
