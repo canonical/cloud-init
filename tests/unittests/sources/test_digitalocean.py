@@ -8,6 +8,7 @@
 
 import json
 
+from base64 import b64encode
 from cloudinit import helpers, settings
 from cloudinit.sources import DataSourceDigitalOcean
 from cloudinit.sources.helpers import digitalocean
@@ -223,6 +224,20 @@ class TestDataSourceDigitalOcean(CiTestCase):
         )
 
         self.assertIsInstance(ds.get_public_ssh_keys(), list)
+
+    @mock.patch("cloudinit.sources.helpers.digitalocean.read_metadata")
+    def test_base64_encoded_user_data(self, mock_readmd):
+        metadata = DO_META.copy()
+        metadata["user_data"] = b64encode(b"userdata goes here")
+        mock_readmd.return_value = metadata
+
+        ds = self.get_ds()
+        ret = ds.get_data()
+        self.assertTrue(ret)
+
+        self.assertTrue(mock_readmd.called)
+
+        self.assertEqual(b"userdata goes here", ds.get_userdata_raw())
 
     @mock.patch("cloudinit.sources.helpers.digitalocean.read_metadata")
     def test_multiple_ssh_keys(self, mock_readmd):
