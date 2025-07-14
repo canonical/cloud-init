@@ -499,7 +499,7 @@ def populate_dir_with_ts(path, data):
         os.utime(os.path.sep.join((path, fpath)), (ts, ts))
 
 
-def dir2dict(startdir, prefix=None):
+def dir2dict(startdir, prefix=None, filter=None):
     flist = {}
     if prefix is None:
         prefix = startdir
@@ -507,6 +507,8 @@ def dir2dict(startdir, prefix=None):
         for fname in files:
             fpath = os.path.join(root, fname)
             key = fpath[len(prefix) :]
+            if filter is not None and not filter(fpath):
+                continue
             flist[key] = util.load_text_file(fpath)
     return flist
 
@@ -652,16 +654,20 @@ def does_not_raise():
     yield
 
 
-def get_distro(dtype, system_info=None):
-    """Return a Distro class of distro 'dtype'.
+def get_distro(dname, system_info=None, /, renderers=None, activators=None):
+    """Return a Distro class of distro 'dname'.
 
-    cfg is format of CFG_BUILTIN['system_info'].
+    system_info has the format of CFG_BUILTIN['system_info'].
 
-    example: get_distro("debian")
+    Example: get_distro("debian")
     """
     if system_info is None:
         system_info = copy.deepcopy(settings.CFG_BUILTIN["system_info"])
-    system_info["distro"] = dtype
+    system_info["distro"] = dname
+    if renderers:
+        system_info["network"]["renderers"] = renderers
+    if activators:
+        system_info["network"]["activators"] = activators
     paths = helpers.Paths(system_info["paths"])
-    distro_cls = distros.fetch(dtype)
-    return distro_cls(dtype, system_info, paths)
+    distro_cls = distros.fetch(dname)
+    return distro_cls(dname, system_info, paths)
