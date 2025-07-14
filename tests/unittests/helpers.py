@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 # pylint: disable=attribute-defined-outside-init
 
+import copy
 import functools
 import io
 import logging
@@ -20,7 +21,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 import responses
 
-from cloudinit import atomic_helper, subp, util
+from cloudinit import atomic_helper, distros, helpers, settings, subp, util
 from cloudinit.config.schema import (
     SchemaValidationError,
     validate_cloudconfig_schema,
@@ -649,3 +650,18 @@ def does_not_raise():
 
     """
     yield
+
+
+def get_distro(dtype, system_info=None):
+    """Return a Distro class of distro 'dtype'.
+
+    cfg is format of CFG_BUILTIN['system_info'].
+
+    example: get_distro("debian")
+    """
+    if system_info is None:
+        system_info = copy.deepcopy(settings.CFG_BUILTIN["system_info"])
+    system_info["distro"] = dtype
+    paths = helpers.Paths(system_info["paths"])
+    distro_cls = distros.fetch(dtype)
+    return distro_cls(dtype, system_info, paths)

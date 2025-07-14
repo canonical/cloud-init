@@ -6,8 +6,7 @@ from typing import List
 import pytest
 
 from cloudinit import distros, features, lifecycle, ssh_util
-from tests.unittests.distros import _get_distro
-from tests.unittests.helpers import mock
+from tests.unittests.helpers import get_distro, mock
 from tests.unittests.util import abstract_to_concrete
 
 USER = "foo_user"
@@ -368,7 +367,7 @@ class TestCreateUser:
         mocker,
         tmpdir,
     ):
-        dist = _get_distro(distro_name)
+        dist = get_distro(distro_name)
         dist.shadow_fn = tmpdir.join(dist.shadow_fn).strpath
         dist.shadow_extrausers_fn = tmpdir.join(
             dist.shadow_extrausers_fn

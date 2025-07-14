@@ -1,13 +1,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit import atomic_helper, util
-from tests.unittests.distros import _get_distro
-from tests.unittests.helpers import CiTestCase, mock
+from tests.unittests.helpers import CiTestCase, get_distro, mock
 
 
 class TestGentoo(CiTestCase):
     def test_write_hostname(self, whatever=False):
-        distro = _get_distro("gentoo")
+        distro = get_distro("gentoo")
         hostname = "myhostname"
         hostfile = self.tmp_path("hostfile")
         distro._write_hostname(hostname, hostfile)
@@ -19,7 +18,7 @@ class TestGentoo(CiTestCase):
             )
 
     def test_write_existing_hostname_with_comments(self, whatever=False):
-        distro = _get_distro("gentoo")
+        distro = get_distro("gentoo")
         hostname = "myhostname"
         contents = '#This is the hostname\nhostname="localhost"'
         hostfile = self.tmp_path("hostfile")

@@ -1,7 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from tests.unittests.distros import _get_distro
-from tests.unittests.helpers import CiTestCase, mock
+from tests.unittests.helpers import CiTestCase, get_distro, mock
 from tests.unittests.util import MockDistro
 
 
@@ -34,7 +33,7 @@ class TestManageService(CiTestCase):
     @mock.patch.object(MockDistro, "uses_systemd", return_value=False)
     @mock.patch("cloudinit.distros.subp.subp")
     def test_manage_service_rcservice_initcmd(self, m_subp, m_sysd):
-        dist = _get_distro("alpine")
+        dist = get_distro("alpine")
         dist.init_cmd = ["rc-service", "--nocolor"]
         dist.manage_service("start", "myssh")
         m_subp.assert_called_with(
@@ -45,7 +44,7 @@ class TestManageService(CiTestCase):
 
     @mock.patch("cloudinit.distros.subp.subp")
     def test_manage_service_alpine_rcupdate_cmd(self, m_subp):
-        dist = _get_distro("alpine")
+        dist = get_distro("alpine")
         dist.update_cmd = ["rc-update", "--nocolor"]
         dist.manage_service("enable", "myssh")
         m_subp.assert_called_with(
@@ -54,7 +53,7 @@ class TestManageService(CiTestCase):
 
     @mock.patch("cloudinit.distros.subp.subp")
     def test_manage_service_rcctl_initcmd(self, m_subp):
-        dist = _get_distro("openbsd")
+        dist = get_distro("openbsd")
         dist.init_cmd = ["rcctl"]
         dist.manage_service("start", "myssh")
         m_subp.assert_called_with(
@@ -63,7 +62,7 @@ class TestManageService(CiTestCase):
 
     @mock.patch("cloudinit.distros.subp.subp")
     def test_manage_service_fbsd_service_initcmd(self, m_subp):
-        dist = _get_distro("freebsd")
+        dist = get_distro("freebsd")
         dist.init_cmd = ["service"]
         dist.manage_service("enable", "myssh")
         m_subp.assert_called_with(
