@@ -3,20 +3,19 @@
 import copy
 import os
 import re
+import shutil
 from io import StringIO
 from textwrap import dedent
 from unittest import mock
 
+import pytest
 import yaml
 
-from cloudinit import distros, features, helpers, settings, subp, util
+from cloudinit import features, subp, util
 from cloudinit.distros.parsers.sys_conf import SysConf
 from cloudinit.net.activators import IfUpDownActivator
-from tests.unittests.helpers import (
-    FilesystemMockingTestCase,
-    dir2dict,
-    readResource,
-)
+from tests.helpers import cloud_init_project_dir
+from tests.unittests.helpers import dir2dict, get_distro
 
 BASE_NET_CFG = """
 auto lo
@@ -290,76 +289,77 @@ class WriteBuffer:
         return self.buffer.getvalue()
 
 
-class TestNetCfgDistroBase(FilesystemMockingTestCase):
-    def setUp(self):
-        super(TestNetCfgDistroBase, self).setUp()
-        self.add_patch("cloudinit.util.system_is_snappy", "m_snappy")
-
-    def _get_distro(self, dname, renderers=None, activators=None):
-        cls = distros.fetch(dname)
-        cfg = copy.deepcopy(settings.CFG_BUILTIN)
-        cfg["system_info"]["distro"] = dname
-        system_info_network_cfg = {}
-        if renderers:
-            system_info_network_cfg["renderers"] = renderers
-        if activators:
-            system_info_network_cfg["activators"] = activators
-        if system_info_network_cfg:
-            cfg["system_info"]["network"] = system_info_network_cfg
-        paths = helpers.Paths({})
-        return cls(dname, cfg.get("system_info"), paths)
-
-    def assertCfgEquals(self, blob1, blob2):
-        b1 = dict(SysConf(blob1.strip().splitlines()))
-        b2 = dict(SysConf(blob2.strip().splitlines()))
-        self.assertEqual(b1, b2)
-        for k, v in b1.items():
-            self.assertIn(k, b2)
-        for k, v in b2.items():
-            self.assertIn(k, b1)
-        for k, v in b1.items():
-            self.assertEqual(v, b2[k])
+@pytest.fixture(autouse=True)
+def system_is_snappy():
+    mock.patch("cloudinit.util.system_is_snappy")
 
 
-class TestNetCfgDistroFreeBSD(TestNetCfgDistroBase):
-    def setUp(self):
-        super(TestNetCfgDistroFreeBSD, self).setUp()
-        ifs_txt = readResource("netinfo/freebsd-ifconfig-output")
-        with mock.patch(
+def assertCfgEquals(blob1, blob2):
+    b1 = dict(SysConf(blob1.strip().splitlines()))
+    b2 = dict(SysConf(blob2.strip().splitlines()))
+    assert b1 == b2
+    for k, v in b1.items():
+        assert k in b2
+    for k, v in b2.items():
+        assert k in b1
+    for k, v in b1.items():
+        assert v == b2[k]
+
+
+@pytest.fixture
+def distro_freebsd(mocker):
+    with open("tests/data/netinfo/freebsd-ifconfig-output", "r") as fh:
+        ifs_txt = fh.read()
+        mocker.patch(
             "cloudinit.distros.networking.subp.subp",
             return_value=(ifs_txt, None),
-        ):
-            self.distro = self._get_distro("freebsd", renderers=["freebsd"])
+        )
+        return get_distro("freebsd", renderers=["freebsd"])
 
+
+@pytest.fixture(autouse=True)
+def with_test_data(tmp_path, fake_filesystem_hook):
+    shutil.copytree(
+        str(cloud_init_project_dir("tests/data")),
+        str(tmp_path / "tests/data"),
+        dirs_exist_ok=True,
+    )
+
+
+@pytest.mark.usefixtures("fake_filesystem")
+class TestNetCfgDistroFreeBSD:
     def _apply_and_verify_freebsd(
-        self, apply_fn, config, expected_cfgs=None, bringup=False
+        self, apply_fn, config, tmp_path, expected_cfgs=None, bringup=False
     ):
+        rootd = tmp_path
         if not expected_cfgs:
             raise ValueError("expected_cfg must not be None")
 
-        tmpd = None
         with mock.patch("cloudinit.net.freebsd.available") as m_avail:
             m_avail.return_value = True
-            with self.reRooted(tmpd) as tmpd:
-                util.ensure_dir("/etc")
-                util.ensure_file("/etc/rc.conf")
-                util.ensure_file("/etc/resolv.conf")
-                apply_fn(config, bringup)
+            util.ensure_dir(rootd / "etc")
+            util.ensure_file(rootd / "etc/rc.conf")
+            util.ensure_file(rootd / "etc/resolv.conf")
+            apply_fn(config, bringup)
 
-        results = dir2dict(tmpd)
+        results = dir2dict(
+            str(rootd), filter=lambda fn: fn.startswith(str(rootd / "etc"))
+        )
         for cfgpath, expected in expected_cfgs.items():
             print("----------")
             print(expected)
             print("^^^^ expected | rendered VVVVVVV")
             print(results[cfgpath])
             print("----------")
-            self.assertEqual(
-                set(expected.split("\n")), set(results[cfgpath].split("\n"))
+            assert set(expected.split("\n")) == set(
+                results[cfgpath].split("\n")
             )
-            self.assertEqual(0o644, get_mode(cfgpath, tmpd))
+            assert 0o644 == get_mode(cfgpath, str(rootd))
 
     @mock.patch("cloudinit.net.get_interfaces_by_mac")
-    def test_apply_network_config_freebsd_standard(self, ifaces_mac):
+    def test_apply_network_config_freebsd_standard(
+        self, ifaces_mac, distro_freebsd, tmp_path
+    ):
         ifaces_mac.return_value = {
             "00:15:5d:4c:73:00": "eth0",
         }
@@ -374,13 +374,16 @@ ifconfig_eth1=DHCP
             "/etc/resolv.conf": "",
         }
         self._apply_and_verify_freebsd(
-            self.distro.apply_network_config,
+            distro_freebsd.apply_network_config,
             V1_NET_CFG,
+            tmp_path,
             expected_cfgs=expected_cfgs.copy(),
         )
 
     @mock.patch("cloudinit.net.get_interfaces_by_mac")
-    def test_apply_network_config_freebsd_ipv6_standard(self, ifaces_mac):
+    def test_apply_network_config_freebsd_ipv6_standard(
+        self, ifaces_mac, distro_freebsd, tmp_path
+    ):
         ifaces_mac.return_value = {
             "00:15:5d:4c:73:00": "eth0",
         }
@@ -395,13 +398,16 @@ ifconfig_eth0_ipv6='inet6 2607:f0d0:1002:0011::2/64'
             "/etc/resolv.conf": "",
         }
         self._apply_and_verify_freebsd(
-            self.distro.apply_network_config,
+            distro_freebsd.apply_network_config,
             V1_NET_CFG_IPV6,
+            tmp_path,
             expected_cfgs=expected_cfgs.copy(),
         )
 
     @mock.patch("cloudinit.net.get_interfaces_by_mac")
-    def test_apply_network_config_freebsd_ifrename(self, ifaces_mac):
+    def test_apply_network_config_freebsd_ifrename(
+        self, ifaces_mac, distro_freebsd, tmp_path
+    ):
         ifaces_mac.return_value = {
             "00:15:5d:4c:73:00": "vtnet0",
         }
@@ -420,13 +426,16 @@ ifconfig_eth1=DHCP
             "/etc/resolv.conf": "",
         }
         self._apply_and_verify_freebsd(
-            self.distro.apply_network_config,
+            distro_freebsd.apply_network_config,
             V1_NET_CFG_RENAME,
+            tmp_path,
             expected_cfgs=expected_cfgs.copy(),
         )
 
     @mock.patch("cloudinit.net.get_interfaces_by_mac")
-    def test_apply_network_config_freebsd_nameserver(self, ifaces_mac):
+    def test_apply_network_config_freebsd_nameserver(
+        self, ifaces_mac, distro_freebsd, tmp_path
+    ):
         ifaces_mac.return_value = {
             "00:15:5d:4c:73:00": "eth0",
         }
@@ -436,19 +445,25 @@ ifconfig_eth1=DHCP
         V1_NET_CFG_DNS["config"][0]["subnets"][0]["dns_nameservers"] = ns
         expected_cfgs = {"/etc/resolv.conf": "nameserver 1.2.3.4\n"}
         self._apply_and_verify_freebsd(
-            self.distro.apply_network_config,
+            distro_freebsd.apply_network_config,
             V1_NET_CFG_DNS,
+            tmp_path,
             expected_cfgs=expected_cfgs.copy(),
         )
 
 
-class TestNetCfgDistroUbuntuEni(TestNetCfgDistroBase):
-    def setUp(self):
-        super(TestNetCfgDistroUbuntuEni, self).setUp()
-        self.distro = self._get_distro(
-            "ubuntu", renderers=["eni"], activators=["eni"]
-        )
+@pytest.fixture
+def distro_eni():
+    return get_distro("ubuntu", renderers=["eni"], activators=["eni"])
 
+
+@pytest.fixture
+def m_activators_subp(mocker):
+    mocker.patch("cloudinit.net.activators.subp.subp", return_value=("", ""))
+
+
+@pytest.mark.usefixtures("fake_filesystem", "m_activators_subp")
+class TestNetCfgDistroUbuntuEni:
     def eni_path(self):
         return "/etc/network/interfaces.d/50-cloud-init.cfg"
 
@@ -459,6 +474,7 @@ class TestNetCfgDistroUbuntuEni(TestNetCfgDistroBase):
         self,
         apply_fn,
         config,
+        tmp_path,
         expected_cfgs=None,
         bringup=False,
         previous_files=(),
@@ -466,106 +482,122 @@ class TestNetCfgDistroUbuntuEni(TestNetCfgDistroBase):
         if not expected_cfgs:
             raise ValueError("expected_cfg must not be None")
 
-        tmpd = None
         with mock.patch("cloudinit.net.eni.available") as m_avail:
             m_avail.return_value = True
             path_modes = {}
-            with self.reRooted(tmpd) as tmpd:
-                for previous_path, content, mode in previous_files:
-                    util.write_file(previous_path, content, mode=mode)
-                    path_modes[previous_path] = mode
-                apply_fn(config, bringup)
+            for previous_path, content, mode in previous_files:
+                util.write_file(previous_path, content, mode=mode)
+                path_modes[previous_path] = mode
+            apply_fn(config, bringup)
 
-        results = dir2dict(tmpd)
+        results = dir2dict(
+            str(tmp_path),
+            filter=lambda fn: fn.startswith(str(tmp_path / "etc")),
+        )
         for cfgpath, expected in expected_cfgs.items():
             print("----------")
             print(expected)
             print("^^^^ expected | rendered VVVVVVV")
             print(results[cfgpath])
             print("----------")
-            self.assertEqual(expected, results[cfgpath])
-            self.assertEqual(
-                path_modes.get(cfgpath, 0o644), get_mode(cfgpath, tmpd)
+            assert expected == results[cfgpath]
+            assert path_modes.get(cfgpath, 0o644) == get_mode(
+                cfgpath, str(tmp_path)
             )
 
-    def test_apply_network_config_and_bringup_filters_priority_eni_ub(self):
+    def test_apply_network_config_and_bringup_filters_priority_eni_ub(
+        self, distro_eni, tmp_path
+    ):
         """Network activator search priority can be overridden from config."""
         expected_cfgs = {
             self.eni_path(): V1_NET_CFG_OUTPUT,
         }
+
         with mock.patch(
             "cloudinit.net.activators.select_activator"
         ) as select_activator:
             select_activator.return_value = IfUpDownActivator
             self._apply_and_verify_eni(
-                self.distro.apply_network_config,
+                distro_eni.apply_network_config,
                 V1_NET_CFG,
+                tmp_path,
                 expected_cfgs=expected_cfgs.copy(),
                 bringup=True,
             )
             # 2nd call to select_activator via distro.network_activator prop
-            assert IfUpDownActivator == self.distro.network_activator
-        self.assertEqual(
-            [mock.call(priority=["eni"])] * 2, select_activator.call_args_list
-        )
+            assert IfUpDownActivator == distro_eni.network_activator
+        assert [
+            mock.call(priority=["eni"])
+        ] * 2 == select_activator.call_args_list
 
-    def test_apply_network_config_and_bringup_activator_defaults_ub(self):
+    def test_apply_network_config_and_bringup_activator_defaults_ub(
+        self, tmp_path
+    ):
         """Network activator search priority defaults when unspecified."""
         expected_cfgs = {
             self.eni_path(): V1_NET_CFG_OUTPUT,
         }
         # Don't set activators to see DEFAULT_PRIORITY
-        self.distro = self._get_distro("ubuntu", renderers=["eni"])
+        distro = get_distro("ubuntu", renderers=["eni"])
         with mock.patch(
             "cloudinit.net.activators.select_activator"
         ) as select_activator:
             select_activator.return_value = IfUpDownActivator
             self._apply_and_verify_eni(
-                self.distro.apply_network_config,
+                distro.apply_network_config,
                 V1_NET_CFG,
+                tmp_path,
                 expected_cfgs=expected_cfgs.copy(),
                 bringup=True,
             )
             # 2nd call to select_activator via distro.network_activator prop
-            assert IfUpDownActivator == self.distro.network_activator
-        self.assertEqual(
-            [mock.call(priority=None)] * 2, select_activator.call_args_list
-        )
+            assert IfUpDownActivator == distro.network_activator
+        assert [
+            mock.call(priority=None)
+        ] * 2 == select_activator.call_args_list
 
-    def test_apply_network_config_eni_ub(self):
+    def test_apply_network_config_eni_ub(self, distro_eni, tmp_path):
         expected_cfgs = {
             self.eni_path(): V1_NET_CFG_OUTPUT,
             self.rules_path(): "",
         }
         self._apply_and_verify_eni(
-            self.distro.apply_network_config,
+            distro_eni.apply_network_config,
             V1_NET_CFG,
+            tmp_path,
             expected_cfgs=expected_cfgs.copy(),
             previous_files=((self.rules_path(), "something", 0o660),),
         )
 
-    def test_apply_network_config_ipv6_ub(self):
+    def test_apply_network_config_ipv6_ub(self, distro_eni, tmp_path):
         expected_cfgs = {self.eni_path(): V1_NET_CFG_IPV6_OUTPUT}
         self._apply_and_verify_eni(
-            self.distro.apply_network_config,
+            distro_eni.apply_network_config,
             V1_NET_CFG_IPV6,
+            tmp_path,
             expected_cfgs=expected_cfgs.copy(),
         )
 
 
-class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
+@pytest.fixture
+def distro_netplan():
+    return get_distro("ubuntu", renderers=["netplan"])
 
-    with_logs = True
 
-    def setUp(self):
-        super(TestNetCfgDistroUbuntuNetplan, self).setUp()
-        self.distro = self._get_distro("ubuntu", renderers=["netplan"])
-        self.devlist = ["eth0", "lo"]
+@pytest.fixture
+def m_netplan_subp(mocker):
+    mocker.patch("cloudinit.net.netplan.subp.subp", return_value=("", ""))
+
+
+@pytest.mark.usefixtures("fake_filesystem", "m_netplan_subp")
+class TestNetCfgDistroUbuntuNetplan:
+    DEV_LIST = ["eth0", "lo"]
 
     def _apply_and_verify_netplan(
         self,
         apply_fn,
         config,
+        tmp_path,
         expected_cfgs=None,
         bringup=False,
         previous_files=(),
@@ -573,63 +605,75 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
         if not expected_cfgs:
             raise ValueError("expected_cfg must not be None")
 
-        tmpd = None
         with mock.patch("cloudinit.net.netplan.available", return_value=True):
             with mock.patch(
                 "cloudinit.net.netplan.get_devicelist",
-                return_value=self.devlist,
+                return_value=self.DEV_LIST,
             ):
-                with self.reRooted(tmpd) as tmpd:
-                    for previous_path, content, mode in previous_files:
-                        util.write_file(previous_path, content, mode=mode)
-                    apply_fn(config, bringup)
+                for previous_path, content, mode in previous_files:
+                    util.write_file(previous_path, content, mode=mode)
+                apply_fn(config, bringup)
 
-        results = dir2dict(tmpd)
+        results = dir2dict(
+            str(tmp_path),
+            filter=lambda fn: fn.startswith(str(tmp_path / "etc")),
+        )
         for cfgpath, expected, mode in expected_cfgs:
             print("----------")
             print(expected)
             print("^^^^ expected | rendered VVVVVVV")
             print(results[cfgpath])
             print("----------")
-            self.assertEqual(expected, results[cfgpath])
-            self.assertEqual(mode, get_mode(cfgpath, tmpd))
+            assert expected == results[cfgpath]
+            assert mode == get_mode(cfgpath, str(tmp_path))
 
     def netplan_path(self):
         return "/etc/netplan/50-cloud-init.yaml"
 
-    def test_apply_network_config_v1_to_netplan_ub(self):
+    def test_apply_network_config_v1_to_netplan_ub(
+        self, distro_netplan, tmp_path
+    ):
         expected_cfgs = (
             (self.netplan_path(), V1_TO_V2_NET_CFG_OUTPUT, 0o600),
         )
 
         self._apply_and_verify_netplan(
-            self.distro.apply_network_config,
+            distro_netplan.apply_network_config,
             V1_NET_CFG,
+            tmp_path,
             expected_cfgs=expected_cfgs,
         )
 
-    def test_apply_network_config_v1_ipv6_to_netplan_ub(self):
+    def test_apply_network_config_v1_ipv6_to_netplan_ub(
+        self, distro_netplan, tmp_path
+    ):
         expected_cfgs = (
             (self.netplan_path(), V1_TO_V2_NET_CFG_IPV6_OUTPUT, 0o600),
         )
 
         self._apply_and_verify_netplan(
-            self.distro.apply_network_config,
+            distro_netplan.apply_network_config,
             V1_NET_CFG_IPV6,
+            tmp_path,
             expected_cfgs=expected_cfgs,
         )
 
-    def test_apply_network_config_v2_passthrough_ub(self):
+    def test_apply_network_config_v2_passthrough_ub(
+        self, distro_netplan, tmp_path
+    ):
         expected_cfgs = (
             (self.netplan_path(), V2_TO_V2_NET_CFG_OUTPUT, 0o600),
         )
         self._apply_and_verify_netplan(
-            self.distro.apply_network_config,
+            distro_netplan.apply_network_config,
             V2_NET_CFG,
+            tmp_path,
             expected_cfgs=expected_cfgs,
         )
 
-    def test_apply_network_config_v2_passthrough_retain_orig_perms(self):
+    def test_apply_network_config_v2_passthrough_retain_orig_perms(
+        self, distro_netplan, tmp_path
+    ):
         """Custom permissions on existing netplan is kept when more strict."""
         expected_cfgs = (
             (self.netplan_path(), V2_TO_V2_NET_CFG_OUTPUT, 0o640),
@@ -641,15 +685,18 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
             # we keep 640 because it's more strict.
             # 1640 is used to assert sticky bit preserved across write
             self._apply_and_verify_netplan(
-                self.distro.apply_network_config,
+                distro_netplan.apply_network_config,
                 V2_NET_CFG,
+                tmp_path,
                 expected_cfgs=expected_cfgs,
                 previous_files=(
                     ("/etc/netplan/50-cloud-init.yaml", "a", 0o640),
                 ),
             )
 
-    def test_apply_network_config_v2_passthrough_ub_old_behavior(self):
+    def test_apply_network_config_v2_passthrough_ub_old_behavior(
+        self, distro_netplan, tmp_path
+    ):
         """Kinetic and earlier have 50-cloud-init.yaml world-readable"""
         expected_cfgs = (
             (self.netplan_path(), V2_TO_V2_NET_CFG_OUTPUT, 0o644),
@@ -658,31 +705,38 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
             features, "NETPLAN_CONFIG_ROOT_READ_ONLY", False
         ):
             self._apply_and_verify_netplan(
-                self.distro.apply_network_config,
+                distro_netplan.apply_network_config,
                 V2_NET_CFG,
+                tmp_path,
                 expected_cfgs=expected_cfgs,
             )
 
-    def test_apply_network_config_v2_full_passthrough_ub(self):
+    def test_apply_network_config_v2_full_passthrough_ub(
+        self, caplog, distro_netplan, tmp_path
+    ):
         expected_cfgs = (
             (self.netplan_path(), V2_PASSTHROUGH_NET_CFG_OUTPUT, 0o600),
         )
         self._apply_and_verify_netplan(
-            self.distro.apply_network_config,
+            distro_netplan.apply_network_config,
             V2_PASSTHROUGH_NET_CFG,
+            tmp_path,
             expected_cfgs=expected_cfgs,
         )
-        self.assertIn("Passthrough netplan v2 config", self.logs.getvalue())
-        self.assertIn(
-            "Selected renderer 'netplan' from priority list: ['netplan']",
-            self.logs.getvalue(),
+        assert "Passthrough netplan v2 config" in caplog.text
+        assert (
+            "Selected renderer 'netplan' from priority list: ['netplan']"
+            in caplog.text
         )
 
 
-class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
-    def setUp(self):
-        super(TestNetCfgDistroRedhat, self).setUp()
-        self.distro = self._get_distro("rhel", renderers=["sysconfig"])
+@pytest.fixture
+def distro_redhat():
+    return get_distro("rhel", renderers=["sysconfig"])
+
+
+@pytest.mark.usefixtures("fake_filesystem")
+class TestNetCfgDistroRedhat:
 
     def ifcfg_path(self, ifname):
         return "/etc/sysconfig/network-scripts/ifcfg-%s" % ifname
@@ -694,24 +748,26 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
         self,
         apply_fn,
         config,
+        tmp_path,
         expected_cfgs=None,
         bringup=False,
-        tmpd=None,
     ):
         if not expected_cfgs:
             raise ValueError("expected_cfg must not be None")
 
         with mock.patch("cloudinit.net.sysconfig.available") as m_avail:
             m_avail.return_value = True
-            with self.reRooted(tmpd) as tmpd:
-                apply_fn(config, bringup)
+            apply_fn(config, bringup)
 
-        results = dir2dict(tmpd)
+        results = dir2dict(
+            str(tmp_path),
+            filter=lambda fn: fn.startswith(str(tmp_path / "etc")),
+        )
         for cfgpath, expected in expected_cfgs.items():
-            self.assertCfgEquals(expected, results[cfgpath])
-            self.assertEqual(0o644, get_mode(cfgpath, tmpd))
+            assertCfgEquals(expected, results[cfgpath])
+            assert 0o644 == get_mode(cfgpath, str(tmp_path))
 
-    def test_apply_network_config_rh(self):
+    def test_apply_network_config_rh(self, distro_redhat, tmp_path):
         expected_cfgs = {
             self.ifcfg_path("eth0"): dedent(
                 """\
@@ -743,12 +799,13 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
         }
         # rh_distro.apply_network_config(V1_NET_CFG, False)
         self._apply_and_verify(
-            self.distro.apply_network_config,
+            distro_redhat.apply_network_config,
             V1_NET_CFG,
+            tmp_path,
             expected_cfgs=expected_cfgs.copy(),
         )
 
-    def test_apply_network_config_ipv6_rh(self):
+    def test_apply_network_config_ipv6_rh(self, distro_redhat, tmp_path):
         expected_cfgs = {
             self.ifcfg_path("eth0"): dedent(
                 """\
@@ -784,12 +841,15 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
         }
         # rh_distro.apply_network_config(V1_NET_CFG_IPV6, False)
         self._apply_and_verify(
-            self.distro.apply_network_config,
+            distro_redhat.apply_network_config,
             V1_NET_CFG_IPV6,
+            tmp_path,
             expected_cfgs=expected_cfgs.copy(),
         )
 
-    def test_sysconfig_network_no_overwite_ipv6_rh(self):
+    def test_sysconfig_network_no_overwite_ipv6_rh(
+        self, distro_redhat, tmp_path
+    ):
         expected_cfgs = {
             self.ifcfg_path("eth0"): dedent(
                 """\
@@ -824,24 +884,22 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 """
             ),
         }
-        tmpdir = self.tmp_dir()
         file_mode = 0o644
         # pre-existing config in /etc/sysconfig/network should not be removed
-        with self.reRooted(tmpdir) as tmpdir:
-            util.write_file(
-                self.control_path(),
-                "".join("NOZEROCONF=yes") + "\n",
-                file_mode,
-            )
-
-        self._apply_and_verify(
-            self.distro.apply_network_config,
-            V1_NET_CFG_IPV6,
-            expected_cfgs=expected_cfgs.copy(),
-            tmpd=tmpdir,
+        util.write_file(
+            self.control_path(),
+            "".join("NOZEROCONF=yes") + "\n",
+            file_mode,
         )
 
-    def test_vlan_render_unsupported(self):
+        self._apply_and_verify(
+            distro_redhat.apply_network_config,
+            V1_NET_CFG_IPV6,
+            tmp_path,
+            expected_cfgs=expected_cfgs.copy(),
+        )
+
+    def test_vlan_render_unsupported(self, distro_redhat, tmp_path):
         """Render officially unsupported vlan names."""
         cfg = {
             "version": 2,
@@ -891,10 +949,13 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
             ),
         }
         self._apply_and_verify(
-            self.distro.apply_network_config, cfg, expected_cfgs=expected_cfgs
+            distro_redhat.apply_network_config,
+            cfg,
+            tmp_path,
+            expected_cfgs=expected_cfgs,
         )
 
-    def test_vlan_render(self):
+    def test_vlan_render(self, distro_redhat, tmp_path):
         cfg = {
             "version": 2,
             "ethernets": {"eth0": {"addresses": ["192.10.1.2/24"]}},
@@ -937,36 +998,42 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
             ),
         }
         self._apply_and_verify(
-            self.distro.apply_network_config, cfg, expected_cfgs=expected_cfgs
+            distro_redhat.apply_network_config,
+            cfg,
+            tmp_path,
+            expected_cfgs=expected_cfgs,
         )
 
 
-class TestNetCfgDistroOpensuse(TestNetCfgDistroBase):
-    def setUp(self):
-        super(TestNetCfgDistroOpensuse, self).setUp()
-        self.distro = self._get_distro("opensuse", renderers=["sysconfig"])
+@pytest.fixture
+def distro_opensuse():
+    return get_distro("opensuse", renderers=["sysconfig"])
 
+
+@pytest.mark.usefixtures("fake_filesystem")
+class TestNetCfgDistroOpensuse:
     def ifcfg_path(self, ifname):
         return "/etc/sysconfig/network/ifcfg-%s" % ifname
 
     def _apply_and_verify(
-        self, apply_fn, config, expected_cfgs=None, bringup=False
+        self, apply_fn, config, tmp_path, expected_cfgs=None, bringup=False
     ):
         if not expected_cfgs:
             raise ValueError("expected_cfg must not be None")
 
-        tmpd = None
         with mock.patch("cloudinit.net.sysconfig.available") as m_avail:
             m_avail.return_value = True
-            with self.reRooted(tmpd) as tmpd:
-                apply_fn(config, bringup)
+            apply_fn(config, bringup)
 
-        results = dir2dict(tmpd)
+        results = dir2dict(
+            str(tmp_path),
+            filter=lambda fn: fn.startswith(str(tmp_path / "etc")),
+        )
         for cfgpath, expected in expected_cfgs.items():
-            self.assertCfgEquals(expected, results[cfgpath])
-            self.assertEqual(0o644, get_mode(cfgpath, tmpd))
+            assertCfgEquals(expected, results[cfgpath])
+            assert 0o644 == get_mode(cfgpath, str(tmp_path))
 
-    def test_apply_network_config_opensuse(self):
+    def test_apply_network_config_opensuse(self, distro_opensuse, tmp_path):
         """Opensuse uses apply_network_config and renders sysconfig"""
         expected_cfgs = {
             self.ifcfg_path("eth0"): dedent(
@@ -985,12 +1052,15 @@ class TestNetCfgDistroOpensuse(TestNetCfgDistroBase):
             ),
         }
         self._apply_and_verify(
-            self.distro.apply_network_config,
+            distro_opensuse.apply_network_config,
             V1_NET_CFG,
+            tmp_path,
             expected_cfgs=expected_cfgs.copy(),
         )
 
-    def test_apply_network_config_ipv6_opensuse(self):
+    def test_apply_network_config_ipv6_opensuse(
+        self, distro_opensuse, tmp_path
+    ):
         """Opensuse uses apply_network_config and renders sysconfig w/ipv6"""
         expected_cfgs = {
             self.ifcfg_path("eth0"): dedent(
@@ -1008,21 +1078,25 @@ class TestNetCfgDistroOpensuse(TestNetCfgDistroBase):
             ),
         }
         self._apply_and_verify(
-            self.distro.apply_network_config,
+            distro_opensuse.apply_network_config,
             V1_NET_CFG_IPV6,
+            tmp_path,
             expected_cfgs=expected_cfgs.copy(),
         )
 
 
-class TestNetCfgDistroArch(TestNetCfgDistroBase):
-    def setUp(self):
-        super(TestNetCfgDistroArch, self).setUp()
-        self.distro = self._get_distro("arch", renderers=["netplan"])
+@pytest.fixture
+def distro_arch():
+    return get_distro("arch", renderers=["netplan"])
 
+
+@pytest.mark.usefixtures("fake_filesystem", "m_netplan_subp")
+class TestNetCfgDistroArch:
     def _apply_and_verify(
         self,
         apply_fn,
         config,
+        tmp_path,
         expected_cfgs=None,
         bringup=False,
         with_netplan=False,
@@ -1030,14 +1104,15 @@ class TestNetCfgDistroArch(TestNetCfgDistroBase):
         if not expected_cfgs:
             raise ValueError("expected_cfg must not be None")
 
-        tmpd = None
         with mock.patch(
             "cloudinit.net.netplan.available", return_value=with_netplan
         ):
-            with self.reRooted(tmpd) as tmpd:
-                apply_fn(config, bringup)
+            apply_fn(config, bringup)
 
-        results = dir2dict(tmpd)
+        results = dir2dict(
+            str(tmp_path),
+            filter=lambda fn: fn.startswith(str(tmp_path / "etc")),
+        )
         mode = 0o600 if with_netplan else 0o644
         for cfgpath, expected in expected_cfgs.items():
             print("----------")
@@ -1045,8 +1120,8 @@ class TestNetCfgDistroArch(TestNetCfgDistroBase):
             print("^^^^ expected | rendered VVVVVVV")
             print(results[cfgpath])
             print("----------")
-            self.assertEqual(expected, results[cfgpath])
-            self.assertEqual(mode, get_mode(cfgpath, tmpd))
+            assert expected == results[cfgpath]
+            assert mode == get_mode(cfgpath, str(tmp_path))
 
     def netctl_path(self, iface):
         return "/etc/netctl/%s" % iface
@@ -1054,7 +1129,7 @@ class TestNetCfgDistroArch(TestNetCfgDistroBase):
     def netplan_path(self):
         return "/etc/netplan/50-cloud-init.yaml"
 
-    def test_apply_network_config_v1_with_netplan(self):
+    def test_apply_network_config_v1_with_netplan(self, distro_arch, tmp_path):
         expected_cfgs = {
             self.netplan_path(): dedent(
                 """\
@@ -1078,18 +1153,22 @@ class TestNetCfgDistroArch(TestNetCfgDistroBase):
             "cloudinit.net.netplan.get_devicelist", return_value=[]
         ):
             self._apply_and_verify(
-                self.distro.apply_network_config,
+                distro_arch.apply_network_config,
                 V1_NET_CFG,
+                tmp_path,
                 expected_cfgs=expected_cfgs.copy(),
                 with_netplan=True,
             )
 
 
-class TestNetCfgDistroPhoton(TestNetCfgDistroBase):
-    def setUp(self):
-        super(TestNetCfgDistroPhoton, self).setUp()
-        self.distro = self._get_distro("photon", renderers=["networkd"])
+@pytest.fixture
+def distro_photon(mocker):
+    mocker.patch("cloudinit.net.networkd.util.chownbyname")
+    return get_distro("photon", renderers=["networkd"])
 
+
+@pytest.mark.usefixtures("fake_filesystem")
+class TestNetCfgDistroPhoton:
     def create_conf_dict(self, contents):
         content_dict = {}
         for line in contents:
@@ -1106,25 +1185,26 @@ class TestNetCfgDistroPhoton(TestNetCfgDistroBase):
 
     def compare_dicts(self, actual, expected):
         for k, v in actual.items():
-            self.assertEqual(sorted(expected[k]), sorted(v))
+            assert sorted(expected[k]) == sorted(v)
 
     def _apply_and_verify(
-        self, apply_fn, config, expected_cfgs=None, bringup=False
+        self, apply_fn, config, tmp_path, expected_cfgs=None, bringup=False
     ):
         if not expected_cfgs:
             raise ValueError("expected_cfg must not be None")
 
-        tmpd = None
         with mock.patch("cloudinit.net.networkd.available") as m_avail:
             m_avail.return_value = True
-            with self.reRooted(tmpd) as tmpd:
-                apply_fn(config, bringup)
+            apply_fn(config, bringup)
 
-        results = dir2dict(tmpd)
+        results = dir2dict(
+            str(tmp_path),
+            filter=lambda fn: fn.startswith(str(tmp_path / "etc")),
+        )
         for cfgpath, expected in expected_cfgs.items():
             actual = self.create_conf_dict(results[cfgpath].splitlines())
             self.compare_dicts(actual, expected)
-            self.assertEqual(0o644, get_mode(cfgpath, tmpd))
+            assert 0o644 == get_mode(cfgpath, str(tmp_path))
 
     def nwk_file_path(self, ifname):
         return "/etc/systemd/network/10-cloud-init-%s.network" % ifname
@@ -1155,7 +1235,7 @@ class TestNetCfgDistroPhoton(TestNetCfgDistroBase):
         )
         return ret
 
-    def test_photon_network_config_v1(self):
+    def test_photon_network_config_v1(self, distro_photon, tmp_path):
         tmp = self.net_cfg_1("eth0").splitlines()
         expected_eth0 = self.create_conf_dict(tmp)
 
@@ -1168,10 +1248,13 @@ class TestNetCfgDistroPhoton(TestNetCfgDistroBase):
         }
 
         self._apply_and_verify(
-            self.distro.apply_network_config, V1_NET_CFG, expected_cfgs.copy()
+            distro_photon.apply_network_config,
+            V1_NET_CFG,
+            tmp_path,
+            expected_cfgs.copy(),
         )
 
-    def test_photon_network_config_v2(self):
+    def test_photon_network_config_v2(self, distro_photon, tmp_path):
         tmp = self.net_cfg_1("eth7").splitlines()
         expected_eth7 = self.create_conf_dict(tmp)
 
@@ -1184,10 +1267,15 @@ class TestNetCfgDistroPhoton(TestNetCfgDistroBase):
         }
 
         self._apply_and_verify(
-            self.distro.apply_network_config, V2_NET_CFG, expected_cfgs.copy()
+            distro_photon.apply_network_config,
+            V2_NET_CFG,
+            tmp_path,
+            expected_cfgs.copy(),
         )
 
-    def test_photon_network_config_v1_with_duplicates(self):
+    def test_photon_network_config_v1_with_duplicates(
+        self, distro_photon, tmp_path
+    ):
         expected = """\
         [Match]
         Name=eth0
@@ -1206,15 +1294,21 @@ class TestNetCfgDistroPhoton(TestNetCfgDistroBase):
         }
 
         self._apply_and_verify(
-            self.distro.apply_network_config, net_cfg, expected_cfgs.copy()
+            distro_photon.apply_network_config,
+            net_cfg,
+            tmp_path,
+            expected_cfgs.copy(),
         )
 
 
-class TestNetCfgDistroMariner(TestNetCfgDistroBase):
-    def setUp(self):
-        super(TestNetCfgDistroMariner, self).setUp()
-        self.distro = self._get_distro("mariner", renderers=["networkd"])
+@pytest.fixture
+def distro_mariner(mocker):
+    mocker.patch("cloudinit.net.networkd.util.chownbyname")
+    return get_distro("mariner", renderers=["networkd"])
 
+
+@pytest.mark.usefixtures("fake_filesystem")
+class TestNetCfgDistroMariner:
     def create_conf_dict(self, contents):
         content_dict = {}
         for line in contents:
@@ -1231,25 +1325,26 @@ class TestNetCfgDistroMariner(TestNetCfgDistroBase):
 
     def compare_dicts(self, actual, expected):
         for k, v in actual.items():
-            self.assertEqual(sorted(expected[k]), sorted(v))
+            assert sorted(expected[k]) == sorted(v)
 
     def _apply_and_verify(
-        self, apply_fn, config, expected_cfgs=None, bringup=False
+        self, apply_fn, config, tmp_path, expected_cfgs=None, bringup=False
     ):
         if not expected_cfgs:
             raise ValueError("expected_cfg must not be None")
 
-        tmpd = None
         with mock.patch("cloudinit.net.networkd.available") as m_avail:
             m_avail.return_value = True
-            with self.reRooted(tmpd) as tmpd:
-                apply_fn(config, bringup)
+            apply_fn(config, bringup)
 
-        results = dir2dict(tmpd)
+        results = dir2dict(
+            str(tmp_path),
+            filter=lambda fn: fn.startswith(str(tmp_path / "etc")),
+        )
         for cfgpath, expected in expected_cfgs.items():
             actual = self.create_conf_dict(results[cfgpath].splitlines())
             self.compare_dicts(actual, expected)
-            self.assertEqual(0o644, get_mode(cfgpath, tmpd))
+            assert 0o644 == get_mode(cfgpath, str(tmp_path))
 
     def nwk_file_path(self, ifname):
         return "/etc/systemd/network/10-cloud-init-%s.network" % ifname
@@ -1280,7 +1375,7 @@ class TestNetCfgDistroMariner(TestNetCfgDistroBase):
         )
         return ret
 
-    def test_mariner_network_config_v1(self):
+    def test_mariner_network_config_v1(self, distro_mariner, tmp_path):
         tmp = self.net_cfg_1("eth0").splitlines()
         expected_eth0 = self.create_conf_dict(tmp)
 
@@ -1293,10 +1388,13 @@ class TestNetCfgDistroMariner(TestNetCfgDistroBase):
         }
 
         self._apply_and_verify(
-            self.distro.apply_network_config, V1_NET_CFG, expected_cfgs.copy()
+            distro_mariner.apply_network_config,
+            V1_NET_CFG,
+            tmp_path,
+            expected_cfgs.copy(),
         )
 
-    def test_mariner_network_config_v2(self):
+    def test_mariner_network_config_v2(self, distro_mariner, tmp_path):
         tmp = self.net_cfg_1("eth7").splitlines()
         expected_eth7 = self.create_conf_dict(tmp)
 
@@ -1309,10 +1407,15 @@ class TestNetCfgDistroMariner(TestNetCfgDistroBase):
         }
 
         self._apply_and_verify(
-            self.distro.apply_network_config, V2_NET_CFG, expected_cfgs.copy()
+            distro_mariner.apply_network_config,
+            V2_NET_CFG,
+            tmp_path,
+            expected_cfgs.copy(),
         )
 
-    def test_mariner_network_config_v1_with_duplicates(self):
+    def test_mariner_network_config_v1_with_duplicates(
+        self, distro_mariner, tmp_path
+    ):
         expected = """\
         [Match]
         Name=eth0
@@ -1331,15 +1434,21 @@ class TestNetCfgDistroMariner(TestNetCfgDistroBase):
         }
 
         self._apply_and_verify(
-            self.distro.apply_network_config, net_cfg, expected_cfgs.copy()
+            distro_mariner.apply_network_config,
+            net_cfg,
+            tmp_path,
+            expected_cfgs.copy(),
         )
 
 
-class TestNetCfgDistroAzureLinux(TestNetCfgDistroBase):
-    def setUp(self):
-        super().setUp()
-        self.distro = self._get_distro("azurelinux", renderers=["networkd"])
+@pytest.fixture
+def distro_azurelinux(mocker):
+    mocker.patch("cloudinit.net.networkd.util.chownbyname")
+    return get_distro("azurelinux", renderers=["networkd"])
 
+
+@pytest.mark.usefixtures("fake_filesystem")
+class TestNetCfgDistroAzureLinux:
     def create_conf_dict(self, contents):
         content_dict = {}
         for line in contents:
@@ -1356,25 +1465,26 @@ class TestNetCfgDistroAzureLinux(TestNetCfgDistroBase):
 
     def compare_dicts(self, actual, expected):
         for k, v in actual.items():
-            self.assertEqual(sorted(expected[k]), sorted(v))
+            assert sorted(expected[k]) == sorted(v)
 
     def _apply_and_verify(
-        self, apply_fn, config, expected_cfgs=None, bringup=False
+        self, apply_fn, config, tmp_path, expected_cfgs=None, bringup=False
     ):
         if not expected_cfgs:
             raise ValueError("expected_cfg must not be None")
 
-        tmpd = None
         with mock.patch("cloudinit.net.networkd.available") as m_avail:
             m_avail.return_value = True
-            with self.reRooted(tmpd) as tmpd:
-                apply_fn(config, bringup)
+            apply_fn(config, bringup)
 
-        results = dir2dict(tmpd)
+        results = dir2dict(
+            str(tmp_path),
+            filter=lambda fn: fn.startswith(str(tmp_path / "etc")),
+        )
         for cfgpath, expected in expected_cfgs.items():
             actual = self.create_conf_dict(results[cfgpath].splitlines())
             self.compare_dicts(actual, expected)
-            self.assertEqual(0o644, get_mode(cfgpath, tmpd))
+            assert 0o644 == get_mode(cfgpath, str(tmp_path))
 
     def nwk_file_path(self, ifname):
         return "/etc/systemd/network/10-cloud-init-%s.network" % ifname
@@ -1405,7 +1515,7 @@ class TestNetCfgDistroAzureLinux(TestNetCfgDistroBase):
         )
         return ret
 
-    def test_azurelinux_network_config_v1(self):
+    def test_azurelinux_network_config_v1(self, distro_azurelinux, tmp_path):
         tmp = self.net_cfg_1("eth0").splitlines()
         expected_eth0 = self.create_conf_dict(tmp)
 
@@ -1418,10 +1528,13 @@ class TestNetCfgDistroAzureLinux(TestNetCfgDistroBase):
         }
 
         self._apply_and_verify(
-            self.distro.apply_network_config, V1_NET_CFG, expected_cfgs.copy()
+            distro_azurelinux.apply_network_config,
+            V1_NET_CFG,
+            tmp_path,
+            expected_cfgs.copy(),
         )
 
-    def test_azurelinux_network_config_v2(self):
+    def test_azurelinux_network_config_v2(self, distro_azurelinux, tmp_path):
         tmp = self.net_cfg_1("eth7").splitlines()
         expected_eth7 = self.create_conf_dict(tmp)
 
@@ -1434,10 +1547,15 @@ class TestNetCfgDistroAzureLinux(TestNetCfgDistroBase):
         }
 
         self._apply_and_verify(
-            self.distro.apply_network_config, V2_NET_CFG, expected_cfgs.copy()
+            distro_azurelinux.apply_network_config,
+            V2_NET_CFG,
+            tmp_path,
+            expected_cfgs.copy(),
         )
 
-    def test_azurelinux_network_config_v1_with_duplicates(self):
+    def test_azurelinux_network_config_v1_with_duplicates(
+        self, distro_azurelinux, tmp_path
+    ):
         expected = """\
         [Match]
         Name=eth0
@@ -1456,7 +1574,10 @@ class TestNetCfgDistroAzureLinux(TestNetCfgDistroBase):
         }
 
         self._apply_and_verify(
-            self.distro.apply_network_config, net_cfg, expected_cfgs.copy()
+            distro_azurelinux.apply_network_config,
+            net_cfg,
+            tmp_path,
+            expected_cfgs.copy(),
         )
 
 
