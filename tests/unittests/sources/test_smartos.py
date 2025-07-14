@@ -399,7 +399,7 @@ class PsuedoJoyentClient:
         return True
 
     def open_transport(self):
-        assert not self._is_open
+        assert self._is_open is False
         self._is_open = True
 
     def close_transport(self):
@@ -623,7 +623,7 @@ class TestSmartOSDataSource:
         dsrc = ds()
         ret = dsrc.get_data()
         assert ret is True
-        assert not dsrc.metadata.get("legacy-user-data")
+        assert dsrc.metadata.get("legacy-user-data") is None
 
         found_new = False
         for root, _dirs, files in os.walk(legacy_user_d):
@@ -635,7 +635,7 @@ class TestSmartOSDataSource:
                     print(name_f)
                     assert permissions == "400"
 
-        assert not found_new
+        assert found_new is False
 
     def test_vendor_data_not_default(self, ds, m_jmc_client_factory):
         dsrc = ds()
