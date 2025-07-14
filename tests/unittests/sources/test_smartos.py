@@ -417,7 +417,8 @@ def legacy_user_d(tmp_path):
 @pytest.fixture
 def m_jmc_client_factory(mocker):
     return mocker.patch(
-        DSMOS + ".jmc_client_factory", return_value=PsuedoJoyentClient(None)
+        DSMOS + ".jmc_client_factory",
+        return_value=PsuedoJoyentClient(MOCK_RETURNS),
     )
 
 
@@ -464,45 +465,40 @@ class TestSmartOSDataSource:
         ds_cfg = {"no_base64_decode": ["test_var1"], "all_base": True}
         dsrc = _get_ds(paths, ds_cfg=ds_cfg)
         ret = dsrc.get_data()
-        assert ret
+        assert ret is True
 
     def test_uuid(self, ds, m_jmc_client_factory):
-        m_jmc_client_factory.return_value = PsuedoJoyentClient(MOCK_RETURNS)
         dsrc = ds()
         ret = dsrc.get_data()
-        assert ret
+        assert ret is True
         assert MOCK_RETURNS["sdc:uuid"] == dsrc.metadata["instance-id"]
 
     def test_platform_info(self, ds, m_jmc_client_factory):
         """All platform-related attributes are properly set."""
-        m_jmc_client_factory.return_value = PsuedoJoyentClient(MOCK_RETURNS)
         dsrc = ds()
         assert "joyent" == dsrc.cloud_name
         assert "joyent" == dsrc.platform_type
         assert "serial (/dev/ttyS1)" == dsrc.subplatform
 
     def test_root_keys(self, ds, m_jmc_client_factory):
-        m_jmc_client_factory.return_value = PsuedoJoyentClient(MOCK_RETURNS)
         dsrc = ds()
         ret = dsrc.get_data()
-        assert ret
+        assert ret is True
         assert (
             MOCK_RETURNS["root_authorized_keys"]
             == dsrc.metadata["public-keys"]
         )
 
     def test_hostname_b64(self, ds, m_jmc_client_factory):
-        m_jmc_client_factory.return_value = PsuedoJoyentClient(MOCK_RETURNS)
         dsrc = ds()
         ret = dsrc.get_data()
-        assert ret
+        assert ret is True
         assert MOCK_RETURNS["hostname"] == dsrc.metadata["local-hostname"]
 
     def test_hostname(self, ds, m_jmc_client_factory):
-        m_jmc_client_factory.return_value = PsuedoJoyentClient(MOCK_RETURNS)
         dsrc = ds()
         ret = dsrc.get_data()
-        assert ret
+        assert ret is True
         assert MOCK_RETURNS["hostname"] == dsrc.metadata["local-hostname"]
 
     def test_hostname_if_no_sdc_hostname(self, ds, m_jmc_client_factory):
@@ -511,7 +507,7 @@ class TestSmartOSDataSource:
         m_jmc_client_factory.return_value = PsuedoJoyentClient(my_returns)
         dsrc = ds()
         ret = dsrc.get_data()
-        assert ret
+        assert ret is True
         assert my_returns["hostname"] == dsrc.metadata["local-hostname"]
 
     def test_sdc_hostname_if_no_hostname(self, ds, m_jmc_client_factory):
@@ -521,7 +517,7 @@ class TestSmartOSDataSource:
         m_jmc_client_factory.return_value = PsuedoJoyentClient(my_returns)
         dsrc = ds()
         ret = dsrc.get_data()
-        assert ret
+        assert ret is True
         assert my_returns["sdc:hostname"] == dsrc.metadata["local-hostname"]
 
     def test_sdc_uuid_if_no_hostname_or_sdc_hostname(
@@ -532,32 +528,29 @@ class TestSmartOSDataSource:
         m_jmc_client_factory.return_value = PsuedoJoyentClient(my_returns)
         dsrc = ds()
         ret = dsrc.get_data()
-        assert ret
+        assert ret is True
         assert my_returns["sdc:uuid"] == dsrc.metadata["local-hostname"]
 
     def test_userdata(self, ds, m_jmc_client_factory):
-        m_jmc_client_factory.return_value = PsuedoJoyentClient(MOCK_RETURNS)
         dsrc = ds()
         ret = dsrc.get_data()
-        assert ret
+        assert ret is True
         assert MOCK_RETURNS["user-data"] == dsrc.metadata["legacy-user-data"]
         assert MOCK_RETURNS["cloud-init:user-data"] == dsrc.userdata_raw
 
     def test_sdc_nics(self, ds, m_jmc_client_factory):
-        m_jmc_client_factory.return_value = PsuedoJoyentClient(MOCK_RETURNS)
         dsrc = ds()
         ret = dsrc.get_data()
-        assert ret
+        assert ret is True
         assert (
             json.loads(MOCK_RETURNS["sdc:nics"])
             == dsrc.metadata["network-data"]
         )
 
     def test_sdc_scripts(self, ds, legacy_user_d, m_jmc_client_factory):
-        m_jmc_client_factory.return_value = PsuedoJoyentClient(MOCK_RETURNS)
         dsrc = ds()
         ret = dsrc.get_data()
-        assert ret
+        assert ret is True
         assert MOCK_RETURNS["user-script"] == dsrc.metadata["user-script"]
 
         legacy_script_f = "%s/user-script" % legacy_user_d
@@ -568,10 +561,9 @@ class TestSmartOSDataSource:
         assert user_script_perm == "700"
 
     def test_scripts_shebanged(self, ds, legacy_user_d, m_jmc_client_factory):
-        m_jmc_client_factory.return_value = PsuedoJoyentClient(MOCK_RETURNS)
         dsrc = ds()
         ret = dsrc.get_data()
-        assert ret
+        assert ret is True
         assert MOCK_RETURNS["user-script"] == dsrc.metadata["user-script"]
 
         legacy_script_f = "%s/user-script" % legacy_user_d
@@ -601,7 +593,7 @@ class TestSmartOSDataSource:
         m_jmc_client_factory.return_value = PsuedoJoyentClient(my_returns)
         dsrc = ds()
         ret = dsrc.get_data()
-        assert ret
+        assert ret is True
         assert my_returns["user-script"] == dsrc.metadata["user-script"]
 
         legacy_script_f = "%s/user-script" % legacy_user_d
@@ -630,7 +622,7 @@ class TestSmartOSDataSource:
         m_jmc_client_factory.return_value = PsuedoJoyentClient(my_returns)
         dsrc = ds()
         ret = dsrc.get_data()
-        assert ret
+        assert ret is True
         assert not dsrc.metadata.get("legacy-user-data")
 
         found_new = False
@@ -646,10 +638,9 @@ class TestSmartOSDataSource:
         assert not found_new
 
     def test_vendor_data_not_default(self, ds, m_jmc_client_factory):
-        m_jmc_client_factory.return_value = PsuedoJoyentClient(MOCK_RETURNS)
         dsrc = ds()
         ret = dsrc.get_data()
-        assert ret
+        assert ret is True
         assert MOCK_RETURNS["sdc:vendor-data"] == dsrc.metadata["vendor-data"]
 
     def test_default_vendor_data(self, ds, m_jmc_client_factory):
@@ -659,27 +650,25 @@ class TestSmartOSDataSource:
         m_jmc_client_factory.return_value = PsuedoJoyentClient(my_returns)
         dsrc = ds()
         ret = dsrc.get_data()
-        assert ret
+        assert ret is True
         assert def_op_script != dsrc.metadata["vendor-data"]
 
         # we expect default vendor-data is a boothook
         assert dsrc.vendordata_raw.startswith("#cloud-boothook")
 
     def test_disable_iptables_flag(self, ds, m_jmc_client_factory):
-        m_jmc_client_factory.return_value = PsuedoJoyentClient(MOCK_RETURNS)
         dsrc = ds()
         ret = dsrc.get_data()
-        assert ret
+        assert ret is True
         assert (
             MOCK_RETURNS["disable_iptables_flag"]
             == dsrc.metadata["iptables_disable"]
         )
 
     def test_motd_sys_info(self, ds, m_jmc_client_factory):
-        m_jmc_client_factory.return_value = PsuedoJoyentClient(MOCK_RETURNS)
         dsrc = ds()
         ret = dsrc.get_data()
-        assert ret
+        assert ret is True
         assert (
             MOCK_RETURNS["enable_motd_sys_info"]
             == dsrc.metadata["motd_sys_info"]
@@ -691,7 +680,7 @@ class TestSmartOSDataSource:
         dsrc = ds()
         cfg = dsrc.get_config_obj()
         ret = dsrc.get_data()
-        assert ret
+        assert ret is True
 
         assert "disk_setup" in cfg
         assert "fs_setup" in cfg
@@ -710,7 +699,7 @@ class TestSmartOSDataSource:
 
         dsrc = _get_ds(paths, ds_cfg=mydscfg)
         ret = dsrc.get_data()
-        assert ret
+        assert ret is True
 
         assert (
             mydscfg["disk_aliases"]["FOO"]
@@ -723,7 +712,6 @@ class TestSmartOSDataSource:
 
     def test_reconfig_network_on_boot(self, ds, m_jmc_client_factory):
         # Test to ensure that network is configured from metadata on each boot
-        m_jmc_client_factory.return_value = PsuedoJoyentClient(MOCK_RETURNS)
         assert {
             EventType.BOOT_NEW_INSTANCE,
             EventType.BOOT,
