@@ -15,8 +15,7 @@ import pytest
 
 from cloudinit import util
 from cloudinit.sources import DataSourceWSL as wsl
-from tests.unittests.distros import _get_distro
-from tests.unittests.helpers import does_not_raise, mock
+from tests.unittests.helpers import does_not_raise, get_distro, mock
 
 INSTANCE_NAME = "Noble-MLKit"
 GOOD_MOUNTS = {
@@ -403,7 +402,7 @@ class TestWSLDataSource:
 
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
+            distro=get_distro("ubuntu"),
             paths=paths,
         )
         ds.get_data()
@@ -426,7 +425,7 @@ class TestWSLDataSource:
 
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
+            distro=get_distro("ubuntu"),
             paths=paths,
         )
         ds.get_data()
@@ -442,7 +441,7 @@ class TestWSLDataSource:
 
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
+            distro=get_distro("ubuntu"),
             paths=paths,
         )
 
@@ -465,7 +464,7 @@ class TestWSLDataSource:
         data_path.write(f"#!/bin/sh\n{COMMAND}\n")
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
+            distro=get_distro("ubuntu"),
             paths=paths,
         )
 
@@ -494,7 +493,7 @@ write_files:
 
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
+            distro=get_distro("ubuntu"),
             paths=paths,
         )
 
@@ -530,7 +529,7 @@ write_files:
 
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
+            distro=get_distro("ubuntu"),
             paths=paths,
         )
 
@@ -579,7 +578,7 @@ write_files:
         # Run the datasource
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
+            distro=get_distro("ubuntu"),
             paths=paths,
         )
 
@@ -636,7 +635,7 @@ ubuntu_pro:
         # Run the datasource
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
+            distro=get_distro("ubuntu"),
             paths=paths,
         )
 
@@ -679,7 +678,7 @@ package_update: true"""
         # Run the datasource
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
+            distro=get_distro("ubuntu"),
             paths=paths,
         )
 
@@ -735,7 +734,7 @@ package_update: true"""
         # Run the datasource
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
+            distro=get_distro("ubuntu"),
             paths=paths,
         )
 
@@ -793,7 +792,7 @@ ubuntu_pro:
         # Run the datasource
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
+            distro=get_distro("ubuntu"),
             paths=paths,
         )
 
@@ -842,7 +841,7 @@ ubuntu_pro:
         # Run the datasource
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
+            distro=get_distro("ubuntu"),
             paths=paths,
         )
 
@@ -901,7 +900,7 @@ package_update: true"""
         # Run the datasource
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
+            distro=get_distro("ubuntu"),
             paths=paths,
         )
 
@@ -950,7 +949,7 @@ package_update: true"""
         # Run the datasource
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
+            distro=get_distro("ubuntu"),
             paths=paths,
         )
 
@@ -998,7 +997,7 @@ package_update: true"""
         # Run the datasource
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
+            distro=get_distro("ubuntu"),
             paths=paths,
         )
 

@@ -2,7 +2,7 @@
 
 from tests.unittests.helpers import CiTestCase
 
-from . import _get_distro
+from ..helpers import get_distro
 
 SYSTEM_INFO = {
     "paths": {
@@ -15,7 +15,7 @@ SYSTEM_INFO = {
 
 class TestAzurelinux(CiTestCase):
     with_logs = True
-    distro = _get_distro("azurelinux", SYSTEM_INFO)
+    distro = get_distro("azurelinux", SYSTEM_INFO)
     expected_log_line = "Rely on Azure Linux default network config"
 
     def test_network_renderer(self):

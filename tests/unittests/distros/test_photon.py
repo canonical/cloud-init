@@ -1,8 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit import util
-from tests.unittests.distros import _get_distro
-from tests.unittests.helpers import CiTestCase, mock
+from tests.unittests.helpers import CiTestCase, get_distro, mock
 
 SYSTEM_INFO = {
     "paths": {
@@ -15,7 +14,7 @@ SYSTEM_INFO = {
 
 class TestPhoton(CiTestCase):
     with_logs = True
-    distro = _get_distro("photon", SYSTEM_INFO)
+    distro = get_distro("photon", SYSTEM_INFO)
     expected_log_line = "Rely on PhotonOS default network config"
 
     def test_network_renderer(self):
