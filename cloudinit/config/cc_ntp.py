@@ -356,7 +356,7 @@ def select_ntp_client(ntp_client, distro):
         for client in distro.preferred_ntp_clients:
             cfg = distro_cfg.get(client)
             try:
-                if subp.which(cfg.get('check_exe')):
+                if subp.which(cfg.get("check_exe")):
                     LOG.debug(
                         'Selected NTP client "%s", already installed',
                         client,
@@ -365,7 +365,7 @@ def select_ntp_client(ntp_client, distro):
                     break
             # backwards compatibility for older versions of csm
             except AttributeError:
-                if util.which(cfg.get('check_exe')):
+                if util.which(cfg.get("check_exe")):
                     LOG.debug(
                         'Selected NTP client "%s", already installed',
                         client,
@@ -442,7 +442,7 @@ def generate_server_names(distro):
         # so use general x.pool.ntp.org instead. The same applies to EuroLinux
         pool_distro = ""
 
-    for x in range(0, NR_POOL_SERVERS):
+    for x in range(NR_POOL_SERVERS):
         names.append(
             ".".join(
                 [n for n in [str(x)] + [pool_distro] + ["pool.ntp.org"] if n]
@@ -561,9 +561,9 @@ def reload_ntp(service, systemd=False):
     @returns: A tuple of stdout, stderr results from executing the action.
     """
     if systemd:
-        cmd = ['systemctl', 'reload-or-restart', service]
+        cmd = ["systemctl", "reload-or-restart", service]
     else:
-        cmd = ['service', service, 'restart']
+        cmd = ["service", service, "restart"]
     try:
         subp.subp(cmd, capture=True)
     # backwards compatibility for older versions of csm
@@ -660,8 +660,8 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     # Set the hostname to the node this is running on.
     # This is needed for logic in the templates
-    ntp_cfg.setdefault('local_hostname', socket.gethostname())
-    local_hostname = ntp_cfg.get('local_hostname')
+    ntp_cfg.setdefault("local_hostname", socket.gethostname())
+    ntp_cfg.get("local_hostname")
 
     # Select which client is going to be used and get the configuration
     ntp_client_config = select_ntp_client(
@@ -673,7 +673,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     )
 
     supplemental_schema_validation(ntp_client_config)
-    rename_ntp_conf(confpath=ntp_client_config.get('confpath'))
+    rename_ntp_conf(confpath=ntp_client_config.get("confpath"))
 
     template_fn = None
     if not ntp_client_config.get("template"):
@@ -698,8 +698,8 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         service_name=ntp_client_config.get("service_name"),
         servers=ntp_cfg.get("servers", []),
         pools=ntp_cfg.get("pools", []),
-        allow=ntp_cfg.get('allow', []),
-        peers=ntp_cfg.get('peers', []),
+        allow=ntp_cfg.get("allow", []),
+        peers=ntp_cfg.get("peers", []),
         path=ntp_client_config.get("confpath"),
         template_fn=template_fn,
         template=ntp_client_config.get("template"),
@@ -734,7 +734,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         )
     # backwards compatibility for older versions of csm
     except AttributeError:
-        reload_ntp(ntp_client_config['service_name'],
+        reload_ntp(ntp_client_config["service_name"],
                    systemd=cloud.distro.uses_systemd())
     except subp.ProcessExecutionError as e:
         LOG.exception("Failed to reload/start ntp service: %s", e)
