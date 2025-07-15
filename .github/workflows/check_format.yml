@@ -22,7 +22,7 @@ jobs:
     runs-on: ${{ matrix.lint-with.os }}
     steps:
       - name: "Checkout #1"
-        uses: actions/checkout@v3.0.0
+        uses: actions/checkout@v4
 
       - name: "Checkout #2 (for tools/read-version)"
         run: |
@@ -56,7 +56,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: "Checkout #1"
-        uses: actions/checkout@v3.0.0
+        uses: actions/checkout@v4
 
       - name: "Test format"
         run: |
@@ -71,7 +71,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: "Checkout #1"
-        uses: actions/checkout@v3.0.0
+        uses: actions/checkout@v4
 
       - name: "Checkout #2 (for tools/read-version)"
         run: |
@@ -97,7 +97,7 @@ jobs:
   check-cla-signers:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3.0.0
+      - uses: actions/checkout@v4
 
       - name: Check CLA signers file
         run: tools/check-cla-signers

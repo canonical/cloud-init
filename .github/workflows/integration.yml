@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: "Checkout"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           # Fetch all tags for tools/read-version
           fetch-depth: 0
@@ -45,7 +45,7 @@ jobs:
           sudo -E su $USER -c 'mk-sbuild ${{ env.RELEASE }}'
           sudo -E su $USER -c 'DEB_BUILD_OPTIONS=nocheck sbuild --nolog --no-run-lintian --no-run-autopkgtest --verbose --dist=${{ env.RELEASE }} --build-dir=${{ runner.temp }} cloud-init_*.dsc'
       - name: Archive debs as artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: 'cloud-init-${{ env.RELEASE }}-deb'
           path: '${{ runner.temp }}/cloud-init*.deb'
@@ -56,12 +56,12 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: "Checkout"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           # Fetch all tags for tools/read-version
           fetch-depth: 0
       - name: Retrieve cloud-init package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: 'cloud-init-${{ env.RELEASE }}-deb'
       - name: Verify deb package
