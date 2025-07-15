@@ -3374,7 +3374,7 @@
                     "type": {
                       "type": "string",
                       "enum": [
-                        "log"
+                        "LOG"
                       ]
                     },
                     "level": {
