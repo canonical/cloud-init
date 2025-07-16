@@ -138,12 +138,13 @@ class AnsiblePullPip(AnsiblePull):
         try:
             self.do_as([*cmd, "--upgrade", "pip"])
         except subp.ProcessExecutionError as e:
-            base_message = (
-                "Failed at upgrading pip. This is usually not critical"
-                " so the script will skip this step."
+            LOG.warning(
+                (
+                    "Failed at upgrading pip. This is usually not critical"
+                    "so the script will skip this step.\n%s"
+                ),
+                e,
             )
-            LOG.warning(base_message)
-            LOG.debug("%s\n%s", base_message, e)
         else:
             LOG.info("Upgraded pip")
 
