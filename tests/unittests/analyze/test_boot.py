@@ -9,22 +9,24 @@ from cloudinit.analyze.show import (
     SystemctlReader,
     dist_check_timestamp,
 )
-from tests.unittests.helpers import CiTestCase, mock
+from tests.unittests.helpers import mock
 
 err_code = (FAIL_CODE, -1, -1, -1)
 
 
-class TestDistroChecker(CiTestCase):
-    def test_blank_distro(self):
-        self.assertEqual(err_code, dist_check_timestamp())
+class TestDistroChecker:
+    @mock.patch("cloudinit.subp.subp")
+    def test_blank_distro(self, m_subp):
+        assert err_code == dist_check_timestamp()
 
+    @mock.patch("cloudinit.subp.subp")
     @mock.patch("cloudinit.util.is_FreeBSD", return_value=True)
-    def test_freebsd_gentoo_cant_find(self, m_is_FreeBSD):
-        self.assertEqual(err_code, dist_check_timestamp())
+    def test_freebsd_gentoo_cant_find(self, m_is_FreeBSD, m_subp):
+        err_code == dist_check_timestamp()
 
     @mock.patch("cloudinit.subp.subp", return_value=(0, 1))
     def test_subp_fails(self, m_subp):
-        self.assertEqual(err_code, dist_check_timestamp())
+        assert err_code == dist_check_timestamp()
 
 
 class TestSystemCtlReader:
