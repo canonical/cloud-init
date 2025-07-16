@@ -95,6 +95,8 @@ def fake_filesystem_hook():
     Fixtures needing to access the real filesystem in tests that use
     fake_filesystem, can depend on this fixture to ensure they run before
     fake_filesystem.
+
+    See in action in tests/unittests/runs/test_simple_run.py.
     """
 
 

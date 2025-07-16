@@ -392,6 +392,19 @@ class FilesystemMockingTestCase(CiTestCase):
             self.patched_funcs.close()
 
 
+def replicate_test_root(example_root, target_root):
+    real_root = resourceLocation()
+    real_root = os.path.join(real_root, "roots", example_root)
+    for dir_path, _dirnames, filenames in os.walk(real_root):
+        real_path = dir_path
+        make_path = rebase_path(real_path[len(real_root) :], target_root)
+        util.ensure_dir(make_path)
+        for f in filenames:
+            real_path = os.path.abspath(os.path.join(real_path, f))
+            make_path = os.path.abspath(os.path.join(make_path, f))
+            shutil.copy(real_path, make_path)
+
+
 def responses_assert_call_count(url: str, count: int) -> bool:
     """Focal and older have a version of responses which does
     not carry this attribute. This can be removed when focal
