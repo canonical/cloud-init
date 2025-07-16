@@ -671,3 +671,13 @@ def get_distro(dname, system_info=None, /, renderers=None, activators=None):
     paths = helpers.Paths(system_info["paths"])
     distro_cls = distros.fetch(dname)
     return distro_cls(dname, system_info, paths)
+
+
+def assert_count_equal(a, b):
+    """
+    Equivalent to unittests.TestCase.assertCountEqual.
+
+    https://docs.python.org/3/library/unittest.html#unittest.TestCase.assertCountEqual
+    """
+    case = unittest.TestCase()
+    case.assertCountEqual(a, b)
