@@ -54,6 +54,7 @@ FS_FUNCS = {
         ("listdir", 1),
         ("mkdir", 1),
         ("rmdir", 1),
+        ("rename", 2),
         ("lstat", 1),
         ("symlink", 2),
         ("stat", 1),

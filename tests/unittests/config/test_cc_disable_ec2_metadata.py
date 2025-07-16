@@ -11,12 +11,12 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
+from tests.unittests.helpers import mock, skipUnlessJsonSchema
 
 DISABLE_CFG = {"disable_ec2_metadata": "true"}
 
 
-class TestEC2MetadataRoute(CiTestCase):
+class TestEC2MetadataRoute:
     @mock.patch("cloudinit.config.cc_disable_ec2_metadata.subp.which")
     @mock.patch("cloudinit.config.cc_disable_ec2_metadata.subp.subp")
     def test_disable_ifconfig(self, m_subp, m_which):
@@ -45,9 +45,10 @@ class TestEC2MetadataRoute(CiTestCase):
         """Log error when neither route nor ip commands are available"""
         m_which.return_value = None  # Find neither ifconfig nor ip
         ec2_meta.handle("foo", DISABLE_CFG, None, None)
-        self.assertEqual(
-            [mock.call("ip"), mock.call("ifconfig")], m_which.call_args_list
-        )
+        assert [
+            mock.call("ip"),
+            mock.call("ifconfig"),
+        ] == m_which.call_args_list
         m_subp.assert_not_called()
 
 
