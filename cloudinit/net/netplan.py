@@ -481,6 +481,8 @@ class Renderer(renderer.Renderer):
                     "set-name": ifname,
                     "match": ifcfg.get("match", None),
                 }
+                if "keep_configuration" in ifcfg:
+                    eth["critical"] = ifcfg["keep_configuration"]
                 if eth["match"] is None:
                     macaddr = ifcfg.get("mac_address", None)
                     if macaddr is not None:
