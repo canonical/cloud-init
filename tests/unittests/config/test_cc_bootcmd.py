@@ -41,11 +41,6 @@ class TestBootcmd:
         "cloudinit.config.cc_bootcmd.temp_utils.ExtendedTemporaryFile"
     )
 
-    def setUp(self):
-        super(TestBootcmd, self).setUp()
-        self.subp = subp.subp
-        self.new_root = self.tmp_dir()
-
     def test_handler_skip_if_no_bootcmd(self, caplog):
         """When the provided config doesn't contain bootcmd, skip it."""
         cfg = {}
