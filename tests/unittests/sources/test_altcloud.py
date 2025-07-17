@@ -12,11 +12,12 @@ This test file exercises the code in sources DataSourceAltCloud.py
 
 import os
 import shutil
-import tempfile
+
+import pytest
 
 import cloudinit.sources.DataSourceAltCloud as dsac
-from cloudinit import dmi, helpers, subp, util
-from tests.unittests.helpers import CiTestCase, mock
+from cloudinit import dmi, subp, util
+from tests.unittests.helpers import mock
 
 OS_UNAME_ORIG = getattr(os, "uname")
 
@@ -73,381 +74,317 @@ def _dmi_data(expected):
     return _data
 
 
-class TestGetCloudType(CiTestCase):
+@pytest.fixture
+def force_x86_64():
+    # We have a different code path for arm to deal with LP1243287
+    # We have to switch arch to x86_64 to avoid test failure
+    force_arch("x86_64")
+    yield
+    # Return back to original arch
+    force_arch()
+
+
+@pytest.mark.usefixtures("fake_filesystem", "force_x86_64")
+class TestGetCloudType:
     """Test to exercise method: DataSourceAltCloud.get_cloud_type()"""
 
-    with_logs = True
-
-    def setUp(self):
-        """Set up."""
-        super(TestGetCloudType, self).setUp()
-        self.tmp = self.tmp_dir()
-        self.paths = helpers.Paths({"cloud_dir": self.tmp})
-        self.dmi_data = dmi.read_dmi_data
-        # We have a different code path for arm to deal with LP1243287
-        # We have to switch arch to x86_64 to avoid test failure
-        force_arch("x86_64")
-
-    def tearDown(self):
-        # Reset
-        dmi.read_dmi_data = self.dmi_data
-        force_arch()
-        super().tearDown()
-
-    def test_cloud_info_file_ioerror(self):
+    def test_cloud_info_file_ioerror(self, caplog, paths, tmp_path):
         """Return UNKNOWN when /etc/sysconfig/cloud-info exists but errors."""
-        self.assertEqual("/etc/sysconfig/cloud-info", dsac.CLOUD_INFO_FILE)
-        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
+        assert "/etc/sysconfig/cloud-info" == dsac.CLOUD_INFO_FILE
+        dsrc = dsac.DataSourceAltCloud({}, None, paths)
         # Attempting to read the directory generates IOError
-        with mock.patch.object(dsac, "CLOUD_INFO_FILE", self.tmp):
-            self.assertEqual("UNKNOWN", dsrc.get_cloud_type())
-        self.assertIn(
-            "[Errno 21] Is a directory: '%s'" % self.tmp, self.logs.getvalue()
-        )
+        with mock.patch.object(dsac, "CLOUD_INFO_FILE", str(tmp_path)):
+            assert "UNKNOWN" == dsrc.get_cloud_type()
+        assert "[Errno 21] Is a directory: '%s'" % tmp_path in caplog.text
 
-    def test_cloud_info_file(self):
+    def test_cloud_info_file(self, paths):
         """Return uppercase stripped content from /etc/sysconfig/cloud-info."""
-        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
-        cloud_info = self.tmp_path("cloud-info", dir=self.tmp)
+        dsrc = dsac.DataSourceAltCloud({}, None, paths)
+        cloud_info = "cloud-info"
         util.write_file(cloud_info, " OverRiDdeN CloudType ")
         # Attempting to read the directory generates IOError
         with mock.patch.object(dsac, "CLOUD_INFO_FILE", cloud_info):
-            self.assertEqual("OVERRIDDEN CLOUDTYPE", dsrc.get_cloud_type())
+            assert "OVERRIDDEN CLOUDTYPE" == dsrc.get_cloud_type()
 
-    def test_rhev(self):
+    def test_rhev(self, paths):
         """
         Test method get_cloud_type() for RHEVm systems.
         Forcing read_dmi_data return to match a RHEVm system: RHEV Hypervisor
         """
         dmi.read_dmi_data = _dmi_data("RHEV")
-        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
-        self.assertEqual("RHEV", dsrc.get_cloud_type())
+        dsrc = dsac.DataSourceAltCloud({}, None, paths)
+        assert "RHEV" == dsrc.get_cloud_type()
 
-    def test_vsphere(self):
+    def test_vsphere(self, paths):
         """
         Test method get_cloud_type() for vSphere systems.
         Forcing read_dmi_data return to match a vSphere system: RHEV Hypervisor
         """
         dmi.read_dmi_data = _dmi_data("VMware Virtual Platform")
-        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
-        self.assertEqual("VSPHERE", dsrc.get_cloud_type())
+        dsrc = dsac.DataSourceAltCloud({}, None, paths)
+        assert "VSPHERE" == dsrc.get_cloud_type()
 
-    def test_unknown(self):
+    def test_unknown(self, paths):
         """
         Test method get_cloud_type() for unknown systems.
         Forcing read_dmi_data return to match an unrecognized return.
         """
         dmi.read_dmi_data = _dmi_data("Unrecognized Platform")
-        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
-        self.assertEqual("UNKNOWN", dsrc.get_cloud_type())
+        dsrc = dsac.DataSourceAltCloud({}, None, paths)
+        assert "UNKNOWN" == dsrc.get_cloud_type()
 
 
-class TestGetDataCloudInfoFile(CiTestCase):
+@pytest.mark.usefixtures("fake_filesystem")
+class TestGetDataCloudInfoFile:
     """
     Test to exercise method: DataSourceAltCloud.get_data()
     With a contrived CLOUD_INFO_FILE
     """
 
-    def setUp(self):
-        """Set up."""
-        self.tmp = self.tmp_dir()
-        self.paths = helpers.Paths(
-            {"cloud_dir": self.tmp, "run_dir": self.tmp}
-        )
-        self.cloud_info_file = self.tmp_path("cloud-info", dir=self.tmp)
+    CLOUD_INFO_FILE = "cloud-info"
 
-    def test_rhev(self):
+    def test_rhev(self, paths):
         """Success Test module get_data() forcing RHEV."""
 
-        util.write_file(self.cloud_info_file, "RHEV")
-        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
+        util.write_file(self.CLOUD_INFO_FILE, "RHEV")
+        dsrc = dsac.DataSourceAltCloud({}, None, paths)
         dsrc.user_data_rhevm = lambda: True
-        with mock.patch.object(dsac, "CLOUD_INFO_FILE", self.cloud_info_file):
-            self.assertEqual(True, dsrc.get_data())
-        self.assertEqual("altcloud", dsrc.cloud_name)
-        self.assertEqual("altcloud", dsrc.platform_type)
-        self.assertEqual("rhev (/dev/fd0)", dsrc.subplatform)
+        with mock.patch.object(dsac, "CLOUD_INFO_FILE", self.CLOUD_INFO_FILE):
+            assert True is dsrc.get_data()
+        assert "altcloud" == dsrc.cloud_name
+        assert "altcloud" == dsrc.platform_type
+        assert "rhev (/dev/fd0)" == dsrc.subplatform
 
-    def test_vsphere(self):
+    def test_vsphere(self, paths):
         """Success Test module get_data() forcing VSPHERE."""
 
-        util.write_file(self.cloud_info_file, "VSPHERE")
-        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
+        util.write_file(self.CLOUD_INFO_FILE, "VSPHERE")
+        dsrc = dsac.DataSourceAltCloud({}, None, paths)
         dsrc.user_data_vsphere = lambda: True
-        with mock.patch.object(dsac, "CLOUD_INFO_FILE", self.cloud_info_file):
-            self.assertEqual(True, dsrc.get_data())
-        self.assertEqual("altcloud", dsrc.cloud_name)
-        self.assertEqual("altcloud", dsrc.platform_type)
-        self.assertEqual("vsphere (unknown)", dsrc.subplatform)
+        with mock.patch.object(dsac, "CLOUD_INFO_FILE", self.CLOUD_INFO_FILE):
+            assert True is dsrc.get_data()
+        assert "altcloud" == dsrc.cloud_name
+        assert "altcloud" == dsrc.platform_type
+        assert "vsphere (unknown)" == dsrc.subplatform
 
-    def test_fail_rhev(self):
+    def test_fail_rhev(self, paths):
         """Failure Test module get_data() forcing RHEV."""
 
-        util.write_file(self.cloud_info_file, "RHEV")
-        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
+        util.write_file(self.CLOUD_INFO_FILE, "RHEV")
+        dsrc = dsac.DataSourceAltCloud({}, None, paths)
         dsrc.user_data_rhevm = lambda: False
-        with mock.patch.object(dsac, "CLOUD_INFO_FILE", self.cloud_info_file):
-            self.assertEqual(False, dsrc.get_data())
+        with mock.patch.object(dsac, "CLOUD_INFO_FILE", self.CLOUD_INFO_FILE):
+            assert False is dsrc.get_data()
 
-    def test_fail_vsphere(self):
+    def test_fail_vsphere(self, paths):
         """Failure Test module get_data() forcing VSPHERE."""
 
-        util.write_file(self.cloud_info_file, "VSPHERE")
-        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
+        util.write_file(self.CLOUD_INFO_FILE, "VSPHERE")
+        dsrc = dsac.DataSourceAltCloud({}, None, paths)
         dsrc.user_data_vsphere = lambda: False
-        with mock.patch.object(dsac, "CLOUD_INFO_FILE", self.cloud_info_file):
-            self.assertEqual(False, dsrc.get_data())
+        with mock.patch.object(dsac, "CLOUD_INFO_FILE", self.CLOUD_INFO_FILE):
+            assert False is dsrc.get_data()
 
-    def test_unrecognized(self):
+    def test_unrecognized(self, paths):
         """Failure Test module get_data() forcing unrecognized."""
 
-        util.write_file(self.cloud_info_file, "unrecognized")
-        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
-        with mock.patch.object(dsac, "CLOUD_INFO_FILE", self.cloud_info_file):
-            self.assertEqual(False, dsrc.get_data())
+        util.write_file(self.CLOUD_INFO_FILE, "unrecognized")
+        dsrc = dsac.DataSourceAltCloud({}, None, paths)
+        with mock.patch.object(dsac, "CLOUD_INFO_FILE", self.CLOUD_INFO_FILE):
+            assert False is dsrc.get_data()
 
 
-class TestGetDataNoCloudInfoFile(CiTestCase):
+@pytest.fixture
+def fake_dsca_cloud_info():
+    dsac.CLOUD_INFO_FILE = "no such file"
+    yield
+    dsac.CLOUD_INFO_FILE = "/etc/sysconfig/cloud-info"
+
+
+@pytest.mark.usefixtures(
+    "fake_filesystem", "force_x86_64", "fake_dsca_cloud_info"
+)
+class TestGetDataNoCloudInfoFile:
     """
     Test to exercise method: DataSourceAltCloud.get_data()
     Without a CLOUD_INFO_FILE
     """
 
-    def setUp(self):
-        """Set up."""
-        self.tmp = self.tmp_dir()
-        self.paths = helpers.Paths(
-            {"cloud_dir": self.tmp, "run_dir": self.tmp}
-        )
-        self.dmi_data = dmi.read_dmi_data
-        dsac.CLOUD_INFO_FILE = "no such file"
-        # We have a different code path for arm to deal with LP1243287
-        # We have to switch arch to x86_64 to avoid test failure
-        force_arch("x86_64")
-
-    def tearDown(self):
-        # Reset
-        dsac.CLOUD_INFO_FILE = "/etc/sysconfig/cloud-info"
-        dmi.read_dmi_data = self.dmi_data
-        # Return back to original arch
-        force_arch()
-        super().tearDown()
-
-    def test_rhev_no_cloud_file(self):
+    def test_rhev_no_cloud_file(self, paths):
         """Test No cloud info file module get_data() forcing RHEV."""
 
         dmi.read_dmi_data = _dmi_data("RHEV Hypervisor")
-        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
+        dsrc = dsac.DataSourceAltCloud({}, None, paths)
         dsrc.user_data_rhevm = lambda: True
-        self.assertEqual(True, dsrc.get_data())
+        assert True is dsrc.get_data()
 
-    def test_vsphere_no_cloud_file(self):
+    def test_vsphere_no_cloud_file(self, paths):
         """Test No cloud info file module get_data() forcing VSPHERE."""
 
         dmi.read_dmi_data = _dmi_data("VMware Virtual Platform")
-        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
+        dsrc = dsac.DataSourceAltCloud({}, None, paths)
         dsrc.user_data_vsphere = lambda: True
-        self.assertEqual(True, dsrc.get_data())
+        assert True is dsrc.get_data()
 
-    def test_failure_no_cloud_file(self):
+    def test_failure_no_cloud_file(self, paths):
         """Test No cloud info file module get_data() forcing unrecognized."""
 
         dmi.read_dmi_data = _dmi_data("Unrecognized Platform")
-        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
-        self.assertEqual(False, dsrc.get_data())
+        dsrc = dsac.DataSourceAltCloud({}, None, paths)
+        assert False is dsrc.get_data()
 
 
-class TestUserDataRhevm(CiTestCase):
+@pytest.fixture
+def user_data(tmp_path):
+    mount_dir = str(tmp_path)
+    _write_user_data_files(mount_dir, "test user data")
+    yield
+    _remove_user_data_files(mount_dir)
+    # Attempt to remove the temp dir ignoring errors
+    try:
+        shutil.rmtree(mount_dir)
+    except OSError:
+        pass
+
+
+@pytest.mark.usefixtures("user_data")
+@mock.patch(
+    "cloudinit.sources.DataSourceAltCloud.modprobe_floppy",
+    return_value=None,
+)
+@mock.patch(
+    "cloudinit.sources.DataSourceAltCloud.util.udevadm_settle",
+    return_value=("", ""),
+)
+@mock.patch("cloudinit.sources.DataSourceAltCloud.util.mount_cb")
+class TestUserDataRhevm:
     """
     Test to exercise method: DataSourceAltCloud.user_data_rhevm()
     """
 
-    def setUp(self):
-        """Set up."""
-        self.paths = helpers.Paths({"cloud_dir": "/tmp"})
-        self.mount_dir = self.tmp_dir()
-        _write_user_data_files(self.mount_dir, "test user data")
-        self.add_patch(
-            "cloudinit.sources.DataSourceAltCloud.modprobe_floppy",
-            "m_modprobe_floppy",
-            return_value=None,
-        )
-        self.add_patch(
-            "cloudinit.sources.DataSourceAltCloud.util.udevadm_settle",
-            "m_udevadm_settle",
-            return_value=("", ""),
-        )
-        self.add_patch(
-            "cloudinit.sources.DataSourceAltCloud.util.mount_cb", "m_mount_cb"
-        )
-
-    def test_mount_cb_fails(self):
+    def test_mount_cb_fails(
+        self, m_mount_cb, m_udevadm_settle, m_modprobe_floppy, paths
+    ):
         """Test user_data_rhevm() where mount_cb fails."""
+        m_mount_cb.side_effect = util.MountFailedError("Failed Mount")
+        dsrc = dsac.DataSourceAltCloud({}, None, paths)
+        assert False is dsrc.user_data_rhevm()
 
-        self.m_mount_cb.side_effect = util.MountFailedError("Failed Mount")
-        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
-        self.assertEqual(False, dsrc.user_data_rhevm())
-
-    def test_modprobe_fails(self):
+    def test_modprobe_fails(
+        self, m_mount_cb, m_udevadm_settle, m_modprobe_floppy, paths
+    ):
         """Test user_data_rhevm() where modprobe fails."""
-
-        self.m_modprobe_floppy.side_effect = subp.ProcessExecutionError(
+        m_modprobe_floppy.side_effect = subp.ProcessExecutionError(
             "Failed modprobe"
         )
-        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
-        self.assertEqual(False, dsrc.user_data_rhevm())
+        dsrc = dsac.DataSourceAltCloud({}, None, paths)
+        assert False is dsrc.user_data_rhevm()
 
-    def test_no_modprobe_cmd(self):
+    def test_no_modprobe_cmd(
+        self, m_mount_cb, m_udevadm_settle, m_modprobe_floppy, paths
+    ):
         """Test user_data_rhevm() with no modprobe command."""
-
-        self.m_modprobe_floppy.side_effect = subp.ProcessExecutionError(
+        m_modprobe_floppy.side_effect = subp.ProcessExecutionError(
             "No such file or dir"
         )
-        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
-        self.assertEqual(False, dsrc.user_data_rhevm())
+        dsrc = dsac.DataSourceAltCloud({}, None, paths)
+        assert False is dsrc.user_data_rhevm()
 
-    def test_udevadm_fails(self):
+    def test_udevadm_fails(
+        self, m_mount_cb, m_udevadm_settle, m_modprobe_floppy, paths
+    ):
         """Test user_data_rhevm() where udevadm fails."""
-
-        self.m_udevadm_settle.side_effect = subp.ProcessExecutionError(
+        m_udevadm_settle.side_effect = subp.ProcessExecutionError(
             "Failed settle."
         )
-        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
-        self.assertEqual(False, dsrc.user_data_rhevm())
+        dsrc = dsac.DataSourceAltCloud({}, None, paths)
+        assert False is dsrc.user_data_rhevm()
 
-    def test_no_udevadm_cmd(self):
+    def test_no_udevadm_cmd(
+        self, m_mount_cb, m_udevadm_settle, m_modprobe_floppy, paths
+    ):
         """Test user_data_rhevm() with no udevadm command."""
+        m_udevadm_settle.side_effect = OSError("No such file or dir")
+        dsrc = dsac.DataSourceAltCloud({}, None, paths)
+        assert False is dsrc.user_data_rhevm()
 
-        self.m_udevadm_settle.side_effect = OSError("No such file or dir")
-        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
-        self.assertEqual(False, dsrc.user_data_rhevm())
 
-
-class TestUserDataVsphere(CiTestCase):
+@pytest.mark.usefixtures("user_data")
+class TestUserDataVsphere:
     """
     Test to exercise method: DataSourceAltCloud.user_data_vsphere()
     """
 
-    def setUp(self):
-        """Set up."""
-        self.tmp = self.tmp_dir()
-        self.paths = helpers.Paths({"cloud_dir": self.tmp})
-        self.mount_dir = tempfile.mkdtemp()
-
-        _write_user_data_files(self.mount_dir, "test user data")
-
-    def tearDown(self):
-        # Reset
-
-        _remove_user_data_files(self.mount_dir)
-
-        # Attempt to remove the temp dir ignoring errors
-        try:
-            shutil.rmtree(self.mount_dir)
-        except OSError:
-            pass
-
-        dsac.CLOUD_INFO_FILE = "/etc/sysconfig/cloud-info"
-        super().tearDown()
-
     @mock.patch("cloudinit.sources.DataSourceAltCloud.util.find_devs_with")
     @mock.patch("cloudinit.sources.DataSourceAltCloud.util.mount_cb")
-    def test_user_data_vsphere_no_cdrom(self, m_mount_cb, m_find_devs_with):
+    def test_user_data_vsphere_no_cdrom(
+        self, m_mount_cb, m_find_devs_with, paths
+    ):
         """Test user_data_vsphere() where mount_cb fails."""
 
         m_mount_cb.return_value = []
-        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
-        self.assertEqual(False, dsrc.user_data_vsphere())
-        self.assertEqual(0, m_mount_cb.call_count)
+        dsrc = dsac.DataSourceAltCloud({}, None, paths)
+        assert False is dsrc.user_data_vsphere()
+        assert 0 == m_mount_cb.call_count
 
     @mock.patch("cloudinit.sources.DataSourceAltCloud.util.find_devs_with")
     @mock.patch("cloudinit.sources.DataSourceAltCloud.util.mount_cb")
-    def test_user_data_vsphere_mcb_fail(self, m_mount_cb, m_find_devs_with):
+    def test_user_data_vsphere_mcb_fail(
+        self, m_mount_cb, m_find_devs_with, paths
+    ):
         """Test user_data_vsphere() where mount_cb fails."""
 
         m_find_devs_with.return_value = ["/dev/mock/cdrom"]
         m_mount_cb.side_effect = util.MountFailedError("Unable To mount")
-        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
-        self.assertEqual(False, dsrc.user_data_vsphere())
-        self.assertEqual(1, m_find_devs_with.call_count)
-        self.assertEqual(1, m_mount_cb.call_count)
+        dsrc = dsac.DataSourceAltCloud({}, None, paths)
+        assert False is dsrc.user_data_vsphere()
+        assert 1 == m_find_devs_with.call_count
+        assert 1 == m_mount_cb.call_count
 
     @mock.patch("cloudinit.sources.DataSourceAltCloud.util.find_devs_with")
     @mock.patch("cloudinit.sources.DataSourceAltCloud.util.mount_cb")
-    def test_user_data_vsphere_success(self, m_mount_cb, m_find_devs_with):
+    def test_user_data_vsphere_success(
+        self, m_mount_cb, m_find_devs_with, tmp_path, paths
+    ):
         """Test user_data_vsphere() where successful."""
         m_find_devs_with.return_value = ["/dev/mock/cdrom"]
         m_mount_cb.return_value = "raw userdata from cdrom"
-        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
-        cloud_info = self.tmp_path("cloud-info", dir=self.tmp)
+        dsrc = dsac.DataSourceAltCloud({}, None, paths)
+        cloud_info = tmp_path / "cloud-info"
         util.write_file(cloud_info, "VSPHERE")
-        self.assertEqual(True, dsrc.user_data_vsphere())
+        assert True is dsrc.user_data_vsphere()
         m_find_devs_with.assert_called_once_with("LABEL=CDROM")
         m_mount_cb.assert_called_once_with(
             "/dev/mock/cdrom", dsac.read_user_data_callback
         )
         with mock.patch.object(dsrc, "get_cloud_type", return_value="VSPHERE"):
-            self.assertEqual("vsphere (/dev/mock/cdrom)", dsrc.subplatform)
+            assert "vsphere (/dev/mock/cdrom)" == dsrc.subplatform
 
 
-class TestReadUserDataCallback(CiTestCase):
+@pytest.mark.usefixtures("user_data")
+class TestReadUserDataCallback:
     """
     Test to exercise method: DataSourceAltCloud.read_user_data_callback()
     """
 
-    def setUp(self):
-        """Set up."""
-        self.paths = helpers.Paths({"cloud_dir": "/tmp"})
-        self.mount_dir = tempfile.mkdtemp()
-
-        _write_user_data_files(self.mount_dir, "test user data")
-
-    def tearDown(self):
-        # Reset
-
-        _remove_user_data_files(self.mount_dir)
-
-        # Attempt to remove the temp dir ignoring errors
-        try:
-            shutil.rmtree(self.mount_dir)
-        except OSError:
-            pass
-        super().tearDown()
-
-    def test_callback_both(self):
+    def test_callback_both(self, tmp_path):
         """Test read_user_data_callback() with both files."""
+        assert "test user data" == dsac.read_user_data_callback(str(tmp_path))
 
-        self.assertEqual(
-            "test user data", dsac.read_user_data_callback(self.mount_dir)
-        )
-
-    def test_callback_dc(self):
+    def test_callback_dc(self, tmp_path):
         """Test read_user_data_callback() with only DC file."""
+        _remove_user_data_files(str(tmp_path), dc_file=False, non_dc_file=True)
+        assert "test user data" == dsac.read_user_data_callback(str(tmp_path))
 
-        _remove_user_data_files(
-            self.mount_dir, dc_file=False, non_dc_file=True
-        )
-
-        self.assertEqual(
-            "test user data", dsac.read_user_data_callback(self.mount_dir)
-        )
-
-    def test_callback_non_dc(self):
+    def test_callback_non_dc(self, tmp_path):
         """Test read_user_data_callback() with only non-DC file."""
+        _remove_user_data_files(str(tmp_path), dc_file=True, non_dc_file=False)
+        assert "test user data" == dsac.read_user_data_callback(str(tmp_path))
 
-        _remove_user_data_files(
-            self.mount_dir, dc_file=True, non_dc_file=False
-        )
-
-        self.assertEqual(
-            "test user data", dsac.read_user_data_callback(self.mount_dir)
-        )
-
-    def test_callback_none(self):
+    def test_callback_none(self, tmp_path):
         """Test read_user_data_callback() no files are found."""
-
-        _remove_user_data_files(self.mount_dir)
-        self.assertIsNone(dsac.read_user_data_callback(self.mount_dir))
+        _remove_user_data_files(str(tmp_path))
+        assert dsac.read_user_data_callback(str(tmp_path)) is None
 
 
 def force_arch(arch=None):
