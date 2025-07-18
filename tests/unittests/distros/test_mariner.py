@@ -1,8 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from tests.unittests.helpers import CiTestCase
-
-from ..helpers import get_distro
+from tests.unittests.helpers import get_distro
 
 SYSTEM_INFO = {
     "paths": {
@@ -13,13 +11,12 @@ SYSTEM_INFO = {
 }
 
 
-class TestMariner(CiTestCase):
-    with_logs = True
+class TestMariner:
     distro = get_distro("mariner", SYSTEM_INFO)
     expected_log_line = "Rely on MarinerOS default network config"
 
     def test_network_renderer(self):
-        self.assertEqual(self.distro._cfg["network"]["renderers"], "networkd")
+        assert self.distro._cfg["network"]["renderers"] == "networkd"
 
     def test_get_distro(self):
-        self.assertEqual(self.distro.osfamily, "mariner")
+        assert self.distro.osfamily == "mariner"

@@ -1,16 +1,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from tests.unittests.helpers import CiTestCase, get_distro, mock
+from tests.unittests.helpers import get_distro, mock
 from tests.unittests.util import MockDistro
 
 
-class TestManageService(CiTestCase):
-
-    with_logs = True
-
-    def setUp(self):
-        super(TestManageService, self).setUp()
-        self.dist = MockDistro()
+class TestManageService:
+    dist = MockDistro()
 
     @mock.patch.object(MockDistro, "uses_systemd", return_value=True)
     @mock.patch("cloudinit.distros.subp.subp")
