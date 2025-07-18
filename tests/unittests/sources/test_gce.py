@@ -543,3 +543,27 @@ class TestDataSourceGCE(test_helpers.CiTestCase):
                 msg,
                 self.logs.getvalue(),
             )
+
+    @responses.activate
+    def test_instance_and_project_data_decoded(self):
+        """instance_data and project_data is decoded and can be queried."""
+        md = {
+            "instance/id": "123",
+            "instance/zone": "foo/bar",
+            "instance/hostname": "server.project-foo.local",
+            "instance/attributes": {"ikey": "ivalue"},
+            "project/attributes": {"pkey": "pvalue"},
+        }
+
+        self._set_mock_metadata(md)
+        assert self.ds.get_data() is True
+
+        assert "instance-data" in self.ds.metadata
+        assert isinstance(self.ds.metadata["instance-data"], dict)
+        assert "ikey" in self.ds.metadata["instance-data"]
+        assert "ivalue" == self.ds.metadata["instance-data"]["ikey"]
+
+        assert "project-data" in self.ds.metadata
+        assert isinstance(self.ds.metadata["project-data"], dict)
+        assert "pkey" in self.ds.metadata["project-data"]
+        assert "pvalue" == self.ds.metadata["project-data"]["pkey"]
