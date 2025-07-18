@@ -95,6 +95,15 @@ Physical example
 .. literalinclude:: ../../examples/network-config-v1-physical-3-nic.yaml
    :language: yaml
 
+``keep_configuration: <boolean>``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Designate the connection as 'critical to the system', meaning that special care
+will be taken not to release the assigned IP when the daemon is restarted.
+
+.. note::
+   This is only recognized by Netplan renderer.
+
 Bond
 ----
 
