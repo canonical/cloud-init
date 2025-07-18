@@ -7,7 +7,6 @@ from unittest import mock
 import pytest
 import responses
 
-from cloudinit import helpers
 from cloudinit.sources import DataSourceAliYun as ay
 from cloudinit.sources.helpers.aliyun import (
     convert_ecs_metadata_network_config,
@@ -257,7 +256,7 @@ class TestAliYunDatasource:
         m_net4,
         m_net6,
         ds,
-        tmp_path,
+        paths,
     ):
         m_is_aliyun.return_value = True
         m_fallback_nic.return_value = "eth9"
@@ -271,7 +270,6 @@ class TestAliYunDatasource:
         m_is_bsd.return_value = False
         cfg = {"datasource": {"AliYun": {"timeout": "1", "max_wait": "1"}}}
         distro = mock.MagicMock()
-        paths = helpers.Paths({"run_dir": str(tmp_path)})
         ds = ay.DataSourceAliYunLocal(cfg, distro, paths)
         ret = ds.get_data()
         assert True is ret

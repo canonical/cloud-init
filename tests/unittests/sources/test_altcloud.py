@@ -16,7 +16,7 @@ import shutil
 import pytest
 
 import cloudinit.sources.DataSourceAltCloud as dsac
-from cloudinit import dmi, subp, util
+from cloudinit import subp, util
 from tests.unittests.helpers import mock
 
 OS_UNAME_ORIG = getattr(os, "uname")
@@ -106,30 +106,36 @@ class TestGetCloudType:
         with mock.patch.object(dsac, "CLOUD_INFO_FILE", cloud_info):
             assert "OVERRIDDEN CLOUDTYPE" == dsrc.get_cloud_type()
 
-    def test_rhev(self, paths):
+    @mock.patch("cloudinit.dmi.read_dmi_data", side_effect=_dmi_data("RHEV"))
+    def test_rhev(self, m_read_dmi_data, paths):
         """
         Test method get_cloud_type() for RHEVm systems.
         Forcing read_dmi_data return to match a RHEVm system: RHEV Hypervisor
         """
-        dmi.read_dmi_data = _dmi_data("RHEV")
         dsrc = dsac.DataSourceAltCloud({}, None, paths)
         assert "RHEV" == dsrc.get_cloud_type()
 
-    def test_vsphere(self, paths):
+    @mock.patch(
+        "cloudinit.dmi.read_dmi_data",
+        side_effect=_dmi_data("VMware Virtual Platform"),
+    )
+    def test_vsphere(self, m_read_dmi_data, paths):
         """
         Test method get_cloud_type() for vSphere systems.
         Forcing read_dmi_data return to match a vSphere system: RHEV Hypervisor
         """
-        dmi.read_dmi_data = _dmi_data("VMware Virtual Platform")
         dsrc = dsac.DataSourceAltCloud({}, None, paths)
         assert "VSPHERE" == dsrc.get_cloud_type()
 
-    def test_unknown(self, paths):
+    @mock.patch(
+        "cloudinit.dmi.read_dmi_data",
+        side_effect=_dmi_data("Unrecognized Platform"),
+    )
+    def test_unknown(self, m_read_dmi_data, paths):
         """
         Test method get_cloud_type() for unknown systems.
         Forcing read_dmi_data return to match an unrecognized return.
         """
-        dmi.read_dmi_data = _dmi_data("Unrecognized Platform")
         dsrc = dsac.DataSourceAltCloud({}, None, paths)
         assert "UNKNOWN" == dsrc.get_cloud_type()
 
@@ -210,26 +216,31 @@ class TestGetDataNoCloudInfoFile:
     Without a CLOUD_INFO_FILE
     """
 
-    def test_rhev_no_cloud_file(self, paths):
+    @mock.patch(
+        "cloudinit.dmi.read_dmi_data", side_effect=_dmi_data("RHEV Hypervisor")
+    )
+    def test_rhev_no_cloud_file(self, m_read_dmi_data, paths):
         """Test No cloud info file module get_data() forcing RHEV."""
-
-        dmi.read_dmi_data = _dmi_data("RHEV Hypervisor")
         dsrc = dsac.DataSourceAltCloud({}, None, paths)
         dsrc.user_data_rhevm = lambda: True
         assert True is dsrc.get_data()
 
-    def test_vsphere_no_cloud_file(self, paths):
+    @mock.patch(
+        "cloudinit.dmi.read_dmi_data",
+        side_effect=_dmi_data("VMware Virtual Platform"),
+    )
+    def test_vsphere_no_cloud_file(self, m_read_dmi_data, paths):
         """Test No cloud info file module get_data() forcing VSPHERE."""
-
-        dmi.read_dmi_data = _dmi_data("VMware Virtual Platform")
         dsrc = dsac.DataSourceAltCloud({}, None, paths)
         dsrc.user_data_vsphere = lambda: True
         assert True is dsrc.get_data()
 
-    def test_failure_no_cloud_file(self, paths):
+    @mock.patch(
+        "cloudinit.dmi.read_dmi_data",
+        side_effect=_dmi_data("Unrecognized Platform"),
+    )
+    def test_failure_no_cloud_file(self, m_read_dmi_data, paths):
         """Test No cloud info file module get_data() forcing unrecognized."""
-
-        dmi.read_dmi_data = _dmi_data("Unrecognized Platform")
         dsrc = dsac.DataSourceAltCloud({}, None, paths)
         assert False is dsrc.get_data()
 
@@ -240,11 +251,7 @@ def user_data(tmp_path):
     _write_user_data_files(mount_dir, "test user data")
     yield
     _remove_user_data_files(mount_dir)
-    # Attempt to remove the temp dir ignoring errors
-    try:
-        shutil.rmtree(mount_dir)
-    except OSError:
-        pass
+    shutil.rmtree(mount_dir)
 
 
 @pytest.mark.usefixtures("user_data")
