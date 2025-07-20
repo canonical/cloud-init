@@ -6,6 +6,7 @@ import re
 import time
 from collections import namedtuple
 from contextlib import contextmanager
+from datetime import datetime
 from functools import lru_cache
 from itertools import chain
 from pathlib import Path
@@ -663,3 +664,31 @@ def network_wait_logged(log: str) -> bool:
         "Running command "
         "['systemctl', 'start', 'systemd-networkd-wait-online.service']"
     ) in log
+
+
+def get_datetime_from_string(
+    str, regex, datetime_strformat="%Y-%m-%d %H:%M:%S.%f%z"
+):
+    """
+    Extract datetime from a given line in a string
+    """
+    matched = re.search(regex, str, re.M)
+    assert matched, (
+        f"Unable to find the datetime using the regex {regex}",
+        f"inside the string {str}",
+    )
+
+    try:
+        converted_datetime = datetime.strptime(
+            matched.group(1), datetime_strformat
+        )
+    except ValueError:
+        pytest.fail(
+            " ".join(
+                (
+                    f"Unable to parse the datetime {matched.group(1)}",
+                    f"using the format {datetime_strformat}",
+                )
+            )
+        )
+    return converted_datetime

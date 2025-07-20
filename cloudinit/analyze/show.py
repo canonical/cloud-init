@@ -228,7 +228,6 @@ def gather_timestamps_using_systemd():
 
     :return: the three timestamps
     """
-    kernel_start = float(time.time()) - float(util.uptime())
     try:
         delta_k_end = SystemctlReader(
             "UserspaceTimestampMonotonic"
@@ -236,14 +235,6 @@ def gather_timestamps_using_systemd():
         delta_ci_s = SystemctlReader(
             "InactiveExitTimestampMonotonic", "cloud-init-local"
         ).parse_epoch_as_float()
-        base_time = kernel_start
-        status = SUCCESS_CODE
-        # lxc based containers do not set their monotonic zero point to be when
-        # the container starts, instead keep using host boot as zero point
-        if util.is_container():
-            status = CONTAINER_CODE
-        kernel_end = base_time + delta_k_end
-        cloudinit_sysd = base_time + delta_ci_s
 
     except Exception as e:
         # Except ALL exceptions as Systemctl reader can throw many different
@@ -251,6 +242,10 @@ def gather_timestamps_using_systemd():
         # obtained
         print(e)
         return TIMESTAMP_UNKNOWN
+
+    base_time, kernel_start, status = __get_baselines()
+    kernel_end = base_time + delta_k_end
+    cloudinit_sysd = base_time + delta_ci_s
     return status, kernel_start, kernel_end, cloudinit_sysd
 
 
@@ -357,3 +352,23 @@ def load_events_infile(infile):
         return json.loads(data), data
     except ValueError:
         return None, data
+
+
+def __get_baselines():
+    """
+    Compute the kernel start time,
+    the basetime used for calculations based on systemd timestamps
+    and the status code
+    """
+    kernel_start = float(time.time()) - float(util.uptime())
+    if util.is_container():
+        # lxc based containers do not set their monotonic zero point to be
+        # at the container start,instead keep using host boot as zero point
+        # so kernel_start and base_time will not be equal
+        return (
+            float(time.time()) - float(time.monotonic()),
+            kernel_start,
+            CONTAINER_CODE,
+        )
+    else:
+        return kernel_start, kernel_start, SUCCESS_CODE
