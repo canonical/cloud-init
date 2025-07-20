@@ -16,6 +16,7 @@ import requests
 
 from cloudinit import distros, dmi, helpers, subp, url_helper
 from cloudinit.atomic_helper import b64e, json_dumps
+from cloudinit.config import cc_mounts
 from cloudinit.net import dhcp, ephemeral
 from cloudinit.sources import UNSET
 from cloudinit.sources import DataSourceAzure as dsaz
@@ -2351,6 +2352,33 @@ scbus-1 on xpt0 bus 0
         ret = dsrc.get_data()
         assert ret
         assert dsrc.userdata_raw == userdataOVF.encode("utf-8")
+
+    @pytest.mark.usefixtures("fake_filesystem")
+    def test_cleanup_resourcedisk_fstab(self, get_ds):
+        """Ensure that cloud-init clean will remove resource disk entries
+        from /etc/fstab"""
+        fstab_original_content = (
+            "UUID=abc123 / ext4 defaults 0 0\n"
+            "/dev/disk/cloud/azure_resource-part1	/mnt	"
+            "auto	defaults,nofail,x-systemd.after="
+            "cloud-init.service,_netdev,comment=cloudconfig	0	2\n"
+        )
+        fstab_expected_content = "UUID=abc123 / ext4 defaults 0 0\n"
+
+        etc_path = "/etc"
+        if not os.path.exists(etc_path):
+            os.makedirs(etc_path)
+        fstab_path = cc_mounts.FSTAB_PATH
+        with open(fstab_path, "w") as fd:
+            fd.write(fstab_original_content)
+
+        data = {}
+        dsrc = get_ds(data)
+        dsrc.clean()
+
+        with open(fstab_path, "r") as fd:
+            fstab_new_content = fd.read()
+            assert fstab_expected_content == fstab_new_content
 
 
 class TestLoadAzureDsDir:
