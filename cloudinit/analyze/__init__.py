@@ -6,14 +6,14 @@ import argparse
 import re
 import sys
 from datetime import datetime, timezone
-from typing import IO, Dict, List, Tuple, Union
+from typing import IO, Dict, List, Optional, Tuple, Union
 
 from cloudinit.analyze import dump, show
 from cloudinit.atomic_helper import json_dumps
 
 
 def get_parser(
-    parser: argparse.ArgumentParser = None,
+    parser: Optional[argparse.ArgumentParser] = None,
 ) -> argparse.ArgumentParser:
     if not parser:
         parser = argparse.ArgumentParser(
@@ -140,10 +140,10 @@ def analyze_boot(name: str, args: argparse.Namespace) -> int:
             e
             for e in _get_events(infh)
             if e["name"] == "init-local"
-            and "starting search" in e["description"]
+            and "starting search" in str(e["description"])
         ][-1]
-        ci_start = datetime.fromtimestamp(
-            last_init_local["timestamp"], timezone.utc
+        ci_start: Union[datetime, str] = datetime.fromtimestamp(
+            float(last_init_local["timestamp"]), timezone.utc
         )
     except IndexError:
         ci_start = "Could not find init-local log-line in cloud-init.log"
