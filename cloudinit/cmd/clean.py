@@ -8,10 +8,11 @@
 
 import argparse
 import glob
+import logging
 import os
 import sys
 
-from cloudinit import settings
+from cloudinit import settings, sources
 from cloudinit.distros import uses_systemd
 from cloudinit.log import log_util
 from cloudinit.net.netplan import CLOUDINIT_NETPLAN_FILE
@@ -25,6 +26,7 @@ from cloudinit.util import (
     write_file,
 )
 
+LOG = logging.getLogger(__name__)
 ETC_MACHINE_ID = "/etc/machine-id"
 GEN_NET_CONFIG_FILES = [
     CLOUDINIT_NETPLAN_FILE,
@@ -132,14 +134,29 @@ def remove_artifacts(init, remove_logs, remove_seed=False, remove_config=None):
     ):
         for conf in GEN_SSH_CONFIG_FILES:
             del_file(conf)
-    if remove_config and set(remove_config).intersection(
-        ["all", "datasource"]
-    ):
 
-        init.fetch().clean()
+    clean_datasource = remove_config and set(remove_config).intersection(
+        ["all", "datasource"]
+    )
 
     if not os.path.isdir(init.paths.cloud_dir):
+        log_util.multi_log(
+            "Artifacts already cleaned.",
+            log=LOG,
+            log_level=logging.INFO,
+        )
         return 0  # Artifacts dir already cleaned
+
+    if clean_datasource:
+        try:
+            init.fetch().clean()
+        except sources.DataSourceNotFoundException:
+            log_util.multi_log(
+                "No datasource found, nothing cleaned.",
+                log=LOG,
+                log_level=logging.INFO,
+            )
+
     seed_path = os.path.join(init.paths.cloud_dir, "seed")
     for path in glob.glob("%s/*" % init.paths.cloud_dir):
         if path == seed_path and not remove_seed:
