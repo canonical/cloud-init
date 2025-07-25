@@ -6,7 +6,7 @@ import logging
 import os
 import re
 from contextlib import suppress
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 from cloudinit import performance, subp, util
 from cloudinit.net import ParserError, renderer, subnet_is_ipv6
@@ -62,7 +62,7 @@ NET_CONFIG_OPTIONS = [
 
 
 # TODO: switch valid_map based on mode inet/inet6
-def _iface_add_subnet(iface, subnet):
+def _iface_add_subnet(iface: dict, subnet: dict) -> List[str]:
     content = []
     valid_map = [
         "address",
@@ -92,7 +92,9 @@ def _iface_add_subnet(iface, subnet):
 
 
 # TODO: switch to valid_map for attrs
-def _iface_add_attrs(iface, index, ipv4_subnet_mtu):
+def _iface_add_attrs(
+    iface: dict, index: int, ipv4_subnet_mtu: Optional[str]
+) -> List[str]:
     # If the index is non-zero, this is an alias interface. Alias interfaces
     # represent additional interface addresses, and should not have additional
     # attributes. (extra attributes here are almost always either incorrect,
@@ -153,7 +155,9 @@ def _iface_add_attrs(iface, index, ipv4_subnet_mtu):
     return sorted(content)
 
 
-def _iface_start_entry(iface, index, render_hwaddress=False):
+def _iface_start_entry(
+    iface: dict, index, render_hwaddress: bool = False
+) -> List[str]:
     fullname = iface["name"]
 
     control = iface["control"]
@@ -177,7 +181,9 @@ def _iface_start_entry(iface, index, render_hwaddress=False):
     return lines
 
 
-def _parse_deb_config_data(ifaces, contents, src_dir, src_path):
+def _parse_deb_config_data(
+    ifaces: dict, contents: str, src_dir: str, src_path: str
+) -> None:
     """Parses the file contents, placing result into ifaces.
 
     '_source_path' is added to every dictionary entry to define which file
@@ -310,14 +316,14 @@ def _parse_deb_config_data(ifaces, contents, src_dir, src_path):
 
 
 @performance.timed("Converting eni data")
-def convert_eni_data(eni_data):
+def convert_eni_data(eni_data: str) -> dict:
     """Return a network config representation of what is in eni_data"""
-    ifaces = {}
-    _parse_deb_config_data(ifaces, eni_data, src_dir=None, src_path=None)
+    ifaces: dict = {}
+    _parse_deb_config_data(ifaces, eni_data, src_dir="None", src_path="None")
     return _ifaces_to_net_config_data(ifaces)
 
 
-def _ifaces_to_net_config_data(ifaces):
+def _ifaces_to_net_config_data(ifaces: dict) -> dict:
     """Return network config that represents the ifaces data provided.
     ifaces = _parse_deb_config_data(...)
     config = ifaces_to_net_config_data(ifaces)
@@ -361,7 +367,7 @@ def _ifaces_to_net_config_data(ifaces):
 class Renderer(renderer.Renderer):
     """Renders network information in a /etc/network/interfaces format."""
 
-    def __init__(self, config=None):
+    def __init__(self, config: Optional[dict] = None):
         if not config:
             config = {}
         self.eni_path = config.get("eni_path", "etc/network/interfaces")
@@ -370,7 +376,7 @@ class Renderer(renderer.Renderer):
             "netrules_path", "etc/udev/rules.d/70-persistent-net.rules"
         )
 
-    def _render_route(self, route, indent=""):
+    def _render_route(self, route: dict, indent: str = "") -> List[str]:
         """When rendering routes for an iface, in some cases applying a route
         may result in the route command returning non-zero which produces
         some confusing output for users manually using ifup/ifdown[1].  To
@@ -422,13 +428,15 @@ class Renderer(renderer.Renderer):
         content.append(down + route_line + or_true)
         return content
 
-    def _render_iface(self, iface, render_hwaddress=False):
+    def _render_iface(
+        self, iface: dict, render_hwaddress: bool = False
+    ) -> List[List[str]]:
         iface = copy.deepcopy(iface)
 
         # Remove irrelevant keys
         with suppress(KeyError):
             iface.pop("config_id")
-        sections = []
+        sections: List[List[str]] = []
         subnets = iface.get("subnets", {})
         accept_ra = iface.pop("accept-ra", None)
         ethernet_wol = iface.pop("wakeonlan", None)
@@ -504,12 +512,14 @@ class Renderer(renderer.Renderer):
             sections.append(lines)
         return sections
 
-    def _render_interfaces(self, network_state, render_hwaddress=False):
+    def _render_interfaces(
+        self, network_state: NetworkState, render_hwaddress: bool = False
+    ) -> str:
         """Given state, emit etc/network/interfaces content."""
 
         # handle 'lo' specifically as we need to insert the global dns entries
         # there (as that is the only interface that will be always up).
-        lo = {
+        lo: Dict[str, Any] = {
             "name": "lo",
             "type": "physical",
             "inet": "inet",
@@ -560,7 +570,7 @@ class Renderer(renderer.Renderer):
         self,
         network_state: NetworkState,
         templates: Optional[dict] = None,
-        target=None,
+        target: Optional[str] = None,
     ) -> None:
         fpeni = subp.target_path(target, self.eni_path)
         util.ensure_dir(os.path.dirname(fpeni))
@@ -577,7 +587,7 @@ class Renderer(renderer.Renderer):
             )
 
 
-def available(target=None):
+def available(target: Optional[str] = None) -> bool:
     expected = ["ifquery", "ifup", "ifdown"]
     search = ["/sbin", "/usr/sbin"]
     for p in expected:
