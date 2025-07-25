@@ -4,7 +4,19 @@ build:
   os: "ubuntu-22.04"
   tools:
     python: "3.10"
+  jobs:
+    pre_build:
+      - 'sudo apt update'
+      - 'sudo apt install meson'
+    build:
+      html:
+        - 'meson setup build_dir -Dreadthedocs_build=true -Dinit_system=systemd'
+        - 'meson compile -C build_dir'
+        - 'python3 -m sphinx -T -b html -d doc/rtd -D language=en . $READTHEDOCS_OUTPUT/html'
 
+
+sphinx:
+  configuration: doc/rtd/conf.py
 formats: all
 
 python:

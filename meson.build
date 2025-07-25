@@ -7,8 +7,6 @@ project(
       'python.install_env=auto'
     ]
 )
-completions = dependency('bash-completion')
-systemd = dependency('systemd')
 system = host_machine.system()
 sysconfdir = get_option('sysconfdir')
 INIT_SYSTEM = get_option('init_system')
@@ -28,14 +26,19 @@ install_subdir(
 )
 
 # Binaries and script entrypoints
-bash_completions_dir = completions.get_variable(
-  pkgconfig: 'completionsdir',
-  default_value: '/etc/bash_completion.d'
-)
-install_data(
-  'bash_completion/cloud-init',
-  install_dir: bash_completions_dir, install_tag: 'scripts'
-)
+readthedocs = get_option('readthedocs_build')
+if not readthedocs
+  completions = dependency('bash-completion')
+  bash_completions_dir = completions.get_variable(
+    pkgconfig: 'completionsdir',
+    default_value: '/etc/bash_completion.d'
+  )
+  install_data(
+    'bash_completion/cloud-init',
+    install_dir: bash_completions_dir,
+    install_tag: 'scripts'
+  )
+endif
 
 install_data(
   ['tools/ds-identify', 'tools/hook-hotplug','tools/uncloud-init', 'tools/write-ssh-key-fingerprints' ],
@@ -68,6 +71,7 @@ install_data(
 )
 
 if INIT_SYSTEM == 'systemd'
+  systemd = dependency('systemd')
   udev = dependency('udev')
   systemd_unit_dir =  systemd.get_variable(pkgconfig: 'systemdsystemunitdir')
   systemd_generator_dir =  systemd.get_variable(
