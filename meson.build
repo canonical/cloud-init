@@ -8,8 +8,6 @@ project(
     'python.install_env=auto',
   ],
 )
-completions = dependency('bash-completion')
-systemd = dependency('systemd')
 system = host_machine.system()
 sysconfdir = get_option('sysconfdir')
 INIT_SYSTEM = get_option('init_system')
@@ -74,7 +72,8 @@ install_data(
   install_tag: 'config',
 )
 
-if INIT_SYSTEM == 'systemd'
+if INIT_SYSTEM == 'systemd' and not readthedocs
+  systemd = dependency('systemd')
   udev = dependency('udev')
   systemd_unit_dir = systemd.get_variable(pkgconfig: 'systemdsystemunitdir')
   systemd_generator_dir = systemd.get_variable(pkgconfig: 'systemdsystemgeneratordir')

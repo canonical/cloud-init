@@ -2,6 +2,10 @@
 build-backend = "mesonpy"
 requires = ["meson-python"]
 
+# Provide meson setup cmdline arguments to support readthedocs builds
+[tool.meson-python.args]
+setup = ["-Dinit_system=systemd", "-Dreadthedocs_build=true"]
+
 [tool.black]
 line-length = 79
 include = '(brpm|bddeb|\.py)$'

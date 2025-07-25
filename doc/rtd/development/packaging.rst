@@ -39,57 +39,22 @@ Local build procedure
 ---------------------
 
 There are two custom meson build options used by the ``cloud-init`` project.
-They are ``init_system`` and ``readthedocs_build``. It is expected options affect paths where init
-scripts, configuration files, executables and data files are installed and
-provide for cross-platform builds.
+They are ``init_system`` and ``readthedocs_build``. The ``readthedocs_build``
+boolean defaults to ``false`` in :file:`meson_options.txt` and limits the
+dependencies used by :file:`meson.build`. It should only be ``true`` during
+RTD builds as it limits build dependencies expected by :file:`meson.build`.
 
-``init_system`` defaults to ``systemd`` but may be can be overridden to one of
-the following values specifying `-Dinit_systemd=sysvinit` to the
-``meson setup`` command line:
-- ``systemd``
-- ``sysvinit``
-- ``sysvinit_deb``
-- ``sysvinit_freebsd``
-- ``sysvinit_netbsd``
-- ``sysvinit_openbsd``
-- ``sysvinit_openrc``
-
-``distro`` defaults to ``ubuntu`` but may be can be overridden to one of the
-following values specifying `-Ddistro=redhat` to the ``meson setup`` command
-line:
-- ``almalinux``
-- ``alpine``
-- ``amazon``
-- ``centos``
-- ``cloudlinux``
-- ``debian``
-- ``dragonfly``
-- ``eurolinux``
-- ``freebsd``
-- ``fedora``
-- ``mariner``
-- ``miraclelinux``
-- ``openbsd``
-- ``opencloudos``
-- ``openeuler``
-- ``netbsd```
-- ``photon``
-- ``sles``
-- ``ubuntu``
-- ``rhel``
-- ``rocky``
-- ``virtuozzo``
-
+The ``init_system`` option affect paths where init scripts, configuration
+files, executables and data files are installed. The ``init_system`` value
+defaults to ``systemd``.
 
 Steps to validate ``cloud-init`` package builds in a development environment:
 
 .. code-block:: bash
 
-   python3 -m venv .venv
-   source .venv/bin/activate
-   meson setup ../builddir -Dinit_system=systemd -Ddistro=rocky
+   meson setup ../builddir -Dinit_system=systemd
    meson compile -C ../builddir
-   meson test -C ../buildir -v
+   meson test -C ../builddir -v
 
 
 Downstream package builds
@@ -109,6 +74,9 @@ to debhelper:
    # debian/rules
    %:
            dh $@ --buildsystem meson
+   override_dh_auto_configure:
+           dh_auto_configure -- -Dinit_system=systemd -Dlibexecdir=lib -Dudevdir=/usr/lib/udev
+
 
    # debian/control
    Build-Depends: meson,
@@ -163,7 +131,7 @@ OR if LXC is available:
 
 .. note::
 
-   FreeBSD, NetBSD and OpenBSD meson support has not yet been added to :file:`tools/build-on-*bsd` helper scripts.
+   FreeBSD, NetBSD and OpenBSD meson support has not yet been added to :file:`tools/build-on-*bsd` or :file:`meson.build`.
 
 
 .. LINKS:
