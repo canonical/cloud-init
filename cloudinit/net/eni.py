@@ -127,6 +127,9 @@ def _iface_add_attrs(iface, index, ipv4_subnet_mtu):
         ignore_map.append("mac_address")
 
     for key, value in iface.items():
+        key_write = renames.get(key, key)
+        if "_" in key_write:
+            key_write = key_write.replace("_", "-")
         # convert bool to string for eni
         if isinstance(value, bool):
             value = "on" if iface[key] else "off"
@@ -144,11 +147,11 @@ def _iface_add_attrs(iface, index, ipv4_subnet_mtu):
             continue
         if key in multiline_keys:
             for v in value:
-                content.append("    {0} {1}".format(renames.get(key, key), v))
+                content.append("    {0} {1}".format(key_write, v))
             continue
         if isinstance(value, list):
             value = " ".join(value)
-        content.append("    {0} {1}".format(renames.get(key, key), value))
+        content.append("    {0} {1}".format(key_write, value))
 
     return sorted(content)
 
