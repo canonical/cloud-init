@@ -64,7 +64,6 @@ module = [
     "cloudinit.distros.ug_util",
     "cloudinit.helpers",
     "cloudinit.net.cmdline",
-    "cloudinit.net.eni",
     "cloudinit.net.ephemeral",
     "cloudinit.net.freebsd",
     "cloudinit.net.netbsd",
