@@ -4,10 +4,10 @@
 import copy
 import datetime
 import json
-import logging
 import os
 import stat
 import xml.etree.ElementTree as ET
+from contextlib import ExitStack
 from pathlib import Path
 
 import passlib.hash
@@ -28,7 +28,7 @@ from cloudinit.util import (
     write_file,
 )
 from tests.unittests.helpers import (
-    assert_count_equal,
+    CiTestCase,
     example_netdev,
     mock,
     populate_dir,
@@ -1050,49 +1050,60 @@ class TestNetworkConfig:
         assert azure_ds.network_config == self.fallback_config
 
 
-@pytest.fixture
-def waagent_d(tmp_path):
-    return str(tmp_path / "var/lib/waagent")
+class TestAzureDataSource(CiTestCase):
+    with_logs = True
 
+    def setUp(self):
+        super(TestAzureDataSource, self).setUp()
+        self.tmp = self.tmp_dir()
 
-# @pytest.mark.usefixtures("fake_filesystem")
-class TestAzureDataSource:
-    @pytest.fixture(autouse=True)
-    def fixture(self, mocker):
         # patch cloud_dir, so our 'seed_dir' is guaranteed empty
-        mocker.patch.object(dsaz, "_get_random_seed", return_value="wild")
+        self.paths = helpers.Paths(
+            {"cloud_dir": self.tmp, "run_dir": self.tmp}
+        )
+        self.waagent_d = os.path.join(self.tmp, "var", "lib", "waagent")
 
-        self.m_dhcp = mocker.patch.object(
-            dsaz,
-            "EphemeralDHCPv4",
+        self.patches = ExitStack()
+        self.addCleanup(self.patches.close)
+
+        self.patches.enter_context(
+            mock.patch.object(dsaz, "_get_random_seed", return_value="wild")
+        )
+
+        self.m_dhcp = self.patches.enter_context(
+            mock.patch.object(
+                dsaz,
+                "EphemeralDHCPv4",
+            )
         )
         self.m_dhcp.return_value.lease = {}
         self.m_dhcp.return_value.iface = "eth4"
 
-        self.m_fetch = mocker.patch.object(
-            dsaz.imds,
-            "fetch_metadata_with_api_fallback",
-            mock.MagicMock(return_value=NETWORK_METADATA),
+        self.m_fetch = self.patches.enter_context(
+            mock.patch.object(
+                dsaz.imds,
+                "fetch_metadata_with_api_fallback",
+                mock.MagicMock(return_value=NETWORK_METADATA),
+            )
         )
-        self.m_fallback_nic = mocker.patch(
-            "cloudinit.sources.net.find_fallback_nic", return_value="eth9"
+        self.m_fallback_nic = self.patches.enter_context(
+            mock.patch(
+                "cloudinit.sources.net.find_fallback_nic", return_value="eth9"
+            )
         )
-        self.m_remove_ubuntu_network_scripts = mocker.patch.object(
-            dsaz,
-            "maybe_remove_ubuntu_network_config_scripts",
-            mock.MagicMock(),
+        self.m_remove_ubuntu_network_scripts = self.patches.enter_context(
+            mock.patch.object(
+                dsaz,
+                "maybe_remove_ubuntu_network_config_scripts",
+                mock.MagicMock(),
+            )
         )
 
-    @pytest.fixture
-    def apply_patches(self, mocker):
-        def _apply_patches(patches):
-            for module, name, new in patches:
-                mocker.patch.object(module, name, new)
+    def apply_patches(self, patches):
+        for module, name, new in patches:
+            self.patches.enter_context(mock.patch.object(module, name, new))
 
-        return _apply_patches
-
-    @pytest.fixture
-    def _get_mockds(self, apply_patches):
+    def _get_mockds(self):
         sysctl_out = (
             "dev.storvsc.3.%pnpinfo: "
             "classid=ba6163d9-04a1-4d29-b605-72e2ffb1dc7f "
@@ -1122,7 +1133,7 @@ scbus-1 on xpt0 bus 0
 <Msft Virtual Disk 1.0>            at scbus2 target 0 lun 0 (da0,pass1)
 <Msft Virtual Disk 1.0>            at scbus3 target 1 lun 0 (da1,pass2)
         """
-        apply_patches(
+        self.apply_patches(
             [
                 (
                     dsaz,
@@ -1143,108 +1154,105 @@ scbus-1 on xpt0 bus 0
         )
         return dsaz
 
-    @pytest.fixture
-    def get_ds(self, apply_patches, paths, tmp_path, waagent_d):
-        def _get_ds(
-            data,
-            distro="ubuntu",
-            apply_network=None,
-            instance_id=None,
-            write_ovf_to_data_dir: bool = False,
-            write_ovf_to_seed_dir: bool = True,
-        ):
-            def _wait_for_files(flist, _maxwait=None, _naplen=None):
-                data["waited"] = flist
-                return []
+    def _get_ds(
+        self,
+        data,
+        distro="ubuntu",
+        apply_network=None,
+        instance_id=None,
+        write_ovf_to_data_dir: bool = False,
+        write_ovf_to_seed_dir: bool = True,
+    ):
+        def _wait_for_files(flist, _maxwait=None, _naplen=None):
+            data["waited"] = flist
+            return []
 
-            def _load_possible_azure_ds(seed_dir, cache_dir):
-                yield seed_dir
-                yield dsaz.DEFAULT_PROVISIONING_ISO_DEV
-                yield from data.get("dsdevs", [])
-                if cache_dir:
-                    yield cache_dir
+        def _load_possible_azure_ds(seed_dir, cache_dir):
+            yield seed_dir
+            yield dsaz.DEFAULT_PROVISIONING_ISO_DEV
+            yield from data.get("dsdevs", [])
+            if cache_dir:
+                yield cache_dir
 
-            seed_dir = os.path.join(paths.seed_dir, "azure")
-            if write_ovf_to_seed_dir and data.get("ovfcontent") is not None:
-                populate_dir(seed_dir, {"ovf-env.xml": data["ovfcontent"]})
+        seed_dir = os.path.join(self.paths.seed_dir, "azure")
+        if write_ovf_to_seed_dir and data.get("ovfcontent") is not None:
+            populate_dir(seed_dir, {"ovf-env.xml": data["ovfcontent"]})
 
-            if write_ovf_to_data_dir and data.get("ovfcontent") is not None:
-                populate_dir(waagent_d, {"ovf-env.xml": data["ovfcontent"]})
+        if write_ovf_to_data_dir and data.get("ovfcontent") is not None:
+            populate_dir(self.waagent_d, {"ovf-env.xml": data["ovfcontent"]})
 
-            dsaz.BUILTIN_DS_CONFIG["data_dir"] = waagent_d
+        dsaz.BUILTIN_DS_CONFIG["data_dir"] = self.waagent_d
 
-            self.m_get_metadata_from_fabric = mock.MagicMock(return_value=[])
-            self.m_report_failure_to_fabric = mock.MagicMock(autospec=True)
-            self.m_list_possible_azure_ds = mock.MagicMock(
-                side_effect=_load_possible_azure_ds
-            )
+        self.m_get_metadata_from_fabric = mock.MagicMock(return_value=[])
+        self.m_report_failure_to_fabric = mock.MagicMock(autospec=True)
+        self.m_list_possible_azure_ds = mock.MagicMock(
+            side_effect=_load_possible_azure_ds
+        )
 
-            if instance_id:
-                self.instance_id = instance_id
-            else:
-                self.instance_id = EXAMPLE_UUID
+        if instance_id:
+            self.instance_id = instance_id
+        else:
+            self.instance_id = EXAMPLE_UUID
 
-            def _dmi_mocks(key):
-                if key == "system-uuid":
-                    return self.instance_id
-                elif key == "chassis-asset-tag":
-                    return "7783-7084-3265-9085-8269-3286-77"
-                raise RuntimeError()
+        def _dmi_mocks(key):
+            if key == "system-uuid":
+                return self.instance_id
+            elif key == "chassis-asset-tag":
+                return "7783-7084-3265-9085-8269-3286-77"
+            raise RuntimeError()
 
-            self.m_read_dmi_data = mock.MagicMock(autospec=True)
-            self.m_read_dmi_data.side_effect = _dmi_mocks
+        self.m_read_dmi_data = mock.MagicMock(autospec=True)
+        self.m_read_dmi_data.side_effect = _dmi_mocks
 
-            apply_patches(
-                [
-                    (
-                        dsaz,
-                        "list_possible_azure_ds",
-                        self.m_list_possible_azure_ds,
-                    ),
-                    (
-                        dsaz,
-                        "get_metadata_from_fabric",
-                        self.m_get_metadata_from_fabric,
-                    ),
-                    (
-                        dsaz,
-                        "report_failure_to_fabric",
-                        self.m_report_failure_to_fabric,
-                    ),
-                    (dsaz, "get_boot_telemetry", mock.MagicMock()),
-                    (dsaz, "get_system_info", mock.MagicMock()),
-                    (
-                        dsaz.net,
-                        "get_interface_mac",
-                        mock.MagicMock(return_value="00:15:5d:69:63:ba"),
-                    ),
-                    (dsaz.subp, "which", lambda x: True),
-                    (
-                        dmi,
-                        "read_dmi_data",
-                        self.m_read_dmi_data,
-                    ),
-                    (
-                        dsaz.util,
-                        "wait_for_files",
-                        mock.MagicMock(side_effect=_wait_for_files),
-                    ),
-                ]
-            )
+        self.apply_patches(
+            [
+                (
+                    dsaz,
+                    "list_possible_azure_ds",
+                    self.m_list_possible_azure_ds,
+                ),
+                (
+                    dsaz,
+                    "get_metadata_from_fabric",
+                    self.m_get_metadata_from_fabric,
+                ),
+                (
+                    dsaz,
+                    "report_failure_to_fabric",
+                    self.m_report_failure_to_fabric,
+                ),
+                (dsaz, "get_boot_telemetry", mock.MagicMock()),
+                (dsaz, "get_system_info", mock.MagicMock()),
+                (
+                    dsaz.net,
+                    "get_interface_mac",
+                    mock.MagicMock(return_value="00:15:5d:69:63:ba"),
+                ),
+                (dsaz.subp, "which", lambda x: True),
+                (
+                    dmi,
+                    "read_dmi_data",
+                    self.m_read_dmi_data,
+                ),
+                (
+                    dsaz.util,
+                    "wait_for_files",
+                    mock.MagicMock(side_effect=_wait_for_files),
+                ),
+            ]
+        )
 
-            if isinstance(distro, str):
-                distro_cls = distros.fetch(distro)
-                distro = distro_cls(distro, data.get("sys_cfg", {}), paths)
-            distro.get_tmp_exec_path = mock.Mock(side_effect=str(tmp_path))
-            dsrc = dsaz.DataSourceAzure(
-                data.get("sys_cfg", {}), distro=distro, paths=paths
-            )
-            if apply_network is not None:
-                dsrc.ds_cfg["apply_network_config"] = apply_network
+        if isinstance(distro, str):
+            distro_cls = distros.fetch(distro)
+            distro = distro_cls(distro, data.get("sys_cfg", {}), self.paths)
+        distro.get_tmp_exec_path = mock.Mock(side_effect=self.tmp_dir)
+        dsrc = dsaz.DataSourceAzure(
+            data.get("sys_cfg", {}), distro=distro, paths=self.paths
+        )
+        if apply_network is not None:
+            dsrc.ds_cfg["apply_network_config"] = apply_network
 
-            return dsrc
-
-        return _get_ds
+        return dsrc
 
     def _get_and_setup(self, dsrc):
         ret = dsrc.get_data()
@@ -1285,16 +1293,16 @@ scbus-1 on xpt0 bus 0
             return
         raise AssertionError("XML is the same")
 
-    def test_get_resource_disk(self, _get_mockds):
-        ds = _get_mockds
+    def test_get_resource_disk(self):
+        ds = self._get_mockds()
         dev = ds.get_resource_disk_on_freebsd(1)
-        assert "da1" == dev
+        self.assertEqual("da1", dev)
 
-    def test_not_ds_detect_seed_should_return_no_datasource(self, get_ds):
+    def test_not_ds_detect_seed_should_return_no_datasource(self):
         """Check seed_dir using ds_detect and return False."""
         # Return a non-matching asset tag value
         data = {}
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         self.m_read_dmi_data.side_effect = lambda x: "notazure"
         with mock.patch.object(
             dsrc, "crawl_metadata"
@@ -1305,40 +1313,38 @@ scbus-1 on xpt0 bus 0
             assert self.m_read_dmi_data.mock_calls == [
                 mock.call("chassis-asset-tag")
             ]
-            assert not ret
+            self.assertFalse(ret)
             # Assert that for non viable platforms,
             # there is no communication with the Azure datasource.
-            assert 0 == m_crawl_metadata.call_count
-            assert 0 == m_report_failure.call_count
+            self.assertEqual(0, m_crawl_metadata.call_count)
+            self.assertEqual(0, m_report_failure.call_count)
 
-    def test_platform_viable_but_no_devs_should_return_no_datasource(
-        self, get_ds, mocker
-    ):
+    def test_platform_viable_but_no_devs_should_return_no_datasource(self):
         """For platforms where the Azure platform is viable
         (which is indicated by the matching asset tag),
         the absence of any devs at all (devs == candidate sources
         for crawling Azure datasource) is NOT expected.
-        Report failure to Azure as this is an unexpected error.
+        Report failure to Azure as this is an unexpected fatal error.
         """
         data = {}
-        dsrc = get_ds(data)
-        mocker.patch(MOCKPATH + "list_possible_azure_ds", return_value=[])
+        dsrc = self._get_ds(data)
         with mock.patch.object(dsrc, "_report_failure") as m_report_failure:
-            assert dsrc.get_data() is True
-            assert 1 == m_report_failure.call_count
+            ret = dsrc.get_data()
+            self.assertFalse(ret)
+            self.assertEqual(1, m_report_failure.call_count)
 
-    def test_crawl_metadata_exception_returns_no_datasource(self, get_ds):
+    def test_crawl_metadata_exception_returns_no_datasource(self):
         data = {}
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         with mock.patch.object(dsrc, "crawl_metadata") as m_crawl_metadata:
             m_crawl_metadata.side_effect = Exception
             ret = dsrc.get_data()
-            assert 1 == m_crawl_metadata.call_count
-            assert not ret
+            self.assertEqual(1, m_crawl_metadata.call_count)
+            self.assertFalse(ret)
 
-    def test_crawl_metadata_exception_should_report_failure(self, get_ds):
+    def test_crawl_metadata_exception_should_report_failure(self):
         data = {}
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         with mock.patch.object(
             dsrc, "crawl_metadata"
         ) as m_crawl_metadata, mock.patch.object(
@@ -1346,42 +1352,45 @@ scbus-1 on xpt0 bus 0
         ) as m_report_failure:
             m_crawl_metadata.side_effect = Exception
             dsrc.get_data()
-            assert 1 == m_crawl_metadata.call_count
+            self.assertEqual(1, m_crawl_metadata.call_count)
             m_report_failure.assert_called_once_with(mock.ANY)
 
-    def test_crawl_metadata_exc_should_log_could_not_crawl_msg(
-        self, caplog, get_ds
-    ):
+    def test_crawl_metadata_exc_should_log_could_not_crawl_msg(self):
         data = {}
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         with mock.patch.object(dsrc, "crawl_metadata") as m_crawl_metadata:
             m_crawl_metadata.side_effect = Exception
             dsrc.get_data()
-            assert 1 == m_crawl_metadata.call_count
-            assert "Azure datasource failure occurred:" in caplog.text
+            self.assertEqual(1, m_crawl_metadata.call_count)
+            self.assertIn(
+                "Azure datasource failure occurred:", self.logs.getvalue()
+            )
 
-    def test_basic_seed_dir(self, get_ds, paths, waagent_d):
+    def test_basic_seed_dir(self):
         data = {
             "ovfcontent": construct_ovf_env(hostname="myhost"),
             "sys_cfg": {},
         }
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         ret = dsrc.get_data()
-        assert ret
-        assert dsrc.userdata_raw == ""
-        assert dsrc.metadata["local-hostname"] == "myhost"
-        assert os.path.isfile(os.path.join(waagent_d, "ovf-env.xml"))
-        assert "azure" == dsrc.cloud_name
-        assert "azure" == dsrc.platform_type
-        seed_dir = os.path.join(paths.seed_dir, "azure")
-        assert "seed-dir (%s)" % seed_dir == dsrc.subplatform
+        self.assertTrue(ret)
+        self.assertEqual(dsrc.userdata_raw, "")
+        self.assertEqual(dsrc.metadata["local-hostname"], "myhost")
+        self.assertTrue(
+            os.path.isfile(os.path.join(self.waagent_d, "ovf-env.xml"))
+        )
+        self.assertEqual("azure", dsrc.cloud_name)
+        self.assertEqual("azure", dsrc.platform_type)
+        self.assertEqual(
+            "seed-dir (%s/seed/azure)" % self.tmp, dsrc.subplatform
+        )
 
-    def test_data_dir_without_imds_data(self, get_ds, waagent_d):
+    def test_data_dir_without_imds_data(self):
         data = {
             "ovfcontent": construct_ovf_env(hostname="myhost"),
             "sys_cfg": {},
         }
-        dsrc = get_ds(
+        dsrc = self._get_ds(
             data, write_ovf_to_data_dir=True, write_ovf_to_seed_dir=False
         )
 
@@ -1393,18 +1402,20 @@ scbus-1 on xpt0 bus 0
             ]
             ret = dsrc.get_data()
 
-        assert ret
-        assert dsrc.userdata_raw == ""
-        assert dsrc.metadata["local-hostname"] == "myhost"
-        assert os.path.isfile(os.path.join(waagent_d, "ovf-env.xml"))
-        assert "azure" == dsrc.cloud_name
-        assert "azure" == dsrc.platform_type
-        assert "seed-dir (%s)" % waagent_d == dsrc.subplatform
+        self.assertTrue(ret)
+        self.assertEqual(dsrc.userdata_raw, "")
+        self.assertEqual(dsrc.metadata["local-hostname"], "myhost")
+        self.assertTrue(
+            os.path.isfile(os.path.join(self.waagent_d, "ovf-env.xml"))
+        )
+        self.assertEqual("azure", dsrc.cloud_name)
+        self.assertEqual("azure", dsrc.platform_type)
+        self.assertEqual("seed-dir (%s)" % self.waagent_d, dsrc.subplatform)
 
-    def test_basic_dev_file(self, get_ds):
+    def test_basic_dev_file(self):
         """When a device path is used, present that in subplatform."""
         data = {"sys_cfg": {}, "dsdevs": ["/dev/cd0"]}
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         # DSAzure will attempt to mount /dev/sr0 first, which should
         # fail with mount error since the list of devices doesn't have
         # /dev/sr0
@@ -1413,14 +1424,14 @@ scbus-1 on xpt0 bus 0
                 MountFailedError("fail"),
                 ({"local-hostname": "me"}, "ud", {"cfg": ""}, {}),
             ]
-            assert dsrc.get_data()
-        assert dsrc.userdata_raw == "ud"
-        assert dsrc.metadata["local-hostname"] == "me"
-        assert "azure" == dsrc.cloud_name
-        assert "azure" == dsrc.platform_type
-        assert "config-disk (/dev/cd0)" == dsrc.subplatform
+            self.assertTrue(dsrc.get_data())
+        self.assertEqual(dsrc.userdata_raw, "ud")
+        self.assertEqual(dsrc.metadata["local-hostname"], "me")
+        self.assertEqual("azure", dsrc.cloud_name)
+        self.assertEqual("azure", dsrc.platform_type)
+        self.assertEqual("config-disk (/dev/cd0)", dsrc.subplatform)
 
-    def test_get_data_non_ubuntu_will_not_remove_network_scripts(self, get_ds):
+    def test_get_data_non_ubuntu_will_not_remove_network_scripts(self):
         """get_data on non-Ubuntu will not remove ubuntu net scripts."""
         data = {
             "ovfcontent": construct_ovf_env(
@@ -1429,11 +1440,11 @@ scbus-1 on xpt0 bus 0
             "sys_cfg": {},
         }
 
-        dsrc = get_ds(data, distro="debian")
+        dsrc = self._get_ds(data, distro="debian")
         dsrc.get_data()
         self.m_remove_ubuntu_network_scripts.assert_not_called()
 
-    def test_get_data_on_ubuntu_will_remove_network_scripts(self, get_ds):
+    def test_get_data_on_ubuntu_will_remove_network_scripts(self):
         """get_data will remove ubuntu net scripts on Ubuntu distro."""
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
@@ -1441,13 +1452,11 @@ scbus-1 on xpt0 bus 0
             "sys_cfg": sys_cfg,
         }
 
-        dsrc = get_ds(data, distro="ubuntu")
+        dsrc = self._get_ds(data, distro="ubuntu")
         dsrc.get_data()
         self.m_remove_ubuntu_network_scripts.assert_called_once_with()
 
-    def test_get_data_on_ubuntu_will_not_remove_network_scripts_disabled(
-        self, get_ds
-    ):
+    def test_get_data_on_ubuntu_will_not_remove_network_scripts_disabled(self):
         """When apply_network_config false, do not remove scripts on Ubuntu."""
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": False}}}
         data = {
@@ -1455,13 +1464,11 @@ scbus-1 on xpt0 bus 0
             "sys_cfg": sys_cfg,
         }
 
-        dsrc = get_ds(data, distro="ubuntu")
+        dsrc = self._get_ds(data, distro="ubuntu")
         dsrc.get_data()
         self.m_remove_ubuntu_network_scripts.assert_not_called()
 
-    def test_crawl_metadata_returns_structured_data_and_caches_nothing(
-        self, get_ds, waagent_d
-    ):
+    def test_crawl_metadata_returns_structured_data_and_caches_nothing(self):
         """Return all structured metadata and cache no class attributes."""
         data = {
             "ovfcontent": construct_ovf_env(
@@ -1469,7 +1476,7 @@ scbus-1 on xpt0 bus 0
             ),
             "sys_cfg": {},
         }
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         expected_cfg = {
             "PreprovisionedVMType": None,
             "PreprovisionedVm": False,
@@ -1485,40 +1492,46 @@ scbus-1 on xpt0 bus 0
 
         crawled_metadata = dsrc.crawl_metadata()
 
-        assert_count_equal(
+        self.assertCountEqual(
             crawled_metadata.keys(),
             ["cfg", "files", "metadata", "userdata_raw"],
         )
-        assert crawled_metadata["cfg"] == expected_cfg
-        assert list(crawled_metadata["files"].keys()) == ["ovf-env.xml"]
-        assert (
-            b"<ns1:HostName>myhost</ns1:HostName>"
-            in crawled_metadata["files"]["ovf-env.xml"]
+        self.assertEqual(crawled_metadata["cfg"], expected_cfg)
+        self.assertEqual(
+            list(crawled_metadata["files"].keys()), ["ovf-env.xml"]
         )
-        assert crawled_metadata["metadata"] == expected_metadata
-        assert crawled_metadata["userdata_raw"] == b"FOOBAR"
-        assert dsrc.userdata_raw is None
-        assert dsrc.metadata == {}
-        assert dsrc._metadata_imds == UNSET
-        assert not os.path.isfile(os.path.join(waagent_d, "ovf-env.xml"))
+        self.assertIn(
+            b"<ns1:HostName>myhost</ns1:HostName>",
+            crawled_metadata["files"]["ovf-env.xml"],
+        )
+        self.assertEqual(crawled_metadata["metadata"], expected_metadata)
+        self.assertEqual(crawled_metadata["userdata_raw"], b"FOOBAR")
+        self.assertEqual(dsrc.userdata_raw, None)
+        self.assertEqual(dsrc.metadata, {})
+        self.assertEqual(dsrc._metadata_imds, UNSET)
+        self.assertFalse(
+            os.path.isfile(os.path.join(self.waagent_d, "ovf-env.xml"))
+        )
 
-    def test_crawl_metadata_raises_invalid_metadata_on_error(self, get_ds):
+    def test_crawl_metadata_raises_invalid_metadata_on_error(self):
         """crawl_metadata raises an exception on invalid ovf-env.xml."""
         data = {"ovfcontent": "BOGUS", "sys_cfg": {}}
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         error_msg = "error parsing ovf-env.xml: syntax error: line 1, column 0"
-        with pytest.raises(errors.ReportableErrorOvfParsingException) as cm:
+        with self.assertRaises(
+            errors.ReportableErrorOvfParsingException
+        ) as cm:
             dsrc.crawl_metadata()
-        assert cm.value.reason == error_msg
+        self.assertEqual(cm.exception.reason, error_msg)
 
-    def test_crawl_metadata_call_imds_once_no_reprovision(self, get_ds):
+    def test_crawl_metadata_call_imds_once_no_reprovision(self):
         """If reprovisioning, report ready at the end"""
         ovfenv = construct_ovf_env(preprovisioned_vm=False)
 
         data = {"ovfcontent": ovfenv, "sys_cfg": {}}
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         dsrc.crawl_metadata()
-        assert 1 == self.m_fetch.call_count
+        self.assertEqual(1, self.m_fetch.call_count)
 
     @mock.patch("cloudinit.sources.DataSourceAzure.util.write_file")
     @mock.patch(
@@ -1526,26 +1539,26 @@ scbus-1 on xpt0 bus 0
     )
     @mock.patch("cloudinit.sources.DataSourceAzure.DataSourceAzure._poll_imds")
     def test_crawl_metadata_call_imds_twice_with_reprovision(
-        self, poll_imds_func, m_report_ready, m_write, get_ds
+        self, poll_imds_func, m_report_ready, m_write
     ):
         """If reprovisioning, imds metadata will be fetched twice"""
         ovfenv = construct_ovf_env(preprovisioned_vm=True)
 
         data = {"ovfcontent": ovfenv, "sys_cfg": {}}
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         poll_imds_func.return_value = ovfenv
         dsrc.crawl_metadata()
-        assert 2 == self.m_fetch.call_count
+        self.assertEqual(2, self.m_fetch.call_count)
 
-    def test_waagent_d_has_0700_perms(self, get_ds, waagent_d):
+    def test_waagent_d_has_0700_perms(self):
         # we expect /var/lib/waagent to be created 0700
-        dsrc = get_ds({"ovfcontent": construct_ovf_env()})
+        dsrc = self._get_ds({"ovfcontent": construct_ovf_env()})
         ret = dsrc.get_data()
-        assert ret
-        assert os.path.isdir(waagent_d)
-        assert stat.S_IMODE(os.stat(waagent_d).st_mode) == 0o700
+        self.assertTrue(ret)
+        self.assertTrue(os.path.isdir(self.waagent_d))
+        self.assertEqual(stat.S_IMODE(os.stat(self.waagent_d).st_mode), 0o700)
 
-    def test_network_config_set_from_imds(self, get_ds):
+    def test_network_config_set_from_imds(self):
         """Datasource.network_config returns IMDS network data."""
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
@@ -1564,13 +1577,11 @@ scbus-1 on xpt0 bus 0
             },
             "version": 2,
         }
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         dsrc.get_data()
-        assert expected_network_config == dsrc.network_config
+        self.assertEqual(expected_network_config, dsrc.network_config)
 
-    def test_network_config_set_from_imds_route_metric_for_secondary_nic(
-        self, get_ds
-    ):
+    def test_network_config_set_from_imds_route_metric_for_secondary_nic(self):
         """Datasource.network_config adds route-metric to secondary nics."""
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
@@ -1612,13 +1623,11 @@ scbus-1 on xpt0 bus 0
         imds_data["network"]["interface"].append(third_intf)
 
         self.m_fetch.return_value = imds_data
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         dsrc.get_data()
-        assert expected_network_config == dsrc.network_config
+        self.assertEqual(expected_network_config, dsrc.network_config)
 
-    def test_network_config_set_from_imds_for_secondary_nic_no_ip(
-        self, get_ds
-    ):
+    def test_network_config_set_from_imds_for_secondary_nic_no_ip(self):
         """If an IP address is empty then there should no config for it."""
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
@@ -1640,33 +1649,33 @@ scbus-1 on xpt0 bus 0
         imds_data = copy.deepcopy(NETWORK_METADATA)
         imds_data["network"]["interface"].append(SECONDARY_INTERFACE_NO_IP)
         self.m_fetch.return_value = imds_data
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         dsrc.get_data()
-        assert expected_network_config == dsrc.network_config
+        self.assertEqual(expected_network_config, dsrc.network_config)
 
-    def test_availability_zone_set_from_imds(self, get_ds):
+    def test_availability_zone_set_from_imds(self):
         """Datasource.availability returns IMDS platformFaultDomain."""
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
             "ovfcontent": construct_ovf_env(),
             "sys_cfg": sys_cfg,
         }
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         dsrc.get_data()
-        assert "0" == dsrc.availability_zone
+        self.assertEqual("0", dsrc.availability_zone)
 
-    def test_region_set_from_imds(self, get_ds):
+    def test_region_set_from_imds(self):
         """Datasource.region returns IMDS region location."""
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
             "ovfcontent": construct_ovf_env(),
             "sys_cfg": sys_cfg,
         }
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         dsrc.get_data()
-        assert "eastus2" == dsrc.region
+        self.assertEqual("eastus2", dsrc.region)
 
-    def test_sys_cfg_set_never_destroy_ntfs(self, get_ds):
+    def test_sys_cfg_set_never_destroy_ntfs(self):
         sys_cfg = {
             "datasource": {
                 "Azure": {"never_destroy_ntfs": "user-supplied-value"}
@@ -1677,20 +1686,20 @@ scbus-1 on xpt0 bus 0
             "sys_cfg": sys_cfg,
         }
 
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         ret = self._get_and_setup(dsrc)
-        assert ret
-        assert (
-            dsrc.ds_cfg.get(dsaz.DS_CFG_KEY_PRESERVE_NTFS)
-            == "user-supplied-value"
+        self.assertTrue(ret)
+        self.assertEqual(
+            dsrc.ds_cfg.get(dsaz.DS_CFG_KEY_PRESERVE_NTFS),
+            "user-supplied-value",
         )
 
-    def test_no_admin_username(self, get_ds):
+    def test_no_admin_username(self):
         data = {"ovfcontent": construct_ovf_env(username=None)}
 
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         ret = dsrc.get_data()
-        assert ret
+        self.assertTrue(ret)
 
         assert dsrc.cfg == {
             "PreprovisionedVMType": None,
@@ -1698,42 +1707,46 @@ scbus-1 on xpt0 bus 0
             "ProvisionGuestProxyAgent": False,
         }
 
-    def test_username_used(self, get_ds):
+    def test_username_used(self):
         data = {"ovfcontent": construct_ovf_env(username="myuser")}
 
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         ret = dsrc.get_data()
-        assert ret
-        assert dsrc.cfg["system_info"]["default_user"]["name"] == "myuser"
+        self.assertTrue(ret)
+        self.assertEqual(
+            dsrc.cfg["system_info"]["default_user"]["name"], "myuser"
+        )
 
         assert "ssh_pwauth" not in dsrc.cfg
 
-    def test_password_given(self, get_ds):
+    def test_password_given(self):
         data = {
             "ovfcontent": construct_ovf_env(
                 username="myuser", password="mypass"
             )
         }
 
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         ret = dsrc.get_data()
-        assert ret
-        assert "default_user" in dsrc.cfg["system_info"]
+        self.assertTrue(ret)
+        self.assertIn("default_user", dsrc.cfg["system_info"])
         defuser = dsrc.cfg["system_info"]["default_user"]
 
         # default user should be updated username and should not be locked.
-        assert defuser["name"] == "myuser"
-        assert not defuser["lock_passwd"]
+        self.assertEqual(defuser["name"], "myuser")
+        self.assertFalse(defuser["lock_passwd"])
         # passwd is crypt formated string $id$salt$encrypted
         # encrypting plaintext with salt value of everything up to final '$'
         # should equal that after the '$'
-        assert passlib.hash.sha512_crypt.verify(
-            "mypass", defuser["hashed_passwd"]
+        self.assertTrue(
+            passlib.hash.sha512_crypt.verify(
+                "mypass", defuser["hashed_passwd"]
+            )
         )
 
         assert dsrc.cfg["ssh_pwauth"] is True
 
-    def test_password_with_disable_ssh_pw_auth_true(self, get_ds):
+    def test_password_with_disable_ssh_pw_auth_true(self):
         data = {
             "ovfcontent": construct_ovf_env(
                 username="myuser",
@@ -1742,12 +1755,12 @@ scbus-1 on xpt0 bus 0
             )
         }
 
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         dsrc.get_data()
 
         assert dsrc.cfg["ssh_pwauth"] is False
 
-    def test_password_with_disable_ssh_pw_auth_false(self, get_ds):
+    def test_password_with_disable_ssh_pw_auth_false(self):
         data = {
             "ovfcontent": construct_ovf_env(
                 username="myuser",
@@ -1756,12 +1769,12 @@ scbus-1 on xpt0 bus 0
             )
         }
 
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         dsrc.get_data()
 
         assert dsrc.cfg["ssh_pwauth"] is True
 
-    def test_password_with_disable_ssh_pw_auth_unspecified(self, get_ds):
+    def test_password_with_disable_ssh_pw_auth_unspecified(self):
         data = {
             "ovfcontent": construct_ovf_env(
                 username="myuser",
@@ -1770,12 +1783,12 @@ scbus-1 on xpt0 bus 0
             )
         }
 
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         dsrc.get_data()
 
         assert dsrc.cfg["ssh_pwauth"] is True
 
-    def test_no_password_with_disable_ssh_pw_auth_true(self, get_ds):
+    def test_no_password_with_disable_ssh_pw_auth_true(self):
         data = {
             "ovfcontent": construct_ovf_env(
                 username="myuser",
@@ -1783,12 +1796,12 @@ scbus-1 on xpt0 bus 0
             )
         }
 
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         dsrc.get_data()
 
         assert dsrc.cfg["ssh_pwauth"] is False
 
-    def test_no_password_with_disable_ssh_pw_auth_false(self, get_ds):
+    def test_no_password_with_disable_ssh_pw_auth_false(self):
         data = {
             "ovfcontent": construct_ovf_env(
                 username="myuser",
@@ -1796,12 +1809,12 @@ scbus-1 on xpt0 bus 0
             )
         }
 
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         dsrc.get_data()
 
         assert dsrc.cfg["ssh_pwauth"] is True
 
-    def test_no_password_with_disable_ssh_pw_auth_unspecified(self, get_ds):
+    def test_no_password_with_disable_ssh_pw_auth_unspecified(self):
         data = {
             "ovfcontent": construct_ovf_env(
                 username="myuser",
@@ -1809,12 +1822,12 @@ scbus-1 on xpt0 bus 0
             )
         }
 
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         dsrc.get_data()
 
         assert "ssh_pwauth" not in dsrc.cfg
 
-    def test_user_not_locked_if_password_redacted(self, get_ds):
+    def test_user_not_locked_if_password_redacted(self):
         data = {
             "ovfcontent": construct_ovf_env(
                 username="myuser",
@@ -1822,27 +1835,27 @@ scbus-1 on xpt0 bus 0
             )
         }
 
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         ret = dsrc.get_data()
-        assert ret
-        assert "default_user" in dsrc.cfg["system_info"]
+        self.assertTrue(ret)
+        self.assertIn("default_user", dsrc.cfg["system_info"])
         defuser = dsrc.cfg["system_info"]["default_user"]
 
         # default user should be updated username and should not be locked.
-        assert defuser["name"] == "myuser"
-        assert "lock_passwd" in defuser
-        assert not defuser["lock_passwd"]
+        self.assertEqual(defuser["name"], "myuser")
+        self.assertIn("lock_passwd", defuser)
+        self.assertFalse(defuser["lock_passwd"])
 
-    def test_userdata_found(self, get_ds):
+    def test_userdata_found(self):
         mydata = "FOOBAR"
         data = {"ovfcontent": construct_ovf_env(custom_data=mydata)}
 
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         ret = dsrc.get_data()
-        assert ret
-        assert dsrc.userdata_raw == mydata.encode("utf-8")
+        self.assertTrue(ret)
+        self.assertEqual(dsrc.userdata_raw, mydata.encode("utf-8"))
 
-    def test_default_ephemeral_configs_ephemeral_exists(self, get_ds):
+    def test_default_ephemeral_configs_ephemeral_exists(self):
         # make sure the ephemeral configs are correct if disk present
         data = {
             "ovfcontent": construct_ovf_env(),
@@ -1857,21 +1870,21 @@ scbus-1 on xpt0 bus 0
             )
 
         with mock.patch(MOCKPATH + "os.path.exists", new=changed_exists):
-            dsrc = get_ds(data)
+            dsrc = self._get_ds(data)
             ret = dsrc.get_data()
-            assert ret
+            self.assertTrue(ret)
             cfg = dsrc.get_config_obj()
 
-            assert (
-                dsrc.device_name_to_device("ephemeral0")
-                == dsaz.RESOURCE_DISK_PATH
+            self.assertEqual(
+                dsrc.device_name_to_device("ephemeral0"),
+                dsaz.RESOURCE_DISK_PATH,
             )
             assert "disk_setup" in cfg
             assert "fs_setup" in cfg
-            assert isinstance(cfg["disk_setup"], dict)
-            assert isinstance(cfg["fs_setup"], list)
+            self.assertIsInstance(cfg["disk_setup"], dict)
+            self.assertIsInstance(cfg["fs_setup"], list)
 
-    def test_default_ephemeral_configs_ephemeral_does_not_exist(self, get_ds):
+    def test_default_ephemeral_configs_ephemeral_does_not_exist(self):
         # make sure the ephemeral configs are correct if disk not present
         data = {
             "ovfcontent": construct_ovf_env(),
@@ -1886,74 +1899,74 @@ scbus-1 on xpt0 bus 0
             )
 
         with mock.patch(MOCKPATH + "os.path.exists", new=changed_exists):
-            dsrc = get_ds(data)
+            dsrc = self._get_ds(data)
             ret = dsrc.get_data()
-            assert ret
+            self.assertTrue(ret)
             cfg = dsrc.get_config_obj()
 
             assert "disk_setup" not in cfg
             assert "fs_setup" not in cfg
 
-    def test_userdata_arrives(self, get_ds):
+    def test_userdata_arrives(self):
         userdata = "This is my user-data"
         xml = construct_ovf_env(custom_data=userdata)
         data = {"ovfcontent": xml}
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         dsrc.get_data()
 
-        assert userdata.encode("us-ascii") == dsrc.userdata_raw
+        self.assertEqual(userdata.encode("us-ascii"), dsrc.userdata_raw)
 
-    def test_password_redacted_in_ovf(self, get_ds, waagent_d):
+    def test_password_redacted_in_ovf(self):
         data = {
             "ovfcontent": construct_ovf_env(
                 username="myuser", password="mypass"
             )
         }
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         ret = dsrc.get_data()
 
-        assert ret
-        ovf_env_path = os.path.join(waagent_d, "ovf-env.xml")
+        self.assertTrue(ret)
+        ovf_env_path = os.path.join(self.waagent_d, "ovf-env.xml")
 
         # The XML should not be same since the user password is redacted
         on_disk_ovf = load_text_file(ovf_env_path)
         self.xml_notequals(data["ovfcontent"], on_disk_ovf)
 
         # Make sure that the redacted password on disk is not used by CI
-        assert dsrc.cfg.get("password") != dsaz.DEF_PASSWD_REDACTION
+        self.assertNotEqual(
+            dsrc.cfg.get("password"), dsaz.DEF_PASSWD_REDACTION
+        )
 
         # Make sure that the password was really encrypted
         et = ET.fromstring(on_disk_ovf)
         for elem in et.iter():
             if "UserPassword" in elem.tag:
-                assert dsaz.DEF_PASSWD_REDACTION == elem.text
+                self.assertEqual(dsaz.DEF_PASSWD_REDACTION, elem.text)
 
-    def test_ovf_env_arrives_in_waagent_dir(self, get_ds, waagent_d):
+    def test_ovf_env_arrives_in_waagent_dir(self):
         xml = construct_ovf_env(custom_data="FOODATA")
-        dsrc = get_ds({"ovfcontent": xml})
+        dsrc = self._get_ds({"ovfcontent": xml})
         dsrc.get_data()
 
         # 'data_dir' is '/var/lib/waagent' (walinux-agent's state dir)
         # we expect that the ovf-env.xml file is copied there.
-        ovf_env_path = os.path.join(waagent_d, "ovf-env.xml")
-        assert os.path.exists(ovf_env_path)
+        ovf_env_path = os.path.join(self.waagent_d, "ovf-env.xml")
+        self.assertTrue(os.path.exists(ovf_env_path))
         self.xml_equals(xml, load_text_file(ovf_env_path))
 
-    def test_ovf_can_include_unicode(self, get_ds):
+    def test_ovf_can_include_unicode(self):
         xml = construct_ovf_env()
         xml = "\ufeff{0}".format(xml)
-        dsrc = get_ds({"ovfcontent": xml})
+        dsrc = self._get_ds({"ovfcontent": xml})
         dsrc.get_data()
 
-    def test_dsaz_report_ready_returns_true_when_report_succeeds(self, get_ds):
-        dsrc = get_ds({"ovfcontent": construct_ovf_env()})
+    def test_dsaz_report_ready_returns_true_when_report_succeeds(self):
+        dsrc = self._get_ds({"ovfcontent": construct_ovf_env()})
         assert dsrc._report_ready() == []
 
     @mock.patch(MOCKPATH + "report_diagnostic_event")
-    def test_dsaz_report_ready_failure_reports_telemetry(
-        self, m_report_diag, get_ds
-    ):
-        dsrc = get_ds({"ovfcontent": construct_ovf_env()})
+    def test_dsaz_report_ready_failure_reports_telemetry(self, m_report_diag):
+        dsrc = self._get_ds({"ovfcontent": construct_ovf_env()})
         self.m_get_metadata_from_fabric.side_effect = Exception("foo")
 
         with pytest.raises(Exception):
@@ -1967,23 +1980,21 @@ scbus-1 on xpt0 bus 0
             )
         ]
 
-    def test_dsaz_report_failure_returns_true_when_report_succeeds(
-        self, get_ds
-    ):
-        dsrc = get_ds({"ovfcontent": construct_ovf_env()})
+    def test_dsaz_report_failure_returns_true_when_report_succeeds(self):
+        dsrc = self._get_ds({"ovfcontent": construct_ovf_env()})
 
         with mock.patch.object(dsrc, "crawl_metadata") as m_crawl_metadata:
             # mock crawl metadata failure to cause report failure
             m_crawl_metadata.side_effect = Exception
 
             error = errors.ReportableError(reason="foo")
-            assert dsrc._report_failure(error)
-            assert 1 == self.m_report_failure_to_fabric.call_count
+            self.assertTrue(dsrc._report_failure(error))
+            self.assertEqual(1, self.m_report_failure_to_fabric.call_count)
 
     def test_dsaz_report_failure_returns_false_and_does_not_propagate_exc(
-        self, get_ds
+        self,
     ):
-        dsrc = get_ds({"ovfcontent": construct_ovf_env()})
+        dsrc = self._get_ds({"ovfcontent": construct_ovf_env()})
 
         with mock.patch.object(
             dsrc, "crawl_metadata"
@@ -2009,26 +2020,24 @@ scbus-1 on xpt0 bus 0
             self.m_report_failure_to_fabric.side_effect = Exception
 
             error = errors.ReportableError(reason="foo")
-            assert not dsrc._report_failure(error)
-            assert 2 == self.m_report_failure_to_fabric.call_count
+            self.assertFalse(dsrc._report_failure(error))
+            self.assertEqual(2, self.m_report_failure_to_fabric.call_count)
 
-    def test_dsaz_report_failure(self, get_ds):
-        dsrc = get_ds({"ovfcontent": construct_ovf_env()})
+    def test_dsaz_report_failure(self):
+        dsrc = self._get_ds({"ovfcontent": construct_ovf_env()})
 
         with mock.patch.object(dsrc, "crawl_metadata") as m_crawl_metadata:
             m_crawl_metadata.side_effect = Exception
 
             error = errors.ReportableError(reason="foo")
-            assert dsrc._report_failure(error)
+            self.assertTrue(dsrc._report_failure(error))
             self.m_report_failure_to_fabric.assert_called_once_with(
                 endpoint="168.63.129.16",
                 encoded_report=error.as_encoded_report(vm_id=dsrc._vm_id),
             )
 
-    def test_dsaz_report_failure_uses_cached_ephemeral_dhcp_ctx_lease(
-        self, get_ds
-    ):
-        dsrc = get_ds({"ovfcontent": construct_ovf_env()})
+    def test_dsaz_report_failure_uses_cached_ephemeral_dhcp_ctx_lease(self):
+        dsrc = self._get_ds({"ovfcontent": construct_ovf_env()})
 
         with mock.patch.object(
             dsrc, "crawl_metadata"
@@ -2039,7 +2048,7 @@ scbus-1 on xpt0 bus 0
             m_crawl_metadata.side_effect = Exception
 
             error = errors.ReportableError(reason="foo")
-            assert dsrc._report_failure(error)
+            self.assertTrue(dsrc._report_failure(error))
 
             # ensure called with cached ephemeral dhcp lease option 245
             self.m_report_failure_to_fabric.assert_called_once_with(
@@ -2047,10 +2056,8 @@ scbus-1 on xpt0 bus 0
                 encoded_report=error.as_encoded_report(vm_id=dsrc._vm_id),
             )
 
-    def test_dsaz_report_failure_no_net_uses_new_ephemeral_dhcp_lease(
-        self, get_ds
-    ):
-        dsrc = get_ds({"ovfcontent": construct_ovf_env()})
+    def test_dsaz_report_failure_no_net_uses_new_ephemeral_dhcp_lease(self):
+        dsrc = self._get_ds({"ovfcontent": construct_ovf_env()})
 
         with mock.patch.object(dsrc, "crawl_metadata") as m_crawl_metadata:
             # mock crawl metadata failure to cause report failure
@@ -2064,7 +2071,7 @@ scbus-1 on xpt0 bus 0
             self.m_dhcp.return_value.obtain_lease.return_value = test_lease
 
             error = errors.ReportableError(reason="foo")
-            assert dsrc._report_failure(error)
+            self.assertTrue(dsrc._report_failure(error))
 
             # ensure called with the newly discovered
             # ephemeral dhcp lease option 245
@@ -2073,74 +2080,77 @@ scbus-1 on xpt0 bus 0
                 encoded_report=error.as_encoded_report(vm_id=dsrc._vm_id),
             )
 
-    def test_exception_fetching_fabric_data_doesnt_propagate(self, get_ds):
+    def test_exception_fetching_fabric_data_doesnt_propagate(self):
         """Errors communicating with fabric should warn, but return True."""
-        dsrc = get_ds({"ovfcontent": construct_ovf_env()})
+        dsrc = self._get_ds({"ovfcontent": construct_ovf_env()})
         self.m_get_metadata_from_fabric.side_effect = Exception
         ret = self._get_and_setup(dsrc)
-        assert ret
+        self.assertTrue(ret)
 
-    def test_fabric_data_included_in_metadata(self, get_ds):
-        dsrc = get_ds({"ovfcontent": construct_ovf_env()})
+    def test_fabric_data_included_in_metadata(self):
+        dsrc = self._get_ds({"ovfcontent": construct_ovf_env()})
         self.m_get_metadata_from_fabric.return_value = ["ssh-key-value"]
         ret = self._get_and_setup(dsrc)
-        assert ret
-        assert ["ssh-key-value"] == dsrc.metadata["public-keys"]
+        self.assertTrue(ret)
+        self.assertEqual(["ssh-key-value"], dsrc.metadata["public-keys"])
 
-    def test_instance_id_case_insensitive(self, get_ds, paths):
+    def test_instance_id_case_insensitive(self):
         """Return the previous iid when current is a case-insensitive match."""
         lower_iid = EXAMPLE_UUID.lower()
         upper_iid = EXAMPLE_UUID.upper()
         # lowercase current UUID
-        ds = get_ds({"ovfcontent": construct_ovf_env()}, instance_id=lower_iid)
+        ds = self._get_ds(
+            {"ovfcontent": construct_ovf_env()}, instance_id=lower_iid
+        )
         # UPPERCASE previous
         write_file(
-            os.path.join(paths.cloud_dir, "data", "instance-id"),
+            os.path.join(self.paths.cloud_dir, "data", "instance-id"),
             upper_iid,
         )
         ds.get_data()
-        assert upper_iid == ds.metadata["instance-id"]
+        self.assertEqual(upper_iid, ds.metadata["instance-id"])
 
         # UPPERCASE current UUID
-        ds = get_ds({"ovfcontent": construct_ovf_env()}, instance_id=upper_iid)
+        ds = self._get_ds(
+            {"ovfcontent": construct_ovf_env()}, instance_id=upper_iid
+        )
         # lowercase previous
         write_file(
-            os.path.join(paths.cloud_dir, "data", "instance-id"),
+            os.path.join(self.paths.cloud_dir, "data", "instance-id"),
             lower_iid,
         )
         ds.get_data()
-        assert lower_iid == ds.metadata["instance-id"]
+        self.assertEqual(lower_iid, ds.metadata["instance-id"])
 
-    def test_instance_id_endianness(self, get_ds, paths):
+    def test_instance_id_endianness(self):
         """Return the previous iid when dmi uuid is the byteswapped iid."""
-        ds = get_ds({"ovfcontent": construct_ovf_env()})
+        ds = self._get_ds({"ovfcontent": construct_ovf_env()})
         # byte-swapped previous
         write_file(
-            os.path.join(paths.cloud_dir, "data", "instance-id"),
+            os.path.join(self.paths.cloud_dir, "data", "instance-id"),
             "544CDFD0-CB4E-4B4A-9954-5BDF3ED5C3B8",
         )
         ds.get_data()
-        assert (
-            "544CDFD0-CB4E-4B4A-9954-5BDF3ED5C3B8"
-            == ds.metadata["instance-id"]
+        self.assertEqual(
+            "544CDFD0-CB4E-4B4A-9954-5BDF3ED5C3B8", ds.metadata["instance-id"]
         )
         # not byte-swapped previous
         write_file(
-            os.path.join(paths.cloud_dir, "data", "instance-id"),
+            os.path.join(self.paths.cloud_dir, "data", "instance-id"),
             "644CDFD0-CB4E-4B4A-9954-5BDF3ED5C3B8",
         )
         ds.get_data()
-        assert self.instance_id == ds.metadata["instance-id"]
+        self.assertEqual(self.instance_id, ds.metadata["instance-id"])
 
-    def test_instance_id_from_dmidecode_used(self, get_ds):
-        ds = get_ds({"ovfcontent": construct_ovf_env()})
+    def test_instance_id_from_dmidecode_used(self):
+        ds = self._get_ds({"ovfcontent": construct_ovf_env()})
         ds.get_data()
-        assert self.instance_id == ds.metadata["instance-id"]
+        self.assertEqual(self.instance_id, ds.metadata["instance-id"])
 
-    def test_instance_id_from_dmidecode_used_for_builtin(self, get_ds):
-        ds = get_ds({"ovfcontent": construct_ovf_env()})
+    def test_instance_id_from_dmidecode_used_for_builtin(self):
+        ds = self._get_ds({"ovfcontent": construct_ovf_env()})
         ds.get_data()
-        assert self.instance_id == ds.metadata["instance-id"]
+        self.assertEqual(self.instance_id, ds.metadata["instance-id"])
 
     @mock.patch(MOCKPATH + "util.is_FreeBSD")
     @mock.patch(MOCKPATH + "_check_freebsd_cdrom")
@@ -2151,18 +2161,21 @@ scbus-1 on xpt0 bus 0
         possible_ds = []
         for src in dsaz.list_possible_azure_ds("seed_dir", "cache_dir"):
             possible_ds.append(src)
-        assert possible_ds == [
-            "seed_dir",
-            dsaz.DEFAULT_PROVISIONING_ISO_DEV,
-            "/dev/cd0",
-            "cache_dir",
-        ]
-        assert [mock.call("/dev/cd0")] == m_check_fbsd_cdrom.call_args_list
+        self.assertEqual(
+            possible_ds,
+            [
+                "seed_dir",
+                dsaz.DEFAULT_PROVISIONING_ISO_DEV,
+                "/dev/cd0",
+                "cache_dir",
+            ],
+        )
+        self.assertEqual(
+            [mock.call("/dev/cd0")], m_check_fbsd_cdrom.call_args_list
+        )
 
     @mock.patch(MOCKPATH + "net.get_interfaces")
-    def test_blacklist_through_distro(
-        self, m_net_get_interfaces, get_ds, paths
-    ):
+    def test_blacklist_through_distro(self, m_net_get_interfaces):
         """Verify Azure DS updates blacklist drivers in the distro's
         networking object."""
         data = {
@@ -2171,8 +2184,8 @@ scbus-1 on xpt0 bus 0
         }
 
         distro_cls = distros.fetch("ubuntu")
-        distro = distro_cls("ubuntu", {}, paths)
-        dsrc = get_ds(data, distro=distro)
+        distro = distro_cls("ubuntu", {}, self.paths)
+        dsrc = self._get_ds(data, distro=distro)
         dsrc.get_data()
 
         distro.networking.get_interfaces_by_mac()
@@ -2181,18 +2194,18 @@ scbus-1 on xpt0 bus 0
     @mock.patch(
         "cloudinit.sources.helpers.azure.OpenSSLManager.parse_certificates"
     )
-    def test_get_public_ssh_keys_with_imds(self, m_parse_certificates, get_ds):
+    def test_get_public_ssh_keys_with_imds(self, m_parse_certificates):
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
             "ovfcontent": construct_ovf_env(),
             "sys_cfg": sys_cfg,
         }
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         dsrc.get_data()
         dsrc.setup(True)
         ssh_keys = dsrc.get_public_ssh_keys()
-        assert ssh_keys == ["ssh-rsa key1"]
-        assert m_parse_certificates.call_count == 0
+        self.assertEqual(ssh_keys, ["ssh-rsa key1"])
+        self.assertEqual(m_parse_certificates.call_count, 0)
 
     def test_key_without_crlf_valid(self):
         test_key = "ssh-rsa somerandomkeystuff some comment"
@@ -2210,7 +2223,7 @@ scbus-1 on xpt0 bus 0
         "cloudinit.sources.helpers.azure.OpenSSLManager.parse_certificates"
     )
     def test_get_public_ssh_keys_with_no_openssh_format(
-        self, m_parse_certificates, get_ds
+        self, m_parse_certificates
     ):
         imds_data = copy.deepcopy(NETWORK_METADATA)
         imds_data["compute"]["publicKeys"][0]["keyData"] = "no-openssh-format"
@@ -2220,28 +2233,28 @@ scbus-1 on xpt0 bus 0
             "ovfcontent": construct_ovf_env(),
             "sys_cfg": sys_cfg,
         }
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         dsrc.get_data()
         dsrc.setup(True)
         ssh_keys = dsrc.get_public_ssh_keys()
-        assert ssh_keys == []
-        assert m_parse_certificates.call_count == 0
+        self.assertEqual(ssh_keys, [])
+        self.assertEqual(m_parse_certificates.call_count, 0)
 
-    def test_get_public_ssh_keys_without_imds(self, get_ds):
+    def test_get_public_ssh_keys_without_imds(self):
         self.m_fetch.return_value = dict()
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
             "ovfcontent": construct_ovf_env(),
             "sys_cfg": sys_cfg,
         }
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         dsaz.get_metadata_from_fabric.return_value = ["key2"]
         dsrc.get_data()
         dsrc.setup(True)
         ssh_keys = dsrc.get_public_ssh_keys()
-        assert ssh_keys == ["key2"]
+        self.assertEqual(ssh_keys, ["key2"])
 
-    def test_hostname_from_imds(self, get_ds):
+    def test_hostname_from_imds(self):
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
             "ovfcontent": construct_ovf_env(),
@@ -2254,11 +2267,11 @@ scbus-1 on xpt0 bus 0
             disablePasswordAuthentication="true",
         )
         self.m_fetch.return_value = imds_data_with_os_profile
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         dsrc.get_data()
-        assert dsrc.metadata["local-hostname"] == "hostname1"
+        self.assertEqual(dsrc.metadata["local-hostname"], "hostname1")
 
-    def test_username_from_imds(self, get_ds):
+    def test_username_from_imds(self):
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
             "ovfcontent": construct_ovf_env(),
@@ -2271,11 +2284,13 @@ scbus-1 on xpt0 bus 0
             disablePasswordAuthentication="true",
         )
         self.m_fetch.return_value = imds_data_with_os_profile
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         dsrc.get_data()
-        assert dsrc.cfg["system_info"]["default_user"]["name"] == "username1"
+        self.assertEqual(
+            dsrc.cfg["system_info"]["default_user"]["name"], "username1"
+        )
 
-    def test_disable_password_from_imds_true(self, get_ds):
+    def test_disable_password_from_imds_true(self):
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
             "ovfcontent": construct_ovf_env(),
@@ -2288,11 +2303,11 @@ scbus-1 on xpt0 bus 0
             disablePasswordAuthentication="true",
         )
         self.m_fetch.return_value = imds_data_with_os_profile
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         dsrc.get_data()
-        assert not dsrc.cfg["ssh_pwauth"]
+        self.assertFalse(dsrc.cfg["ssh_pwauth"])
 
-    def test_disable_password_from_imds_false(self, get_ds):
+    def test_disable_password_from_imds_false(self):
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
             "ovfcontent": construct_ovf_env(),
@@ -2306,11 +2321,11 @@ scbus-1 on xpt0 bus 0
             disablePasswordAuthentication="false",
         )
         self.m_fetch.return_value = imds_data_with_os_profile
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         dsrc.get_data()
-        assert dsrc.cfg["ssh_pwauth"]
+        self.assertTrue(dsrc.cfg["ssh_pwauth"])
 
-    def test_userdata_from_imds(self, get_ds):
+    def test_userdata_from_imds(self):
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
             "ovfcontent": construct_ovf_env(),
@@ -2325,12 +2340,12 @@ scbus-1 on xpt0 bus 0
         )
         imds_data["compute"]["userData"] = b64e(userdata)
         self.m_fetch.return_value = imds_data
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         ret = dsrc.get_data()
-        assert ret
-        assert dsrc.userdata_raw == userdata.encode("utf-8")
+        self.assertTrue(ret)
+        self.assertEqual(dsrc.userdata_raw, userdata.encode("utf-8"))
 
-    def test_userdata_from_imds_with_customdata_from_OVF(self, get_ds):
+    def test_userdata_from_imds_with_customdata_from_OVF(self):
         userdataOVF = "userdataOVF"
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
         data = {
@@ -2347,130 +2362,116 @@ scbus-1 on xpt0 bus 0
         )
         imds_data["compute"]["userData"] = b64e(userdataImds)
         self.m_fetch.return_value = imds_data
-        dsrc = get_ds(data)
+        dsrc = self._get_ds(data)
         ret = dsrc.get_data()
-        assert ret
-        assert dsrc.userdata_raw == userdataOVF.encode("utf-8")
+        self.assertTrue(ret)
+        self.assertEqual(dsrc.userdata_raw, userdataOVF.encode("utf-8"))
 
 
-class TestLoadAzureDsDir:
+class TestLoadAzureDsDir(CiTestCase):
     """Tests for load_azure_ds_dir."""
 
-    def test_missing_ovf_env_xml_raises_non_azure_datasource_error(
-        self, tmp_path
-    ):
-        """load_azure_ds_dir raises an error When ovf-env.xml doesn't exit."""
-        with pytest.raises(
-            dsaz.NonAzureDataSource, match="No ovf-env file found"
-        ):
-            dsaz.load_azure_ds_dir(str(tmp_path))
+    def setUp(self):
+        self.source_dir = self.tmp_dir()
+        super(TestLoadAzureDsDir, self).setUp()
 
-    def test_wb_invalid_ovf_env_xml_calls_read_azure_ovf(self, tmp_path):
+    def test_missing_ovf_env_xml_raises_non_azure_datasource_error(self):
+        """load_azure_ds_dir raises an error When ovf-env.xml doesn't exit."""
+        with self.assertRaises(dsaz.NonAzureDataSource) as context_manager:
+            dsaz.load_azure_ds_dir(self.source_dir)
+        self.assertEqual(
+            "No ovf-env file found", str(context_manager.exception)
+        )
+
+    def test_wb_invalid_ovf_env_xml_calls_read_azure_ovf(self):
         """load_azure_ds_dir calls read_azure_ovf to parse the xml."""
-        ovf_path = os.path.join(str(tmp_path), "ovf-env.xml")
+        ovf_path = os.path.join(self.source_dir, "ovf-env.xml")
         with open(ovf_path, "wb") as stream:
             stream.write(b"invalid xml")
-        with pytest.raises(errors.ReportableErrorOvfParsingException) as cm:
-            dsaz.load_azure_ds_dir(str(tmp_path))
-        assert (
-            "error parsing ovf-env.xml: syntax error: line 1, column 0"
-            == cm.value.reason
+        with self.assertRaises(
+            errors.ReportableErrorOvfParsingException
+        ) as context_manager:
+            dsaz.load_azure_ds_dir(self.source_dir)
+        self.assertEqual(
+            "error parsing ovf-env.xml: syntax error: line 1, column 0",
+            context_manager.exception.reason,
         )
 
 
-class TestReadAzureOvf:
+class TestReadAzureOvf(CiTestCase):
     def test_invalid_xml_raises_non_azure_ds(self):
         invalid_xml = "<foo>" + construct_ovf_env()
-        with pytest.raises(errors.ReportableErrorOvfParsingException):
-            dsaz.read_azure_ovf(
-                invalid_xml,
-            )
+        self.assertRaises(
+            errors.ReportableErrorOvfParsingException,
+            dsaz.read_azure_ovf,
+            invalid_xml,
+        )
 
     def test_load_with_pubkeys(self):
         public_keys = [{"fingerprint": "fp1", "path": "path1", "value": ""}]
         content = construct_ovf_env(public_keys=public_keys)
         (_md, _ud, cfg) = dsaz.read_azure_ovf(content)
         for pk in public_keys:
-            assert pk in cfg["_pubkeys"]
+            self.assertIn(pk, cfg["_pubkeys"])
 
 
-class TestCanDevBeReformatted:
+class TestCanDevBeReformatted(CiTestCase):
+    with_logs = True
     warning_file = "dataloss_warning_readme.txt"
 
-    @pytest.fixture
-    def patchup(self, mocker):
-        def _patchup(devs):
-            bypath = {}
-            for path, data in devs.items():
-                bypath[path] = data
+    def _domock(self, mockpath, sattr=None):
+        patcher = mock.patch(mockpath)
+        setattr(self, sattr, patcher.start())
+        self.addCleanup(patcher.stop)
+
+    def patchup(self, devs):
+        bypath = {}
+        for path, data in devs.items():
+            bypath[path] = data
+            if "realpath" in data:
+                bypath[data["realpath"]] = data
+            for ppath, pdata in data.get("partitions", {}).items():
+                bypath[ppath] = pdata
                 if "realpath" in data:
-                    bypath[data["realpath"]] = data
-                for ppath, pdata in data.get("partitions", {}).items():
-                    bypath[ppath] = pdata
-                    if "realpath" in data:
-                        bypath[pdata["realpath"]] = pdata
+                    bypath[pdata["realpath"]] = pdata
 
-            def realpath(d):
-                return bypath[d].get("realpath", d)
+        def realpath(d):
+            return bypath[d].get("realpath", d)
 
-            def partitions_on_device(devpath):
-                parts = bypath.get(devpath, {}).get("partitions", {})
-                ret = []
-                for path, data in parts.items():
-                    ret.append((data.get("num"), realpath(path)))
-                # return sorted by partition number
-                return sorted(ret, key=lambda d: d[0])
+        def partitions_on_device(devpath):
+            parts = bypath.get(devpath, {}).get("partitions", {})
+            ret = []
+            for path, data in parts.items():
+                ret.append((data.get("num"), realpath(path)))
+            # return sorted by partition number
+            return sorted(ret, key=lambda d: d[0])
 
-            def has_ntfs_fs(device):
-                return bypath.get(device, {}).get("fs") == "ntfs"
+        def has_ntfs_fs(device):
+            return bypath.get(device, {}).get("fs") == "ntfs"
 
-            p = MOCKPATH
-            self.m_partitions_on_device = mocker.patch(
-                p + "_partitions_on_device"
-            )
-            self.m_has_ntfs_filesystem = mocker.patch(
-                p + "_has_ntfs_filesystem"
-            )
-            self.m_realpath = mocker.patch(p + "os.path.realpath")
-            self.m_exists = mocker.patch(p + "os.path.exists")
-            self.m_selguard = mocker.patch(p + "util.SeLinuxGuard")
+        p = MOCKPATH
+        self._domock(p + "_partitions_on_device", "m_partitions_on_device")
+        self._domock(p + "_has_ntfs_filesystem", "m_has_ntfs_filesystem")
+        self._domock(p + "os.path.realpath", "m_realpath")
+        self._domock(p + "os.path.exists", "m_exists")
+        self._domock(p + "util.SeLinuxGuard", "m_selguard")
 
-            self.m_exists.side_effect = lambda p: p in bypath
-            self.m_realpath.side_effect = realpath
-            self.m_has_ntfs_filesystem.side_effect = has_ntfs_fs
-            self.m_partitions_on_device.side_effect = partitions_on_device
-            self.m_selguard.__enter__ = mock.Mock(return_value=False)
-            self.m_selguard.__exit__ = mock.Mock()
+        self.m_exists.side_effect = lambda p: p in bypath
+        self.m_realpath.side_effect = realpath
+        self.m_has_ntfs_filesystem.side_effect = has_ntfs_fs
+        self.m_partitions_on_device.side_effect = partitions_on_device
+        self.m_selguard.__enter__ = mock.Mock(return_value=False)
+        self.m_selguard.__exit__ = mock.Mock()
 
-            return bypath
-
-        return _patchup
-
-    @pytest.fixture
-    def domock_mount_cb(self, mocker, tmp_path):
-        def _do_mock_mount_cb(bypath):
-            def mount_cb(
-                device, callback, mtype, update_env_for_mount, log_error=False
-            ):
-                assert "ntfs" == mtype
-                assert "C" == update_env_for_mount.get("LANG")
-                for f in bypath.get(device).get("files", []):
-                    write_file(os.path.join(tmp_path, f), content=f)
-                return callback(str(tmp_path))
-
-            p = MOCKPATH
-            self.m_mount_cb = mocker.patch(p + "util.mount_cb")
-            self.m_mount_cb.side_effect = mount_cb
-
-        return _do_mock_mount_cb
+        return bypath
 
     M_PATH = "cloudinit.util."
 
     @mock.patch(M_PATH + "subp.subp")
-    def test_ntfs_mount_logs(self, m_subp, caplog, patchup):
+    def test_ntfs_mount_logs(self, m_subp):
         """can_dev_be_reformatted does not log errors in case of
         unknown filesystem 'ntfs'."""
-        patchup(
+        self.patchup(
             {
                 "/dev/sda": {
                     "partitions": {
@@ -2487,11 +2488,26 @@ class TestCanDevBeReformatted:
         )
 
         dsaz.can_dev_be_reformatted("/dev/sda", preserve_ntfs=False)
-        assert log_msg not in caplog.text
+        self.assertNotIn(log_msg, self.logs.getvalue())
 
-    def test_three_partitions_is_false(self, domock_mount_cb, patchup):
+    def _domock_mount_cb(self, bypath):
+        def mount_cb(
+            device, callback, mtype, update_env_for_mount, log_error=False
+        ):
+            self.assertEqual("ntfs", mtype)
+            self.assertEqual("C", update_env_for_mount.get("LANG"))
+            p = self.tmp_dir()
+            for f in bypath.get(device).get("files", []):
+                write_file(os.path.join(p, f), content=f)
+            return callback(p)
+
+        p = MOCKPATH
+        self._domock(p + "util.mount_cb", "m_mount_cb")
+        self.m_mount_cb.side_effect = mount_cb
+
+    def test_three_partitions_is_false(self):
         """A disk with 3 partitions can not be formatted."""
-        bypath = patchup(
+        bypath = self.patchup(
             {
                 "/dev/sda": {
                     "partitions": {
@@ -2502,26 +2518,26 @@ class TestCanDevBeReformatted:
                 }
             }
         )
-        domock_mount_cb(bypath)
+        self._domock_mount_cb(bypath)
         value, msg = dsaz.can_dev_be_reformatted(
             "/dev/sda", preserve_ntfs=False
         )
-        assert not value
-        assert "3 or more" in msg.lower()
+        self.assertFalse(value)
+        self.assertIn("3 or more", msg.lower())
 
-    def test_no_partitions_is_false(self, patchup, domock_mount_cb):
+    def test_no_partitions_is_false(self):
         """A disk with no partitions can not be formatted."""
-        bypath = patchup({"/dev/sda": {}})
-        domock_mount_cb(bypath)
+        bypath = self.patchup({"/dev/sda": {}})
+        self._domock_mount_cb(bypath)
         value, msg = dsaz.can_dev_be_reformatted(
             "/dev/sda", preserve_ntfs=False
         )
-        assert not value
-        assert "not partitioned" in msg.lower()
+        self.assertFalse(value)
+        self.assertIn("not partitioned", msg.lower())
 
-    def test_two_partitions_not_ntfs_false(self, patchup, domock_mount_cb):
+    def test_two_partitions_not_ntfs_false(self):
         """2 partitions and 2nd not ntfs can not be formatted."""
-        bypath = patchup(
+        bypath = self.patchup(
             {
                 "/dev/sda": {
                     "partitions": {
@@ -2531,18 +2547,16 @@ class TestCanDevBeReformatted:
                 }
             }
         )
-        domock_mount_cb(bypath)
+        self._domock_mount_cb(bypath)
         value, msg = dsaz.can_dev_be_reformatted(
             "/dev/sda", preserve_ntfs=False
         )
-        assert not value
-        assert "not ntfs" in msg.lower()
+        self.assertFalse(value)
+        self.assertIn("not ntfs", msg.lower())
 
-    def test_two_partitions_ntfs_populated_false(
-        self, patchup, domock_mount_cb
-    ):
+    def test_two_partitions_ntfs_populated_false(self):
         """2 partitions and populated ntfs fs on 2nd can not be formatted."""
-        bypath = patchup(
+        bypath = self.patchup(
             {
                 "/dev/sda": {
                     "partitions": {
@@ -2556,16 +2570,16 @@ class TestCanDevBeReformatted:
                 }
             }
         )
-        domock_mount_cb(bypath)
+        self._domock_mount_cb(bypath)
         value, msg = dsaz.can_dev_be_reformatted(
             "/dev/sda", preserve_ntfs=False
         )
-        assert not value
-        assert "files on it" in msg.lower()
+        self.assertFalse(value)
+        self.assertIn("files on it", msg.lower())
 
-    def test_two_partitions_ntfs_empty_is_true(self, patchup, domock_mount_cb):
+    def test_two_partitions_ntfs_empty_is_true(self):
         """2 partitions and empty ntfs fs on 2nd can be formatted."""
-        bypath = patchup(
+        bypath = self.patchup(
             {
                 "/dev/sda": {
                     "partitions": {
@@ -2575,16 +2589,16 @@ class TestCanDevBeReformatted:
                 }
             }
         )
-        domock_mount_cb(bypath)
+        self._domock_mount_cb(bypath)
         value, msg = dsaz.can_dev_be_reformatted(
             "/dev/sda", preserve_ntfs=False
         )
-        assert value
-        assert "safe for" in msg.lower()
+        self.assertTrue(value)
+        self.assertIn("safe for", msg.lower())
 
-    def test_one_partition_not_ntfs_false(self, patchup, domock_mount_cb):
+    def test_one_partition_not_ntfs_false(self):
         """1 partition witih fs other than ntfs can not be formatted."""
-        bypath = patchup(
+        bypath = self.patchup(
             {
                 "/dev/sda": {
                     "partitions": {
@@ -2593,18 +2607,16 @@ class TestCanDevBeReformatted:
                 }
             }
         )
-        domock_mount_cb(bypath)
+        self._domock_mount_cb(bypath)
         value, msg = dsaz.can_dev_be_reformatted(
             "/dev/sda", preserve_ntfs=False
         )
-        assert not value
-        assert "not ntfs" in msg.lower()
+        self.assertFalse(value)
+        self.assertIn("not ntfs", msg.lower())
 
-    def test_one_partition_ntfs_populated_false(
-        self, patchup, domock_mount_cb
-    ):
+    def test_one_partition_ntfs_populated_false(self):
         """1 mountable ntfs partition with many files can not be formatted."""
-        bypath = patchup(
+        bypath = self.patchup(
             {
                 "/dev/sda": {
                     "partitions": {
@@ -2617,19 +2629,21 @@ class TestCanDevBeReformatted:
                 }
             }
         )
-        domock_mount_cb(bypath)
+        self._domock_mount_cb(bypath)
         with mock.patch.object(dsaz.LOG, "warning") as warning:
             value, msg = dsaz.can_dev_be_reformatted(
                 "/dev/sda", preserve_ntfs=False
             )
             wmsg = warning.call_args[0][0]
-            assert "looks like you're using NTFS on the ephemeral disk" in wmsg
-            assert not value
-            assert "files on it" in msg.lower()
+            self.assertIn(
+                "looks like you're using NTFS on the ephemeral disk", wmsg
+            )
+            self.assertFalse(value)
+            self.assertIn("files on it", msg.lower())
 
-    def test_one_partition_ntfs_empty_is_true(self, patchup, domock_mount_cb):
+    def test_one_partition_ntfs_empty_is_true(self):
         """1 mountable ntfs partition and no files can be formatted."""
-        bypath = patchup(
+        bypath = self.patchup(
             {
                 "/dev/sda": {
                     "partitions": {
@@ -2638,18 +2652,16 @@ class TestCanDevBeReformatted:
                 }
             }
         )
-        domock_mount_cb(bypath)
+        self._domock_mount_cb(bypath)
         value, msg = dsaz.can_dev_be_reformatted(
             "/dev/sda", preserve_ntfs=False
         )
-        assert value
-        assert "safe for" in msg.lower()
+        self.assertTrue(value)
+        self.assertIn("safe for", msg.lower())
 
-    def test_one_partition_ntfs_empty_with_dataloss_file_is_true(
-        self, patchup, domock_mount_cb
-    ):
+    def test_one_partition_ntfs_empty_with_dataloss_file_is_true(self):
         """1 mountable ntfs partition and only warn file can be formatted."""
-        bypath = patchup(
+        bypath = self.patchup(
             {
                 "/dev/sda": {
                     "partitions": {
@@ -2662,18 +2674,16 @@ class TestCanDevBeReformatted:
                 }
             }
         )
-        domock_mount_cb(bypath)
+        self._domock_mount_cb(bypath)
         value, msg = dsaz.can_dev_be_reformatted(
             "/dev/sda", preserve_ntfs=False
         )
-        assert value
-        assert "safe for" in msg.lower()
+        self.assertTrue(value)
+        self.assertIn("safe for", msg.lower())
 
-    def test_one_partition_ntfs_empty_with_svi_file_is_true(
-        self, patchup, domock_mount_cb
-    ):
+    def test_one_partition_ntfs_empty_with_svi_file_is_true(self):
         """1 mountable ntfs partition and only warn file can be formatted."""
-        bypath = patchup(
+        bypath = self.patchup(
             {
                 "/dev/sda": {
                     "partitions": {
@@ -2686,19 +2696,17 @@ class TestCanDevBeReformatted:
                 }
             }
         )
-        domock_mount_cb(bypath)
+        self._domock_mount_cb(bypath)
         value, msg = dsaz.can_dev_be_reformatted(
             "/dev/sda", preserve_ntfs=False
         )
-        assert value
-        assert "safe for" in msg.lower()
+        self.assertTrue(value)
+        self.assertIn("safe for", msg.lower())
 
-    def test_one_partition_through_realpath_is_true(
-        self, patchup, domock_mount_cb
-    ):
+    def test_one_partition_through_realpath_is_true(self):
         """A symlink to a device with 1 ntfs partition can be formatted."""
         epath = "/dev/disk/cloud/azure_resource"
-        bypath = patchup(
+        bypath = self.patchup(
             {
                 epath: {
                     "realpath": "/dev/sdb",
@@ -2714,17 +2722,15 @@ class TestCanDevBeReformatted:
                 }
             }
         )
-        domock_mount_cb(bypath)
+        self._domock_mount_cb(bypath)
         value, msg = dsaz.can_dev_be_reformatted(epath, preserve_ntfs=False)
-        assert value
-        assert "safe for" in msg.lower()
+        self.assertTrue(value)
+        self.assertIn("safe for", msg.lower())
 
-    def test_three_partition_through_realpath_is_false(
-        self, patchup, domock_mount_cb
-    ):
+    def test_three_partition_through_realpath_is_false(self):
         """A symlink to a device with 3 partitions can not be formatted."""
         epath = "/dev/disk/cloud/azure_resource"
-        bypath = patchup(
+        bypath = self.patchup(
             {
                 epath: {
                     "realpath": "/dev/sdb",
@@ -2752,14 +2758,14 @@ class TestCanDevBeReformatted:
                 }
             }
         )
-        domock_mount_cb(bypath)
+        self._domock_mount_cb(bypath)
         value, msg = dsaz.can_dev_be_reformatted(epath, preserve_ntfs=False)
-        assert not value
-        assert "3 or more" in msg.lower()
+        self.assertFalse(value)
+        self.assertIn("3 or more", msg.lower())
 
-    def test_ntfs_mount_errors_true(self, patchup, domock_mount_cb):
+    def test_ntfs_mount_errors_true(self):
         """can_dev_be_reformatted does not fail if NTFS is unknown fstype."""
-        bypath = patchup(
+        bypath = self.patchup(
             {
                 "/dev/sda": {
                     "partitions": {
@@ -2768,7 +2774,7 @@ class TestCanDevBeReformatted:
                 }
             }
         )
-        domock_mount_cb(bypath)
+        self._domock_mount_cb(bypath)
 
         error_msgs = [
             "Stderr: mount: unknown filesystem type 'ntfs'",  # RHEL
@@ -2784,12 +2790,12 @@ class TestCanDevBeReformatted:
             value, msg = dsaz.can_dev_be_reformatted(
                 "/dev/sda", preserve_ntfs=False
             )
-            assert value
-            assert "cannot mount NTFS, assuming" in msg
+            self.assertTrue(value)
+            self.assertIn("cannot mount NTFS, assuming", msg)
 
-    def test_never_destroy_ntfs_config_false(self, patchup, domock_mount_cb):
+    def test_never_destroy_ntfs_config_false(self):
         """Normally formattable situation with never_destroy_ntfs set."""
-        bypath = patchup(
+        bypath = self.patchup(
             {
                 "/dev/sda": {
                     "partitions": {
@@ -2802,20 +2808,23 @@ class TestCanDevBeReformatted:
                 }
             }
         )
-        domock_mount_cb(bypath)
+        self._domock_mount_cb(bypath)
         value, msg = dsaz.can_dev_be_reformatted(
             "/dev/sda", preserve_ntfs=True
         )
-        assert not value
-        assert (
+        self.assertFalse(value)
+        self.assertIn(
             "config says to never destroy NTFS "
-            "(datasource.Azure.never_destroy_ntfs)" in msg
+            "(datasource.Azure.never_destroy_ntfs)",
+            msg,
         )
 
 
-class TestClearCachedData:
-    def test_clear_cached_attrs_clears_imds(self, paths):
+class TestClearCachedData(CiTestCase):
+    def test_clear_cached_attrs_clears_imds(self):
         """All class attributes are reset to defaults, including imds data."""
+        tmp = self.tmp_dir()
+        paths = helpers.Paths({"cloud_dir": tmp, "run_dir": tmp})
         dsrc = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=paths)
         clean_values = [dsrc.metadata, dsrc.userdata, dsrc._metadata_imds]
         dsrc.metadata = "md"
@@ -2823,28 +2832,26 @@ class TestClearCachedData:
         dsrc._metadata_imds = "imds"
         dsrc._dirty_cache = True
         dsrc.clear_cached_attrs()
-        assert [
-            dsrc.metadata,
-            dsrc.userdata,
-            dsrc._metadata_imds,
-        ] == clean_values
+        self.assertEqual(
+            [dsrc.metadata, dsrc.userdata, dsrc._metadata_imds], clean_values
+        )
 
 
-class TestAzureNetExists:
+class TestAzureNetExists(CiTestCase):
     def test_azure_net_must_exist_for_legacy_objpkl(self):
         """DataSourceAzureNet must exist for old obj.pkl files
         that reference it."""
-        assert hasattr(dsaz, "DataSourceAzureNet")
+        self.assertTrue(hasattr(dsaz, "DataSourceAzureNet"))
 
 
-class TestPreprovisioningReadAzureOvfFlag:
+class TestPreprovisioningReadAzureOvfFlag(CiTestCase):
     def test_read_azure_ovf_with_true_flag(self):
         """The read_azure_ovf method should set the PreprovisionedVM
         cfg flag if the proper setting is present."""
         content = construct_ovf_env(preprovisioned_vm=True)
         ret = dsaz.read_azure_ovf(content)
         cfg = ret[2]
-        assert cfg["PreprovisionedVm"]
+        self.assertTrue(cfg["PreprovisionedVm"])
 
     def test_read_azure_ovf_with_false_flag(self):
         """The read_azure_ovf method should set the PreprovisionedVM
@@ -2852,7 +2859,7 @@ class TestPreprovisioningReadAzureOvfFlag:
         content = construct_ovf_env(preprovisioned_vm=False)
         ret = dsaz.read_azure_ovf(content)
         cfg = ret[2]
-        assert not cfg["PreprovisionedVm"]
+        self.assertFalse(cfg["PreprovisionedVm"])
 
     def test_read_azure_ovf_without_flag(self):
         """The read_azure_ovf method should not set the
@@ -2860,8 +2867,8 @@ class TestPreprovisioningReadAzureOvfFlag:
         content = construct_ovf_env()
         ret = dsaz.read_azure_ovf(content)
         cfg = ret[2]
-        assert not cfg["PreprovisionedVm"]
-        assert None is cfg["PreprovisionedVMType"]
+        self.assertFalse(cfg["PreprovisionedVm"])
+        self.assertEqual(None, cfg["PreprovisionedVMType"])
 
     def test_read_azure_ovf_with_running_type(self):
         """The read_azure_ovf method should set PreprovisionedVMType
@@ -2871,8 +2878,8 @@ class TestPreprovisioningReadAzureOvfFlag:
         )
         ret = dsaz.read_azure_ovf(content)
         cfg = ret[2]
-        assert cfg["PreprovisionedVm"]
-        assert "Running" == cfg["PreprovisionedVMType"]
+        self.assertTrue(cfg["PreprovisionedVm"])
+        self.assertEqual("Running", cfg["PreprovisionedVMType"])
 
     def test_read_azure_ovf_with_savable_type(self):
         """The read_azure_ovf method should set PreprovisionedVMType
@@ -2882,8 +2889,8 @@ class TestPreprovisioningReadAzureOvfFlag:
         )
         ret = dsaz.read_azure_ovf(content)
         cfg = ret[2]
-        assert cfg["PreprovisionedVm"]
-        assert "Savable" == cfg["PreprovisionedVMType"]
+        self.assertTrue(cfg["PreprovisionedVm"])
+        self.assertEqual("Savable", cfg["PreprovisionedVMType"])
 
     def test_read_azure_ovf_with_proxy_guest_agent_true(self):
         """The read_azure_ovf method should set ProvisionGuestProxyAgent
@@ -2982,10 +2989,14 @@ class TestDeterminePPSTypeScenarios:
         ]
 
 
-class TestPreprovisioningHotAttachNics:
-    @pytest.fixture(autouse=True)
-    def fixtures(self, waagent_d):
-        dsaz.BUILTIN_DS_CONFIG["data_dir"] = waagent_d
+class TestPreprovisioningHotAttachNics(CiTestCase):
+    def setUp(self):
+        super(TestPreprovisioningHotAttachNics, self).setUp()
+        self.tmp = self.tmp_dir()
+        self.waagent_d = self.tmp_path("/var/lib/waagent", self.tmp)
+        self.paths = helpers.Paths({"cloud_dir": self.tmp})
+        dsaz.BUILTIN_DS_CONFIG["data_dir"] = self.waagent_d
+        self.paths = helpers.Paths({"cloud_dir": self.tmp})
 
     @mock.patch(MOCKPATH + "util.write_file", autospec=True)
     @mock.patch(MOCKPATH + "DataSourceAzure._report_ready")
@@ -2999,15 +3010,14 @@ class TestPreprovisioningHotAttachNics:
         m_wait_for_hot_attached_primary_nic,
         m_report_ready,
         m_writefile,
-        paths,
     ):
         """Report ready first and then wait for nic detach"""
-        dsa = dsaz.DataSourceAzure({}, distro=None, paths=paths)
+        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
         dsa._wait_for_pps_savable_reuse()
-        assert 1 == m_report_ready.call_count
-        assert 1 == m_wait_for_hot_attached_primary_nic.call_count
-        assert 1 == m_detach.call_count
-        assert 1 == m_writefile.call_count
+        self.assertEqual(1, m_report_ready.call_count)
+        self.assertEqual(1, m_wait_for_hot_attached_primary_nic.call_count)
+        self.assertEqual(1, m_detach.call_count)
+        self.assertEqual(1, m_writefile.call_count)
         m_writefile.assert_called_with(
             dsa._reported_ready_marker_file, mock.ANY
         )
@@ -3028,14 +3038,12 @@ class TestPreprovisioningHotAttachNics:
         m_link_up,
         m_report_ready,
         m_writefile,
-        paths,
-        tmp_path,
     ):
         """Wait for nic attach if we do not have a fallback interface.
         Skip waiting for additional nics after we have found primary"""
         distro = mock.MagicMock()
-        distro.get_tmp_exec_path = str(tmp_path)
-        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=paths)
+        distro.get_tmp_exec_path = self.tmp_dir
+        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
         lease = {
             "interface": "eth9",
             "fixed-address": "192.168.2.9",
@@ -3070,13 +3078,13 @@ class TestPreprovisioningHotAttachNics:
 
         dsa._wait_for_pps_savable_reuse()
 
-        assert 1 == m_detach.call_count
+        self.assertEqual(1, m_detach.call_count)
         # only wait for primary nic
-        assert 1 == m_attach.call_count
+        self.assertEqual(1, m_attach.call_count)
         # DHCP and network metadata calls will only happen on the primary NIC.
-        assert 1 == m_dhcpv4.call_count
+        self.assertEqual(1, m_dhcpv4.call_count)
         # no call to bring link up on secondary nic
-        assert 1 == m_link_up.call_count
+        self.assertEqual(1, m_link_up.call_count)
 
         # reset mock to test again with primary nic being eth1
         dhcp_ctx_primary.interface = "eth1"
@@ -3098,60 +3106,59 @@ class TestPreprovisioningHotAttachNics:
         m_dhcpv4.side_effect = [dhcp_ctx_secondary, dhcp_ctx_primary]
         m_link_up.reset_mock()
         m_attach.side_effect = ["eth0", "eth1"]
-        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=paths)
+        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
         dsa._wait_for_pps_savable_reuse()
-        assert 1 == m_detach.call_count
-        assert 2 == m_attach.call_count
-        assert 2 == m_dhcpv4.call_count
-        assert 2 == m_link_up.call_count
+        self.assertEqual(1, m_detach.call_count)
+        self.assertEqual(2, m_attach.call_count)
+        self.assertEqual(2, m_dhcpv4.call_count)
+        self.assertEqual(2, m_link_up.call_count)
 
     @mock.patch("cloudinit.distros.networking.LinuxNetworking.try_set_link_up")
-    def test_wait_for_link_up_returns_if_already_up(self, m_is_link_up, paths):
+    def test_wait_for_link_up_returns_if_already_up(self, m_is_link_up):
         """Waiting for link to be up should return immediately if the link is
         already up."""
 
         distro_cls = distros.fetch("ubuntu")
-        distro = distro_cls("ubuntu", {}, paths)
-        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=paths)
+        distro = distro_cls("ubuntu", {}, self.paths)
+        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
         m_is_link_up.return_value = True
 
         dsa.wait_for_link_up("eth0")
-        assert 1 == m_is_link_up.call_count
+        self.assertEqual(1, m_is_link_up.call_count)
 
     @mock.patch("cloudinit.distros.networking.LinuxNetworking.try_set_link_up")
     @mock.patch(MOCKPATH + "sleep")
     def test_wait_for_link_up_checks_link_after_sleep(
-        self, m_sleep, m_try_set_link_up, paths
+        self, m_sleep, m_try_set_link_up
     ):
         """Waiting for link to be up should return immediately if the link is
         already up."""
 
         distro_cls = distros.fetch("ubuntu")
-        distro = distro_cls("ubuntu", {}, paths)
-        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=paths)
+        distro = distro_cls("ubuntu", {}, self.paths)
+        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
         m_try_set_link_up.return_value = False
 
         dsa.wait_for_link_up("eth0")
 
-        assert 100 == m_try_set_link_up.call_count
-        assert 99 * [mock.call(0.1)] == m_sleep.mock_calls
+        self.assertEqual(100, m_try_set_link_up.call_count)
+        self.assertEqual(99 * [mock.call(0.1)], m_sleep.mock_calls)
 
     @mock.patch(
         "cloudinit.sources.helpers.netlink.create_bound_netlink_socket"
     )
-    def test_wait_for_all_nics_ready_raises_if_socket_fails(
-        self, m_socket, paths
-    ):
+    def test_wait_for_all_nics_ready_raises_if_socket_fails(self, m_socket):
         """Waiting for all nics should raise exception if netlink socket
         creation fails."""
 
         m_socket.side_effect = netlink.NetlinkCreateSocketError
         distro_cls = distros.fetch("ubuntu")
-        distro = distro_cls("ubuntu", {}, paths)
-        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=paths)
+        distro = distro_cls("ubuntu", {}, self.paths)
+        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
 
-        with pytest.raises(netlink.NetlinkCreateSocketError):
-            dsa._wait_for_pps_savable_reuse()
+        self.assertRaises(
+            netlink.NetlinkCreateSocketError, dsa._wait_for_pps_savable_reuse
+        )
 
 
 @mock.patch("cloudinit.net.find_fallback_nic", return_value="eth9")
@@ -3160,10 +3167,13 @@ class TestPreprovisioningHotAttachNics:
     "cloudinit.sources.helpers.netlink.wait_for_media_disconnect_connect"
 )
 @mock.patch(MOCKPATH + "imds.fetch_reprovision_data")
-class TestPreprovisioningPollIMDS:
-    @pytest.fixture(autouse=True)
-    def fixtures(self, waagent_d):
-        dsaz.BUILTIN_DS_CONFIG["data_dir"] = waagent_d
+class TestPreprovisioningPollIMDS(CiTestCase):
+    def setUp(self):
+        super(TestPreprovisioningPollIMDS, self).setUp()
+        self.tmp = self.tmp_dir()
+        self.waagent_d = self.tmp_path("/var/lib/waagent", self.tmp)
+        self.paths = helpers.Paths({"cloud_dir": self.tmp})
+        dsaz.BUILTIN_DS_CONFIG["data_dir"] = self.waagent_d
 
     @mock.patch("time.sleep", mock.MagicMock())
     def test_poll_imds_re_dhcp_on_timeout(
@@ -3172,7 +3182,6 @@ class TestPreprovisioningPollIMDS:
         m_media_switch,
         m_dhcp,
         m_fallback,
-        paths,
     ):
         """The poll_imds will retry DHCP on IMDS timeout."""
         m_fetch_reprovisiondata.side_effect = [
@@ -3192,11 +3201,11 @@ class TestPreprovisioningPollIMDS:
         dhcp_ctx.obtain_lease.return_value = lease
         dhcp_ctx.iface = lease["interface"]
 
-        dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=paths)
+        dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
         dsa._ephemeral_dhcp_ctx = dhcp_ctx
         dsa._poll_imds()
 
-        assert 1 == m_dhcp.call_count, "Expected 1 DHCP calls"
+        self.assertEqual(1, m_dhcp.call_count, "Expected 1 DHCP calls")
         assert m_fetch_reprovisiondata.call_count == 2
 
     @mock.patch("os.path.isfile")
@@ -3207,7 +3216,6 @@ class TestPreprovisioningPollIMDS:
         m_media_switch,
         m_dhcp,
         m_fallback,
-        paths,
     ):
         """The poll_imds function should reuse the dhcp ctx if it is already
         present. This happens when we wait for nic to be hot-attached before
@@ -3215,11 +3223,11 @@ class TestPreprovisioningPollIMDS:
         _poll_imds is called, then it is not expected to be waiting for
         media_disconnect_connect either."""
         m_isfile.return_value = True
-        dsa = dsaz.DataSourceAzure({}, distro=None, paths=paths)
+        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
         dsa._ephemeral_dhcp_ctx = mock.Mock(lease={})
         dsa._poll_imds()
-        assert 0 == m_dhcp.call_count
-        assert 0 == m_media_switch.call_count
+        self.assertEqual(0, m_dhcp.call_count)
+        self.assertEqual(0, m_media_switch.call_count)
 
     @mock.patch("os.path.isfile")
     def test_poll_imds_does_dhcp_on_retries_if_ctx_present(
@@ -3229,8 +3237,6 @@ class TestPreprovisioningPollIMDS:
         m_media_switch,
         m_dhcp,
         m_fallback,
-        paths,
-        tmp_path,
     ):
         """The poll_imds function should reuse the dhcp ctx if it is already
         present. This happens when we wait for nic to be hot-attached before
@@ -3248,69 +3254,70 @@ class TestPreprovisioningPollIMDS:
         ]
         m_isfile.return_value = True
         distro = mock.MagicMock()
-        distro.get_tmp_exec_path = str(tmp_path)
-        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=paths)
+        distro.get_tmp_exec_path = self.tmp_dir
+        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
         with mock.patch.object(dsa, "_ephemeral_dhcp_ctx") as m_dhcp_ctx:
             m_dhcp_ctx.obtain_lease.return_value = "Dummy lease"
             dsa._ephemeral_dhcp_ctx = m_dhcp_ctx
             dsa._poll_imds()
-            assert 1 == m_dhcp_ctx.clean_network.call_count
-        assert 1 == m_dhcp.call_count
-        assert 0 == m_media_switch.call_count
-        assert 2 == m_fetch_reprovisiondata.call_count
+            self.assertEqual(1, m_dhcp_ctx.clean_network.call_count)
+        self.assertEqual(1, m_dhcp.call_count)
+        self.assertEqual(0, m_media_switch.call_count)
+        self.assertEqual(2, m_fetch_reprovisiondata.call_count)
 
 
-class TestRemoveUbuntuNetworkConfigScripts:
-    def test_remove_network_scripts_removes_both_files_and_directories(
-        self, caplog, tmp_path
-    ):
+class TestRemoveUbuntuNetworkConfigScripts(CiTestCase):
+    with_logs = True
+
+    def setUp(self):
+        super(TestRemoveUbuntuNetworkConfigScripts, self).setUp()
+        self.tmp = self.tmp_dir()
+
+    def test_remove_network_scripts_removes_both_files_and_directories(self):
         """Any files or directories in paths are removed when present."""
-        file1 = tmp_path / "file1"
-        subdir = tmp_path / "sub1"
-        subfile = subdir / "leaf1"
+        file1 = self.tmp_path("file1", dir=self.tmp)
+        subdir = self.tmp_path("sub1", dir=self.tmp)
+        subfile = self.tmp_path("leaf1", dir=subdir)
         write_file(file1, "file1content")
         write_file(subfile, "leafcontent")
         dsaz.maybe_remove_ubuntu_network_config_scripts(paths=[subdir, file1])
 
         for path in (file1, subdir, subfile):
-            assert not os.path.exists(path), "Found unremoved: %s" % path
+            self.assertFalse(
+                os.path.exists(path), "Found unremoved: %s" % path
+            )
 
         expected_logs = [
-            (
-                mock.ANY,
-                logging.INFO,
-                "Removing Ubuntu extended network scripts because cloud-init"
-                " updates Azure network configuration on the following events:"
-                " ['boot', 'boot-legacy'].",
-            ),
-            (mock.ANY, logging.DEBUG, "Recursively deleting %s" % subdir),
-            (mock.ANY, logging.DEBUG, "Attempting to remove %s" % file1),
+            "INFO: Removing Ubuntu extended network scripts because cloud-init"
+            " updates Azure network configuration on the following events:"
+            " ['boot', 'boot-legacy']",
+            "Recursively deleting %s" % subdir,
+            "Attempting to remove %s" % file1,
         ]
         for log in expected_logs:
-            assert log in caplog.record_tuples
+            self.assertIn(log, self.logs.getvalue())
 
-    def test_remove_network_scripts_only_attempts_removal_if_path_exists(
-        self, caplog, tmp_path
-    ):
+    def test_remove_network_scripts_only_attempts_removal_if_path_exists(self):
         """Any files or directories absent are skipped without error."""
         dsaz.maybe_remove_ubuntu_network_config_scripts(
             paths=[
-                tmp_path / "nodirhere/",
-                tmp_path / "notfilehere",
+                self.tmp_path("nodirhere/", dir=self.tmp),
+                self.tmp_path("notfilehere", dir=self.tmp),
             ]
         )
-        assert "/not/a" not in caplog.text  # No delete logs
+        self.assertNotIn("/not/a", self.logs.getvalue())  # No delete logs
 
-    # Report path absent on all to avoid delete operation
-    @mock.patch(MOCKPATH + "os.path.exists", return_value=False)
+    @mock.patch(MOCKPATH + "os.path.exists")
     def test_remove_network_scripts_default_removes_stock_scripts(
         self, m_exists
     ):
         """Azure's stock ubuntu image scripts and artifacts are removed."""
+        # Report path absent on all to avoid delete operation
+        m_exists.return_value = False
         dsaz.maybe_remove_ubuntu_network_config_scripts()
         calls = m_exists.call_args_list
         for path in dsaz.UBUNTU_EXTENDED_NETWORK_SCRIPTS:
-            assert mock.call(path) in calls
+            self.assertIn(mock.call(path), calls)
 
 
 class TestIsPlatformViable:
@@ -3354,7 +3361,7 @@ class TestIsPlatformViable:
         )
 
 
-class TestRandomSeed:
+class TestRandomSeed(CiTestCase):
     """Test proper handling of random_seed"""
 
     def test_non_ascii_seed_is_serializable(self):
@@ -3370,9 +3377,9 @@ class TestRandomSeed:
             serialized = json_dumps(obj)
             deserialized = load_json(serialized)
         except UnicodeDecodeError:
-            pytest.fail("Non-serializable random seed returned")
+            self.fail("Non-serializable random seed returned")
 
-        assert deserialized["seed"] == result
+        self.assertEqual(deserialized["seed"], result)
 
 
 class TestEphemeralNetworking:
