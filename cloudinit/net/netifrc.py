@@ -389,23 +389,33 @@ class Renderer(renderer.Renderer):
                     v = int(v)
                 lines.append('%s_%s="%s"' % (k, _iface_var(name), str(v)))
 
+    def _filter_loopback(self, iface):
+        return iface["name"] != "lo"
+
+    def _select_loopback(self, iface):
+        return iface["name"] == "lo"
+
+    def _render_loopback(self, network_state, lines):
+        for iface in network_state.iter_interfaces(self._select_loopback):
+            iface = copy.deepcopy(iface)
+            name = iface.pop("name", None)
+            self._render_iface(name, iface, network_state, lines)
+            lines.append("")
+            return
+        self._emit_dns("lo", [], [], network_state, lines)
+        lines.append("")
+
     def _render_interfaces(self, network_state):
-        lines = []
+        lines = list[str]()
         bond_map = dict[str, set[str]]()
         vlan_map = dict[str, list]()
-        loopback_emitted = False
 
-        for iface in network_state.iter_interfaces():
+        self._render_loopback(network_state, lines)
+
+        for iface in network_state.iter_interfaces(self._filter_loopback):
             name = iface["name"]
             type = iface.get("type")
             bond_master = iface.get("bond-master")
-
-            if name == "lo":
-                loopback_emitted = True
-
-            # `config_lo="..."` is completely valid and works
-            # if name == "lo":
-            # continue
 
             iface = copy.deepcopy(iface)
 
@@ -450,9 +460,6 @@ class Renderer(renderer.Renderer):
 
         # Add global dns settings to the loopback
         # This is a hack from eni. We shouldn't really rely on it.
-
-        if not loopback_emitted:
-            self._emit_dns("lo", [], [], network_state, lines)
 
         # if all_bridged_ports:
         #     # "nullify" all_bridged_ports
