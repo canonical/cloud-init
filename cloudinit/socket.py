@@ -7,12 +7,14 @@ import sys
 from contextlib import suppress
 from dataclasses import dataclass
 from typing import Optional
+
 from cloudinit import performance
 from cloudinit.settings import DEFAULT_RUN_DIR
 
 LOG = logging.getLogger(__name__)
 
 Socket = socket.socket
+
 
 @dataclass
 class StreamSocket:
