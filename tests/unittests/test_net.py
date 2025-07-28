@@ -22,6 +22,7 @@ from cloudinit.net import (
     interface_has_own_mac,
     mask_and_ipv4_to_bcast_addr,
     natural_sort_key,
+    netifrc,
     netplan,
     network_manager,
     network_state,
@@ -4937,11 +4938,147 @@ class TestNetworkdRoundTrip:
         self.compare_dicts(actual, expected)
 
 
+def _drop_mock_initd_netlo(target: str, renderer):
+    fp = subp.target_path(target, renderer.initd_netlo_path)
+    util.write_file(fp, "")
+
+
+def _extract_netifrc_lines(path) -> set:
+    with open(path) as fh:
+        body = fh.read()
+
+    return set(re.findall(r'\w+="[^"]+"', body, re.M))
+
+
+class TestNetifrcNetRendering:
+    @pytest.fixture(autouse=True)
+    def setup(self, tmpdir_factory):
+        self.tmp_dir = lambda: str(tmpdir_factory.mktemp("a", numbered=True))
+
+    @mock.patch("cloudinit.net.util.get_cmdline")
+    @mock.patch("cloudinit.net.sys_dev_path")
+    @mock.patch("cloudinit.net.read_sys_net")
+    @mock.patch("cloudinit.net.get_devicelist")
+    def test_default_generation(
+        self,
+        mock_get_devicelist,
+        mock_read_sys_net,
+        mock_sys_dev_path,
+        m_get_cmdline,
+    ):
+        tmp_dir = self.tmp_dir()
+        _setup_test(
+            tmp_dir, mock_get_devicelist, mock_read_sys_net, mock_sys_dev_path
+        )
+
+        network_cfg = net.generate_fallback_config()
+        ns = network_state.parse_net_config_data(
+            network_cfg, skip_broken=False
+        )
+
+        render_dir = os.path.join(tmp_dir, "render")
+        os.makedirs(render_dir)
+
+        renderer = netifrc.Renderer()
+        _drop_mock_initd_netlo(render_dir, renderer)
+        renderer.render_network_state(ns, target=render_dir)
+
+        initd_net_prefix = os.path.join(render_dir, renderer.initd_net_prefix)
+        assert os.path.exists(initd_net_prefix + "eth1000")
+
+        contents = _extract_netifrc_lines(
+            os.path.join(render_dir, renderer.netifrc_path)
+        )
+        expected = {
+            'config_eth1000="dhcp"',
+        }
+
+        assert contents == expected
+
+    def test_config_with_explicit_loopback(self):
+        tmp_dir = self.tmp_dir()
+        ns = network_state.parse_net_config_data(CONFIG_V1_EXPLICIT_LOOPBACK)
+        renderer = netifrc.Renderer()
+        _drop_mock_initd_netlo(tmp_dir, renderer)
+        renderer.render_network_state(ns, target=tmp_dir)
+
+        contents = _extract_netifrc_lines(
+            os.path.join(tmp_dir, renderer.netifrc_path)
+        )
+
+        expected = {'config_lo="null"', 'config_eth0="dhcp"'}
+        assert expected == contents
+
+
+class TestNetifrcRoundTrip:
+    def _render_and_read(
+        self,
+        network_config=None,
+        state=None,
+        dir=None,
+    ):
+        if dir is None:
+            dir = self.tmp_dir()
+
+        if network_config:
+            ns = network_state.parse_net_config_data(network_config)
+        elif state:
+            ns = state
+        else:
+            raise ValueError("Expected data or state, got neither")
+
+        renderer = netifrc.Renderer()
+        _drop_mock_initd_netlo(dir, renderer)
+        renderer.render_network_state(ns, target=dir)
+        fp = os.path.join(dir, renderer.netifrc_path)
+
+        return _extract_netifrc_lines(fp)
+
+    @pytest.fixture(autouse=True)
+    def setup(self, tmpdir_factory):
+        self.tmp_dir = lambda: str(tmpdir_factory.mktemp("a", numbered=True))
+
+    @pytest.mark.parametrize(
+        "expected_name,yaml_version",
+        [
+            ("large_v2", "yaml"),
+            ("small_v1", "yaml"),
+            ("small_v2", "yaml"),
+            ("v4_and_v6", "yaml_v1"),
+            ("v4_and_v6", "yaml_v2"),
+            ("dhcpv6_only", "yaml_v1"),
+            ("dhcpv6_only", "yaml_v2"),
+            ("v1_ipv4_and_ipv6_static", "yaml_v1"),
+            ("v2_ipv4_and_ipv6_static", "yaml_v2"),
+            ("dhcpv6_stateless", "yaml"),
+            ("ipv6_slaac", "yaml"),
+            ("dhcpv6_stateful", "yaml"),
+            ("wakeonlan_disabled", "yaml_v2"),
+            ("wakeonlan_enabled", "yaml_v2"),
+            ("manual", "yaml"),
+            ("bond_v1", "yaml"),
+            ("bond_v2", "yaml"),
+            ("v1-dns", "yaml"),
+            ("v2-dns", "yaml"),
+            ("bridge", "yaml_v1"),
+            ("bridge", "yaml_v2"),
+            ("manual", "yaml"),
+        ],
+    )
+    def test_config(self, expected_name, yaml_version):
+        entry = NETWORK_CONFIGS[expected_name]
+        content = self._render_and_read(
+            network_config=yaml.safe_load(entry[yaml_version])
+        )
+        assert content == entry["expected_netifrc"]
+
+
 class TestRenderersSelect:
     @pytest.mark.parametrize(
-        "renderer_selected,netplan,eni,sys,network_manager,networkd",
+        "renderer_selected,netplan,eni,sys,network_manager,networkd,netifrc",
         (
-            # -netplan -ifupdown -sys -network-manager -networkd raises error
+            # -netplan -ifupdown -sys -network-manager -networkd -netifrc
+            # raises error
             (
                 net.RendererNotFoundError,
                 False,
@@ -4949,27 +5086,31 @@ class TestRenderersSelect:
                 False,
                 False,
                 False,
+                False,
             ),
             # -netplan +ifupdown -sys -nm -networkd selects eni
-            ("eni", False, True, False, False, False),
+            ("eni", False, True, False, False, False, False),
             # +netplan +ifupdown -sys -nm -networkd selects eni
-            ("eni", True, True, False, False, False),
+            ("eni", True, True, False, False, False, False),
             # +netplan -ifupdown -sys -nm -networkd selects netplan
-            ("netplan", True, False, False, False, False),
+            ("netplan", True, False, False, False, False, False),
             # +netplan -ifupdown -sys -nm -networkd selects netplan
-            ("netplan", True, False, False, False, False),
+            ("netplan", True, False, False, False, False, False),
             # -netplan -ifupdown +sys -nm -networkd selects sysconfig
-            ("sysconfig", False, False, True, False, False),
+            ("sysconfig", False, False, True, False, False, False),
             # -netplan -ifupdown +sys +nm -networkd selects sysconfig
-            ("sysconfig", False, False, True, True, False),
+            ("sysconfig", False, False, True, True, False, False),
             # -netplan -ifupdown -sys +nm -networkd selects nm
-            ("network-manager", False, False, False, True, False),
+            ("network-manager", False, False, False, True, False, False),
             # -netplan -ifupdown -sys +nm +networkd selects nm
-            ("network-manager", False, False, False, True, True),
+            ("network-manager", False, False, False, True, True, False),
             # -netplan -ifupdown -sys -nm +networkd selects networkd
-            ("networkd", False, False, False, False, True),
+            ("networkd", False, False, False, False, True, False),
+            # -netplan -ifupdown -sys -nm -networkd +netifrc selects netifrc
+            ("netifrc", False, False, False, False, False, True),
         ),
     )
+    @mock.patch("cloudinit.net.renderers.netifrc.available")
     @mock.patch("cloudinit.net.renderers.networkd.available")
     @mock.patch("cloudinit.net.renderers.network_manager.available")
     @mock.patch("cloudinit.net.renderers.netplan.available")
@@ -4982,12 +5123,14 @@ class TestRenderersSelect:
         m_netplan_avail,
         m_network_manager_avail,
         m_networkd_avail,
+        m_netifrc_avail,
         renderer_selected,
         netplan,
         eni,
         sys,
         network_manager,
         networkd,
+        netifrc,
     ):
         """Assert proper renderer per DEFAULT_PRIORITY given availability."""
         m_eni_avail.return_value = eni  # ifupdown pkg presence
@@ -4995,6 +5138,7 @@ class TestRenderersSelect:
         m_netplan_avail.return_value = netplan  # netplan presence
         m_network_manager_avail.return_value = network_manager  # NM presence
         m_networkd_avail.return_value = networkd  # networkd presence
+        m_netifrc_avail.return_value = netifrc  # netifrc presence
         if isinstance(renderer_selected, str):
             (renderer_name, _rnd_class) = renderers.select(
                 priority=renderers.DEFAULT_PRIORITY
@@ -5074,6 +5218,12 @@ class TestNetRenderers:
         m_nwkd_avail.return_value = True
         found = renderers.search(priority=["networkd"], first=False)
         assert "networkd" == found[0][0]
+
+    @mock.patch("cloudinit.net.renderers.netifrc.available")
+    def test_netifrc_available(self, m_netifrc_avail):
+        m_netifrc_avail.return_value = True
+        found = renderers.search(priority=["netifrc"], first=False)
+        assert "netifrc" == found[0][0]
 
 
 @mock.patch(

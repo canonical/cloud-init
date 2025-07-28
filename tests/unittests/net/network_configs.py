@@ -257,6 +257,16 @@ NETWORK_CONFIGS = {
                 """
             ),
         },
+        "expected_netifrc": {
+            'config_eth99="192.168.21.3/24\ndhcp"',
+            'dhcpcd_eth99="-4"',
+            'dns_servers_eth99="8.8.8.8 8.8.4.4"',
+            'dns_search_eth99="barley.maas sach.maas"',
+            'routes_eth99="\ndefault metric 10000 via 65.61.151.37"',
+            'config_eth1="null"',
+            'dns_servers_lo="1.2.3.4 5.6.7.8"',
+            'dns_search_lo="wark.maas"',
+        },
         "yaml": textwrap.dedent(
             """
             version: 1
@@ -430,6 +440,14 @@ NETWORK_CONFIGS = {
                 """
             ),
         },
+        "expected_netifrc": {
+            'config_eth1="null"',
+            'config_eth99="192.168.21.3/24\ndhcp"',
+            'dhcpcd_eth99="-4"',
+            'dns_servers_eth99="8.8.8.8 8.8.4.4"',
+            'dns_search_eth99="barley.maas sach.maas"',
+            'routes_eth99="\ndefault metric 10000 via 65.61.151.37"',
+        },
         "yaml": textwrap.dedent(
             """
             version: 2
@@ -525,6 +543,9 @@ NETWORK_CONFIGS = {
 
                 """
             ),
+        },
+        "expected_netifrc": {
+            'config_iface0="dhcp"',
         },
         "yaml_v1": textwrap.dedent(
             """\
@@ -669,6 +690,10 @@ NETWORK_CONFIGS = {
                 """
             ),
         },
+        "expected_netifrc": {
+            'config_iface0="192.168.14.2/24\n2001:1::1/64"',
+            'mtu_iface0="8999"',
+        },
     },
     "v2_ipv4_and_ipv6_static": {
         "yaml_v2": textwrap.dedent(
@@ -783,6 +808,10 @@ NETWORK_CONFIGS = {
 
                 """
             ),
+        },
+        "expected_netifrc": {
+            'config_iface0="192.168.14.2/24\n2001:1::1/64"',
+            'mtu_iface0="9000"',
         },
     },
     "v6_and_v4": {
@@ -927,6 +956,10 @@ NETWORK_CONFIGS = {
 
                 """
             ),
+        },
+        "expected_netifrc": {
+            'config_iface0="dhcp"',
+            'dhcpcd_iface0="-6"',
         },
     },
     "dhcpv6_accept_ra": {
@@ -1161,6 +1194,10 @@ NETWORK_CONFIGS = {
                 """
             ),
         },
+        "expected_netifrc": {
+            'config_iface0="dhcp"',
+            'dhcpcd_iface0="-6"',
+        },
     },
     "static6": {
         "yaml_v1": textwrap.dedent(
@@ -1286,6 +1323,10 @@ NETWORK_CONFIGS = {
                 """
             ),
         },
+        "expected_netifrc": {
+            'config_iface0="dhcp"',
+            'dhcpcd_iface0="-6"',
+        },
     },
     "dhcpv6_stateful": {
         "expected_eni": textwrap.dedent(
@@ -1345,6 +1386,10 @@ NETWORK_CONFIGS = {
             USERCTL=no
             """
             ),
+        },
+        "expected_netifrc": {
+            'config_iface0="dhcp"',
+            'dhcpcd_iface0="-6"',
         },
     },
     "wakeonlan_disabled": {
@@ -1409,6 +1454,10 @@ NETWORK_CONFIGS = {
 
                 """
             ),
+        },
+        "expected_netifrc": {
+            'config_iface0="dhcp"',
+            'dhcpcd_iface0="-4"',
         },
         "yaml_v2": textwrap.dedent(
             """\
@@ -1486,6 +1535,11 @@ NETWORK_CONFIGS = {
 
                 """
             ),
+        },
+        "expected_netifrc": {
+            'config_iface0="dhcp"',
+            'dhcpcd_iface0="-4"',
+            'ethtool_change_iface0="wol g"',
         },
         "yaml_v2": textwrap.dedent(
             """\
@@ -2933,6 +2987,49 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 """
             ),
         },
+        "expected_netifrc": {
+            'config_eth0="null"',
+            'config_eth1="null"',
+            'config_eth2="null"',
+            'config_eth3="null"',
+            'config_eth4="null"',
+            'config_eth5="dhcp"',
+            'dhcpcd_eth5="-4"',
+            'vlans_eth0="101"',
+            'eth0_vlan101_name="eth0.101"',
+            'mtu_eth0_101="1500"',
+            'config_eth0_101="192.168.0.2/24\n192.168.2.10/24"',
+            'routes_eth0_101="\ndefault via 192.168.0.1"',
+            'dns_servers_eth0_101="192.168.0.10 10.23.23.134"',
+            'dns_search_eth0_101="barley.maas sacchromyces.maas '
+            'brettanomyces.maas"',
+            'slaves_bond0="eth1 eth2"',
+            'xmit_hash_policy_bond0="layer3+4"',
+            'miimon_bond0="100"',
+            'mode_bond0="active-backup"',
+            'config_bond0="dhcp"',
+            'dhcpcd_bond0="-6"',
+            'vlans_bond0="200"',
+            'bond0_vlan200_name="bond0.200"',
+            'config_bond0_200="dhcp"',
+            'dhcpcd_bond0_200="-4"',
+            'bridge_br0="eth3 eth4"',
+            'bridge_br0="eth3 eth4"',
+            'bridge_ageing_time_br0="250"',
+            'bridge_forward_delay_br0="1"',
+            'bridge_hello_time_br0="1"',
+            'bridge_max_age_br0="10"',
+            'brport_path_cost_eth3="50"',
+            'brport_path_cost_eth4="75"',
+            'brport_priority_eth3="28"',
+            'brport_priority_eth4="14"',
+            'bridge_priority_br0="22"',
+            'bridge_stp_state_br0="0"',
+            'config_br0="192.168.14.2/24\n2001:1::1/64"',
+            'routes_br0="\ndefault via 2001:4800:78ff:1b::1"',
+            'dns_servers_br0="8.8.8.8 4.4.4.4 8.8.4.4"',
+            'dns_search_br0="barley.maas wark.maas foobar.maas"',
+        },
         "yaml": textwrap.dedent(
             """
             version: 2
@@ -3382,6 +3479,25 @@ iface bond0 inet6 static
                 """
             ),
         },
+        "expected_netifrc": {
+            'config_bond0s0="null"',
+            'config_bond0s1="null"',
+            'config_bond0="192.168.0.2/24\n192.168.1.2/24\n2001:1::1/92"',
+            'routes_bond0="\ndefault via 192.168.0.1\n10.1.3.0/24 via '
+            "192.168.0.3\n2001:67c::/32 via 2001:67c:1562::1\n"
+            '3001:67c::/32 metric 10000 via 3001:67c:15::1"',
+            'mtu_bond0="9000"',
+            'slaves_bond0="bond0s0 bond0s1"',
+            'mode_bond0="active-backup"',
+            'miimon_bond0="100"',
+            'xmit_hash_policy_bond0="layer3+4"',
+            'num_grat_arp_bond0="5"',
+            'downdelay_bond0="10"',
+            'updelay_bond0="20"',
+            'fail_over_mac_bond0="active"',
+            'primary_bond0="bond0s0"',
+            'primary_reselect_bond0="always"',
+        },
     },
     "bond_v2": {
         "yaml": textwrap.dedent(
@@ -3735,6 +3851,25 @@ iface bond0 inet6 static
                 """
             ),
         },
+        "expected_netifrc": {
+            'config_bond0s0="null"',
+            'config_bond0s1="null"',
+            'config_bond0="192.168.0.2/24\n192.168.1.2/24\n2001:1::1/92"',
+            'routes_bond0="\ndefault via 192.168.0.1\n10.1.3.0/24 via '
+            "192.168.0.3\n2001:67c::/32 via 2001:67c:1562::1\n3001:67c::/32 "
+            'metric 10000 via 3001:67c:15::1"',
+            'mtu_bond0="9000"',
+            'slaves_bond0="bond0s0 bond0s1"',
+            'mode_bond0="active-backup"',
+            'miimon_bond0="100"',
+            'xmit_hash_policy_bond0="layer3+4"',
+            'num_grat_arp_bond0="5"',
+            'downdelay_bond0="10"',
+            'updelay_bond0="20"',
+            'fail_over_mac_bond0="active"',
+            'primary_bond0="bond0s0"',
+            'primary_reselect_bond0="always"',
+        },
     },
     "vlan_v1": {
         "yaml": textwrap.dedent(
@@ -3871,6 +4006,14 @@ iface bond0 inet6 static
                 """
             ),
         },
+        "expected_netifrc": {
+            'config_en0="null"',
+            'vlans_en0="99"',
+            'en0_vlan99_name="en0.99"',
+            'mtu_en0_99="2222"',
+            'config_en0_99="192.168.2.2/24 192.168.1.2/24 2001:1::bbbb/96"',
+            'routes_en0_99="\ndefault via 192.168.1.1\ndefault via 2001:1::1"',
+        },
     },
     "vlan_v2": {
         "yaml": textwrap.dedent(
@@ -4005,6 +4148,14 @@ iface bond0 inet6 static
 
                 """
             ),
+        },
+        "expected_netifrc": {
+            'config_en0="null"',
+            'vlans_en0="99"',
+            'en0_vlan99_name="en0.99"',
+            'mtu_en0_99="2222"',
+            'config_en0_99="192.168.2.2/24 192.168.1.2/24 2001:1::bbbb/96"',
+            'routes_en0_99="\ndefault via 192.168.1.1\ndefault via 2001:1::1"',
         },
     },
     "bridge": {
@@ -4217,6 +4368,14 @@ iface bond0 inet6 static
                 """
             ),
         },
+        "expected_netifrc": {
+            'config_eth0="2001:1::100/96"',
+            'config_eth1="2001:1::101/96"',
+            'config_br0="192.168.2.2/24"',
+            'bridge_br0="eth0 eth1"',
+            'bridge_priority_br0="22"',
+            'bridge_stp_state_br0="0"',
+        },
     },
     "manual": {
         "yaml": textwrap.dedent(
@@ -4415,6 +4574,12 @@ iface bond0 inet6 static
                 """
             ),
         },
+        "expected_netifrc": {
+            'config_eth0="192.168.1.2/24"',
+            'config_eth1="null"',
+            'mtu_eth1="1480"',
+            'config_eth2="null"',
+        },
     },
     "v1-dns": {
         "expected_networkd": textwrap.dedent(
@@ -4548,6 +4713,14 @@ iface bond0 inet6 static
 
             """
             )
+        },
+        "expected_netifrc": {
+            'config_interface0="192.168.1.20/16"',
+            'routes_interface0="\ndefault via 192.168.1.1"',
+            'dns_search_interface0="cccc"',
+            'dns_servers_lo="2.2.2.2 FEDC::1"',
+            'dns_search_lo="bbbb"',
+            'dns_servers_interface0="3.3.3.3"',
         },
         "yaml": textwrap.dedent(
             """\
@@ -4784,6 +4957,12 @@ iface bond0 inet6 static
 
             """
             )
+        },
+        "expected_netifrc": {
+            'config_eth0="192.168.1.20/16\n'
+            '2001:bc8:1210:232:dc00:ff:fe20:185/64"',
+            'dns_servers_eth0="8.8.8.8 FEDC::1"',
+            'dns_search_eth0="lab home"',
         },
         "yaml": textwrap.dedent(
             """\
