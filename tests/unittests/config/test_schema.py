@@ -47,6 +47,7 @@ from tests.helpers import cloud_init_project_dir
 from tests.hypothesis import given
 from tests.hypothesis_jsonschema import from_schema
 from tests.unittests.helpers import (
+    CiTestCase,
     does_not_raise,
     mock,
     skipUnlessHypothesisJsonSchema,
@@ -182,13 +183,13 @@ class TestCheckSchema(unittest.TestCase):
             },
             "new",
         )
-        with pytest.raises(AssertionError):
+        with self.assertRaises(AssertionError):
             check_deprecation_keys({"changed": True}, "changed")
-        with pytest.raises(AssertionError):
+        with self.assertRaises(AssertionError):
             check_deprecation_keys(
                 {"properties": {"deprecated": True}}, "deprecated"
             )
-        with pytest.raises(AssertionError):
+        with self.assertRaises(AssertionError):
             check_deprecation_keys(
                 {"properties": {"properties": {"new": True}}}, "new"
             )
@@ -323,7 +324,7 @@ class TestModuleDocs:
             )
 
 
-class SchemaValidationErrorTest:
+class SchemaValidationErrorTest(CiTestCase):
     """Test validate_cloudconfig_schema"""
 
     def test_schema_validation_error_expects_schema_errors(self):
@@ -335,14 +336,14 @@ class SchemaValidationErrorTest:
             ),
         ]
         exception = SchemaValidationError(schema_errors=errors)
-        assert isinstance(exception, Exception)
-        assert exception.schema_errors == errors
-        assert (
+        self.assertIsInstance(exception, Exception)
+        self.assertEqual(exception.schema_errors, errors)
+        self.assertEqual(
             'Cloud config schema errors: key.path: unexpected key "junk", '
-            'key2.path: "-123" is not a valid "hostname" format'
-            == str(exception)
+            'key2.path: "-123" is not a valid "hostname" format',
+            str(exception),
         )
-        assert isinstance(exception, ValueError)
+        self.assertTrue(isinstance(exception, ValueError))
 
 
 class FakeNetplanParserException(Exception):

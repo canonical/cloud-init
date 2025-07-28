@@ -17,7 +17,11 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import SCHEMA_EMPTY_ERROR, skipUnlessJsonSchema
+from tests.unittests.helpers import (
+    SCHEMA_EMPTY_ERROR,
+    CiTestCase,
+    skipUnlessJsonSchema,
+)
 from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
@@ -261,32 +265,31 @@ class TestWriteFiles:
         assert [] == m_chownbyname.call_args_list
 
 
-class TestDecodePerms:
+class TestDecodePerms(CiTestCase):
+
+    with_logs = True
+
     def test_none_returns_default(self):
         """If None is passed as perms, then default should be returned."""
         default = object()
         found = decode_perms(None, default)
-        assert default == found
+        self.assertEqual(default, found)
 
     def test_integer(self):
         """A valid integer should return itself."""
         found = decode_perms(0o755, None)
-        assert 0o755 == found
+        self.assertEqual(0o755, found)
 
     def test_valid_octal_string(self):
         """A string should be read as octal."""
         found = decode_perms("644", None)
-        assert 0o644 == found
+        self.assertEqual(0o644, found)
 
-    def test_invalid_octal_string_returns_default_and_warns(self, caplog):
+    def test_invalid_octal_string_returns_default_and_warns(self):
         """A string with invalid octal should warn and return default."""
         found = decode_perms("999", None)
-        assert found is None
-        assert (
-            mock.ANY,
-            logging.WARNING,
-            "Undecodable permissions '999', returning default None",
-        ) in caplog.record_tuples
+        self.assertIsNone(found)
+        self.assertIn("WARNING: Undecodable", self.logs.getvalue())
 
 
 def _gzip_bytes(data):

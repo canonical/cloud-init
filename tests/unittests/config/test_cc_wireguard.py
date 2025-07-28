@@ -1,6 +1,4 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-import logging
-
 import pytest
 
 from cloudinit import subp, util
@@ -10,7 +8,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import mock, skipUnlessJsonSchema
+from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 
 NL = "\n"
 # Module path used in mocks
@@ -23,18 +21,27 @@ class FakeCloud:
         self.distro = distro
 
 
-@pytest.mark.usefixtures("fake_filesystem")
-class TestWireGuard:
+class TestWireGuard(CiTestCase):
+    with_logs = True
+    allowed_subp = [CiTestCase.SUBP_SHELL_TRUE]
+
+    def setUp(self):
+        super(TestWireGuard, self).setUp()
+        self.tmp = self.tmp_dir()
+
     def test_readiness_probe_schema_non_string_values(self):
         """ValueError raised for any values expected as string type."""
         wg_readinessprobes = [1, ["not-a-valid-command"]]
-        error = (
-            r"Expected a string for readinessprobe at 0. Found 1"
-            r"\nExpected a string for readinessprobe at 1."
-            r" Found \['not-a-valid-command'\]"
-        )
-        with pytest.raises(ValueError, match=error):
+        errors = [
+            "Expected a string for readinessprobe at 0. Found 1",
+            "Expected a string for readinessprobe at 1."
+            " Found ['not-a-valid-command']",
+        ]
+        with self.assertRaises(ValueError) as context_mgr:
             cc_wireguard.readinessprobe_command_validation(wg_readinessprobes)
+        error_msg = str(context_mgr.exception)
+        for error in errors:
+            self.assertIn(error, error_msg)
 
     def test_suppl_schema_error_on_missing_keys(self):
         """ValueError raised reporting any missing required keys"""
@@ -43,30 +50,33 @@ class TestWireGuard:
             f"Invalid wireguard interface configuration:{NL}"
             "Missing required wg:interfaces keys: config_path, content, name"
         )
-        with pytest.raises(ValueError, match=match):
+        with self.assertRaisesRegex(ValueError, match):
             cc_wireguard.supplemental_schema_validation(cfg)
 
     def test_suppl_schema_error_on_non_string_values(self):
         """ValueError raised for any values expected as string type."""
         cfg = {"name": 1, "config_path": 2, "content": 3}
-        error = (
-            "Expected a string for wg:interfaces:config_path. Found 2\n"
-            "Expected a string for wg:interfaces:content. Found 3\n"
-            "Expected a string for wg:interfaces:name. Found 1"
-        )
-        with pytest.raises(ValueError, match=error):
+        errors = [
+            "Expected a string for wg:interfaces:config_path. Found 2",
+            "Expected a string for wg:interfaces:content. Found 3",
+            "Expected a string for wg:interfaces:name. Found 1",
+        ]
+        with self.assertRaises(ValueError) as context_mgr:
             cc_wireguard.supplemental_schema_validation(cfg)
+        error_msg = str(context_mgr.exception)
+        for error in errors:
+            self.assertIn(error, error_msg)
 
     def test_write_config_failed(self):
         """Errors when writing config are raised."""
         wg_int = {"name": "wg0", "config_path": "/no/valid/path"}
 
-        with pytest.raises(
-            RuntimeError,
-            match="Failure writing Wireguard configuration file"
-            " /no/valid/path:\n",
-        ):
+        with self.assertRaises(RuntimeError) as context_mgr:
             cc_wireguard.write_config(wg_int)
+        self.assertIn(
+            "Failure writing Wireguard configuration file /no/valid/path:\n",
+            str(context_mgr.exception),
+        )
 
     @mock.patch("%s.subp.subp" % MPATH)
     def test_readiness_probe_invalid_command(self, m_subp):
@@ -82,15 +92,16 @@ class TestWireGuard:
 
         m_subp.side_effect = fake_subp
 
-        error = (
+        with self.assertRaises(RuntimeError) as context_mgr:
+            cc_wireguard.readinessprobe(wg_readinessprobes)
+        self.assertIn(
             "Failed running readinessprobe command:\n"
             "not-a-valid-command: Unexpected error while"
             " running command.\n"
             "Command: -\nExit code: -\nReason: -\n"
-            "Stdout: not-a-valid-command: command not found\nStderr: -"
+            "Stdout: not-a-valid-command: command not found\nStderr: -",
+            str(context_mgr.exception),
         )
-        with pytest.raises(RuntimeError, match=error):
-            cc_wireguard.readinessprobe(wg_readinessprobes)
 
     @mock.patch("%s.subp.subp" % MPATH)
     def test_enable_wg_on_error(self, m_subp):
@@ -101,15 +112,16 @@ class TestWireGuard:
             "systemctl start wg-quik@wg0 failed: exit code 1"
         )
         mycloud = FakeCloud(distro)
-        error = (
-            r"Failed enabling/starting Wireguard interface\(s\):\n"
+        with self.assertRaises(RuntimeError) as context_mgr:
+            cc_wireguard.enable_wg(wg_int, mycloud)
+        self.assertEqual(
+            "Failed enabling/starting Wireguard interface(s):\n"
             "Unexpected error while running command.\n"
             "Command: -\nExit code: -\nReason: -\n"
             "Stdout: systemctl start wg-quik@wg0 failed: exit code 1\n"
-            "Stderr: -"
+            "Stderr: -",
+            str(context_mgr.exception),
         )
-        with pytest.raises(RuntimeError, match=error):
-            cc_wireguard.enable_wg(wg_int, mycloud)
 
     @mock.patch("%s.subp.which" % MPATH)
     def test_maybe_install_wg_packages_noop_when_wg_tools_present(
@@ -126,7 +138,7 @@ class TestWireGuard:
     @mock.patch("%s.subp.which" % MPATH)
     @mock.patch("%s.util.kernel_version" % MPATH)
     def test_maybe_install_wf_tools_raises_update_errors(
-        self, m_kernel_version, m_which, caplog
+        self, m_kernel_version, m_which
     ):
         """maybe_install_wireguard_packages logs and raises
         apt update errors."""
@@ -136,16 +148,17 @@ class TestWireGuard:
         distro.update_package_sources.side_effect = RuntimeError(
             "Some apt error"
         )
-        with pytest.raises(RuntimeError, match="Some apt error"):
+        with self.assertRaises(RuntimeError) as context_manager:
             cc_wireguard.maybe_install_wireguard_packages(
                 cloud=FakeCloud(distro)
             )
-        assert "Package update failed\nTraceback" in caplog.text
+        self.assertEqual("Some apt error", str(context_manager.exception))
+        self.assertIn("Package update failed\nTraceback", self.logs.getvalue())
 
     @mock.patch("%s.subp.which" % MPATH)
     @mock.patch("%s.util.kernel_version" % MPATH)
     def test_maybe_install_wg_raises_install_errors(
-        self, m_kernel_version, m_which, caplog
+        self, m_kernel_version, m_which
     ):
         """maybe_install_wireguard_packages logs and raises package
         install errors."""
@@ -156,32 +169,34 @@ class TestWireGuard:
         distro.install_packages.side_effect = RuntimeError(
             "Some install error"
         )
-        with pytest.raises(RuntimeError, match="Some install error"):
+        with self.assertRaises(RuntimeError) as context_manager:
             cc_wireguard.maybe_install_wireguard_packages(
                 cloud=FakeCloud(distro)
             )
-        assert "Failed to install wireguard-tools\n" in caplog.text
+        self.assertEqual("Some install error", str(context_manager.exception))
+        self.assertIn(
+            "Failed to install wireguard-tools\n", self.logs.getvalue()
+        )
 
     @mock.patch("%s.subp.subp" % MPATH)
-    def test_load_wg_module_failed(self, m_subp, caplog):
+    def test_load_wg_module_failed(self, m_subp):
         """load_wireguard_kernel_module logs and raises
         kernel modules loading error."""
         m_subp.side_effect = subp.ProcessExecutionError(
             "Some kernel module load error"
         )
-        error = (
+        with self.assertRaises(subp.ProcessExecutionError) as context_manager:
+            cc_wireguard.load_wireguard_kernel_module()
+        self.assertEqual(
             "Unexpected error while running command.\n"
             "Command: -\nExit code: -\nReason: -\n"
             "Stdout: Some kernel module load error\n"
-            "Stderr: -"
+            "Stderr: -",
+            str(context_manager.exception),
         )
-        with pytest.raises(subp.ProcessExecutionError, match=error):
-            cc_wireguard.load_wireguard_kernel_module()
-        assert (
-            mock.ANY,
-            logging.WARNING,
-            "Could not load wireguard module:\n" + error,
-        ) in caplog.record_tuples
+        self.assertIn(
+            "WARNING: Could not load wireguard module:\n", self.logs.getvalue()
+        )
 
     @mock.patch("%s.subp.which" % MPATH)
     @mock.patch("%s.util.kernel_version" % MPATH)
@@ -202,28 +217,29 @@ class TestWireGuard:
         distro.install_packages.assert_called_once_with(packages)
 
     @mock.patch("%s.maybe_install_wireguard_packages" % MPATH)
-    def test_handle_no_config(
-        self, m_maybe_install_wireguard_packages, caplog
-    ):
+    def test_handle_no_config(self, m_maybe_install_wireguard_packages):
         """When no wireguard configuration is provided, nothing happens."""
         cfg = {}
         cc_wireguard.handle("wg", cfg=cfg, cloud=None, args=None)
-        assert (
-            mock.ANY,
-            logging.DEBUG,
-            "Skipping module named wg, no 'wireguard' configuration found",
-        ) in caplog.record_tuples
-        assert m_maybe_install_wireguard_packages.call_count == 0
+        self.assertIn(
+            "DEBUG: Skipping module named wg, no 'wireguard'"
+            " configuration found",
+            self.logs.getvalue(),
+        )
+        self.assertEqual(m_maybe_install_wireguard_packages.call_count, 0)
 
     def test_readiness_probe_with_non_string_values(self):
         """ValueError raised for any values expected as string type."""
         cfg = [1, 2]
-        error = (
-            "Expected a string for readinessprobe at 0. Found 1\n"
-            "Expected a string for readinessprobe at 1. Found 2"
-        )
-        with pytest.raises(ValueError, match=error):
+        errors = [
+            "Expected a string for readinessprobe at 0. Found 1",
+            "Expected a string for readinessprobe at 1. Found 2",
+        ]
+        with self.assertRaises(ValueError) as context_manager:
             cc_wireguard.readinessprobe_command_validation(cfg)
+        error_msg = str(context_manager.exception)
+        for error in errors:
+            self.assertIn(error, error_msg)
 
 
 class TestWireguardSchema:

@@ -1,5 +1,4 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-import logging
 import re
 
 import pytest
@@ -11,7 +10,7 @@ from cloudinit.config.schema import (
     validate_cloudconfig_schema,
 )
 from tests.unittests.helpers import (
-    assert_count_equal,
+    CiTestCase,
     does_not_raise,
     mock,
     skipUnlessJsonSchema,
@@ -23,8 +22,10 @@ MODPATH = "cloudinit.config.cc_users_groups"
 
 @mock.patch("cloudinit.distros.ubuntu.Distro.create_group")
 @mock.patch("cloudinit.distros.ubuntu.Distro.create_user")
-class TestHandleUsersGroups:
+class TestHandleUsersGroups(CiTestCase):
     """Test cc_users_groups handling of config."""
+
+    with_logs = True
 
     def test_handle_no_cfg_creates_no_users_or_groups(self, m_user, m_group):
         """Test handle with no config will not create users or groups."""
@@ -59,7 +60,7 @@ class TestHandleUsersGroups:
         metadata = {}
         cloud = get_cloud(distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata)
         cc_users_groups.handle("modulename", cfg, cloud, None)
-        assert_count_equal(
+        self.assertCountEqual(
             m_user.call_args_list,
             [
                 mock.call(
@@ -105,7 +106,7 @@ class TestHandleUsersGroups:
                 distro="freebsd", sys_cfg=sys_cfg, metadata=metadata
             )
         cc_users_groups.handle("modulename", cfg, cloud, None)
-        assert_count_equal(
+        self.assertCountEqual(
             m_fbsd_user.call_args_list,
             [
                 mock.call(
@@ -139,7 +140,7 @@ class TestHandleUsersGroups:
         metadata = {"public-keys": ["key1"]}
         cloud = get_cloud(distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata)
         cc_users_groups.handle("modulename", cfg, cloud, None)
-        assert_count_equal(
+        self.assertCountEqual(
             m_user.call_args_list,
             [
                 mock.call(
@@ -178,7 +179,7 @@ class TestHandleUsersGroups:
         metadata = {"public-keys": ["key1"]}
         cloud = get_cloud(distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata)
         cc_users_groups.handle("modulename", cfg, cloud, None)
-        assert_count_equal(
+        self.assertCountEqual(
             m_user.call_args_list,
             [
                 mock.call(
@@ -209,13 +210,14 @@ class TestHandleUsersGroups:
             ]
         }
         cloud = get_cloud(distro="ubuntu", sys_cfg={}, metadata={})
-        with pytest.raises(
-            ValueError,
-            match=r"Not creating user me2. Key\(s\) ssh_import_id cannot be"
-            " provided with no_create_home",
-        ):
+        with self.assertRaises(ValueError) as context_manager:
             cc_users_groups.handle("modulename", cfg, cloud, None)
         m_group.assert_not_called()
+        self.assertEqual(
+            "Not creating user me2. Key(s) ssh_import_id cannot be provided"
+            " with no_create_home",
+            str(context_manager.exception),
+        )
 
     def test_users_with_ssh_redirect_user_non_default(self, m_user, m_group):
         """Warn when ssh_redirect_user is not 'default'."""
@@ -236,13 +238,14 @@ class TestHandleUsersGroups:
         }
         metadata = {"public-keys": ["key1"]}
         cloud = get_cloud(distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata)
-        with pytest.raises(
-            ValueError,
-            match="Not creating user me2. Invalid value of ssh_redirect_user:"
-            " snowflake. Expected values: true, default or false.",
-        ):
+        with self.assertRaises(ValueError) as context_manager:
             cc_users_groups.handle("modulename", cfg, cloud, None)
         m_group.assert_not_called()
+        self.assertEqual(
+            "Not creating user me2. Invalid value of ssh_redirect_user:"
+            " snowflake. Expected values: true, default or false.",
+            str(context_manager.exception),
+        )
 
     def test_users_with_ssh_redirect_user_default_false(self, m_user, m_group):
         """When unspecified ssh_redirect_user is false and not set up."""
@@ -259,7 +262,7 @@ class TestHandleUsersGroups:
         metadata = {"public-keys": ["key1"]}
         cloud = get_cloud(distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata)
         cc_users_groups.handle("modulename", cfg, cloud, None)
-        assert_count_equal(
+        self.assertCountEqual(
             m_user.call_args_list,
             [
                 mock.call(
@@ -273,9 +276,7 @@ class TestHandleUsersGroups:
         )
         m_group.assert_not_called()
 
-    def test_users_ssh_redirect_user_and_no_default(
-        self, m_user, m_group, caplog
-    ):
+    def test_users_ssh_redirect_user_and_no_default(self, m_user, m_group):
         """Warn when ssh_redirect_user is True and no default user present."""
         cfg = {
             "users": ["default", {"name": "me2", "ssh_redirect_user": True}]
@@ -287,15 +288,12 @@ class TestHandleUsersGroups:
         cc_users_groups.handle("modulename", cfg, cloud, None)
         m_user.assert_called_once_with("me2", default=False)
         m_group.assert_not_called()
-        assert [
-            (
-                mock.ANY,
-                logging.WARNING,
-                "Ignoring ssh_redirect_user: True for me2. No"
-                " default_user defined. Perhaps missing"
-                " cloud configuration users:  [default, ..].",
-            )
-        ] == caplog.record_tuples
+        self.assertEqual(
+            "WARNING: Ignoring ssh_redirect_user: True for me2. No"
+            " default_user defined. Perhaps missing"
+            " cloud configuration users:  [default, ..].\n",
+            self.logs.getvalue(),
+        )
 
 
 class TestUsersGroupsSchema:

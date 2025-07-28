@@ -14,6 +14,7 @@ from cloudinit.config.schema import (
 )
 from tests.unittests.helpers import (
     SCHEMA_EMPTY_ERROR,
+    CiTestCase,
     mock,
     skipUnlessJsonSchema,
 )
@@ -170,22 +171,29 @@ class TestAddAssertions:
         )
 
 
-@pytest.mark.usefixtures("fake_filesystem")
-class TestRunCommands:
+class TestRunCommands(CiTestCase):
+    with_logs = True
+    allowed_subp = [CiTestCase.SUBP_SHELL_TRUE]
+
+    def setUp(self):
+        super(TestRunCommands, self).setUp()
+        self.tmp = self.tmp_dir()
+
     @mock.patch("cloudinit.config.cc_snap.subp.subp")
-    def test_run_commands_on_empty_list(self, m_subp, caplog):
+    def test_run_commands_on_empty_list(self, m_subp):
         """When provided with an empty list, run_commands does nothing."""
         run_commands([])
-        assert "" == caplog.text
+        self.assertEqual("", self.logs.getvalue())
         m_subp.assert_not_called()
 
     def test_run_commands_on_non_list_or_dict(self):
         """When provided an invalid type, run_commands raises an error."""
-        with pytest.raises(
-            TypeError,
-            match="commands parameter was not a list or dict: I'm Not Valid",
-        ):
+        with self.assertRaises(TypeError) as context_manager:
             run_commands(commands="I'm Not Valid")
+        self.assertEqual(
+            "commands parameter was not a list or dict: I'm Not Valid",
+            str(context_manager.exception),
+        )
 
 
 @pytest.mark.allow_all_subp
