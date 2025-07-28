@@ -2,7 +2,7 @@
 # PyPI requirements for cloud-init integration testing
 # https://docs.cloud-init.io/en/latest/development/integration_tests.html
 #
-pycloudlib>=1!10.0.2,<1!11
+pycloudlib>=1!10.0.2,<1!10.13
 
 # Avoid breaking change in `testpaths` treatment forced
 # test/unittests/conftest.py to be loaded by our integration-tests tox env
