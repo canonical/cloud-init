@@ -5,11 +5,19 @@ import os
 import socket
 import sys
 from contextlib import suppress
+from dataclasses import dataclass
+from typing import Optional
 
 from cloudinit import performance
 from cloudinit.settings import DEFAULT_RUN_DIR
 
 LOG = logging.getLogger(__name__)
+
+
+@dataclass
+class StreamSocket:
+    socket: socket.socket
+    connection: Optional[socket.socket]
 
 
 def sd_notify(message: str):
@@ -55,13 +63,15 @@ class SocketSync:
         :param names: stage names, used as a unique identifiers
         """
         self.stage = ""
-        self.remote = ""
         self.first_exception = ""
         self.systemd_exit_code = 0
         self.experienced_any_error = False
         self.sockets = {
-            name: socket.socket(
-                socket.AF_UNIX, socket.SOCK_DGRAM | socket.SOCK_CLOEXEC
+            name: StreamSocket(
+                socket.socket(
+                    socket.AF_UNIX, socket.SOCK_STREAM | socket.SOCK_CLOEXEC
+                ),
+                None,
             )
             for name in names
         }
@@ -72,7 +82,8 @@ class SocketSync:
             socket_path = f"{DEFAULT_RUN_DIR}/share/{name}.sock"
             with suppress(FileNotFoundError):
                 os.remove(socket_path)
-            sock.bind(socket_path)
+            sock.socket.bind(socket_path)
+            sock.socket.listen()
 
     def __call__(self, stage: str):
         """Set the stage before entering context.
@@ -116,19 +127,13 @@ class SocketSync:
         #     reply, which is expected to be /path/to/{self.stage}-return.sock
         sock = self.sockets[self.stage]
         with performance.Timed(f"Waiting to start stage {self.stage}"):
-            chunk, self.remote = sock.recvfrom(5)
+            sock.connection, _ = sock.socket.accept()
+            chunk, _ = sock.connection.recvfrom(5)
 
         if b"start" != chunk:
             # The protocol expects to receive a command "start"
             self.__exit__(None, None, None)
             raise ValueError(f"Received invalid message: [{str(chunk)}]")
-        elif f"{DEFAULT_RUN_DIR}/share/{self.stage}-return.sock" != str(
-            self.remote
-        ):
-            # assert that the return path is in a directory with appropriate
-            # permissions
-            self.__exit__(None, None, None)
-            raise ValueError(f"Unexpected path to unix socket: {self.remote}")
 
         sd_notify(f"STATUS=Running ({self.stage} stage)")
         return self
@@ -157,15 +162,15 @@ class SocketSync:
             self.systemd_exit_code
         )
         sock = self.sockets[self.stage]
-        sock.connect(self.remote)
+        assert isinstance(sock.connection, socket.socket)
 
         # the returned message will be executed in a subshell
         # hardcode this message rather than sending a more informative message
         # to avoid having to sanitize inputs (to prevent escaping the shell)
-        sock.sendall(
+        sock.connection.sendall(
             f"echo '{message}'; exit {self.systemd_exit_code};".encode()
         )
-        sock.close()
+        sock.connection.close()
 
         # suppress exception - the exception was logged and the init system
         # notified of stage completion (and the exception received as a status
