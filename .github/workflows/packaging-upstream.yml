@@ -49,7 +49,7 @@ jobs:
       - name: Run test - apply patches and run unit tests for each series
         run: |
           # Modify the following line to add / remove ubuntu series
-          for BRANCH in ubuntu/devel ubuntu/plucky ubuntu/noble ubuntu/jammy; do
+          for BRANCH in ubuntu/devel ubuntu/oracular ubuntu/noble ubuntu/jammy ubuntu/focal; do
             # merge - this step is not expected to fail
             git merge "origin/$BRANCH"
             if [ ! -f debian/patches/series ]; then
