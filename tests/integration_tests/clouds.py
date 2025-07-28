@@ -7,7 +7,7 @@ import re
 import string
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Callable, Optional
+from typing import Optional, Type
 from uuid import UUID
 
 from pycloudlib import (
@@ -21,11 +21,10 @@ from pycloudlib import (
     Openstack,
     Qemu,
 )
-from pycloudlib.cloud import BaseCloud, ImageType
+from pycloudlib.cloud import ImageType
 from pycloudlib.ec2.instance import EC2Instance
-from pycloudlib.instance import BaseInstance
-from pycloudlib.lxd.cloud import _BaseLXD
-from pycloudlib.lxd.instance import LXDInstance
+from pycloudlib.lxd.cloud import BaseCloud, _BaseLXD
+from pycloudlib.lxd.instance import BaseInstance, LXDInstance
 
 import cloudinit
 from cloudinit.subp import ProcessExecutionError, subp
@@ -141,7 +140,7 @@ class IntegrationCloud(ABC):
         launch_kwargs = {**default_launch_kwargs, **launch_kwargs}
         display_launch_kwargs = deepcopy(launch_kwargs)
         if display_launch_kwargs.get("user_data") is not None:
-            if "token" in display_launch_kwargs["user_data"]:
+            if "token" in display_launch_kwargs.get("user_data"):
                 display_launch_kwargs["user_data"] = re.sub(
                     r"token: .*", "token: REDACTED", launch_kwargs["user_data"]
                 )
@@ -287,6 +286,7 @@ class OciCloud(IntegrationCloud):
 
 
 class _LxdIntegrationCloud(IntegrationCloud):
+    pycloudlib_instance_cls: Type[_BaseLXD]
     instance_tag: str
     cloud_instance: _BaseLXD
 
@@ -295,7 +295,7 @@ class _LxdIntegrationCloud(IntegrationCloud):
             image_type=self._image_type, **kwargs
         )
 
-    def _get_or_set_profile_list(self, release) -> Optional[list]:
+    def _get_or_set_profile_list(self, release):
         return None
 
     @staticmethod
@@ -332,12 +332,7 @@ class _LxdIntegrationCloud(IntegrationCloud):
             subp(command.split())
 
     def _perform_launch(
-        self,
-        *,
-        launch_kwargs,
-        wait=True,
-        lxd_setup: Optional[Callable] = None,
-        **kwargs,
+        self, *, launch_kwargs, wait=True, **kwargs
     ) -> LXDInstance:
         instance_kwargs = deepcopy(launch_kwargs)
         instance_kwargs["inst_type"] = instance_kwargs.pop(
@@ -364,9 +359,9 @@ class _LxdIntegrationCloud(IntegrationCloud):
         )
         if self.settings.CLOUD_INIT_SOURCE == "IN_PLACE":
             self._mount_source(pycloudlib_instance)
-        if lxd_setup is not None:
+        if "lxd_setup" in kwargs:
             log.info("Running callback specified by 'lxd_setup' mark")
-            lxd_setup(pycloudlib_instance)
+            kwargs["lxd_setup"](pycloudlib_instance)
         pycloudlib_instance.start(wait=wait)
         return pycloudlib_instance
 
@@ -374,20 +369,22 @@ class _LxdIntegrationCloud(IntegrationCloud):
 class LxdContainerCloud(_LxdIntegrationCloud):
     datasource = "lxd_container"
     cloud_instance: LXDContainer
+    pycloudlib_instance_cls = LXDContainer
     instance_tag = "lxd-container-integration-test"
 
     def _get_cloud_instance(self) -> LXDContainer:
-        return LXDContainer(tag=self.instance_tag)
+        return self.pycloudlib_instance_cls(tag=self.instance_tag)
 
 
 class LxdVmCloud(_LxdIntegrationCloud):
     datasource = "lxd_vm"
     cloud_instance: LXDVirtualMachine
+    pycloudlib_instance_cls = LXDVirtualMachine
     instance_tag = "lxd-vm-integration-test"
     _profile_list: list = []
 
     def _get_cloud_instance(self) -> LXDVirtualMachine:
-        return LXDVirtualMachine(tag=self.instance_tag)
+        return self.pycloudlib_instance_cls(tag=self.instance_tag)
 
     def _get_or_set_profile_list(self, release) -> list:
         if self._profile_list:
