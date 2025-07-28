@@ -15,13 +15,11 @@ List of implemented vars:
     - dns_search_
     - dns_servers_
     - mtu_
-    - mac_
 
   Bridge support:
     - bridge_
-    - bridge_forward_delay_
-    - bridge_hello_time_
-    - bridge_stp_state_
+    - bridge_*_
+    - brport_*_
 
   Bond support:
     - mode_
@@ -99,6 +97,13 @@ It is possible to disable IPv4 or IPv6 like so:
   dhcp4: true
   dhcp6: false
 will be rendered as `dhcpcd_IFACE="-4"` to disable IPv6 configuration.
+
+No mac match and mac change support:
+"mac_address" and "macaddress" mapping in both v1 and v2 schema are all over
+the place. Even cloud-init is confused and treat "match: macaddress: ..." and
+"macaddress:" as same. "mac_" directive in Netifrc has different semantics
+anyways, so Netifrc renderer won't even bother. Setting mac address of bond and
+bridges is a bad idea in the first place.
 """
 
 import copy
@@ -137,24 +142,36 @@ class Renderer(renderer.Renderer):
     """Renders network information in a /etc/conf.d/net format."""
 
     _bond_opts = {
-        "bond_mode": '''mode_%s="%s"''',
-        "bond_xmit_hash_policy": '''xmit_hash_policy_%s="%s"''',
-        "bond_miimon": '''miimon_%s="%s"''',
-        "bond_min_links": '''min_links_%s="%s"''',
-        "bond_arp_interval": '''arp_interval_%s="%s"''',
-        "bond_arp_ip_target": '''arp_ip_target_%s="%s"''',
-        "bond_arp_validate": '''arp_validate_%s="%s"''',
-        "bond_ad_select": '''ad_select_%s="%s"''',
-        "bond_num_grat_arp": '''num_grat_arp_%s="%s"''',
-        "bond_downdelay": '''downdelay_%s="%s"''',
-        "bond_updelay": '''updelay_%s="%s"''',
-        "bond_lacp_rate": '''lacp_rate_%s="%s"''',
-        "bond_fail_over_mac": '''fail_over_mac_%s="%s"''',
-        "bond_primary": '''primary_%s="%s"''',
-        "bond_primary_reselect": '''primary_reselect_%s="%s"''',
-        "bond_all_slaves_active": '''all_slaves_active_%s="%s"''',
+        "bond_mode": 'mode_%s="%s"',
+        "bond_xmit_hash_policy": 'xmit_hash_policy_%s="%s"',
+        "bond_miimon": 'miimon_%s="%s"',
+        "bond_min_links": 'min_links_%s="%s"',
+        "bond_arp_interval": 'arp_interval_%s="%s"',
+        "bond_arp_ip_target": 'arp_ip_target_%s="%s"',
+        "bond_arp_validate": 'arp_validate_%s="%s"',
+        "bond_ad_select": 'ad_select_%s="%s"',
+        "bond_num_grat_arp": 'num_grat_arp_%s="%s"',
+        "bond_downdelay": 'downdelay_%s="%s"',
+        "bond_updelay": 'updelay_%s="%s"',
+        "bond_lacp_rate": 'lacp_rate_%s="%s"',
+        "bond_fail_over_mac": 'fail_over_mac_%s="%s"',
+        "bond_primary": 'primary_%s="%s"',
+        "bond_primary_reselect": 'primary_reselect_%s="%s"',
+        "bond_all_slaves_active": 'all_slaves_active_%s="%s"',
         # missing from schema: active_slave, queue_id, num_unsol_na,
         # use_carrier, resend_igmp
+    }
+
+    _bridge_opts = {
+        "bridge_ageing": "bridge_ageing_time",
+        "bridge_bridgeprio": "bridge_priority",
+        "bridge_fd": "bridge_forward_delay",
+        "bridge_hello": "bridge_hello_time",
+        # "bridge_hw": "mac", # horrible idea
+        "bridge_maxage": "bridge_max_age",
+        "bridge_pathcost": "brport_path_cost",
+        "bridge_portprio": "brport_priority",
+        "bridge_stp": "bridge_stp_state",
     }
 
     def __init__(self, config=None):
@@ -167,9 +184,6 @@ class Renderer(renderer.Renderer):
         )
         self.initd_netlo_path = config.get(
             "initd_netlo_path", self.initd_net_prefix + "lo"
-        )
-        self.resolv_conf_path = config.get(
-            "resolv_conf_path", "etc/resolv.conf.head"
         )
 
     def _render_routes(self, name, routes, lines):
@@ -190,7 +204,7 @@ class Renderer(renderer.Renderer):
             ):
                 dst = "default"
             else:
-                dst = """%s%s""" % (r["network"], pfx)
+                dst = "%s%s" % (r["network"], pfx)
 
             if "metric" in r:
                 metric = "metric " + str(r["metric"]) + " "
@@ -198,13 +212,27 @@ class Renderer(renderer.Renderer):
                 metric = ""
 
             # "gateway" = next hop
-            out.append("""%s %svia %s""" % (dst, metric, r["gateway"]))
+            out.append("%s %svia %s" % (dst, metric, r["gateway"]))
 
-        lines.append(
-            '''routes_%s="\n%s"''' % (_iface_var(name), "\n".join(out))
-        )
+        lines.append('routes_%s="\n%s"' % (_iface_var(name), "\n".join(out)))
 
-    def _render_iface(self, name, iface, lines):
+    def _emit_dns(self, name, dns_ns, dns_search, ns, lines):
+        dnss = copy.deepcopy(dns_ns)
+        search = copy.deepcopy(dns_search)
+        if ns:
+            dnss += ns.dns_nameservers or []
+            search += ns.dns_searchdomains or []
+
+        if dnss:
+            lines.append(
+                'dns_servers_%s="%s"' % (_iface_var(name), " ".join(dnss))
+            )
+        if search:
+            lines.append(
+                'dns_search_%s="%s"' % (_iface_var(name), " ".join(search))
+            )
+
+    def _render_iface(self, name, iface, ns, lines):
         routes = []
         dns_ns = []
         dns_search = []
@@ -215,7 +243,6 @@ class Renderer(renderer.Renderer):
         accept_ra = iface.get("accept-ra")
         ethernet_wol = iface.get("wakeonlan")
         mtu = iface.get("mtu")
-        mac = iface.get("mac_address")
 
         dhcpv4 = False
         dhcpv6 = False
@@ -282,7 +309,7 @@ class Renderer(renderer.Renderer):
         if not subnet_config:
             subnet_config.append("null")
         lines.append(
-            '''config_%s="%s"''' % (_iface_var(name), "\n".join(subnet_config))
+            'config_%s="%s"' % (_iface_var(name), "\n".join(subnet_config))
         )
 
         # dhcp(v6)?_IFACE="..."
@@ -302,40 +329,31 @@ class Renderer(renderer.Renderer):
         if dhcp_opts:
             dhcp_opts = _str_list(dhcp_opts)
             lines.append(
-                '''dhcp_%s="%s"''' % (_iface_var(name), " ".join(dhcp_opts))
+                'dhcp_%s="%s"' % (_iface_var(name), " ".join(dhcp_opts))
             )
 
         if dhcpv4 ^ dhcpv6:
             if dhcpv4:
-                lines.append('''dhcpcd_%s="-4"''' % (_iface_var(name),))
+                lines.append('dhcpcd_%s="-4"' % (_iface_var(name),))
             else:
-                lines.append('''dhcpcd_%s="-6"''' % (_iface_var(name),))
+                lines.append('dhcpcd_%s="-6"' % (_iface_var(name),))
 
         # routes_IFACE="..."
         if routes:
             self._render_routes(name, routes, lines)
 
-        if dns_ns:
-            lines.append(
-                '''dns_servers_%s="%s"'''
-                % (_iface_var(name), " ".join(dns_ns))
-            )
-        if dns_search:
-            lines.append(
-                '''dns_search_%s="%s"'''
-                % (_iface_var(name), " ".join(dns_search))
-            )
+        if name == "lo":
+            self._emit_dns("lo", dns_ns, dns_search, ns, lines)
+        else:
+            self._emit_dns(name, dns_ns, dns_search, None, lines)
 
         if mtu:
-            lines.append('''mtu_%s="%s"''' % (_iface_var(name), mtu))
-
-        if mac:
-            lines.append('''mac_%s="%s"''' % (_iface_var(name), mac))
+            lines.append('mtu_%s="%s"' % (_iface_var(name), mtu))
 
         # FIXME: metric_*="..." ?
 
         if ethernet_wol:
-            lines.append('''ethtool_change_%s="wol g"''' % (_iface_var(name),))
+            lines.append('ethtool_change_%s="wol g"' % (_iface_var(name),))
 
     def _emit_bond_params(self, iface, name, lines):
         for k, v in iface.items():
@@ -346,25 +364,44 @@ class Renderer(renderer.Renderer):
             if fmt is None:
                 continue
 
-            if v is list:
+            if isinstance(v, list):
                 v = " ".join([str(e) for e in v])
-            elif v is bool:
+            elif isinstance(v, bool):
                 v = str(int(v))
             else:
                 v = str(v)
 
             lines.append(fmt % (_iface_var(name), v))
 
+    def _emit_bridge_params(self, iface, name, lines):
+        for k, v in iface.items():
+            if k not in self._bridge_opts:
+                continue
+            k = self._bridge_opts[k]
+
+            if isinstance(v, dict):
+                for brport, optval in v.items():
+                    lines.append(
+                        '%s_%s="%s"' % (k, _iface_var(brport), str(optval))
+                    )
+            else:
+                if isinstance(v, bool):
+                    v = int(v)
+                lines.append('%s_%s="%s"' % (k, _iface_var(name), str(v)))
+
     def _render_interfaces(self, network_state):
         lines = []
-        all_bridged_ports = []
-        bond_map = dict[str, set]()
+        bond_map = dict[str, set[str]]()
         vlan_map = dict[str, list]()
+        loopback_emitted = False
 
         for iface in network_state.iter_interfaces():
             name = iface["name"]
             type = iface.get("type")
             bond_master = iface.get("bond-master")
+
+            if name == "lo":
+                loopback_emitted = True
 
             # `config_lo="..."` is completely valid and works
             # if name == "lo":
@@ -373,7 +410,7 @@ class Renderer(renderer.Renderer):
             iface = copy.deepcopy(iface)
 
             if bond_master:
-                ports = bond_map.setdefault(bond_master, set())
+                ports = bond_map.setdefault(bond_master, set[str]())
                 ports.add(name)
 
             if type == "vlan":
@@ -381,93 +418,69 @@ class Renderer(renderer.Renderer):
                 vlan_id = iface["vlan_id"]
                 vlan_list = vlan_map.setdefault(link, [])
                 vlan_list.append(str(vlan_id))
-                lines.append('''%s_vlan%d_name="%s"''' % (link, vlan_id, name))
+                lines.append('%s_vlan%d_name="%s"' % (link, vlan_id, name))
             elif type == "bridge":
-                # params
-
-                bridge_fd = iface.get("bridge_fd")
-                if bridge_fd:
-                    lines.append(
-                        '''bridge_forward_delay_%s="%d"'''
-                        % (_iface_var(name), bridge_fd)
-                    )
-                bridge_stp = iface.get("bridge_stp")
-                if bridge_stp:
-                    lines.append(
-                        '''bridge_stp_state_%s="%d"'''
-                        % (_iface_var(name), bridge_stp)
-                    )
-                bridge_hello = iface.get("bridge_hello")
-                if bridge_hello:
-                    lines.append(
-                        '''bridge_hello_time_%s="%d"'''
-                        % (_iface_var(name), bridge_hello)
-                    )
-
                 bridge_ports = iface["bridge_ports"]
-                all_bridged_ports += bridge_ports
+                bridge_ports.sort()
                 lines.append(
-                    '''bridge_%s="%s"'''
+                    'bridge_%s="%s"'
                     % (_iface_var(name), " ".join(bridge_ports))
                 )
+
+                # params
+                self._emit_bridge_params(iface, name, lines)
             elif type == "bond":
                 self._emit_bond_params(iface, name, lines)
 
-            if bond_master and iface.pop("subnets", None):
-                # if it's a bond slave but had subnets
+            if bond_master and "subnets" in iface:
+                # it's a bond slave but has subnets.
+                # Netifrc might complain. This shouldn't be allowed in the
+                # first place. Be conservative and pass it on.
                 LOG.warning(
-                    "Network config: %s: subnets in bond slave removed", name
+                    "Network config: %s: subnets in bond slave! Are you sure "
+                    "about this?",
+                    name,
                 )
 
-            iface.pop(
-                "name", None
-            )  # make sure it's not referenced in the tail
-            self._render_iface(name, iface, lines)
+            # make sure it's not referenced in the tail
+            iface.pop("name", None)
+            self._render_iface(name, iface, network_state, lines)
             lines.append("")
         lines.append("")
 
-        if all_bridged_ports:
-            # "nullify" all_bridged_ports
-            # (Netifrc requires slave interfaces to be "null")
-            for name in all_bridged_ports:
-                lines.append('''config_%s="null"''' % (_iface_var(name),))
-            lines.append("")
+        # Add global dns settings to the loopback
+        # This is a hack from eni. We shouldn't really rely on it.
+
+        if not loopback_emitted:
+            self._emit_dns("lo", [], [], network_state, lines)
+
+        # if all_bridged_ports:
+        #     # "nullify" all_bridged_ports
+        #     # (Netifrc requires slave interfaces to be "null")
+        #     for name in all_bridged_ports:
+        #         lines.append('config_%s="null"' % (_iface_var(name),))
+        #     lines.append("")
 
         if bond_map:
             # construct slaves_*="..."
             for name, ports in bond_map.items():
+                lst = list[str](ports)
+                lst.sort()
                 lines.append(
-                    '''slaves_%s="%s"''' % (_iface_var(name), " ".join(ports))
+                    'slaves_%s="%s"' % (_iface_var(name), " ".join(lst))
                 )
             lines.append("")
 
         if vlan_map:
             # construct vlans_*="..."
             for name, vlan_list in vlan_map.items():
+                vlan_list.sort()
                 lines.append(
-                    '''vlans_%s="%s"'''
-                    % (_iface_var(name), " ".join(vlan_list))
+                    'vlans_%s="%s"' % (_iface_var(name), " ".join(vlan_list))
                 )
             # lines.append("")
 
         return self.netifrc_header + "\n".join(lines)
-
-    def _render_global_dns(
-        self,
-        network_state: NetworkState,
-    ):
-        # OpenRC says: keep it old fashioned and simple
-        # Render global DNS in resolv.conf
-
-        resolv = ["# Generated by cloud-init netifrc module"]
-        if network_state.dns_nameservers:
-            for ns in network_state.dns_nameservers:
-                resolv.append("nameserver " + ns)
-        if network_state.dns_searchdomains:
-            for s in network_state.dns_searchdomains:
-                resolv.append("search " + s)
-
-        return self.netifrc_header + "\n".join(resolv)
 
     def render_network_state(
         self,
@@ -480,7 +493,6 @@ class Renderer(renderer.Renderer):
         util.write_file(fp, self._render_interfaces(network_state))
 
         # create symlinks
-        # TODO: unit test
 
         for iface in network_state.iter_interfaces():
             name = iface["name"]
@@ -490,12 +502,6 @@ class Renderer(renderer.Renderer):
             src = subp.target_path(target, self.initd_netlo_path)
             dst = subp.target_path(target, self.initd_net_prefix + name)
             util.sym_link(src, dst, True)
-
-        # resolv.conf
-        # TODO: unit test
-
-        fp = subp.target_path(target, self.resolv_conf_path)
-        util.write_file(fp, self._render_global_dns(network_state))
 
 
 def available(target=None):
