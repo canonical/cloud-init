@@ -31,7 +31,6 @@ import cloudinit
 from cloudinit.subp import ProcessExecutionError, subp
 from tests.integration_tests import integration_settings
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.reaper import Reaper
 from tests.integration_tests.releases import CURRENT_RELEASE
 from tests.integration_tests.util import emit_dots_on_travis
 
@@ -60,11 +59,9 @@ class IntegrationCloud(ABC):
 
     def __init__(
         self,
-        reaper: Reaper,
         image_type: ImageType = ImageType.GENERIC,
         settings=integration_settings,
     ):
-        self.reaper = reaper
         self._image_type = image_type
         self.settings = settings
         self.cloud_instance = self._get_cloud_instance()

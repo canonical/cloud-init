@@ -20,7 +20,7 @@ from tests.integration_tests.instances import IntegrationInstance
 LOG = logging.getLogger()
 
 
-class Reaper:
+class _Reaper:
     def __init__(self, timeout: float = 30.0):
         # self.timeout sets the amount of time to sleep before retrying
         self.timeout = timeout

@@ -39,7 +39,7 @@ class TestReaper:
         """basic setup teardown"""
 
         instance = MockInstance(0)
-        r = reaper.Reaper()
+        r = reaper._Reaper()
         # start / stop
         r.start()
         r.stop()
@@ -57,7 +57,7 @@ class TestReaper:
         """basic setup teardown"""
 
         i_1 = MockInstance(0)
-        r = reaper.Reaper()
+        r = reaper._Reaper()
         r.start()
         r.reap(i_1)
         r.stop()
@@ -68,7 +68,7 @@ class TestReaper:
 
         i_1 = MockInstance(64)
         i_2 = MockInstance(64)
-        r = reaper.Reaper()
+        r = reaper._Reaper()
         r.start()
         r.reap(i_1)
         r.reap(i_2)
@@ -94,7 +94,7 @@ class TestReaper:
         ]
 
         # forcibly disallow sleeping, to avoid wasted time during tests
-        r = reaper.Reaper(timeout=0.0)
+        r = reaper._Reaper(timeout=0.0)
         r.start()
         for i in instances:
             r.reap(i)
@@ -130,7 +130,7 @@ class TestReaper:
         """
         num = 64
         instances = []
-        r = reaper.Reaper()
+        r = reaper._Reaper()
         r.start()
         for _ in range(num):
             i = MockInstance(0)

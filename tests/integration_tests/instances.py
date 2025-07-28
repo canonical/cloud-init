@@ -351,4 +351,4 @@ Pin-Priority: 1001"""
         ):
             log.info("Keeping Instance, public ip: %s", self.ip())
         else:
-            self.cloud.reaper.reap(self)
+            conftest.REAPER.reap(self)
