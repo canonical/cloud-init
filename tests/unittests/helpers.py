@@ -9,10 +9,11 @@ import os
 import random
 import shutil
 import string
+import sys
 import tempfile
 import time
 import unittest
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from typing import ClassVar, List, Union
 from unittest import mock
 from unittest.util import strclass
@@ -20,7 +21,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 import responses
 
-from cloudinit import distros, helpers, settings, subp, util
+from cloudinit import atomic_helper, distros, helpers, settings, subp, util
 from cloudinit.config.schema import (
     SchemaValidationError,
     validate_cloudconfig_schema,
@@ -263,6 +264,133 @@ class CiTestCase(TestCase):
     @classmethod
     def random_string(cls, length=8):
         return random_string(length)
+
+
+class FilesystemMockingTestCase(CiTestCase):
+    def setUp(self):
+        super(FilesystemMockingTestCase, self).setUp()
+        self.patched_funcs = ExitStack()
+
+    def tearDown(self):
+        self.patched_funcs.close()
+        CiTestCase.tearDown(self)
+
+    def replicateTestRoot(self, example_root, target_root):
+        real_root = resourceLocation()
+        real_root = os.path.join(real_root, "roots", example_root)
+        for dir_path, _dirnames, filenames in os.walk(real_root):
+            real_path = dir_path
+            make_path = rebase_path(real_path[len(real_root) :], target_root)
+            util.ensure_dir(make_path)
+            for f in filenames:
+                real_path = os.path.abspath(os.path.join(real_path, f))
+                make_path = os.path.abspath(os.path.join(make_path, f))
+                shutil.copy(real_path, make_path)
+
+    def patchUtils(self, new_root):
+        patch_funcs = {
+            util: [
+                ("write_file", 1),
+                ("append_file", 1),
+                ("load_binary_file", 1),
+                ("load_text_file", 1),
+                ("ensure_dir", 1),
+                ("chmod", 1),
+                ("delete_dir_contents", 1),
+                ("del_file", 1),
+                ("sym_link", -1),
+                ("copy", -1),
+            ],
+            atomic_helper: [
+                ("write_json", 1),
+            ],
+        }
+        for mod, funcs in patch_funcs.items():
+            for f, am in funcs:
+                func = getattr(mod, f)
+                trap_func = retarget_many_wrapper(new_root, am, func)
+                self.patched_funcs.enter_context(
+                    mock.patch.object(mod, f, trap_func)
+                )
+
+        # Handle subprocess calls
+        func = getattr(subp, "subp")
+
+        def nsubp(*_args, **_kwargs):
+            return ("", "")
+
+        self.patched_funcs.enter_context(
+            mock.patch.object(subp, "subp", nsubp)
+        )
+
+        def null_func(*_args, **_kwargs):
+            return None
+
+        for f in ["chownbyid", "chownbyname"]:
+            self.patched_funcs.enter_context(
+                mock.patch.object(util, f, null_func)
+            )
+
+    def patchOS(self, new_root):
+        patch_funcs = {
+            os.path: [
+                ("isfile", 1),
+                ("exists", 1),
+                ("islink", 1),
+                ("isdir", 1),
+                ("lexists", 1),
+            ],
+            os: [
+                ("listdir", 1),
+                ("mkdir", 1),
+                ("lstat", 1),
+                ("symlink", 2),
+                ("stat", 1),
+            ],
+        }
+
+        if hasattr(os, "scandir"):
+            # py27 does not have scandir
+            patch_funcs[os].append(("scandir", 1))
+
+        for mod, funcs in patch_funcs.items():
+            for f, nargs in funcs:
+                func = getattr(mod, f)
+                trap_func = retarget_many_wrapper(new_root, nargs, func)
+                self.patched_funcs.enter_context(
+                    mock.patch.object(mod, f, trap_func)
+                )
+
+    def patchOpen(self, new_root):
+        trap_func = retarget_many_wrapper(new_root, 1, open)
+        self.patched_funcs.enter_context(
+            mock.patch("builtins.open", trap_func)
+        )
+
+    def patchStdoutAndStderr(self, stdout=None, stderr=None):
+        if stdout is not None:
+            self.patched_funcs.enter_context(
+                mock.patch.object(sys, "stdout", stdout)
+            )
+        if stderr is not None:
+            self.patched_funcs.enter_context(
+                mock.patch.object(sys, "stderr", stderr)
+            )
+
+    def reRoot(self, root=None):
+        if root is None:
+            root = self.tmp_dir()
+        self.patchUtils(root)
+        self.patchOS(root)
+        self.patchOpen(root)
+        return root
+
+    @contextmanager
+    def reRooted(self, root=None):
+        try:
+            yield self.reRoot(root)
+        finally:
+            self.patched_funcs.close()
 
 
 def replicate_test_root(example_root, target_root):
