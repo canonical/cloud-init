@@ -13,7 +13,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import mock, skipUnlessJsonSchema
+from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 
 
 class TestIsDiskUsed:
@@ -194,16 +194,10 @@ class TestPurgeDisk:
 )
 @mock.patch("cloudinit.config.cc_disk_setup.device_type", return_value=None)
 @mock.patch("cloudinit.config.cc_disk_setup.subp.subp", return_value=("", ""))
-class TestMkfsCommandHandling:
+class TestMkfsCommandHandling(CiTestCase):
+    with_logs = True
 
-    def test_with_cmd(
-        self,
-        subp,
-        m_device_type,
-        m_find_device,
-        m_assert_and_settle_device,
-        caplog,
-    ):
+    def test_with_cmd(self, subp, *args):
         """mkfs honors cmd and logs warnings when extra_opts or overwrite are
         provided."""
         cc_disk_setup.mkfs(
@@ -220,12 +214,12 @@ class TestMkfsCommandHandling:
         assert (
             "extra_opts "
             "ignored because cmd was specified: mkfs -t ext4 -L with_cmd "
-            "/dev/xdb1" in caplog.text
+            "/dev/xdb1" in self.logs.getvalue()
         )
         assert (
             "overwrite "
             "ignored because cmd was specified: mkfs -t ext4 -L with_cmd "
-            "/dev/xdb1" in caplog.text
+            "/dev/xdb1" in self.logs.getvalue()
         )
 
         subp.assert_called_once_with(

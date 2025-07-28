@@ -13,6 +13,7 @@ from cloudinit.config.schema import (
 )
 from tests.unittests.helpers import (
     SCHEMA_EMPTY_ERROR,
+    CiTestCase,
     mock,
     skipUnlessJsonSchema,
 )
@@ -34,62 +35,72 @@ class FakeExtendedTempFile:
         util.del_file(self.handle.name)
 
 
-@pytest.mark.usefixtures("fake_filesystem")
-class TestBootcmd:
+class TestBootcmd(CiTestCase):
+
+    with_logs = True
 
     _etmpfile_path = (
         "cloudinit.config.cc_bootcmd.temp_utils.ExtendedTemporaryFile"
     )
 
-    def test_handler_skip_if_no_bootcmd(self, caplog):
+    def setUp(self):
+        super(TestBootcmd, self).setUp()
+        self.subp = subp.subp
+        self.new_root = self.tmp_dir()
+
+    def test_handler_skip_if_no_bootcmd(self):
         """When the provided config doesn't contain bootcmd, skip it."""
         cfg = {}
         mycloud = get_cloud()
         handle("notimportant", cfg, mycloud, None)
-        assert (
-            "Skipping module named notimportant, no 'bootcmd' key"
-            in caplog.text
+        self.assertIn(
+            "Skipping module named notimportant, no 'bootcmd' key",
+            self.logs.getvalue(),
         )
 
-    def test_handler_invalid_command_set(self, caplog):
+    def test_handler_invalid_command_set(self):
         """Commands which can't be converted to shell will raise errors."""
         invalid_config = {"bootcmd": 1}
         cc = get_cloud()
-        with pytest.raises(
-            TypeError,
-            match="Input to shellify was type 'int'. Expected list or tuple.",
-        ):
+        with self.assertRaises(TypeError) as context_manager:
             handle("cc_bootcmd", invalid_config, cc, [])
-        assert "Failed to shellify bootcmd" in caplog.text
+        self.assertIn("Failed to shellify bootcmd", self.logs.getvalue())
+        self.assertEqual(
+            "Input to shellify was type 'int'. Expected list or tuple.",
+            str(context_manager.exception),
+        )
 
         invalid_config = {
             "bootcmd": ["ls /", 20, ["wget", "http://stuff/blah"], {"a": "n"}]
         }
         cc = get_cloud()
-        with pytest.raises(
-            TypeError,
-            match="Unable to shellify type 'int'. Expected list, string, "
-            "tuple. Got: 20",
-        ):
+        with self.assertRaises(TypeError) as context_manager:
             handle("cc_bootcmd", invalid_config, cc, [])
-        assert "Failed to shellify" in caplog.text
+        logs = self.logs.getvalue()
+        self.assertIn("Failed to shellify", logs)
+        self.assertEqual(
+            "Unable to shellify type 'int'. Expected list, string, tuple. "
+            "Got: 20",
+            str(context_manager.exception),
+        )
 
-    @pytest.mark.allow_subp_for("/bin/sh")
-    def test_handler_runs_bootcmd_script_with_error(self, caplog):
+    def test_handler_runs_bootcmd_script_with_error(self):
         """When a valid script generates an error, that error is raised."""
         cc = get_cloud()
         valid_config = {"bootcmd": ["exit 1"]}  # Script with error
 
         with mock.patch(self._etmpfile_path, FakeExtendedTempFile):
-            with pytest.raises(
-                subp.ProcessExecutionError,
-                match=(
-                    r"Unexpected error while running command.\n"
-                    r"Command: \['/bin/sh',"
-                ),
-            ):
-                handle("does-not-matter", valid_config, cc, [])
-        assert "Failed to run bootcmd module does-not-matter" in caplog.text
+            with self.allow_subp(["/bin/sh"]):
+                with self.assertRaises(subp.ProcessExecutionError) as ctxt:
+                    handle("does-not-matter", valid_config, cc, [])
+        self.assertIn(
+            "Unexpected error while running command.\nCommand: ['/bin/sh',",
+            str(ctxt.exception),
+        )
+        self.assertIn(
+            "Failed to run bootcmd module does-not-matter",
+            self.logs.getvalue(),
+        )
 
 
 @skipUnlessJsonSchema()
