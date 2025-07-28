@@ -7,6 +7,7 @@ from cloudinit.net import (
     eni,
     freebsd,
     netbsd,
+    netifrc,
     netplan,
     network_manager,
     networkd,
@@ -24,6 +25,7 @@ NAME_TO_RENDERER = {
     "networkd": networkd,
     "openbsd": openbsd,
     "sysconfig": sysconfig,
+    "netifrc": netifrc,
 }
 
 DEFAULT_PRIORITY = [
@@ -35,6 +37,7 @@ DEFAULT_PRIORITY = [
     "netbsd",
     "openbsd",
     "networkd",
+    "netifrc",
 ]
 
 

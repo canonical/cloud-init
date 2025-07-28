@@ -315,6 +315,24 @@ class NetworkdActivator(NetworkActivator):
         )
 
 
+class NetifrcActivator(NetworkActivator):
+    @staticmethod
+    def available(target: Optional[str] = None) -> bool:
+        expected = "rc-service"
+        search = ["/sbin"]
+        return bool(subp.which(expected, search=search, target=target))
+
+    @staticmethod
+    def bring_up_interface(device_name: str) -> bool:
+        cmd = ["rc-service", "net." + device_name, "start"]
+        return _alter_interface(cmd, device_name)
+
+    @staticmethod
+    def bring_down_interface(device_name: str) -> bool:
+        cmd = ["rc-service", "net." + device_name, "stop"]
+        return _alter_interface(cmd, device_name)
+
+
 # This section is mostly copied and pasted from renderers.py. An abstract
 # version to encompass both seems overkill at this point
 DEFAULT_PRIORITY = [
@@ -323,6 +341,7 @@ DEFAULT_PRIORITY = [
     "network-manager",
     "networkd",
     "ifconfig",
+    "netifrc",
 ]
 
 NAME_TO_ACTIVATOR: Dict[str, Type[NetworkActivator]] = {
@@ -331,6 +350,7 @@ NAME_TO_ACTIVATOR: Dict[str, Type[NetworkActivator]] = {
     "network-manager": NetworkManagerActivator,
     "networkd": NetworkdActivator,
     "ifconfig": IfConfigActivator,
+    "netifrc": NetifrcActivator,
 }
 
 
