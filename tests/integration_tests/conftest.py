@@ -285,7 +285,15 @@ def _collect_artifacts(
         _collect_profile(instance, log_dir)
 
 
-def get_session_args(request, fixture_utils, session_cloud: IntegrationCloud):
+@contextmanager
+def _client(
+    request, fixture_utils, session_cloud: IntegrationCloud
+) -> Iterator[IntegrationInstance]:
+    """Fixture implementation for the client fixtures.
+
+    Launch the dynamic IntegrationClient instance using any provided
+    userdata, yield to the test, then cleanup
+    """
     getter = functools.partial(
         fixture_utils.closest_marker_first_arg_or, request, default=None
     )
@@ -310,21 +318,6 @@ def get_session_args(request, fixture_utils, session_cloud: IntegrationCloud):
     if lxd_setup is not None:
         if not isinstance(session_cloud, _LxdIntegrationCloud):
             pytest.skip("lxd_setup requires LXD")
-    return user_data, launch_kwargs, lxd_setup, lxd_use_exec
-
-
-@contextmanager
-def _client(
-    request, fixture_utils, session_cloud: IntegrationCloud
-) -> Iterator[IntegrationInstance]:
-    """Fixture implementation for the client fixtures.
-
-    Launch the dynamic IntegrationClient instance using any provided
-    userdata, yield to the test, then cleanup
-    """
-    user_data, launch_kwargs, lxd_setup, lxd_use_exec = get_session_args(
-        request, fixture_utils, session_cloud
-    )
 
     with session_cloud.launch(
         user_data=user_data,
