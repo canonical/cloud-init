@@ -56,7 +56,7 @@ jobs:
       - name: Setup LXD
         uses: canonical/setup-lxd@v0.1.2
         with:
-          channel: 6/edge
+          channel: 6/stable
       - name: Verify deb package
         run: |
           ls -hal '${{ runner.temp }}'
