@@ -1,6 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import datetime
-import fcntl
 import functools
 import logging
 import os
@@ -81,61 +80,8 @@ def disable_subp_usage(request):
     pass
 
 
-def setup_image_or_die(cloud: IntegrationCloud):
-    try:
-        setup_image(cloud)
-    except Exception as e:
-        if cloud.snapshot_id:
-            # if a snapshot id was set, then snapshot succeeded, teardown
-            cloud.delete_snapshot()
-        cloud.destroy()
-        pytest.exit(
-            f"{type(e).__name__} in session setup: {str(e)}", returncode=2
-        )
-
-
-def setup_image_once(
-    worker_id: str,
-    cloud: IntegrationCloud,
-    tmp_path_factory: pytest.TempPathFactory,
-) -> None:
-    """Setup image to be used for (almost) all tests.
-
-    Since pytest-xdist runs tests in parallel, we need to ensure that
-    the image setup is only done once, and not multiple times in parallel.
-    """
-    if worker_id == "master":
-        # We're running single-threaded, so no synchronization needed
-        setup_image_or_die(cloud)
-        return
-
-    # We're an xdist worker, so we need to synchronize.
-    # Whoever gets the lock first will do the setup, writing the
-    # image id into the image path. The other workers will
-    # wait for file access, read the image id from image path and use it.
-    image_path = Path(
-        tmp_path_factory.getbasetemp().parent,
-        f"session_image_id_{worker_id}",
-    )
-    lock_path = image_path.with_suffix(".lock")
-
-    with open(lock_path, "w") as lock_file:
-        # Use a lock to ensure only one worker does the setup
-        fcntl.lockf(lock_file, fcntl.LOCK_EX)
-        try:
-            if not image_path.exists():
-                setup_image_or_die(cloud)
-                image_path.write_text(cloud.image_id)
-            else:
-                cloud.snapshot_id = image_path.read_text().strip()
-        finally:
-            fcntl.lockf(lock_file, fcntl.LOCK_UN)
-
-
 @pytest.fixture(scope="session")
-def session_cloud(
-    worker_id, reaper: Reaper, tmp_path_factory
-) -> Generator[IntegrationCloud, None, None]:
+def session_cloud(reaper: Reaper) -> Generator[IntegrationCloud, None, None]:
     """get_session_cloud() creates a session from configuration"""
     if integration_settings.PLATFORM not in platforms.keys():
         raise ValueError(
@@ -156,8 +102,16 @@ def session_cloud(
     )
     cloud.emit_settings_to_log()
 
-    setup_image_once(worker_id, cloud, tmp_path_factory)
-
+    try:
+        setup_image(cloud)
+    except Exception as e:
+        if cloud.snapshot_id:
+            # if a snapshot id was set, then snapshot succeeded, teardown
+            cloud.delete_snapshot()
+        cloud.destroy()
+        pytest.exit(
+            f"{type(e).__name__} in session setup: {str(e)}", returncode=2
+        )
     yield cloud
     log.info("Tearing down session cloud")
     try:
