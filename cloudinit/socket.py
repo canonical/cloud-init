@@ -6,18 +6,18 @@ import socket
 import sys
 from contextlib import suppress
 from dataclasses import dataclass
-from typing import Optional
-
+from typing import Optional, TypeAlias
 from cloudinit import performance
 from cloudinit.settings import DEFAULT_RUN_DIR
 
 LOG = logging.getLogger(__name__)
 
+Socket: TypeAlias = socket.socket
 
 @dataclass
 class StreamSocket:
-    socket: socket.socket
-    connection: Optional[socket.socket]
+    socket: Socket
+    connection: Optional[Socket]
 
 
 def sd_notify(message: str):
@@ -128,6 +128,7 @@ class SocketSync:
         sock = self.sockets[self.stage]
         with performance.Timed(f"Waiting to start stage {self.stage}"):
             sock.connection, _ = sock.socket.accept()
+            assert isinstance(sock.connection, socket.socket)
             chunk, _ = sock.connection.recvfrom(5)
 
         if b"start" != chunk:
