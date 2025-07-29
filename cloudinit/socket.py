@@ -5,8 +5,7 @@ import os
 import socket
 import sys
 from contextlib import suppress
-from dataclasses import dataclass
-from typing import Optional
+from typing import Dict
 
 from cloudinit import performance
 from cloudinit.settings import DEFAULT_RUN_DIR
@@ -14,12 +13,6 @@ from cloudinit.settings import DEFAULT_RUN_DIR
 LOG = logging.getLogger(__name__)
 
 Socket = socket.socket
-
-
-@dataclass
-class StreamSocket:
-    socket: Socket
-    connection: Optional[Socket]
 
 
 def sd_notify(message: str):
@@ -69,14 +62,12 @@ class SocketSync:
         self.systemd_exit_code = 0
         self.experienced_any_error = False
         self.sockets = {
-            name: StreamSocket(
-                socket.socket(
-                    socket.AF_UNIX, socket.SOCK_STREAM | socket.SOCK_CLOEXEC
-                ),
-                None,
+            name: socket.socket(
+                socket.AF_UNIX, socket.SOCK_STREAM | socket.SOCK_CLOEXEC
             )
             for name in names
         }
+        self.connections: Dict[str, socket.socket] = {}
         # ensure the directory exists
         os.makedirs(f"{DEFAULT_RUN_DIR}/share", mode=0o700, exist_ok=True)
         # removing stale sockets and bind
@@ -84,8 +75,8 @@ class SocketSync:
             socket_path = f"{DEFAULT_RUN_DIR}/share/{name}.sock"
             with suppress(FileNotFoundError):
                 os.remove(socket_path)
-            sock.socket.bind(socket_path)
-            sock.socket.listen()
+            sock.bind(socket_path)
+            sock.listen()
 
     def __call__(self, stage: str):
         """Set the stage before entering context.
@@ -129,9 +120,9 @@ class SocketSync:
         #     reply, which is expected to be /path/to/{self.stage}-return.sock
         sock = self.sockets[self.stage]
         with performance.Timed(f"Waiting to start stage {self.stage}"):
-            sock.connection, _ = sock.socket.accept()
-            assert isinstance(sock.connection, socket.socket)
-            chunk, _ = sock.connection.recvfrom(5)
+            connection, _ = sock.accept()
+            chunk, _ = connection.recvfrom(5)
+            self.connections[self.stage] = connection
 
         if b"start" != chunk:
             # The protocol expects to receive a command "start"
@@ -164,16 +155,15 @@ class SocketSync:
         self.experienced_any_error = self.experienced_any_error or bool(
             self.systemd_exit_code
         )
-        sock = self.sockets[self.stage]
-        assert isinstance(sock.connection, socket.socket)
+        sock = self.connections[self.stage]
 
         # the returned message will be executed in a subshell
         # hardcode this message rather than sending a more informative message
         # to avoid having to sanitize inputs (to prevent escaping the shell)
-        sock.connection.sendall(
+        sock.sendall(
             f"echo '{message}'; exit {self.systemd_exit_code};".encode()
         )
-        sock.connection.close()
+        sock.close()
 
         # suppress exception - the exception was logged and the init system
         # notified of stage completion (and the exception received as a status
