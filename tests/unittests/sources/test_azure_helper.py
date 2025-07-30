@@ -4,8 +4,8 @@
 import os
 import re
 import unittest
-from contextlib import ExitStack
 from textwrap import dedent
+from unittest import mock
 from xml.etree import ElementTree as ET
 from xml.sax.saxutils import escape, unescape
 
@@ -18,7 +18,6 @@ from cloudinit.sources.azure import errors
 from cloudinit.sources.helpers import azure as azure_helper
 from cloudinit.sources.helpers.azure import WALinuxAgentShim as wa_shim
 from cloudinit.util import load_text_file
-from tests.unittests.helpers import CiTestCase, mock
 from tests.unittests.sources.test_azure import construct_ovf_env
 from tests.unittests.util import MockDistro
 
@@ -159,7 +158,7 @@ class TestGetIpFromLeaseValue:
         )
 
 
-class TestGoalStateParsing(CiTestCase):
+class TestGoalStateParsing:
     default_parameters = {
         "incarnation": 1,
         "container_id": "MyContainerId",
@@ -189,17 +188,17 @@ class TestGoalStateParsing(CiTestCase):
     def test_incarnation_parsed_correctly(self):
         incarnation = "123"
         goal_state = self._get_goal_state(incarnation=incarnation)
-        self.assertEqual(incarnation, goal_state.incarnation)
+        assert incarnation == goal_state.incarnation
 
     def test_container_id_parsed_correctly(self):
         container_id = "TestContainerId"
         goal_state = self._get_goal_state(container_id=container_id)
-        self.assertEqual(container_id, goal_state.container_id)
+        assert container_id == goal_state.container_id
 
     def test_instance_id_parsed_correctly(self):
         instance_id = "TestInstanceId"
         goal_state = self._get_goal_state(instance_id=instance_id)
-        self.assertEqual(instance_id, goal_state.instance_id)
+        assert instance_id == goal_state.instance_id
 
     def test_certificates_xml_parsed_and_fetched_correctly(self):
         m_azure_endpoint_client = mock.MagicMock()
@@ -209,15 +208,12 @@ class TestGoalStateParsing(CiTestCase):
             certificates_url=certificates_url,
         )
         certificates_xml = goal_state.certificates_xml
-        self.assertEqual(1, m_azure_endpoint_client.get.call_count)
-        self.assertEqual(
-            certificates_url, m_azure_endpoint_client.get.call_args[0][0]
-        )
-        self.assertTrue(
-            m_azure_endpoint_client.get.call_args[1].get("secure", False)
-        )
-        self.assertEqual(
-            m_azure_endpoint_client.get.return_value.contents, certificates_xml
+        assert 1 == m_azure_endpoint_client.get.call_count
+        assert certificates_url == m_azure_endpoint_client.get.call_args[0][0]
+        assert m_azure_endpoint_client.get.call_args[1].get("secure", False)
+        assert (
+            m_azure_endpoint_client.get.return_value.contents
+            == certificates_xml
         )
 
     def test_missing_certificates_skips_http_get(self):
@@ -227,66 +223,60 @@ class TestGoalStateParsing(CiTestCase):
             certificates_url=None,
         )
         certificates_xml = goal_state.certificates_xml
-        self.assertEqual(0, m_azure_endpoint_client.get.call_count)
-        self.assertIsNone(certificates_xml)
+        assert 0 == m_azure_endpoint_client.get.call_count
+        assert certificates_xml is None
 
     def test_invalid_goal_state_xml_raises_parse_error(self):
         xml = "random non-xml data"
-        with self.assertRaises(ET.ParseError):
+        with pytest.raises(ET.ParseError):
             azure_helper.GoalState(xml, mock.MagicMock())
 
     def test_missing_container_id_in_goal_state_xml_raises_exc(self):
         xml = self._get_formatted_goal_state_xml_string()
         xml = re.sub("<ContainerId>.*</ContainerId>", "", xml)
-        with self.assertRaises(azure_helper.InvalidGoalStateXMLException):
+        with pytest.raises(azure_helper.InvalidGoalStateXMLException):
             azure_helper.GoalState(xml, mock.MagicMock())
 
     def test_missing_instance_id_in_goal_state_xml_raises_exc(self):
         xml = self._get_formatted_goal_state_xml_string()
         xml = re.sub("<InstanceId>.*</InstanceId>", "", xml)
-        with self.assertRaises(azure_helper.InvalidGoalStateXMLException):
+        with pytest.raises(azure_helper.InvalidGoalStateXMLException):
             azure_helper.GoalState(xml, mock.MagicMock())
 
     def test_missing_incarnation_in_goal_state_xml_raises_exc(self):
         xml = self._get_formatted_goal_state_xml_string()
         xml = re.sub("<Incarnation>.*</Incarnation>", "", xml)
-        with self.assertRaises(azure_helper.InvalidGoalStateXMLException):
+        with pytest.raises(azure_helper.InvalidGoalStateXMLException):
             azure_helper.GoalState(xml, mock.MagicMock())
 
 
-class TestAzureEndpointHttpClient(CiTestCase):
+@mock.patch("cloudinit.sources.helpers.azure.http_with_retries")
+class TestAzureEndpointHttpClient:
     regular_headers = {
         "x-ms-agent-name": "WALinuxAgent",
         "x-ms-version": "2012-11-30",
     }
 
-    def setUp(self):
-        super(TestAzureEndpointHttpClient, self).setUp()
-        patches = ExitStack()
-        self.addCleanup(patches.close)
-        self.m_http_with_retries = patches.enter_context(
-            mock.patch.object(azure_helper, "http_with_retries")
-        )
-
-    def test_non_secure_get(self):
+    def test_non_secure_get(self, m_http_with_retries):
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
         url = "MyTestUrl"
         response = client.get(url, secure=False)
-        self.assertEqual(1, self.m_http_with_retries.call_count)
-        self.assertEqual(self.m_http_with_retries.return_value, response)
-        self.assertEqual(
-            mock.call(url, headers=self.regular_headers),
-            self.m_http_with_retries.call_args,
+        assert 1 == m_http_with_retries.call_count
+        assert m_http_with_retries.return_value == response
+        assert (
+            mock.call(url, headers=self.regular_headers)
+            == m_http_with_retries.call_args
         )
 
-    def test_non_secure_get_raises_exception(self):
+    def test_non_secure_get_raises_exception(self, m_http_with_retries):
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
         url = "MyTestUrl"
-        self.m_http_with_retries.side_effect = SentinelException
-        self.assertRaises(SentinelException, client.get, url, secure=False)
-        self.assertEqual(1, self.m_http_with_retries.call_count)
+        m_http_with_retries.side_effect = SentinelException
+        with pytest.raises(SentinelException):
+            client.get(url, secure=False)
+        assert 1 == m_http_with_retries.call_count
 
-    def test_secure_get(self):
+    def test_secure_get(self, m_http_with_retries):
         url = "MyTestUrl"
         m_certificate = mock.MagicMock()
         expected_headers = self.regular_headers.copy()
@@ -298,67 +288,70 @@ class TestAzureEndpointHttpClient(CiTestCase):
         )
         client = azure_helper.AzureEndpointHttpClient(m_certificate)
         response = client.get(url, secure=True)
-        self.assertEqual(1, self.m_http_with_retries.call_count)
-        self.assertEqual(self.m_http_with_retries.return_value, response)
-        self.assertEqual(
-            mock.call(url, headers=expected_headers),
-            self.m_http_with_retries.call_args,
+        assert 1 == m_http_with_retries.call_count
+        assert m_http_with_retries.return_value == response
+        assert (
+            mock.call(url, headers=expected_headers)
+            == m_http_with_retries.call_args
         )
 
-    def test_secure_get_raises_exception(self):
+    def test_secure_get_raises_exception(self, m_http_with_retries):
         url = "MyTestUrl"
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
-        self.m_http_with_retries.side_effect = SentinelException
-        self.assertRaises(SentinelException, client.get, url, secure=True)
-        self.assertEqual(1, self.m_http_with_retries.call_count)
+        m_http_with_retries.side_effect = SentinelException
+        with pytest.raises(SentinelException):
+            client.get(url, secure=True)
+        assert 1 == m_http_with_retries.call_count
 
-    def test_post(self):
+    def test_post(self, m_http_with_retries):
         m_data = mock.MagicMock()
         url = "MyTestUrl"
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
         response = client.post(url, data=m_data)
-        self.assertEqual(1, self.m_http_with_retries.call_count)
-        self.assertEqual(self.m_http_with_retries.return_value, response)
-        self.assertEqual(
-            mock.call(url, data=m_data, headers=self.regular_headers),
-            self.m_http_with_retries.call_args,
+        assert 1 == m_http_with_retries.call_count
+        assert m_http_with_retries.return_value == response
+        assert (
+            mock.call(url, data=m_data, headers=self.regular_headers)
+            == m_http_with_retries.call_args
         )
 
-    def test_post_raises_exception(self):
+    def test_post_raises_exception(self, m_http_with_retries):
         m_data = mock.MagicMock()
         url = "MyTestUrl"
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
-        self.m_http_with_retries.side_effect = SentinelException
-        self.assertRaises(SentinelException, client.post, url, data=m_data)
-        self.assertEqual(1, self.m_http_with_retries.call_count)
+        m_http_with_retries.side_effect = SentinelException
+        with pytest.raises(SentinelException):
+            client.post(url, data=m_data)
+        assert 1 == m_http_with_retries.call_count
 
-    def test_post_with_extra_headers(self):
+    def test_post_with_extra_headers(self, m_http_with_retries):
         url = "MyTestUrl"
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
         extra_headers = {"test": "header"}
         client.post(url, extra_headers=extra_headers)
         expected_headers = self.regular_headers.copy()
         expected_headers.update(extra_headers)
-        self.assertEqual(1, self.m_http_with_retries.call_count)
-        self.assertEqual(
-            mock.call(url, data=mock.ANY, headers=expected_headers),
-            self.m_http_with_retries.call_args,
+        assert 1 == m_http_with_retries.call_count
+        assert (
+            mock.call(url, data=mock.ANY, headers=expected_headers)
+            == m_http_with_retries.call_args
         )
 
-    def test_post_with_sleep_with_extra_headers_raises_exception(self):
+    def test_post_with_sleep_with_extra_headers_raises_exception(
+        self, m_http_with_retries
+    ):
         m_data = mock.MagicMock()
         url = "MyTestUrl"
         extra_headers = {"test": "header"}
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
-        self.m_http_with_retries.side_effect = SentinelException
-        self.assertRaises(
-            SentinelException,
-            client.post,
-            url,
-            data=m_data,
-            extra_headers=extra_headers,
-        )
-        self.assertEqual(1, self.m_http_with_retries.call_count)
+        m_http_with_retries.side_effect = SentinelException
+        with pytest.raises(SentinelException):
+            client.post(
+                url,
+                data=m_data,
+                extra_headers=extra_headers,
+            )
+        assert 1 == m_http_with_retries.call_count
 
 
 class TestHttpWithRetries:
@@ -484,52 +477,42 @@ class TestHttpWithRetries:
         ) in caplog.record_tuples
 
 
-class TestOpenSSLManager(CiTestCase):
-    def setUp(self):
-        super(TestOpenSSLManager, self).setUp()
-        patches = ExitStack()
-        self.addCleanup(patches.close)
-
-        self.subp = patches.enter_context(
-            mock.patch.object(azure_helper.subp, "subp")
-        )
+@mock.patch("cloudinit.sources.helpers.azure.subp.subp")
+class TestOpenSSLManager:
+    @pytest.fixture(autouse=True)
+    def fixtures(self, mocker):
         try:
-            self.open = patches.enter_context(mock.patch("__builtin__.open"))
+            mocker.patch("__builtin__.open")
         except ImportError:
-            self.open = patches.enter_context(mock.patch("builtins.open"))
+            mocker.patch("builtins.open")
 
     @mock.patch.object(azure_helper, "cd", mock.MagicMock())
     @mock.patch.object(azure_helper.temp_utils, "mkdtemp")
-    def test_openssl_manager_creates_a_tmpdir(self, mkdtemp):
+    def test_openssl_manager_creates_a_tmpdir(self, mkdtemp, m_subp):
         manager = azure_helper.OpenSSLManager()
-        self.assertEqual(mkdtemp.return_value, manager.tmpdir)
+        assert mkdtemp.return_value == manager.tmpdir
 
-    def test_generate_certificate_uses_tmpdir(self):
+    def test_generate_certificate_uses_tmpdir(self, m_subp):
         subp_directory = {}
 
         def capture_directory(*args, **kwargs):
             subp_directory["path"] = os.getcwd()
 
-        self.subp.side_effect = capture_directory
+        m_subp.side_effect = capture_directory
         manager = azure_helper.OpenSSLManager()
-        self.assertEqual(manager.tmpdir, subp_directory["path"])
+        assert manager.tmpdir == subp_directory["path"]
         manager.clean_up()
 
     @mock.patch.object(azure_helper, "cd", mock.MagicMock())
     @mock.patch.object(azure_helper.temp_utils, "mkdtemp", mock.MagicMock())
     @mock.patch.object(azure_helper.util, "del_dir")
-    def test_clean_up(self, del_dir):
+    def test_clean_up(self, del_dir, m_subp):
         manager = azure_helper.OpenSSLManager()
         manager.clean_up()
-        self.assertEqual([mock.call(manager.tmpdir)], del_dir.call_args_list)
+        assert [mock.call(manager.tmpdir)] == del_dir.call_args_list
 
 
-class TestOpenSSLManagerActions(CiTestCase):
-    def setUp(self):
-        super(TestOpenSSLManagerActions, self).setUp()
-
-        self.allowed_subp = True
-
+class TestOpenSSLManagerActions:
     def _data_file(self, name):
         path = "tests/data/azure"
         return os.path.join(path, name)
@@ -540,11 +523,11 @@ class TestOpenSSLManagerActions(CiTestCase):
         good_key = load_text_file(self._data_file("pubkey_extract_ssh_key"))
         sslmgr = azure_helper.OpenSSLManager()
         key = sslmgr._get_ssh_key_from_cert(cert)
-        self.assertEqual(good_key, key)
+        assert good_key == key
 
         good_fingerprint = "073E19D14D1C799224C6A0FD8DDAB6A8BF27D473"
         fingerprint = sslmgr._get_fingerprint_from_cert(cert)
-        self.assertEqual(good_fingerprint, fingerprint)
+        assert good_fingerprint == fingerprint
 
     @unittest.skip("todo move to cloud_test")
     @mock.patch.object(azure_helper.OpenSSLManager, "_decrypt_certs_from_xml")
@@ -564,12 +547,12 @@ class TestOpenSSLManagerActions(CiTestCase):
         sslmgr = azure_helper.OpenSSLManager()
         keys_by_fp = sslmgr.parse_certificates("")
         for fp in keys_by_fp.keys():
-            self.assertIn(fp, fingerprints)
+            assert fp in fingerprints
         for fp in fingerprints:
-            self.assertIn(fp, keys_by_fp)
+            assert fp in keys_by_fp
 
 
-class TestGoalStateHealthReporter(CiTestCase):
+class TestGoalStateHealthReporter:
     maxDiff = None
 
     default_parameters = {
@@ -591,25 +574,14 @@ class TestGoalStateHealthReporter(CiTestCase):
         "Test error message containing provisioning failure details"
     )
 
-    def setUp(self):
-        super(TestGoalStateHealthReporter, self).setUp()
-        patches = ExitStack()
-        self.addCleanup(patches.close)
-
-        patches.enter_context(
-            mock.patch.object(azure_helper, "sleep", mock.MagicMock())
+    @pytest.fixture(autouse=True)
+    def fixtures(self, mocker):
+        mocker.patch.object(azure_helper, "sleep", mock.MagicMock())
+        mocker.patch.object(azure_helper.url_helper, "read_file_or_url")
+        self.post = mocker.patch.object(
+            azure_helper.AzureEndpointHttpClient, "post"
         )
-        self.read_file_or_url = patches.enter_context(
-            mock.patch.object(azure_helper.url_helper, "read_file_or_url")
-        )
-
-        self.post = patches.enter_context(
-            mock.patch.object(azure_helper.AzureEndpointHttpClient, "post")
-        )
-
-        self.GoalState = patches.enter_context(
-            mock.patch.object(azure_helper, "GoalState")
-        )
+        self.GoalState = mocker.patch.object(azure_helper, "GoalState")
         self.GoalState.return_value.container_id = self.default_parameters[
             "container_id"
         ]
@@ -668,14 +640,14 @@ class TestGoalStateHealthReporter(CiTestCase):
             )
             reporter.send_ready_signal()
 
-            self.assertEqual(1, self.post.call_count)
-            self.assertEqual(
+            assert 1 == self.post.call_count
+            assert (
                 mock.call(
                     self.test_health_report_url,
                     data=m_build_report.return_value,
                     extra_headers=self.test_default_headers,
-                ),
-                self.post.call_args,
+                )
+                == self.post.call_args
             )
 
     def test_send_failure_signal_sends_post_request(self):
@@ -692,14 +664,14 @@ class TestGoalStateHealthReporter(CiTestCase):
                 description=self.provisioning_failure_err_description
             )
 
-            self.assertEqual(1, self.post.call_count)
-            self.assertEqual(
+            assert 1 == self.post.call_count
+            assert (
                 mock.call(
                     self.test_health_report_url,
                     data=m_build_report.return_value,
                     extra_headers=self.test_default_headers,
-                ),
-                self.post.call_args,
+                )
+                == self.post.call_args
             )
 
     def test_build_report_for_ready_signal_health_document(self):
@@ -716,51 +688,42 @@ class TestGoalStateHealthReporter(CiTestCase):
             status=self.provisioning_success_status,
         )
 
-        self.assertEqual(health_document, generated_health_document)
+        assert health_document == generated_health_document
 
         generated_xroot = ET.fromstring(generated_health_document)
-        self.assertEqual(
-            self._text_from_xpath_in_xroot(
-                generated_xroot, "./GoalStateIncarnation"
-            ),
-            str(self.default_parameters["incarnation"]),
-        )
-        self.assertEqual(
-            self._text_from_xpath_in_xroot(
-                generated_xroot, "./Container/ContainerId"
-            ),
-            str(self.default_parameters["container_id"]),
-        )
-        self.assertEqual(
-            self._text_from_xpath_in_xroot(
-                generated_xroot, "./Container/RoleInstanceList/Role/InstanceId"
-            ),
-            str(self.default_parameters["instance_id"]),
-        )
-        self.assertEqual(
-            self._text_from_xpath_in_xroot(
-                generated_xroot,
-                "./Container/RoleInstanceList/Role/Health/State",
-            ),
-            escape(self.provisioning_success_status),
-        )
-        self.assertIsNone(
+        assert self._text_from_xpath_in_xroot(
+            generated_xroot, "./GoalStateIncarnation"
+        ) == str(self.default_parameters["incarnation"])
+        assert self._text_from_xpath_in_xroot(
+            generated_xroot, "./Container/ContainerId"
+        ) == str(self.default_parameters["container_id"])
+        assert self._text_from_xpath_in_xroot(
+            generated_xroot, "./Container/RoleInstanceList/Role/InstanceId"
+        ) == str(self.default_parameters["instance_id"])
+        assert self._text_from_xpath_in_xroot(
+            generated_xroot,
+            "./Container/RoleInstanceList/Role/Health/State",
+        ) == escape(self.provisioning_success_status)
+        assert (
             self._text_from_xpath_in_xroot(
                 generated_xroot,
                 "./Container/RoleInstanceList/Role/Health/Details",
             )
+            is None
         )
-        self.assertIsNone(
+        assert (
             self._text_from_xpath_in_xroot(
                 generated_xroot,
                 "./Container/RoleInstanceList/Role/Health/Details/SubStatus",
             )
+            is None
         )
-        self.assertIsNone(
+        assert (
             self._text_from_xpath_in_xroot(
                 generated_xroot,
                 "./Container/RoleInstanceList/Role/Health/Details/Description",
             )
+            is None
         )
 
     def test_build_report_for_failure_signal_health_document(self):
@@ -779,48 +742,36 @@ class TestGoalStateHealthReporter(CiTestCase):
             description=self.provisioning_failure_err_description,
         )
 
-        self.assertEqual(health_document, generated_health_document)
+        assert health_document == generated_health_document
 
         generated_xroot = ET.fromstring(generated_health_document)
-        self.assertEqual(
-            self._text_from_xpath_in_xroot(
-                generated_xroot, "./GoalStateIncarnation"
-            ),
-            str(self.default_parameters["incarnation"]),
-        )
-        self.assertEqual(
+        assert self._text_from_xpath_in_xroot(
+            generated_xroot, "./GoalStateIncarnation"
+        ) == str(self.default_parameters["incarnation"])
+        assert (
             self._text_from_xpath_in_xroot(
                 generated_xroot, "./Container/ContainerId"
-            ),
-            self.default_parameters["container_id"],
+            )
+            == self.default_parameters["container_id"]
         )
-        self.assertEqual(
+        assert (
             self._text_from_xpath_in_xroot(
                 generated_xroot, "./Container/RoleInstanceList/Role/InstanceId"
-            ),
-            self.default_parameters["instance_id"],
+            )
+            == self.default_parameters["instance_id"]
         )
-        self.assertEqual(
-            self._text_from_xpath_in_xroot(
-                generated_xroot,
-                "./Container/RoleInstanceList/Role/Health/State",
-            ),
-            escape(self.provisioning_not_ready_status),
-        )
-        self.assertEqual(
-            self._text_from_xpath_in_xroot(
-                generated_xroot,
-                "./Container/RoleInstanceList/Role/Health/Details/SubStatus",
-            ),
-            escape(self.provisioning_failure_substatus),
-        )
-        self.assertEqual(
-            self._text_from_xpath_in_xroot(
-                generated_xroot,
-                "./Container/RoleInstanceList/Role/Health/Details/Description",
-            ),
-            escape(self.provisioning_failure_err_description),
-        )
+        assert self._text_from_xpath_in_xroot(
+            generated_xroot,
+            "./Container/RoleInstanceList/Role/Health/State",
+        ) == escape(self.provisioning_not_ready_status)
+        assert self._text_from_xpath_in_xroot(
+            generated_xroot,
+            "./Container/RoleInstanceList/Role/Health/Details/SubStatus",
+        ) == escape(self.provisioning_failure_substatus)
+        assert self._text_from_xpath_in_xroot(
+            generated_xroot,
+            "./Container/RoleInstanceList/Role/Health/Details/Description",
+        ) == escape(self.provisioning_failure_err_description)
 
     def test_send_ready_signal_calls_build_report(self):
         with mock.patch.object(
@@ -833,15 +784,15 @@ class TestGoalStateHealthReporter(CiTestCase):
             )
             reporter.send_ready_signal()
 
-            self.assertEqual(1, m_build_report.call_count)
-            self.assertEqual(
+            assert 1 == m_build_report.call_count
+            assert (
                 mock.call(
                     incarnation=self.default_parameters["incarnation"],
                     container_id=self.default_parameters["container_id"],
                     instance_id=self.default_parameters["instance_id"],
                     status=self.provisioning_success_status,
-                ),
-                m_build_report.call_args,
+                )
+                == m_build_report.call_args
             )
 
     def test_send_failure_signal_calls_build_report(self):
@@ -857,8 +808,8 @@ class TestGoalStateHealthReporter(CiTestCase):
                 description=self.provisioning_failure_err_description
             )
 
-            self.assertEqual(1, m_build_report.call_count)
-            self.assertEqual(
+            assert 1 == m_build_report.call_count
+            assert (
                 mock.call(
                     incarnation=self.default_parameters["incarnation"],
                     container_id=self.default_parameters["container_id"],
@@ -866,8 +817,8 @@ class TestGoalStateHealthReporter(CiTestCase):
                     status=self.provisioning_not_ready_status,
                     substatus=self.provisioning_failure_substatus,
                     description=self.provisioning_failure_err_description,
-                ),
-                m_build_report.call_args,
+                )
+                == m_build_report.call_args
             )
 
     def test_build_report_escapes_chars(self):
@@ -906,7 +857,7 @@ class TestGoalStateHealthReporter(CiTestCase):
             description=health_description,
         )
 
-        self.assertEqual(health_document, generated_health_document)
+        assert health_document == generated_health_document
 
     def test_build_report_conforms_to_length_limits(self):
         reporter = azure_helper.GoalStateHealthReporter(
@@ -929,9 +880,9 @@ class TestGoalStateHealthReporter(CiTestCase):
             generated_xroot,
             "./Container/RoleInstanceList/Role/Health/Details/Description",
         )
-        self.assertEqual(
-            len(unescape(generated_health_report_description)),
-            HEALTH_REPORT_DESCRIPTION_TRIM_LEN,
+        assert (
+            len(unescape(generated_health_report_description))
+            == HEALTH_REPORT_DESCRIPTION_TRIM_LEN
         )
 
     def test_trim_description_then_escape_conforms_to_len_limits_worst_case(
@@ -984,27 +935,20 @@ class TestGoalStateHealthReporter(CiTestCase):
         )
         # The escaped description string should be less than
         # the Azure platform limit for the escaped description string.
-        self.assertLessEqual(len(generated_health_report_description), 4096)
+        assert len(generated_health_report_description) <= 4096
 
 
-class TestWALinuxAgentShim(CiTestCase):
-    def setUp(self):
-        super(TestWALinuxAgentShim, self).setUp()
-        patches = ExitStack()
-        self.addCleanup(patches.close)
-
-        self.AzureEndpointHttpClient = patches.enter_context(
-            mock.patch.object(azure_helper, "AzureEndpointHttpClient")
+class TestWALinuxAgentShim:
+    @pytest.fixture(autouse=True)
+    def fixtures(self, mocker):
+        self.AzureEndpointHttpClient = mocker.patch.object(
+            azure_helper, "AzureEndpointHttpClient"
         )
-        self.GoalState = patches.enter_context(
-            mock.patch.object(azure_helper, "GoalState")
+        self.GoalState = mocker.patch.object(azure_helper, "GoalState")
+        self.OpenSSLManager = mocker.patch.object(
+            azure_helper, "OpenSSLManager", autospec=True
         )
-        self.OpenSSLManager = patches.enter_context(
-            mock.patch.object(azure_helper, "OpenSSLManager", autospec=True)
-        )
-        patches.enter_context(
-            mock.patch.object(azure_helper, "sleep", mock.MagicMock())
-        )
+        mocker.patch.object(azure_helper, "sleep", mock.MagicMock())
 
         self.test_incarnation = "TestIncarnation"
         self.test_container_id = "TestContainerId"
@@ -1027,54 +971,42 @@ class TestWALinuxAgentShim(CiTestCase):
     def test_http_client_does_not_use_certificate_for_report_ready(self):
         shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_fetch_data(distro=None)
-        self.assertEqual(
-            [mock.call(None)], self.AzureEndpointHttpClient.call_args_list
-        )
+        assert [mock.call(None)] == self.AzureEndpointHttpClient.call_args_list
 
     def test_http_client_does_not_use_certificate_for_report_failure(self):
         shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_report_failure(description="TestDesc")
-        self.assertEqual(
-            [mock.call(None)], self.AzureEndpointHttpClient.call_args_list
-        )
+        assert [mock.call(None)] == self.AzureEndpointHttpClient.call_args_list
 
     def test_correct_url_used_for_goalstate_during_report_ready(self):
         shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_fetch_data(distro=None)
         m_get = self.AzureEndpointHttpClient.return_value.get
-        self.assertEqual(
-            [mock.call("http://test_endpoint/machine/?comp=goalstate")],
-            m_get.call_args_list,
-        )
-        self.assertEqual(
-            [
-                mock.call(
-                    m_get.return_value.contents,
-                    self.AzureEndpointHttpClient.return_value,
-                    False,
-                )
-            ],
-            self.GoalState.call_args_list,
-        )
+        assert [
+            mock.call("http://test_endpoint/machine/?comp=goalstate")
+        ] == m_get.call_args_list
+        assert [
+            mock.call(
+                m_get.return_value.contents,
+                self.AzureEndpointHttpClient.return_value,
+                False,
+            )
+        ] == self.GoalState.call_args_list
 
     def test_correct_url_used_for_goalstate_during_report_failure(self):
         shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_report_failure(description="TestDesc")
         m_get = self.AzureEndpointHttpClient.return_value.get
-        self.assertEqual(
-            [mock.call("http://test_endpoint/machine/?comp=goalstate")],
-            m_get.call_args_list,
-        )
-        self.assertEqual(
-            [
-                mock.call(
-                    m_get.return_value.contents,
-                    self.AzureEndpointHttpClient.return_value,
-                    False,
-                )
-            ],
-            self.GoalState.call_args_list,
-        )
+        assert [
+            mock.call("http://test_endpoint/machine/?comp=goalstate")
+        ] == m_get.call_args_list
+        assert [
+            mock.call(
+                m_get.return_value.contents,
+                self.AzureEndpointHttpClient.return_value,
+                False,
+            )
+        ] == self.GoalState.call_args_list
 
     def test_certificates_used_to_determine_public_keys(self):
         # if register_with_azure_and_fetch_data() isn't passed some info about
@@ -1095,13 +1027,12 @@ class TestWALinuxAgentShim(CiTestCase):
         data = shim.register_with_azure_and_fetch_data(
             distro=None, pubkey_info=mypk
         )
-        self.assertEqual(
-            [mock.call(self.GoalState.return_value.certificates_xml)],
-            sslmgr.parse_certificates.call_args_list,
-        )
-        self.assertIn("expected-key", data)
-        self.assertIn("expected-no-value-key", data)
-        self.assertNotIn("should-not-be-found", data)
+        assert [
+            mock.call(self.GoalState.return_value.certificates_xml)
+        ] == sslmgr.parse_certificates.call_args_list
+        assert "expected-key" in data
+        assert "expected-no-value-key" in data
+        assert "should-not-be-found" not in data
 
     def test_absent_certificates_produces_empty_public_keys(self):
         mypk = [{"fingerprint": "fp1", "path": "path1"}]
@@ -1110,25 +1041,23 @@ class TestWALinuxAgentShim(CiTestCase):
         data = shim.register_with_azure_and_fetch_data(
             distro=None, pubkey_info=mypk
         )
-        self.assertEqual([], data)
+        assert [] == data
 
     def test_correct_url_used_for_report_ready(self):
         shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_fetch_data(distro=None)
         expected_url = "http://test_endpoint/machine?comp=health"
-        self.assertEqual(
-            [mock.call(expected_url, data=mock.ANY, extra_headers=mock.ANY)],
-            self.AzureEndpointHttpClient.return_value.post.call_args_list,
-        )
+        assert [
+            mock.call(expected_url, data=mock.ANY, extra_headers=mock.ANY)
+        ] == self.AzureEndpointHttpClient.return_value.post.call_args_list
 
     def test_correct_url_used_for_report_failure(self):
         shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_report_failure(description="TestDesc")
         expected_url = "http://test_endpoint/machine?comp=health"
-        self.assertEqual(
-            [mock.call(expected_url, data=mock.ANY, extra_headers=mock.ANY)],
-            self.AzureEndpointHttpClient.return_value.post.call_args_list,
-        )
+        assert [
+            mock.call(expected_url, data=mock.ANY, extra_headers=mock.ANY)
+        ] == self.AzureEndpointHttpClient.return_value.post.call_args_list
 
     def test_goal_state_values_used_for_report_ready(self):
         shim = wa_shim(endpoint="test_endpoint")
@@ -1136,9 +1065,9 @@ class TestWALinuxAgentShim(CiTestCase):
         posted_document = (
             self.AzureEndpointHttpClient.return_value.post.call_args[1]["data"]
         )
-        self.assertIn(self.test_incarnation.encode("utf-8"), posted_document)
-        self.assertIn(self.test_container_id.encode("utf-8"), posted_document)
-        self.assertIn(self.test_instance_id.encode("utf-8"), posted_document)
+        assert self.test_incarnation.encode("utf-8") in posted_document
+        assert self.test_container_id.encode("utf-8") in posted_document
+        assert self.test_instance_id.encode("utf-8") in posted_document
 
     def test_goal_state_values_used_for_report_failure(self):
         shim = wa_shim(endpoint="test_endpoint")
@@ -1146,9 +1075,9 @@ class TestWALinuxAgentShim(CiTestCase):
         posted_document = (
             self.AzureEndpointHttpClient.return_value.post.call_args[1]["data"]
         )
-        self.assertIn(self.test_incarnation.encode("utf-8"), posted_document)
-        self.assertIn(self.test_container_id.encode("utf-8"), posted_document)
-        self.assertIn(self.test_instance_id.encode("utf-8"), posted_document)
+        assert self.test_incarnation.encode("utf-8") in posted_document
+        assert self.test_container_id.encode("utf-8") in posted_document
+        assert self.test_instance_id.encode("utf-8") in posted_document
 
     def test_xml_elems_in_report_ready_post(self):
         shim = wa_shim(endpoint="test_endpoint")
@@ -1163,7 +1092,7 @@ class TestWALinuxAgentShim(CiTestCase):
         posted_document = (
             self.AzureEndpointHttpClient.return_value.post.call_args[1]["data"]
         )
-        self.assertEqual(health_document, posted_document)
+        assert health_document == posted_document
 
     def test_xml_elems_in_report_failure_post(self):
         shim = wa_shim(endpoint="test_endpoint")
@@ -1183,7 +1112,7 @@ class TestWALinuxAgentShim(CiTestCase):
         posted_document = (
             self.AzureEndpointHttpClient.return_value.post.call_args[1]["data"]
         )
-        self.assertEqual(health_document, posted_document)
+        assert health_document == posted_document
 
     @mock.patch.object(azure_helper, "GoalStateHealthReporter", autospec=True)
     def test_register_with_azure_and_fetch_data_calls_send_ready_signal(
@@ -1191,9 +1120,9 @@ class TestWALinuxAgentShim(CiTestCase):
     ):
         shim = wa_shim(endpoint="test_endpoint")
         shim.register_with_azure_and_fetch_data(distro=None)
-        self.assertEqual(
-            1,
-            m_goal_state_health_reporter.return_value.send_ready_signal.call_count,  # noqa: E501
+        assert (
+            1
+            == m_goal_state_health_reporter.return_value.send_ready_signal.call_count  # noqa: E501
         )
 
     @mock.patch.object(azure_helper, "GoalStateHealthReporter", autospec=True)
@@ -1246,96 +1175,84 @@ class TestWALinuxAgentShim(CiTestCase):
             url_helper.UrlError("retry", code=404)
         )
         shim = wa_shim(endpoint="test_endpoint")
-        self.assertRaises(
-            url_helper.UrlError, shim.register_with_azure_and_fetch_data, None
-        )
+        with pytest.raises(url_helper.UrlError):
+            shim.register_with_azure_and_fetch_data(None)
 
     def test_fetch_goalstate_during_report_failure_raises_exc_on_get_exc(self):
         self.AzureEndpointHttpClient.return_value.get.side_effect = (
             url_helper.UrlError("retry", code=404)
         )
         shim = wa_shim(endpoint="test_endpoint")
-        self.assertRaises(
-            url_helper.UrlError,
-            shim.register_with_azure_and_report_failure,
-            description="TestDesc",
-        )
+        with pytest.raises(url_helper.UrlError):
+            shim.register_with_azure_and_report_failure(
+                description="TestDesc",
+            )
 
     def test_fetch_goalstate_during_report_ready_raises_exc_on_parse_exc(self):
         self.GoalState.side_effect = url_helper.UrlError("retry", code=404)
         shim = wa_shim(endpoint="test_endpoint")
-        self.assertRaises(
-            url_helper.UrlError, shim.register_with_azure_and_fetch_data, None
-        )
+        with pytest.raises(url_helper.UrlError):
+            shim.register_with_azure_and_fetch_data(None)
 
     def test_fetch_goalstate_during_report_failure_raises_exc_on_parse_exc(
         self,
     ):
         self.GoalState.side_effect = url_helper.UrlError("retry", code=404)
         shim = wa_shim(endpoint="test_endpoint")
-        self.assertRaises(
-            url_helper.UrlError,
-            shim.register_with_azure_and_report_failure,
-            description="TestDesc",
-        )
+        with pytest.raises(url_helper.UrlError):
+            shim.register_with_azure_and_report_failure(
+                description="TestDesc",
+            )
 
     def test_failure_to_send_report_ready_health_doc_bubbles_up(self):
         self.AzureEndpointHttpClient.return_value.post.side_effect = (
             url_helper.UrlError("retry", code=404)
         )
         shim = wa_shim(endpoint="test_endpoint")
-        self.assertRaises(
-            url_helper.UrlError, shim.register_with_azure_and_fetch_data, None
-        )
+        with pytest.raises(url_helper.UrlError):
+            shim.register_with_azure_and_fetch_data(None)
 
     def test_failure_to_send_report_failure_health_doc_bubbles_up(self):
         self.AzureEndpointHttpClient.return_value.post.side_effect = (
             url_helper.UrlError("retry", code=404)
         )
         shim = wa_shim(endpoint="test_endpoint")
-        self.assertRaises(
-            url_helper.UrlError,
-            shim.register_with_azure_and_report_failure,
-            description="TestDesc",
-        )
+        with pytest.raises(url_helper.UrlError):
+            shim.register_with_azure_and_report_failure(
+                description="TestDesc",
+            )
 
 
-class TestGetMetadataGoalStateXMLAndReportReadyToFabric(CiTestCase):
-    def setUp(self):
-        super(TestGetMetadataGoalStateXMLAndReportReadyToFabric, self).setUp()
-        patches = ExitStack()
-        self.addCleanup(patches.close)
-
-        self.m_shim = patches.enter_context(
-            mock.patch.object(azure_helper, "WALinuxAgentShim")
-        )
+class TestGetMetadataGoalStateXMLAndReportReadyToFabric:
+    @pytest.fixture(autouse=True)
+    def fixtures(self, mocker):
+        self.m_shim = mocker.patch.object(azure_helper, "WALinuxAgentShim")
 
     def test_data_from_shim_returned(self):
         ret = azure_helper.get_metadata_from_fabric(
             distro=None, endpoint="test_endpoint"
         )
-        self.assertEqual(
-            self.m_shim.return_value.register_with_azure_and_fetch_data.return_value,  # noqa: E501
-            ret,
+        assert (
+            self.m_shim.return_value.register_with_azure_and_fetch_data.return_value
+            == ret  # noqa: E501
         )
 
     def test_success_calls_clean_up(self):
         azure_helper.get_metadata_from_fabric(
             distro=None, endpoint="test_endpoint"
         )
-        self.assertEqual(1, self.m_shim.return_value.clean_up.call_count)
+        assert 1 == self.m_shim.return_value.clean_up.call_count
 
     def test_failure_in_registration_propagates_exc_and_calls_clean_up(self):
         self.m_shim.return_value.register_with_azure_and_fetch_data.side_effect = url_helper.UrlError(  # noqa: E501
             "retry", code=404
         )
-        self.assertRaises(
-            url_helper.UrlError,
-            azure_helper.get_metadata_from_fabric,
-            "test_endpoint",
-            None,
-        )
-        self.assertEqual(1, self.m_shim.return_value.clean_up.call_count)
+        with pytest.raises(url_helper.UrlError):
+            azure_helper.get_metadata_from_fabric(
+                "test_endpoint",
+                None,
+            )
+        assert 1 == self.m_shim.return_value.clean_up.call_count
 
     def test_calls_shim_register_with_azure_and_fetch_data(self):
         m_pubkey_info = mock.MagicMock()
@@ -1345,45 +1262,35 @@ class TestGetMetadataGoalStateXMLAndReportReadyToFabric(CiTestCase):
             pubkey_info=m_pubkey_info,
             iso_dev="/dev/sr0",
         )
-        self.assertEqual(
-            1,
-            self.m_shim.return_value.register_with_azure_and_fetch_data.call_count,  # noqa: E501
+        assert (
+            1
+            == self.m_shim.return_value.register_with_azure_and_fetch_data.call_count  # noqa: E501
         )
-        self.assertEqual(
+        assert (
             mock.call(
                 distro=None, iso_dev="/dev/sr0", pubkey_info=m_pubkey_info
-            ),
-            self.m_shim.return_value.register_with_azure_and_fetch_data.call_args,  # noqa: E501
+            )
+            == self.m_shim.return_value.register_with_azure_and_fetch_data.call_args  # noqa: E501
         )
 
     def test_instantiates_shim_with_kwargs(self):
         azure_helper.get_metadata_from_fabric(
             endpoint="test_endpoint", distro=None
         )
-        self.assertEqual(1, self.m_shim.call_count)
-        self.assertEqual(
-            mock.call(endpoint="test_endpoint"),
-            self.m_shim.call_args,
-        )
+        assert 1 == self.m_shim.call_count
+        assert mock.call(endpoint="test_endpoint") == self.m_shim.call_args
 
 
-class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
-    def setUp(self):
-        super(
-            TestGetMetadataGoalStateXMLAndReportFailureToFabric, self
-        ).setUp()
-        patches = ExitStack()
-        self.addCleanup(patches.close)
-
-        self.m_shim = patches.enter_context(
-            mock.patch.object(azure_helper, "WALinuxAgentShim")
-        )
+class TestGetMetadataGoalStateXMLAndReportFailureToFabric:
+    @pytest.fixture(autouse=True)
+    def fixtures(self, mocker):
+        self.m_shim = mocker.patch.object(azure_helper, "WALinuxAgentShim")
 
     def test_success_calls_clean_up(self):
         azure_helper.report_failure_to_fabric(
             endpoint="test_endpoint", encoded_report="test"
         )
-        self.assertEqual(1, self.m_shim.return_value.clean_up.call_count)
+        assert 1 == self.m_shim.return_value.clean_up.call_count
 
     def test_failure_in_shim_report_failure_propagates_exc_and_calls_clean_up(
         self,
@@ -1391,13 +1298,12 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
         self.m_shim.return_value.register_with_azure_and_report_failure.side_effect = (  # noqa: E501
             SentinelException
         )
-        self.assertRaises(
-            SentinelException,
-            azure_helper.report_failure_to_fabric,
-            "test_endpoint",
-            encoded_report="test-report",
-        )
-        self.assertEqual(1, self.m_shim.return_value.clean_up.call_count)
+        with pytest.raises(SentinelException):
+            azure_helper.report_failure_to_fabric(
+                "test_endpoint",
+                encoded_report="test-report",
+            )
+        assert 1 == self.m_shim.return_value.clean_up.call_count
 
     def test_report_failure_to_fabric_calls_shim_report_failure(
         self,
