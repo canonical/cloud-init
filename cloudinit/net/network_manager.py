@@ -646,12 +646,12 @@ def cloud_init_nm_conf_filename(target=None):
     return f"{target_con_dir}/conf.d/{conf_file}"
 
 
-def available(target=None):
+def available():
     # TODO: Move `uses_systemd` to a more appropriate location
     # It is imported here to avoid circular import
     from cloudinit.distros import uses_systemd
 
-    nmcli_present = subp.which("nmcli", target=target)
+    nmcli_present = subp.which("nmcli")
     service_active = True
     if uses_systemd():
         try:

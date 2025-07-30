@@ -363,6 +363,6 @@ def available(target=None):
     expected = ["ip", "systemctl"]
     search = ["/usr/sbin", "/bin"]
     for p in expected:
-        if not subp.which(p, search=search, target=target):
+        if not subp.which(p, search=search):
             return False
     return True

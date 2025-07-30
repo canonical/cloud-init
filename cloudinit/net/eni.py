@@ -587,13 +587,13 @@ class Renderer(renderer.Renderer):
             )
 
 
-def available(target: Optional[str] = None) -> bool:
+def available() -> bool:
     expected = ["ifquery", "ifup", "ifdown"]
     search = ["/sbin", "/usr/sbin"]
     for p in expected:
-        if not subp.which(p, search=search, target=target):
+        if not subp.which(p, search=search):
             return False
-    eni = subp.target_path(target, "etc/network/interfaces")
+    eni = "/etc/network/interfaces"
     if not os.path.isfile(eni):
         return False
 
