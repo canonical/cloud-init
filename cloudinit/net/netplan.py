@@ -607,10 +607,10 @@ class Renderer(renderer.Renderer):
         return "".join(content)
 
 
-def available(target=None):
+def available():
     expected = ["netplan"]
     search = ["/usr/sbin", "/sbin"]
     for p in expected:
-        if not subp.which(p, search=search, target=target):
+        if not subp.which(p, search=search):
             return False
     return True
