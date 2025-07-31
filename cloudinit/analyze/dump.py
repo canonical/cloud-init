@@ -3,11 +3,11 @@
 import calendar
 import sys
 from datetime import datetime, timezone
-from typing import IO, Any, Optional
+from typing import IO, Any, Dict, List, Optional, TextIO
 
 from cloudinit import atomic_helper, subp, util
 
-stage_to_description = {
+stage_to_description: Dict[str, str] = {
     "finished": "finished running cloud-init",
     "init-local": "starting search for local datasources",
     "init-network": "searching for network datasources",
@@ -78,7 +78,7 @@ def parse_timestamp_from_date(timestampstr: str) -> float:
     )
 
 
-def parse_ci_logline(line: str) -> Optional[dict[str, Any]]:
+def parse_ci_logline(line: str) -> Optional[Dict[str, Any]]:
     # Stage Starts:
     # Cloud-init v. 0.7.7 running 'init-local' at \
     #               Fri, 02 Sep 2016 19:28:07 +0000. Up 1.0 seconds.
@@ -167,7 +167,7 @@ def parse_ci_logline(line: str) -> Optional[dict[str, Any]]:
 def dump_events(
     cisource: Optional[IO[str]] = None,
     rawdata: Optional[str] = None,
-) -> tuple[list[dict[str, Any]], list[str]]:
+) -> tuple[list[Dict[str, Any]], List[str]]:
     events = []
     event = None
     CI_EVENT_MATCHES = ["start:", "finish:", "Cloud-init v."]
@@ -195,7 +195,7 @@ def dump_events(
 
 def main():
     if len(sys.argv) > 1:
-        cisource = open(sys.argv[1])
+        cisource: TextIO = open(sys.argv[1])
     else:
         cisource = sys.stdin
 
