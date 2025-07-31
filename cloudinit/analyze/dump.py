@@ -3,7 +3,7 @@
 import calendar
 import sys
 from datetime import datetime, timezone
-from typing import IO, Any, Dict, List, Optional, TextIO
+from typing import IO, Any, Dict, List, Optional, TextIO, Tuple
 
 from cloudinit import atomic_helper, subp, util
 
@@ -167,7 +167,7 @@ def parse_ci_logline(line: str) -> Optional[Dict[str, Any]]:
 def dump_events(
     cisource: Optional[IO[str]] = None,
     rawdata: Optional[str] = None,
-) -> tuple[list[Dict[str, Any]], List[str]]:
+) -> Tuple[List[Dict[str, Any]], List[str]]:
     events = []
     event = None
     CI_EVENT_MATCHES = ["start:", "finish:", "Cloud-init v."]
