@@ -7,7 +7,7 @@ from typing import IO, Any, Optional
 
 from cloudinit import atomic_helper, subp, util
 
-stage_to_description: dict[str, str] = {
+stage_to_description = {
     "finished": "finished running cloud-init",
     "init-local": "starting search for local datasources",
     "init-network": "searching for network datasources",
