@@ -192,55 +192,6 @@ class TestAnalyzeBoot:
         self.remove_dummy_file(path, log_path)
         assert CONTAINER_CODE == finish_code
 
-    # @mock.patch("time.time", return_value=100)
-    # @mock.patch("cloudinit.util.uptime", return_value=96)
-    # @mock.patch("time.monotonic", return_value=97)
-    # @mock.patch("cloudinit.analyze.show.SystemctlReader")
-    # @pytest.mark.parametrize(
-    #     (
-    #         "is_container_returnvalue",
-    #         "time_mock_expected_callcount",
-    #         "monotonic_mock_expected_callcount",
-    #         "expected_return",
-    #     ),
-    #     (
-    #         (True, 2, 1, (CONTAINER_CODE, 4, 33, 43)),
-    #         (False, 1, 0, (SUCCESS_CODE, 4, 34, 44)),
-    #     ),
-    # )
-    # def test_gather_timestamps_using_systemd(
-    #     self,
-    #     mock_SystemctlReader,
-    #     monotonic_mock,
-    #     uptime_mock,
-    #     time_mock,
-    #     is_container_returnvalue,
-    #     time_mock_expected_callcount,
-    #     monotonic_mock_expected_callcount,
-    #     expected_return,
-    #     mocker,
-    # ):
-    #     """
-    #     Testing the behavior based on whether or not the
-    #     instance is a container
-    #     """
-    #     mocker.patch(
-    #         "cloudinit.util.is_container",
-    #         return_value=is_container_returnvalue,
-    #     )
-    #     systemctlReader_mocks = [
-    #         mock.Mock(name="UserspaceTimestampMonotonic"),
-    #         mock.Mock(name="InactiveExitTimestampMonotonic"),
-    #     ]
-    #     systemctlReader_mocks[0].convert_val_to_float.return_value = 30
-    #     systemctlReader_mocks[1].convert_val_to_float.return_value = 40
-    #     mock_SystemctlReader.side_effect = systemctlReader_mocks
-    #     assert gather_timestamps_using_systemd() == expected_return
-
-    #     assert time_mock.call_count == time_mock_expected_callcount
-    #     assert uptime_mock.call_count == 1
-    #     assert monotonic_mock.call_count == monotonic_mock_expected_callcount
-
     @mock.patch("cloudinit.analyze.show.SystemctlReader")
     @pytest.mark.parametrize(
         (
@@ -290,16 +241,11 @@ class TestAnalyzeBoot:
 
         # Mocking the return values of the 4 calls to convert_val_to_float
         # in gather_timestamps_using_systemd
-        mock_SystemctlReader_instances = [
-            mock.Mock(),
-            mock.Mock(),
-            mock.Mock(),
-            mock.Mock(),
-        ]
-        for i in range(len(mock_SystemctlReader_instances)):
-            mock_SystemctlReader_instances[
-                i
-            ].convert_val_to_float.return_value = m_returns_of_convert_call[i]
+        mock_SystemctlReader_instances = [mock.Mock() for _ in range(4)]
+        for instance, value in zip(
+            mock_SystemctlReader_instances, m_returns_of_convert_call
+        ):
+            instance.convert_val_to_float.return_value = value
         mock_SystemctlReader.side_effect = mock_SystemctlReader_instances
 
         assert expected_return == gather_timestamps_using_systemd()
