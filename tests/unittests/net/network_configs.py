@@ -1000,7 +1000,7 @@ NETWORK_CONFIGS = {
                 Name=iface0
                 [Network]
                 DHCP=ipv6
-                IPv6AcceptRA=True
+                IPv6AcceptRA=yes
             """
         ).rstrip(" "),
     },
@@ -1075,7 +1075,7 @@ NETWORK_CONFIGS = {
                 Name=iface0
                 [Network]
                 DHCP=ipv6
-                IPv6AcceptRA=False
+                IPv6AcceptRA=no
             """
         ).rstrip(" "),
     },
