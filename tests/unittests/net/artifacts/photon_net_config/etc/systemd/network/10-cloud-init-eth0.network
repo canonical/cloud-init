@@ -1,0 +1,11 @@
+[Link]
+MTUBytes=1500
+
+[Match]
+MACAddress=00:11:22:33:44:55
+Name=eth0
+
+[Network]
+Bond=bond0
+DHCP=no
+VLAN=vlan100
