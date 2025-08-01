@@ -19,13 +19,13 @@ stage_to_description: Dict[str, str] = {
 }
 
 # logger's asctime format
-CLOUD_INIT_ASCTIME_FMT: str = "%Y-%m-%d %H:%M:%S,%f"
+CLOUD_INIT_ASCTIME_FMT = "%Y-%m-%d %H:%M:%S,%f"
 
 # journctl -o short-precise
-CLOUD_INIT_JOURNALCTL_FMT: str = "%b %d %H:%M:%S.%f %Y"
+CLOUD_INIT_JOURNALCTL_FMT = "%b %d %H:%M:%S.%f %Y"
 
 # other
-DEFAULT_FMT: str = "%b %d %H:%M:%S %Y"
+DEFAULT_FMT = "%b %d %H:%M:%S %Y"
 
 
 def parse_timestamp(timestampstr: str) -> float:
@@ -193,7 +193,7 @@ def dump_events(
     return events, data
 
 
-def main():
+def main() -> str:
     if len(sys.argv) > 1:
         cisource: TextIO = open(sys.argv[1])
     else:
