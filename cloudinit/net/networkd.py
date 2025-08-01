@@ -1,12 +1,11 @@
-# Copyright (C) 2021-2022 VMware Inc.
+# Copyright (C) 2021-2025 VMware by Broadcom.
 #
 # Author: Shreenidhi Shedi <yesshedi@gmail.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
-from collections import OrderedDict
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 from cloudinit import subp, util
 from cloudinit.net import renderer, should_add_gateway_onlink_flag
@@ -15,25 +14,64 @@ from cloudinit.net.network_state import NetworkState
 LOG = logging.getLogger(__name__)
 
 
+def normalize(data: Dict[str, List[Any]]) -> Dict[str, List[Any]]:
+    """
+    Normalize a dictionary of lists.
+    - Assumes top-level keys map to lists.
+    - Each list and any nested dicts/lists will be recursively normalized.
+    """
+    normalized = {}
+    for key, value in data.items():
+        normalized[key] = _normalize_value(value)
+    return normalized
+
+
+def _normalize_value(data: Any) -> Any:
+    """
+    Recursively normalize a dictionary or list:
+    - Dicts: keys sorted, values normalized
+    - Lists: items normalized and sorted (if comparable)
+    """
+    if isinstance(data, dict):
+        normalized = {}
+        for key in sorted(data):
+            normalized[key] = _normalize_value(data[key])
+        return normalized
+    elif isinstance(data, list):
+        normalized_items = []
+        for item in data:
+            if isinstance(item, (dict, list)):
+                normalized_item = _normalize_value(item)
+            else:
+                normalized_item = item
+            normalized_items.append(normalized_item)
+        try:
+            return sorted(normalized_items)
+        except TypeError:
+            return normalized_items
+
+    return data
+
+
 class CfgParser:
     def __init__(self):
-        self.conf_dict = OrderedDict(
-            {
-                "Match": [],
-                "Link": [],
-                "Network": [],
-                "DHCPv4": [],
-                "DHCPv6": [],
-                "Address": [],
-                "Route": {},
-            }
-        )
+        self.conf_dict = {
+            "Match": [],
+            "Link": [],
+            "Network": [],
+            "DHCPv4": [],
+            "DHCPv6": [],
+            "Address": [],
+            "Route": {},
+            "NetDev": [],
+            "VLAN": [],
+            "Bond": [],
+        }
 
     def update_section(self, sec, key, val):
         for k in self.conf_dict.keys():
             if k == sec:
-                self.conf_dict[k].append(key + "=" + str(val))
-                # remove duplicates from list
+                self.conf_dict[k].append(f"{key}={val}")
                 self.conf_dict[k] = list(dict.fromkeys(self.conf_dict[k]))
                 self.conf_dict[k].sort()
 
@@ -46,7 +84,7 @@ class CfgParser:
             if k == sec:
                 if rid not in self.conf_dict[k]:
                     self.conf_dict[k][rid] = []
-                self.conf_dict[k][rid].append(key + "=" + str(val))
+                self.conf_dict[k][rid].append(f"{key}={val}")
                 # remove duplicates from list
                 self.conf_dict[k][rid] = list(
                     dict.fromkeys(self.conf_dict[k][rid])
@@ -55,24 +93,25 @@ class CfgParser:
 
     def get_final_conf(self):
         contents = ""
+
+        self.conf_dict = normalize(self.conf_dict)
+
         for k, v in sorted(self.conf_dict.items()):
             if not v:
                 continue
             if k == "Address":
                 for e in sorted(v):
-                    contents += "[" + k + "]\n"
-                    contents += e + "\n"
-                    contents += "\n"
+                    contents += f"[{k}]\n{e}\n\n"
             elif k == "Route":
                 for n in sorted(v):
-                    contents += "[" + k + "]\n"
+                    contents += f"[{k}]\n"
                     for e in sorted(v[n]):
-                        contents += e + "\n"
+                        contents += f"{e}\n"
                     contents += "\n"
             else:
-                contents += "[" + k + "]\n"
+                contents += f"[{k}]\n"
                 for e in sorted(v):
-                    contents += e + "\n"
+                    contents += f"{e}\n"
                 contents += "\n"
 
         return contents
@@ -101,8 +140,10 @@ class Renderer(renderer.Renderer):
         match_dict = {
             "name": "Name",
             "driver": "Driver",
-            "mac_address": "MACAddress",
         }
+
+        if iface["type"] == "physical":
+            match_dict["mac_address"] = "MACAddress"
 
         if not iface:
             return
@@ -119,8 +160,11 @@ class Renderer(renderer.Renderer):
         if not iface:
             return
 
-        if "mtu" in iface and iface["mtu"]:
+        if iface.get("mtu"):
             cfg.update_section(sec, "MTUBytes", iface["mtu"])
+
+        if iface["type"] != "physical" and iface.get("mac_address"):
+            cfg.update_section(sec, "MACAddress", iface["mac_address"])
 
         if "optional" in iface and iface["optional"]:
             cfg.update_section(sec, "RequiredForOnline", "no")
@@ -140,7 +184,7 @@ class Renderer(renderer.Renderer):
         # prefix is derived using netmask by network_state
         prefix = ""
         if "prefix" in conf:
-            prefix = "/" + str(conf["prefix"])
+            prefix = f"/{conf['prefix']}"
 
         for k, v in conf.items():
             if k not in route_cfg_map:
@@ -155,7 +199,7 @@ class Renderer(renderer.Renderer):
         rid = 0
         for e in iface.get("subnets", []):
             t = e["type"]
-            if t == "dhcp4" or t == "dhcp":
+            if t in {"dhcp4", "dhcp"}:
                 if dhcp == "no":
                     dhcp = "ipv4"
                 elif dhcp == "ipv6":
@@ -174,7 +218,7 @@ class Renderer(renderer.Renderer):
             if "address" in e:
                 addr = e["address"]
                 if "prefix" in e:
-                    addr += "/" + str(e["prefix"])
+                    addr += f"/{e['prefix']}"
                 subnet_cfg_map = {
                     "address": "Address",
                     "gateway": "Gateway",
@@ -201,13 +245,16 @@ class Renderer(renderer.Renderer):
                                 "Route", f"a{rid}", "GatewayOnLink", "yes"
                             )
                         rid = rid + 1
-                    elif k == "dns_nameservers" or k == "dns_search":
+                    elif k in {"dns_nameservers", "dns_search"}:
                         cfg.update_section(sec, subnet_cfg_map[k], " ".join(v))
 
         cfg.update_section(sec, "DHCP", dhcp)
 
-        if isinstance(iface.get("accept-ra", ""), bool):
-            cfg.update_section(sec, "IPv6AcceptRA", iface["accept-ra"])
+        if isinstance(iface.get("accept-ra"), bool):
+            val = "no"
+            if iface["accept-ra"]:
+                val = "yes"
+            cfg.update_section(sec, "IPv6AcceptRA", val)
 
         return dhcp
 
@@ -275,12 +322,14 @@ class Renderer(renderer.Renderer):
                 if v in dhcp_overrides:
                     cfg.update_section(f"DHCPv{version}", k, dhcp_overrides[v])
 
-    def create_network_file(self, link, conf, nwk_dir):
+    def create_network_file(self, link, conf, nwk_dir, ext=".network"):
         net_fn_owner = "systemd-network"
 
         LOG.debug("Setting Networking Config for %s", link)
+        net_fn = f"{nwk_dir}10-cloud-init-{link}{ext}"
 
-        net_fn = nwk_dir + "10-cloud-init-" + link + ".network"
+        if conf.endswith("\n\n"):
+            conf = conf[:-1]
         util.write_file(net_fn, conf)
         util.chownbyname(net_fn, net_fn_owner, net_fn_owner)
 
@@ -296,16 +345,65 @@ class Renderer(renderer.Renderer):
 
         util.ensure_dir(network_dir)
 
-        ret_dict = self._render_content(network_state)
-        for k, v in ret_dict.items():
+        network = self._render_content(network_state)
+        vlan_netdev = network.pop("vlan_netdev", {})
+        bond_netdev = network.pop("bond_netdev", {})
+
+        for k, v in network.items():
             self.create_network_file(k, v, network_dir)
 
-    def _render_content(self, ns: NetworkState) -> dict:
+        for k, v in vlan_netdev.items():
+            self.create_network_file(k, v, network_dir, ext=".netdev")
+
+        for k, v in bond_netdev.items():
+            self.create_network_file(k, v, network_dir, ext=".netdev")
+
+    def _render_content(self, ns: NetworkState):
         ret_dict = {}
+        vlan_link = {}
+        bond_link = {}
+
+        if "vlans" in ns.config:
+            vlan_dict = self.render_vlans(ns)
+            vlan_netdev = vlan_dict["vlan_netdev"]
+            vlan_link = vlan_dict["vlan_link"]
+            ret_dict["vlan_netdev"] = vlan_netdev
+
+        if "bonds" in ns.config:
+            bond_dict = self.render_bonds(ns)
+            bond_netdev = bond_dict["bond_netdev"]
+            bond_link = bond_dict["bond_link"]
+            ret_dict["bond_netdev"] = bond_netdev
+
         for iface in ns.iter_interfaces():
             cfg = CfgParser()
 
+            iface_name = iface["name"]
+
+            vlan_link_name = vlan_link.get(iface_name)
+            if vlan_link_name:
+                cfg.update_section("Network", "VLAN", vlan_link_name)
+
+            # TODO: revisit this once network state renders macaddress
+            # properly for vlan config
+            if not iface["mac_address"] and vlan_link.get("macaddress"):
+                mac = vlan_link["macaddress"].get(iface_name)
+                if mac:
+                    iface["mac_address"] = mac
+
+            bond_link_name = bond_link.get(iface_name)
+            if bond_link_name:
+                cfg.update_section("Network", "Bond", bond_link_name)
+
+            # TODO: revisit this once network state renders macaddress
+            # properly for bond config
+            if not iface["mac_address"] and bond_link.get("macaddress"):
+                mac = bond_link["macaddress"].get(iface_name)
+                if mac:
+                    iface["mac_address"] = mac
+
             link = self.generate_match_section(iface, cfg)
+
             self.generate_link_section(iface, cfg)
             dhcp = self.parse_subnets(iface, cfg)
             self.parse_dns(iface, cfg, ns)
@@ -356,6 +454,168 @@ class Renderer(renderer.Renderer):
 
             ret_dict.update({link: cfg.get_final_conf()})
 
+        return ret_dict
+
+    def render_vlans(self, ns: NetworkState) -> dict:
+        vlan_link_info: Dict[str, Any] = {}
+        vlan_ndev_configs = {}
+        vlan_link_info["macaddress"] = {}
+
+        vlans = ns.config.get("vlans", {})
+        for vlan_name, vlan_cfg in vlans.items():
+            vlan_id = vlan_cfg.get("id")
+            parent = vlan_cfg.get("link")
+
+            if vlan_id is None or parent is None:
+                LOG.warning(
+                    "Skipping VLAN %s - missing 'id' or 'link'", vlan_name
+                )
+                continue
+
+            vlan_link_info[parent] = vlan_name
+
+            # -------- .netdev for VLAN --------
+            cfg = CfgParser()
+            cfg.update_section("NetDev", "Name", vlan_name)
+            cfg.update_section("NetDev", "Kind", "vlan")
+
+            val = vlan_cfg.get("mtu")
+            if val:
+                cfg.update_section("NetDev", "MTUBytes", val)
+
+            val = vlan_cfg.get("macaddress")
+            if val:
+                val = val.lower()
+                cfg.update_section("NetDev", "MACAddress", val)
+                vlan_link_info["macaddress"][vlan_name] = val
+
+            cfg.update_section("VLAN", "Id", vlan_id)
+            vlan_ndev_configs[vlan_name] = cfg.get_final_conf()
+
+        ret_dict = {
+            "vlan_netdev": vlan_ndev_configs,
+            "vlan_link": vlan_link_info,
+        }
+        return ret_dict
+
+    def render_bonds(self, ns: NetworkState) -> dict:
+        bond_link_info: Dict[str, Any] = {}
+        bond_ndev_configs = {}
+        section = "Bond"
+
+        bond_link_info["macaddress"] = {}
+
+        bonds = ns.config.get("bonds", {})
+        for bond_name, bond_cfg in bonds.items():
+            interfaces = bond_cfg.get("interfaces")
+            if not interfaces:
+                LOG.warning(
+                    "Skipping bond %s - missing 'interfaces'", bond_name
+                )
+                continue
+
+            bond_link_info.update({iface: bond_name for iface in interfaces})
+
+            # -------- .netdev for Bond --------
+            cfg = CfgParser()
+            cfg.update_section("NetDev", "Name", bond_name)
+            cfg.update_section("NetDev", "Kind", "bond")
+
+            val = bond_cfg.get("mtu")
+            if val:
+                cfg.update_section("NetDev", "MTUBytes", val)
+
+            val = bond_cfg.get("macaddress")
+            if val:
+                val = val.lower()
+                cfg.update_section("NetDev", "MACAddress", val)
+                bond_link_info["macaddress"][bond_name] = val
+
+            # Optional bond parameters
+            params = bond_cfg.get("parameters", {})
+
+            if "mode" in params:
+                cfg.update_section(section, "Mode", params["mode"])
+
+            if "mii-monitor-interval" in params:
+                cfg.update_section(
+                    section,
+                    "MIIMonitorSec",
+                    f"{params['mii-monitor-interval']}ms",
+                )
+
+            if "updelay" in params:
+                cfg.update_section(
+                    section, "UpDelaySec", f"{params['updelay']}ms"
+                )
+
+            if "downdelay" in params:
+                cfg.update_section(
+                    section, "DownDelaySec", f"{params['downdelay']}ms"
+                )
+
+            if "arp-interval" in params:
+                cfg.update_section(
+                    section, "ARPIntervalSec", f"{params['arp-interval']}ms"
+                )
+
+            if "arp-ip-target" in params:
+                targets = params["arp-ip-target"]
+                if isinstance(targets, str):
+                    targets = [targets]
+                ip_list = " ".join(targets)
+                cfg.update_section(section, "ARPIPTargets", ip_list)
+
+            if "arp-validate" in params:
+                cfg.update_section(
+                    section, "ARPValidate", params["arp-validate"]
+                )
+
+            if "arp-all-targets" in params:
+                cfg.update_section(
+                    section, "ARPAllTargets", params["arp-all-targets"]
+                )
+
+            if "primary-reselect" in params:
+                cfg.update_section(
+                    section,
+                    "PrimaryReselectPolicy",
+                    params["primary-reselect"],
+                )
+
+            if "lacp-rate" in params:
+                cfg.update_section(
+                    section, "LACPTransmitRate", params["lacp-rate"]
+                )
+
+            if "transmit-hash-policy" in params:
+                cfg.update_section(
+                    section,
+                    "TransmitHashPolicy",
+                    params["transmit-hash-policy"],
+                )
+
+            if "ad-select" in params:
+                cfg.update_section(section, "AdSelect", params["ad-select"])
+
+            if "min-links" in params:
+                cfg.update_section(
+                    section, "MinLinks", str(params["min-links"])
+                )
+
+            if "all-slaves-active" in params:
+                cfg.update_section(
+                    section,
+                    "AllSlavesActive",
+                    str(params["all-slaves-active"]).lower(),
+                )
+
+            bond_ndev_configs[bond_name] = cfg.get_final_conf()
+
+        ret_dict = {
+            "bond_netdev": bond_ndev_configs,
+            "bond_link": bond_link_info,
+        }
         return ret_dict
 
 
