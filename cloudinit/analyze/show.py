@@ -121,11 +121,17 @@ class SystemctlReader:
     """
 
     def __init__(self, property, parameter=None):
-        self.epoch = None
+        self.stdout = None
         self.args = [subp.which("systemctl"), "show"]
         if parameter:
             self.args.append(parameter)
-        self.args.extend(["-p", property])
+        # --timestamp=utc is needed for native date strings. Othwerise,
+        # the datetime will be returned in the local timezone (which would be
+        # a problem for strptime used later on in this method)
+        # This option does not affect monotonic properties (values as
+        # microsecond int)
+        self.args.extend(["-p", property, "--timestamp=us+utc"])
+
         # Don't want the init of our object to break. Instead of throwing
         # an exception, set an error code that gets checked when data is
         # requested from the object
@@ -142,12 +148,12 @@ class SystemctlReader:
             value, err = subp.subp(self.args, capture=True)
             if err:
                 return err
-            self.epoch = value
+            self.stdout = value
             return None
         except Exception as systemctl_fail:
             return systemctl_fail
 
-    def parse_epoch_as_float(self):
+    def convert_val_to_float(self):
         """
         If subp call succeeded, return the timestamp from subp as a float.
 
@@ -162,10 +168,27 @@ class SystemctlReader:
                 "returning error code ({})".format(self.failure)
             )
         # Output from systemctl show has the format Property=Value.
-        # For example, UserspaceMonotonic=1929304
-        timestamp = self.epoch.split("=")[1]
-        # Timestamps reported by systemctl are in microseconds, converting
-        return float(timestamp) / 1000000
+        val = self.stdout.split("=")[1].strip()
+
+        if val.isnumeric():
+            # Float Timestamps reported by systemctl are in
+            # microseconds, converting to seconds
+            # For example, UserspaceMonotonic=1929304
+            timestamp = float(val) / 1000000
+        else:
+            # The format in this case is always "%a %Y-%m-%d %H:%M:%S %Z"
+            # For example, UserspaceTimestamp=Wed 2025-07-30 05:14:32 UTC
+
+            # strptime returns a naive datetime so we need to explictly
+            # set the timezone of this datetime
+            # at the timezone of the parsed string (utc)
+            timestamp = (
+                datetime.datetime.strptime(val, "%a %Y-%m-%d %H:%M:%S.%f %Z")
+                .replace(tzinfo=datetime.timezone.utc)
+                .timestamp()
+            )
+
+        return timestamp
 
 
 def dist_check_timestamp():
@@ -226,15 +249,40 @@ def gather_timestamps_using_systemd():
     Gather timestamps that corresponds to kernel begin initialization,
     kernel finish initialization. and cloud-init systemd unit activation
 
-    :return: the three timestamps
+    :return: the three timesread_propertystamps
     """
     try:
-        delta_k_end = SystemctlReader(
-            "UserspaceTimestampMonotonic"
-        ).parse_epoch_as_float()
-        delta_ci_s = SystemctlReader(
-            "InactiveExitTimestampMonotonic", "cloud-init-local"
-        ).parse_epoch_as_float()
+        # The use of the monotonic timestamps is needed in cloud-init-related
+        # dates to account for the 2-second delay when cloud-init sets up NTP
+        if util.is_container():
+            # lxc based containers do not set their monotonic zero point to be
+            # when the container starts,
+            # instead keep using host boot as zero point
+            kernel_start = SystemctlReader(
+                "UserspaceTimestamp"
+            ).convert_val_to_float()
+            monotonic_offset = SystemctlReader(
+                "UserspaceTimestampMonotonic"
+            ).convert_val_to_float()
+        else:
+            kernel_start = SystemctlReader(
+                "KernelTimestamp"
+            ).convert_val_to_float()
+            monotonic_offset = SystemctlReader(
+                "KernelTimestampMonotonic"
+            ).convert_val_to_float()
+        kernel_end = (
+            SystemctlReader(
+                "UserspaceTimestampMonotonic"
+            ).convert_val_to_float()
+            - monotonic_offset
+        )
+        cloudinit_sysd = (
+            SystemctlReader(
+                "InactiveExitTimestampMonotonic", "cloud-init-local"
+            ).convert_val_to_float()
+            - monotonic_offset
+        )
 
     except Exception as e:
         # Except ALL exceptions as Systemctl reader can throw many different
@@ -243,10 +291,14 @@ def gather_timestamps_using_systemd():
         print(e)
         return TIMESTAMP_UNKNOWN
 
-    base_time, kernel_start, status = __get_baselines()
-    kernel_end = base_time + delta_k_end
-    cloudinit_sysd = base_time + delta_ci_s
-    return status, kernel_start, kernel_end, cloudinit_sysd
+    status = CONTAINER_CODE if util.is_container() else SUCCESS_CODE
+
+    return (
+        status,
+        kernel_start,
+        kernel_start + kernel_end,
+        kernel_start + cloudinit_sysd,
+    )
 
 
 def generate_records(
@@ -352,23 +404,3 @@ def load_events_infile(infile):
         return json.loads(data), data
     except ValueError:
         return None, data
-
-
-def __get_baselines():
-    """
-    Compute the kernel start time,
-    the basetime used for calculations based on systemd timestamps
-    and the status code
-    """
-    kernel_start = float(time.time()) - float(util.uptime())
-    if util.is_container():
-        # lxc based containers do not set their monotonic zero point to be
-        # at the container start,instead keep using host boot as zero point
-        # so kernel_start and base_time will not be equal
-        return (
-            float(time.time()) - float(time.monotonic()),
-            kernel_start,
-            CONTAINER_CODE,
-        )
-    else:
-        return kernel_start, kernel_start, SUCCESS_CODE
