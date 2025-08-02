@@ -13,6 +13,7 @@ import shutil
 import stat
 import tempfile
 from collections import deque
+from contextlib import nullcontext as does_not_raise
 from pathlib import Path
 from textwrap import dedent
 from unittest import mock
@@ -2025,6 +2026,58 @@ class TestDeleteDirContents(helpers.TestCase):
         util.delete_dir_contents(self.tmp)
 
         self.assertDirEmpty(self.tmp)
+
+
+class TestDelDir:
+    """
+    Test the del_dir function
+    """
+
+    def test_del_dir_existing_directory(self, tmpdir):
+        """
+        An existing directory can be deleted without issues
+        """
+        assert os.path.exists(tmpdir)
+        with does_not_raise():
+            util.del_dir(tmpdir)
+        assert not os.path.exists(tmpdir)
+
+    @pytest.mark.parametrize(
+        "ignore_FileNotFoundError,expected_error",
+        ((False, pytest.raises(FileNotFoundError)), (True, does_not_raise())),
+    )
+    def test_del_dir_ignoreFileNotFound(
+        self, ignore_FileNotFoundError, expected_error
+    ):
+        """
+        Should raise FileNotFoundError only if tries to delete non-existing
+        directory with ignore_FileNotFoundError=False
+        """
+        non_existing_dir = "/blabla"
+        assert not os.path.exists(non_existing_dir)
+        with expected_error:
+            util.del_dir(
+                non_existing_dir,
+                ignore_FileNotFoundError=ignore_FileNotFoundError,
+            )
+        assert not os.path.exists(non_existing_dir)
+
+    @pytest.mark.parametrize("ignore_FileNotFoundError", (False, True))
+    def test_del_dir_generic_errors(self, ignore_FileNotFoundError, mocker):
+        """
+        If shutil.rmtree raises a non-FileNotFoundError , del_dir should
+        raise this error
+        """
+        mocked_side_effect = PermissionError
+        mock_rmtree = mocker.patch(
+            "shutil.rmtree",
+            side_effect=mocked_side_effect,
+        )
+        with pytest.raises(mocked_side_effect):
+            util.del_dir(
+                "somedir", ignore_FileNotFoundError=ignore_FileNotFoundError
+            )
+        assert mock_rmtree.call_count == 1
 
 
 class TestKeyValStrings(helpers.TestCase):

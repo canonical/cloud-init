@@ -2633,6 +2633,10 @@
                 "type": "string"
               }
             },
+            "releasever": {
+              "type": "string",
+              "description": "Sets the releasever via``subscription-manager release --set=<releasever>`` then deletes the package manager cache ``/var/cache/{dnf,yum}`` . These steps are applied after any pool attachement and/or enabling/disabling repos. For more information about this key, check https://access.redhat.com/solutions/238533 ."
+            },
             "rhsm-baseurl": {
               "type": "string",
               "description": "Sets the baseurl in ``/etc/rhsm/rhsm.conf``."
