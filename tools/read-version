@@ -130,7 +130,6 @@ def main(use_tags: bool = False, output_json: bool = False):
         use_tags=use_tags,
         is_release_branch_ci=is_release_branch_ci,
     )
-
     details = get_version_details(version, version_long, is_release_branch_ci)
 
     if output_json:

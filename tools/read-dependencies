@@ -115,6 +115,12 @@ DISTRO_INSTALL_PKG_CMD = {
     "suse": ZYPPER_INSTALL,
 }
 
+DISTRO_UPDATE_PKG_CMD = {
+    "redhat": ["yum", "update"],
+    "debian": ["apt", "update", "-q"],
+    "suse": ["zypper", "update"],
+}
+
 # List of base system packages required to enable ci automation
 CI_SYSTEM_BASE_PKGS = {
     "common": ["make", "sudo", "tar"],
@@ -347,18 +353,26 @@ def pkg_install(pkg_list, distro, test_distro=False, dry_run=False):
             "(dryrun)" if dry_run else "", " ".join(pkg_list)
         )
     )
+    distro_family = DISTRO_PKG_TYPE_MAP[distro]
     install_cmd = []
+    update_cmd = DISTRO_UPDATE_PKG_CMD.get(distro_family, [])
     if dry_run:
         install_cmd.append("echo")
+        if update_cmd:
+            update_cmd.insert(0, "echo")
     if os.geteuid() != 0:
         install_cmd.append("sudo")
+        if update_cmd:
+            update_cmd.append("sudo")
 
-    distro_family = DISTRO_PKG_TYPE_MAP[distro]
     if dry_run and distro_family in DRYRUN_DISTRO_INSTALL_PKG_CMD:
         cmd = DRYRUN_DISTRO_INSTALL_PKG_CMD[distro_family]
     else:
         cmd = DISTRO_INSTALL_PKG_CMD[distro_family]
     install_cmd.extend(cmd)
+
+    if update_cmd:
+        subprocess.check_call(update_cmd)
 
     if distro in ["centos", "redhat", "rocky", "eurolinux"]:
         # CentOS and Redhat need epel-release to access oauthlib and jsonschema

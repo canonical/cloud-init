@@ -14,11 +14,11 @@
 Name:           cloud-init
 Version:        {{rpm_upstream_version}}
 Release:        1{{subrelease}}%{?dist}
-Summary:        Cloud instance init scripts
+Summary:        Cloud instance initilization tool
 
 Group:          System Environment/Base
 License:        Dual-licesed GPLv3 or Apache 2.0
-URL:            http://launchpad.net/cloud-init
+URL:            https://github.com/canonical/cloud-init
 
 Source0:        {{archive_name}}
 BuildArch:      noarch
@@ -86,22 +86,17 @@ ssh keys and to let the user run various scripts.
 {% endfor %}
 
 %build
-%{__python3} setup.py build
+%meson -Dinit_system=systemd
+%meson_build
 
 %install
-
-%{__python3} setup.py install -O1 \
-            --skip-build --root $RPM_BUILD_ROOT \
-            --init-system=%{init_system}
+%meson_install
 
 # Note that /etc/rsyslog.d didn't exist by default until F15.
 # el6 request: https://bugzilla.redhat.com/show_bug.cgi?id=740420
 mkdir -p $RPM_BUILD_ROOT/%{_sysconfdir}/rsyslog.d
 cp -p tools/21-cloudinit.conf \
       $RPM_BUILD_ROOT/%{_sysconfdir}/rsyslog.d/21-cloudinit.conf
-
-# Remove the tests
-rm -rf $RPM_BUILD_ROOT%{python3_sitelib}/tests
 
 # Required dirs...
 mkdir -p $RPM_BUILD_ROOT/%{_sharedstatedir}/cloud
@@ -122,10 +117,11 @@ rm -rf $RPM_BUILD_ROOT
 %if "%{init_system}" == "systemd"
 if [ $1 -eq 1 ]
 then
+    /bin/systemctl enable cloud-init-main.service       >/dev/null 2>&1 || :
+    /bin/systemctl enable cloud-init-local.service >/dev/null 2>&1 || :
+    /bin/systemctl enable cloud-init-network.service       >/dev/null 2>&1 || :
     /bin/systemctl enable cloud-config.service     >/dev/null 2>&1 || :
     /bin/systemctl enable cloud-final.service      >/dev/null 2>&1 || :
-    /bin/systemctl enable cloud-init-network.service       >/dev/null 2>&1 || :
-    /bin/systemctl enable cloud-init-local.service >/dev/null 2>&1 || :
 fi
 %else
 /sbin/chkconfig --add %{_initrddir}/cloud-init-local
@@ -139,10 +135,11 @@ fi
 %if "%{init_system}" == "systemd"
 if [ $1 -eq 0 ]
 then
+    /bin/systemctl --no-reload disable cloud-init-main.service >/dev/null 2>&1 || :
+    /bin/systemctl --no-reload disable cloud-init-local.service >/dev/null 2>&1 || :
+    /bin/systemctl --no-reload disable cloud-init-network.service   >/dev/null 2>&1 || :
     /bin/systemctl --no-reload disable cloud-config.service >/dev/null 2>&1 || :
     /bin/systemctl --no-reload disable cloud-final.service  >/dev/null 2>&1 || :
-    /bin/systemctl --no-reload disable cloud-init-network.service   >/dev/null 2>&1 || :
-    /bin/systemctl --no-reload disable cloud-init-local.service >/dev/null 2>&1 || :
 fi
 %else
 if [ $1 -eq 0 ]
@@ -189,7 +186,6 @@ fi
 
 # Configs
 %config(noreplace)      %{_sysconfdir}/cloud/cloud.cfg
-%dir                    %{_sysconfdir}/cloud/clean.d
 %dir                    %{_sysconfdir}/cloud/cloud.cfg.d
 %config(noreplace)      %{_sysconfdir}/cloud/cloud.cfg.d/*.cfg
 %config(noreplace)      %{_sysconfdir}/cloud/cloud.cfg.d/README
@@ -198,7 +194,12 @@ fi
 %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
 
 # Bash completion script
+%dir %{_datadir}/bash-completion/completions
 %{_datadir}/bash-completion/completions/cloud-init
+
+# Man pages
+%dir %{_mandir}/man1
+%{_mandir}/man1/*.gz
 
 %{_libexecdir}/%{name}
 %dir %{_sharedstatedir}/cloud
