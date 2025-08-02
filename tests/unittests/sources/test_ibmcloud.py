@@ -8,7 +8,6 @@ from textwrap import dedent
 import pytest
 
 from cloudinit import util
-from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceIBMCloud as ibm
 from tests.unittests import helpers as test_helpers
 
@@ -20,7 +19,7 @@ D_PATH = "cloudinit.sources.DataSourceIBMCloud."
 @mock.patch(D_PATH + "_is_xen", return_value=True)
 @mock.patch(D_PATH + "_is_ibm_provisioning")
 @mock.patch(D_PATH + "util.blkid")
-class TestGetIBMPlatform(test_helpers.CiTestCase):
+class TestGetIBMPlatform:
     """Test the get_ibm_platform helper."""
 
     blkid_base = {
@@ -57,7 +56,8 @@ class TestGetIBMPlatform(test_helpers.CiTestCase):
         }
     }
 
-    def setUp(self):
+    @pytest.fixture(autouse=True)
+    def fixtures(self):
         self.blkid_metadata = copy.deepcopy(self.blkid_base)
         self.blkid_metadata.update(copy.deepcopy(self.blkid_metadata_disk))
 
@@ -108,7 +108,7 @@ class TestGetIBMPlatform(test_helpers.CiTestCase):
 
 @mock.patch(D_PATH + "_read_system_uuid", return_value=None)
 @mock.patch(D_PATH + "get_ibm_platform")
-class TestReadMD(test_helpers.CiTestCase):
+class TestReadMD:
     """Test the read_datasource helper."""
 
     template_md = {
@@ -250,9 +250,9 @@ class TestReadMD(test_helpers.CiTestCase):
         m_platform.return_value = (None, None)
         assert ibm.read_md() is None
 
-    def test_template_live(self, m_platform, m_sysuuid):
+    def test_template_live(self, m_platform, m_sysuuid, tmp_path):
         """Template live environment should be identified."""
-        tmpdir = self.tmp_dir()
+        tmpdir = str(tmp_path)
         m_platform.return_value = (
             ibm.Platforms.TEMPLATE_LIVE_METADATA,
             tmpdir,
@@ -280,9 +280,9 @@ class TestReadMD(test_helpers.CiTestCase):
         assert self._get_expected_metadata(self.template_md) == ret["metadata"]
         assert self.sysuuid == ret["system-uuid"]
 
-    def test_os_code_live(self, m_platform, m_sysuuid):
+    def test_os_code_live(self, m_platform, m_sysuuid, tmp_path):
         """Verify an os_code metadata path."""
-        tmpdir = self.tmp_dir()
+        tmpdir = str(tmp_path)
         m_platform.return_value = (ibm.Platforms.OS_CODE, tmpdir)
         netdata = json.dumps(self.network_data)
         test_helpers.populate_dir(
@@ -305,9 +305,9 @@ class TestReadMD(test_helpers.CiTestCase):
         assert self.userdata == ret["userdata"]
         assert self._get_expected_metadata(self.oscode_md) == ret["metadata"]
 
-    def test_os_code_live_no_userdata(self, m_platform, m_sysuuid):
+    def test_os_code_live_no_userdata(self, m_platform, m_sysuuid, tmp_path):
         """Verify os_code without user-data."""
-        tmpdir = self.tmp_dir()
+        tmpdir = str(tmp_path)
         m_platform.return_value = (ibm.Platforms.OS_CODE, tmpdir)
         test_helpers.populate_dir(
             tmpdir,
@@ -377,13 +377,10 @@ class TestIsIBMProvisioning:
         assert "no reference file" in caplog.text
 
 
-class TestDataSourceIBMCloud(test_helpers.CiTestCase):
-    def setUp(self):
-        super(TestDataSourceIBMCloud, self).setUp()
-        self.tmp = self.tmp_dir()
-        self.cloud_dir = self.tmp_path("cloud", dir=self.tmp)
-        util.ensure_dir(self.cloud_dir)
-        paths = Paths({"run_dir": self.tmp, "cloud_dir": self.cloud_dir})
+class TestDataSourceIBMCloud:
+    @pytest.fixture(autouse=True)
+    def fixture(self, paths):
+        util.ensure_dir(paths.cloud_dir)
         self.ds = ibm.DataSourceIBMCloud(sys_cfg={}, distro=None, paths=paths)
 
     def test_get_data_false(self):
