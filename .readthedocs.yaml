@@ -8,6 +8,8 @@ build:
   tools:
     python: "3.11"
   jobs:
+    pre_install:
+      - echo pre_install
     post_install:
       - echo post_install
     pre_install:

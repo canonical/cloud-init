@@ -2,6 +2,9 @@
 build-backend = "mesonpy"
 requires = ["meson-python"]
 
+[tool.meson-python.args]
+setup = ["-Dinit_system=systemd"]
+
 [tool.black]
 line-length = 79
 include = '(brpm|bddeb|\.py)$'
