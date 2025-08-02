@@ -937,7 +937,7 @@ NETWORK_CONFIGS = {
 
             auto iface0
             iface iface0 inet6 dhcp
-                accept_ra 1
+                accept-ra 1
         """
         ).rstrip(" "),
         "expected_netplan": textwrap.dedent(
@@ -1012,7 +1012,7 @@ NETWORK_CONFIGS = {
 
             auto iface0
             iface iface0 inet6 dhcp
-                accept_ra 0
+                accept-ra 0
         """
         ).rstrip(" "),
         "expected_netplan": textwrap.dedent(
@@ -1509,16 +1509,16 @@ iface eth0 inet manual
 auto eth1
 iface eth1 inet manual
     bond-master bond0
+    bond-miimon 100
     bond-mode active-backup
     bond-xmit-hash-policy layer3+4
-    bond_miimon 100
 
 auto eth2
 iface eth2 inet manual
     bond-master bond0
+    bond-miimon 100
     bond-mode active-backup
     bond-xmit-hash-policy layer3+4
-    bond_miimon 100
 
 iface eth3 inet manual
 
@@ -1535,29 +1535,29 @@ iface ib0 inet static
 
 auto bond0
 iface bond0 inet6 dhcp
+    bond-miimon 100
     bond-mode active-backup
     bond-slaves none
     bond-xmit-hash-policy layer3+4
-    bond_miimon 100
     hwaddress aa:bb:cc:dd:ee:ff
 
 auto br0
 iface br0 inet static
     address 192.168.14.2/24
-    bridge_ageing 250
-    bridge_bridgeprio 22
-    bridge_fd 1
-    bridge_gcint 2
-    bridge_hello 1
-    bridge_maxage 10
-    bridge_pathcost eth3 50
-    bridge_pathcost eth4 75
-    bridge_portprio eth3 28
-    bridge_portprio eth4 14
-    bridge_ports eth3 eth4
-    bridge_stp off
-    bridge_waitport 1 eth3
-    bridge_waitport 2 eth4
+    bridge-ageing 250
+    bridge-bridgeprio 22
+    bridge-fd 1
+    bridge-gcint 2
+    bridge-hello 1
+    bridge-maxage 10
+    bridge-pathcost eth3 50
+    bridge-pathcost eth4 75
+    bridge-portprio eth3 28
+    bridge-portprio eth4 14
+    bridge-ports eth3 eth4
+    bridge-stp off
+    bridge-waitport 1 eth3
+    bridge-waitport 2 eth4
     hwaddress bb:bb:bb:bb:bb:aa
 
 # control-alias br0
@@ -1568,8 +1568,8 @@ iface br0 inet6 static
 
 auto bond0.200
 iface bond0.200 inet dhcp
+    vlan-id 200
     vlan-raw-device bond0
-    vlan_id 200
 
 auto eth0.101
 iface eth0.101 inet static
@@ -1579,8 +1579,8 @@ iface eth0.101 inet static
     gateway 192.168.0.1
     mtu 1500
     hwaddress aa:bb:cc:dd:ee:11
+    vlan-id 101
     vlan-raw-device eth0
-    vlan_id 101
 
 # control-alias eth0.101
 iface eth0.101 inet static
@@ -2350,16 +2350,16 @@ iface eth0 inet manual
 auto eth1
 iface eth1 inet manual
     bond-master bond0
+    bond-miimon 100
     bond-mode active-backup
     bond-xmit-hash-policy layer3+4
-    bond_miimon 100
 
 auto eth2
 iface eth2 inet manual
     bond-master bond0
+    bond-miimon 100
     bond-mode active-backup
     bond-xmit-hash-policy layer3+4
-    bond_miimon 100
 
 iface eth3 inet manual
 
@@ -2376,29 +2376,29 @@ iface ib0 inet static
 
 auto bond0
 iface bond0 inet6 dhcp
+    bond-miimon 100
     bond-mode active-backup
     bond-slaves none
     bond-xmit-hash-policy layer3+4
-    bond_miimon 100
     hwaddress aa:bb:cc:dd:ee:ff
 
 auto br0
 iface br0 inet static
     address 192.168.14.2/24
-    bridge_ageing 250
-    bridge_bridgeprio 22
-    bridge_fd 1
-    bridge_gcint 2
-    bridge_hello 1
-    bridge_maxage 10
-    bridge_pathcost eth3 50
-    bridge_pathcost eth4 75
-    bridge_portprio eth3 28
-    bridge_portprio eth4 14
-    bridge_ports eth3 eth4
-    bridge_stp off
-    bridge_waitport 1 eth3
-    bridge_waitport 2 eth4
+    bridge-ageing 250
+    bridge-bridgeprio 22
+    bridge-fd 1
+    bridge-gcint 2
+    bridge-hello 1
+    bridge-maxage 10
+    bridge-pathcost eth3 50
+    bridge-pathcost eth4 75
+    bridge-portprio eth3 28
+    bridge-portprio eth4 14
+    bridge-ports eth3 eth4
+    bridge-stp off
+    bridge-waitport 1 eth3
+    bridge-waitport 2 eth4
     hwaddress bb:bb:bb:bb:bb:aa
 
 # control-alias br0
@@ -2409,8 +2409,8 @@ iface br0 inet6 static
 
 auto bond0.200
 iface bond0.200 inet dhcp
+    vlan-id 200
     vlan-raw-device bond0
-    vlan_id 200
 
 auto eth0.101
 iface eth0.101 inet static
@@ -2420,8 +2420,8 @@ iface eth0.101 inet static
     gateway 192.168.0.1
     mtu 1500
     hwaddress aa:bb:cc:dd:ee:11
+    vlan-id 101
     vlan-raw-device eth0
-    vlan_id 101
 
 # control-alias eth0.101
 iface eth0.101 inet static
@@ -3138,43 +3138,43 @@ iface lo inet loopback
 auto bond0s0
 iface bond0s0 inet manual
     bond-downdelay 10
-    bond-fail_over_mac active
+    bond-fail-over-mac active
     bond-master bond0
+    bond-miimon 100
     bond-mode active-backup
-    bond-num_grat_arp 5
+    bond-num-grat-arp 5
     bond-primary bond0s0
-    bond-primary_reselect always
+    bond-primary-reselect always
     bond-updelay 20
-    bond-xmit_hash_policy layer3+4
-    bond_miimon 100
+    bond-xmit-hash-policy layer3+4
 
 auto bond0s1
 iface bond0s1 inet manual
     bond-downdelay 10
-    bond-fail_over_mac active
+    bond-fail-over-mac active
     bond-master bond0
+    bond-miimon 100
     bond-mode active-backup
-    bond-num_grat_arp 5
+    bond-num-grat-arp 5
     bond-primary bond0s0
-    bond-primary_reselect always
+    bond-primary-reselect always
     bond-updelay 20
-    bond-xmit_hash_policy layer3+4
-    bond_miimon 100
+    bond-xmit-hash-policy layer3+4
 
 auto bond0
 iface bond0 inet static
     address 192.168.0.2/24
     gateway 192.168.0.1
     bond-downdelay 10
-    bond-fail_over_mac active
+    bond-fail-over-mac active
+    bond-miimon 100
     bond-mode active-backup
-    bond-num_grat_arp 5
+    bond-num-grat-arp 5
     bond-primary bond0s0
-    bond-primary_reselect always
+    bond-primary-reselect always
     bond-slaves none
     bond-updelay 20
-    bond-xmit_hash_policy layer3+4
-    bond_miimon 100
+    bond-xmit-hash-policy layer3+4
     hwaddress aa:bb:cc:dd:e8:ff
     mtu 9000
     post-up route add -net 10.1.3.0/24 gw 192.168.0.3 || true
