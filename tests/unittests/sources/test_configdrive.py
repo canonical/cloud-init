@@ -5,11 +5,13 @@ import os
 from contextlib import ExitStack
 from copy import copy, deepcopy
 
+import pytest
+
 from cloudinit import helpers, settings, util
 from cloudinit.net import eni, network_state
 from cloudinit.sources import DataSourceConfigDrive as ds
 from cloudinit.sources.helpers import openstack
-from tests.unittests.helpers import CiTestCase, mock, populate_dir
+from tests.unittests.helpers import mock, populate_dir
 
 PUBKEY = "ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460\n"
 EC2_META = {
@@ -383,27 +385,23 @@ CFG_DRIVE_FILES_V2 = {
 M_PATH = "cloudinit.sources.DataSourceConfigDrive."
 
 
-class TestConfigDriveDataSource(CiTestCase):
-    def setUp(self):
-        super(TestConfigDriveDataSource, self).setUp()
-        self.add_patch(
-            M_PATH + "util.find_devs_with", "m_find_devs_with", return_value=[]
-        )
-        self.tmp = self.tmp_dir()
+class TestConfigDriveDataSource:
+    @pytest.fixture(autouse=True)
+    def fixtures(self, mocker, tmp_path):
+        mocker.patch(M_PATH + "util.find_devs_with", return_value=[])
+        populate_dir(str(tmp_path), CFG_DRIVE_FILES_V2)
 
-    def test_ec2_metadata(self):
-        populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
-        found = ds.read_config_drive(self.tmp)
-        self.assertTrue("ec2-metadata" in found)
+    def test_ec2_metadata(self, tmp_path):
+        found = ds.read_config_drive(tmp_path)
+        assert "ec2-metadata" in found
         ec2_md = found["ec2-metadata"]
-        self.assertEqual(EC2_META, ec2_md)
+        assert EC2_META == ec2_md
 
-    def test_dev_os_remap(self):
-        populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
+    def test_dev_os_remap(self, tmp_path):
         cfg_ds = ds.DataSourceConfigDrive(
             settings.CFG_BUILTIN, None, helpers.Paths({})
         )
-        found = ds.read_config_drive(self.tmp)
+        found = ds.read_config_drive(tmp_path)
         cfg_ds.metadata = found["metadata"]
         name_tests = {
             "ami": "/dev/vda1",
@@ -434,17 +432,16 @@ class TestConfigDriveDataSource(CiTestCase):
                         os.path, "exists", side_effect=exists_side_effect()
                     )
                 )
-                self.assertEqual(dev_name, cfg_ds.device_name_to_device(name))
+                assert dev_name == cfg_ds.device_name_to_device(name)
 
                 find_mock.assert_called_once_with(mock.ANY)
-                self.assertEqual(exists_mock.call_count, 2)
+                assert exists_mock.call_count == 2
 
-    def test_dev_os_map(self):
-        populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
+    def test_dev_os_map(self, tmp_path):
         cfg_ds = ds.DataSourceConfigDrive(
             settings.CFG_BUILTIN, None, helpers.Paths({})
         )
-        found = ds.read_config_drive(self.tmp)
+        found = ds.read_config_drive(tmp_path)
         os_md = found["metadata"]
         cfg_ds.metadata = os_md
         name_tests = {
@@ -463,17 +460,16 @@ class TestConfigDriveDataSource(CiTestCase):
                 exists_mock = mocks.enter_context(
                     mock.patch.object(os.path, "exists", return_value=True)
                 )
-                self.assertEqual(dev_name, cfg_ds.device_name_to_device(name))
+                assert dev_name == cfg_ds.device_name_to_device(name)
 
                 find_mock.assert_called_once_with(mock.ANY)
                 exists_mock.assert_called_once_with(mock.ANY)
 
-    def test_dev_ec2_remap(self):
-        populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
+    def test_dev_ec2_remap(self, tmp_path):
         cfg_ds = ds.DataSourceConfigDrive(
             settings.CFG_BUILTIN, None, helpers.Paths({})
         )
-        found = ds.read_config_drive(self.tmp)
+        found = ds.read_config_drive(tmp_path)
         ec2_md = found["ec2-metadata"]
         os_md = found["metadata"]
         cfg_ds.ec2_metadata = ec2_md
@@ -499,18 +495,17 @@ class TestConfigDriveDataSource(CiTestCase):
             with mock.patch.object(
                 os.path, "exists", side_effect=exists_side_effect()
             ):
-                self.assertEqual(dev_name, cfg_ds.device_name_to_device(name))
+                assert dev_name == cfg_ds.device_name_to_device(name)
                 # We don't assert the call count for os.path.exists() because
                 # not all of the entries in name_tests results in two calls to
                 # that function.  Specifically, 'root2k' doesn't seem to call
                 # it at all.
 
-    def test_dev_ec2_map(self):
-        populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
+    def test_dev_ec2_map(self, tmp_path):
         cfg_ds = ds.DataSourceConfigDrive(
             settings.CFG_BUILTIN, None, helpers.Paths({})
         )
-        found = ds.read_config_drive(self.tmp)
+        found = ds.read_config_drive(tmp_path)
         ec2_md = found["ec2-metadata"]
         os_md = found["metadata"]
         cfg_ds.ec2_metadata = ec2_md
@@ -526,45 +521,43 @@ class TestConfigDriveDataSource(CiTestCase):
         }
         for name, dev_name in name_tests.items():
             with mock.patch.object(os.path, "exists", return_value=True):
-                self.assertEqual(dev_name, cfg_ds.device_name_to_device(name))
+                assert dev_name == cfg_ds.device_name_to_device(name)
 
-    def test_dir_valid(self):
+    def test_dir_valid(self, tmp_path):
         """Verify a dir is read as such."""
 
-        populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
-
-        found = ds.read_config_drive(self.tmp)
+        found = ds.read_config_drive(tmp_path)
 
         expected_md = copy(OSTACK_META)
         expected_md["instance-id"] = expected_md["uuid"]
         expected_md["local-hostname"] = expected_md["hostname"]
 
-        self.assertEqual(USER_DATA, found["userdata"])
-        self.assertEqual(expected_md, found["metadata"])
-        self.assertEqual(NETWORK_DATA, found["networkdata"])
-        self.assertEqual(VENDOR_DATA, found["vendordata"])
-        self.assertEqual(VENDOR_DATA2, found["vendordata2"])
-        self.assertEqual(found["files"]["/etc/foo.cfg"], CONTENT_0)
-        self.assertEqual(found["files"]["/etc/bar/bar.cfg"], CONTENT_1)
+        assert USER_DATA == found["userdata"]
+        assert expected_md == found["metadata"]
+        assert NETWORK_DATA == found["networkdata"]
+        assert VENDOR_DATA == found["vendordata"]
+        assert VENDOR_DATA2 == found["vendordata2"]
+        assert found["files"]["/etc/foo.cfg"] == CONTENT_0
+        assert found["files"]["/etc/bar/bar.cfg"] == CONTENT_1
 
-    def test_seed_dir_valid_extra(self):
+    def test_seed_dir_valid_extra(self, tmp_path):
         """Verify extra files do not affect datasource validity."""
 
         data = copy(CFG_DRIVE_FILES_V2)
         data["myfoofile.txt"] = "myfoocontent"
         data["openstack/latest/random-file.txt"] = "random-content"
 
-        populate_dir(self.tmp, data)
+        populate_dir(str(tmp_path), data)
 
-        found = ds.read_config_drive(self.tmp)
+        found = ds.read_config_drive(tmp_path)
 
         expected_md = copy(OSTACK_META)
         expected_md["instance-id"] = expected_md["uuid"]
         expected_md["local-hostname"] = expected_md["hostname"]
 
-        self.assertEqual(expected_md, found["metadata"])
+        assert expected_md == found["metadata"]
 
-    def test_seed_dir_bad_json_metadata(self):
+    def test_seed_dir_bad_json_metadata(self, tmp_path):
         """Verify that bad json in metadata raises BrokenConfigDriveDir."""
         data = copy(CFG_DRIVE_FILES_V2)
 
@@ -572,27 +565,28 @@ class TestConfigDriveDataSource(CiTestCase):
         data["openstack/2015-10-15/meta_data.json"] = "non-json garbage {}"
         data["openstack/latest/meta_data.json"] = "non-json garbage {}"
 
-        populate_dir(self.tmp, data)
+        populate_dir(str(tmp_path), data)
 
-        self.assertRaises(
-            openstack.BrokenMetadata, ds.read_config_drive, self.tmp
-        )
+        with pytest.raises(openstack.BrokenMetadata):
+            ds.read_config_drive(tmp_path)
 
-    def test_seed_dir_no_configdrive(self):
+    def test_seed_dir_no_configdrive(self, tmp_path):
         """Verify that no metadata raises NonConfigDriveDir."""
 
-        my_d = os.path.join(self.tmp, "non-configdrive")
+        my_d = os.path.join(tmp_path, "non-configdrive")
         data = copy(CFG_DRIVE_FILES_V2)
         data["myfoofile.txt"] = "myfoocontent"
         data["openstack/latest/random-file.txt"] = "random-content"
         data["content/foo"] = "foocontent"
 
-        self.assertRaises(openstack.NonReadable, ds.read_config_drive, my_d)
+        with pytest.raises(openstack.NonReadable):
+            ds.read_config_drive(my_d)
 
-    def test_seed_dir_missing(self):
+    def test_seed_dir_missing(self, tmp_path):
         """Verify that missing seed_dir raises NonConfigDriveDir."""
-        my_d = os.path.join(self.tmp, "nonexistantdirectory")
-        self.assertRaises(openstack.NonReadable, ds.read_config_drive, my_d)
+        my_d = os.path.join(tmp_path, "nonexistantdirectory")
+        with pytest.raises(openstack.NonReadable):
+            ds.read_config_drive(my_d)
 
     def test_find_candidates(self):
         devs_with_answers = {}
@@ -615,14 +609,12 @@ class TestConfigDriveDataSource(CiTestCase):
                 "TYPE=iso9660": ["/dev/vdb"],
                 "LABEL=config-2": ["/dev/vdb"],
             }
-            self.assertEqual(["/dev/vdb"], ds.find_candidate_devs())
+            assert ["/dev/vdb"] == ds.find_candidate_devs()
 
             # add a vfat item
             # zdd reverse sorts after vdb, but config-2 label is preferred
             devs_with_answers["TYPE=vfat"] = ["/dev/zdd"]
-            self.assertEqual(
-                ["/dev/vdb", "/dev/zdd"], ds.find_candidate_devs()
-            )
+            assert ["/dev/vdb", "/dev/zdd"] == ds.find_candidate_devs()
 
             # verify that partitions are considered, that have correct label.
             devs_with_answers = {
@@ -630,7 +622,7 @@ class TestConfigDriveDataSource(CiTestCase):
                 "TYPE=iso9660": [],
                 "LABEL=config-2": ["/dev/vdb3"],
             }
-            self.assertEqual(["/dev/vdb3"], ds.find_candidate_devs())
+            assert ["/dev/vdb3"] == ds.find_candidate_devs()
 
             # Verify that uppercase labels are also found.
             devs_with_answers = {
@@ -638,22 +630,22 @@ class TestConfigDriveDataSource(CiTestCase):
                 "TYPE=iso9660": ["/dev/vdb"],
                 "LABEL=CONFIG-2": ["/dev/vdb"],
             }
-            self.assertEqual(["/dev/vdb"], ds.find_candidate_devs())
+            assert ["/dev/vdb"] == ds.find_candidate_devs()
 
         finally:
             util.find_devs_with = orig_find_devs_with
             util.is_partition = orig_is_partition
 
     @mock.patch(M_PATH + "on_first_boot")
-    def test_pubkeys_v2(self, on_first_boot):
+    def test_pubkeys_v2(self, on_first_boot, tmp_path):
         """Verify that public-keys work in config-drive-v2."""
-        myds = cfg_ds_from_dir(self.tmp, files=CFG_DRIVE_FILES_V2)
-        self.assertEqual(
-            myds.get_public_ssh_keys(), [OSTACK_META["public_keys"]["mykey"]]
-        )
-        self.assertEqual("configdrive", myds.cloud_name)
-        self.assertEqual("openstack", myds.platform)
-        self.assertEqual("seed-dir (%s/seed)" % self.tmp, myds.subplatform)
+        myds = cfg_ds_from_dir(tmp_path, files=CFG_DRIVE_FILES_V2)
+        assert myds.get_public_ssh_keys() == [
+            OSTACK_META["public_keys"]["mykey"]
+        ]
+        assert "configdrive" == myds.cloud_name
+        assert "openstack" == myds.platform
+        assert "seed-dir (%s/seed)" % tmp_path == myds.subplatform
 
     def test_subplatform_config_drive_when_starts_with_dev(self):
         """subplatform reports config-drive when source starts with /dev/."""
@@ -664,34 +656,29 @@ class TestConfigDriveDataSource(CiTestCase):
             with mock.patch(M_PATH + "util.mount_cb"):
                 with mock.patch(M_PATH + "on_first_boot"):
                     m_find_devs.return_value = ["/dev/anything"]
-                    self.assertEqual(True, cfg_ds.get_data())
-        self.assertEqual("config-disk (/dev/anything)", cfg_ds.subplatform)
+                    assert True is cfg_ds.get_data()
+        assert "config-disk (/dev/anything)" == cfg_ds.subplatform
 
 
 @mock.patch(
     "cloudinit.net.is_openvswitch_internal_interface",
     mock.Mock(return_value=False),
 )
-class TestNetJson(CiTestCase):
-    def setUp(self):
-        super(TestNetJson, self).setUp()
-        self.tmp = self.tmp_dir()
-        self.maxDiff = None
-
+class TestNetJson:
     @mock.patch(M_PATH + "on_first_boot")
-    def test_network_data_is_found(self, on_first_boot):
+    def test_network_data_is_found(self, on_first_boot, tmp_path):
         """Verify that network_data is present in ds in config-drive-v2."""
-        myds = cfg_ds_from_dir(self.tmp, files=CFG_DRIVE_FILES_V2)
-        self.assertIsNotNone(myds.network_json)
+        myds = cfg_ds_from_dir(tmp_path, files=CFG_DRIVE_FILES_V2)
+        assert myds.network_json is not None
 
     @mock.patch(M_PATH + "on_first_boot")
-    def test_network_config_is_converted(self, on_first_boot):
+    def test_network_config_is_converted(self, on_first_boot, tmp_path):
         """Verify that network_data is converted and present on ds object."""
-        myds = cfg_ds_from_dir(self.tmp, files=CFG_DRIVE_FILES_V2)
+        myds = cfg_ds_from_dir(tmp_path, files=CFG_DRIVE_FILES_V2)
         network_config = openstack.convert_net_json(
             NETWORK_DATA, known_macs=KNOWN_MACS
         )
-        self.assertEqual(myds.network_config, network_config)
+        assert myds.network_config == network_config
 
     def test_network_config_conversion_dhcp6(self):
         """Test some ipv6 input network json and check the expected
@@ -749,7 +736,7 @@ class TestNetJson(CiTestCase):
             ],
         }
         conv_data = openstack.convert_net_json(in_data, known_macs=KNOWN_MACS)
-        self.assertEqual(out_data, conv_data)
+        assert out_data == conv_data
 
     def test_network_config_conversions(self):
         """Tests a bunch of input network json and checks the
@@ -856,21 +843,14 @@ class TestNetJson(CiTestCase):
             conv_data = openstack.convert_net_json(
                 in_data, known_macs=KNOWN_MACS
             )
-            self.assertEqual(out_data, conv_data)
+            assert out_data == conv_data
 
 
 @mock.patch(
     "cloudinit.net.is_openvswitch_internal_interface",
     mock.Mock(return_value=False),
 )
-class TestConvertNetworkData(CiTestCase):
-
-    with_logs = True
-
-    def setUp(self):
-        super(TestConvertNetworkData, self).setUp()
-        self.tmp = self.tmp_dir()
-
+class TestConvertNetworkData:
     def _getnames_in_config(self, ncfg):
         return set(
             [n["name"] for n in ncfg["config"] if n["type"] == "physical"]
@@ -880,7 +860,7 @@ class TestConvertNetworkData(CiTestCase):
         ncfg = openstack.convert_net_json(NETWORK_DATA, known_macs=KNOWN_MACS)
         expected = set(["nic0", "enp0s1", "enp0s2"])
         found = self._getnames_in_config(ncfg)
-        self.assertEqual(found, expected)
+        assert found == expected
 
     @mock.patch("cloudinit.net.get_interfaces_by_mac")
     def test_convert_reads_system_prefers_name(self, get_interfaces_by_mac):
@@ -893,21 +873,20 @@ class TestConvertNetworkData(CiTestCase):
         ncfg = openstack.convert_net_json(NETWORK_DATA)
         expected = set(["nic0", "ens1", "enp0s2"])
         found = self._getnames_in_config(ncfg)
-        self.assertEqual(found, expected)
+        assert found == expected
 
     def test_convert_raises_value_error_on_missing_name(self):
         macs = {"aa:aa:aa:aa:aa:00": "ens1"}
         with mock.patch(
             "cloudinit.sources.helpers.openstack.util.udevadm_settle"
         ):
-            self.assertRaises(
-                ValueError,
-                openstack.convert_net_json,
-                NETWORK_DATA,
-                known_macs=macs,
-            )
+            with pytest.raises(ValueError):
+                openstack.convert_net_json(
+                    NETWORK_DATA,
+                    known_macs=macs,
+                )
 
-    def test_conversion_with_route(self):
+    def test_conversion_with_route(self, tmp_path):
         ncfg = openstack.convert_net_json(
             NETWORK_DATA_2, known_macs=KNOWN_MACS
         )
@@ -917,19 +896,20 @@ class TestConvertNetworkData(CiTestCase):
         for n in ncfg["config"]:
             for s in n.get("subnets", []):
                 routes.extend(s.get("routes", []))
-        self.assertIn(
-            {"network": "0.0.0.0", "netmask": "0.0.0.0", "gateway": "2.2.2.9"},
-            routes,
-        )
+        assert {
+            "network": "0.0.0.0",
+            "netmask": "0.0.0.0",
+            "gateway": "2.2.2.9",
+        } in routes
         eni_renderer = eni.Renderer()
         eni_renderer.render_network_state(
-            network_state.parse_net_config_data(ncfg), target=self.tmp
+            network_state.parse_net_config_data(ncfg), target=str(tmp_path)
         )
         with open(
-            os.path.join(self.tmp, "etc", "network", "interfaces"), "r"
+            os.path.join(tmp_path, "etc", "network", "interfaces"), "r"
         ) as f:
             eni_rendering = f.read()
-            self.assertIn("route add default gw 2.2.2.9", eni_rendering)
+            assert "route add default gw 2.2.2.9" in eni_rendering
 
     def test_conversion_with_tap(self):
         ncfg = openstack.convert_net_json(
@@ -939,9 +919,9 @@ class TestConvertNetworkData(CiTestCase):
         for i in ncfg["config"]:
             if i.get("type") == "physical":
                 physicals.add(i["name"])
-        self.assertEqual(physicals, set(("foo1", "foo2")))
+        assert physicals == set(("foo1", "foo2"))
 
-    def test_bond_conversion(self):
+    def test_bond_conversion(self, tmp_path):
         # light testing of bond conversion and eni rendering of bond
         ncfg = openstack.convert_net_json(
             NETWORK_DATA_BOND, known_macs=KNOWN_MACS
@@ -949,10 +929,10 @@ class TestConvertNetworkData(CiTestCase):
         eni_renderer = eni.Renderer()
 
         eni_renderer.render_network_state(
-            network_state.parse_net_config_data(ncfg), target=self.tmp
+            network_state.parse_net_config_data(ncfg), target=str(tmp_path)
         )
         with open(
-            os.path.join(self.tmp, "etc", "network", "interfaces"), "r"
+            os.path.join(tmp_path, "etc", "network", "interfaces"), "r"
         ) as f:
             eni_rendering = f.read()
 
@@ -964,43 +944,43 @@ class TestConvertNetworkData(CiTestCase):
                 if i["type"] in ("vlan", "bond", "physical")
             ]
         )
-        self.assertEqual(
-            sorted(["oeth0", "oeth1", "bond0", "bond0.602", "bond0.612"]),
-            interfaces,
+        assert (
+            sorted(["oeth0", "oeth1", "bond0", "bond0.602", "bond0.612"])
+            == interfaces
         )
 
         words = eni_rendering.split()
         # 'eth0' and 'eth1' are the ids. because their mac adresses
         # map to other names, we should not see them in the ENI
-        self.assertNotIn("eth0", words)
-        self.assertNotIn("eth1", words)
+        assert "eth0" not in words
+        assert "eth1" not in words
 
         # oeth0 and oeth1 are the interface names for eni.
         # bond0 will be generated for the bond. Each should be auto.
-        self.assertIn("auto oeth0", eni_rendering)
-        self.assertIn("auto oeth1", eni_rendering)
-        self.assertIn("auto bond0", eni_rendering)
+        assert "auto oeth0" in eni_rendering
+        assert "auto oeth1" in eni_rendering
+        assert "auto bond0" in eni_rendering
         # The bond should have the given mac address
         pos = eni_rendering.find("auto bond0")
-        self.assertIn(BOND_MAC, eni_rendering[pos:])
+        assert BOND_MAC in eni_rendering[pos:]
 
-    def test_vlan(self):
+    def test_vlan(self, tmp_path):
         # light testing of vlan config conversion and eni rendering
         ncfg = openstack.convert_net_json(
             NETWORK_DATA_VLAN, known_macs=KNOWN_MACS
         )
         eni_renderer = eni.Renderer()
         eni_renderer.render_network_state(
-            network_state.parse_net_config_data(ncfg), target=self.tmp
+            network_state.parse_net_config_data(ncfg), target=str(tmp_path)
         )
         with open(
-            os.path.join(self.tmp, "etc", "network", "interfaces"), "r"
+            os.path.join(tmp_path, "etc", "network", "interfaces"), "r"
         ) as f:
             eni_rendering = f.read()
 
-        self.assertIn("iface enp0s1", eni_rendering)
-        self.assertIn("address 10.0.1.5", eni_rendering)
-        self.assertIn("auto enp0s1.602", eni_rendering)
+        assert "iface enp0s1" in eni_rendering
+        assert "address 10.0.1.5" in eni_rendering
+        assert "auto enp0s1.602" in eni_rendering
 
     def test_mac_addrs_can_be_upper_case(self):
         # input mac addresses on rackspace may be upper case
@@ -1019,9 +999,9 @@ class TestConvertNetworkData(CiTestCase):
             "enp0s1": "fa:16:3e:69:b0:58",
             "enp0s2": "fa:16:3e:d4:57:ad",
         }
-        self.assertEqual(expected, config_name2mac)
+        assert expected == config_name2mac
 
-    def test_unknown_device_types_accepted(self):
+    def test_unknown_device_types_accepted(self, caplog):
         # If we don't recognise a link, we should treat it as physical for a
         # best-effort boot
         my_netdata = deepcopy(NETWORK_DATA)
@@ -1038,12 +1018,12 @@ class TestConvertNetworkData(CiTestCase):
             "enp0s1": "fa:16:3e:69:b0:58",
             "enp0s2": "fa:16:3e:d4:57:ad",
         }
-        self.assertEqual(expected, config_name2mac)
+        assert expected == config_name2mac
 
         # We should, however, warn the user that we don't recognise the type
-        self.assertIn(
-            "Unknown network_data link type (my-special-link-type)",
-            self.logs.getvalue(),
+        assert (
+            "Unknown network_data link type (my-special-link-type)"
+            in caplog.text
         )
 
 

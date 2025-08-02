@@ -8,10 +8,12 @@
 
 import json
 
-from cloudinit import helpers, settings
+import pytest
+
+from cloudinit import settings
 from cloudinit.sources import DataSourceDigitalOcean
 from cloudinit.sources.helpers import digitalocean
-from tests.unittests.helpers import CiTestCase, mock
+from tests.unittests.helpers import mock
 
 DO_MULTIPLE_KEYS = [
     "ssh-rsa AAAAB3NzaC1yc2EAAAA... test1@do.co",
@@ -139,36 +141,39 @@ def _mock_dmi():
     return (True, DO_META.get("id"))
 
 
-class TestDataSourceDigitalOcean(CiTestCase):
-    """
-    Test reading the meta-data
-    """
-
-    def setUp(self):
-        super(TestDataSourceDigitalOcean, self).setUp()
-        self.tmp = self.tmp_dir()
-
-    def get_ds(self, get_sysinfo=_mock_dmi):
+@pytest.fixture
+def get_ds(paths):
+    def _get_ds(get_sysinfo=_mock_dmi):
         ds = DataSourceDigitalOcean.DataSourceDigitalOcean(
-            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN, None, paths
         )
         ds.use_ip4LL = False
         if get_sysinfo is not None:
             ds._get_sysinfo = get_sysinfo
         return ds
 
+    return _get_ds
+
+
+class TestDataSourceDigitalOcean:
+    """
+    Test reading the meta-data
+    """
+
     @mock.patch("cloudinit.sources.helpers.digitalocean.read_sysinfo")
-    def test_returns_false_not_on_docean(self, m_read_sysinfo):
+    def test_returns_false_not_on_docean(self, m_read_sysinfo, get_ds):
         m_read_sysinfo.return_value = (False, None)
-        ds = self.get_ds(get_sysinfo=None)
-        self.assertEqual(False, ds.get_data())
-        self.assertTrue(m_read_sysinfo.called)
+        ds = get_ds(get_sysinfo=None)
+        assert False is ds.get_data()
+        assert m_read_sysinfo.called
 
     @mock.patch("cloudinit.sources.helpers.digitalocean.read_metadata")
     @mock.patch("cloudinit.sources.lifecycle.deprecate")
-    def test_deprecation_log_on_init(self, mock_deprecate, _mock_readmd):
-        ds = self.get_ds()
-        self.assertTrue(ds.get_data())
+    def test_deprecation_log_on_init(
+        self, mock_deprecate, _mock_readmd, get_ds
+    ):
+        ds = get_ds()
+        assert ds.get_data()
         mock_deprecate.assert_called_with(
             deprecated="DataSourceDigitalOcean",
             deprecated_version="23.2",
@@ -177,11 +182,13 @@ class TestDataSourceDigitalOcean(CiTestCase):
 
     @mock.patch("cloudinit.sources.helpers.digitalocean.read_metadata")
     @mock.patch("cloudinit.sources.lifecycle.deprecate")
-    def test_deprecation_log_on_unpick(self, mock_deprecate, _mock_readmd):
-        ds = self.get_ds()
-        self.assertTrue(ds.get_data())
+    def test_deprecation_log_on_unpick(
+        self, mock_deprecate, _mock_readmd, get_ds
+    ):
+        ds = get_ds()
+        assert ds.get_data()
         ds._unpickle(0)
-        self.assertEqual(mock_deprecate.call_count, 2)
+        assert mock_deprecate.call_count == 2
         mock_deprecate.assert_has_calls(
             [
                 mock.call(
@@ -202,46 +209,44 @@ class TestDataSourceDigitalOcean(CiTestCase):
         )
 
     @mock.patch("cloudinit.sources.helpers.digitalocean.read_metadata")
-    def test_metadata(self, mock_readmd):
+    def test_metadata(self, mock_readmd, get_ds):
         mock_readmd.return_value = DO_META.copy()
 
-        ds = self.get_ds()
+        ds = get_ds()
         ret = ds.get_data()
-        self.assertTrue(ret)
+        assert ret
 
-        self.assertTrue(mock_readmd.called)
+        assert mock_readmd.called
 
-        self.assertEqual(DO_META.get("user_data"), ds.get_userdata_raw())
-        self.assertEqual(DO_META.get("vendor_data"), ds.get_vendordata_raw())
-        self.assertEqual(DO_META.get("region"), ds.availability_zone)
-        self.assertEqual(DO_META.get("droplet_id"), ds.get_instance_id())
-        self.assertEqual(DO_META.get("hostname"), ds.get_hostname().hostname)
+        assert DO_META.get("user_data") == ds.get_userdata_raw()
+        assert DO_META.get("vendor_data") == ds.get_vendordata_raw()
+        assert DO_META.get("region") == ds.availability_zone
+        assert DO_META.get("droplet_id") == ds.get_instance_id()
+        assert DO_META.get("hostname") == ds.get_hostname().hostname
 
         # Single key
-        self.assertEqual(
-            [DO_META.get("public_keys")], ds.get_public_ssh_keys()
-        )
+        assert [DO_META.get("public_keys")] == ds.get_public_ssh_keys()
 
-        self.assertIsInstance(ds.get_public_ssh_keys(), list)
+        assert isinstance(ds.get_public_ssh_keys(), list)
 
     @mock.patch("cloudinit.sources.helpers.digitalocean.read_metadata")
-    def test_multiple_ssh_keys(self, mock_readmd):
+    def test_multiple_ssh_keys(self, mock_readmd, get_ds):
         metadata = DO_META.copy()
         metadata["public_keys"] = DO_MULTIPLE_KEYS
         mock_readmd.return_value = metadata.copy()
 
-        ds = self.get_ds()
+        ds = get_ds()
         ret = ds.get_data()
-        self.assertTrue(ret)
+        assert ret
 
-        self.assertTrue(mock_readmd.called)
+        assert mock_readmd.called
 
         # Multiple keys
-        self.assertEqual(metadata["public_keys"], ds.get_public_ssh_keys())
-        self.assertIsInstance(ds.get_public_ssh_keys(), list)
+        assert metadata["public_keys"] == ds.get_public_ssh_keys()
+        assert isinstance(ds.get_public_ssh_keys(), list)
 
 
-class TestNetworkConvert(CiTestCase):
+class TestNetworkConvert:
     def _get_networking(self):
         self.m_get_by_mac.return_value = {
             "04:01:57:d1:9e:01": "ens1",
@@ -252,16 +257,16 @@ class TestNetworkConvert(CiTestCase):
         netcfg = digitalocean.convert_network_configuration(
             DO_META["interfaces"], DO_META["dns"]["nameservers"]
         )
-        self.assertIn("config", netcfg)
+        assert "config" in netcfg
         return netcfg
 
-    def setUp(self):
-        super(TestNetworkConvert, self).setUp()
-        self.add_patch("cloudinit.net.get_interfaces_by_mac", "m_get_by_mac")
+    @pytest.fixture(autouse=True)
+    def fix(self, mocker):
+        self.m_get_by_mac = mocker.patch("cloudinit.net.get_interfaces_by_mac")
 
     def test_networking_defined(self):
         netcfg = self._get_networking()
-        self.assertIsNotNone(netcfg)
+        assert netcfg is not None
         dns_defined = False
 
         for part in netcfg.get("config"):
@@ -270,12 +275,12 @@ class TestNetworkConvert(CiTestCase):
 
             if n_type == "nameserver":
                 n_address = part.get("address")
-                self.assertIsNotNone(n_address)
-                self.assertEqual(len(n_address), 3)
+                assert n_address is not None
+                assert len(n_address) == 3
 
                 dns_resolvers = DO_META["dns"]["nameservers"]
                 for x in n_address:
-                    self.assertIn(x, dns_resolvers)
+                    assert x in dns_resolvers
                 dns_defined = True
 
             else:
@@ -283,12 +288,12 @@ class TestNetworkConvert(CiTestCase):
                 n_name = part.get("name")
                 n_mac = part.get("mac_address")
 
-                self.assertIsNotNone(n_type)
-                self.assertIsNotNone(n_subnets)
-                self.assertIsNotNone(n_name)
-                self.assertIsNotNone(n_mac)
+                assert n_type is not None
+                assert n_subnets is not None
+                assert n_name is not None
+                assert n_mac is not None
 
-        self.assertTrue(dns_defined)
+        assert dns_defined
 
     def _get_nic_definition(self, int_type, expected_name):
         """helper function to return if_type (i.e. public) and the expected
@@ -296,7 +301,7 @@ class TestNetworkConvert(CiTestCase):
         netcfg = self._get_networking()
         meta_def = (DO_META.get("interfaces")).get(int_type)[0]
 
-        self.assertEqual(int_type, meta_def.get("type"))
+        assert int_type == meta_def.get("type")
 
         for nic_def in netcfg.get("config"):
             print(nic_def)
@@ -307,7 +312,7 @@ class TestNetworkConvert(CiTestCase):
         """get the matching subnet definition based on ip address"""
         for subn in subnets:
             address = subn.get("address")
-            self.assertIsNotNone(address)
+            assert address is not None
 
             # equals won't work because of ipv6 addressing being in
             # cidr notation, i.e fe00::1/64
@@ -327,36 +332,36 @@ class TestNetworkConvert(CiTestCase):
                     gateways.append(subn.get("gateway"))
 
         # we should have two gateways, one ipv4 and ipv6
-        self.assertEqual(len(gateways), 2)
+        assert len(gateways) == 2
 
         # make that the ipv6 gateway is there
         (nic_def, meta_def) = self._get_nic_definition("public", "eth0")
         ipv4_def = meta_def.get("ipv4")
-        self.assertIn(ipv4_def.get("gateway"), gateways)
+        assert ipv4_def.get("gateway") in gateways
 
         # make sure the the ipv6 gateway is there
         ipv6_def = meta_def.get("ipv6")
-        self.assertIn(ipv6_def.get("gateway"), gateways)
+        assert ipv6_def.get("gateway") in gateways
 
     def test_public_interface_defined(self):
         """test that the public interface is defined as eth0"""
         (nic_def, meta_def) = self._get_nic_definition("public", "eth0")
-        self.assertEqual("eth0", nic_def.get("name"))
-        self.assertEqual(meta_def.get("mac"), nic_def.get("mac_address"))
-        self.assertEqual("physical", nic_def.get("type"))
+        assert "eth0" == nic_def.get("name")
+        assert meta_def.get("mac") == nic_def.get("mac_address")
+        assert "physical" == nic_def.get("type")
 
     def test_private_interface_defined(self):
         """test that the private interface is defined as eth1"""
         (nic_def, meta_def) = self._get_nic_definition("private", "eth1")
-        self.assertEqual("eth1", nic_def.get("name"))
-        self.assertEqual(meta_def.get("mac"), nic_def.get("mac_address"))
-        self.assertEqual("physical", nic_def.get("type"))
+        assert "eth1" == nic_def.get("name")
+        assert meta_def.get("mac") == nic_def.get("mac_address")
+        assert "physical" == nic_def.get("type")
 
     def test_public_interface_ipv6(self):
         """test public ipv6 addressing"""
         (nic_def, meta_def) = self._get_nic_definition("public", "eth0")
         ipv6_def = meta_def.get("ipv6")
-        self.assertIsNotNone(ipv6_def)
+        assert ipv6_def is not None
 
         subn_def = self._get_match_subn(
             nic_def.get("subnets"), ipv6_def.get("ip_address")
@@ -366,34 +371,34 @@ class TestNetworkConvert(CiTestCase):
             ipv6_def.get("ip_address"), ipv6_def.get("cidr")
         )
 
-        self.assertEqual(cidr_notated_address, subn_def.get("address"))
-        self.assertEqual(ipv6_def.get("gateway"), subn_def.get("gateway"))
+        assert cidr_notated_address == subn_def.get("address")
+        assert ipv6_def.get("gateway") == subn_def.get("gateway")
 
     def test_public_interface_ipv4(self):
         """test public ipv4 addressing"""
         (nic_def, meta_def) = self._get_nic_definition("public", "eth0")
         ipv4_def = meta_def.get("ipv4")
-        self.assertIsNotNone(ipv4_def)
+        assert ipv4_def is not None
 
         subn_def = self._get_match_subn(
             nic_def.get("subnets"), ipv4_def.get("ip_address")
         )
 
-        self.assertEqual(ipv4_def.get("netmask"), subn_def.get("netmask"))
-        self.assertEqual(ipv4_def.get("gateway"), subn_def.get("gateway"))
+        assert ipv4_def.get("netmask") == subn_def.get("netmask")
+        assert ipv4_def.get("gateway") == subn_def.get("gateway")
 
     def test_public_interface_anchor_ipv4(self):
         """test public ipv4 addressing"""
         (nic_def, meta_def) = self._get_nic_definition("public", "eth0")
         ipv4_def = meta_def.get("anchor_ipv4")
-        self.assertIsNotNone(ipv4_def)
+        assert ipv4_def is not None
 
         subn_def = self._get_match_subn(
             nic_def.get("subnets"), ipv4_def.get("ip_address")
         )
 
-        self.assertEqual(ipv4_def.get("netmask"), subn_def.get("netmask"))
-        self.assertNotIn("gateway", subn_def)
+        assert ipv4_def.get("netmask") == subn_def.get("netmask")
+        assert "gateway" not in subn_def
 
     @mock.patch("cloudinit.net.get_interfaces_by_mac")
     def test_convert_without_private(self, m_get_by_mac):
@@ -414,10 +419,9 @@ class TestNetworkConvert(CiTestCase):
                         "name '%s' in config twice: %s" % (i["name"], netcfg)
                     )
                 byname[i["name"]] = i
-        self.assertTrue("eth0" in byname)
-        self.assertTrue("subnets" in byname["eth0"])
+        assert "eth0" in byname
+        assert "subnets" in byname["eth0"]
         eth0 = byname["eth0"]
-        self.assertEqual(
-            sorted(["45.55.249.133", "10.17.0.5"]),
-            sorted([i["address"] for i in eth0["subnets"]]),
+        assert sorted(["45.55.249.133", "10.17.0.5"]) == sorted(
+            [i["address"] for i in eth0["subnets"]]
         )
