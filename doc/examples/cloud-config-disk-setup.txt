@@ -82,11 +82,11 @@ disk_setup:
     table_type: 'mbr'
     layout: true
   /dev/xvdh:
-    table_type: 'mbr'
+    table_type: 'gpt'
     layout:
       - 33
       - [33, 82]
-      - 33
+      - [33, '44479540-F297-41B2-9AF7-D131D5F0458A']
     overwrite: True
 
 # The format is a list of dicts of dicts. The first value is the name of the
@@ -95,7 +95,7 @@ disk_setup:
 # The general format is:
 #   disk_setup:
 #     <DEVICE>:
-#       table_type: 'mbr'
+#       table_type: 'mbr'|'gpt'
 #       layout: <LAYOUT|BOOL>
 #       overwrite: <BOOL>
 #
@@ -126,7 +126,9 @@ disk_setup:
 #                   [<SIZE>, [<SIZE>, <PART_TYPE]]
 #
 #               Where <SIZE> is the _percentage_ of the disk to use, while
-#               <PART_TYPE> is the numerical value of the partition type.
+#               <PART_TYPE> is either the numerical value of the partition type
+#               (two digit code from fdisk, four digit code from gdisk) or a full
+#               GPT partition GUID.
 #
 #               The following setups two partitions, with the first
 #               partition having a swap label, taking 1/3 of the disk space
