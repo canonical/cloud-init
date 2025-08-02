@@ -1676,31 +1676,7 @@ class DataSourceAzure(sources.DataSource):
         by cloud-init i.e. lines containing "/dev/disk/cloud/azure_resource"
         and cloudconfig comment.
         """
-        fstab_path = cc_mounts.FSTAB_PATH
-        mnt_comment = cc_mounts.MNT_COMMENT
-        removed_entries = RESOURCE_DISK_PATH
-        if not os.path.exists(fstab_path):
-            return
-
-        with open(fstab_path, "r") as f:
-            lines = f.readlines()
-        new_lines = []
-        changed = False
-        for line in lines:
-            if removed_entries in line and mnt_comment in line:
-                changed = True
-                continue
-            new_lines.append(line)
-        # rewrite fstab
-        try:
-            if changed:
-                with open(fstab_path, "w") as f:
-                    f.writelines(new_lines)
-                LOG.info("Removed resource disk entries from %s", fstab_path)
-        except Exception as e:
-            LOG.warning(
-                "Failed to clean resource disk entries from fstab: %s", e
-            )
+        cc_mounts.cleanup_fstab([f"{RESOURCE_DISK_PATH}"])
 
     def clean(self):
         # Azure-specific cleanup logic for "cloud-init clean -c datasource"

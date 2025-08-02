@@ -7,6 +7,7 @@ import pytest
 
 import cloudinit.settings
 from cloudinit.cmd import clean
+from cloudinit.config import cc_mounts
 from cloudinit.distros import Distro
 from cloudinit.sources import DataSource
 from cloudinit.stages import Init
@@ -197,6 +198,75 @@ class TestClean:
         for conf_path in TEST_GEN_NET_CONFIG_FILES:
             assert conf_path.exists() is True, f"file {conf_path} removed!"
         assert 0 == retcode
+
+    @pytest.mark.usefixtures("fake_filesystem")
+    def test_clean_fstab(self, clean_paths, init_class):
+        """remove_config removed added entries in fstab when
+        `cloud-init clean -c fstab` is used.
+        """
+        fstab_original_content = (
+            "UUID=abc123 / ext4 defaults 0 0\n"
+            "/workspace	/mnt	"
+            "auto	defaults,nofail,x-systemd.after="
+            "cloud-init.service,_netdev,comment=cloudconfig	0	2\n"
+        )
+        fstab_expected_content = "UUID=abc123 / ext4 defaults 0 0\n"
+
+        etc_path = "/etc"
+        if not os.path.exists(etc_path):
+            os.makedirs(etc_path)
+        fstab_path = cc_mounts.FSTAB_PATH
+        with open(fstab_path, "w") as fd:
+            fd.write(fstab_original_content)
+
+        clean.remove_artifacts(
+            init_class,
+            remove_logs=False,
+            remove_config=["fstab"],
+        )
+
+        with open(fstab_path, "r") as fd:
+            fstab_new_content = fd.read()
+            assert fstab_expected_content == fstab_new_content
+
+    @pytest.mark.usefixtures("fake_filesystem")
+    def test_clean_fstab_for_all(self, clean_paths, init_class):
+        """remove_config removed added entries in fstab when
+        `cloud-init clean -c all` is used.
+        """
+        fstab_original_content = (
+            "UUID=abc123 / ext4 defaults 0 0\n"
+            "/workspace	/mnt	"
+            "auto	defaults,nofail,x-systemd.after="
+            "cloud-init.service,_netdev,comment=cloudconfig	0	2\n"
+        )
+        fstab_expected_content = "UUID=abc123 / ext4 defaults 0 0\n"
+        TEST_GEN_SSH_CONFIG_FILES = [
+            clean_paths.tmpdir.join(conf_file)
+            for conf_file in clean.GEN_SSH_CONFIG_FILES
+        ]
+
+        etc_path = "/etc"
+        if not os.path.exists(etc_path):
+            os.makedirs(etc_path)
+        fstab_path = cc_mounts.FSTAB_PATH
+        with open(fstab_path, "w") as fd:
+            fd.write(fstab_original_content)
+
+        with mock.patch(
+            "cloudinit.cmd.clean.GEN_SSH_CONFIG_FILES",
+            TEST_GEN_SSH_CONFIG_FILES,
+        ):
+
+            clean.remove_artifacts(
+                init_class,
+                remove_logs=False,
+                remove_config=["all"],
+            )
+
+        with open(fstab_path, "r") as fd:
+            fstab_new_content = fd.read()
+            assert fstab_expected_content == fstab_new_content
 
     def test_clean_datasource_conf_without_cache(
         self, clean_paths, init_class

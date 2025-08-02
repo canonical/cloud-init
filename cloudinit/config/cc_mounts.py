@@ -514,6 +514,32 @@ def mount_if_needed(
             subp.subp(["systemctl", "daemon-reload"])
 
 
+def cleanup_fstab(ds_remove_entries: list = []) -> None:
+    if not os.path.exists(FSTAB_PATH):
+        return
+
+    base_entry = [f"{MNT_COMMENT}"]
+
+    with open(FSTAB_PATH, "r") as f:
+        lines = f.readlines()
+    new_lines = []
+    changed = False
+    for line in lines:
+        if all(entry in line for entry in [*base_entry, *ds_remove_entries]):
+            changed = True
+            continue
+        new_lines.append(line)
+
+    # rewrite fstab
+    try:
+        if changed:
+            with open(FSTAB_PATH, "w") as f:
+                f.writelines(new_lines)
+                LOG.info("Removed resource disk entries from %s", FSTAB_PATH)
+    except Exception as e:
+        LOG.warning("Failed to clean resource disk entries from fstab: %s", e)
+
+
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """Handle the mounts configuration."""
     # fs_spec, fs_file, fs_vfstype, fs_mntops, fs_freq, fs_passno
