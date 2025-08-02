@@ -4,9 +4,11 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import helpers, settings, util
+import pytest
+
+from cloudinit import settings, util
 from cloudinit.sources import DataSourceHetzner
-from tests.unittests.helpers import CiTestCase, mock
+from tests.unittests.helpers import mock
 
 METADATA = util.load_yaml(
     """
@@ -51,20 +53,17 @@ runcmd:
 """
 
 
-class TestDataSourceHetzner(CiTestCase):
+class TestDataSourceHetzner:
     """
     Test reading the meta-data
     """
 
-    def setUp(self):
-        super(TestDataSourceHetzner, self).setUp()
-        self.tmp = self.tmp_dir()
-
-    def get_ds(self):
+    @pytest.fixture
+    def ds(self, paths, tmp_path):
         distro = mock.MagicMock()
-        distro.get_tmp_exec_path = self.tmp_dir
+        distro.get_tmp_exec_path = str(tmp_path)
         ds = DataSourceHetzner.DataSourceHetzner(
-            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN, distro, paths
         )
         return ds
 
@@ -82,6 +81,7 @@ class TestDataSourceHetzner(CiTestCase):
         m_fallback_nic,
         m_net,
         m_dhcp,
+        ds,
     ):
         m_get_hcloud_data.return_value = (
             True,
@@ -100,9 +100,8 @@ class TestDataSourceHetzner(CiTestCase):
             }
         ]
 
-        ds = self.get_ds()
         ret = ds.get_data()
-        self.assertTrue(ret)
+        assert ret
 
         m_net.assert_called_once_with(
             ds.distro,
@@ -114,29 +113,28 @@ class TestDataSourceHetzner(CiTestCase):
             ],
         )
 
-        self.assertTrue(m_readmd.called)
+        assert m_readmd.called
 
-        self.assertEqual(METADATA.get("hostname"), ds.get_hostname().hostname)
+        assert METADATA.get("hostname") == ds.get_hostname().hostname
 
-        self.assertEqual(METADATA.get("public-keys"), ds.get_public_ssh_keys())
+        assert METADATA.get("public-keys") == ds.get_public_ssh_keys()
 
-        self.assertIsInstance(ds.get_public_ssh_keys(), list)
-        self.assertEqual(ds.get_userdata_raw(), USERDATA)
-        self.assertEqual(ds.get_vendordata_raw(), METADATA.get("vendor_data"))
+        assert isinstance(ds.get_public_ssh_keys(), list)
+        assert ds.get_userdata_raw() == USERDATA
+        assert ds.get_vendordata_raw() == METADATA.get("vendor_data")
 
     @mock.patch("cloudinit.sources.helpers.hetzner.read_metadata")
     @mock.patch("cloudinit.net.find_fallback_nic")
     @mock.patch("cloudinit.sources.DataSourceHetzner.get_hcloud_data")
     def test_not_on_hetzner_returns_false(
-        self, m_get_hcloud_data, m_find_fallback, m_read_md
+        self, m_get_hcloud_data, m_find_fallback, m_read_md, ds
     ):
         """If helper 'get_hcloud_data' returns False,
         return False from get_data."""
         m_get_hcloud_data.return_value = (False, None)
-        ds = self.get_ds()
         ret = ds.get_data()
 
-        self.assertFalse(ret)
+        assert not ret
         # These are a white box attempt to ensure it did not search.
         m_find_fallback.assert_not_called()
         m_read_md.assert_not_called()
