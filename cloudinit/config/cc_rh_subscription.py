@@ -69,6 +69,13 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             return_stat = sm.update_repos()
             if not return_stat:
                 raise SubscriptionError("Unable to add or remove repos")
+            if sm.releasever:
+                sm._set_releasever()
+                sm._delete_packagemanager_cache(
+                    additional_error_message="Already set the releasever"
+                    " in the subscription manager but"
+                )
+
             sm.log_success("rh_subscription plugin completed successfully")
         except SubscriptionError as e:
             sm.log_warn(str(e))
@@ -94,6 +101,7 @@ class SubscriptionManager:
         "server-hostname",
         "auto-attach",
         "service-level",
+        "releasever",
     ]
 
     def __init__(self, cfg, log=None):
@@ -113,6 +121,7 @@ class SubscriptionManager:
         self.enable_repo = self.rhel_cfg.get("enable-repo")
         self.disable_repo = self.rhel_cfg.get("disable-repo")
         self.servicelevel = self.rhel_cfg.get("service-level")
+        self.releasever = self.rhel_cfg.get("releasever")
 
     def log_success(self, msg):
         """Simple wrapper for logging info messages. Useful for unittests"""
@@ -155,6 +164,13 @@ class SubscriptionManager:
                 "auto-attach: True"
             )
             return False, no_auto
+
+        # Not verifying the releasever statically in _verify_keys
+        # (by verifying the key is in the output of
+        # `subscription-manager release --list`) because sometimes
+        # the release will become available only after enabling some repos
+        # (which is executed after verify_keys). So we will catch this error
+        # during "subscription-manager release --set=<releasever>"
         return True, None
 
     def is_registered(self):
@@ -445,6 +461,42 @@ class SubscriptionManager:
 
     def is_configured(self):
         return bool((self.userid and self.password) or self.activation_key)
+
+    def _set_releasever(self):
+        """
+        Execute "subscription-manager release --set=<releasever>"
+        Raises Subscription error if the command fails
+        or if releasever is not passed in the config
+        """
+        if not self.releasever:
+            raise SubscriptionError(
+                "Tried to set releasever while"
+                "it was not passed in cloud-config"
+            )
+
+        cmd = ["release", f"--set={self.releasever}"]
+        try:
+            _sub_man_cli(cmd)
+        except subp.ProcessExecutionError as e:
+            raise SubscriptionError("Unable to set releasever") from e
+
+        self.log.debug("Executed the release --set command successfully.")
+
+    def _delete_packagemanager_cache(self, additional_error_message=""):
+        """
+        Delete the package manager cache.
+        Raises Subscription error if the deletion fails
+        """
+        self.log.debug("Deleting the package manager cache")
+        try:
+            util.del_dir("/var/cache/dnf", ignore_FileNotFoundError=True)
+            util.del_dir("/var/cache/yum", ignore_FileNotFoundError=True)
+        except Exception as e:
+            raise SubscriptionError(
+                f"{additional_error_message}"
+                " unable to delete the package manager cache"
+            ) from e
+        self.log.debug("Deleted the package manager cache.")
 
 
 def _sub_man_cli(cmd, logstring_val=False):
