@@ -12,23 +12,23 @@ build:
       - echo pre_install
     post_install:
       - echo post_install
-    pre_install:
-      - "python3 -mvenv $READTHEDOCS_VIRTUALENV_PATH"
-      - '$READTHEDOCS_VIRTUALENV_PATH/bin/python3 -m pip install --upgrade --no-cache-dir -r doc-requirements.txt'
-      - '$READTHEDOCS_VIRTUALENV_PATH/bin/python3 -m sphinx -T -b html -d _build/doctrees -D language=en . $READTHEDOCS_OUTPUT/html'
-    build:
-      html:
-        - 'meson setup build_dir -Dreadthedocs_build=true -Dinit_system=systemd'
-        - 'meson compile -C build_dir'
+#   pre_install:
+#     - "python3 -mvenv $READTHEDOCS_VIRTUALENV_PATH"
+#     - '$READTHEDOCS_VIRTUALENV_PATH/bin/python3 -m pip install --upgrade --no-cache-dir -r doc-requirements.txt'
+#     - '$READTHEDOCS_VIRTUALENV_PATH/bin/python3 -m sphinx -T -b html -d _build/doctrees -D language=en . $READTHEDOCS_OUTPUT/html'
+#   build:
+#     html:
+#       - 'meson setup build_dir -Dreadthedocs_build=true -Dinit_system=systemd'
+#       - 'meson compile -C build_dir'
 
 
 sphinx:
   configuration: doc/rtd/conf.py
 formats: all
 
-#python:
-#  install:
-#    - requirements: doc-requirements.txt
+python:
+  install:
+    - requirements: doc-requirements.txt
 
 sphinx:
   configuration: doc/rtd/conf.py
