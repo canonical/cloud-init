@@ -3,7 +3,7 @@ build-backend = "mesonpy"
 requires = ["meson-python"]
 
 [tool.meson-python.args]
-setup = ["-Dinit_system=systemd"]
+setup = ["-Dinit_system=systemd", "-Dreadthedocs_build=true"]
 
 [tool.black]
 line-length = 79
