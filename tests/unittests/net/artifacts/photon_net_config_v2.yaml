@@ -1,6 +1,5 @@
 network:
   version: 2
-
   ethernets:
     eth0:
       match:
@@ -27,6 +26,14 @@ network:
           - 8.8.8.8
         search:
           - example.org
+
+    eth3:
+      dhcp4: false
+      dhcp6: false
+
+    eth4:
+      dhcp4: false
+      dhcp6: false
 
   bonds:
     bond0:
@@ -84,3 +91,69 @@ network:
           - bond.vlan.test
       mtu: 111
       dhcp6: true
+
+  bridges:
+    br0:
+      interfaces: [eth3, eth4]
+      addresses: [172.16.1.10/24]
+      routes:
+        - to: 0.0.0.0/0
+          via: 172.16.1.1
+          metric: 100
+      nameservers:
+        addresses: [1.1.1.1]
+        search: [bridge.test]
+      mtu: 9000
+      macaddress: "00:11:22:33:44:aa"
+      parameters:
+        stp: true
+        forward-delay: 4
+        hello-time: 2
+        max-age: 20
+        priority: 2048
+        ageing-time: 300
+        path-cost:
+          eth3: 30
+          eth4: 40
+        port-priority:
+          eth3: 32
+          eth4: 60
+
+    br1:
+      interfaces: [vlan100]
+      addresses: [10.0.0.10/24]
+      routes:
+        - to: 10.0.0.0/24
+          via: 10.0.0.1
+          metric: 200
+      nameservers:
+        addresses: [9.9.9.9]
+        search: [vlan.bridge]
+      mtu: 1500
+      macaddress: "00:11:22:33:44:88"
+      parameters:
+        stp: true
+        forward-delay: 3
+        hello-time: 1
+        max-age: 15
+        priority: 4096
+        ageing-time: 200
+        path-cost:
+          vlan100: 45
+        port-priority:
+          vlan100: 50
+
+    br2:
+      interfaces: [vl101]
+      addresses: [192.168.50.10/24]
+      nameservers:
+        addresses: [8.8.4.4]
+      mtu: 1600
+      macaddress: "00:11:22:33:44:BB"
+      parameters:
+        stp: false
+        forward-delay: 0
+        hello-time: 2
+        max-age: 20
+        priority: 8192
+        ageing-time: 100
