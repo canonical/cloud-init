@@ -518,7 +518,7 @@ def cleanup_fstab(ds_remove_entries: list = []) -> None:
     if not os.path.exists(FSTAB_PATH):
         return
 
-    base_entry = [f"{MNT_COMMENT}"]
+    base_entry = [MNT_COMMENT]
 
     with open(FSTAB_PATH, "r") as f:
         lines = f.readlines()
