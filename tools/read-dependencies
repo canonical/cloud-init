@@ -26,7 +26,7 @@ DISTRO_PKG_TYPE_MAP = {
     "centos": "redhat",
     "eurolinux": "redhat",
     "miraclelinux": "redhat",
-    "fedora": "redhat",
+    "fedora": "fedora",
     "rocky": "redhat",
     "redhat": "redhat",
     "debian": "debian",
@@ -107,10 +107,12 @@ ZYPPER_INSTALL = [
 
 DRYRUN_DISTRO_INSTALL_PKG_CMD = {
     "redhat": ["yum", "install", "--assumeyes"],
+    "fedora": ["yum", "install", "--assumeyes"],
 }
 
 DISTRO_INSTALL_PKG_CMD = {
     "redhat": MAYBE_RELIABLE_YUM_INSTALL,
+    "fedora": MAYBE_RELIABLE_YUM_INSTALL,
     "debian": ["apt", "install", "-y"],
     "suse": ZYPPER_INSTALL,
 }
