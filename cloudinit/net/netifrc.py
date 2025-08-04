@@ -194,13 +194,13 @@ class Renderer(renderer.Renderer):
         self.netifrc_header = config.get("netifrc_header", "")
         self.netifrc_path = config.get("netifrc_path", "etc/conf.d/net")
         self.initd_net_prefix = config.get(
-            "initd_net_prefix", "etc/init.d/net-ci."
+            "initd_net_prefix", "etc/init.d/net."
         )
         self.initd_netlo_path = config.get(
             "initd_netlo_path", "etc/init.d/net.lo"
         )
         self.runlevel_default_prefix = config.get(
-            "runlevel_default_prefix", "etc/runlevels/default/net-ci."
+            "runlevel_default_prefix", "etc/runlevels/default/net."
         )
 
     def _render_routes(self, name, routes, lines):
