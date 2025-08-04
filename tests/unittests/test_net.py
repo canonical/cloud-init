@@ -4984,7 +4984,11 @@ class TestNetifrcNetRendering:
         renderer.render_network_state(ns, target=render_dir)
 
         initd_net_prefix = os.path.join(render_dir, renderer.initd_net_prefix)
+        runlevel_default_prefix = os.path.join(
+            render_dir, renderer.runlevel_default_prefix
+        )
         assert os.path.exists(initd_net_prefix + "eth1000")
+        assert os.path.exists(runlevel_default_prefix + "eth1000")
 
         contents = _extract_netifrc_lines(
             os.path.join(render_dir, renderer.netifrc_path)

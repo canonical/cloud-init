@@ -324,12 +324,12 @@ class NetifrcActivator(NetworkActivator):
 
     @staticmethod
     def bring_up_interface(device_name: str) -> bool:
-        cmd = ["rc-service", "net." + device_name, "start"]
+        cmd = ["rc-service", "net-ci." + device_name, "start"]
         return _alter_interface(cmd, device_name)
 
     @staticmethod
     def bring_down_interface(device_name: str) -> bool:
-        cmd = ["rc-service", "net." + device_name, "stop"]
+        cmd = ["rc-service", "-s", "net-ci." + device_name, "stop"]
         return _alter_interface(cmd, device_name)
 
 

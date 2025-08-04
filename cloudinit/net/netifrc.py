@@ -7,6 +7,7 @@
 
 r"""
 List of implemented vars:
+
   General:
     - config_
     - dhcp_ (release nodns nontp nonis nogateway nosendhost)
@@ -52,6 +53,7 @@ To list all prefixes that appear in the examples, from /netifrc/doc, run:
   grep -hoP '\K(\w+)_(?=[\w_]+=)' *.example.* | sort | uniq
 
 No metric support:
+
 Netifrc only supports per-interface link through metric_. There's no
 counterpart config in Netifrc, so subnet metric settings will be ignored. Use
 route metric instead.
@@ -60,6 +62,17 @@ route metric instead.
    - to: 0.0.0.0/0
      via: 10.23.2.1
      metric: 3
+
+https://cloudinit.readthedocs.io/en/latest/reference/datasources/ec2.html
+
+> Wherever DHCP4 or DHCP6 is enabled for a NIC, a DHCP route-metric will be
+> added with the value of <device-number + 1> * 100 to ensure DHCP routes on
+> the primary NIC are preferred to any secondary NICs.
+
+This is done by dhcpcd. In dhcpcd.conf(5):
+
+> Metrics are used to prefer an interface over another one, lowest wins. dhcpcd
+> will supply a default metric of 1000 + if_nametoindex(3).
 
 IPv6 support:
 
@@ -107,6 +120,7 @@ bridges is a bad idea in the first place.
 """
 
 import copy
+import glob
 import logging
 import os
 from typing import Optional
@@ -180,10 +194,13 @@ class Renderer(renderer.Renderer):
         self.netifrc_header = config.get("netifrc_header", "")
         self.netifrc_path = config.get("netifrc_path", "etc/conf.d/net")
         self.initd_net_prefix = config.get(
-            "initd_net_prefix", "etc/init.d/net."
+            "initd_net_prefix", "etc/init.d/net-ci."
         )
         self.initd_netlo_path = config.get(
-            "initd_netlo_path", self.initd_net_prefix + "lo"
+            "initd_netlo_path", "etc/init.d/net.lo"
+        )
+        self.runlevel_default_prefix = config.get(
+            "runlevel_default_prefix", "etc/runlevels/default/net-ci."
         )
 
     def _render_routes(self, name, routes, lines):
@@ -499,15 +516,33 @@ class Renderer(renderer.Renderer):
         util.ensure_dir(os.path.dirname(fp))
         util.write_file(fp, self._render_interfaces(network_state))
 
-        # create symlinks
+        fp = subp.target_path(target, self.runlevel_default_prefix)
+        util.ensure_dir(os.path.dirname(fp))
+
+        # set up symlinks
+
+        for prefix in [self.runlevel_default_prefix]:
+            for link in glob.glob(subp.target_path(target, prefix) + "*"):
+                if not util.is_link(link):
+                    continue
+                util.del_file(link)
 
         for iface in network_state.iter_interfaces():
             name = iface["name"]
             if name == "lo":
                 # don't link the original script to itself
                 continue
+
+            # init.d
+
             src = subp.target_path(target, self.initd_netlo_path)
             dst = subp.target_path(target, self.initd_net_prefix + name)
+            util.sym_link(src, dst, True)
+
+            # rc-update
+
+            src = dst
+            dst = subp.target_path(target, self.runlevel_default_prefix + name)
             util.sym_link(src, dst, True)
 
 
