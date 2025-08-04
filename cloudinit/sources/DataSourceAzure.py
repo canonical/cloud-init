@@ -1676,7 +1676,7 @@ class DataSourceAzure(sources.DataSource):
         by cloud-init i.e. lines containing "/dev/disk/cloud/azure_resource"
         and cloudconfig comment.
         """
-        cc_mounts.cleanup_fstab([f"{RESOURCE_DISK_PATH}"])
+        cc_mounts.cleanup_fstab([RESOURCE_DISK_PATH])
 
     def clean(self):
         # Azure-specific cleanup logic for "cloud-init clean -c datasource"
