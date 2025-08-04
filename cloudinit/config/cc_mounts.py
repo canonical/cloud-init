@@ -535,7 +535,7 @@ def cleanup_fstab(ds_remove_entries: list = []) -> None:
         if changed:
             with open(FSTAB_PATH, "w") as f:
                 f.writelines(new_lines)
-                LOG.info("Removed resource disk entries from %s", FSTAB_PATH)
+            LOG.info("Removed resource disk entries from %s", FSTAB_PATH)
     except Exception as e:
         LOG.warning("Failed to clean resource disk entries from fstab: %s", e)
 
