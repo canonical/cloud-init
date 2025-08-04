@@ -91,7 +91,7 @@ re-run all stages as it did on first boot.
   `ssh_config` cleans config files for ssh daemon. Argument `network` removes
   all generated config files for network. Argument `datasource` removes files
   and/or configs written by current datasource. Argument `fstab` removes all
-  entries that have the comment `comment=cloudconfig` in them. `all` removes
+  entries that have been configured by cloud-init. `all` removes
   config files of all types.
 * :command:`--seed`: Remove the cloud-init seed directory
   (e.g., :file:`/var/lib/cloud/seed/`)
