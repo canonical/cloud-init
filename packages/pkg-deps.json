@@ -5,13 +5,20 @@
          "pkgconf",
          "bash-completion",
          "debhelper",
-         "systemd-dev"
+         "systemd-dev",
+         "python3",
+         "python3-debconf"
       ],
       "renames" : {
          "pyyaml" : "python3-yaml",
          "pyserial" : "python3-serial"
       },
       "requires" : [
+         "debconf",
+         "dhcpcd-base",
+         "iproute2",
+         "netcat-openbsd",
+         "netplan.io",
          "procps"
       ]
    },
