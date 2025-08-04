@@ -10,8 +10,6 @@ sphinx:
   configuration: doc/rtd/conf.py
 formats: all
 
-# To support default pip-install based RTD builds, pyproject.toml sets
-# default command-line options in tool.meson-python.args
 python:
   install:
     - requirements: doc-requirements.txt

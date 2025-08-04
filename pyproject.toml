@@ -1,6 +1,6 @@
-[build-system]
-build-backend = "mesonpy"
-requires = ["meson-python"]
+[build-system]  # See meson.build. Empty build-system to avoid RTD builds
+build-backend = ""
+requires = []
 
 # Provide meson setup cmdline arguments to support readthedocs builds
 [tool.meson-python.args]

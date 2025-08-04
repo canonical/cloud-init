@@ -32,6 +32,7 @@ bash_completions_dir = completions.get_variable(
   pkgconfig: 'completionsdir',
   default_value: join_paths(get_option('datadir'), 'bash-completion', 'completions'),
 )
+completions = dependency('bash-completion')
 install_data(
   'bash_completion/cloud-init',
   install_dir: bash_completions_dir,
@@ -72,7 +73,7 @@ install_data(
   install_tag: 'config',
 )
 
-if INIT_SYSTEM == 'systemd' and not readthedocs
+if INIT_SYSTEM == 'systemd'
   systemd = dependency('systemd')
   udev = dependency('udev')
   systemd_unit_dir = systemd.get_variable(pkgconfig: 'systemdsystemunitdir')

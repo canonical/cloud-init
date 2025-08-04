@@ -1,2 +1,1 @@
 option('init_system', type: 'string', value: 'systemd', description: 'Set target init system. Choices: systemd.')
-option('readthedocs_build', type: 'boolean', value: false, description: 'Whether building in readthedocs. Default: false')
