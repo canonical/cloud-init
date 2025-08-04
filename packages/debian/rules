@@ -2,11 +2,13 @@
 
 include /usr/share/dpkg/pkg-info.mk
 
+export PYTHONDONTWRITEBYTECODE=1
+
 %:
 	dh $@ --buildsystem meson
 
 override_dh_auto_configure:
-	dh_auto_configure -- -Dinit_system=systemd -Dlibexecdir=lib
+	dh_auto_configure -- -Dinit_system=systemd -Dlibexecdir=lib -Ddistro_templates=chef_client.rb.tmpl,chrony.conf.ubuntu.tmpl,hosts.debian.tmpl,ntp.conf.ubuntu.tmpl,sources.list.ubuntu.deb822.tmpl,sources.list.ubuntu.deb822.tmpl,timesyncd.conf.tmpl
 
 override_dh_auto_test:
 
@@ -20,8 +22,8 @@ override_dh_installsystemd:
 	dh_installsystemd --no-restart-on-upgrade --no-start
 
 override_dh_auto_install:
-	dh_auto_install --destdir=debian/cloud-init
-	install -D -m 0644 ./tools/21-cloudinit.conf debian/cloud-init/etc/rsyslog.d/21-cloudinit.conf
-	install -D ./tools/Z99-cloud-locale-test.sh debian/cloud-init/etc/profile.d/Z99-cloud-locale-test.sh
-	install -D ./tools/Z99-cloudinit-warnings.sh debian/cloud-init/etc/profile.d/Z99-cloudinit-warnings.sh
+	dh_auto_install --destdir=debian/cloud-init-base
+	install -D -m 0644 ./tools/21-cloudinit.conf debian/cloud-init-base/etc/rsyslog.d/21-cloudinit.conf
+	install -D ./tools/Z99-cloud-locale-test.sh debian/cloud-init-base/etc/profile.d/Z99-cloud-locale-test.sh
+	install -D ./tools/Z99-cloudinit-warnings.sh debian/cloud-init-base/etc/profile.d/Z99-cloudinit-warnings.sh
 	flist=$$(find $(CURDIR)/debian/ -type f -name version.py) && sed -i 's,@@PACKAGED_VERSION@@,$(DEB_VERSION),' $${flist:-did-not-find-version-py-for-replacement}
