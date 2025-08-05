@@ -119,9 +119,11 @@ def fake_filesystem(mocker, tmpdir, fake_filesystem_hook):
     """
     # This allows fake_filesystem to be used with production code that
     # creates temporary directories. Functions like TemporaryDirectory()
-    # attempt to create a directory under "/tmp" assuming that it already
-    # exists, but then it fails because of the retargeting that happens here.
-    tmpdir.mkdir("tmp")
+    # attempt to create a directory under $TMPDIR (among other locations)
+    # assuming that it already exists, but then it fails because of the
+    # retargeting that happens here.
+    TMPDIR = os.getenv("TMPDIR", "/tmp")
+    Path(tmpdir, TMPDIR[1:]).mkdir(exist_ok=True)
 
     for mod, funcs in FS_FUNCS.items():
         for f, nargs in funcs:
