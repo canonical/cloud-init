@@ -136,10 +136,8 @@ class SystemctlReader:
     def __init__(self, property: str, parameter: Optional[str] = None) -> None:
         self.stdout: Union[str, None] = None
         systemctl_path = subp.which("systemctl")
-        if systemctl_path is None:
-            raise FileNotFoundError("systemctl binary not found")
-
-        self.args: list[str] = [systemctl_path, "show"]
+        if systemctl_path:
+            self.args: List[str] = [systemctl_path, "show"]
         if parameter:
             self.args.append(parameter)
         # --timestamp=utc is needed for native date strings. Othwerise,
