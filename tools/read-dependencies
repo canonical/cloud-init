@@ -387,15 +387,7 @@ def pkg_install(pkg_list, distro, test_distro=False, dry_run=False):
         subprocess.call(
             ["dnf", "config-manager", "--set-disabled", "epel-cisco-openh264"]
         )
-    if distro in [
-        "suse",
-        "opensuse",
-        "fedora",
-        "redhat",
-        "rocky",
-        "centos",
-        "eurolinux",
-    ]:
+    if DISTRO_PKG_TYPE_MAP.get(distro) in ["redhat", "suse", "fedora"]:
         pkg_list.append("rpm-build")
     subprocess.check_call(install_cmd + pkg_list)
 
