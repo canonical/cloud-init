@@ -94,10 +94,12 @@
          "pyyaml" : "python3-PyYAML"
       },
       "build-requires" : [
+         "meson",
+         "pkgconf",
+         "bash-completion-devel",
          "fdupes",
          "filesystem",
-         "python3-devel",
-         "python3-setuptools"
+         "python3-devel"
       ],
       "requires" : [
          "iproute2",
