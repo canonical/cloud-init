@@ -43,6 +43,10 @@ cc_set_passwords:
       - Set the password for user2 to a pre-hashed password.
       - Set the password for user3 to be a randomly generated password, which
         will be written to the system console.
+      - Set the password for user4 to be a randomly generated password.
+        This "friendly" style of random password will be generated without
+        punctuation or characters which are likely to be ambiguous to
+        human readers and will be written to the system console.
     file: cc_set_passwords/example2.yaml
   - comment: |
       Example 3: Disable SSH password authentication and PAM interactive

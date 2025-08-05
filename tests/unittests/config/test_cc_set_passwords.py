@@ -586,7 +586,8 @@ class TestRandUserPassword:
             (20, 4),
         ],
     )
-    def test_rand_user_password(self, strlen, expected_result):
+    @pytest.mark.parametrize("type", ["RANDOM", "R", "RANDOM_FRIENDLY"])
+    def test_rand_user_password(self, strlen, expected_result, type):
         if expected_result is ValueError:
             with pytest.raises(
                 expected_result,
@@ -594,7 +595,12 @@ class TestRandUserPassword:
             ):
                 setpass.rand_user_password(strlen)
         else:
-            rand_password = setpass.rand_user_password(strlen)
+            rand_password = setpass.rand_user_password(strlen, type=type)
+            if type == "RANDOM_FRIENDLY":
+                expected_result -= 1
+                for c in rand_password:
+                    assert c not in setpass._unfriendly_characters
+                    assert c not in string.punctuation
             assert len(rand_password) == strlen
             assert self._get_str_class_num(rand_password) == expected_result
 

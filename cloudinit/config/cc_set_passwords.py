@@ -29,6 +29,8 @@ meta: MetaSchema = {
     "activate_by_schema_keys": [],
 }
 
+_unfriendly_characters = "loLOI01"
+
 LOG = logging.getLogger(__name__)
 
 
@@ -259,29 +261,59 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         raise errors[-1]
 
 
-def rand_user_password(pwlen=20):
+def _friendly_characters(input: str) -> str:
+    return [x for x in input if x not in _unfriendly_characters]
+
+
+def rand_user_password(pwlen=20, type="RANDOM") -> str:
+    """Generate a random user password.
+
+    @param pwlen: integer, the length of the password to generate, must be 4 or
+    larger.
+
+    @param type: "RANDOM" or "RANDOM_FRIENDLY".  A "RANDOM" password will
+    be generated from the set of ascii uppercase, ascii lowercase, digit, and C
+    locale punctuation only, with a guarantee that it contains at least 1
+    character from each of those 4 categories.  A "RANDOM_FRIENDLY" password
+    is similar with the additional constraints of not using punctuation, and
+    not using characters which are often ambiguous to human readers.
+
+    @return the random password
+    """
     if pwlen < 4:
         raise ValueError("Password length must be at least 4 characters.")
+
+    # "R" is an alias for "RANDOM"
+    if type not in ("R", "RANDOM", "RANDOM_FRIENDLY"):
+        raise ValueError("Unrecognized random password type %s" % type)
+
+    if type == "RANDOM_FRIENDLY":
+        lowercase = _friendly_characters(string.ascii_lowercase)
+        uppercase = _friendly_characters(string.ascii_uppercase)
+        digits = _friendly_characters(string.digits)
+    else:
+        lowercase = string.ascii_lowercase
+        uppercase = string.ascii_uppercase
+        digits = string.digits
 
     # There are often restrictions on the minimum number of character
     # classes required in a password, so ensure we at least one character
     # from each class.
     res_rand_list = [
-        random.choice(string.digits),
-        random.choice(string.ascii_lowercase),
-        random.choice(string.ascii_uppercase),
-        random.choice(string.punctuation),
+        random.choice(digits),
+        random.choice(lowercase),
+        random.choice(uppercase),
     ]
+
+    select_from = digits + lowercase + uppercase
+
+    if type != "RANDOM_FRIENDLY":
+        res_rand_list.append(random.choice(string.punctuation))
+        select_from += string.punctuation
 
     res_rand_list.extend(
         list(
-            util.rand_str(
-                pwlen - len(res_rand_list),
-                select_from=string.digits
-                + string.ascii_lowercase
-                + string.ascii_uppercase
-                + string.punctuation,
-            )
+            util.rand_str(pwlen - len(res_rand_list), select_from=select_from)
         )
     )
     random.shuffle(res_rand_list)
