@@ -135,9 +135,10 @@ class SystemctlReader:
 
     def __init__(self, property: str, parameter: Optional[str] = None) -> None:
         self.stdout: Union[str, None] = None
+        self.args: Union[str, List[str]] = ["show"]
         systemctl_path = subp.which("systemctl")
         if systemctl_path:
-            self.args: List[str] = [systemctl_path, "show"]
+            self.args.append(systemctl_path)
         if parameter:
             self.args.append(parameter)
         # --timestamp=utc is needed for native date strings. Othwerise,
