@@ -17,10 +17,20 @@ from cloudinit.settings import PER_ALWAYS, PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
+NETWORK_FILE_HEADER = """\
+# This file is generated from information provided by the datasource. Changes
+# to it will not persist across an instance reboot. To disable cloud-init's
+# network configuration capabilities, write a file
+# /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:
+# network: {config: disabled}
+
+"""
+
 
 class Distro(distros.Distro):
     locale_gen_fn = "/etc/locale.gen"
     default_locale = "en_US.UTF-8"
+    renderer_configs = {"netifrc": {"netifrc_header": NETWORK_FILE_HEADER}}
 
     # C.UTF8 makes sense to generate, but is not selected
     # Add /etc/locale.gen entries to this list to support more locales

@@ -10,10 +10,11 @@ import sys
 
 import yaml
 
-from cloudinit import distros, safeyaml
+from cloudinit import distros, safeyaml, subp, util
 from cloudinit.log import loggers
 from cloudinit.net import (
     eni,
+    netifrc,
     netplan,
     network_manager,
     network_state,
@@ -86,7 +87,14 @@ def get_parser(parser=None):
     parser.add_argument(
         "-O",
         "--output-kind",
-        choices=["eni", "netplan", "networkd", "sysconfig", "network-manager"],
+        choices=[
+            "eni",
+            "netplan",
+            "networkd",
+            "sysconfig",
+            "network-manager",
+            "netifrc",
+        ],
         required=True,
         help="The network config format to emit",
     )
@@ -163,6 +171,12 @@ def handle_args(name, args):
     elif args.output_kind == "network-manager":
         r_cls = network_manager.Renderer
         config = distro.renderer_configs.get("network-manager")
+    elif args.output_kind == "netifrc":
+        r_cls = netifrc.Renderer
+        config = distro.renderer_configs.get("netifrc")
+        # drop mock symlink target
+        fp = subp.target_path(args.directory, "etc/init.d/net.lo")
+        util.write_file(fp, "")
     else:
         raise RuntimeError("Invalid output_kind")
 

@@ -5,8 +5,8 @@ import os
 from contextlib import ExitStack
 from copy import copy, deepcopy
 
-from cloudinit import helpers, settings, util
-from cloudinit.net import eni, network_state
+from cloudinit import helpers, settings, subp, util
+from cloudinit.net import eni, netifrc, network_state
 from cloudinit.sources import DataSourceConfigDrive as ds
 from cloudinit.sources.helpers import openstack
 from tests.unittests.helpers import CiTestCase, mock, populate_dir
@@ -859,6 +859,11 @@ class TestNetJson(CiTestCase):
             self.assertEqual(out_data, conv_data)
 
 
+def _drop_mock_initd_netlo(target: str, renderer):
+    fp = subp.target_path(target, renderer.initd_netlo_path)
+    util.write_file(fp, "")
+
+
 @mock.patch(
     "cloudinit.net.is_openvswitch_internal_interface",
     mock.Mock(return_value=False),
@@ -931,6 +936,15 @@ class TestConvertNetworkData(CiTestCase):
             eni_rendering = f.read()
             self.assertIn("route add default gw 2.2.2.9", eni_rendering)
 
+        nir_renderer = netifrc.Renderer()
+        _drop_mock_initd_netlo(self.tmp, nir_renderer)
+        nir_renderer.render_network_state(
+            network_state.parse_net_config_data(ncfg), target=self.tmp
+        )
+        with open(os.path.join(self.tmp, "etc", "conf.d", "net"), "r") as f:
+            nir_renderering = f.read()
+            self.assertIn("default via 2.2.2.9", nir_renderering)
+
     def test_conversion_with_tap(self):
         ncfg = openstack.convert_net_json(
             NETWORK_DATA_3, known_macs=KNOWN_MACS
@@ -984,6 +998,27 @@ class TestConvertNetworkData(CiTestCase):
         pos = eni_rendering.find("auto bond0")
         self.assertIn(BOND_MAC, eni_rendering[pos:])
 
+        # light testing of bond conversion and Netifrc rendering of bond
+        ncfg = openstack.convert_net_json(
+            NETWORK_DATA_BOND, known_macs=KNOWN_MACS
+        )
+        nir_renderer = netifrc.Renderer()
+        _drop_mock_initd_netlo(self.tmp, nir_renderer)
+        nir_renderer.render_network_state(
+            network_state.parse_net_config_data(ncfg), target=self.tmp
+        )
+        with open(os.path.join(self.tmp, "etc", "conf.d", "net"), "r") as f:
+            nir_rendering = f.read()
+
+        words = nir_rendering.split()
+        self.assertNotIn("eth0", words)
+        self.assertNotIn("eth1", words)
+
+        self.assertIn('''config_oeth0="null"''', words)
+        self.assertIn('''config_oeth1="null"''', words)
+        self.assertIn('''config_bond0="null"''', words)
+        self.assertIn("""slaves_bond0="oeth""", nir_rendering)
+
     def test_vlan(self):
         # light testing of vlan config conversion and eni rendering
         ncfg = openstack.convert_net_json(
@@ -1001,6 +1036,26 @@ class TestConvertNetworkData(CiTestCase):
         self.assertIn("iface enp0s1", eni_rendering)
         self.assertIn("address 10.0.1.5", eni_rendering)
         self.assertIn("auto enp0s1.602", eni_rendering)
+
+        # light testing of vlan config conversion and Netifrc rendering
+        ncfg = openstack.convert_net_json(
+            NETWORK_DATA_VLAN, known_macs=KNOWN_MACS
+        )
+        nir_renderer = netifrc.Renderer()
+        _drop_mock_initd_netlo(self.tmp, nir_renderer)
+        nir_renderer.render_network_state(
+            network_state.parse_net_config_data(ncfg), target=self.tmp
+        )
+        with open(os.path.join(self.tmp, "etc", "conf.d", "net"), "r") as f:
+            nir_rendering = f.read()
+
+        self.assertIn('''config_enp0s1="null"''', nir_rendering)
+        self.assertIn(
+            '''config_enp0s1_602="10.0.1.5/29"''',
+            nir_rendering,
+        )
+        self.assertIn('''vlans_enp0s1="602"''', nir_rendering)
+        self.assertIn('''enp0s1_vlan602_name="enp0s1.602"''', nir_rendering)
 
     def test_mac_addrs_can_be_upper_case(self):
         # input mac addresses on rackspace may be upper case
