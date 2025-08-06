@@ -165,7 +165,7 @@ class TestDataSourceDigitalOcean:
         m_read_sysinfo.return_value = (False, None)
         ds = get_ds(get_sysinfo=None)
         assert False is ds.get_data()
-        assert m_read_sysinfo.called
+        m_read_sysinfo.assert_called_once()
 
     @mock.patch("cloudinit.sources.helpers.digitalocean.read_metadata")
     @mock.patch("cloudinit.sources.lifecycle.deprecate")
@@ -216,7 +216,7 @@ class TestDataSourceDigitalOcean:
         ret = ds.get_data()
         assert ret
 
-        assert mock_readmd.called
+        mock_readmd.assert_called_once()
 
         assert DO_META.get("user_data") == ds.get_userdata_raw()
         assert DO_META.get("vendor_data") == ds.get_vendordata_raw()
@@ -237,9 +237,9 @@ class TestDataSourceDigitalOcean:
 
         ds = get_ds()
         ret = ds.get_data()
-        assert ret
+        assert ret is True
 
-        assert mock_readmd.called
+        mock_readmd.assert_called_once()
 
         # Multiple keys
         assert metadata["public_keys"] == ds.get_public_ssh_keys()
