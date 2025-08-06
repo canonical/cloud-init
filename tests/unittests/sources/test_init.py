@@ -76,8 +76,7 @@ class TestDataSource:
     def fixtures(self, paths):
         self.sys_cfg = {"datasource": {"_undef": {"key1": False}}}
         self.distro = ubuntu.Distro("somedistro", {}, {})
-        self.paths = paths
-        self.datasource = DataSource(self.sys_cfg, self.distro, self.paths)
+        self.datasource = DataSource(self.sys_cfg, self.distro, paths)
 
     @pytest.fixture
     def datasource(self, paths):
@@ -85,7 +84,6 @@ class TestDataSource:
 
     def test_datasource_init(self):
         """DataSource initializes metadata attributes, ds_cfg and ud_proc."""
-        assert self.paths == self.datasource.paths
         assert self.sys_cfg == self.datasource.sys_cfg
         assert self.distro == self.datasource.distro
         assert self.datasource.userdata is None
@@ -96,18 +94,18 @@ class TestDataSource:
         assert {"key1": False} == self.datasource.ds_cfg
         assert isinstance(self.datasource.ud_proc, UserDataProcessor)
 
-    def test_datasource_init_gets_ds_cfg_using_dsname(self):
+    def test_datasource_init_gets_ds_cfg_using_dsname(self, paths):
         """Init uses DataSource.dsname for sourcing ds_cfg."""
         sys_cfg = {"datasource": {"MyTestSubclass": {"key2": False}}}
         distro = "distrotest"  # generally should be a Distro object
-        datasource = DataSourceTestSubclassNet(sys_cfg, distro, self.paths)
+        datasource = DataSourceTestSubclassNet(sys_cfg, distro, paths)
         assert {"key2": False} == datasource.ds_cfg
 
-    def test_str_is_classname(self):
+    def test_str_is_classname(self, paths):
         """The string representation of the datasource is the classname."""
         assert "DataSource" == str(self.datasource)
         assert "DataSourceTestSubclassNet" == str(
-            DataSourceTestSubclassNet("", "", self.paths)
+            DataSourceTestSubclassNet("", "", paths)
         )
 
     def test_datasource_get_url_params_defaults(self):
@@ -121,11 +119,11 @@ class TestDataSource:
             == self.datasource.url_sec_between_retries
         )
 
-    def test_datasource_get_url_params_subclassed(self):
+    def test_datasource_get_url_params_subclassed(self, paths):
         """Subclasses can override get_url_params defaults."""
         sys_cfg = {"datasource": {"MyTestSubclass": {"key2": False}}}
         distro = "distrotest"  # generally should be a Distro object
-        datasource = DataSourceTestSubclassNet(sys_cfg, distro, self.paths)
+        datasource = DataSourceTestSubclassNet(sys_cfg, distro, paths)
         expected = (
             datasource.url_max_wait,
             datasource.url_timeout,
@@ -136,7 +134,7 @@ class TestDataSource:
         assert self.datasource.get_url_params() != url_params
         assert expected == url_params
 
-    def test_datasource_get_url_params_ds_config_override(self):
+    def test_datasource_get_url_params_ds_config_override(self, paths):
         """Datasource configuration options can override url param defaults."""
         sys_cfg = {
             "datasource": {
@@ -148,9 +146,7 @@ class TestDataSource:
                 }
             }
         }
-        datasource = DataSourceTestSubclassNet(
-            sys_cfg, self.distro, self.paths
-        )
+        datasource = DataSourceTestSubclassNet(sys_cfg, self.distro, paths)
         expected = (1, 2, 3, 4)
         url_params = datasource.get_url_params()
         assert (
@@ -161,11 +157,11 @@ class TestDataSource:
         ) != url_params
         assert expected == url_params
 
-    def test_datasource_get_url_params_is_zero_or_greater(self):
+    def test_datasource_get_url_params_is_zero_or_greater(self, paths):
         """get_url_params ignores timeouts with a value below 0."""
         # Set an override that is below 0 which gets ignored.
         sys_cfg = {"datasource": {"_undef": {"timeout": "-1"}}}
-        datasource = DataSource(sys_cfg, self.distro, self.paths)
+        datasource = DataSource(sys_cfg, self.distro, paths)
         (
             _max_wait,
             timeout,
@@ -174,7 +170,7 @@ class TestDataSource:
         ) = datasource.get_url_params()
         assert 0 == timeout
 
-    def test_datasource_get_url_uses_defaults_on_errors(self, caplog):
+    def test_datasource_get_url_uses_defaults_on_errors(self, caplog, paths):
         """On invalid system config values for url_params defaults are used."""
         # All invalid values should be logged
         sys_cfg = {
@@ -186,7 +182,7 @@ class TestDataSource:
                 }
             }
         }
-        datasource = DataSource(sys_cfg, self.distro, self.paths)
+        datasource = DataSource(sys_cfg, self.distro, paths)
         url_params = datasource.get_url_params()
         expected = (
             datasource.url_max_wait,
@@ -229,7 +225,7 @@ class TestDataSource:
         assert "nic10" == self.datasource.distro.fallback_interface
         m_get_fallback_nic.assert_not_called()
 
-    def test__get_data_unimplemented(self):
+    def test__get_data_unimplemented(self, paths):
         """Raise an error when _get_data is not implemented."""
         with pytest.raises(
             NotImplementedError,
@@ -237,7 +233,7 @@ class TestDataSource:
         ):
             self.datasource.get_data()
         datasource2 = InvalidDataSourceTestSubclassNet(
-            self.sys_cfg, self.distro, self.paths
+            self.sys_cfg, self.distro, paths
         )
         with pytest.raises(
             NotImplementedError,
@@ -247,7 +243,7 @@ class TestDataSource:
 
     def test_get_data_calls_subclass__get_data(self, datasource):
         """Datasource.get_data uses the subclass' version of _get_data."""
-        assert datasource.get_data()
+        assert datasource.get_data() is True
         assert {
             "availability_zone": "myaz",
             "local-hostname": "test-subclass-hostname",
@@ -336,7 +332,7 @@ class TestDataSource:
             paths,
             get_data_retval=False,
         )
-        assert not datasource.get_data()
+        assert datasource.get_data() is False
         json_file = paths.get_runpath("instance_data")
         assert not os.path.exists(
             json_file
@@ -662,7 +658,7 @@ class TestDataSource:
             self.sys_cfg,
             self.distro,
             paths,
-            custom_metadata={"key1": "val1", "key2": {"key2.1": self.paths}},
+            custom_metadata={"key1": "val1", "key2": {"key2.1": paths}},
         )
         datasource.get_data()
         json_file = paths.get_runpath("instance_data")
@@ -717,7 +713,7 @@ class TestDataSource:
         for filename in (cloud_id_file, cloud_id_link, cloud_id2_file):
             assert not os.path.exists(
                 filename
-            ), "Unexpected link found {filename}"
+            ), f"Unexpected link found {filename}"
         with mock.patch(
             "cloudinit.sources.canonical_cloud_id", return_value="my-cloud"
         ):
@@ -736,7 +732,9 @@ class TestDataSource:
             datasource.persist_instance_data()
         assert "my-cloud2\n" == util.load_text_file(cloud_id2_file)
         # Previous cloud-id-<cloud-type> file removed
-        assert not os.path.exists(cloud_id_file)
+        assert not os.path.exists(
+            cloud_id_file
+        ), f"Unexpected {filename} not removed"
         # Generic link persisted which contains canonical-cloud-id as content
         assert util.is_link(cloud_id_link)
         assert "my-cloud2\n" == util.load_text_file(cloud_id_link)
@@ -803,7 +801,7 @@ class TestDataSource:
             paths,
             custom_metadata={"key1": "val1", "key2": {"key2.1": b"\x123"}},
         )
-        assert datasource.get_data()
+        assert datasource.get_data() is True
         json_file = paths.get_runpath("instance_data")
         content = util.load_text_file(json_file)
         instance_json = util.load_json(content)
