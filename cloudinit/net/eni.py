@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import functools
 import glob
 import logging
 import os
@@ -9,7 +10,15 @@ from contextlib import suppress
 from typing import Any, Dict, List, Optional
 
 from cloudinit import performance, subp, util
-from cloudinit.net import ParserError, renderer, subnet_is_ipv6
+from cloudinit.net import (
+    ParserError,
+    is_ipv4_address,
+    is_ipv4_network,
+    is_ipv6_address,
+    is_ipv6_network,
+    renderer,
+    subnet_is_ipv6,
+)
 from cloudinit.net.network_state import NetworkState
 
 LOG = logging.getLogger(__name__)
@@ -76,9 +85,6 @@ def _iface_add_subnet(iface: dict, subnet: dict, is_ipv6: bool) -> List[str]:
         "dns_search",
         "dns_nameservers",
     ]
-    is_comp_addr = (
-        (lambda v: ":" not in v) if not is_ipv6 else (lambda v: ":" in v)
-    )
     for key, value in subnet.items():
         if key == "netmask":
             continue
@@ -87,10 +93,19 @@ def _iface_add_subnet(iface: dict, subnet: dict, is_ipv6: bool) -> List[str]:
         if value and key in valid_map:
             if isinstance(value, list):
                 if key == "dns_nameservers":
-                    value = list(filter(is_comp_addr, value))
+                    value = list(
+                        filter(
+                            functools.partial(
+                                has_same_ip_version, is_ipv6=is_ipv6
+                            ),
+                            value,
+                        )
+                    )
                 value = " ".join(value)
             else:
-                if key == "dns_nameservers" and not is_comp_addr(value):
+                if key == "dns_nameservers" and not has_same_ip_version(
+                    value, is_ipv6
+                ):
                     continue
             if "_" in key:
                 key = key.replace("_", "-")
@@ -375,6 +390,12 @@ def _ifaces_to_net_config_data(ifaces: dict) -> dict:
     return {"version": 1, "config": [devs[d] for d in sorted(devs)]}
 
 
+def has_same_ip_version(addr_or_net: str, is_ipv6: bool) -> bool:
+    if not is_ipv6:
+        return is_ipv4_address(addr_or_net) or is_ipv4_network(addr_or_net)
+    return is_ipv6_address(addr_or_net) or is_ipv6_network(addr_or_net)
+
+
 class Renderer(renderer.Renderer):
     """Renders network information in a /etc/network/interfaces format."""
 
@@ -425,7 +446,7 @@ class Renderer(renderer.Renderer):
                 route_line += "%s %s %s" % (default_gw, mapping[k], route[k])
             elif k in route:
                 if k == "network":
-                    if ":" in route[k]:
+                    if is_ipv6_address(route[k]):
                         route_line += " -A inet6"
                     elif route.get("prefix") == 32:
                         route_line += " -host"
@@ -525,7 +546,7 @@ class Renderer(renderer.Renderer):
                     + _iface_add_attrs(iface, index, ipv4_subnet_mtu)
                 )
                 for route in subnet.get("routes", []):
-                    ipv6_network = ":" in route.get("network", "")
+                    ipv6_network = is_ipv6_network(route.get("network", ""))
                     if ipv6_network and not is_ipv6:
                         routes6.append(route)
                         continue
@@ -590,11 +611,11 @@ class Renderer(renderer.Renderer):
 
         nameservers = network_state.dns_nameservers
         if nameservers:
-            lo["subnets"][0]["dns_nameservers"] = " ".join(nameservers)
+            lo["subnets"][0]["dns_nameservers"] = nameservers
 
         searchdomains = network_state.dns_searchdomains
         if searchdomains:
-            lo["subnets"][0]["dns_search"] = " ".join(searchdomains)
+            lo["subnets"][0]["dns_search"] = searchdomains
 
         # Apply a sort order to ensure that we write out the physical
         # interfaces first; this is critical for bonding
