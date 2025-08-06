@@ -1,0 +1,50 @@
+{
+  "include": [
+    "cloudinit",
+    "tests"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    "**/.pytest_cache",
+    "**/node_modules",
+    "venv",
+    ".tox"
+  ],
+  "reportMissingImports": "warning",
+  "reportMissingTypeStubs": "none",
+  "reportImportCycles": "none",
+  "reportUnusedImport": "none",
+  "reportUnusedClass": "none",
+  "reportUnusedFunction": "none",
+  "reportUnusedVariable": "none",
+  "reportDuplicateImport": "none",
+  "reportPrivateImportUsage": "none",
+  "reportConstantRedefinition": "none",
+  "reportUnsupportedDunderAll": "none",
+  "reportUnusedCoroutine": "none",
+  "reportUnnecessaryIsInstance": "none",
+  "reportUnnecessaryCast": "none",
+  "reportUnnecessaryComparison": "none",
+  "reportUnnecessaryContains": "none",
+  "reportAssertAlwaysTrue": "none",
+  "reportCallInDefaultInitializer": "none",
+  "reportPropertyTypeMismatch": "none",
+  "reportUninitializedInstanceVariable": "none",
+  "reportInvalidStringEscapeSequence": "none",
+  "reportRedeclaration": "none",
+  "reportUnknownParameterType": "none",
+  "reportUnknownArgumentType": "none",
+  "reportUnknownLambdaType": "none",
+  "reportUnknownVariableType": "none",
+  "reportUnknownMemberType": "none",
+  "reportMissingParameterType": "none",
+  "reportMissingTypeArgument": "none",
+  "reportInvalidTypeVarUse": "none",
+  "pythonVersion": "3.8",
+  "pythonPlatform": "Linux",
+  "executionEnvironments": [
+    {
+      "root": "."
+    }
+  ]
+}

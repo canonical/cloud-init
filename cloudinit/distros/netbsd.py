@@ -15,7 +15,7 @@ try:
     import crypt  # pylint: disable=W4901
 
     salt = crypt.METHOD_BLOWFISH  # pylint: disable=E1101
-    blowfish_hash: Any = functools.partial(
+    blowfish_hash = functools.partial(
         crypt.crypt,
         salt=crypt.mksalt(salt),
     )
