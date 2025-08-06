@@ -1,0 +1,17 @@
+[Address]
+Address=10.100.101.10/24
+
+[Link]
+MTUBytes=1400
+
+[Match]
+Name=vlan101
+
+[Network]
+DHCP=no
+DNS=1.1.1.1 9.9.9.9
+Domains=vlan101.local
+
+[Route]
+Destination=0.0.0.0/0
+Gateway=10.100.101.1
