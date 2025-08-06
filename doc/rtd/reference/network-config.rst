@@ -212,6 +212,12 @@ calls something akin to `FreeBSD.start_services`_ which will invoke applicable
 network services to setup the network, making network activators unneeded
 for BSD flavors at the moment.
 
+Netifrc
+-------
+
+netifrc is Gentoo's default framework for configuring and managing network
+interfaces on systems running OpenRC.
+
 Network output policy
 =====================
 
@@ -231,6 +237,7 @@ preference) is as follows:
 - NetBSD
 - OpenBSD
 - Networkd
+- Netifrc
 
 The default policy for selecting a network ``activator`` (in order of
 preference) is as follows:
@@ -239,6 +246,7 @@ preference) is as follows:
 - **Netplan**: using ``netplan apply`` to manage device setup/teardown
 - **NetworkManager**: using ``nmcli`` to manage device setup/teardown
 - **Networkd**: using ``ip`` to manage device setup/teardown
+- **Netifrc**: using ``rc-service`` to manage device setup/teardown
 
 When applying the policy, ``cloud-init`` checks if the current instance has the
 correct binaries and paths to support the renderer. The first renderer that
@@ -247,8 +255,8 @@ supplying an updated configuration in cloud-config. ::
 
   system_info:
     network:
-      renderers: ['netplan', 'network-manager', 'eni', 'sysconfig', 'freebsd', 'netbsd', 'openbsd']
-      activators: ['eni', 'netplan', 'network-manager', 'networkd']
+      renderers: ['netplan', 'network-manager', 'eni', 'sysconfig', 'netifrc', 'freebsd', 'netbsd', 'openbsd']
+      activators: ['eni', 'netplan', 'network-manager', 'networkd', 'netifrc']
 
 Network configuration tools
 ===========================
@@ -271,7 +279,7 @@ Example output:
 
    usage: /usr/bin/cloud-init devel net-convert [-h] -p PATH -k {eni,network_data.json,yaml,azure-imds,vmware-imc} -d PATH -D
                                                   {alpine,arch,azurelinux,debian,ubuntu,freebsd,dragonfly,gentoo,cos,netbsd,openbsd,almalinux,amazon,centos,cloudlinux,eurolinux,fedora,mariner,miraclelinux,openmandriva,photon,rhel,rocky,virtuozzo,opensuse,sles,openEuler,raspberry-pi-os}
-                                                  [-m name,mac] [--debug] -O {eni,netplan,networkd,sysconfig,network-manager}
+                                                  [-m name,mac] [--debug] -O {eni,netplan,networkd,sysconfig,network-manager,netifrc}
 
    options:
      -h, --help            show this help message and exit
@@ -285,7 +293,7 @@ Example output:
      -m name,mac, --mac name,mac
                            interface name to mac mapping
      --debug               enable debug logging to stderr.
-     -O {eni,netplan,networkd,sysconfig,network-manager}, --output-kind {eni,netplan,networkd,sysconfig,network-manager}
+     -O {eni,netplan,networkd,sysconfig,network-manager,netifrc}, --output-kind {eni,netplan,networkd,sysconfig,network-manager,netifrc}
                            The network config format to emit
 
 Example of converting V2 to sysconfig:
@@ -327,3 +335,4 @@ Example output:
 .. _Vultr JSON meta-data: https://www.vultr.com/metadata/
 .. _cloudinit.net.activators.select_activator: https://github.com/canonical/cloud-init/blob/main/cloudinit/net/activators.py#L249
 .. _FreeBSD.start_services: https://github.com/canonical/cloud-init/blob/main/cloudinit/net/freebsd.py#L46
+.. _Netifrc: https://wiki.gentoo.org/wiki/Netifrc
