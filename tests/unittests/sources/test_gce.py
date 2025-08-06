@@ -327,8 +327,7 @@ class TestDataSourceGCE:
     @responses.activate
     def test_only_last_part_of_zone_used_for_availability_zone(self):
         self._set_mock_metadata()
-        r = self.ds.get_data()
-        assert True is r
+        assert True is self.ds.get_data()
         assert "bar" == self.ds.availability_zone
 
     @mock.patch("cloudinit.sources.DataSourceGCE.GoogleMetadataFetcher")

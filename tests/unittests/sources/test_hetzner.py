@@ -100,8 +100,7 @@ class TestDataSourceHetzner:
             }
         ]
 
-        ret = ds.get_data()
-        assert ret
+        assert True is ds.get_data()
 
         m_net.assert_called_once_with(
             ds.distro,
@@ -113,7 +112,7 @@ class TestDataSourceHetzner:
             ],
         )
 
-        assert m_readmd.called
+        assert 0 != m_readmd.call_count
 
         assert METADATA.get("hostname") == ds.get_hostname().hostname
 
@@ -136,5 +135,5 @@ class TestDataSourceHetzner:
 
         assert not ret
         # These are a white box attempt to ensure it did not search.
-        m_find_fallback.assert_not_called()
-        m_read_md.assert_not_called()
+        assert 0 == m_find_fallback.call_count
+        assert 0 == m_read_md.call_count
