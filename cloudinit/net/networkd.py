@@ -5,6 +5,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
+from collections import defaultdict
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from cloudinit import subp, util
@@ -373,6 +374,7 @@ class Renderer(renderer.Renderer):
             vlan_dict = self.render_vlans(ns)
             vlan_netdev = vlan_dict["vlan_netdev"]
             vlan_link = vlan_dict["vlan_link"]
+            vlan_link["macaddress"] = vlan_dict["vlan_mac_info"]
             ret_dict["vlan_netdev"] = vlan_netdev
 
         if "bonds" in ns.config:
@@ -392,9 +394,9 @@ class Renderer(renderer.Renderer):
 
             iface_name = iface["name"]
 
-            vlan_link_name = vlan_link.get(iface_name)
-            if vlan_link_name:
-                cfg.update_section("Network", "VLAN", vlan_link_name)
+            vlan_link_name = vlan_link.get(iface_name, [])
+            for i in vlan_link_name:
+                cfg.update_section("Network", "VLAN", i)
 
             # TODO: revisit this once network state renders macaddress
             # properly for vlan config
@@ -496,9 +498,9 @@ class Renderer(renderer.Renderer):
         return ret_dict
 
     def render_vlans(self, ns: NetworkState) -> dict:
-        vlan_link_info: Dict[str, Any] = {}
+        vlan_link_info = defaultdict(list)
+        vlan_mac_info = {}
         vlan_ndev_configs = {}
-        vlan_link_info["macaddress"] = {}
 
         vlans = ns.config.get("vlans", {})
         for vlan_name, vlan_cfg in vlans.items():
@@ -511,7 +513,7 @@ class Renderer(renderer.Renderer):
                 )
                 continue
 
-            vlan_link_info[parent] = vlan_name
+            vlan_link_info[parent].append(vlan_name)
 
             # -------- .netdev for VLAN --------
             cfg = CfgParser()
@@ -526,7 +528,7 @@ class Renderer(renderer.Renderer):
             if val:
                 val = val.lower()
                 cfg.update_section("NetDev", "MACAddress", val)
-                vlan_link_info["macaddress"][vlan_name] = val
+                vlan_mac_info[vlan_name] = val
 
             cfg.update_section("VLAN", "Id", vlan_id)
             vlan_ndev_configs[vlan_name] = cfg.get_final_conf()
@@ -534,6 +536,7 @@ class Renderer(renderer.Renderer):
         return {
             "vlan_netdev": vlan_ndev_configs,
             "vlan_link": vlan_link_info,
+            "vlan_mac_info": vlan_mac_info,
         }
 
     def render_bonds(self, ns: NetworkState) -> dict:

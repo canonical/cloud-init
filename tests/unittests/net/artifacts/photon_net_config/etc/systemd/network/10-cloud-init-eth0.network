@@ -9,3 +9,5 @@ Name=eth0
 Bond=bond0
 DHCP=no
 VLAN=vlan100
+VLAN=vlan101
+VLAN=vlan102
