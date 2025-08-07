@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import functools
 import glob
 import logging
 import os
@@ -9,7 +10,15 @@ from contextlib import suppress
 from typing import Any, Dict, List, Optional
 
 from cloudinit import performance, subp, util
-from cloudinit.net import ParserError, renderer, subnet_is_ipv6
+from cloudinit.net import (
+    ParserError,
+    is_ipv4_address,
+    is_ipv4_network,
+    is_ipv6_address,
+    is_ipv6_network,
+    renderer,
+    subnet_is_ipv6,
+)
 from cloudinit.net.network_state import NetworkState
 
 LOG = logging.getLogger(__name__)
@@ -62,7 +71,7 @@ NET_CONFIG_OPTIONS = [
 
 
 # TODO: switch valid_map based on mode inet/inet6
-def _iface_add_subnet(iface: dict, subnet: dict) -> List[str]:
+def _iface_add_subnet(iface: dict, subnet: dict, is_ipv6: bool) -> List[str]:
     content = []
     valid_map = [
         "address",
@@ -83,7 +92,21 @@ def _iface_add_subnet(iface: dict, subnet: dict) -> List[str]:
             value = "%s/%s" % (subnet["address"], subnet["prefix"])
         if value and key in valid_map:
             if isinstance(value, list):
+                if key == "dns_nameservers":
+                    value = list(
+                        filter(
+                            functools.partial(
+                                has_same_ip_version, is_ipv6=is_ipv6
+                            ),
+                            value,
+                        )
+                    )
                 value = " ".join(value)
+            else:
+                if key == "dns_nameservers" and not has_same_ip_version(
+                    value, is_ipv6
+                ):
+                    continue
             if "_" in key:
                 key = key.replace("_", "-")
             content.append("    {0} {1}".format(key, value))
@@ -367,6 +390,12 @@ def _ifaces_to_net_config_data(ifaces: dict) -> dict:
     return {"version": 1, "config": [devs[d] for d in sorted(devs)]}
 
 
+def has_same_ip_version(addr_or_net: str, is_ipv6: bool) -> bool:
+    if not is_ipv6:
+        return is_ipv4_address(addr_or_net) or is_ipv4_network(addr_or_net)
+    return is_ipv6_address(addr_or_net) or is_ipv6_network(addr_or_net)
+
+
 class Renderer(renderer.Renderer):
     """Renders network information in a /etc/network/interfaces format."""
 
@@ -417,7 +446,7 @@ class Renderer(renderer.Renderer):
                 route_line += "%s %s %s" % (default_gw, mapping[k], route[k])
             elif k in route:
                 if k == "network":
-                    if ":" in route[k]:
+                    if is_ipv6_address(route[k]):
                         route_line += " -A inet6"
                     elif route.get("prefix") == 32:
                         route_line += " -host"
@@ -447,6 +476,8 @@ class Renderer(renderer.Renderer):
             # Specify WOL setting 'g' for using "Magic Packet"
             iface["ethernet-wol"] = "g"
         if subnets:
+            dns = None
+            routes6 = []
             for index, subnet in enumerate(subnets):
                 ipv4_subnet_mtu = None
                 iface["index"] = index
@@ -454,8 +485,10 @@ class Renderer(renderer.Renderer):
                 iface["control"] = subnet.get("control", "auto")
                 subnet_inet = "inet"
                 if subnet_is_ipv6(subnet):
+                    is_ipv6 = True
                     subnet_inet += "6"
                 else:
+                    is_ipv6 = False
                     ipv4_subnet_mtu = subnet.get("mtu")
                 iface["inet"] = subnet_inet
                 if (
@@ -492,16 +525,60 @@ class Renderer(renderer.Renderer):
                 ]:
                     iface["control"] = "alias"
 
+                # v1 config has the dns info in the first non-dhcp route,
+                # replicate dns to others to be more correct
+                dns_present = (
+                    "dns_search" in subnet or "dns_nameservers" in subnet
+                )
+                if dns is None and dns_present:
+                    dns = dict(
+                        (k, subnet.get(k))
+                        for k in ("dns_search", "dns_nameservers")
+                    )
+                if dns is not None and not dns_present:
+                    subnet = {**subnet, **dns}
+
                 lines = list(
                     _iface_start_entry(
                         iface, index, render_hwaddress=render_hwaddress
                     )
-                    + _iface_add_subnet(iface, subnet)
+                    + _iface_add_subnet(iface, subnet, is_ipv6)
                     + _iface_add_attrs(iface, index, ipv4_subnet_mtu)
                 )
                 for route in subnet.get("routes", []):
+                    ipv6_network = is_ipv6_network(route.get("network", ""))
+                    if ipv6_network and not is_ipv6:
+                        routes6.append(route)
+                        continue
                     lines.extend(self._render_route(route, indent="    "))
 
+                if routes6 and is_ipv6:
+                    for route in routes6:
+                        lines.extend(self._render_route(route, indent="    "))
+                    routes6.clear()
+
+                sections.append(lines)
+
+            if routes6:
+                # no ipv6 subnet found create a static one to add remaining
+                # routes:
+                iface = {
+                    "name": iface["name"],
+                    "control": iface["control"],
+                    "mode": "static",
+                    "inet": "inet6",
+                }
+                subnet = {"type": "static", "routes": routes6}
+                if dns is not None:
+                    subnet = {**subnet, **dns}
+                lines = list(
+                    _iface_start_entry(
+                        iface, -1, render_hwaddress=render_hwaddress
+                    )
+                    + _iface_add_subnet(iface, subnet, True)
+                )
+                for route in subnet["routes"]:
+                    lines.extend(self._render_route(route, indent="    "))
                 sections.append(lines)
         else:
             # ifenslave docs say to auto the slave devices
@@ -534,11 +611,11 @@ class Renderer(renderer.Renderer):
 
         nameservers = network_state.dns_nameservers
         if nameservers:
-            lo["subnets"][0]["dns_nameservers"] = " ".join(nameservers)
+            lo["subnets"][0]["dns_nameservers"] = nameservers
 
         searchdomains = network_state.dns_searchdomains
         if searchdomains:
-            lo["subnets"][0]["dns_search"] = " ".join(searchdomains)
+            lo["subnets"][0]["dns_search"] = searchdomains
 
         # Apply a sort order to ensure that we write out the physical
         # interfaces first; this is critical for bonding
