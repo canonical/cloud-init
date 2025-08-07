@@ -261,7 +261,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         raise errors[-1]
 
 
-def _friendly_characters(input: str) -> list[str]:
+def _friendly_characters(input: str) -> List[str]:
     return [x for x in input if x not in _unfriendly_characters]
 
 
