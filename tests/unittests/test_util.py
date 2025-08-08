@@ -2042,28 +2042,17 @@ class TestDelDir:
             util.del_dir(tmpdir)
         assert not os.path.exists(tmpdir)
 
-    @pytest.mark.parametrize(
-        "ignore_FileNotFoundError,expected_error",
-        ((False, pytest.raises(FileNotFoundError)), (True, does_not_raise())),
-    )
-    def test_del_dir_ignoreFileNotFound(
-        self, ignore_FileNotFoundError, expected_error
-    ):
+    def test_del_dir_ignoreFileNotFound(self):
         """
-        Should raise FileNotFoundError only if tries to delete non-existing
-        directory with ignore_FileNotFoundError=False
+        Should not raise FileNotFoundError
         """
         non_existing_dir = "/blabla"
         assert not os.path.exists(non_existing_dir)
-        with expected_error:
-            util.del_dir(
-                non_existing_dir,
-                ignore_FileNotFoundError=ignore_FileNotFoundError,
-            )
+        with does_not_raise():
+            util.del_dir(non_existing_dir)
         assert not os.path.exists(non_existing_dir)
 
-    @pytest.mark.parametrize("ignore_FileNotFoundError", (False, True))
-    def test_del_dir_generic_errors(self, ignore_FileNotFoundError, mocker):
+    def test_del_dir_generic_errors(self, mocker):
         """
         If shutil.rmtree raises a non-FileNotFoundError , del_dir should
         raise this error
@@ -2074,9 +2063,7 @@ class TestDelDir:
             side_effect=mocked_side_effect,
         )
         with pytest.raises(mocked_side_effect):
-            util.del_dir(
-                "somedir", ignore_FileNotFoundError=ignore_FileNotFoundError
-            )
+            util.del_dir("somedir")
         assert mock_rmtree.call_count == 1
 
 
