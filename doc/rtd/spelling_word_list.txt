@@ -173,7 +173,6 @@ rc
 rd
 readinessprobes
 regex
-releasever
 repodata
 resizefs
 resolv

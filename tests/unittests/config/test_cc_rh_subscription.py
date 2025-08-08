@@ -40,7 +40,7 @@ class TestHappyPath:
             "add-pool": ["pool1", "pool2", "pool3"],
             "enable-repo": ["repo1", "repo2", "repo3"],
             "disable-repo": ["repo4", "repo5"],
-            "releasever": "7.6b",
+            "release_version": "7.6b",
         }
     }
 
@@ -54,9 +54,11 @@ class TestHappyPath:
         assert "System is already registered" in caplog.text
 
     @mock.patch.object(
-        cc_rh_subscription.SubscriptionManager, "_set_releasever"
+        cc_rh_subscription.SubscriptionManager, "_set_release_version"
     )
-    def test_simple_registration(self, m_set_releasever, m_sman_cli, caplog):
+    def test_simple_registration(
+        self, m_set_release_version, m_sman_cli, caplog
+    ):
         """
         Simple registration with username and password
         """
@@ -80,7 +82,7 @@ class TestHappyPath:
         )
         assert "rh_subscription plugin completed successfully" in caplog.text
         assert m_sman_cli.call_count == 2
-        assert m_set_releasever.call_count == 0
+        assert m_set_release_version.call_count == 0
 
     @mock.patch.object(cc_rh_subscription.SubscriptionManager, "_getRepos")
     def test_update_repos_disable_with_none(self, m_get_repos, m_sman_cli):
@@ -99,7 +101,7 @@ class TestHappyPath:
     def test_full_registration(self, m_sman_cli, caplog):
         """
         Registration with auto-attach, service-level, adding pools,
-        enabling and disabling yum repos and setting releasever
+        enabling and disabling yum repos and setting release_version
         """
         call_lists = []
         call_lists.append(["attach", "--pool=pool1", "--pool=pool3"])
@@ -125,7 +127,7 @@ class TestHappyPath:
             ("Release set to: 7.6b", ""),
         ]
         # to avoid deleting the actual cache files
-        # (triggered by the presence of the releasever key)
+        # (triggered by the presence of the release_version key)
         # on the host running the tests
         mock.patch("shutil.rmtree")
 
@@ -181,11 +183,11 @@ class TestBadInput:
             "org": "ABC",
         }
     }
-    CONFIG_BADRELEASEVER = {
+    CONFIG_BAD_RELEASE_VERSION = {
         "rh_subscription": {
             "username": "scooby@do.com",
             "password": "scooby-snacks",
-            "releasever": "badreleasever",
+            "release_version": "bad_release_version",
         }
     }
 
@@ -291,7 +293,7 @@ class TestBadInput:
                 "fookey is not a valid key for rh_subscription. Valid keys"
                 " are: org, activation-key, username, password, disable-repo,"
                 " enable-repo, add-pool, rhsm-baseurl, server-hostname,"
-                " auto-attach, service-level, releasever",
+                " auto-attach, service-level, release_version",
                 "rh_subscription plugin did not complete successfully",
             ),
             caplog,
@@ -300,36 +302,40 @@ class TestBadInput:
     @mock.patch.object(
         cc_rh_subscription.SubscriptionManager, "_delete_packagemanager_cache"
     )
-    def test_bad_releasever(self, m_delete_pm_cache, m_sman_cli, caplog):
+    def test_bad_release_version(self, m_delete_pm_cache, m_sman_cli, caplog):
         """
-        Failure at setting releasever
+        Failure at setting release_version
         """
         m_sman_cli.side_effect = [
             subp.ProcessExecutionError,
             (self.REG, "bar"),
             subp.ProcessExecutionError,
         ]
-        cc_rh_subscription.handle(NAME, self.CONFIG_BADRELEASEVER, None, [])
+        cc_rh_subscription.handle(
+            NAME, self.CONFIG_BAD_RELEASE_VERSION, None, []
+        )
         assert m_sman_cli.call_count == 3
         assert m_delete_pm_cache.call_count == 0
         self.assert_logged_warnings(
             (
-                "Unable to set releasever",
+                "Unable to set release_version",
                 "rh_subscription plugin did not complete successfully",
             ),
             caplog,
         )
 
     @mock.patch("shutil.rmtree", side_effect=[PermissionError])
-    def test_pm_cache_deletion_after_setting_releasever(
+    def test_pm_cache_deletion_after_setting_release_version(
         self, m_rmtree, m_sman_cli, caplog
     ):
         """
         Failure at deleting package manager cache
-        after setting releasever
+        after setting release_version
         """
-        good_release_ver_cfg = copy.deepcopy(self.CONFIG_BADRELEASEVER)
-        good_release_ver_cfg["rh_subscription"]["releasever"] = "1.2Server"
+        good_release_ver_cfg = copy.deepcopy(self.CONFIG_BAD_RELEASE_VERSION)
+        good_release_ver_cfg["rh_subscription"][
+            "release_version"
+        ] = "1.2Server"
         m_sman_cli.side_effect = [
             subp.ProcessExecutionError,
             (self.REG, "bar"),
@@ -341,8 +347,8 @@ class TestBadInput:
         assert m_rmtree.call_args_list == [mock.call("/var/cache/dnf")]
         self.assert_logged_warnings(
             (
-                "Already set the releasever in the subscription manager but "
-                "unable to delete the package manager cache",
+                "Already set the release_version in the subscription manager"
+                " but unable to delete the package manager cache",
                 "rh_subscription plugin did not complete successfully",
             ),
             caplog,
@@ -370,7 +376,7 @@ class TestRhSubscriptionSchema:
                 "'name' is not of type 'array'",
             ),
             (
-                {"rh_subscription": {"releasever": [10]}},
+                {"rh_subscription": {"release_version": [10]}},
                 r"\[10\] is not of type 'string'",
             ),
             (
