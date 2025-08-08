@@ -71,10 +71,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                 raise SubscriptionError("Unable to add or remove repos")
             if sm.release_version:
                 sm._set_release_version()
-                sm._delete_packagemanager_cache(
-                    additional_error_message="Already set the release_version"
-                    " in the subscription manager but"
-                )
+                sm._delete_packagemanager_cache()
 
             sm.log_success("rh_subscription plugin completed successfully")
         except SubscriptionError as e:
@@ -468,35 +465,28 @@ class SubscriptionManager:
         Raises Subscription error if the command fails
         or if release_version is not passed in the config
         """
-        if not self.release_version:
-            raise SubscriptionError(
-                "Tried to set release_version while"
-                "it was not passed in cloud-config"
-            )
 
         cmd = ["release", f"--set={self.release_version}"]
         try:
             _sub_man_cli(cmd)
         except subp.ProcessExecutionError as e:
-            raise SubscriptionError("Unable to set release_version") from e
+            raise SubscriptionError(
+                f"Unable to set release_version using: {cmd}"
+            ) from e
 
-        self.log.debug("Executed the release --set command successfully.")
-
-    def _delete_packagemanager_cache(self, additional_error_message=""):
+    def _delete_packagemanager_cache(self):
         """
         Delete the package manager cache.
         Raises Subscription error if the deletion fails
         """
-        self.log.debug("Deleting the package manager cache")
+        LOG.debug("Deleting the package manager cache")
         try:
             util.del_dir("/var/cache/dnf")
             util.del_dir("/var/cache/yum")
         except Exception as e:
             raise SubscriptionError(
-                f"{additional_error_message}"
-                " unable to delete the package manager cache"
+                "Unable to delete the package manager cache"
             ) from e
-        self.log.debug("Deleted the package manager cache.")
 
 
 def _sub_man_cli(cmd, logstring_val=False):
