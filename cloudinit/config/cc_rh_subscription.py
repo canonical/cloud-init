@@ -489,8 +489,8 @@ class SubscriptionManager:
         """
         self.log.debug("Deleting the package manager cache")
         try:
-            util.del_dir("/var/cache/dnf", ignore_FileNotFoundError=True)
-            util.del_dir("/var/cache/yum", ignore_FileNotFoundError=True)
+            util.del_dir("/var/cache/dnf")
+            util.del_dir("/var/cache/yum")
         except Exception as e:
             raise SubscriptionError(
                 f"{additional_error_message}"
