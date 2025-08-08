@@ -316,9 +316,13 @@ class TestBadInput:
         )
         assert m_sman_cli.call_count == 3
         assert m_delete_pm_cache.call_count == 0
+        expected_cmd = [
+            "release",
+            f"--set={self.CONFIG_BAD_RELEASE_VERSION["rh_subscription"]["release_version"]}",
+        ]
         self.assert_logged_warnings(
             (
-                "Unable to set release_version",
+                f"Unable to set release_version using: {expected_cmd}",
                 "rh_subscription plugin did not complete successfully",
             ),
             caplog,
@@ -347,8 +351,7 @@ class TestBadInput:
         assert m_rmtree.call_args_list == [mock.call("/var/cache/dnf")]
         self.assert_logged_warnings(
             (
-                "Already set the release_version in the subscription manager"
-                " but unable to delete the package manager cache",
+                "Unable to delete the package manager cache",
                 "rh_subscription plugin did not complete successfully",
             ),
             caplog,
