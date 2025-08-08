@@ -1,6 +1,10 @@
-[build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+[build-system]  # See meson.build. Empty build-system to avoid RTD builds
+build-backend = ""
+requires = []
+
+# Provide meson setup cmdline arguments to support readthedocs builds
+[tool.meson-python.args]
+setup = ["-Dinit_system=systemd", "-Dreadthedocs_build=true"]
 
 [tool.black]
 line-length = 79

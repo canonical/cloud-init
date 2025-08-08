@@ -104,8 +104,14 @@ def get_version_from_git(
     return version, version_long
 
 
-def main(use_tags: bool = False, output_json: bool = False):
+def main(
+    use_tags: bool = False,
+    use_src_version: bool = False,
+    output_json: bool = False
+):
     src_version = ci_version.version_string()
+    if use_src_version:
+        return src_version
     # upstream/MM.NN.x tracks our patch level releases so ignore trailing '.x'
     major_minor_version = ".".join(src_version.split(".")[:2])
 
@@ -147,7 +153,8 @@ def main(use_tags: bool = False, output_json: bool = False):
 
 
 if __name__ == "__main__":
-    arg_use_tags = "--tags" in sys.argv or bool(os.environ.get("CI_RV_TAGS"))
-    arg_output_json = "--json" in sys.argv
-    output = main(arg_use_tags, arg_output_json)
+    use_tags = "--tags" in sys.argv or bool(os.environ.get("CI_RV_TAGS"))
+    use_src_version = "--use-src-version" in sys.argv
+    output_json = "--json" in sys.argv
+    output = main(use_tags, use_src_version, output_json)
     print(output)

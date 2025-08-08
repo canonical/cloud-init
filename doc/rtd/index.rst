@@ -100,6 +100,7 @@ projects, contributions, suggestions, fixes and constructive feedback.
    Contribute to code <development/contribute_code.rst>
    Contribute to docs <development/contribute_docs.rst>
    Community <development/summit.rst>
+   Packaging cloud-init <development/packaging.rst>
 
 
 .. LINKS
