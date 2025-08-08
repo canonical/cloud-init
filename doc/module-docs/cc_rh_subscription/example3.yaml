@@ -19,4 +19,4 @@ rh_subscription:
   server-hostname: foo.bar.com
   # Set `subscription-manager release --set=6Server` then
   # delete /var/cache/{dnf,yum}
-  releasever: 6Server
+  release_version: 6Server
