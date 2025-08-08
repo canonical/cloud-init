@@ -261,8 +261,8 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         raise errors[-1]
 
 
-def _friendly_characters(input: str) -> List[str]:
-    return [x for x in input if x not in _unfriendly_characters]
+def _friendly_characters(input: str) -> str:
+    return "".join([x for x in input if x not in _unfriendly_characters])
 
 
 def rand_user_password(pwlen=20, type="RANDOM") -> str:
