@@ -22,7 +22,7 @@ get_env_dirs() {
             key=${key%%=*}
             val=${equal}
         fi
-        [ "$key" = "envdir" ] || continue
+        [ "$key" = "envdir" ] || [ "$key" = "env_dir" ] || continue
         out="${out:+${out}${CR}}${curenv}:$val"
     done
     echo "$out"
