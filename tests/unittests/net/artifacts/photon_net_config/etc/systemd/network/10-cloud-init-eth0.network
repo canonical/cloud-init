@@ -1,3 +1,6 @@
+[Address]
+Address=192.0.2.10/24
+
 [Link]
 MTUBytes=1500
 
@@ -9,3 +12,28 @@ Name=eth0
 Bond=bond0
 DHCP=no
 VLAN=vlan100
+VLAN=vlan101
+VLAN=vlan102
+
+[Route]
+Destination=0.0.0.0/0
+Gateway=192.168.14.1
+Metric=50
+Table=10
+
+[Route]
+Destination=::/0
+Gateway=2001:1::2
+Metric=100
+
+[RoutingPolicyRule]
+From=192.0.2.10
+Priority=100
+Table=10
+To=203.0.113.100
+
+[RoutingPolicyRule]
+From=203.0.113.101/24
+Priority=90
+Table=70
+To=192.0.2.11/8

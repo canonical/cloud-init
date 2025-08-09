@@ -8,6 +8,24 @@ network:
       set-name: eth0
       dhcp4: false
       mtu: 1500
+      addresses: [192.0.2.10/24]
+      routes:
+        - to: default
+          via: 192.168.14.1
+          metric: 50
+          table: 10
+        - to: default
+          via: 2001:1::2
+          metric: 100
+      routing-policy:
+        - from: 192.0.2.10
+          to: 203.0.113.100
+          table: 10
+          priority: 100
+        - to: 192.0.2.11/8
+          from: 203.0.113.101/24
+          table: 70
+          priority: 90
 
     eth1:
       dhcp4: true
@@ -17,16 +35,33 @@ network:
       match:
         macaddress: "00:aa:bb:cc:dd:ee"
       set-name: eth2
-      mtu: 1400
       dhcp4: false
+      mtu: 1400
       addresses:
         - 10.20.30.40/24
       nameservers:
-        addresses:
-          - 9.9.9.9
-          - 8.8.8.8
-        search:
-          - example.org
+        addresses: [9.9.9.9, 8.8.8.8]
+        search: [example.org]
+      routes:
+        - to: 198.51.100.0/24
+          via: 10.20.30.1
+          metric: 60
+        - to: 192.0.2.0/24
+          via: 10.20.30.1
+          metric: 110
+      routing-policy:
+        - from: 10.20.30.40
+          to: 198.51.100.200
+          table: 12
+          priority: 120
+
+    eth3:
+      dhcp4: false
+      dhcp6: false
+
+    eth4:
+      dhcp4: false
+      dhcp6: false
 
   bonds:
     bond0:
@@ -45,19 +80,13 @@ network:
     vlan100:
       id: 100
       link: eth0
-      addresses:
-        - 192.168.100.10/24
-        - 192.168.100.11/24
+      addresses: [192.168.100.10/24, 192.168.100.11/24]
       dhcp6: true
       mtu: 901
       macaddress: "00:11:22:33:44:66"
       nameservers:
-        addresses:
-          - 8.8.8.8
-          - 1.1.1.1
-        search:
-          - corp.example.com
-          - vlan.test
+        addresses: [8.8.8.8, 1.1.1.1]
+        search: [corp.example.com, vlan.test]
       routes:
         - to: 10.10.200.0/24
           via: 192.168.100.1
@@ -65,6 +94,39 @@ network:
         - to: 10.10.201.0/24
           via: 192.168.100.2
           metric: 150
+
+    vlan101:
+      id: 101
+      link: eth0
+      addresses: [10.100.101.10/24]
+      routes:
+        - to: 0.0.0.0/0
+          via: 10.100.101.1
+          table: 101
+      routing-policy:
+        - from: 10.100.101.10
+          table: 101
+          priority: 100
+      mtu: 1400
+      nameservers:
+        addresses: [1.1.1.1, 9.9.9.9]
+        search: [vlan101.local]
+
+    vlan102:
+      id: 102
+      link: eth0
+      addresses: [10.100.102.10/24]
+      routes:
+        - to: 0.0.0.0/0
+          via: 10.100.102.1
+          table: 102
+      routing-policy:
+        - from: 10.100.102.10
+          table: 102
+      mtu: 1400
+      nameservers:
+        addresses: [8.8.8.8, 1.0.0.1]
+        search: [vlan102.local]
 
     vl101:
       id: 101
@@ -74,13 +136,75 @@ network:
       id: 200
       link: bond0
       macaddress: "00:11:22:33:44:99"
-      addresses:
-        - 192.168.200.10/24
+      addresses: [192.168.200.10/24]
       nameservers:
-        addresses:
-          - 1.1.1.1
-          - 8.8.4.4
-        search:
-          - bond.vlan.test
+        addresses: [1.1.1.1, 8.8.4.4]
+        search: [bond.vlan.test]
       mtu: 111
       dhcp6: true
+
+  bridges:
+    br0:
+      interfaces: [eth3, eth4]
+      addresses: [172.16.1.10/24]
+      routes:
+        - to: 0.0.0.0/0
+          via: 172.16.1.1
+          metric: 100
+      nameservers:
+        addresses: [1.1.1.1]
+        search: [bridge.test]
+      mtu: 9000
+      macaddress: "00:11:22:33:44:aa"
+      parameters:
+        stp: true
+        forward-delay: 4
+        hello-time: 2
+        max-age: 20
+        priority: 2048
+        ageing-time: 300
+        path-cost:
+          eth3: 30
+          eth4: 40
+        port-priority:
+          eth3: 32
+          eth4: 60
+
+    br1:
+      interfaces: [vlan100]
+      addresses: [10.0.0.10/24]
+      routes:
+        - to: 10.0.0.0/24
+          via: 10.0.0.1
+          metric: 200
+      nameservers:
+        addresses: [9.9.9.9]
+        search: [vlan.bridge]
+      mtu: 1500
+      macaddress: "00:11:22:33:44:88"
+      parameters:
+        stp: true
+        forward-delay: 3
+        hello-time: 1
+        max-age: 15
+        priority: 4096
+        ageing-time: 200
+        path-cost:
+          vlan100: 45
+        port-priority:
+          vlan100: 50
+
+    br2:
+      interfaces: [vl101]
+      addresses: [192.168.50.10/24]
+      nameservers:
+        addresses: [8.8.4.4]
+      mtu: 1600
+      macaddress: "00:11:22:33:44:BB"
+      parameters:
+        stp: false
+        forward-delay: 0
+        hello-time: 2
+        max-age: 20
+        priority: 8192
+        ageing-time: 100

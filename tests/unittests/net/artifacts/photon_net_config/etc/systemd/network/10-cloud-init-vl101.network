@@ -2,4 +2,5 @@
 Name=vl101
 
 [Network]
+Bridge=br2
 DHCP=no
