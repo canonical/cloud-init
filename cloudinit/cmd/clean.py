@@ -13,6 +13,7 @@ import os
 import sys
 
 from cloudinit import settings, sources
+from cloudinit.config import cc_mounts
 from cloudinit.distros import uses_systemd
 from cloudinit.log import log_util
 from cloudinit.net.netplan import CLOUDINIT_NETPLAN_FILE
@@ -99,6 +100,7 @@ def get_parser(parser=None):
             "ssh_config",
             "network",
             "datasource",
+            "fstab",
         ],
         default=[],
         nargs="+",
@@ -118,7 +120,7 @@ def remove_artifacts(init, remove_logs, remove_seed=False, remove_config=None):
     @param: remove_seed: Boolean. Set True to also delete seed subdir in
         paths.cloud_dir.
     @param: remove_config: List of strings.
-        Can be any of: all, network, ssh_config, datasource.
+        Can be any of: all, network, ssh_config, datasource, fstab.
     @returns: 0 on success, 1 otherwise.
     """
     init.read_cfg()
@@ -134,6 +136,8 @@ def remove_artifacts(init, remove_logs, remove_seed=False, remove_config=None):
     ):
         for conf in GEN_SSH_CONFIG_FILES:
             del_file(conf)
+    if remove_config and set(remove_config).intersection(["all", "fstab"]):
+        cc_mounts.cleanup_fstab()
 
     clean_datasource = remove_config and set(remove_config).intersection(
         ["all", "datasource"]
