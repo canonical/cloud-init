@@ -923,6 +923,7 @@ class NetworkStateInterpreter:
                         "gateway": route.get("via"),
                         "metric": route.get("metric"),
                         "mtu": route.get("mtu"),
+                        "table": route.get("table"),
                     }
                 )
             )
