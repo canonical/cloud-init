@@ -68,6 +68,7 @@ class CfgParser:
             "VLAN": [],
             "Bond": [],
             "Bridge": [],
+            "RoutingPolicyRule": {},
         }
 
     def update_section(self, sec, key, val):
@@ -104,7 +105,7 @@ class CfgParser:
             if k == "Address":
                 for e in sorted(v):
                     contents += f"[{k}]\n{e}\n\n"
-            elif k == "Route":
+            elif k in ["Route", "RoutingPolicyRule"]:
                 for n in sorted(v):
                     contents += f"[{k}]\n"
                     for e in sorted(v[n]):
@@ -181,6 +182,7 @@ class Renderer(renderer.Renderer):
             "gateway": "Gateway",
             "network": "Destination",
             "metric": "Metric",
+            "table": "Table",
         }
 
         # prefix is derived using netmask by network_state
@@ -364,6 +366,26 @@ class Renderer(renderer.Renderer):
         for k, v in bridge_netdev.items():
             self.create_network_file(k, v, network_dir, ext=".netdev")
 
+    def parseRoutingPolicy(self, policy, cfg: CfgParser):
+        rid = 0
+        key = "RoutingPolicyRule"
+        for val in policy:
+            for k, v in val.items():
+                cfg.update_route_section(key, rid, k.capitalize(), v)
+            rid += 1
+
+    def extractRoutingPolicies(self, nsCfg: Dict):
+        routingPolicies = {}
+        key = "routing-policy"
+
+        for section in ("ethernets", "bonds", "vlans", "bridges"):
+            if section not in nsCfg:
+                continue
+            for iface, settings in nsCfg[section].items():
+                if key in settings:
+                    routingPolicies[iface] = settings[key]
+        return routingPolicies
+
     def _render_content(self, ns: NetworkState):
         ret_dict = {}
         vlan_link = {}
@@ -389,6 +411,8 @@ class Renderer(renderer.Renderer):
             bridge_link = bridge_dict["bridge_link"]
             ret_dict["bridge_netdev"] = bridge_netdev
 
+        routingPolicies = self.extractRoutingPolicies(ns.config)
+
         for iface in ns.iter_interfaces():
             cfg = CfgParser()
 
@@ -397,6 +421,10 @@ class Renderer(renderer.Renderer):
             vlan_link_name = vlan_link.get(iface_name, [])
             for i in vlan_link_name:
                 cfg.update_section("Network", "VLAN", i)
+
+            rPolicy = routingPolicies.get(iface_name)
+            if rPolicy:
+                self.parseRoutingPolicy(rPolicy, cfg)
 
             # TODO: revisit this once network state renders macaddress
             # properly for vlan config

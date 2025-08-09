@@ -15,3 +15,9 @@ Domains=vlan101.local
 [Route]
 Destination=0.0.0.0/0
 Gateway=10.100.101.1
+Table=101
+
+[RoutingPolicyRule]
+From=10.100.101.10
+Priority=100
+Table=101
