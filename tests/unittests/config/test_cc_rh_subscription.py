@@ -318,7 +318,7 @@ class TestBadInput:
         assert m_delete_pm_cache.call_count == 0
         expected_cmd = [
             "release",
-            f"--set={self.CONFIG_BAD_RELEASE_VERSION["rh_subscription"]["release_version"]}",
+            f"--set={self.CONFIG_BAD_RELEASE_VERSION['rh_subscription']['release_version']}",
         ]
         self.assert_logged_warnings(
             (
