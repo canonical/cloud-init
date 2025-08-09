@@ -463,7 +463,6 @@ class SubscriptionManager:
         """
         Execute "subscription-manager release --set=<release_version>"
         Raises Subscription error if the command fails
-        or if release_version is not passed in the config
         """
 
         cmd = ["release", f"--set={self.release_version}"]

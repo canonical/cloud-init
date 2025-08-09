@@ -2042,7 +2042,7 @@ class TestDelDir:
             util.del_dir(tmpdir)
         assert not os.path.exists(tmpdir)
 
-    def test_del_dir_ignoreFileNotFound(self):
+    def test_del_dir_file_not_found(self):
         """
         Should not raise FileNotFoundError
         """
