@@ -24,6 +24,12 @@ from typing import (
     Union,
 )
 
+if TYPE_CHECKING:
+    try:
+        from jsonschema import ValidationError as _ValidationError
+    except ImportError:
+        _ValidationError = Exception
+
 import yaml
 
 from cloudinit import features, lifecycle, performance, safeyaml
@@ -272,7 +278,7 @@ def _add_deprecated_changed_or_new_msg(
     return f"{description}{changed_new_deprecated}".rstrip()
 
 
-def cloud_init_deepest_matches(errors, instance) -> List[ValidationError]:
+def cloud_init_deepest_matches(errors, instance):
     """Return the best_match errors based on the deepest match in the json_path
 
     This is useful for anyOf and oneOf subschemas where the most-specific error

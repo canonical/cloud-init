@@ -52,7 +52,7 @@ from cloudinit.url_helper import UrlError
 try:
     import crypt  # pylint: disable=W4901
 
-    blowfish_hash: Any = functools.partial(
+    blowfish_hash = functools.partial(
         crypt.crypt, salt=f"$6${util.rand_str(strlen=16)}"
     )
 except (ImportError, AttributeError):
