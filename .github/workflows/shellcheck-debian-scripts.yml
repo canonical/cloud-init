@@ -1,0 +1,117 @@
+name: ShellCheck Debian package scripts
+
+env:
+  # This is a space separated string for multiple globs
+  # Do not use curly braces as they will be treated as literal string in `git ls-files ${GLOBS_TO_SHELLCHECK}`
+  # Assumption in this workflow: the resolved filepaths do not contain spaces.
+  GLOBS_TO_SHELLCHECK: "**/*.postinst **/*.postrm **/*.preinst **/*.prerm"
+
+# on.(pull_request|push).paths keys are not used because the steps in the jobs
+# already handle filtering the file paths for specific globs.
+# Also, we need the action to always be triggered (and succeed) if we decide to have this
+# check to be blocking the PR. Otherwise (if on.(pull_request|push).paths are defined and the check is 
+# blocking the PR), the PRs which do not have changes in these specific files will be blocked.
+# Another minor reason for not using on.(pull_request|push).paths : it does not accept environment 
+# variables so we would need to hardcode the yaml array to match env.GLOBS_TO_SHELLCHECK at the top of the file.
+on:
+  pull_request:
+    # There is a known bug in GithUb but it will most probably not affect out use case
+    # https://github.com/orgs/community/discussions/118623#discussioncomment-9087833
+    # When there are 2 PRs using the same source branch (actually the same head SHA to be more specific), with the base branch in one PR matching
+    # on.pull_request.branches and thee base branch in the second PR not matching this key,
+    # then the second PR will show these checks that were triggered by the first PR but not the second PR.
+    branches:
+      - 'ubuntu/**'
+  push:
+    branches:
+      - 'ubuntu/**'
+
+concurrency:
+  group: 'ci-${{ github.workflow }}-${{ github.ref }}'
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # Using bash instead of the usual sh in the other workflows in order to support the globstar **
+    shell: bash -ex {0}
+
+# Note: No need to specify the shell option in the shellcheck command.
+# These linted scripts are for ubuntu so the !/bin/sh (i.e. system shell) shebang at the top of these scripts .
+# So no need to pass the shell option to the shellcheck command as shellcheck will read the shebang at the top of the file (sh) so will
+# use sh
+jobs:
+  shellcheck-on-all-matching-files:
+    name: ShellCheck on all matching files in the repo
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - name: Repository checkout
+        uses: actions/checkout@v4
+
+      - name: Run ShellCheck
+        run: |
+          shopt -s globstar
+          echo "The globs to check are ${GLOBS_TO_SHELLCHECK}"
+          ALL_MATCHING_SCRIPTS=$(git ls-files ${GLOBS_TO_SHELLCHECK} | tr '\n' ' ')
+          echo "The matching scripts to shellcheck are ${ALL_MATCHING_SCRIPTS}"
+          if [ -z "${ALL_MATCHING_SCRIPTS}" ]
+          then
+            echo "There are no files in the repo which match the glob patterns so shellcheck will not run"
+          else
+            shellcheck ${ALL_MATCHING_SCRIPTS}
+          fi
+
+  shellcheck-on-matching-and-changed-files:
+    name: ShellCheck on matching files that have changed
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - name: Repository checkout
+        uses: actions/checkout@v4
+
+      - name: Get all matching changed files
+        id: matching-changed-files
+        uses: tj-actions/changed-files@v46
+        with:
+          files: ${{ env.GLOBS_TO_SHELLCHECK }}
+          files_separator: " "
+
+      - name: Run shellcheck on the matching changed files
+        env:
+          ALL_CHANGED_FILES: ${{ steps.matching-changed-files.outputs.all_changed_and_modified_files }}
+        run: |
+          shopt -s globstar
+          if [ -z "${ALL_CHANGED_FILES}" ]
+          then
+            echo "There are no changed files in the repo which match the glob pattern \'${GLOBS_TO_SHELLCHECK}\' so shellcheck will not run"
+          else
+            echo "The changed and modified (including deleted) files are ${ALL_CHANGED_FILES}"
+            echo "The globs used are ${GLOBS_TO_SHELLCHECK}"
+            MATCHING_CHANGED_FILES=$(git ls-files ${ALL_CHANGED_FILES} | tr '\n' ' ') #filter out deleted files
+            echo "The matching and changed files are ${MATCHING_CHANGED_FILES}"
+            if [ -z "${MATCHING_CHANGED_FILES}" ]
+            then
+              echo "There are no changed files in the repo which match the glob pattern \'${GLOBS_TO_SHELLCHECK}\' so shellcheck will not run"
+            else
+              shellcheck ${MATCHING_CHANGED_FILES}
+            fi
+          fi
+
+  differential-shellcheck:
+    name: Run Differential shellcheck
+    runs-on: ubuntu-24.04
+
+    permissions:
+      security-events: write
+
+    steps:
+      - name: Repository checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Differential ShellCheck
+        uses: redhat-plumbers-in-action/differential-shellcheck@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          include-path: ${{ env.GLOBS_TO_SHELLCHECK }}
