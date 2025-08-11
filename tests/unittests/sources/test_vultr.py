@@ -6,12 +6,15 @@
 # https://www.vultr.com/metadata/
 
 import copy
+import json
 
-from cloudinit import helpers, settings
+import pytest
+
+from cloudinit import settings
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.sources import DataSourceVultr
 from cloudinit.sources.helpers import vultr
-from tests.unittests.helpers import CiTestCase, mock
+from tests.unittests.helpers import mock
 
 VENDOR_DATA = """\
 #cloud-config
@@ -64,7 +67,7 @@ VULTR_V1_1 = {
         }
     ],
     "public-keys": ["ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM3c= test3@key"],
-    "region": "us",
+    "region": {"regioncode": "EWR", "countrycode": "US"},
     "user-defined": [],
     "startup-script": "echo No configured startup script",
     "raid1-script": "",
@@ -126,7 +129,7 @@ VULTR_V1_2 = {
         },
     ],
     "public-keys": ["ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM3c= test3@key"],
-    "region": "us",
+    "region": {"regioncode": "EWR", "countrycode": "US"},
     "user-defined": [],
     "startup-script": "echo No configured startup script",
     "user-data": [],
@@ -244,54 +247,30 @@ INTERFACE_MAP = {
 }
 
 
-class TestDataSourceVultr(CiTestCase):
-    def setUp(self):
-        super(TestDataSourceVultr, self).setUp()
-        self.tmp = self.tmp_dir()
+class TestDataSourceVultr:
+    @pytest.fixture
+    def source(self, paths, tmp_path):
+        distro = mock.MagicMock()
+        distro.get_tmp_exec_path.return_value = str(tmp_path)
+        return DataSourceVultr.DataSourceVultr(
+            settings.CFG_BUILTIN, distro, paths
+        )
 
     # Test the datasource itself
     @mock.patch("cloudinit.net.get_interfaces_by_mac")
     @mock.patch("cloudinit.sources.helpers.vultr.is_vultr")
     @mock.patch("cloudinit.sources.helpers.vultr.get_metadata")
-    def test_datasource(self, mock_getmeta, mock_isvultr, mock_netmap):
+    def test_datasource(self, mock_getmeta, mock_isvultr, mock_netmap, source):
         mock_getmeta.return_value = VULTR_V1_2
         mock_isvultr.return_value = True
         mock_netmap.return_value = INTERFACE_MAP
 
-        distro = mock.MagicMock()
-        distro.get_tmp_exec_path = self.tmp_dir
-        source = DataSourceVultr.DataSourceVultr(
-            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
-        )
-
-        # Test for failure
-        self.assertEqual(True, source._get_data())
-
-        # Test instance id
-        self.assertEqual("42872224", source.metadata["instanceid"])
-
-        # Test hostname
-        self.assertEqual("CLOUDINIT_2", source.metadata["local-hostname"])
-
-        # Test ssh keys
-        self.assertEqual(SSH_KEYS_1, source.metadata["public-keys"])
-
-        # Test vendor data generation
-        orig_val = self.maxDiff
-        self.maxDiff = None
-
-        vendordata = source.vendordata_raw
-
-        # Test vendor config
-        self.assertEqual(
-            VENDOR_DATA,
-            vendordata,
-        )
-
-        self.maxDiff = orig_val
-
-        # Test network config generation
-        self.assertEqual(EXPECTED_VULTR_NETWORK_2, source.network_config)
+        assert True is source._get_data()
+        assert "42872224" == source.metadata["instanceid"]
+        assert "CLOUDINIT_2" == source.metadata["local-hostname"]
+        assert SSH_KEYS_1 == source.metadata["public-keys"]
+        assert VENDOR_DATA == source.vendordata_raw
+        assert EXPECTED_VULTR_NETWORK_2 == source.network_config
 
     def _get_metadata(self):
         # Create v1_3
@@ -307,22 +286,16 @@ class TestDataSourceVultr(CiTestCase):
     @mock.patch("cloudinit.sources.helpers.vultr.is_vultr")
     @mock.patch("cloudinit.sources.helpers.vultr.get_metadata")
     def test_datasource_cloud_interfaces(
-        self, mock_getmeta, mock_isvultr, mock_netmap
+        self, mock_getmeta, mock_isvultr, mock_netmap, source
     ):
         mock_getmeta.return_value = self._get_metadata()
         mock_isvultr.return_value = True
         mock_netmap.return_value = INTERFACE_MAP
 
-        distro = mock.MagicMock()
-        distro.get_tmp_exec_path = self.tmp_dir
-        source = DataSourceVultr.DataSourceVultr(
-            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
-        )
-
         source._get_data()
 
         # Test network config generation
-        self.assertEqual(EXPECTED_VULTR_NETWORK_2, source.network_config)
+        assert EXPECTED_VULTR_NETWORK_2 == source.network_config
 
     # Test network config generation
     @mock.patch("cloudinit.net.get_interfaces_by_mac")
@@ -330,8 +303,8 @@ class TestDataSourceVultr(CiTestCase):
         mock_netmap.return_value = INTERFACE_MAP
         interf = VULTR_V1_1["interfaces"]
 
-        self.assertEqual(
-            EXPECTED_VULTR_NETWORK_1, vultr.generate_network_config(interf)
+        assert EXPECTED_VULTR_NETWORK_1 == vultr.generate_network_config(
+            interf
         )
 
     # Test Private Networking config generation
@@ -341,15 +314,15 @@ class TestDataSourceVultr(CiTestCase):
         interf = copy.deepcopy(VULTR_V1_2["interfaces"])
 
         # Test configuring
-        self.assertEqual(
-            EXPECTED_VULTR_NETWORK_2, vultr.generate_network_config(interf)
+        assert EXPECTED_VULTR_NETWORK_2 == vultr.generate_network_config(
+            interf
         )
 
         # Test unconfigured
         interf[1]["unconfigured"] = True
         expected = copy.deepcopy(EXPECTED_VULTR_NETWORK_2)
         expected["config"].pop(2)
-        self.assertEqual(expected, vultr.generate_network_config(interf))
+        assert expected == vultr.generate_network_config(interf)
 
     # Override ephemeral for proper unit testing
     def override_enter(self):
@@ -379,20 +352,12 @@ class TestDataSourceVultr(CiTestCase):
         mock_read_metadata,
         mock_isvultr,
         mock_eph_init,
+        source,
     ):
-        mock_read_metadata.return_value = {}
+        mock_read_metadata.return_value = json.dumps(VULTR_V1_1)
         mock_isvultr.return_value = True
         mock_interface_list.return_value = FILTERED_INTERFACES
 
-        distro = mock.MagicMock()
-        distro.get_tmp_exec_path = self.tmp_dir
-        source = DataSourceVultr.DataSourceVultr(
-            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
-        )
-
-        try:
-            source._get_data()
-        except Exception:
-            pass
+        source.get_metadata()
 
         assert mock_eph_init.call_args[1]["iface"] == FILTERED_INTERFACES[1]
