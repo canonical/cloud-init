@@ -1,8 +1,10 @@
 import json
 
-from cloudinit import distros, helpers, subp
+import pytest
+
+from cloudinit import distros, subp
 from cloudinit.sources import DataSourceRbxCloud as ds
-from tests.unittests.helpers import CiTestCase, mock, populate_dir
+from tests.unittests.helpers import mock, populate_dir
 
 DS_PATH = "cloudinit.sources.DataSourceRbxCloud"
 
@@ -76,54 +78,42 @@ CLOUD_METADATA = {
 }
 
 
-class TestRbxDataSource(CiTestCase):
-    parsed_user = None
-    allowed_subp = ["bash"]
+class TestRbxDataSource:
+    @pytest.fixture
+    def fetch_distro(self, paths):
+        def _fetch_distro(kind):
+            cls = distros.fetch(kind)
+            return cls(kind, {}, paths)
 
-    def _fetch_distro(self, kind):
-        cls = distros.fetch(kind)
-        paths = helpers.Paths({})
-        return cls(kind, {}, paths)
+        return _fetch_distro
 
-    def setUp(self):
-        super(TestRbxDataSource, self).setUp()
-        self.tmp = self.tmp_dir()
-        self.paths = helpers.Paths(
-            {"cloud_dir": self.tmp, "run_dir": self.tmp}
-        )
+    def test_seed_read_user_data_callback_empty_file(self, paths):
+        populate_user_metadata(paths.seed_dir, "")
+        populate_cloud_metadata(paths.seed_dir, {})
+        results = ds.read_user_data_callback(paths.seed_dir)
 
-        # defaults for few tests
-        self.ds = ds.DataSourceRbxCloud
-        self.seed_dir = self.paths.seed_dir
-        self.sys_cfg = {"datasource": {"RbxCloud": {"dsmode": "local"}}}
+        assert results is None
 
-    def test_seed_read_user_data_callback_empty_file(self):
-        populate_user_metadata(self.seed_dir, "")
-        populate_cloud_metadata(self.seed_dir, {})
-        results = ds.read_user_data_callback(self.seed_dir)
+    def test_seed_read_user_data_callback_valid_disk(self, paths):
+        populate_user_metadata(paths.seed_dir, "")
+        populate_cloud_metadata(paths.seed_dir, CLOUD_METADATA)
+        results = ds.read_user_data_callback(paths.seed_dir)
 
-        self.assertIsNone(results)
+        assert results is not None
+        assert "userdata" in results
+        assert "metadata" in results
+        assert "cfg" in results
 
-    def test_seed_read_user_data_callback_valid_disk(self):
-        populate_user_metadata(self.seed_dir, "")
-        populate_cloud_metadata(self.seed_dir, CLOUD_METADATA)
-        results = ds.read_user_data_callback(self.seed_dir)
-
-        self.assertNotEqual(results, None)
-        self.assertTrue("userdata" in results)
-        self.assertTrue("metadata" in results)
-        self.assertTrue("cfg" in results)
-
-    def test_seed_read_user_data_callback_userdata(self):
+    def test_seed_read_user_data_callback_userdata(self, paths):
         userdata = "#!/bin/sh\nexit 1"
-        populate_user_metadata(self.seed_dir, userdata)
-        populate_cloud_metadata(self.seed_dir, CLOUD_METADATA)
+        populate_user_metadata(paths.seed_dir, userdata)
+        populate_cloud_metadata(paths.seed_dir, CLOUD_METADATA)
 
-        results = ds.read_user_data_callback(self.seed_dir)
+        results = ds.read_user_data_callback(paths.seed_dir)
 
-        self.assertNotEqual(results, None)
-        self.assertTrue("userdata" in results)
-        self.assertEqual(results["userdata"], userdata)
+        assert results is not None
+        assert "userdata" in results
+        assert results["userdata"] == userdata
 
     def test_generate_network_config(self):
         expected = {
@@ -161,12 +151,10 @@ class TestRbxDataSource(CiTestCase):
                 },
             ],
         }
-        self.assertTrue(
-            ds.generate_network_config(CLOUD_METADATA["netadp"]), expected
-        )
+        assert ds.generate_network_config(CLOUD_METADATA["netadp"]), expected
 
     @mock.patch(DS_PATH + ".subp.subp")
-    def test_gratuitous_arp_run_standard_arping(self, m_subp):
+    def test_gratuitous_arp_run_standard_arping(self, m_subp, fetch_distro):
         """Test handle run arping & parameters."""
         items = [
             {"destination": "172.17.0.2", "source": "172.16.6.104"},
@@ -175,21 +163,18 @@ class TestRbxDataSource(CiTestCase):
                 "source": "172.16.6.104",
             },
         ]
-        ds.gratuitous_arp(items, self._fetch_distro("ubuntu"))
-        self.assertEqual(
-            [
-                mock.call(
-                    ["arping", "-c", "2", "-S", "172.16.6.104", "172.17.0.2"]
-                ),
-                mock.call(
-                    ["arping", "-c", "2", "-S", "172.16.6.104", "172.17.0.2"]
-                ),
-            ],
-            m_subp.call_args_list,
-        )
+        ds.gratuitous_arp(items, fetch_distro("ubuntu"))
+        assert [
+            mock.call(
+                ["arping", "-c", "2", "-S", "172.16.6.104", "172.17.0.2"]
+            ),
+            mock.call(
+                ["arping", "-c", "2", "-S", "172.16.6.104", "172.17.0.2"]
+            ),
+        ] == m_subp.call_args_list
 
     @mock.patch(DS_PATH + ".subp.subp")
-    def test_handle_rhel_like_arping(self, m_subp):
+    def test_handle_rhel_like_arping(self, m_subp, fetch_distro):
         """Test handle on RHEL-like distros."""
         items = [
             {
@@ -197,20 +182,17 @@ class TestRbxDataSource(CiTestCase):
                 "destination": "172.17.0.2",
             }
         ]
-        ds.gratuitous_arp(items, self._fetch_distro("fedora"))
-        self.assertEqual(
-            [
-                mock.call(
-                    ["arping", "-c", "2", "-s", "172.16.6.104", "172.17.0.2"]
-                )
-            ],
-            m_subp.call_args_list,
-        )
+        ds.gratuitous_arp(items, fetch_distro("fedora"))
+        assert [
+            mock.call(
+                ["arping", "-c", "2", "-s", "172.16.6.104", "172.17.0.2"]
+            )
+        ] == m_subp.call_args_list
 
     @mock.patch(
         DS_PATH + ".subp.subp", side_effect=subp.ProcessExecutionError()
     )
-    def test_continue_on_arping_error(self, m_subp):
+    def test_continue_on_arping_error(self, m_subp, fetch_distro):
         """Continue when command error"""
         items = [
             {"destination": "172.17.0.2", "source": "172.16.6.104"},
@@ -219,18 +201,15 @@ class TestRbxDataSource(CiTestCase):
                 "source": "172.16.6.104",
             },
         ]
-        ds.gratuitous_arp(items, self._fetch_distro("ubuntu"))
-        self.assertEqual(
-            [
-                mock.call(
-                    ["arping", "-c", "2", "-S", "172.16.6.104", "172.17.0.2"]
-                ),
-                mock.call(
-                    ["arping", "-c", "2", "-S", "172.16.6.104", "172.17.0.2"]
-                ),
-            ],
-            m_subp.call_args_list,
-        )
+        ds.gratuitous_arp(items, fetch_distro("ubuntu"))
+        assert [
+            mock.call(
+                ["arping", "-c", "2", "-S", "172.16.6.104", "172.17.0.2"]
+            ),
+            mock.call(
+                ["arping", "-c", "2", "-S", "172.16.6.104", "172.17.0.2"]
+            ),
+        ] == m_subp.call_args_list
 
 
 def populate_cloud_metadata(path, data):
