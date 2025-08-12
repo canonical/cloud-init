@@ -293,9 +293,15 @@ class DataSourceOracle(sources.DataSource):
             return self._network_config
 
         set_primary = False
-        # this is v1
         if self._is_iscsi_root():
             self._network_config = self._get_iscsi_config()
+            logging.debug(
+                "Instance is using iSCSI root, setting primary NIC as critical"
+            )
+            # This is necessary for Oracle baremetal instances in case they are
+            # running on an IPv6-only network. Without this, they become
+            # unreachable/unrecoverable after a shutdown.
+            self._network_config["config"][0]["keep_configuration"] = True
         if not self._has_network_config():
             LOG.debug(
                 "Could not obtain network configuration from initramfs. "
@@ -380,65 +386,41 @@ class DataSourceOracle(sources.DataSource):
             else:
                 network = ipaddress.ip_network(vnic_dict["subnetCidrBlock"])
 
-            if self._network_config["version"] == 1:
-                if is_primary:
-                    if is_ipv6_only:
-                        subnets = [{"type": "dhcp6"}]
-                    else:
-                        subnets = [{"type": "dhcp"}]
+            if is_primary:
+                if is_ipv6_only:
+                    subnets = [{"type": "dhcp6"}]
                 else:
-                    subnets = []
-                    if vnic_dict.get("privateIp"):
-                        subnets.append(
-                            {
-                                "type": "static",
-                                "address": (
-                                    f"{vnic_dict['privateIp']}/"
-                                    f"{network.prefixlen}"
-                                ),
-                            }
-                        )
-                    if vnic_dict.get("ipv6Addresses"):
-                        subnets.append(
-                            {
-                                "type": "static",
-                                "address": (
-                                    f"{vnic_dict['ipv6Addresses'][0]}/"
-                                    f"{network.prefixlen}"
-                                ),
-                            }
-                        )
-                interface_config = {
-                    "name": name,
-                    "type": "physical",
-                    "mac_address": mac_address,
-                    "mtu": MTU,
-                    "subnets": subnets,
-                }
-                self._network_config["config"].append(interface_config)
-            elif self._network_config["version"] == 2:
-                # Why does this elif exist???
-                # Are there plans to switch to v2?
-                interface_config = {
-                    "mtu": MTU,
-                    "match": {"macaddress": mac_address},
-                }
-                self._network_config["ethernets"][name] = interface_config
-
-                interface_config["dhcp6"] = is_primary and is_ipv6_only
-                interface_config["dhcp4"] = is_primary and not is_ipv6_only
-                if not is_primary:
-                    interface_config["addresses"] = []
-                    if vnic_dict.get("privateIp"):
-                        interface_config["addresses"].append(
-                            f"{vnic_dict['privateIp']}/{network.prefixlen}"
-                        )
-                    if vnic_dict.get("ipv6Addresses"):
-                        interface_config["addresses"].append(
-                            f"{vnic_dict['ipv6Addresses'][0]}/"
-                            f"{network.prefixlen}"
-                        )
-                self._network_config["ethernets"][name] = interface_config
+                    subnets = [{"type": "dhcp"}]
+            else:
+                subnets = []
+                if vnic_dict.get("privateIp"):
+                    subnets.append(
+                        {
+                            "type": "static",
+                            "address": (
+                                f"{vnic_dict['privateIp']}/"
+                                f"{network.prefixlen}"
+                            ),
+                        }
+                    )
+                if vnic_dict.get("ipv6Addresses"):
+                    subnets.append(
+                        {
+                            "type": "static",
+                            "address": (
+                                f"{vnic_dict['ipv6Addresses'][0]}/"
+                                f"{network.prefixlen}"
+                            ),
+                        }
+                    )
+            interface_config = {
+                "name": name,
+                "type": "physical",
+                "mac_address": mac_address,
+                "mtu": MTU,
+                "subnets": subnets,
+            }
+            self._network_config["config"].append(interface_config)
 
 
 class DataSourceOracleNet(DataSourceOracle):

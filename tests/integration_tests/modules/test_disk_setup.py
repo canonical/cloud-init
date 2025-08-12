@@ -29,7 +29,7 @@ def setup_and_mount_lxd_disk(instance: LXDInstance):
 
 @pytest.fixture
 def create_disk():
-    subp("dd if=/dev/zero of={} bs=64k count=40".format(DISK_PATH).split())
+    subp("dd if=/dev/zero of={} bs=64k count=100".format(DISK_PATH).split())
     yield
     os.remove(DISK_PATH)
 

@@ -42,8 +42,6 @@ no_implicit_optional = true
 # See GH-5445
 [[tool.mypy.overrides]]
 module = [
-    "cloudinit.analyze",
-    "cloudinit.analyze.dump",
     "cloudinit.analyze.show",
     "cloudinit.cmd.devel.make_mime",
     "cloudinit.cmd.devel.net_convert",
@@ -65,7 +63,6 @@ module = [
     "cloudinit.distros.ug_util",
     "cloudinit.helpers",
     "cloudinit.net.cmdline",
-    "cloudinit.net.eni",
     "cloudinit.net.ephemeral",
     "cloudinit.net.freebsd",
     "cloudinit.net.netbsd",

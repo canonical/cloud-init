@@ -1,8 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit import util
-from tests.unittests.distros import _get_distro
-from tests.unittests.helpers import CiTestCase, mock
+from tests.unittests.helpers import get_distro, mock
 
 SYSTEM_INFO = {
     "paths": {
@@ -13,26 +12,25 @@ SYSTEM_INFO = {
 }
 
 
-class TestPhoton(CiTestCase):
-    with_logs = True
-    distro = _get_distro("photon", SYSTEM_INFO)
+class TestPhoton:
+    distro = get_distro("photon", SYSTEM_INFO)
     expected_log_line = "Rely on PhotonOS default network config"
 
     def test_network_renderer(self):
-        self.assertEqual(self.distro._cfg["network"]["renderers"], "networkd")
+        assert self.distro._cfg["network"]["renderers"] == "networkd"
 
     def test_get_distro(self):
-        self.assertEqual(self.distro.osfamily, "photon")
+        assert self.distro.osfamily == "photon"
 
     @mock.patch("cloudinit.distros.photon.subp.subp")
-    def test_write_hostname(self, m_subp):
+    def test_write_hostname(self, m_subp, caplog, tmp_path):
         hostname = "myhostname"
-        hostfile = self.tmp_path("previous-hostname")
+        hostfile = str(tmp_path / "previous-hostname")
         self.distro._write_hostname(hostname, hostfile)
-        self.assertEqual(hostname, util.load_text_file(hostfile))
+        assert hostname == util.load_text_file(hostfile)
 
         ret = self.distro._read_hostname(hostfile)
-        self.assertEqual(ret, hostname)
+        assert ret == hostname
 
         m_subp.return_value = (None, None)
         hostfile += "hostfile"
@@ -40,28 +38,28 @@ class TestPhoton(CiTestCase):
 
         m_subp.return_value = (hostname, None)
         ret = self.distro._read_hostname(hostfile)
-        self.assertEqual(ret, hostname)
+        assert ret == hostname
 
-        self.logs.truncate(0)
+        caplog.clear()
         m_subp.return_value = (None, "bla")
         self.distro._write_hostname(hostname, None)
-        self.assertIn("Error while setting hostname", self.logs.getvalue())
+        assert "Error while setting hostname" in caplog.text
 
     @mock.patch("cloudinit.net.generate_fallback_config")
-    def test_fallback_netcfg(self, m_fallback_cfg):
+    def test_fallback_netcfg(self, m_fallback_cfg, caplog):
 
         key = "disable_fallback_netcfg"
         # Don't use fallback if no setting given
-        self.logs.truncate(0)
+        caplog.clear()
         assert self.distro.generate_fallback_config() is None
-        self.assertIn(self.expected_log_line, self.logs.getvalue())
+        assert self.expected_log_line in caplog.text
 
-        self.logs.truncate(0)
+        caplog.clear()
         self.distro._cfg[key] = True
         assert self.distro.generate_fallback_config() is None
-        self.assertIn(self.expected_log_line, self.logs.getvalue())
+        assert self.expected_log_line in caplog.text
 
-        self.logs.truncate(0)
+        caplog.clear()
         self.distro._cfg[key] = False
         assert self.distro.generate_fallback_config() is not None
-        self.assertNotIn(self.expected_log_line, self.logs.getvalue())
+        assert self.expected_log_line not in caplog.text

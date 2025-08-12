@@ -7,13 +7,17 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import atomic_helper, distros, helpers, lifecycle
+from cloudinit import atomic_helper, distros, helpers, lifecycle, temp_utils
 from cloudinit import user_data as ud
 from cloudinit import util
 from cloudinit.gpg import GPG
 from cloudinit.log import loggers
 from tests.hypothesis import HAS_HYPOTHESIS
-from tests.unittests.helpers import example_netdev, retarget_many_wrapper
+from tests.unittests.helpers import (
+    example_netdev,
+    rebase_path,
+    retarget_many_wrapper,
+)
 
 
 @pytest.fixture
@@ -50,14 +54,16 @@ FS_FUNCS = {
         ("relpath", 1),
     ],
     os: [
+        ("chmod", 2),
         ("chown", 2),
         ("listdir", 1),
-        ("mkdir", 1),
-        ("rmdir", 1),
         ("lstat", 1),
-        ("symlink", 2),
-        ("stat", 1),
+        ("mkdir", 1),
+        ("rename", 2),
+        ("rmdir", 1),
         ("scandir", 1),
+        ("stat", 1),
+        ("symlink", 2),
     ],
     util: [
         ("write_file", 1),
@@ -86,6 +92,10 @@ FS_FUNCS = {
     ],
 }
 
+FS_VARS = {
+    temp_utils: ["_ROOT_TMPDIR", "_EXE_ROOT_TMPDIR"],
+}
+
 
 @pytest.fixture
 def fake_filesystem_hook():
@@ -95,6 +105,8 @@ def fake_filesystem_hook():
     Fixtures needing to access the real filesystem in tests that use
     fake_filesystem, can depend on this fixture to ensure they run before
     fake_filesystem.
+
+    See in action in tests/unittests/runs/test_simple_run.py.
     """
 
 
@@ -107,15 +119,24 @@ def fake_filesystem(mocker, tmpdir, fake_filesystem_hook):
     """
     # This allows fake_filesystem to be used with production code that
     # creates temporary directories. Functions like TemporaryDirectory()
-    # attempt to create a directory under "/tmp" assuming that it already
-    # exists, but then it fails because of the retargeting that happens here.
-    tmpdir.mkdir("tmp")
+    # attempt to create a directory under $TMPDIR (among other locations)
+    # assuming that it already exists, but then it fails because of the
+    # retargeting that happens here.
+    TMPDIR = os.getenv("TMPDIR", "/tmp")
+    Path(tmpdir, TMPDIR[1:]).mkdir(exist_ok=True)
 
     for mod, funcs in FS_FUNCS.items():
         for f, nargs in funcs:
             func = getattr(mod, f)
             trap_func = retarget_many_wrapper(str(tmpdir), nargs, func)
             mocker.patch.object(mod, f, trap_func)
+
+    for mod, vars in FS_VARS.items():
+        for var_name in vars:
+            var_val = getattr(mod, var_name)
+            new_var_val = rebase_path(var_val, str(tmpdir))
+            mocker.patch.object(mod, var_name, new_var_val)
+
     yield str(tmpdir)
 
 

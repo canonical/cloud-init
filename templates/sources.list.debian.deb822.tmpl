@@ -29,6 +29,6 @@ Signed-By: {{primary_key | default('/usr/share/keyrings/debian-archive-keyring.g
 ## Major bug fix updates produced after the final release of the distribution.
 Types: deb deb-src
 URIs: {{security}}
-Suites: {{codename}}{% if codename in ('buster', 'stretch') %}/updates{% else %}-security{% endif %}
+Suites: {{codename}}{% if codename in ('buster', 'stretch') %}/updates{% else %}-security{% endif +%}
 Components: main
 Signed-By: {{security_key | default(primary_key, true) | default('/usr/share/keyrings/debian-archive-keyring.gpg', true)}}
