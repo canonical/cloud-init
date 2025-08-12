@@ -146,7 +146,7 @@ class TestInstallHotplug:
 
         udev_rules = """\
 # Installed by cloud-init due to network hotplug userdata
-ACTION!="add|remove", GOTO="cloudinit_end"
+ACTION!="add", GOTO="cloudinit_end"
 
 ENV{ID_NET_DRIVER}=="vif|ena|ixgbevf", GOTO="cloudinit_hook"
 GOTO="cloudinit_end"

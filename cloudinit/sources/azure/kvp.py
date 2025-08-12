@@ -8,7 +8,7 @@ from typing import Optional
 
 from cloudinit import version
 from cloudinit.reporting import handlers, instantiated_handler_registry
-from cloudinit.sources.azure import errors, identity
+from cloudinit.sources.azure import errors
 
 LOG = logging.getLogger(__name__)
 
@@ -35,16 +35,7 @@ def report_via_kvp(report: str) -> bool:
     return True
 
 
-def report_failure_to_host(error: errors.ReportableError) -> bool:
-    return report_via_kvp(error.as_encoded_report())
-
-
-def report_success_to_host() -> bool:
-    try:
-        vm_id = identity.query_vm_id()
-    except Exception as id_error:
-        vm_id = f"failed to read vm id: {id_error!r}"
-
+def report_success_to_host(*, vm_id: Optional[str]) -> bool:
     report = errors.encode_report(
         [
             "result=success",

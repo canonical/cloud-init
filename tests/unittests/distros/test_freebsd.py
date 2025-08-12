@@ -3,8 +3,7 @@
 import os
 
 from cloudinit.util import find_freebsd_part, get_path_dev_freebsd
-from tests.unittests.distros import _get_distro
-from tests.unittests.helpers import CiTestCase, mock
+from tests.unittests.helpers import get_distro, mock
 
 M_PATH = "cloudinit.distros.freebsd."
 
@@ -12,7 +11,7 @@ M_PATH = "cloudinit.distros.freebsd."
 class TestFreeBSD:
     @mock.patch(M_PATH + "subp.subp")
     def test_add_user(self, m_subp):
-        distro = _get_distro("freebsd")
+        distro = get_distro("freebsd")
         assert True is distro.add_user("me2", uid=1234, default=False)
         assert [
             mock.call(
@@ -38,7 +37,7 @@ class TestFreeBSD:
         ] == m_subp.call_args_list
 
     def test_unlock_passwd(self, caplog):
-        distro = _get_distro("freebsd")
+        distro = get_distro("freebsd")
         distro.unlock_passwd("me2")
         assert (
             "Dragonfly BSD/FreeBSD password lock is not reversible, "
@@ -46,7 +45,7 @@ class TestFreeBSD:
         )
 
 
-class TestDeviceLookUp(CiTestCase):
+class TestDeviceLookUp:
     @mock.patch("cloudinit.subp.subp")
     def test_find_freebsd_part_label(self, mock_subp):
         glabel_out = """
@@ -56,7 +55,7 @@ gptid/fa52d426-c337-11e6-8911-00155d4c5e47  N/A  da0p1
 """
         mock_subp.return_value = (glabel_out, "")
         res = find_freebsd_part("/dev/label/rootfs")
-        self.assertEqual("da0p2", res)
+        assert "da0p2" == res
 
     @mock.patch("cloudinit.subp.subp")
     def test_find_freebsd_part_gpt(self, mock_subp):
@@ -69,7 +68,7 @@ gptid/3f4cbe26-75da-11e8-a8f2-002590ec6166  N/A  vtbd0p1
 """
         mock_subp.return_value = (glabel_out, "")
         res = find_freebsd_part("/dev/gpt/rootfs")
-        self.assertEqual("vtbd0p3", res)
+        assert "vtbd0p3" == res
 
     @mock.patch("cloudinit.subp.subp")
     def test_find_freebsd_part_gptid(self, mock_subp):
@@ -83,7 +82,7 @@ gptid/4cd084b4-7fb4-11ee-a7ba-002590ec5bf2  N/A  vtbd0p4
         res = find_freebsd_part(
             "/dev/gptid/4cd084b4-7fb4-11ee-a7ba-002590ec5bf2"
         )
-        self.assertEqual("vtbd0p4", res)
+        assert "vtbd0p4" == res
 
     @mock.patch("cloudinit.subp.subp")
     def test_find_freebsd_part_ufsid(self, mock_subp):
@@ -95,7 +94,7 @@ gptid/4cd084b4-7fb4-11ee-a7ba-002590ec5bf2  N/A  vtbd0p4
 """
         mock_subp.return_value = (glabel_out, "")
         res = find_freebsd_part("/dev/ufsid/654e0663786f5131")
-        self.assertEqual("vtbd0p4", res)
+        assert "vtbd0p4" == res
 
     def test_get_path_dev_freebsd_label(self):
         mnt_list = """
@@ -106,4 +105,4 @@ fdescfs            /dev/fd          fdescfs rw              0 0
 """
         with mock.patch.object(os.path, "exists", return_value=True):
             res = get_path_dev_freebsd("/etc", mnt_list)
-            self.assertIsNotNone(res)
+            assert res is not None

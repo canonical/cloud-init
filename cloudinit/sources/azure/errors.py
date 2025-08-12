@@ -14,7 +14,6 @@ from xml.etree import ElementTree as ET  # nosec B405
 import requests
 
 from cloudinit import subp, version
-from cloudinit.sources.azure import identity
 from cloudinit.url_helper import UrlError
 
 LOG = logging.getLogger(__name__)
@@ -38,10 +37,7 @@ def encode_report(
 
 class ReportableError(Exception):
     def __init__(
-        self,
-        reason: str,
-        *,
-        supporting_data: Optional[Dict[str, Any]] = None,
+        self, reason: str, *, supporting_data: Optional[Dict[str, Any]] = None
     ) -> None:
         self.agent = f"Cloud-Init/{version.version_string()}"
         self.documentation_url = "https://aka.ms/linuxprovisioningerror"
@@ -54,13 +50,10 @@ class ReportableError(Exception):
 
         self.timestamp = datetime.now(timezone.utc)
 
-        try:
-            self.vm_id = identity.query_vm_id()
-        except Exception as id_error:
-            self.vm_id = f"failed to read vm id: {id_error!r}"
-
     def as_encoded_report(
         self,
+        *,
+        vm_id: Optional[str],
     ) -> str:
         data = [
             "result=error",
@@ -69,7 +62,7 @@ class ReportableError(Exception):
         ]
         data += [f"{k}={v}" for k, v in self.supporting_data.items()]
         data += [
-            f"vm_id={self.vm_id}",
+            f"vm_id={vm_id}",
             f"timestamp={self.timestamp.isoformat()}",
             f"documentation_url={self.documentation_url}",
         ]
@@ -156,7 +149,8 @@ class ReportableErrorImdsInvalidMetadata(ReportableError):
         super().__init__(f"invalid IMDS metadata for key={key}")
 
         self.supporting_data["key"] = key
-        self.supporting_data["value"] = repr(value)
+        self.supporting_data["value"] = value
+        self.supporting_data["type"] = type(value).__name__
 
 
 class ReportableErrorImdsMetadataParsingException(ReportableError):
@@ -191,7 +185,12 @@ class ReportableErrorUnhandledException(ReportableError):
                 type(exception), exception, exception.__traceback__
             )
         )
-        trace_base64 = base64.b64encode(trace.encode("utf-8")).decode("utf-8")
+        trace_lines = trace.split("\n")
+        reversed_trace_lines = trace_lines[::-1]
+        reversed_trace = "\n".join(reversed_trace_lines)
+        trace_base64 = base64.b64encode(reversed_trace.encode("utf-8")).decode(
+            "utf-8"
+        )
 
         self.supporting_data["exception"] = repr(exception)
         self.supporting_data["traceback_base64"] = trace_base64
@@ -209,3 +208,13 @@ class ReportableErrorProxyAgentStatusFailure(ReportableError):
         self.supporting_data["exit_code"] = exception.exit_code
         self.supporting_data["stdout"] = exception.stdout
         self.supporting_data["stderr"] = exception.stderr
+
+
+class ReportableErrorVmIdentification(ReportableError):
+    def __init__(
+        self, *, exception: Exception, system_uuid: Optional[str] = None
+    ) -> None:
+        super().__init__("failure to identify Azure VM ID")
+
+        self.supporting_data["exception"] = repr(exception)
+        self.supporting_data["system_uuid"] = system_uuid

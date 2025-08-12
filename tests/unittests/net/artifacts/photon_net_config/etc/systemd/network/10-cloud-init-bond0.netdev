@@ -1,0 +1,11 @@
+[Bond]
+LACPTransmitRate=fast
+MIIMonitorSec=100ms
+Mode=802.3ad
+TransmitHashPolicy=layer2+3
+
+[NetDev]
+Kind=bond
+MACAddress=00:11:22:33:44:77
+MTUBytes=333
+Name=bond0

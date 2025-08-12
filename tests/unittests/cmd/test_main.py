@@ -189,6 +189,23 @@ class TestMain:
             main.main()
         m_clean_get_parser.assert_called_once()
 
+    @mock.patch("cloudinit.cmd.clean.get_parser")
+    @mock.patch("cloudinit.cmd.clean.handle_clean_args")
+    @mock.patch("cloudinit.log.loggers.configure_root_logger")
+    def test_main_sys_argv_missing_subcommand(
+        self,
+        _m_configure_root_logger,
+        _m_handle_clean_args,
+        m_clean_get_parser,
+        capsys,
+    ):
+        with mock.patch("sys.argv", ["cloudinit", "--debug"]):
+            with pytest.raises(SystemExit):
+                main.main()
+        stderr = capsys.readouterr().err
+        assert "No Subcommand specified." in stderr
+        m_clean_get_parser.assert_not_called()
+
     @pytest.mark.parametrize(
         "ds,userdata,expected",
         [

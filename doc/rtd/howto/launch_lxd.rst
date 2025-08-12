@@ -29,7 +29,7 @@ we just created:
 
 .. code-block:: shell-session
 
-    $ lxc init ubuntu-daily:jammy test-container
+    $ lxc init ubuntu-daily:noble test-container
     $ lxc config set test-container user.user-data - < user-data.yaml
     $ lxc start test-container
 
@@ -37,7 +37,7 @@ To avoid the extra commands this can also be done at launch:
 
 .. code-block:: shell-session
 
-    $ lxc launch ubuntu-daily:jammy test-container --config=user.user-data="$(cat user-data.yaml)"
+    $ lxc launch ubuntu-daily:noble test-container --config=user.user-data="$(cat user-data.yaml)"
 
 Finally, a profile can be set up with the specific data if you need to
 launch this multiple times:
@@ -46,7 +46,7 @@ launch this multiple times:
 
     $ lxc profile create dev-user-data
     $ lxc profile set dev-user-data user.user-data - < cloud-init-config.yaml
-    $ lxc launch ubuntu-daily:jammy test-container -p default -p dev-user-data
+    $ lxc launch ubuntu-daily:noble test-container -p default -p dev-user-data
 
 LXD configuration types
 -----------------------

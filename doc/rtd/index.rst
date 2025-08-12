@@ -104,8 +104,8 @@ projects, contributions, suggestions, fixes and constructive feedback.
 
 .. LINKS
 .. include:: links.txt
-.. _the cloud-init Discourse forum: https://discourse.ubuntu.com/c/server/cloud-init/
+.. _the cloud-init Discourse forum: https://discourse.ubuntu.com/c/project/cloud-init/54
 .. _cloud-init mailing list: https://launchpad.net/~cloud-init
 .. _mailing list archive: https://lists.launchpad.net/cloud-init/
-.. _Release schedule: https://discourse.ubuntu.com/t/cloud-init-release-schedule/32244
+.. _Release schedule: https://discourse.ubuntu.com/t/2025-cloud-init-release-schedule/55534
 .. _Report bugs on GitHub Issues: https://github.com/canonical/cloud-init/issues

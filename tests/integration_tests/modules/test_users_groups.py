@@ -10,7 +10,12 @@ import re
 import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU, JAMMY
+from tests.integration_tests.releases import (
+    CURRENT_RELEASE,
+    IS_UBUNTU,
+    JAMMY,
+    NOBLE,
+)
 from tests.integration_tests.util import verify_clean_boot
 
 USER_DATA = """\
@@ -33,7 +38,7 @@ users:
 AHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
   - name: barfoo
     gecos: Bar B. Foo
-    sudo: ALL=(ALL) NOPASSWD:ALL
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
     groups: [cloud-users, secret]
     lock_passwd: true
   - name: nopassworduser
@@ -110,14 +115,20 @@ class TestUsersGroups:
             )
         )
 
-    def test_user_root_in_secret(self, class_client):
-        """Test root user is in 'secret' group."""
+    def test_initial_warnings(self, class_client):
+        """Check for initial warnings."""
+        warnings = (
+            [NEW_USER_EMPTY_PASSWD_WARNING.format(username="nopassworduser")]
+            if CURRENT_RELEASE > NOBLE
+            else []
+        )
         verify_clean_boot(
             class_client,
-            require_warnings=[
-                NEW_USER_EMPTY_PASSWD_WARNING.format(username="nopassworduser")
-            ],
+            require_warnings=warnings,
         )
+
+    def test_user_root_in_secret(self, class_client):
+        """Test root user is in 'secret' group."""
         output = class_client.execute("groups root").stdout
         _, groups_str = output.split(":", maxsplit=1)
         groups = groups_str.split()
@@ -125,28 +136,26 @@ class TestUsersGroups:
 
     def test_nopassword_unlock_warnings(self, class_client):
         """Verify warnings for empty passwords for new and existing users."""
-        verify_clean_boot(
-            class_client,
-            require_warnings=[
-                NEW_USER_EMPTY_PASSWD_WARNING.format(username="nopassworduser")
-            ],
-        )
-
         # Fake admin clearing and unlocking and empty unlocked password foobar
         # This will generate additional warnings about not unlocking passwords
         # for pre-existing users which have an existing empty password
         class_client.execute("passwd -d foobar")
         class_client.instance.clean()
         class_client.restart()
-        verify_clean_boot(
-            class_client,
-            ignore_warnings=True,  # ignore warnings about existing groups
-            require_warnings=[
+        warnings = (
+            [
                 EXISTING_USER_EMPTY_PASSWD_WARNING.format(
                     username="nopassworduser"
                 ),
                 EXISTING_USER_EMPTY_PASSWD_WARNING.format(username="foobar"),
-            ],
+            ]
+            if CURRENT_RELEASE > NOBLE
+            else []
+        )
+        verify_clean_boot(
+            class_client,
+            ignore_warnings=True,  # ignore warnings about existing groups
+            require_warnings=warnings,
         )
 
 

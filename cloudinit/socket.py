@@ -135,6 +135,9 @@ class SocketSync:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Notify the socket that this stage is complete."""
+        if os.isatty(sys.stdin.fileno()):
+            # See corresponding log for __enter__()
+            return
         message = f"Completed socket interaction for boot stage {self.stage}"
         if exc_type:
             # handle exception thrown in context

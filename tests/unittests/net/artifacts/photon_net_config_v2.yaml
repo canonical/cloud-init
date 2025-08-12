@@ -1,0 +1,86 @@
+network:
+  version: 2
+
+  ethernets:
+    eth0:
+      match:
+        macaddress: "00:11:22:33:44:55"
+      set-name: eth0
+      dhcp4: false
+      mtu: 1500
+
+    eth1:
+      dhcp4: true
+      dhcp6: true
+
+    eth2:
+      match:
+        macaddress: "00:aa:bb:cc:dd:ee"
+      set-name: eth2
+      mtu: 1400
+      dhcp4: false
+      addresses:
+        - 10.20.30.40/24
+      nameservers:
+        addresses:
+          - 9.9.9.9
+          - 8.8.8.8
+        search:
+          - example.org
+
+  bonds:
+    bond0:
+      interfaces: [eth0, eth2]
+      parameters:
+        mode: 802.3ad
+        mii-monitor-interval: 100
+        transmit-hash-policy: layer2+3
+        lacp-rate: fast
+      dhcp4: false
+      dhcp6: false
+      mtu: 333
+      macaddress: "00:11:22:33:44:77"
+
+  vlans:
+    vlan100:
+      id: 100
+      link: eth0
+      addresses:
+        - 192.168.100.10/24
+        - 192.168.100.11/24
+      dhcp6: true
+      mtu: 901
+      macaddress: "00:11:22:33:44:66"
+      nameservers:
+        addresses:
+          - 8.8.8.8
+          - 1.1.1.1
+        search:
+          - corp.example.com
+          - vlan.test
+      routes:
+        - to: 10.10.200.0/24
+          via: 192.168.100.1
+          metric: 50
+        - to: 10.10.201.0/24
+          via: 192.168.100.2
+          metric: 150
+
+    vl101:
+      id: 101
+      link: eth2
+
+    bond.200:
+      id: 200
+      link: bond0
+      macaddress: "00:11:22:33:44:99"
+      addresses:
+        - 192.168.200.10/24
+      nameservers:
+        addresses:
+          - 1.1.1.1
+          - 8.8.4.4
+        search:
+          - bond.vlan.test
+      mtu: 111
+      dhcp6: true

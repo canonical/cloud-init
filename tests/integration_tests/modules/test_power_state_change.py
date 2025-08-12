@@ -12,7 +12,10 @@ from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import IS_UBUNTU
-from tests.integration_tests.util import verify_ordered_items_in_text
+from tests.integration_tests.util import (
+    verify_clean_boot,
+    verify_ordered_items_in_text,
+)
 
 USER_DATA = """\
 #cloud-config
@@ -83,6 +86,7 @@ class TestPowerChange:
                 instance.instance.start(wait=True)
             log = instance.read_from_file("/var/log/cloud-init.log")
             assert _can_connect(instance)
+            verify_clean_boot(instance)
         lines_to_check = [
             "Running module power_state_change",
             expected,

@@ -95,6 +95,15 @@ Physical example
 .. literalinclude:: ../../examples/network-config-v1-physical-3-nic.yaml
    :language: yaml
 
+``keep_configuration: <boolean>``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Designate the connection as 'critical to the system', meaning that special care
+will be taken not to release the assigned IP when the daemon is restarted.
+
+.. note::
+   This is only recognized by Netplan renderer.
+
 Bond
 ----
 
@@ -231,6 +240,8 @@ Type ``vlan`` requires the following keys:
 - ``name``: Set the name of the VLAN
 - ``vlan_link``: Specify the underlying link via its ``name``.
 - ``vlan_id``: Specify the VLAN numeric id.
+- ``mac_address``: Optional, specify VLAN subinterface MAC address. If not
+  set MAC address from physical interface is used.
 
 The following optional keys are supported:
 
@@ -308,6 +319,7 @@ Valid keys for ``subnets`` include the following:
 - ``dns_nameservers``: Specify a list of IPv4 DNS server IPs.
 - ``dns_search``: Specify a list of DNS search paths.
 - ``routes``: Specify a list of routes for a given interface.
+- ``metric``: Integer which sets the metric cost of routes within this subnet.
 
 Subnet types are one of the following:
 

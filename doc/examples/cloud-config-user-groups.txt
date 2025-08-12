@@ -27,7 +27,7 @@ users:
     passwd: $6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
   - name: barfoo
     gecos: Bar B. Foo
-    sudo: ALL=(ALL) NOPASSWD:ALL
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
     groups: users, admin
     ssh_import_id:
       - lp:falcojr
@@ -44,7 +44,6 @@ users:
     inactive: '5'
     system: true
   - name: fizzbuzz
-    sudo: false
     shell: /bin/bash
     ssh_authorized_keys:
       - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDSL7uWGj8cgWyIOaspgKdVy0cKJ+UTjfv7jBOjG2H/GN8bJVXy72XAvnhM0dUM+CCs8FOf0YlPX+Frvz2hKInrmRhZVwRSL129PasD12MlI3l44u6IwS1o/W86Q+tkQYEljtqDOo0a+cOsaZkvUNzUyEXUwz/lmYa6G4hMKZH4NBj7nbAAF96wsMCoyNwbWryBnDYUr6wMbjRR1J9Pw7Xh7WRC73wy4Va2YuOgbD3V/5ZrFPLbWZW/7TFXVrql04QVbyei4aiFR5n//GvoqwQDNe58LmbzX/xvxyKJYdny2zXmdAhMxbrpFQsfpkJ9E/H5w0yOdSvnWbUoG5xNGoOB csmith@fringe
@@ -103,17 +102,14 @@ users:
 #         strings or False to explicitly deny sudo usage. Examples:
 #
 #         Allow a user unrestricted sudo access.
-#             sudo:  ALL=(ALL) NOPASSWD:ALL
+#             sudo:  "ALL=(ALL) NOPASSWD:ALL"
 #                       or
 #             sudo: ["ALL=(ALL) NOPASSWD:ALL"]
 #
 #         Adding multiple sudo rule strings.
 #             sudo:
-#               - ALL=(ALL) NOPASSWD:/bin/mysql
-#               - ALL=(ALL) ALL
-#
-#         Prevent sudo access for a user.
-#             sudo: False
+#               - "ALL=(ALL) NOPASSWD:/bin/mysql"
+#               - "ALL=(ALL) ALL"
 #
 #         Note: Please double check your syntax and make sure it is valid.
 #               cloud-init does not parse/check the syntax of the sudo

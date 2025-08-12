@@ -41,7 +41,7 @@ PACKAGE_DEPENDENCY_BY_COMMAND: Mapping[str, str] = {
 
 meta: MetaSchema = {
     "id": "cc_apt_configure",
-    "distros": ["ubuntu", "debian"],
+    "distros": ["ubuntu", "debian", "raspberry-pi-os"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": [],
 }

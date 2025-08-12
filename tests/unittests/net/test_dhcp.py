@@ -7,6 +7,7 @@ import subprocess
 from textwrap import dedent
 
 import pytest
+import responses
 
 from cloudinit.distros import alpine, amazon, centos, debian, freebsd, rhel
 from cloudinit.distros.ubuntu import Distro
@@ -27,7 +28,6 @@ from cloudinit.subp import SubpResult
 from cloudinit.util import ensure_file, load_binary_file, subp, write_file
 from tests.unittests.helpers import (
     CiTestCase,
-    ResponsesTestCase,
     example_netdev,
     mock,
     populate_dir,
@@ -686,7 +686,8 @@ class TestDHCPDiscoveryClean:
         my_pid = 1
         write_file(pid_file, "%d\n" % my_pid)
 
-        def dhcp_log_func(out, err):
+        def dhcp_log_func(interface, out, err):
+            assert interface == "eth9"
             assert out == dhclient_out
             assert err == dhclient_err
 
@@ -813,9 +814,10 @@ class TestSystemdParseLeases(CiTestCase):
         )
 
 
+@responses.activate
 @pytest.mark.usefixtures("disable_netdev_info")
 @mock.patch("cloudinit.net.ephemeral._check_connectivity_to_imds")
-class TestEphemeralDhcpNoNetworkSetup(ResponsesTestCase):
+class TestEphemeralDhcpNoNetworkSetup(CiTestCase):
     @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
     def test_ephemeral_dhcp_no_network_if_url_connectivity(
         self, m_dhcp, m_imds

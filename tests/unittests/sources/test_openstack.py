@@ -14,7 +14,6 @@ import pytest
 import responses
 
 from cloudinit import helpers, settings, util
-from cloudinit.distros import Distro
 from cloudinit.sources import UNSET, BrokenMetadata
 from cloudinit.sources import DataSourceOpenStack as ds
 from cloudinit.sources import convert_vendordata
@@ -146,7 +145,7 @@ def _read_metadata_service():
     return ds.read_metadata_service(BASE_URL, retries=0, timeout=0.1)
 
 
-class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
+class TestOpenStackDataSource(test_helpers.CiTestCase):
 
     with_logs = True
     VERSION = "latest"
@@ -155,13 +154,14 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
         super(TestOpenStackDataSource, self).setUp()
         self.tmp = self.tmp_dir()
 
+    @responses.activate
     def test_successful(self):
         _register_uris(
             self.VERSION,
             EC2_FILES,
             EC2_META,
             OS_FILES,
-            responses_mock=self.responses,
+            responses_mock=responses,
         )
         f = _read_metadata_service()
         self.assertEqual(VENDOR_DATA, f.get("vendordata"))
@@ -186,9 +186,10 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
             "b0fa911b-69d4-4476-bbe2-1c92bff6535c", metadata.get("instance-id")
         )
 
+    @responses.activate
     def test_no_ec2(self):
         _register_uris(
-            self.VERSION, {}, {}, OS_FILES, responses_mock=self.responses
+            self.VERSION, {}, {}, OS_FILES, responses_mock=responses
         )
         f = _read_metadata_service()
         self.assertEqual(VENDOR_DATA, f.get("vendordata"))
@@ -199,16 +200,18 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
         self.assertEqual({}, f.get("ec2-metadata"))
         self.assertEqual(2, f.get("version"))
 
+    @responses.activate
     def test_bad_metadata(self):
         os_files = copy.deepcopy(OS_FILES)
         for k in list(os_files.keys()):
             if k.endswith("meta_data.json"):
                 os_files.pop(k, None)
         _register_uris(
-            self.VERSION, {}, {}, os_files, responses_mock=self.responses
+            self.VERSION, {}, {}, os_files, responses_mock=responses
         )
         self.assertRaises(openstack.NonReadable, _read_metadata_service)
 
+    @responses.activate
     def test_bad_uuid(self):
         os_files = copy.deepcopy(OS_FILES)
         os_meta = copy.deepcopy(OSTACK_META)
@@ -217,17 +220,18 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
             if k.endswith("meta_data.json"):
                 os_files[k] = json.dumps(os_meta)
         _register_uris(
-            self.VERSION, {}, {}, os_files, responses_mock=self.responses
+            self.VERSION, {}, {}, os_files, responses_mock=responses
         )
         self.assertRaises(BrokenMetadata, _read_metadata_service)
 
+    @responses.activate
     def test_userdata_empty(self):
         os_files = copy.deepcopy(OS_FILES)
         for k in list(os_files.keys()):
             if k.endswith("user_data"):
                 os_files.pop(k, None)
         _register_uris(
-            self.VERSION, {}, {}, os_files, responses_mock=self.responses
+            self.VERSION, {}, {}, os_files, responses_mock=responses
         )
         f = _read_metadata_service()
         self.assertEqual(VENDOR_DATA, f.get("vendordata"))
@@ -236,62 +240,68 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
         self.assertEqual(CONTENT_1, f["files"]["/etc/bar/bar.cfg"])
         self.assertFalse(f.get("userdata"))
 
+    @responses.activate
     def test_vendordata_empty(self):
         os_files = copy.deepcopy(OS_FILES)
         for k in list(os_files.keys()):
             if k.endswith("vendor_data.json"):
                 os_files.pop(k, None)
         _register_uris(
-            self.VERSION, {}, {}, os_files, responses_mock=self.responses
+            self.VERSION, {}, {}, os_files, responses_mock=responses
         )
         f = _read_metadata_service()
         self.assertEqual(CONTENT_0, f["files"]["/etc/foo.cfg"])
         self.assertEqual(CONTENT_1, f["files"]["/etc/bar/bar.cfg"])
         self.assertFalse(f.get("vendordata"))
 
+    @responses.activate
     def test_vendordata2_empty(self):
         os_files = copy.deepcopy(OS_FILES)
         for k in list(os_files.keys()):
             if k.endswith("vendor_data2.json"):
                 os_files.pop(k, None)
         _register_uris(
-            self.VERSION, {}, {}, os_files, responses_mock=self.responses
+            self.VERSION, {}, {}, os_files, responses_mock=responses
         )
         f = _read_metadata_service()
         self.assertEqual(CONTENT_0, f["files"]["/etc/foo.cfg"])
         self.assertEqual(CONTENT_1, f["files"]["/etc/bar/bar.cfg"])
         self.assertFalse(f.get("vendordata2"))
 
+    @responses.activate
     def test_vendordata_invalid(self):
         os_files = copy.deepcopy(OS_FILES)
         for k in list(os_files.keys()):
             if k.endswith("vendor_data.json"):
                 os_files[k] = "{"  # some invalid json
         _register_uris(
-            self.VERSION, {}, {}, os_files, responses_mock=self.responses
+            self.VERSION, {}, {}, os_files, responses_mock=responses
         )
         self.assertRaises(BrokenMetadata, _read_metadata_service)
 
+    @responses.activate
     def test_vendordata2_invalid(self):
         os_files = copy.deepcopy(OS_FILES)
         for k in list(os_files.keys()):
             if k.endswith("vendor_data2.json"):
                 os_files[k] = "{"  # some invalid json
         _register_uris(
-            self.VERSION, {}, {}, os_files, responses_mock=self.responses
+            self.VERSION, {}, {}, os_files, responses_mock=responses
         )
         self.assertRaises(BrokenMetadata, _read_metadata_service)
 
+    @responses.activate
     def test_metadata_invalid(self):
         os_files = copy.deepcopy(OS_FILES)
         for k in list(os_files.keys()):
             if k.endswith("meta_data.json"):
                 os_files[k] = "{"  # some invalid json
         _register_uris(
-            self.VERSION, {}, {}, os_files, responses_mock=self.responses
+            self.VERSION, {}, {}, os_files, responses_mock=responses
         )
         self.assertRaises(BrokenMetadata, _read_metadata_service)
 
+    @responses.activate
     @test_helpers.mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
     def test_datasource(self, m_dhcp):
         _register_uris(
@@ -299,11 +309,12 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
             EC2_FILES,
             EC2_META,
             OS_FILES,
-            responses_mock=self.responses,
+            responses_mock=responses,
         )
-        distro = mock.MagicMock(spec=Distro)
         ds_os = ds.DataSourceOpenStack(
-            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN,
+            test_util.MockDistro(),
+            helpers.Paths({"run_dir": self.tmp}),
         )
         self.assertIsNone(ds_os.version)
         with mock.patch.object(ds_os, "override_ds_detect", return_value=True):
@@ -319,6 +330,7 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
         self.assertIsNone(ds_os.vendordata_raw)
         m_dhcp.assert_not_called()
 
+    @responses.activate
     @test_helpers.mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
     @test_helpers.mock.patch(
         "cloudinit.net.ephemeral.maybe_perform_dhcp_discovery"
@@ -331,7 +343,7 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
             EC2_FILES,
             EC2_META,
             OS_FILES,
-            responses_mock=self.responses,
+            responses_mock=responses,
         )
         distro = mock.MagicMock()
         distro.get_tmp_exec_path = self.tmp_dir
@@ -365,18 +377,19 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
         self.assertIsNone(ds_os_local.vendordata_raw)
         m_dhcp.assert_called_with(distro, "eth9", None)
 
+    @responses.activate
     def test_bad_datasource_meta(self):
         os_files = copy.deepcopy(OS_FILES)
         for k in list(os_files.keys()):
             if k.endswith("meta_data.json"):
                 os_files[k] = "{"  # some invalid json
         _register_uris(
-            self.VERSION, {}, {}, os_files, responses_mock=self.responses
+            self.VERSION, {}, {}, os_files, responses_mock=responses
         )
-        distro = mock.MagicMock(spec=Distro)
-        distro.is_virtual = True
         ds_os = ds.DataSourceOpenStack(
-            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN,
+            test_util.MockDistro(),
+            helpers.Paths({"run_dir": self.tmp}),
         )
         self.assertIsNone(ds_os.version)
         with test_helpers.mock.patch.object(
@@ -392,18 +405,19 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
             r" http://(169.254.169.254|\[fe80::a9fe:a9fe\])",
         )
 
+    @responses.activate
     def test_no_datasource(self):
         os_files = copy.deepcopy(OS_FILES)
         for k in list(os_files.keys()):
             if k.endswith("meta_data.json"):
                 os_files.pop(k)
         _register_uris(
-            self.VERSION, {}, {}, os_files, responses_mock=self.responses
+            self.VERSION, {}, {}, os_files, responses_mock=responses
         )
-        distro = mock.MagicMock(spec=Distro)
-        distro.is_virtual = True
         ds_os = ds.DataSourceOpenStack(
-            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN,
+            test_util.MockDistro(),
+            helpers.Paths({"run_dir": self.tmp}),
         )
         ds_os.ds_cfg = {
             "max_wait": 0,
@@ -464,6 +478,7 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
             self.assertEqual(example_cfg, ds_os.network_config)
         m_convert_json.assert_not_called()
 
+    @responses.activate
     def test_disabled_datasource(self):
         os_files = copy.deepcopy(OS_FILES)
         os_meta = copy.deepcopy(OSTACK_META)
@@ -474,12 +489,12 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
             if k.endswith("meta_data.json"):
                 os_files[k] = json.dumps(os_meta)
         _register_uris(
-            self.VERSION, {}, {}, os_files, responses_mock=self.responses
+            self.VERSION, {}, {}, os_files, responses_mock=responses
         )
-        distro = mock.MagicMock(spec=Distro)
-        distro.is_virtual = True
         ds_os = ds.DataSourceOpenStack(
-            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN,
+            test_util.MockDistro(),
+            helpers.Paths({"run_dir": self.tmp}),
         )
         ds_os.ds_cfg = {
             "max_wait": 0,
@@ -494,6 +509,7 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
         self.assertFalse(found)
         self.assertIsNone(ds_os.version)
 
+    @responses.activate
     def test_wb__crawl_metadata_does_not_persist(self):
         """_crawl_metadata returns current metadata and does not cache."""
         _register_uris(
@@ -501,7 +517,7 @@ class TestOpenStackDataSource(test_helpers.ResponsesTestCase):
             EC2_FILES,
             EC2_META,
             OS_FILES,
-            responses_mock=self.responses,
+            responses_mock=responses,
         )
         ds_os = ds.DataSourceOpenStack(
             settings.CFG_BUILTIN,
@@ -582,10 +598,10 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
         self.tmp = self.tmp_dir()
 
     def _fake_ds(self) -> ds.DataSourceOpenStack:
-        distro = mock.MagicMock(spec=Distro)
-        distro.is_virtual = True
         return ds.DataSourceOpenStack(
-            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN,
+            test_util.MockDistro(),
+            helpers.Paths({"run_dir": self.tmp}),
         )
 
     def test_ds_detect_non_intel_x86(self, m_is_x86):
@@ -790,7 +806,7 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
         m_proc_env.assert_called_with(1)
 
 
-class TestMetadataReader(test_helpers.ResponsesTestCase):
+class TestMetadataReader(test_helpers.CiTestCase):
     """Test the MetadataReader."""
 
     burl = "http://169.254.169.254/"
@@ -807,7 +823,7 @@ class TestMetadataReader(test_helpers.ResponsesTestCase):
 
     def register(self, path, body=None, status=200):
         content = body if not isinstance(body, str) else body.encode("utf-8")
-        self.responses.add(
+        responses.add(
             responses.GET,
             self.burl + "openstack" + path,
             status=status,
@@ -828,6 +844,7 @@ class TestMetadataReader(test_helpers.ResponsesTestCase):
         if "user_data" not in data:
             self.register("/%s/user_data" % version, "nodata", status=404)
 
+    @responses.activate
     def test__find_working_version(self):
         """Test a working version ignores unsupported."""
         unsup = "2016-11-09"
@@ -844,6 +861,7 @@ class TestMetadataReader(test_helpers.ResponsesTestCase):
             openstack.MetadataReader(self.burl)._find_working_version(),
         )
 
+    @responses.activate
     def test__find_working_version_uses_latest(self):
         """'latest' should be used if no supported versions."""
         unsup1, unsup2 = ("2016-11-09", "2017-06-06")
@@ -853,6 +871,7 @@ class TestMetadataReader(test_helpers.ResponsesTestCase):
             openstack.MetadataReader(self.burl)._find_working_version(),
         )
 
+    @responses.activate
     def test_read_v2_os_ocata(self):
         """Validate return value of read_v2 for os_ocata data."""
         md = copy.deepcopy(self.md_base)

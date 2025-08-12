@@ -432,8 +432,9 @@ def _handle_error(
         return None
     if error.code and error.code == 503:
         LOG.warning(
-            "Ec2 IMDS endpoint returned a 503 error. "
-            "HTTP endpoint is overloaded. Retrying."
+            "Endpoint returned a 503 error. "
+            "HTTP endpoint is overloaded. Retrying URL (%s).",
+            error.url,
         )
         if error.headers:
             return _get_retry_after(error.headers.get("Retry-After", "1"))
@@ -697,7 +698,7 @@ def dual_stack(
         # No success, return the last exception but log them all for
         # debugging
         if last_exception:
-            LOG.warning(
+            LOG.debug(
                 "Exception(s) %s during request to "
                 "%s, raising last exception",
                 exceptions,
@@ -710,7 +711,7 @@ def dual_stack(
 
     # when max_wait expires, log but don't throw (retries happen)
     except TimeoutError:
-        LOG.warning(
+        LOG.debug(
             "Timed out waiting for addresses: %s, "
             "exception(s) raised while waiting: %s",
             " ".join(addresses),
@@ -1035,7 +1036,7 @@ class OauthUrlHelper:
         ) as fp:
             fp.write(json.dumps(cur))
 
-    def exception_cb(self, msg, exception):
+    def exception_cb(self, exception):
         if not (
             isinstance(exception, UrlError)
             and (exception.code == 403 or exception.code == 401)
@@ -1096,13 +1097,13 @@ class OauthUrlHelper:
     def readurl(self, *args, **kwargs):
         return self._wrapped(readurl, args, kwargs)
 
-    def _exception_cb(self, extra_exception_cb, msg, exception):
-        ret = None
+    def _exception_cb(self, extra_exception_cb, exception):
+        ret = True
         try:
             if extra_exception_cb:
-                ret = extra_exception_cb(msg, exception)
+                ret = extra_exception_cb(exception)
         finally:
-            self.exception_cb(msg, exception)
+            self.exception_cb(exception)
         return ret
 
     def _headers_cb(self, extra_headers_cb, url):

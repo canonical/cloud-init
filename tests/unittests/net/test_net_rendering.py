@@ -35,6 +35,8 @@ import yaml
 from cloudinit.net.netplan import Renderer as NetplanRenderer
 from cloudinit.net.network_manager import Renderer as NetworkManagerRenderer
 from cloudinit.net.network_state import NetworkState, parse_net_config_data
+from cloudinit.net.networkd import Renderer as NetworkdRenderer
+from tests.unittests.helpers import mock
 
 ARTIFACT_DIR = Path(__file__).parent.absolute() / "artifacts"
 
@@ -48,6 +50,19 @@ class Renderer(Flag):
 @pytest.fixture(autouse=True)
 def setup(mocker):
     mocker.patch("cloudinit.net.network_state.get_interfaces_by_mac")
+
+
+def _check_file_diff(expected_paths: list, tmp_path: Path):
+    for expected_path in expected_paths:
+        expected_contents = Path(expected_path).read_text()
+        actual_path = tmp_path / expected_path.split(
+            str(ARTIFACT_DIR), maxsplit=1
+        )[1].lstrip("/")
+        assert (
+            actual_path.exists()
+        ), f"Expected {actual_path} to exist, but it does not"
+        actual_contents = actual_path.read_text()
+        assert expected_contents.strip() == actual_contents.strip()
 
 
 def _check_netplan(
@@ -73,21 +88,30 @@ def _check_network_manager(network_state: NetworkState, tmp_path: Path):
         str(ARTIFACT_DIR / "no_matching_mac" / "**/*.nmconnection"),
         recursive=True,
     )
-    for expected_path in expected_paths:
-        expected_contents = Path(expected_path).read_text()
-        actual_path = tmp_path / expected_path.split(
-            str(ARTIFACT_DIR), maxsplit=1
-        )[1].lstrip("/")
-        assert (
-            actual_path.exists()
-        ), f"Expected {actual_path} to exist, but it does not"
-        actual_contents = actual_path.read_text()
-        assert expected_contents.strip() == actual_contents.strip()
+    _check_file_diff(expected_paths, tmp_path)
+
+
+@mock.patch("cloudinit.net.util.chownbyname", return_value=True)
+def _check_networkd_renderer(
+    network_state: NetworkState, tmp_path: Path, m_chown
+):
+    renderer = NetworkdRenderer()
+    renderer.render_network_state(
+        network_state, target=str(tmp_path / "photon_net_config")
+    )
+    expected_paths = glob.glob(
+        str(ARTIFACT_DIR / "photon_net_config" / "**/*.net*"),
+        recursive=True,
+    )
+    _check_file_diff(expected_paths, tmp_path)
 
 
 @pytest.mark.parametrize(
     "test_name, renderers",
-    [("no_matching_mac_v2", Renderer.Netplan | Renderer.NetworkManager)],
+    [
+        ("no_matching_mac_v2", Renderer.Netplan | Renderer.NetworkManager),
+        ("photon_net_config_v2", Renderer.Networkd),
+    ],
 )
 def test_convert(test_name, renderers, tmp_path):
     network_config = yaml.safe_load(
@@ -100,3 +124,5 @@ def test_convert(test_name, renderers, tmp_path):
         )
     if Renderer.NetworkManager in renderers:
         _check_network_manager(network_state, tmp_path)
+    if Renderer.Networkd in renderers:
+        _check_networkd_renderer(network_state, tmp_path)

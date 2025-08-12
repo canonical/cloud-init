@@ -5,15 +5,13 @@
 # Author: Joshua Harlow <harlowja@yahoo-inc.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
-import contextlib
 import inspect
 import logging
 import signal
 import sys
-import threading
 import types
 from io import StringIO
-from typing import Callable, Dict, Final, NamedTuple, Union
+from typing import Callable, Dict, Final, Union
 
 from cloudinit import version as vr
 from cloudinit.log import log_util
@@ -27,17 +25,6 @@ SIGNALS: Final[Dict[int, str]] = {
     signal.SIGTERM: "Cloud-init %(version)s received SIGTERM, exiting",
     signal.SIGABRT: "Cloud-init %(version)s received SIGABRT, exiting",
 }
-
-
-class ExitBehavior(NamedTuple):
-    exit_code: int
-    log_level: int
-
-
-SIGNAL_EXIT_BEHAVIOR_CRASH: Final = ExitBehavior(1, logging.ERROR)
-SIGNAL_EXIT_BEHAVIOR_QUIET: Final = ExitBehavior(0, logging.INFO)
-_SIGNAL_EXIT_BEHAVIOR = SIGNAL_EXIT_BEHAVIOR_CRASH
-_SUSPEND_WRITE_LOCK = threading.RLock()
 
 
 def inspect_handler(sig: Union[int, Callable, None]) -> None:
@@ -80,9 +67,12 @@ def _handle_exit(signum, frame):
     contents = StringIO(SIG_MESSAGE.format(vr.version_string(), name))
     _pprint_frame(frame, 1, BACK_FRAME_TRACE_DEPTH, contents)
     log_util.multi_log(
-        contents.getvalue(), log=LOG, log_level=_SIGNAL_EXIT_BEHAVIOR.log_level
+        f"Received signal {name} resulting in exit. Cause:\n"
+        + contents.getvalue(),
+        log=LOG,
+        log_level=logging.INFO,
     )
-    sys.exit(_SIGNAL_EXIT_BEHAVIOR.exit_code)
+    sys.exit(0)
 
 
 def attach_handlers():
@@ -92,23 +82,3 @@ def attach_handlers():
         inspect_handler(signal.signal(signum, _handle_exit))
     sigs_attached += len(SIGNALS)
     return sigs_attached
-
-
-@contextlib.contextmanager
-def suspend_crash():
-    """suspend_crash() allows signals to be received without exiting 1
-
-    This allow signal handling without a crash where it is expected. The
-    call stack is still printed if signal is received during this context, but
-    the return code is 0 and no traceback is printed.
-
-    Threadsafe.
-    """
-    global _SIGNAL_EXIT_BEHAVIOR
-
-    # If multiple threads simultaneously were to modify this
-    # global state, this function would not behave as expected.
-    with _SUSPEND_WRITE_LOCK:
-        _SIGNAL_EXIT_BEHAVIOR = SIGNAL_EXIT_BEHAVIOR_QUIET
-        yield
-        _SIGNAL_EXIT_BEHAVIOR = SIGNAL_EXIT_BEHAVIOR_CRASH
