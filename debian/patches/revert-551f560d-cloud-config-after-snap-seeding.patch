@@ -199,7 +199,7 @@ Last-Update: 2024-02-14
          data = {
 --- a/tests/unittests/config/test_cc_snap.py
 +++ b/tests/unittests/config/test_cc_snap.py
-@@ -301,11 +301,8 @@ class TestSnapSchema:
+@@ -293,11 +293,8 @@ class TestSnapSchema:
  
  
  class TestHandle:
@@ -212,7 +212,7 @@ Last-Update: 2024-02-14
          """Any configured snap assertions are provided to add_assertions."""
          assert_file = os.path.join(
              fake_cloud.paths.get_ipath_cur(), "snapd.assertions"
-@@ -320,4 +317,3 @@ class TestHandle:
+@@ -312,4 +309,3 @@ class TestHandle:
          assert util.load_text_file(compare_file) == util.load_text_file(
              assert_file
          )
