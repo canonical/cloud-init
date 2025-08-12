@@ -5,6 +5,7 @@ cloud-init (25.2-0ubuntu1~24.04.1) UNRELEASED; urgency=medium
       MTU in a netplan config. (GH-6239)
   * d/cloud-init.templates:
     - Move VMware before OVF. See GH-4030
+    - Enable CloudCIX by default
 
  -- James Falcon <james.falcon@canonical.com>  Wed, 09 Jul 2025 15:42:21 -0500
 
