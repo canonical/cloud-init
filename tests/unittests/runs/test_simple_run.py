@@ -3,48 +3,52 @@
 import copy
 import os
 
+import pytest
+
 from cloudinit import atomic_helper, safeyaml, stages, util
 from cloudinit.config.modules import Modules
 from cloudinit.settings import PER_INSTANCE
 from cloudinit.sources import NetworkConfigSource
-from tests.unittests import helpers
+from tests.unittests.helpers import replicate_test_root
 
 
-class TestSimpleRun(helpers.FilesystemMockingTestCase):
+@pytest.mark.usefixtures("fake_filesystem_hook")
+@pytest.fixture(autouse=True)
+def replicate_root(tmp_path):
+    replicate_test_root("simple_ubuntu", str(tmp_path))
 
-    with_logs = True
 
-    def setUp(self):
-        super(TestSimpleRun, self).setUp()
-        self.new_root = self.tmp_dir()
-        self.replicateTestRoot("simple_ubuntu", self.new_root)
-
-        # Seed cloud.cfg file for our tests
-        self.cfg = {
-            "datasource_list": ["None"],
-            "runcmd": ["ls /etc"],  # test ALL_DISTROS
-            "spacewalk": {},  # test non-ubuntu distros module definition
-            "system_info": {
-                "paths": {"run_dir": self.new_root},
-                "distro": "ubuntu",
+@pytest.fixture(autouse=True)
+def cfg(mocker, tmp_path):
+    new_root = str(tmp_path)
+    _cfg = {
+        "datasource_list": ["None"],
+        "runcmd": ["ls /etc"],  # test ALL_DISTROS
+        "spacewalk": {},  # test non-ubuntu distros module definition
+        "system_info": {
+            "paths": {"run_dir": new_root},
+            "distro": "ubuntu",
+        },
+        "write_files": [
+            {
+                "path": "/etc/blah.ini",
+                "content": "blah",
+                "permissions": 0o755,
             },
-            "write_files": [
-                {
-                    "path": "/etc/blah.ini",
-                    "content": "blah",
-                    "permissions": 0o755,
-                },
-            ],
-            "cloud_init_modules": ["write_files", "spacewalk", "runcmd"],
-        }
-        cloud_cfg = safeyaml.dumps(self.cfg)
-        util.ensure_dir(os.path.join(self.new_root, "etc", "cloud"))
-        util.write_file(
-            os.path.join(self.new_root, "etc", "cloud", "cloud.cfg"), cloud_cfg
-        )
-        self.patchOS(self.new_root)
-        self.patchUtils(self.new_root)
+        ],
+        "cloud_init_modules": ["write_files", "spacewalk", "runcmd"],
+    }
+    cloud_cfg = safeyaml.dumps(_cfg)
+    util.ensure_dir(os.path.join(new_root, "etc", "cloud"))
+    util.write_file(
+        os.path.join(new_root, "etc", "cloud", "cloud.cfg"), cloud_cfg
+    )
+    mocker.patch("cloudinit.util.os.chown")
+    return _cfg
 
+
+@pytest.mark.usefixtures("fake_filesystem")
+class TestSimpleRun:
     def test_none_ds_populates_var_lib_cloud(self):
         """Init and run_section default behavior creates appropriate dirs."""
         # Now start verifying whats created
@@ -56,31 +60,30 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
         def fake_network_config():
             return netcfg, NetworkConfigSource.FALLBACK
 
-        self.assertFalse(os.path.exists("/var/lib/cloud"))
+        assert not os.path.exists("/var/lib/cloud")
         initer = stages.Init()
         initer.read_cfg()
         initer.initialize()
-        self.assertTrue(os.path.exists("/var/lib/cloud"))
+        assert os.path.exists("/var/lib/cloud")
         for d in ["scripts", "seed", "instances", "handlers", "sem", "data"]:
-            self.assertTrue(os.path.isdir(os.path.join("/var/lib/cloud", d)))
+            assert os.path.isdir(os.path.join("/var/lib/cloud", d))
 
         initer.fetch()
-        self.assertFalse(os.path.islink("var/lib/cloud/instance"))
+        assert not os.path.islink("var/lib/cloud/instance")
         iid = initer.instancify()
-        self.assertEqual(iid, "iid-datasource-none")
+        assert iid == "iid-datasource-none"
         initer.update()
-        self.assertTrue(os.path.islink("var/lib/cloud/instance"))
+        assert os.path.islink("var/lib/cloud/instance")
         initer._find_networking_config = fake_network_config
-        self.assertFalse(
-            os.path.exists("/var/lib/cloud/instance/network-config.json")
+        assert not os.path.exists(
+            "/var/lib/cloud/instance/network-config.json"
         )
         initer.apply_network_config(False)
-        self.assertEqual(
-            f"{atomic_helper.json_dumps(netcfg)}\n",
-            util.load_text_file("/var/lib/cloud/instance/network-config.json"),
+        assert f"{atomic_helper.json_dumps(netcfg)}\n" == util.load_text_file(
+            "/var/lib/cloud/instance/network-config.json"
         )
 
-    def test_none_ds_runs_modules_which_do_not_define_distros(self):
+    def test_none_ds_runs_modules_which_do_not_define_distros(self, caplog):
         """Any modules which do not define a distros attribute are run."""
         initer = stages.Init()
         initer.read_cfg()
@@ -97,18 +100,19 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
 
         mods = Modules(initer)
         (which_ran, failures) = mods.run_section("cloud_init_modules")
-        self.assertFalse(failures)
-        self.assertTrue(os.path.exists("/etc/blah.ini"))
-        self.assertIn("write_files", which_ran)
+        assert not failures
+        assert os.path.exists("/etc/blah.ini")
+        assert "write_files" in which_ran
         contents = util.load_text_file("/etc/blah.ini")
-        self.assertEqual(contents, "blah")
-        self.assertNotIn(
+        assert contents == "blah"
+        assert (
             "Skipping modules ['write_files'] because they are not verified on"
-            " distro 'ubuntu'",
-            self.logs.getvalue(),
+            " distro 'ubuntu'" not in caplog.text
         )
 
-    def test_none_ds_skips_modules_which_define_unmatched_distros(self):
+    def test_none_ds_skips_modules_which_define_unmatched_distros(
+        self, caplog
+    ):
         """Skip modules which define distros which don't match the current."""
         initer = stages.Init()
         initer.read_cfg()
@@ -125,15 +129,14 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
 
         mods = Modules(initer)
         (which_ran, failures) = mods.run_section("cloud_init_modules")
-        self.assertFalse(failures)
-        self.assertIn(
+        assert not failures
+        assert (
             "Skipping modules 'spacewalk' because they are not verified on"
-            " distro 'ubuntu'",
-            self.logs.getvalue(),
+            " distro 'ubuntu'" in caplog.text
         )
-        self.assertNotIn("spacewalk", which_ran)
+        assert "spacewalk" not in which_ran
 
-    def test_none_ds_runs_modules_which_distros_all(self):
+    def test_none_ds_runs_modules_which_distros_all(self, caplog):
         """Skip modules which define distros attribute as supporting 'all'.
 
         This is done in the module with the declaration:
@@ -154,25 +157,22 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
 
         mods = Modules(initer)
         (which_ran, failures) = mods.run_section("cloud_init_modules")
-        self.assertFalse(failures)
-        self.assertIn("runcmd", which_ran)
-        self.assertNotIn(
+        assert not failures
+        assert "runcmd" in which_ran
+        assert (
             "Skipping modules 'runcmd' because they are not verified on"
-            " distro 'ubuntu'",
-            self.logs.getvalue(),
+            " distro 'ubuntu'" not in caplog.text
         )
 
-    def test_none_ds_forces_run_via_unverified_modules(self):
+    def test_none_ds_forces_run_via_unverified_modules(self, caplog, cfg):
         """run_section forced skipped modules by using unverified_modules."""
 
         # re-write cloud.cfg with unverified_modules override
-        cfg = copy.deepcopy(self.cfg)
+        cfg = copy.deepcopy(cfg)
         cfg["unverified_modules"] = ["spacewalk"]  # Would have skipped
         cloud_cfg = safeyaml.dumps(cfg)
-        util.ensure_dir(os.path.join(self.new_root, "etc", "cloud"))
-        util.write_file(
-            os.path.join(self.new_root, "etc", "cloud", "cloud.cfg"), cloud_cfg
-        )
+        util.ensure_dir(os.path.join("/etc", "cloud"))
+        util.write_file(os.path.join("/etc", "cloud", "cloud.cfg"), cloud_cfg)
 
         initer = stages.Init()
         initer.read_cfg()
@@ -189,24 +189,20 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
 
         mods = Modules(initer)
         (which_ran, failures) = mods.run_section("cloud_init_modules")
-        self.assertFalse(failures)
-        self.assertIn("spacewalk", which_ran)
-        self.assertIn(
-            "running unverified_modules: 'spacewalk'", self.logs.getvalue()
-        )
+        assert not failures
+        assert "spacewalk" in which_ran
+        assert "running unverified_modules: 'spacewalk'" in caplog.text
 
-    def test_none_ds_run_with_no_config_modules(self):
+    def test_none_ds_run_with_no_config_modules(self, cfg):
         """run_section will report no modules run when none are configured."""
 
         # re-write cloud.cfg with unverified_modules override
-        cfg = copy.deepcopy(self.cfg)
+        cfg = copy.deepcopy(cfg)
         # Represent empty configuration in /etc/cloud/cloud.cfg
         cfg["cloud_init_modules"] = None
         cloud_cfg = safeyaml.dumps(cfg)
-        util.ensure_dir(os.path.join(self.new_root, "etc", "cloud"))
-        util.write_file(
-            os.path.join(self.new_root, "etc", "cloud", "cloud.cfg"), cloud_cfg
-        )
+        util.ensure_dir(os.path.join("/etc", "cloud"))
+        util.write_file(os.path.join("/etc", "cloud", "cloud.cfg"), cloud_cfg)
 
         initer = stages.Init()
         initer.read_cfg()
@@ -223,5 +219,5 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
 
         mods = Modules(initer)
         (which_ran, failures) = mods.run_section("cloud_init_modules")
-        self.assertFalse(failures)
-        self.assertEqual([], which_ran)
+        assert not failures
+        assert [] == which_ran

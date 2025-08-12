@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 # pylint: disable=attribute-defined-outside-init
 
+import copy
 import functools
 import io
 import logging
@@ -8,11 +9,10 @@ import os
 import random
 import shutil
 import string
-import sys
 import tempfile
 import time
 import unittest
-from contextlib import ExitStack, contextmanager
+from contextlib import contextmanager
 from typing import ClassVar, List, Union
 from unittest import mock
 from unittest.util import strclass
@@ -20,14 +20,12 @@ from urllib.parse import urlsplit, urlunsplit
 
 import responses
 
-from cloudinit import atomic_helper, cloud, distros
-from cloudinit import helpers as ch
-from cloudinit import subp, util
+from cloudinit import distros, helpers, settings, subp, util
 from cloudinit.config.schema import (
     SchemaValidationError,
     validate_cloudconfig_schema,
 )
-from cloudinit.sources import DataSourceNone
+from cloudinit.helpers import Paths
 from cloudinit.templater import JINJA_AVAILABLE
 from tests.helpers import cloud_init_project_dir
 from tests.hypothesis_jsonschema import HAS_HYPOTHESIS_JSONSCHEMA
@@ -262,207 +260,58 @@ class CiTestCase(TestCase):
             dir = self.tmp_dir()
         return os.path.normpath(os.path.abspath(os.path.join(dir, path)))
 
-    def tmp_cloud(self, distro, sys_cfg=None, metadata=None):
-        """Create a cloud with tmp working directory paths.
-
-        @param distro: Name of the distro to attach to the cloud.
-        @param metadata: Optional metadata to set on the datasource.
-
-        @return: The built cloud instance.
-        """
-        self.new_root = self.tmp_dir()
-        if not sys_cfg:
-            sys_cfg = {}
-        MockPaths = get_mock_paths(self.new_root)
-        self.paths = MockPaths({})
-        cls = distros.fetch(distro)
-        mydist = cls(distro, sys_cfg, self.paths)
-        myds = DataSourceNone.DataSourceNone(sys_cfg, mydist, self.paths)
-        if metadata:
-            myds.metadata.update(metadata)
-        return cloud.Cloud(myds, self.paths, sys_cfg, mydist, None)
-
     @classmethod
     def random_string(cls, length=8):
         return random_string(length)
 
 
-class ResourceUsingTestCase(CiTestCase):
-    def setUp(self):
-        super(ResourceUsingTestCase, self).setUp()
-        self.resource_path = None
+def replicate_test_root(example_root, target_root):
+    real_root = resourceLocation()
+    real_root = os.path.join(real_root, "roots", example_root)
+    for dir_path, _dirnames, filenames in os.walk(real_root):
+        real_path = dir_path
+        make_path = rebase_path(real_path[len(real_root) :], target_root)
+        util.ensure_dir(make_path)
+        for f in filenames:
+            real_path = os.path.abspath(os.path.join(real_path, f))
+            make_path = os.path.abspath(os.path.join(make_path, f))
+            shutil.copy(real_path, make_path)
 
-    def getCloudPaths(self, ds=None):
-        tmpdir = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, tmpdir)
-        cp = ch.Paths(
-            {"cloud_dir": tmpdir, "templates_dir": resourceLocation()}, ds=ds
+
+def responses_assert_call_count(url: str, count: int) -> bool:
+    """Focal and older have a version of responses which does
+    not carry this attribute. This can be removed when focal
+    is no longer supported.
+    """
+    if hasattr(responses, "assert_call_count"):
+        return responses.assert_call_count(url, count)
+
+    def _ensure_url_default_path(url):
+        if isinstance(url, str):
+            url_parts = list(urlsplit(url))
+            if url_parts[2] == "":
+                url_parts[2] = "/"
+                url = urlunsplit(url_parts)
+        return url
+
+    call_count = len(
+        [
+            1
+            for call in responses.calls
+            if call.request.url == _ensure_url_default_path(url)
+        ]
+    )
+    if call_count == count:
+        return True
+    else:
+        raise AssertionError(
+            f"Expected URL '{url}' to be called {count} times. "
+            f"Called {call_count} times."
         )
-        return cp
-
-
-class FilesystemMockingTestCase(ResourceUsingTestCase):
-    def setUp(self):
-        super(FilesystemMockingTestCase, self).setUp()
-        self.patched_funcs = ExitStack()
-
-    def tearDown(self):
-        self.patched_funcs.close()
-        ResourceUsingTestCase.tearDown(self)
-
-    def replicateTestRoot(self, example_root, target_root):
-        real_root = resourceLocation()
-        real_root = os.path.join(real_root, "roots", example_root)
-        for dir_path, _dirnames, filenames in os.walk(real_root):
-            real_path = dir_path
-            make_path = rebase_path(real_path[len(real_root) :], target_root)
-            util.ensure_dir(make_path)
-            for f in filenames:
-                real_path = os.path.abspath(os.path.join(real_path, f))
-                make_path = os.path.abspath(os.path.join(make_path, f))
-                shutil.copy(real_path, make_path)
-
-    def patchUtils(self, new_root):
-        patch_funcs = {
-            util: [
-                ("write_file", 1),
-                ("append_file", 1),
-                ("load_binary_file", 1),
-                ("load_text_file", 1),
-                ("ensure_dir", 1),
-                ("chmod", 1),
-                ("delete_dir_contents", 1),
-                ("del_file", 1),
-                ("sym_link", -1),
-                ("copy", -1),
-            ],
-            atomic_helper: [
-                ("write_json", 1),
-            ],
-        }
-        for mod, funcs in patch_funcs.items():
-            for f, am in funcs:
-                func = getattr(mod, f)
-                trap_func = retarget_many_wrapper(new_root, am, func)
-                self.patched_funcs.enter_context(
-                    mock.patch.object(mod, f, trap_func)
-                )
-
-        # Handle subprocess calls
-        func = getattr(subp, "subp")
-
-        def nsubp(*_args, **_kwargs):
-            return ("", "")
-
-        self.patched_funcs.enter_context(
-            mock.patch.object(subp, "subp", nsubp)
-        )
-
-        def null_func(*_args, **_kwargs):
-            return None
-
-        for f in ["chownbyid", "chownbyname"]:
-            self.patched_funcs.enter_context(
-                mock.patch.object(util, f, null_func)
-            )
-
-    def patchOS(self, new_root):
-        patch_funcs = {
-            os.path: [
-                ("isfile", 1),
-                ("exists", 1),
-                ("islink", 1),
-                ("isdir", 1),
-                ("lexists", 1),
-            ],
-            os: [
-                ("listdir", 1),
-                ("mkdir", 1),
-                ("lstat", 1),
-                ("symlink", 2),
-                ("stat", 1),
-            ],
-        }
-
-        if hasattr(os, "scandir"):
-            # py27 does not have scandir
-            patch_funcs[os].append(("scandir", 1))
-
-        for mod, funcs in patch_funcs.items():
-            for f, nargs in funcs:
-                func = getattr(mod, f)
-                trap_func = retarget_many_wrapper(new_root, nargs, func)
-                self.patched_funcs.enter_context(
-                    mock.patch.object(mod, f, trap_func)
-                )
-
-    def patchOpen(self, new_root):
-        trap_func = retarget_many_wrapper(new_root, 1, open)
-        self.patched_funcs.enter_context(
-            mock.patch("builtins.open", trap_func)
-        )
-
-    def patchStdoutAndStderr(self, stdout=None, stderr=None):
-        if stdout is not None:
-            self.patched_funcs.enter_context(
-                mock.patch.object(sys, "stdout", stdout)
-            )
-        if stderr is not None:
-            self.patched_funcs.enter_context(
-                mock.patch.object(sys, "stderr", stderr)
-            )
-
-    def reRoot(self, root=None):
-        if root is None:
-            root = self.tmp_dir()
-        self.patchUtils(root)
-        self.patchOS(root)
-        self.patchOpen(root)
-        return root
-
-    @contextmanager
-    def reRooted(self, root=None):
-        try:
-            yield self.reRoot(root)
-        finally:
-            self.patched_funcs.close()
-
-
-class CiRequestsMock(responses.RequestsMock):
-    def assert_call_count(self, url: str, count: int) -> bool:
-        """Focal and older have a version of responses which does
-        not carry this attribute. This can be removed when focal
-        is no longer supported.
-        """
-        if hasattr(super(), "_ensure_url_default_path"):
-            return super().assert_call_count(url, count)
-
-        def _ensure_url_default_path(url):
-            if isinstance(url, str):
-                url_parts = list(urlsplit(url))
-                if url_parts[2] == "":
-                    url_parts[2] = "/"
-                    url = urlunsplit(url_parts)
-            return url
-
-        call_count = len(
-            [
-                1
-                for call in self.calls
-                if call.request.url == _ensure_url_default_path(url)
-            ]
-        )
-        if call_count == count:
-            return True
-        else:
-            raise AssertionError(
-                f"Expected URL '{url}' to be called {count} times. "
-                f"Called {call_count} times."
-            )
 
 
 def get_mock_paths(temp_dir):
-    class MockPaths(ch.Paths):
+    class MockPaths(Paths):
         def __init__(self, path_cfgs: dict, ds=None):
             super().__init__(path_cfgs=path_cfgs, ds=ds)
 
@@ -477,18 +326,6 @@ def get_mock_paths(temp_dir):
             )
 
     return MockPaths
-
-
-class ResponsesTestCase(CiTestCase):
-    def setUp(self):
-        super().setUp()
-        self.responses = CiRequestsMock(assert_all_requests_are_fired=False)
-        self.responses.start()
-
-    def tearDown(self):
-        self.responses.stop()
-        self.responses.reset()
-        super().tearDown()
 
 
 class SchemaTestCaseMixin(unittest.TestCase):
@@ -534,7 +371,7 @@ def populate_dir_with_ts(path, data):
         os.utime(os.path.sep.join((path, fpath)), (ts, ts))
 
 
-def dir2dict(startdir, prefix=None):
+def dir2dict(startdir, prefix=None, filter=None):
     flist = {}
     if prefix is None:
         prefix = startdir
@@ -542,6 +379,8 @@ def dir2dict(startdir, prefix=None):
         for fname in files:
             fpath = os.path.join(root, fname)
             key = fpath[len(prefix) :]
+            if filter is not None and not filter(fpath):
+                continue
             flist[key] = util.load_text_file(fpath)
     return flist
 
@@ -636,6 +475,16 @@ def skipUnlessJinja():
     return skipIf(not JINJA_AVAILABLE, "No jinja dependency present.")
 
 
+@skipUnlessJinja()
+def skipUnlessJinjaVersionGreaterThan(version=(0, 0, 0)):
+    import jinja2
+
+    return skipIf(
+        condition=tuple(map(int, jinja2.__version__.split("."))) < version,
+        reason=f"jinj2 version is less than {version}",
+    )
+
+
 def skipIfJinja():
     return skipIf(JINJA_AVAILABLE, "Jinja dependency present.")
 
@@ -685,3 +534,32 @@ def does_not_raise():
 
     """
     yield
+
+
+def get_distro(dname, system_info=None, /, renderers=None, activators=None):
+    """Return a Distro class of distro 'dname'.
+
+    system_info has the format of CFG_BUILTIN['system_info'].
+
+    Example: get_distro("debian")
+    """
+    if system_info is None:
+        system_info = copy.deepcopy(settings.CFG_BUILTIN["system_info"])
+    system_info["distro"] = dname
+    if renderers:
+        system_info["network"]["renderers"] = renderers
+    if activators:
+        system_info["network"]["activators"] = activators
+    paths = helpers.Paths(system_info["paths"])
+    distro_cls = distros.fetch(dname)
+    return distro_cls(dname, system_info, paths)
+
+
+def assert_count_equal(a, b):
+    """
+    Equivalent to unittests.TestCase.assertCountEqual.
+
+    https://docs.python.org/3/library/unittest.html#unittest.TestCase.assertCountEqual
+    """
+    case = unittest.TestCase()
+    case.assertCountEqual(a, b)

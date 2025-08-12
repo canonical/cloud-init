@@ -20,6 +20,7 @@ from typing import Any, Dict, List, Optional
 import requests
 
 from cloudinit import net, performance, sources, ssh_util, subp, util
+from cloudinit.config import cc_mounts
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import device_driver
 from cloudinit.net.dhcp import (
@@ -1668,6 +1669,18 @@ class DataSourceAzure(sources.DataSource):
             )
 
         return False
+
+    def _cleanup_resourcedisk_fstab(self):
+        """
+        Remove resource disk entries from fstab, which are configured
+        by cloud-init i.e. lines containing "/dev/disk/cloud/azure_resource"
+        and cloudconfig comment.
+        """
+        cc_mounts.cleanup_fstab([RESOURCE_DISK_PATH])
+
+    def clean(self):
+        # Azure-specific cleanup logic for "cloud-init clean -c datasource"
+        self._cleanup_resourcedisk_fstab()
 
 
 def _username_from_imds(imds_data):

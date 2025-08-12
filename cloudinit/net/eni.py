@@ -1,15 +1,24 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import functools
 import glob
 import logging
 import os
 import re
 from contextlib import suppress
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 from cloudinit import performance, subp, util
-from cloudinit.net import ParserError, renderer, subnet_is_ipv6
+from cloudinit.net import (
+    ParserError,
+    is_ipv4_address,
+    is_ipv4_network,
+    is_ipv6_address,
+    is_ipv6_network,
+    renderer,
+    subnet_is_ipv6,
+)
 from cloudinit.net.network_state import NetworkState
 
 LOG = logging.getLogger(__name__)
@@ -62,7 +71,7 @@ NET_CONFIG_OPTIONS = [
 
 
 # TODO: switch valid_map based on mode inet/inet6
-def _iface_add_subnet(iface, subnet):
+def _iface_add_subnet(iface: dict, subnet: dict, is_ipv6: bool) -> List[str]:
     content = []
     valid_map = [
         "address",
@@ -83,7 +92,21 @@ def _iface_add_subnet(iface, subnet):
             value = "%s/%s" % (subnet["address"], subnet["prefix"])
         if value and key in valid_map:
             if isinstance(value, list):
+                if key == "dns_nameservers":
+                    value = list(
+                        filter(
+                            functools.partial(
+                                has_same_ip_version, is_ipv6=is_ipv6
+                            ),
+                            value,
+                        )
+                    )
                 value = " ".join(value)
+            else:
+                if key == "dns_nameservers" and not has_same_ip_version(
+                    value, is_ipv6
+                ):
+                    continue
             if "_" in key:
                 key = key.replace("_", "-")
             content.append("    {0} {1}".format(key, value))
@@ -92,7 +115,9 @@ def _iface_add_subnet(iface, subnet):
 
 
 # TODO: switch to valid_map for attrs
-def _iface_add_attrs(iface, index, ipv4_subnet_mtu):
+def _iface_add_attrs(
+    iface: dict, index: int, ipv4_subnet_mtu: Optional[str]
+) -> List[str]:
     # If the index is non-zero, this is an alias interface. Alias interfaces
     # represent additional interface addresses, and should not have additional
     # attributes. (extra attributes here are almost always either incorrect,
@@ -127,6 +152,9 @@ def _iface_add_attrs(iface, index, ipv4_subnet_mtu):
         ignore_map.append("mac_address")
 
     for key, value in iface.items():
+        key_write = renames.get(key, key)
+        if "_" in key_write:
+            key_write = key_write.replace("_", "-")
         # convert bool to string for eni
         if isinstance(value, bool):
             value = "on" if iface[key] else "off"
@@ -144,16 +172,18 @@ def _iface_add_attrs(iface, index, ipv4_subnet_mtu):
             continue
         if key in multiline_keys:
             for v in value:
-                content.append("    {0} {1}".format(renames.get(key, key), v))
+                content.append("    {0} {1}".format(key_write, v))
             continue
         if isinstance(value, list):
             value = " ".join(value)
-        content.append("    {0} {1}".format(renames.get(key, key), value))
+        content.append("    {0} {1}".format(key_write, value))
 
     return sorted(content)
 
 
-def _iface_start_entry(iface, index, render_hwaddress=False):
+def _iface_start_entry(
+    iface: dict, index, render_hwaddress: bool = False
+) -> List[str]:
     fullname = iface["name"]
 
     control = iface["control"]
@@ -177,7 +207,9 @@ def _iface_start_entry(iface, index, render_hwaddress=False):
     return lines
 
 
-def _parse_deb_config_data(ifaces, contents, src_dir, src_path):
+def _parse_deb_config_data(
+    ifaces: dict, contents: str, src_dir: str, src_path: str
+) -> None:
     """Parses the file contents, placing result into ifaces.
 
     '_source_path' is added to every dictionary entry to define which file
@@ -310,14 +342,14 @@ def _parse_deb_config_data(ifaces, contents, src_dir, src_path):
 
 
 @performance.timed("Converting eni data")
-def convert_eni_data(eni_data):
+def convert_eni_data(eni_data: str) -> dict:
     """Return a network config representation of what is in eni_data"""
-    ifaces = {}
-    _parse_deb_config_data(ifaces, eni_data, src_dir=None, src_path=None)
+    ifaces: dict = {}
+    _parse_deb_config_data(ifaces, eni_data, src_dir="None", src_path="None")
     return _ifaces_to_net_config_data(ifaces)
 
 
-def _ifaces_to_net_config_data(ifaces):
+def _ifaces_to_net_config_data(ifaces: dict) -> dict:
     """Return network config that represents the ifaces data provided.
     ifaces = _parse_deb_config_data(...)
     config = ifaces_to_net_config_data(ifaces)
@@ -358,10 +390,16 @@ def _ifaces_to_net_config_data(ifaces):
     return {"version": 1, "config": [devs[d] for d in sorted(devs)]}
 
 
+def has_same_ip_version(addr_or_net: str, is_ipv6: bool) -> bool:
+    if not is_ipv6:
+        return is_ipv4_address(addr_or_net) or is_ipv4_network(addr_or_net)
+    return is_ipv6_address(addr_or_net) or is_ipv6_network(addr_or_net)
+
+
 class Renderer(renderer.Renderer):
     """Renders network information in a /etc/network/interfaces format."""
 
-    def __init__(self, config=None):
+    def __init__(self, config: Optional[dict] = None):
         if not config:
             config = {}
         self.eni_path = config.get("eni_path", "etc/network/interfaces")
@@ -370,7 +408,7 @@ class Renderer(renderer.Renderer):
             "netrules_path", "etc/udev/rules.d/70-persistent-net.rules"
         )
 
-    def _render_route(self, route, indent=""):
+    def _render_route(self, route: dict, indent: str = "") -> List[str]:
         """When rendering routes for an iface, in some cases applying a route
         may result in the route command returning non-zero which produces
         some confusing output for users manually using ifup/ifdown[1].  To
@@ -408,7 +446,7 @@ class Renderer(renderer.Renderer):
                 route_line += "%s %s %s" % (default_gw, mapping[k], route[k])
             elif k in route:
                 if k == "network":
-                    if ":" in route[k]:
+                    if is_ipv6_address(route[k]):
                         route_line += " -A inet6"
                     elif route.get("prefix") == 32:
                         route_line += " -host"
@@ -422,13 +460,15 @@ class Renderer(renderer.Renderer):
         content.append(down + route_line + or_true)
         return content
 
-    def _render_iface(self, iface, render_hwaddress=False):
+    def _render_iface(
+        self, iface: dict, render_hwaddress: bool = False
+    ) -> List[List[str]]:
         iface = copy.deepcopy(iface)
 
         # Remove irrelevant keys
         with suppress(KeyError):
             iface.pop("config_id")
-        sections = []
+        sections: List[List[str]] = []
         subnets = iface.get("subnets", {})
         accept_ra = iface.pop("accept-ra", None)
         ethernet_wol = iface.pop("wakeonlan", None)
@@ -436,6 +476,8 @@ class Renderer(renderer.Renderer):
             # Specify WOL setting 'g' for using "Magic Packet"
             iface["ethernet-wol"] = "g"
         if subnets:
+            dns = None
+            routes6 = []
             for index, subnet in enumerate(subnets):
                 ipv4_subnet_mtu = None
                 iface["index"] = index
@@ -443,8 +485,10 @@ class Renderer(renderer.Renderer):
                 iface["control"] = subnet.get("control", "auto")
                 subnet_inet = "inet"
                 if subnet_is_ipv6(subnet):
+                    is_ipv6 = True
                     subnet_inet += "6"
                 else:
+                    is_ipv6 = False
                     ipv4_subnet_mtu = subnet.get("mtu")
                 iface["inet"] = subnet_inet
                 if (
@@ -481,16 +525,60 @@ class Renderer(renderer.Renderer):
                 ]:
                     iface["control"] = "alias"
 
+                # v1 config has the dns info in the first non-dhcp route,
+                # replicate dns to others to be more correct
+                dns_present = (
+                    "dns_search" in subnet or "dns_nameservers" in subnet
+                )
+                if dns is None and dns_present:
+                    dns = dict(
+                        (k, subnet.get(k))
+                        for k in ("dns_search", "dns_nameservers")
+                    )
+                if dns is not None and not dns_present:
+                    subnet = {**subnet, **dns}
+
                 lines = list(
                     _iface_start_entry(
                         iface, index, render_hwaddress=render_hwaddress
                     )
-                    + _iface_add_subnet(iface, subnet)
+                    + _iface_add_subnet(iface, subnet, is_ipv6)
                     + _iface_add_attrs(iface, index, ipv4_subnet_mtu)
                 )
                 for route in subnet.get("routes", []):
+                    ipv6_network = is_ipv6_network(route.get("network", ""))
+                    if ipv6_network and not is_ipv6:
+                        routes6.append(route)
+                        continue
                     lines.extend(self._render_route(route, indent="    "))
 
+                if routes6 and is_ipv6:
+                    for route in routes6:
+                        lines.extend(self._render_route(route, indent="    "))
+                    routes6.clear()
+
+                sections.append(lines)
+
+            if routes6:
+                # no ipv6 subnet found create a static one to add remaining
+                # routes:
+                iface = {
+                    "name": iface["name"],
+                    "control": iface["control"],
+                    "mode": "static",
+                    "inet": "inet6",
+                }
+                subnet = {"type": "static", "routes": routes6}
+                if dns is not None:
+                    subnet = {**subnet, **dns}
+                lines = list(
+                    _iface_start_entry(
+                        iface, -1, render_hwaddress=render_hwaddress
+                    )
+                    + _iface_add_subnet(iface, subnet, True)
+                )
+                for route in subnet["routes"]:
+                    lines.extend(self._render_route(route, indent="    "))
                 sections.append(lines)
         else:
             # ifenslave docs say to auto the slave devices
@@ -504,12 +592,14 @@ class Renderer(renderer.Renderer):
             sections.append(lines)
         return sections
 
-    def _render_interfaces(self, network_state, render_hwaddress=False):
+    def _render_interfaces(
+        self, network_state: NetworkState, render_hwaddress: bool = False
+    ) -> str:
         """Given state, emit etc/network/interfaces content."""
 
         # handle 'lo' specifically as we need to insert the global dns entries
         # there (as that is the only interface that will be always up).
-        lo = {
+        lo: Dict[str, Any] = {
             "name": "lo",
             "type": "physical",
             "inet": "inet",
@@ -521,11 +611,11 @@ class Renderer(renderer.Renderer):
 
         nameservers = network_state.dns_nameservers
         if nameservers:
-            lo["subnets"][0]["dns_nameservers"] = " ".join(nameservers)
+            lo["subnets"][0]["dns_nameservers"] = nameservers
 
         searchdomains = network_state.dns_searchdomains
         if searchdomains:
-            lo["subnets"][0]["dns_search"] = " ".join(searchdomains)
+            lo["subnets"][0]["dns_search"] = searchdomains
 
         # Apply a sort order to ensure that we write out the physical
         # interfaces first; this is critical for bonding
@@ -560,7 +650,7 @@ class Renderer(renderer.Renderer):
         self,
         network_state: NetworkState,
         templates: Optional[dict] = None,
-        target=None,
+        target: Optional[str] = None,
     ) -> None:
         fpeni = subp.target_path(target, self.eni_path)
         util.ensure_dir(os.path.dirname(fpeni))
@@ -577,13 +667,13 @@ class Renderer(renderer.Renderer):
             )
 
 
-def available(target=None):
+def available() -> bool:
     expected = ["ifquery", "ifup", "ifdown"]
     search = ["/sbin", "/usr/sbin"]
     for p in expected:
-        if not subp.which(p, search=search, target=target):
+        if not subp.which(p, search=search):
             return False
-    eni = subp.target_path(target, "etc/network/interfaces")
+    eni = "/etc/network/interfaces"
     if not os.path.isfile(eni):
         return False
 

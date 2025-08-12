@@ -51,3 +51,55 @@ class TestNetplanAPIWriteYAMLFile:
             "No netplan python module. Fallback to write"
             f" {netplan.CLOUDINIT_NETPLAN_FILE}" in caplog.text
         )
+
+
+SIMPLE_V2_CFG_MTU = """\
+network:
+  version: 2
+  ethernets:
+    eno1:
+      match:
+        macaddress: 08:94:ef:51:ae:e0
+      mtu: 0
+    eno2:
+      match:
+        macaddress: 08:94:ef:51:ae:e1
+      mtu: 100
+"""
+
+
+REDACTED_V2_CFG_MTU = """\
+network:
+  version: 2
+  ethernets:
+    eno1:
+      match:
+        macaddress: 08:94:ef:51:ae:e0
+    eno2:
+      match:
+        macaddress: 08:94:ef:51:ae:e1
+      mtu: 100
+"""
+
+
+class TestMaybeStripInvalidMTU:
+    @pytest.mark.parametrize(
+        "netcfg,expected,strip_enabled",
+        (
+            pytest.param(
+                SIMPLE_V2_CFG_MTU,
+                SIMPLE_V2_CFG_MTU,
+                False,
+                id="valid_mtu_unchanged",
+            ),
+            pytest.param(
+                SIMPLE_V2_CFG_MTU,
+                REDACTED_V2_CFG_MTU,
+                True,
+                id="invalid_mtu_redatcted",
+            ),
+        ),
+    )
+    def test__strip_invalid_mtu(self, netcfg, expected, strip_enabled, mocker):
+        mocker.patch("cloudinit.features.STRIP_INVALID_MTU", strip_enabled)
+        assert expected == netplan._maybe_strip_invalid_mtu(netcfg)

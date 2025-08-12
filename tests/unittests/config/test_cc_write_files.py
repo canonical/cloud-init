@@ -5,8 +5,7 @@ import gzip
 import io
 import logging
 import re
-import shutil
-import tempfile
+from unittest import mock
 
 import pytest
 import responses
@@ -18,12 +17,8 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import (
-    SCHEMA_EMPTY_ERROR,
-    CiTestCase,
-    FilesystemMockingTestCase,
-    skipUnlessJsonSchema,
-)
+from tests.unittests.helpers import SCHEMA_EMPTY_ERROR, skipUnlessJsonSchema
+from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
 
@@ -64,39 +59,47 @@ VALID_SCHEMA = {
 }
 
 
-class TestWriteFiles(FilesystemMockingTestCase):
+OWNER = "root:root"
+USER = "root"
+GROUP = "root"
 
-    with_logs = True
-    owner = "root:root"
 
-    def setUp(self):
-        super(TestWriteFiles, self).setUp()
-        self.tmp = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, self.tmp)
+@pytest.fixture
+def cloud():
+    cc = get_cloud("ubuntu")
+    with mock.patch.object(cc.distro, "default_owner", OWNER):
+        yield cc
 
-    def test_simple(self):
-        self.patchUtils(self.tmp)
+
+@pytest.mark.usefixtures("fake_filesystem")
+@mock.patch("cloudinit.config.cc_write_files.util.chownbyname")
+class TestWriteFiles:
+    def test_simple(self, m_chownbyname):
         expected = "hello world\n"
-        filename = "/tmp/my.file"
+        filename = str("/tmp/my.file")
         write_files(
             "test_simple",
             [{"content": expected, "path": filename}],
-            self.owner,
+            OWNER,
         )
-        self.assertEqual(util.load_text_file(filename), expected)
+        assert util.load_text_file(filename) == expected
+        assert [
+            mock.call(mock.ANY, USER, GROUP)
+        ] == m_chownbyname.call_args_list
 
-    def test_empty(self):
-        self.patchUtils(self.tmp)
-        filename = "/tmp/my.file"
+    def test_empty(self, m_chownbyname):
+        filename = str("/tmp/my.file")
         write_files(
             "test_empty",
             [{"path": filename}],
-            self.owner,
+            OWNER,
         )
-        self.assertEqual(util.load_text_file(filename), "")
+        assert util.load_text_file(filename) == ""
+        assert [
+            mock.call(mock.ANY, USER, GROUP)
+        ] == m_chownbyname.call_args_list
 
-    def test_append(self):
-        self.patchUtils(self.tmp)
+    def test_append(self, m_chownbyname):
         existing = "hello "
         added = "world\n"
         expected = existing + added
@@ -105,20 +108,26 @@ class TestWriteFiles(FilesystemMockingTestCase):
         write_files(
             "test_append",
             [{"content": added, "path": filename, "append": "true"}],
-            self.owner,
+            OWNER,
         )
-        self.assertEqual(util.load_text_file(filename), expected)
+        assert util.load_text_file(filename) == expected
+        assert [
+            mock.call(mock.ANY, USER, GROUP)
+        ] == m_chownbyname.call_args_list
 
-    def test_yaml_binary(self):
-        self.patchUtils(self.tmp)
-        data = util.load_yaml(YAML_TEXT)
-        write_files("testname", data["write_files"], self.owner)
+    def test_yaml_binary(self, m_chownbyname):
+        data_wrong_paths = util.load_yaml(YAML_TEXT)
+        data = []
+        for content in data_wrong_paths["write_files"]:
+            content["path"] = content["path"]
+            data.append(content)
+
+        write_files("testname", data, OWNER)
         for path, content in YAML_CONTENT_EXPECTED.items():
-            self.assertEqual(util.load_text_file(path), content)
+            assert util.load_text_file(path) == content
+        assert 5 == m_chownbyname.call_count
 
-    def test_all_decodings(self):
-        self.patchUtils(self.tmp)
-
+    def test_all_decodings(self, m_chownbyname):
         # build a 'files' array that has a dictionary of encodings
         # for 'gz', 'gzip', 'gz+base64' ...
         data = b"foobzr"
@@ -147,19 +156,19 @@ class TestWriteFiles(FilesystemMockingTestCase):
                     files.append(cur)
                     expected.append((path, data))
 
-        write_files("test_decoding", files, self.owner)
+        write_files("test_decoding", files, OWNER)
 
         for path, content in expected:
-            self.assertEqual(util.load_binary_file(path), content)
+            assert util.load_binary_file(path) == content
 
         # make sure we actually wrote *some* files.
         flen_expected = len(gz_aliases + gz_b64_aliases + b64_aliases) * len(
             datum
         )
-        self.assertEqual(len(expected), flen_expected)
+        assert len(expected) == flen_expected
+        assert len(expected) == m_chownbyname.call_count
 
-    def test_handle_plain_text(self):
-        self.patchUtils(self.tmp)
+    def test_handle_plain_text(self, m_chownbyname, caplog, cloud):
         file_path = "/tmp/file-text-plain"
         content = "asdf"
         cfg = {
@@ -172,15 +181,14 @@ class TestWriteFiles(FilesystemMockingTestCase):
                 }
             ]
         }
-        cc = self.tmp_cloud("ubuntu")
-        handle("ignored", cfg, cc, [])
+        handle("ignored", cfg, cloud, [])
         assert content == util.load_text_file(file_path)
-        self.assertNotIn(
-            "Unknown encoding type text/plain", self.logs.getvalue()
-        )
+        assert "Unknown encoding type text/plain" not in caplog.text
+        assert [
+            mock.call(mock.ANY, USER, GROUP)
+        ] == m_chownbyname.call_args_list
 
-    def test_file_uri(self):
-        self.patchUtils(self.tmp)
+    def test_file_uri(self, m_chownbyname, cloud):
         src_path = "/tmp/file-uri"
         dst_path = "/tmp/file-uri-target"
         content = "asdf"
@@ -193,15 +201,12 @@ class TestWriteFiles(FilesystemMockingTestCase):
                 }
             ]
         }
-        cc = self.tmp_cloud("ubuntu")
-        handle("ignored", cfg, cc, [])
-        self.assertEqual(
-            util.load_text_file(src_path), util.load_text_file(dst_path)
-        )
+        handle("ignored", cfg, cloud, [])
+        assert util.load_text_file(src_path) == util.load_text_file(dst_path)
+        assert m_chownbyname.call_count
 
     @responses.activate
-    def test_http_uri(self):
-        self.patchUtils(self.tmp)
+    def test_http_uri(self, m_chownbyname, cloud):
         path = "/tmp/http-uri-target"
         url = "http://hostname/path"
         content = "more asdf"
@@ -220,13 +225,14 @@ class TestWriteFiles(FilesystemMockingTestCase):
                 }
             ]
         }
-        cc = self.tmp_cloud("ubuntu")
-        handle("ignored", cfg, cc, [])
-        self.assertEqual(content, util.load_text_file(path))
+        handle("ignored", cfg, cloud, [])
+        assert content == util.load_text_file(path)
+        assert [
+            mock.call(mock.ANY, USER, GROUP)
+        ] == m_chownbyname.call_args_list
 
-    def test_uri_fallback(self):
-        self.patchUtils(self.tmp)
-        src_path = "/tmp/INVALID"
+    def test_uri_fallback(self, m_chownbyname, cloud):
+        src_path = "tmp/INVALID"
         dst_path = "/tmp/uri-fallback-target"
         content = "asdf"
         util.del_file(src_path)
@@ -240,45 +246,47 @@ class TestWriteFiles(FilesystemMockingTestCase):
                 }
             ]
         }
-        cc = self.tmp_cloud("ubuntu")
-        handle("ignored", cfg, cc, [])
-        self.assertEqual(content, util.load_text_file(dst_path))
+        handle("ignored", cfg, cloud, [])
+        assert content == util.load_text_file(dst_path)
+        assert [
+            mock.call(mock.ANY, USER, GROUP)
+        ] == m_chownbyname.call_args_list
 
-    def test_deferred(self):
-        self.patchUtils(self.tmp)
+    def test_deferred(self, m_chownbyname, cloud):
         file_path = "/tmp/deferred.file"
         config = {"write_files": [{"path": file_path, "defer": True}]}
-        cc = self.tmp_cloud("ubuntu")
-        handle("cc_write_file", config, cc, [])
-        with self.assertRaises(FileNotFoundError):
+        handle("cc_write_file", config, cloud, [])
+        with pytest.raises(FileNotFoundError):
             util.load_text_file(file_path)
+        assert [] == m_chownbyname.call_args_list
 
 
-class TestDecodePerms(CiTestCase):
-
-    with_logs = True
-
+class TestDecodePerms:
     def test_none_returns_default(self):
         """If None is passed as perms, then default should be returned."""
         default = object()
         found = decode_perms(None, default)
-        self.assertEqual(default, found)
+        assert default == found
 
     def test_integer(self):
         """A valid integer should return itself."""
         found = decode_perms(0o755, None)
-        self.assertEqual(0o755, found)
+        assert 0o755 == found
 
     def test_valid_octal_string(self):
         """A string should be read as octal."""
         found = decode_perms("644", None)
-        self.assertEqual(0o644, found)
+        assert 0o644 == found
 
-    def test_invalid_octal_string_returns_default_and_warns(self):
+    def test_invalid_octal_string_returns_default_and_warns(self, caplog):
         """A string with invalid octal should warn and return default."""
         found = decode_perms("999", None)
-        self.assertIsNone(found)
-        self.assertIn("WARNING: Undecodable", self.logs.getvalue())
+        assert found is None
+        assert (
+            mock.ANY,
+            logging.WARNING,
+            "Undecodable permissions '999', returning default None",
+        ) in caplog.record_tuples
 
 
 def _gzip_bytes(data):
