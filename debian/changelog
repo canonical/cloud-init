@@ -14,11 +14,6 @@ cloud-init (25.2-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
   * add d/p/strip-invalid-mtu.patch
     - Provides backwards compatibility for an other invalid
       MTU in a netplan config. (GH-6239)
-  * sort hunks within all patches (--sort on quilt refresh)
-  * Upstream snapshot based on upstream/main at 2b6c7e65.
-  * refresh patches:
-    - d/p/no-single-process.patch
-    - d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
   * Upstream snapshot based on 25.2. (LP: #2120495).
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/25.2/ChangeLog
