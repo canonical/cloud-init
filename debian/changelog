@@ -1,25 +1,65 @@
-cloud-init (25.1-0ubuntu1~24.04.1) UNRELEASED; urgency=medium
+cloud-init (25.2-0ubuntu1~24.04.1) UNRELEASED; urgency=medium
+
+  * add d/p/strip-invalid-mtu.patch
+    - Provides backwards compatibility for an otherwise invalid
+      MTU in a netplan config. (GH-6239)
+
+ -- James Falcon <james.falcon@canonical.com>  Wed, 09 Jul 2025 15:42:21 -0500
+
+cloud-init (25.1.4-0ubuntu0~24.04.1) noble-security; urgency=medium
+
+  * Upstream snapshot based on 25.1.4.
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/25.1.4/ChangeLog
+    - Bugs fixed in this snapshot:
+      + fix: disable cloud-init when non-x86 environments have no DMI-data
+        and no strict datasources detected (LP: #2069607) (CVE-2024-6174)
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 24 Jun 2025 15:14:03 -0600
+
+cloud-init (25.1.3-0ubuntu0~24.04.1) noble; urgency=medium
+
+  * d/cloud-init-base.postinst: move existing hotplug-cmd fifo to root-only
+    share dir (CVE-2024-11584)
+  * Upstream security bugfix release based on 25.1.3.
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/25.1.3/ChangeLog
+    - Bugs fixed in this snapshot:
+    - security: make hotplug socket only writable by root (LP: #2114229)
+      (CVE-2024-11584)
+    - security: make ds-identify behavior strict datasource discovery on
+      non-x86 platforms without DMI data (LP: #2069607) (CVE-2024-6174)
+
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 12 Jun 2025 20:24:45 -0600
+
+cloud-init (25.1.2-0ubuntu0~24.04.1) noble; urgency=medium
+
+  * Upstream snapshot based on 25.1.2. (LP: #2104165).
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/25.1.2/ChangeLog
+
+ -- James Falcon <james.falcon@canonical.com>  Mon, 19 May 2025 15:00:58 -0500
+
+cloud-init (25.1.1-0ubuntu1~24.04.1) noble; urgency=medium
 
   * Drop cpicks which are now upstream:
-    - d/p/cpick-d75840be-fix-retry-AWS-hotplug-for-async-IMDS-5995
-    - d/p/cpick-84806336-chore-Add-feature-flag-for-manual-network-waiting
+    - cpick-d75840be-fix-retry-AWS-hotplug-for-async-IMDS-5995
+    - cpick-84806336-chore-Add-feature-flag-for-manual-network-waiting
     - d/p/cpick-c60771d8-test-pytestify-test_url_helper.py
     - d/p/cpick-8810a2dc-test-Remove-CiTestCase-from-test_url_helper.py
     - d/p/cpick-582f16c1-test-add-OauthUrlHelper-tests
     - d/p/cpick-9311e066-fix-Update-OauthUrlHelper-to-use-readurl-exception_cb
-  * refresh patches:
+  * refresh patches
+    - d/p/deprecation-version-boundary.patch
     - d/p/grub-dpkg-support.patch
     - d/p/no-nocloud-network.patch
-    - d/p/deprecation-version-boundary.patch
     - d/p/no-single-process.patch
-  * add d/p/strip-invalid-mtu.patch
-    - Provides backwards compatibility for an otherwise invalid
-      MTU in a netplan config. (GH-6239)
   * sort hunks within all patches (--sort on quilt refresh)
-  * Upstream snapshot based on upstream/main at 2b6c7e65.
-  * TODO: MOVE IN 25.1.x changes
+  * Upstream snapshot based on 25.1.1.
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/25.1.1/ChangeLog
 
- -- James Falcon <james.falcon@canonical.com>  Wed, 09 Jul 2025 15:42:21 -0500
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 25 Mar 2025 11:02:28 -0600
 
 cloud-init (24.4.1-0ubuntu0~20.04.2) noble; urgency=medium
 
