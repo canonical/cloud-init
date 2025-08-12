@@ -1,4 +1,4 @@
-cloud-init (25.2-0ubuntu1~25.04.1) UNRELEASED; urgency=medium
+cloud-init (25.2-0ubuntu1~25.04.1) plucky; urgency=medium
 
   * d/control: add Azure metapackage
     + New Azure binary package depending on cloud-init-base and
@@ -9,7 +9,7 @@ cloud-init (25.2-0ubuntu1~25.04.1) UNRELEASED; urgency=medium
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/25.2/ChangeLog
 
- -- James Falcon <james.falcon@canonical.com>  Tue, 12 Aug 2025 17:08:58 -0500
+ -- James Falcon <james.falcon@canonical.com>  Tue, 12 Aug 2025 17:09:23 -0500
 
 cloud-init (25.1.4-0ubuntu0~25.04.1) plucky-security; urgency=medium
 
