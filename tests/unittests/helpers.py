@@ -475,6 +475,16 @@ def skipUnlessJinja():
     return skipIf(not JINJA_AVAILABLE, "No jinja dependency present.")
 
 
+@skipUnlessJinja()
+def skipUnlessJinjaVersionGreaterThan(version=(0, 0, 0)):
+    import jinja2
+
+    return skipIf(
+        condition=tuple(map(int, jinja2.__version__.split("."))) < version,
+        reason=f"jinj2 version is less than {version}",
+    )
+
+
 def skipIfJinja():
     return skipIf(JINJA_AVAILABLE, "Jinja dependency present.")
 
