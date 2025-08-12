@@ -157,9 +157,8 @@ Explanation
 -----------
 
 An include file contains a list of URLs, one per line. Each of the URLs will
-be read and their content can be any kind of user-data format, both base
-config and meta config. If an error occurs reading a file the remaining files
-will not be read.
+be read and their content can be any kind of user-data format. If an error
+occurs reading a file the remaining files will not be read.
 
 .. _user_data_formats-jinja:
 

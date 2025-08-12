@@ -13,7 +13,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
+from tests.unittests.helpers import mock, skipUnlessJsonSchema
 
 
 class TestIsDiskUsed:
@@ -102,6 +102,40 @@ class TestGetPartitionMbrLayout:
         assert ",{0},83\n,,82".format(
             expected_partition_size
         ) == cc_disk_setup.get_partition_mbr_layout(disk_size, [33, [66, 82]])
+
+
+class TestCheckPartitionLayout:
+    @mock.patch(
+        "cloudinit.config.cc_disk_setup.check_partition_mbr_layout",
+        return_value=["83"],
+    )
+    def test_simple_mbr(self, *args):
+        assert cc_disk_setup.check_partition_layout("mbr", "/dev/xvdb1", True)
+        assert cc_disk_setup.check_partition_layout(
+            "mbr", "/dev/xvdb1", [(100, 83)]
+        )
+
+    @mock.patch(
+        "cloudinit.config.cc_disk_setup.check_partition_gpt_layout",
+        return_value=["8300"],
+    )
+    def test_simple1_gpt(self, *args):
+        assert cc_disk_setup.check_partition_layout(
+            "gpt", "/dev/xvdb1", [(100, 83)]
+        )
+        assert cc_disk_setup.check_partition_layout(
+            "gpt", "/dev/xvdb1", [(100, 8300)]
+        )
+        assert (
+            cc_disk_setup.check_partition_layout(
+                "gpt", "/dev/xvdb1", [(100, 8301)]
+            )
+            is False
+        )
+        Linux_GUID = "0FC63DAF-8483-4772-8E79-3D69D8477DE4"
+        assert cc_disk_setup.check_partition_layout(
+            "gpt", "/dev/xvdb1", [(100, Linux_GUID)]
+        )
 
 
 class TestUpdateFsSetupDevices:
@@ -194,10 +228,16 @@ class TestPurgeDisk:
 )
 @mock.patch("cloudinit.config.cc_disk_setup.device_type", return_value=None)
 @mock.patch("cloudinit.config.cc_disk_setup.subp.subp", return_value=("", ""))
-class TestMkfsCommandHandling(CiTestCase):
-    with_logs = True
+class TestMkfsCommandHandling:
 
-    def test_with_cmd(self, subp, *args):
+    def test_with_cmd(
+        self,
+        subp,
+        m_device_type,
+        m_find_device,
+        m_assert_and_settle_device,
+        caplog,
+    ):
         """mkfs honors cmd and logs warnings when extra_opts or overwrite are
         provided."""
         cc_disk_setup.mkfs(
@@ -214,12 +254,12 @@ class TestMkfsCommandHandling(CiTestCase):
         assert (
             "extra_opts "
             "ignored because cmd was specified: mkfs -t ext4 -L with_cmd "
-            "/dev/xdb1" in self.logs.getvalue()
+            "/dev/xdb1" in caplog.text
         )
         assert (
             "overwrite "
             "ignored because cmd was specified: mkfs -t ext4 -L with_cmd "
-            "/dev/xdb1" in self.logs.getvalue()
+            "/dev/xdb1" in caplog.text
         )
 
         subp.assert_called_once_with(

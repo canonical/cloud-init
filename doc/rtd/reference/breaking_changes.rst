@@ -11,7 +11,7 @@ releases.
     many operating system vendors patch out breaking changes in
     cloud-init to ensure consistent behavior on their platform.
 
-25.1.3
+25.1.4
 ======
 
 Strict datasource identity before network
@@ -37,26 +37,57 @@ The most likely affected cloud platforms are AltCloud, Ec2 and OpenStack for
 non-x86 architectures where DMI data is not exposed by the kernel.
 
 If your non-x86 architecture or images no longer detect the proper datasource,
-any of the following steps can ensure proper detection of cloud-init config:
+cloud-init will remain disabled and perform no configuration operations during
+boot.
 
-- Provide kernel commandline containing ``ds=<lowercase_datasource_name>``
-  which forces ds-identify to discover a specific datasource.
-- Image creators: provide a config file part such as
-  :file:`/etc/cloud/cloud.cfg.d/*.cfg` containing the
-  case-sensitive ``datasource_list: [ <datasource_name> ]`` to force cloud-init
-  to use a specific datasource without performing discovery.
+Any of the following alternatives can ensure proper enablement of cloud-init
+in non-x86 images without DMI-data:
 
-For example, to force OpenStack discovery in cloud-init any of the following
-approaches work:
+- When launching VMs with the openstack command line client, provide
+  ``--config-drive true``:
 
-- OpenStack: `attach a ConfigDrive`_ as an alternative config source
-- Kernel command line containing ``ds=openstack``
-- Custom images provide :file:`/etc/cloud/cloud.cfg.d/91-set-datasource.cfg`
-  containing:
+.. code-block:: shell-session
+
+    $ openstack server create ... --config-drive true
+
+- On the openstack image command line, modify specific image metadata to
+  require config drive for the image:
+
+.. code-block:: shell-session
+
+    $ openstack image set <IMG_UUID> --property img_config_drive=mandatory
+
+
+- OpenStack image creators can place a config file in the image at
+  :file:`/etc/cloud/cloud.cfg.d/91_openstack.cfg` to force
+  cloud-init to use OpenStack without DMI-based discovery. The file must
+  contain a single datasource as follows:
 
 .. code-block:: yaml
 
    datasource_list: [ OpenStack ]
+
+
+- Charmed OpenStack Admins using glance-simplestreams-sync can default all
+  syncronized images to use config_drive:
+
+.. code-block:: shell-session
+
+   $ juju config glance-simplestreams-sync custom-properties="img_config_drive=mandatory"
+
+
+- OpenStack Nova admins can globally configure Nova to provide config drives
+  to all images by default in :file:`/etc/nova/nova.conf`:
+
+.. code-block:: toml
+
+    [DEFAULT]
+    force_config_drive = true
+
+- Alternatively, providing
+  :ref:`kernel command line arguments<kernel_datasource_override>` to a
+  virtual machine containing ``ds=openstack`` will force ds-identify to use the
+  specific datasource.
 
 
 25.1
@@ -70,7 +101,15 @@ anything that was installed to ``/lib`` is now installed to ``/usr/lib``.
 This shouldn't affect any systemd-based distributions as they have all
 transitioned to the ``/usr`` merge. However, this could affect older
 stable releases, non-systemd and non-Linux distributions. See
-`this commit <https://github.com/canonical/cloud-init/commit/0547349214fcfb827e58c1de5e4ad7d23d08cc7f>`_
+`commit 054734921 <https://github.com/canonical/cloud-init/commit/0547349214fcfb827e58c1de5e4ad7d23d08cc7f>`_
+for more details.
+
+24.4
+====
+
+Cloud-init's `cloud-final.service` order was standardized. This caused a
+change to the systemd boot order on some distributions. See
+`commit 245f94674 <https://github.com/canonical/cloud-init/pull/5830/commits/245f94674f8c14cbe09d9944a12b994913720450>`_
 for more details.
 
 24.3

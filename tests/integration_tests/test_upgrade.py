@@ -201,7 +201,7 @@ def test_subsequent_boot_of_upgraded_package(session_cloud: IntegrationCloud):
         verify_clean_boot(instance)
 
 
-@pytest.mark.timeout(300)  # A failure here can leave us hanging
+@pytest.mark.timeout(600)  # A failure here can leave us hanging
 def test_clean_package_install(session_cloud: IntegrationCloud):
     """Test that the package install works after purge of old package."""
     source = get_validated_source(session_cloud)

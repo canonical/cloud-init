@@ -39,7 +39,7 @@ DEFAULT_PRIORITY = [
 
 
 def search(
-    priority=None, target=None, first=False
+    priority=None, first=False
 ) -> List[Tuple[str, Type[renderer.Renderer]]]:
     if priority is None:
         priority = DEFAULT_PRIORITY
@@ -55,7 +55,7 @@ def search(
     found = []
     for name in priority:
         render_mod = available[name]
-        if render_mod.available(target):
+        if render_mod.available():
             cur = (name, render_mod.Renderer)
             if first:
                 return [cur]
@@ -64,16 +64,13 @@ def search(
     return found
 
 
-def select(priority=None, target=None) -> Tuple[str, Type[renderer.Renderer]]:
-    found = search(priority, target=target, first=True)
+def select(priority=None) -> Tuple[str, Type[renderer.Renderer]]:
+    found = search(priority, first=True)
     if not found:
         if priority is None:
             priority = DEFAULT_PRIORITY
-        tmsg = ""
-        if target and target != "/":
-            tmsg = " in target=%s" % target
         raise RendererNotFoundError(
-            "No available network renderers found%s. Searched through list: %s"
-            % (tmsg, priority)
+            "No available network renderers found. Searched through list: %s"
+            % priority
         )
     return found[0]

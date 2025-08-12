@@ -3215,6 +3215,8 @@ class TestNetworkManagerRendering:
             ("v6_and_v4", "yaml"),
             ("v1-dns", "yaml"),
             ("v2-mixed-routes", "yaml"),
+            ("v2-mixed-routes-reversed", "yaml"),
+            ("v2-mixed-routes-no-ipv6-addr", "yaml"),
             ("v2-dns", "yaml"),
             ("v2-dns-no-if-ips", "yaml"),
             ("v2-dns-no-dhcp", "yaml"),
@@ -4540,9 +4542,12 @@ class TestEniRoundTrip:
             pytest.param(
                 "v1-dns", "yaml", marks=pytest.mark.xfail(reason="GH-4219")
             ),
-            pytest.param(
-                "v2-dns", "yaml", marks=pytest.mark.xfail(reason="GH-4219")
-            ),
+            ("v2-dns", "yaml"),
+            ("v2-mixed-routes", "yaml"),
+            ("v2-mixed-routes-reversed", "yaml"),
+            ("v2-mixed-routes-no-ipv6-addr", "yaml"),
+            ("v2-dns-no-if-ips", "yaml"),
+            ("v2-dns-no-dhcp", "yaml"),
         ],
     )
     def test_config(self, expected_name, yaml_version):

@@ -318,6 +318,12 @@ def read_md(address=None, url_params=None, platform_check=True):
             LOG.warning("unknown user-data-encoding: %s, ignoring", encoding)
         ret["user-data"] = ud
 
+    # Update md with parsed instance-data
+    md["instance-data"] = instance_data
+
+    # Update md with parsed project-data
+    md["project-data"] = project_data
+
     ret["meta-data"] = md
     ret["success"] = True
 

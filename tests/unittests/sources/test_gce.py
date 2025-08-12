@@ -11,12 +11,12 @@ from base64 import b64decode, b64encode
 from unittest import mock
 from urllib.parse import urlparse
 
+import pytest
 import responses
 
 from cloudinit import distros, helpers, settings
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.sources import DataSourceGCE
-from tests.unittests import helpers as test_helpers
 
 M_PATH = "cloudinit.sources.DataSourceGCE."
 
@@ -61,7 +61,7 @@ GUEST_ATTRIBUTES_URL = (
 )
 
 
-class TestDataSourceGCE(test_helpers.CiTestCase):
+class TestDataSourceGCE:
     with_logs = True
 
     def _make_distro(self, dtype, def_user=None):
@@ -74,27 +74,18 @@ class TestDataSourceGCE(test_helpers.CiTestCase):
         distro = distro_cls(dtype, cfg["system_info"], paths)
         return distro
 
-    def setUp(self):
-        tmp = self.tmp_dir()
+    @pytest.fixture(autouse=True)
+    def fixtures(self, mocker, paths):
         self.ds = DataSourceGCE.DataSourceGCE(
-            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": tmp})
+            settings.CFG_BUILTIN, None, paths
         )
-
-        ppatch = self.m_platform_reports_gce = mock.patch(
-            M_PATH + "platform_reports_gce"
+        self.m_platform_reports_gce = mocker.patch(
+            M_PATH + "platform_reports_gce", return_value=True
         )
-        self.m_platform_reports_gce = ppatch.start()
-        self.m_platform_reports_gce.return_value = True
-        self.addCleanup(ppatch.stop)
-
-        pppatch = self.m_is_resolvable_url = mock.patch(
+        self.m_is_resolvable_url = mocker.patch(
             M_PATH + "util.is_resolvable_url", return_value=True
         )
-        self.m_is_resolvable_url = pppatch.start()
-        self.addCleanup(pppatch.stop)
-
-        self.add_patch("time.sleep", "m_sleep")  # just to speed up tests
-        super(TestDataSourceGCE, self).setUp()
+        mocker.patch("time.sleep")
 
     def _set_mock_metadata(self, gce_meta=None, *, check_headers=None):
         if gce_meta is None:
@@ -115,7 +106,7 @@ class TestDataSourceGCE(test_helpers.CiTestCase):
                     response = json.dumps(response)
                 if check_headers is not None:
                     for k in check_headers.keys():
-                        self.assertEqual(check_headers[k], request.headers[k])
+                        assert check_headers[k] == request.headers[k]
                 return (200, request.headers, response)
             else:
                 return (404, request.headers, "")
@@ -130,7 +121,7 @@ class TestDataSourceGCE(test_helpers.CiTestCase):
     def test_connection(self):
         self._set_mock_metadata(check_headers=HEADERS)
         success = self.ds.get_data()
-        self.assertTrue(success)
+        assert success
 
     @responses.activate
     def test_metadata(self):
@@ -142,15 +133,13 @@ class TestDataSourceGCE(test_helpers.CiTestCase):
         self.ds.get_data()
 
         shostname = GCE_META.get("instance/hostname").split(".")[0]
-        self.assertEqual(shostname, self.ds.get_hostname().hostname)
+        assert shostname == self.ds.get_hostname().hostname
 
-        self.assertEqual(
-            GCE_META.get("instance/id"), self.ds.get_instance_id()
-        )
+        assert GCE_META.get("instance/id") == self.ds.get_instance_id()
 
-        self.assertEqual(
-            GCE_META.get("instance/attributes/user-data"),
-            self.ds.get_userdata_raw(),
+        assert (
+            GCE_META.get("instance/attributes/user-data")
+            == self.ds.get_userdata_raw()
         )
 
     @responses.activate
@@ -159,21 +148,19 @@ class TestDataSourceGCE(test_helpers.CiTestCase):
         self._set_mock_metadata(GCE_META_PARTIAL)
         self.ds.get_data()
 
-        self.assertEqual(
-            GCE_META_PARTIAL.get("instance/id"), self.ds.get_instance_id()
-        )
+        assert GCE_META_PARTIAL.get("instance/id") == self.ds.get_instance_id()
 
         shostname = GCE_META_PARTIAL.get("instance/hostname").split(".")[0]
-        self.assertEqual(shostname, self.ds.get_hostname().hostname)
+        assert shostname == self.ds.get_hostname().hostname
 
     @responses.activate
     def test_userdata_no_encoding(self):
         """check that user-data is read."""
         self._set_mock_metadata(GCE_USER_DATA_TEXT)
         self.ds.get_data()
-        self.assertEqual(
-            GCE_USER_DATA_TEXT["instance/attributes"]["user-data"].encode(),
-            self.ds.get_userdata_raw(),
+        assert (
+            GCE_USER_DATA_TEXT["instance/attributes"]["user-data"].encode()
+            == self.ds.get_userdata_raw()
         )
 
     @responses.activate
@@ -184,7 +171,7 @@ class TestDataSourceGCE(test_helpers.CiTestCase):
 
         instance_data = GCE_META_ENCODING.get("instance/attributes")
         decoded = b64decode(instance_data.get("user-data"))
-        self.assertEqual(decoded, self.ds.get_userdata_raw())
+        assert decoded == self.ds.get_userdata_raw()
 
     @responses.activate
     def test_missing_required_keys_return_false(self):
@@ -196,14 +183,14 @@ class TestDataSourceGCE(test_helpers.CiTestCase):
             meta = GCE_META_PARTIAL.copy()
             del meta[required_key]
             self._set_mock_metadata(meta)
-            self.assertEqual(False, self.ds.get_data())
+            assert False is self.ds.get_data()
             responses.reset()
 
     @responses.activate
     def test_no_ssh_keys_metadata(self):
         self._set_mock_metadata()
         self.ds.get_data()
-        self.assertEqual([], self.ds.get_public_ssh_keys())
+        assert [] == self.ds.get_public_ssh_keys()
 
     @responses.activate
     def test_cloudinit_ssh_keys(self):
@@ -241,17 +228,17 @@ class TestDataSourceGCE(test_helpers.CiTestCase):
         self.ds.get_data()
 
         expected = [valid_key.format(key) for key in range(3)]
-        self.assertEqual(set(expected), set(self.ds.get_public_ssh_keys()))
+        assert set(expected) == set(self.ds.get_public_ssh_keys())
 
     @responses.activate
     @mock.patch(M_PATH + "ug_util")
-    def test_default_user_ssh_keys(self, mock_ug_util):
+    def test_default_user_ssh_keys(self, mock_ug_util, paths):
         mock_ug_util.normalize_users_groups.return_value = None, None
         mock_ug_util.extract_default.return_value = "ubuntu", None
         ubuntu_ds = DataSourceGCE.DataSourceGCE(
             settings.CFG_BUILTIN,
             self._make_distro("ubuntu"),
-            helpers.Paths({"run_dir": self.tmp_dir()}),
+            paths,
         )
 
         valid_key = "ssh-rsa VALID {0}"
@@ -288,7 +275,7 @@ class TestDataSourceGCE(test_helpers.CiTestCase):
         ubuntu_ds.get_data()
 
         expected = [valid_key.format(key) for key in range(3)]
-        self.assertEqual(set(expected), set(ubuntu_ds.get_public_ssh_keys()))
+        assert set(expected) == set(ubuntu_ds.get_public_ssh_keys())
 
     @responses.activate
     def test_instance_ssh_keys_override(self):
@@ -312,7 +299,7 @@ class TestDataSourceGCE(test_helpers.CiTestCase):
         self.ds.get_data()
 
         expected = [valid_key.format(key) for key in range(2)]
-        self.assertEqual(set(expected), set(self.ds.get_public_ssh_keys()))
+        assert set(expected) == set(self.ds.get_public_ssh_keys())
 
     @responses.activate
     def test_block_project_ssh_keys_override(self):
@@ -335,20 +322,19 @@ class TestDataSourceGCE(test_helpers.CiTestCase):
         self.ds.get_data()
 
         expected = [valid_key.format(0)]
-        self.assertEqual(set(expected), set(self.ds.get_public_ssh_keys()))
+        assert set(expected) == set(self.ds.get_public_ssh_keys())
 
     @responses.activate
     def test_only_last_part_of_zone_used_for_availability_zone(self):
         self._set_mock_metadata()
-        r = self.ds.get_data()
-        self.assertEqual(True, r)
-        self.assertEqual("bar", self.ds.availability_zone)
+        assert True is self.ds.get_data()
+        assert "bar" == self.ds.availability_zone
 
     @mock.patch("cloudinit.sources.DataSourceGCE.GoogleMetadataFetcher")
     def test_get_data_returns_false_if_not_on_gce(self, m_fetcher):
         self.m_platform_reports_gce.return_value = False
         ret = self.ds.get_data()
-        self.assertEqual(False, ret)
+        assert False is ret
         m_fetcher.assert_not_called()
 
     def test_has_expired(self):
@@ -375,7 +361,7 @@ class TestDataSourceGCE(test_helpers.CiTestCase):
         }
 
         for key, expired in ssh_keys.items():
-            self.assertEqual(DataSourceGCE._has_expired(key), expired)
+            assert DataSourceGCE._has_expired(key) == expired
 
     def test_parse_public_keys_non_ascii(self):
         public_key_data = [
@@ -389,7 +375,7 @@ class TestDataSourceGCE(test_helpers.CiTestCase):
         found = DataSourceGCE._parse_public_keys(
             public_key_data, default_user="default"
         )
-        self.assertEqual(sorted(found), sorted(expected))
+        assert sorted(found) == sorted(expected)
 
     @mock.patch("cloudinit.url_helper.readurl")
     def test_publish_host_keys(self, m_readurl):
@@ -420,11 +406,11 @@ class TestDataSourceGCE(test_helpers.CiTestCase):
     )
     @mock.patch(M_PATH + "net.find_candidate_nics", return_value=["ens4"])
     def test_local_datasource_uses_ephemeral_dhcp(
-        self, _m_find_candidate_nics, m_dhcp
+        self, _m_find_candidate_nics, m_dhcp, tmp_path
     ):
         self._set_mock_metadata()
         distro = mock.MagicMock()
-        distro.get_tmp_exec_path = self.tmp_dir
+        distro.get_tmp_exec_path = str(tmp_path)
         ds = DataSourceGCE.DataSourceGCELocal(
             sys_cfg={}, distro=distro, paths=None
         )
@@ -439,11 +425,11 @@ class TestDataSourceGCE(test_helpers.CiTestCase):
     )
     @mock.patch(M_PATH + "net.find_candidate_nics")
     def test_local_datasource_tries_on_multi_nic(
-        self, m_find_candidate_nics, m_dhcp, m_read_md
+        self, m_find_candidate_nics, m_dhcp, m_read_md, caplog, tmp_path
     ):
         self._set_mock_metadata()
         distro = mock.MagicMock()
-        distro.get_tmp_exec_path = self.tmp_dir
+        distro.get_tmp_exec_path = str(tmp_path)
         ds = DataSourceGCE.DataSourceGCELocal(
             sys_cfg={}, distro=distro, paths=None
         )
@@ -488,10 +474,7 @@ class TestDataSourceGCE(test_helpers.CiTestCase):
             " whoopsie, not this one",
         )
         for msg in expected_logs:
-            self.assertIn(
-                msg,
-                self.logs.getvalue(),
-            )
+            assert msg in caplog.text
 
     @responses.activate
     @mock.patch(
@@ -511,11 +494,11 @@ class TestDataSourceGCE(test_helpers.CiTestCase):
     )
     @mock.patch(M_PATH + "net.find_candidate_nics")
     def test_datasource_on_dhcp_lease_failure(
-        self, m_find_candidate_nics, m_dhcp
+        self, m_find_candidate_nics, m_dhcp, caplog, tmp_path
     ):
         self._set_mock_metadata()
         distro = mock.MagicMock()
-        distro.get_tmp_exec_path = self.tmp_dir
+        distro.get_tmp_exec_path = str(tmp_path)
         ds = DataSourceGCE.DataSourceGCELocal(
             sys_cfg={}, distro=distro, paths=None
         )
@@ -539,7 +522,28 @@ class TestDataSourceGCE(test_helpers.CiTestCase):
             "Unable to obtain a DHCP lease for ens0p5",
         )
         for msg in expected_logs:
-            self.assertIn(
-                msg,
-                self.logs.getvalue(),
-            )
+            assert msg in caplog.text
+
+    @responses.activate
+    def test_instance_and_project_data_decoded(self):
+        """instance_data and project_data is decoded and can be queried."""
+        md = {
+            "instance/id": "123",
+            "instance/zone": "foo/bar",
+            "instance/hostname": "server.project-foo.local",
+            "instance/attributes": {"ikey": "ivalue"},
+            "project/attributes": {"pkey": "pvalue"},
+        }
+
+        self._set_mock_metadata(md)
+        assert self.ds.get_data() is True
+
+        assert "instance-data" in self.ds.metadata
+        assert isinstance(self.ds.metadata["instance-data"], dict)
+        assert "ikey" in self.ds.metadata["instance-data"]
+        assert "ivalue" == self.ds.metadata["instance-data"]["ikey"]
+
+        assert "project-data" in self.ds.metadata
+        assert isinstance(self.ds.metadata["project-data"], dict)
+        assert "pkey" in self.ds.metadata["project-data"]
+        assert "pvalue" == self.ds.metadata["project-data"]["pkey"]

@@ -1,0 +1,8 @@
+[NetDev]
+Kind=vlan
+MACAddress=00:11:22:33:44:66
+MTUBytes=901
+Name=vlan100
+
+[VLAN]
+Id=100
