@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     try:
         from jsonschema import ValidationError as _ValidationError
     except ImportError:
-        _ValidationError = Exception
+        _ValidationError = Exception  # type: ignore[misc,assignment]
 
 import yaml
 

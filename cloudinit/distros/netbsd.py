@@ -6,7 +6,7 @@ import functools
 import logging
 import os
 import platform
-from typing import Any
+
 
 import cloudinit.distros.bsd
 from cloudinit import subp, util
@@ -23,10 +23,10 @@ except (ImportError, AttributeError):
     try:
         from passlib.hash import bcrypt
 
-        blowfish_hash = bcrypt.hash
+        blowfish_hash = bcrypt.hash  # type: ignore[assignment]
     except ImportError:
 
-        def blowfish_hash(_):
+        def blowfish_hash(_):  # type: ignore[misc]
             """Raise when called so that importing this module doesn't throw
             ImportError when this module is not used. In this case, crypt
             and passlib are not needed.

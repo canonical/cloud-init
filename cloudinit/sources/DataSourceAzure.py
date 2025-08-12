@@ -59,10 +59,10 @@ except (ImportError, AttributeError):
     try:
         import passlib.hash
 
-        blowfish_hash = passlib.hash.sha512_crypt.hash
+        blowfish_hash = passlib.hash.sha512_crypt.hash  # type: ignore[assignment]
     except ImportError:
 
-        def blowfish_hash(_):
+        def blowfish_hash(_):  # type: ignore[misc]
             """Raise when called so that importing this module doesn't throw
             ImportError when ds_detect() returns false. In this case, crypt
             and passlib are not needed.
