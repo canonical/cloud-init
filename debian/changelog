@@ -1,4 +1,4 @@
-cloud-init (25.2-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
+cloud-init (25.2-0ubuntu1~22.04.1) jammy; urgency=medium
 
   * refresh patches
     - d/p/cli-retain-file-argument-as-main-cmd-arg.patch
@@ -18,7 +18,7 @@ cloud-init (25.2-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/25.2/ChangeLog
 
- -- James Falcon <james.falcon@canonical.com>  Tue, 12 Aug 2025 14:37:05 -0500
+ -- James Falcon <james.falcon@canonical.com>  Tue, 12 Aug 2025 14:48:04 -0500
 
 cloud-init (25.1.4-0ubuntu0~22.04.1) jammy-security; urgency=medium
 
