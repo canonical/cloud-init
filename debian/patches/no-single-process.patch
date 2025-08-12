@@ -19,7 +19,7 @@ Last-Update: 2024-08-02
              stdout = query_systemctl(
 --- a/cloudinit/config/cc_mounts.py
 +++ b/cloudinit/config/cc_mounts.py
-@@ -519,7 +519,7 @@ def handle(name: str, cfg: Config, cloud
+@@ -545,7 +545,7 @@ def handle(name: str, cfg: Config, cloud
      # fs_spec, fs_file, fs_vfstype, fs_mntops, fs_freq, fs_passno
      uses_systemd = cloud.distro.uses_systemd()
      default_mount_options = (
