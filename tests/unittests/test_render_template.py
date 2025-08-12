@@ -124,3 +124,98 @@ class TestRenderCloudCfg:
             system_cfg = util.load_yaml(stream.read())
 
         assert renderers == system_cfg["system_info"]["network"]["renderers"]
+
+
+EXPECTED_DEBIAN = """\
+deb testmirror testcodename main
+deb-src testmirror testcodename main
+deb testsecurity testcodename-security main
+deb-src testsecurity testcodename-security main
+deb testmirror testcodename-updates main
+deb-src testmirror testcodename-updates main
+deb testmirror testcodename-backports main
+deb-src testmirror testcodename-backports main
+"""
+
+EXPECTED_DEBIAN_DEB822 = """\
+Types: deb deb-src
+URIs: testmirror
+Suites: testcodename testcodename-updates testcodename-backports
+Components: main
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+Types: deb deb-src
+URIs: testsecurity
+Suites: testcodename-security
+Components: main
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+"""
+
+EXPECTED_UBUNTU = """\
+deb testmirror testcodename main restricted
+deb testmirror testcodename-updates main restricted
+deb testmirror testcodename universe
+deb testmirror testcodename-updates universe
+deb testmirror testcodename multiverse
+deb testmirror testcodename-updates multiverse
+deb testmirror testcodename-backports main restricted universe multiverse
+deb testsecurity testcodename-security main restricted
+deb testsecurity testcodename-security universe
+deb testsecurity testcodename-security multiverse
+"""
+
+EXPECTED_UBUNTU_DEB822 = """\
+Types: deb
+URIs: testmirror
+Suites: testcodename testcodename-updates testcodename-backports
+Components: main universe restricted multiverse
+Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+Types: deb
+URIs: testsecurity
+Suites: testcodename-security
+Components: main universe restricted multiverse
+Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+"""
+
+
+class TestRenderSourcesList:
+    @pytest.mark.parametrize(
+        "template_path,expected",
+        [
+            pytest.param(
+                "templates/sources.list.debian.tmpl",
+                EXPECTED_DEBIAN,
+                id="debian",
+            ),
+            pytest.param(
+                "templates/sources.list.debian.deb822.tmpl",
+                EXPECTED_DEBIAN_DEB822,
+                id="debian_822",
+            ),
+            pytest.param(
+                "templates/sources.list.ubuntu.tmpl",
+                EXPECTED_UBUNTU,
+                id="ubuntu",
+            ),
+            pytest.param(
+                "templates/sources.list.ubuntu.deb822.tmpl",
+                EXPECTED_UBUNTU_DEB822,
+                id="ubuntu_822",
+            ),
+        ],
+    )
+    def test_render_sources_list_templates(
+        self, tmpdir, template_path, expected
+    ):
+        params = {
+            "mirror": "testmirror",
+            "security": "testsecurity",
+            "codename": "testcodename",
+        }
+        template_path = cloud_init_project_dir(template_path)
+        rendered = templater.render_string(open(template_path).read(), params)
+        filtered = "\n".join(
+            line
+            for line in rendered.splitlines()
+            if line.strip() and not line.strip().startswith("#")
+        )
+        assert filtered.strip() == expected.strip()
