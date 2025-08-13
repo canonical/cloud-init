@@ -4,6 +4,7 @@ cloud-init (25.2-0ubuntu1~25.04.1) UNRELEASED; urgency=medium
     + New Azure binary package depending on cloud-init-base and
       python3-passlib.
   * d/cloud-init-base.preinst: avoid sed of /etc/fstab when absent
+  * d/control: remove trailing whitespace
   * Upstream snapshot based on 25.2. (LP: #2120495).
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/25.2/ChangeLog
