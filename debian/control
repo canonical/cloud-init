@@ -43,7 +43,7 @@ Depends: cloud-guest-utils | cloud-utils,
          ${python3:Depends}
 Recommends: eatmydata, gdisk, gnupg, python3-apt, software-properties-common
 Suggests: openssh-server, ssh-import-id
-Replaces: cloud-init (<< 25.1.1-0ubuntu2~), cloud-init-base 
+Replaces: cloud-init (<< 25.1.1-0ubuntu2~), cloud-init-base
 Breaks: cloud-init (<< 25.1.1-0ubuntu2~), cloud-init-base
 Description: initialization and customization tool for cloud instances
  Cloud-init with minimal dependencies, refer to cloud-init for more
