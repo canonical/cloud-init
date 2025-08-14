@@ -1,10 +1,11 @@
 import json
+from unittest import mock
 
 import pytest
 
 from cloudinit import distros, subp
 from cloudinit.sources import DataSourceRbxCloud as ds
-from tests.unittests.helpers import mock, populate_dir
+from tests.unittests.helpers import populate_dir
 
 DS_PATH = "cloudinit.sources.DataSourceRbxCloud"
 

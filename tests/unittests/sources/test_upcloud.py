@@ -3,6 +3,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import json
+from unittest import mock
 
 import pytest
 
@@ -11,7 +12,7 @@ from cloudinit.sources.DataSourceUpCloud import (
     DataSourceUpCloud,
     DataSourceUpCloudLocal,
 )
-from tests.unittests.helpers import example_netdev, mock
+from tests.unittests.helpers import example_netdev
 
 UC_METADATA = json.loads(
     """

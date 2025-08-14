@@ -99,13 +99,13 @@ class TestOnScaleway:
             fake_file_exists=(m_file_exists, False),
             fake_cmdline=(m_get_cmdline, False),
         )
-        assert not DataSourceScaleway.DataSourceScaleway.ds_detect()
+        assert False is DataSourceScaleway.DataSourceScaleway.ds_detect()
 
         # When not on Scaleway, get_data() returns False.
         datasource = DataSourceScaleway.DataSourceScaleway(
             settings.CFG_BUILTIN, None, paths
         )
-        assert not datasource.get_data()
+        assert False is datasource.get_data()
 
     @mock.patch("cloudinit.util.get_cmdline")
     @mock.patch("os.path.exists")
@@ -122,7 +122,7 @@ class TestOnScaleway:
             fake_file_exists=(m_file_exists, False),
             fake_cmdline=(m_get_cmdline, False),
         )
-        assert DataSourceScaleway.DataSourceScaleway.ds_detect()
+        assert True is DataSourceScaleway.DataSourceScaleway.ds_detect()
 
     @mock.patch("cloudinit.util.get_cmdline")
     @mock.patch("os.path.exists")
@@ -138,7 +138,7 @@ class TestOnScaleway:
             fake_file_exists=(m_file_exists, True),
             fake_cmdline=(m_get_cmdline, False),
         )
-        assert DataSourceScaleway.DataSourceScaleway.ds_detect()
+        assert True is DataSourceScaleway.DataSourceScaleway.ds_detect()
 
     @mock.patch("cloudinit.util.get_cmdline")
     @mock.patch("os.path.exists")
@@ -154,7 +154,7 @@ class TestOnScaleway:
             fake_file_exists=(m_file_exists, False),
             fake_cmdline=(m_get_cmdline, True),
         )
-        assert DataSourceScaleway.DataSourceScaleway.ds_detect()
+        assert True is DataSourceScaleway.DataSourceScaleway.ds_detect()
 
 
 def get_source_address_adapter(*args, **kwargs):
@@ -413,11 +413,9 @@ class TestDataSourceScaleway:
             callback=ConnectTimeout,
         )
         self.datasource.max_wait = 0
-        ret = self.datasource.get_data()
+        assert False is self.datasource.get_data()
         responses_assert_call_count(f"{self.datasource.metadata_urls[0]}", 2)
         responses_assert_call_count(f"{self.datasource.metadata_urls[1]}", 2)
-
-        assert not ret
         assert self.datasource.metadata == {}
         assert self.datasource.get_userdata_raw() is None
         assert self.datasource.get_vendordata_raw() is None
