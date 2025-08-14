@@ -1,0 +1,13 @@
+[Bridge]
+AgeingTimeSec=300
+ForwardDelaySec=4
+HelloTimeSec=2
+MaxAgeSec=20
+Priority=2048
+STP=yes
+
+[NetDev]
+Kind=bridge
+MACAddress=00:11:22:33:44:aa
+MTUBytes=9000
+Name=br0

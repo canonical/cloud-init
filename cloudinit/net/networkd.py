@@ -5,7 +5,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
-from typing import Any, Dict, List, Optional
+from collections import defaultdict
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from cloudinit import subp, util
 from cloudinit.net import renderer, should_add_gateway_onlink_flag
@@ -66,6 +67,8 @@ class CfgParser:
             "NetDev": [],
             "VLAN": [],
             "Bond": [],
+            "Bridge": [],
+            "RoutingPolicyRule": {},
         }
 
     def update_section(self, sec, key, val):
@@ -102,7 +105,7 @@ class CfgParser:
             if k == "Address":
                 for e in sorted(v):
                     contents += f"[{k}]\n{e}\n\n"
-            elif k == "Route":
+            elif k in ["Route", "RoutingPolicyRule"]:
                 for n in sorted(v):
                     contents += f"[{k}]\n"
                     for e in sorted(v[n]):
@@ -179,6 +182,7 @@ class Renderer(renderer.Renderer):
             "gateway": "Gateway",
             "network": "Destination",
             "metric": "Metric",
+            "table": "Table",
         }
 
         # prefix is derived using netmask by network_state
@@ -348,6 +352,7 @@ class Renderer(renderer.Renderer):
         network = self._render_content(network_state)
         vlan_netdev = network.pop("vlan_netdev", {})
         bond_netdev = network.pop("bond_netdev", {})
+        bridge_netdev = network.pop("bridge_netdev", {})
 
         for k, v in network.items():
             self.create_network_file(k, v, network_dir)
@@ -358,15 +363,40 @@ class Renderer(renderer.Renderer):
         for k, v in bond_netdev.items():
             self.create_network_file(k, v, network_dir, ext=".netdev")
 
+        for k, v in bridge_netdev.items():
+            self.create_network_file(k, v, network_dir, ext=".netdev")
+
+    def parseRoutingPolicy(self, policy, cfg: CfgParser):
+        rid = 0
+        key = "RoutingPolicyRule"
+        for val in policy:
+            for k, v in val.items():
+                cfg.update_route_section(key, rid, k.capitalize(), v)
+            rid += 1
+
+    def extractRoutingPolicies(self, nsCfg: Dict):
+        routingPolicies = {}
+        key = "routing-policy"
+
+        for section in ("ethernets", "bonds", "vlans", "bridges"):
+            if section not in nsCfg:
+                continue
+            for iface, settings in nsCfg[section].items():
+                if key in settings:
+                    routingPolicies[iface] = settings[key]
+        return routingPolicies
+
     def _render_content(self, ns: NetworkState):
         ret_dict = {}
         vlan_link = {}
         bond_link = {}
+        bridge_link = {}
 
         if "vlans" in ns.config:
             vlan_dict = self.render_vlans(ns)
             vlan_netdev = vlan_dict["vlan_netdev"]
             vlan_link = vlan_dict["vlan_link"]
+            vlan_link["macaddress"] = vlan_dict["vlan_mac_info"]
             ret_dict["vlan_netdev"] = vlan_netdev
 
         if "bonds" in ns.config:
@@ -375,14 +405,26 @@ class Renderer(renderer.Renderer):
             bond_link = bond_dict["bond_link"]
             ret_dict["bond_netdev"] = bond_netdev
 
+        if "bridges" in ns.config:
+            bridge_dict = self.render_bridges(ns)
+            bridge_netdev = bridge_dict["bridge_netdev"]
+            bridge_link = bridge_dict["bridge_link"]
+            ret_dict["bridge_netdev"] = bridge_netdev
+
+        routingPolicies = self.extractRoutingPolicies(ns.config)
+
         for iface in ns.iter_interfaces():
             cfg = CfgParser()
 
             iface_name = iface["name"]
 
-            vlan_link_name = vlan_link.get(iface_name)
-            if vlan_link_name:
-                cfg.update_section("Network", "VLAN", vlan_link_name)
+            vlan_link_name = vlan_link.get(iface_name, [])
+            for i in vlan_link_name:
+                cfg.update_section("Network", "VLAN", i)
+
+            rPolicy = routingPolicies.get(iface_name)
+            if rPolicy:
+                self.parseRoutingPolicy(rPolicy, cfg)
 
             # TODO: revisit this once network state renders macaddress
             # properly for vlan config
@@ -399,6 +441,33 @@ class Renderer(renderer.Renderer):
             # properly for bond config
             if not iface["mac_address"] and bond_link.get("macaddress"):
                 mac = bond_link["macaddress"].get(iface_name)
+                if mac:
+                    iface["mac_address"] = mac
+
+            bridge_link_name = bridge_link.get(iface_name)
+            if bridge_link_name:
+                val = (
+                    bridge_link["path-cost"]
+                    .get(bridge_link_name, {})
+                    .get(iface_name)
+                )
+                if val:
+                    cfg.update_section("Bridge", "Cost", val)
+
+                val = (
+                    bridge_link["port-priority"]
+                    .get(bridge_link_name, {})
+                    .get(iface_name)
+                )
+                if val:
+                    cfg.update_section("Bridge", "Priority", val)
+
+                cfg.update_section("Network", "Bridge", bridge_link_name)
+
+            # TODO: revisit this once network state renders macaddress
+            # properly for bridge config
+            if not iface["mac_address"] and bridge_link.get("macaddress"):
+                mac = bridge_link["macaddress"].get(iface_name)
                 if mac:
                     iface["mac_address"] = mac
 
@@ -457,9 +526,9 @@ class Renderer(renderer.Renderer):
         return ret_dict
 
     def render_vlans(self, ns: NetworkState) -> dict:
-        vlan_link_info: Dict[str, Any] = {}
+        vlan_link_info = defaultdict(list)
+        vlan_mac_info = {}
         vlan_ndev_configs = {}
-        vlan_link_info["macaddress"] = {}
 
         vlans = ns.config.get("vlans", {})
         for vlan_name, vlan_cfg in vlans.items():
@@ -472,7 +541,7 @@ class Renderer(renderer.Renderer):
                 )
                 continue
 
-            vlan_link_info[parent] = vlan_name
+            vlan_link_info[parent].append(vlan_name)
 
             # -------- .netdev for VLAN --------
             cfg = CfgParser()
@@ -487,16 +556,16 @@ class Renderer(renderer.Renderer):
             if val:
                 val = val.lower()
                 cfg.update_section("NetDev", "MACAddress", val)
-                vlan_link_info["macaddress"][vlan_name] = val
+                vlan_mac_info[vlan_name] = val
 
             cfg.update_section("VLAN", "Id", vlan_id)
             vlan_ndev_configs[vlan_name] = cfg.get_final_conf()
 
-        ret_dict = {
+        return {
             "vlan_netdev": vlan_ndev_configs,
             "vlan_link": vlan_link_info,
+            "vlan_mac_info": vlan_mac_info,
         }
-        return ret_dict
 
     def render_bonds(self, ns: NetworkState) -> dict:
         bond_link_info: Dict[str, Any] = {}
@@ -534,89 +603,116 @@ class Renderer(renderer.Renderer):
             # Optional bond parameters
             params = bond_cfg.get("parameters", {})
 
-            if "mode" in params:
-                cfg.update_section(section, "Mode", params["mode"])
+            ParamMapType = Dict[str, Tuple[str, Callable[[object], str]]]
 
-            if "mii-monitor-interval" in params:
-                cfg.update_section(
-                    section,
-                    "MIIMonitorSec",
-                    f"{params['mii-monitor-interval']}ms",
-                )
+            param_map: ParamMapType = {
+                "ad-select": ("AdSelect", str),
+                "all-slaves-active": (
+                    "AllSlavesActive",
+                    lambda v: str(v).lower(),
+                ),
+                "arp-all-targets": ("ARPAllTargets", str),
+                "arp-interval": ("ARPIntervalSec", lambda v: f"{v}ms"),
+                "arp-validate": ("ARPValidate", str),
+                "down-delay": ("DownDelaySec", lambda v: f"{v}ms"),
+                "fail-over-mac-policy": ("FailOverMACPolicy", str),
+                "gratuitous-arp": ("GratuitousARP", str),
+                "lacp-rate": ("LACPTransmitRate", str),
+                "learn-packet-interval": ("LearnPacketIntervalSec", str),
+                "mii-monitor-interval": ("MIIMonitorSec", lambda v: f"{v}ms"),
+                "min-links": ("MinLinks", lambda v: str(v)),
+                "mode": ("Mode", str),
+                "packets-per-slave": ("PacketsPerSlave", str),
+                "primary-reselect-policy": ("PrimaryReselectPolicy", str),
+                "transmit-hash-policy": ("TransmitHashPolicy", str),
+                "up-delay": ("UpDelaySec", lambda v: f"{v}ms"),
+            }
 
-            if "updelay" in params:
-                cfg.update_section(
-                    section, "UpDelaySec", f"{params['updelay']}ms"
-                )
+            for key, (option, formatter) in param_map.items():
+                if key in params:
+                    cfg.update_section(section, option, formatter(params[key]))
 
-            if "downdelay" in params:
-                cfg.update_section(
-                    section, "DownDelaySec", f"{params['downdelay']}ms"
-                )
-
-            if "arp-interval" in params:
-                cfg.update_section(
-                    section, "ARPIntervalSec", f"{params['arp-interval']}ms"
-                )
-
-            if "arp-ip-target" in params:
-                targets = params["arp-ip-target"]
+            if "arp-ip-targets" in params:
+                targets = params["arp-ip-targets"]
                 if isinstance(targets, str):
                     targets = [targets]
-                ip_list = " ".join(targets)
-                cfg.update_section(section, "ARPIPTargets", ip_list)
-
-            if "arp-validate" in params:
-                cfg.update_section(
-                    section, "ARPValidate", params["arp-validate"]
-                )
-
-            if "arp-all-targets" in params:
-                cfg.update_section(
-                    section, "ARPAllTargets", params["arp-all-targets"]
-                )
-
-            if "primary-reselect" in params:
-                cfg.update_section(
-                    section,
-                    "PrimaryReselectPolicy",
-                    params["primary-reselect"],
-                )
-
-            if "lacp-rate" in params:
-                cfg.update_section(
-                    section, "LACPTransmitRate", params["lacp-rate"]
-                )
-
-            if "transmit-hash-policy" in params:
-                cfg.update_section(
-                    section,
-                    "TransmitHashPolicy",
-                    params["transmit-hash-policy"],
-                )
-
-            if "ad-select" in params:
-                cfg.update_section(section, "AdSelect", params["ad-select"])
-
-            if "min-links" in params:
-                cfg.update_section(
-                    section, "MinLinks", str(params["min-links"])
-                )
-
-            if "all-slaves-active" in params:
-                cfg.update_section(
-                    section,
-                    "AllSlavesActive",
-                    str(params["all-slaves-active"]).lower(),
-                )
+                cfg.update_section(section, "ARPIPTargets", " ".join(targets))
 
             bond_ndev_configs[bond_name] = cfg.get_final_conf()
 
-        ret_dict = {
+        return {
             "bond_netdev": bond_ndev_configs,
             "bond_link": bond_link_info,
         }
-        return ret_dict
+
+    def render_bridges(self, ns: NetworkState) -> dict:
+        bridge_link_info: Dict[str, Any] = {
+            "macaddress": {},
+            "path-cost": {},
+            "port-priority": {},
+        }
+
+        bridge_ndev_configs = {}
+
+        bridges = ns.config.get("bridges", {})
+        for bridge_name, bridge_cfg in bridges.items():
+            interfaces = bridge_cfg.get("interfaces", [])
+            if not interfaces:
+                LOG.warning(
+                    "Skipping bridge %s - missing 'interfaces'", bridge_name
+                )
+                continue
+
+            # Map each interface to its bridge
+            for iface in interfaces:
+                bridge_link_info[iface] = bridge_name
+
+            # ---- .netdev config for the bridge ----
+            cfg = CfgParser()
+            cfg.update_section("NetDev", "Name", bridge_name)
+            cfg.update_section("NetDev", "Kind", "bridge")
+
+            val = bridge_cfg.get("mtu")
+            if val:
+                cfg.update_section("NetDev", "MTUBytes", val)
+
+            val = bridge_cfg.get("macaddress")
+            if val:
+                val = val.lower()
+                cfg.update_section("NetDev", "MACAddress", val)
+                bridge_link_info["macaddress"][bridge_name] = val
+
+            # Bridge parameters
+            params = bridge_cfg.get("parameters", {})
+            param_map = {
+                "ageing-time": "AgeingTimeSec",
+                "forward-delay": "ForwardDelaySec",
+                "hello-time": "HelloTimeSec",
+                "max-age": "MaxAgeSec",
+                "priority": "Priority",
+                "stp": "STP",
+            }
+            for key, sysd_key in param_map.items():
+                val = params.get(key)
+                if val:
+                    if isinstance(val, bool):
+                        val = "yes" if val else "no"
+                    cfg.update_section("Bridge", sysd_key, val)
+
+            val = params.get("path-cost")
+            if val:
+                bridge_link_info["path-cost"][bridge_name] = val
+
+            val = params.get("port-priority")
+            if val:
+                bridge_link_info["port-priority"][bridge_name] = val
+
+            bridge_ndev_configs[bridge_name] = cfg.get_final_conf()
+
+        return {
+            "bridge_netdev": bridge_ndev_configs,
+            "bridge_link": bridge_link_info,
+        }
 
 
 def available(target=None):
