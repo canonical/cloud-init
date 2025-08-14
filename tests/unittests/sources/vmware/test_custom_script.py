@@ -7,6 +7,7 @@
 
 import os
 import stat
+from unittest import mock
 
 import pytest
 
@@ -17,21 +18,20 @@ from cloudinit.sources.helpers.vmware.imc.config_custom_script import (
     PostCustomScript,
     PreCustomScript,
 )
-from tests.unittests.helpers import mock
 
 
 @pytest.fixture
 def fake_exec_dir(mocker, tmp_path):
-    exec_dir = os.path.join(tmp_path, ".customization")
-    mocker.patch.object(CustomScriptConstant, "CUSTOM_TMP_DIR", exec_dir)
+    exec_dir = tmp_path / ".customization"
+    mocker.patch.object(CustomScriptConstant, "CUSTOM_TMP_DIR", str(exec_dir))
     return exec_dir
 
 
 @pytest.fixture
 def fake_exec_script(fake_exec_dir, mocker):
-    exec_dir = os.path.join(fake_exec_dir, ".customize.sh")
-    mocker.patch.object(CustomScriptConstant, "CUSTOM_SCRIPT", exec_dir)
-    return exec_dir
+    ex_script = fake_exec_dir / ".customize.sh"
+    mocker.patch.object(CustomScriptConstant, "CUSTOM_SCRIPT", str(ex_script))
+    return ex_script
 
 
 class TestVmwareCustomScript:
@@ -61,14 +61,10 @@ class TestVmwareCustomScript:
         postCust.prepare_script()
 
         # Custom script is copied with exec privilege
-        assert os.path.exists(fake_exec_script)
+        assert fake_exec_script.exists()
         st = os.stat(fake_exec_script)
         assert st.st_mode & stat.S_IEXEC
-        with open(fake_exec_script, "r") as f:
-            content = f.read()
-        assert content == "test-CR-strip"
-        # Check if all carraige returns are stripped from script.
-        assert "\r" not in content
+        assert "test-CR-strip" == fake_exec_script.read_text()
 
     def test_execute_post_cust(self, fake_exec_script, tmp_path):
         """
@@ -85,13 +81,13 @@ class TestVmwareCustomScript:
         # Create another tmp dir for cc_scripts_per_instance.
         ccScriptDir = tmp_path / "out"
         ccScriptDir.mkdir()
-        ccScript = os.path.join(ccScriptDir, "post-customize-guest.sh")
-        markerFile = os.path.join(tmp_path, ".markerFile")
+        ccScript = ccScriptDir / "post-customize-guest.sh"
+        markerFile = tmp_path / ".markerFile"
 
         with mock.patch.object(
             CustomScriptConstant,
             "POST_CUSTOM_PENDING_MARKER",
-            markerFile,
+            str(markerFile),
         ):
             postCust = PostCustomScript(
                 "test-cust", str(tmp_path), ccScriptDir
@@ -99,8 +95,8 @@ class TestVmwareCustomScript:
             postCust.execute()
             # Check cc_scripts_per_instance and marker file
             # are created.
-            assert os.path.exists(ccScript)
-            with open(ccScript, "r") as f:
-                content = f.read()
-            assert content == "This is the script to run post cust"
-            assert os.path.exists(markerFile)
+            assert ccScript.exists()
+            assert (
+                "This is the script to run post cust" == ccScript.read_text()
+            )
+            assert markerFile.exists()

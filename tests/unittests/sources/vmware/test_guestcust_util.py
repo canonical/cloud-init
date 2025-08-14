@@ -5,6 +5,8 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+from unittest import mock
+
 from cloudinit import subp
 from cloudinit.sources.helpers.vmware.imc.config import Config
 from cloudinit.sources.helpers.vmware.imc.config_file import ConfigFile
@@ -13,7 +15,6 @@ from cloudinit.sources.helpers.vmware.imc.guestcust_util import (
     set_gc_status,
 )
 from cloudinit.subp import SubpResult
-from tests.unittests.helpers import mock
 
 
 class TestGuestCustUtil:

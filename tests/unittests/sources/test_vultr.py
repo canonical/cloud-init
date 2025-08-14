@@ -7,6 +7,7 @@
 
 import copy
 import json
+from unittest import mock
 
 import pytest
 
@@ -14,7 +15,6 @@ from cloudinit import settings
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.sources import DataSourceVultr
 from cloudinit.sources.helpers import vultr
-from tests.unittests.helpers import mock
 
 VENDOR_DATA = """\
 #cloud-config
@@ -249,7 +249,7 @@ INTERFACE_MAP = {
 
 class TestDataSourceVultr:
     @pytest.fixture
-    def source(self, paths, tmp_path):
+    def ds(self, paths, tmp_path):
         distro = mock.MagicMock()
         distro.get_tmp_exec_path.return_value = str(tmp_path)
         return DataSourceVultr.DataSourceVultr(
@@ -260,17 +260,17 @@ class TestDataSourceVultr:
     @mock.patch("cloudinit.net.get_interfaces_by_mac")
     @mock.patch("cloudinit.sources.helpers.vultr.is_vultr")
     @mock.patch("cloudinit.sources.helpers.vultr.get_metadata")
-    def test_datasource(self, mock_getmeta, mock_isvultr, mock_netmap, source):
+    def test_datasource(self, mock_getmeta, mock_isvultr, mock_netmap, ds):
         mock_getmeta.return_value = VULTR_V1_2
         mock_isvultr.return_value = True
         mock_netmap.return_value = INTERFACE_MAP
 
-        assert True is source._get_data()
-        assert "42872224" == source.metadata["instanceid"]
-        assert "CLOUDINIT_2" == source.metadata["local-hostname"]
-        assert SSH_KEYS_1 == source.metadata["public-keys"]
-        assert VENDOR_DATA == source.vendordata_raw
-        assert EXPECTED_VULTR_NETWORK_2 == source.network_config
+        assert True is ds._get_data()
+        assert "42872224" == ds.metadata["instanceid"]
+        assert "CLOUDINIT_2" == ds.metadata["local-hostname"]
+        assert SSH_KEYS_1 == ds.metadata["public-keys"]
+        assert VENDOR_DATA == ds.vendordata_raw
+        assert EXPECTED_VULTR_NETWORK_2 == ds.network_config
 
     def _get_metadata(self):
         # Create v1_3
@@ -286,16 +286,16 @@ class TestDataSourceVultr:
     @mock.patch("cloudinit.sources.helpers.vultr.is_vultr")
     @mock.patch("cloudinit.sources.helpers.vultr.get_metadata")
     def test_datasource_cloud_interfaces(
-        self, mock_getmeta, mock_isvultr, mock_netmap, source
+        self, mock_getmeta, mock_isvultr, mock_netmap, ds
     ):
         mock_getmeta.return_value = self._get_metadata()
         mock_isvultr.return_value = True
         mock_netmap.return_value = INTERFACE_MAP
 
-        source._get_data()
+        ds._get_data()
 
         # Test network config generation
-        assert EXPECTED_VULTR_NETWORK_2 == source.network_config
+        assert EXPECTED_VULTR_NETWORK_2 == ds.network_config
 
     # Test network config generation
     @mock.patch("cloudinit.net.get_interfaces_by_mac")
@@ -352,12 +352,12 @@ class TestDataSourceVultr:
         mock_read_metadata,
         mock_isvultr,
         mock_eph_init,
-        source,
+        ds,
     ):
         mock_read_metadata.return_value = json.dumps(VULTR_V1_1)
         mock_isvultr.return_value = True
         mock_interface_list.return_value = FILTERED_INTERFACES
 
-        source.get_metadata()
+        ds.get_metadata()
 
         assert mock_eph_init.call_args[1]["iface"] == FILTERED_INTERFACES[1]

@@ -9,9 +9,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
-import os
 import sys
-import tempfile
 import textwrap
 
 import pytest
@@ -27,7 +25,6 @@ from cloudinit.sources.helpers.vmware.imc.guestcust_util import (
     get_non_network_data_from_vmware_cust_cfg,
 )
 from tests.helpers import cloud_init_project_dir
-from tests.unittests.helpers import CiTestCase
 
 logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
 logger = logging.getLogger(__name__)
@@ -141,8 +138,7 @@ class TestVmwareConfigFile:
 
         conf = Config(cf)
         with pytest.raises(ValueError):
-            pw = conf.reset_password
-            assert pw is None
+            assert None is conf.reset_password
 
         cf.clear()
         cf._insertKey("PASSWORD|RESET", "yes")
@@ -315,31 +311,21 @@ class TestVmwareConfigFile:
         assert conf.default_run_post_script
 
 
-class TestVmwareNetConfig(CiTestCase):
+class TestVmwareNetConfig:
     """Test conversion of vmware config to cloud-init config."""
 
-    maxDiff = None
+    def _get_NicConfigurator(self, tmp_path, text):
+        tmp_file = tmp_path / ".config"
+        tmp_file.write_text(text)
+        cfg = Config(ConfigFile(tmp_file))
+        return NicConfigurator(
+            cfg.nics,
+            cfg.name_servers,
+            cfg.dns_suffixes,
+            use_system_devices=False,
+        )
 
-    def _get_NicConfigurator(self, text):
-        fp = None
-        try:
-            with tempfile.NamedTemporaryFile(
-                mode="w", dir=self.tmp_dir(), delete=False
-            ) as fp:
-                fp.write(text)
-                fp.close()
-            cfg = Config(ConfigFile(fp.name))
-            return NicConfigurator(
-                cfg.nics,
-                cfg.name_servers,
-                cfg.dns_suffixes,
-                use_system_devices=False,
-            )
-        finally:
-            if fp:
-                os.unlink(fp.name)
-
-    def test_static_nic_without_ipv4_netmask(self):
+    def test_static_nic_without_ipv4_netmask(self, tmp_path):
         """netmask is optional for static ipv4 configuration."""
         config = textwrap.dedent(
             """\
@@ -360,7 +346,7 @@ class TestVmwareNetConfig(CiTestCase):
             IPADDR = 10.20.87.154
             """
         )
-        nc = self._get_NicConfigurator(config)
+        nc = self._get_NicConfigurator(tmp_path, config)
         assert {
             "NIC1": {
                 "match": {"macaddress": "00:50:56:a6:8c:08"},
@@ -371,7 +357,7 @@ class TestVmwareNetConfig(CiTestCase):
             }
         } == nc.generate()
 
-    def test_static_nic_without_ipv6_netmask(self):
+    def test_static_nic_without_ipv6_netmask(self, tmp_path):
         """netmask is mandatory for static ipv6 configuration."""
         config = textwrap.dedent(
             """\
@@ -393,11 +379,11 @@ class TestVmwareNetConfig(CiTestCase):
             IPv6ADDR|1 = fc00:10:20:87::154
             """
         )
-        nc = self._get_NicConfigurator(config)
+        nc = self._get_NicConfigurator(tmp_path, config)
         with pytest.raises(ValueError):
             nc.generate()
 
-    def test_non_primary_nic_with_gateway(self):
+    def test_non_primary_nic_with_gateway(self, tmp_path):
         """A non primary nic set can have a gateway."""
         config = textwrap.dedent(
             """\
@@ -420,7 +406,7 @@ class TestVmwareNetConfig(CiTestCase):
             GATEWAY = 10.20.87.253
             """
         )
-        nc = self._get_NicConfigurator(config)
+        nc = self._get_NicConfigurator(tmp_path, config)
         assert {
             "NIC1": {
                 "match": {"macaddress": "00:50:56:a6:8c:08"},
@@ -432,7 +418,7 @@ class TestVmwareNetConfig(CiTestCase):
             }
         } == nc.generate()
 
-    def test_cust_non_primary_nic_with_gateway_(self):
+    def test_cust_non_primary_nic_with_gateway_(self, tmp_path):
         """A customer non primary nic set can have a gateway."""
         config = textwrap.dedent(
             """\
@@ -464,7 +450,7 @@ class TestVmwareNetConfig(CiTestCase):
             UTC = yes
             """
         )
-        nc = self._get_NicConfigurator(config)
+        nc = self._get_NicConfigurator(tmp_path, config)
         assert {
             "NIC1": {
                 "match": {"macaddress": "00:50:56:ac:d1:8a"},
@@ -479,7 +465,7 @@ class TestVmwareNetConfig(CiTestCase):
             }
         } == nc.generate()
 
-    def test_a_primary_nic_with_gateway(self):
+    def test_a_primary_nic_with_gateway(self, tmp_path):
         """A primary nic set can have a gateway."""
         config = textwrap.dedent(
             """\
@@ -503,7 +489,7 @@ class TestVmwareNetConfig(CiTestCase):
             GATEWAY = 10.20.87.253
             """
         )
-        nc = self._get_NicConfigurator(config)
+        nc = self._get_NicConfigurator(tmp_path, config)
         assert {
             "NIC1": {
                 "match": {"macaddress": "00:50:56:a6:8c:08"},
