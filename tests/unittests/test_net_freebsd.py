@@ -1,11 +1,12 @@
 import os
+from unittest import mock
 
 import pytest
 import yaml
 
 import cloudinit.net
 import cloudinit.net.network_state
-from tests.unittests.helpers import dir2dict, mock, readResource
+from tests.unittests.helpers import dir2dict, readResource
 
 SAMPLE_FREEBSD_IFCONFIG_OUT = readResource("netinfo/freebsd-ifconfig-output")
 V1 = """
