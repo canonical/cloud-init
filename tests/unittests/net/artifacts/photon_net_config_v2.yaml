@@ -10,11 +10,11 @@ network:
       mtu: 1500
       addresses: [192.0.2.10/24]
       routes:
-        - to: 0.0.0.0/0
+        - to: default
           via: 192.168.14.1
           metric: 50
           table: 10
-        - to: ::/0
+        - to: default
           via: 2001:1::2
           metric: 100
       routing-policy:
