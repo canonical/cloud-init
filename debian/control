@@ -5,6 +5,9 @@ Homepage: https://cloud-init.io/
 Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
 Build-Depends: debhelper-compat (= 13),
                dh-python,
+               meson,
+               pkgconf,
+               bash-completion,
                iproute2,
                po-debconf,
                python3,
@@ -19,10 +22,11 @@ Build-Depends: debhelper-compat (= 13),
                python3-pytest-mock,
                python3-requests,
                python3-serial,
-               python3-setuptools,
                python3-yaml,
                python3-responses,
-               python3-passlib
+               python3-passlib,
+               udev,
+               systemd-dev
 Vcs-Browser: https://github.com/canonical/cloud-init/tree/ubuntu/devel
 Vcs-Git: https://github.com/canonical/cloud-init -b ubuntu/devel
 Standards-Version: 4.5.0
