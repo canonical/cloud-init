@@ -296,12 +296,15 @@ Example: ::
 -----------------------------------
 
 Add device specific routes. Each mapping includes a ``to``, ``via`` key
-with an IPv4 or IPv6 address as value. ``metric`` is an optional value.
+with an IPv4 or IPv6 address as value. ``to: default`` may be used to
+configure the default route. ``metric`` is an optional value.
+``table`` is an optional numeric ID or name of the routing table for
+policy-based routing.
 
 Example: ::
 
   routes:
-   - to: 0.0.0.0/0
+   - to: default  # could be 0.0.0.0/0 optionally
      via: 10.23.2.1
      metric: 3
 
