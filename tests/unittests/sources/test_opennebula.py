@@ -148,7 +148,7 @@ class TestOpenNebulaDataSource:
         public_keys = ["first key", "second key"]
         for c in range(4):
             for k in ("SSH_KEY", "SSH_PUBLIC_KEY"):
-                my_d = os.path.join(tmp_path, "%s-%i" % (k, c))
+                my_d = str(tmp_path / f"{k}-{c}")
                 populate_context_dir(my_d, {k: "\n".join(public_keys)})
                 results = ds.read_context_disk_dir(my_d, mock.Mock())
 
@@ -170,7 +170,7 @@ class TestOpenNebulaDataSource:
     def test_user_data_encoding_required_for_decode(self, tmp_path):
         b64userdata = atomic_helper.b64e(USER_DATA)
         for k in ("USER_DATA", "USERDATA"):
-            my_d = os.path.join(tmp_path, k)
+            my_d = str(tmp_path / k)
             populate_context_dir(my_d, {k: b64userdata})
             results = ds.read_context_disk_dir(my_d, mock.Mock())
 
@@ -179,7 +179,7 @@ class TestOpenNebulaDataSource:
 
     def test_user_data_base64_encoding(self, tmp_path):
         for k in ("USER_DATA", "USERDATA"):
-            my_d = os.path.join(tmp_path, k)
+            my_d = str(tmp_path / k)
             populate_context_dir(
                 my_d,
                 {
@@ -203,7 +203,7 @@ class TestOpenNebulaDataSource:
                 "IP_PUBLIC",
                 "ETH0_IP",
             ):
-                my_d = os.path.join(tmp_path, k)
+                my_d = str(tmp_path / k)
                 populate_context_dir(my_d, {k: PUBLIC_IP})
                 results = ds.read_context_disk_dir(my_d, mock.Mock())
 

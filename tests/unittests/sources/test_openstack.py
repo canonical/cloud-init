@@ -363,8 +363,7 @@ class TestOpenStackDataSource:
             ds_os_local, "override_ds_detect"
         ) as m_detect_os:
             m_detect_os.return_value = True
-            found = ds_os_local.get_data()
-        assert found
+            assert ds_os_local.get_data() is True
         assert 2 == ds_os_local.version
         md = dict(ds_os_local.metadata)
         md.pop("instance-id", None)
@@ -705,10 +704,10 @@ class TestDetectOpenStack:
         ds.sys_cfg = {"datasource_list": []}
         assert not ds.ds_detect(), "Expected ds_detect == False."
 
-    @test_helpers.mock.patch(MOCK_PATH + "dmi.read_dmi_data")
     @pytest.mark.parametrize(
         ["chassis_tag"], [("OpenStack Nova",), ("OpenStack Compute",)]
     )
+    @test_helpers.mock.patch(MOCK_PATH + "dmi.read_dmi_data")
     def test_ds_detect_chassis_asset_tag(
         self, m_dmi, m_is_x86, chassis_tag, fake_ds
     ):

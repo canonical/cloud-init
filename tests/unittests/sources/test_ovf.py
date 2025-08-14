@@ -218,8 +218,6 @@ class TestDatasourceOVF:
                     "ovf (%s/ovf-env.xml)" % paths.seed_dir == ds.subplatform
                 )
 
-    @mock.patch("cloudinit.subp.subp")
-    @mock.patch("cloudinit.sources.DataSource.persist_instance_data")
     @pytest.mark.parametrize(
         ["guestinfo", "iso"],
         [
@@ -227,6 +225,8 @@ class TestDatasourceOVF:
             pytest.param(True, False, id="iso9660"),
         ],
     )
+    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.sources.DataSource.persist_instance_data")
     def test_get_data_vmware_guestinfo_with_network_config(
         self, m_persist, m_subp, guestinfo, iso, ds, paths
     ):
@@ -264,7 +264,7 @@ class TestDatasourceOVF:
                 MPATH + "transport_iso9660",
                 return_value=env if iso else NOT_FOUND,
             ):
-                assert ds.get_data()
+                assert ds.get_data() is True
                 assert "inst-001" == ds.metadata["instance-id"]
                 assert {
                     "version": 2,
