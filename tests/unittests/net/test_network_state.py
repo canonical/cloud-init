@@ -51,9 +51,19 @@ network:
     eth0:
       match:
         macaddress: '00:11:22:33:44:55'
+      addresses:
+        - 192.168.14.10/24
+        - 2001:1::100/64
       nameservers:
         search: [spam.local, eggs.local]
         addresses: [8.8.8.8]
+      routes:
+        - to: default
+          via: 192.168.14.1
+          metric: 50
+        - to: default
+          via: 2001:1::2
+          metric: 100
     eth1:
       match:
         macaddress: '66:77:88:99:00:11'
@@ -282,6 +292,17 @@ class TestNetworkStateParseNameservers:
         # Ensure DNS defined on interface exists on interface
         for iface in config.iter_interfaces():
             if iface["name"] == "eth0":
+                for route in iface["subnets"][0]["routes"]:
+                    if route["gateway"] == "192.168.14.1":
+                        assert route["network"] == "0.0.0.0"
+                        assert route["prefix"] == 0
+                        assert route["netmask"] == "0.0.0.0"
+                    elif route["gateway"] == "2001:1::2":
+                        assert route["network"] == "::"
+                        assert route["prefix"] == 0
+                        assert "netmask" not in route
+                    else:
+                        assert False
                 assert iface["dns"] == {
                     "nameservers": ["8.8.8.8"],
                     "search": ["spam.local", "eggs.local"],
