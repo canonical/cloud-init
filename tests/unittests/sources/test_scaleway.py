@@ -4,18 +4,15 @@ import json
 import socket
 from urllib.parse import SplitResult, urlsplit
 
+import pytest
 import requests
 import responses
 from requests.exceptions import ConnectionError, ConnectTimeout
 
-from cloudinit import helpers, settings, sources
+from cloudinit import settings, sources
 from cloudinit.distros import ubuntu
 from cloudinit.sources import DataSourceScaleway
-from tests.unittests.helpers import (
-    CiTestCase,
-    mock,
-    responses_assert_call_count,
-)
+from tests.unittests.helpers import mock, responses_assert_call_count
 
 
 class DataResponses:
@@ -76,11 +73,7 @@ class MetadataResponses:
         return 200, response.headers, json.dumps(cls.FAKE_METADATA)
 
 
-class TestOnScaleway(CiTestCase):
-    def setUp(self):
-        super(TestOnScaleway, self).setUp()
-        self.tmp = self.tmp_dir()
-
+class TestOnScaleway:
     def install_mocks(self, fake_dmi, fake_file_exists, fake_cmdline):
         mock, faked = fake_dmi
         mock.return_value = "Scaleway" if faked else "Whatever"
@@ -99,20 +92,20 @@ class TestOnScaleway(CiTestCase):
     @mock.patch("os.path.exists")
     @mock.patch("cloudinit.dmi.read_dmi_data")
     def test_not_ds_detect(
-        self, m_read_dmi_data, m_file_exists, m_get_cmdline
+        self, m_read_dmi_data, m_file_exists, m_get_cmdline, paths
     ):
         self.install_mocks(
             fake_dmi=(m_read_dmi_data, False),
             fake_file_exists=(m_file_exists, False),
             fake_cmdline=(m_get_cmdline, False),
         )
-        self.assertFalse(DataSourceScaleway.DataSourceScaleway.ds_detect())
+        assert False is DataSourceScaleway.DataSourceScaleway.ds_detect()
 
         # When not on Scaleway, get_data() returns False.
         datasource = DataSourceScaleway.DataSourceScaleway(
-            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN, None, paths
         )
-        self.assertFalse(datasource.get_data())
+        assert False is datasource.get_data()
 
     @mock.patch("cloudinit.util.get_cmdline")
     @mock.patch("os.path.exists")
@@ -129,7 +122,7 @@ class TestOnScaleway(CiTestCase):
             fake_file_exists=(m_file_exists, False),
             fake_cmdline=(m_get_cmdline, False),
         )
-        self.assertTrue(DataSourceScaleway.DataSourceScaleway.ds_detect())
+        assert True is DataSourceScaleway.DataSourceScaleway.ds_detect()
 
     @mock.patch("cloudinit.util.get_cmdline")
     @mock.patch("os.path.exists")
@@ -145,7 +138,7 @@ class TestOnScaleway(CiTestCase):
             fake_file_exists=(m_file_exists, True),
             fake_cmdline=(m_get_cmdline, False),
         )
-        self.assertTrue(DataSourceScaleway.DataSourceScaleway.ds_detect())
+        assert True is DataSourceScaleway.DataSourceScaleway.ds_detect()
 
     @mock.patch("cloudinit.util.get_cmdline")
     @mock.patch("os.path.exists")
@@ -161,7 +154,7 @@ class TestOnScaleway(CiTestCase):
             fake_file_exists=(m_file_exists, False),
             fake_cmdline=(m_get_cmdline, True),
         )
-        self.assertTrue(DataSourceScaleway.DataSourceScaleway.ds_detect())
+        assert True is DataSourceScaleway.DataSourceScaleway.ds_detect()
 
 
 def get_source_address_adapter(*args, **kwargs):
@@ -191,15 +184,14 @@ def _fix_mocking_url(url: str) -> str:
     ).geturl()
 
 
-class TestDataSourceScaleway(CiTestCase):
-    def setUp(self):
-        tmp = self.tmp_dir()
+class TestDataSourceScaleway:
+    @pytest.fixture(autouse=True)
+    def fixtures(self, mocker, paths, tmp_path):
         distro = ubuntu.Distro("", {}, {})
-        distro.get_tmp_exec_path = self.tmp_dir
+        distro.get_tmp_exec_path = str(tmp_path)
         self.datasource = DataSourceScaleway.DataSourceScaleway(
-            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": tmp})
+            settings.CFG_BUILTIN, distro, paths
         )
-        super(TestDataSourceScaleway, self).setUp()
 
         self.base_urls = DataSourceScaleway.DS_BASE_URLS
         for url in self.base_urls:
@@ -214,15 +206,12 @@ class TestDataSourceScaleway(CiTestCase):
             )
             # Define the metadata URLS
 
-        self.add_patch(
-            "cloudinit.sources.DataSourceScaleway."
-            "DataSourceScaleway.ds_detect",
-            "_m_ds_detect",
+        mocker.patch(
+            "cloudinit.sources.DataSourceScaleway.DataSourceScaleway.ds_detect",
             return_value=True,
         )
-        self.add_patch(
+        mocker.patch(
             "cloudinit.distros.net.find_fallback_nic",
-            "_m_find_fallback_nic",
             return_value="scalewaynic0",
         )
 
@@ -231,14 +220,14 @@ class TestDataSourceScaleway(CiTestCase):
 
         self.datasource._set_metadata_url([self.base_urls[0]])
 
-        self.assertTrue(self.base_urls[0] in self.datasource.metadata_url)
+        assert self.base_urls[0] in self.datasource.metadata_url
 
     @responses.activate
     def test_set_metadata_url_ipv6_ok(self):
 
         self.datasource._set_metadata_url([self.base_urls[1]])
 
-        self.assertTrue(self.base_urls[1] in self.datasource.metadata_url)
+        assert self.base_urls[1] in self.datasource.metadata_url
 
     @responses.activate
     @mock.patch(
@@ -286,34 +275,32 @@ class TestDataSourceScaleway(CiTestCase):
             f"{self.base_urls[0]}/vendor_data/cloud-init",
             callback=DataResponses.get_ok,
         )
-        self.assertTrue(self.datasource.get_data())
+        assert self.datasource.get_data()
 
-        self.assertEqual(
-            self.datasource.get_instance_id(),
-            MetadataResponses.FAKE_METADATA["id"],
+        assert (
+            self.datasource.get_instance_id()
+            == MetadataResponses.FAKE_METADATA["id"]
         )
         ssh_keys = self.datasource.get_public_ssh_keys()
         ssh_keys.sort()
-        self.assertEqual(
-            ssh_keys,
-            [
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA",
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC",
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD",
-            ],
+        assert ssh_keys == [
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA",
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC",
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD",
+        ]
+        assert (
+            self.datasource.get_hostname().hostname
+            == MetadataResponses.FAKE_METADATA["hostname"]
         )
-        self.assertEqual(
-            self.datasource.get_hostname().hostname,
-            MetadataResponses.FAKE_METADATA["hostname"],
+        assert (
+            self.datasource.get_userdata_raw() == DataResponses.FAKE_USER_DATA
         )
-        self.assertEqual(
-            self.datasource.get_userdata_raw(), DataResponses.FAKE_USER_DATA
+        assert (
+            self.datasource.get_vendordata_raw()
+            == DataResponses.FAKE_USER_DATA
         )
-        self.assertEqual(
-            self.datasource.get_vendordata_raw(), DataResponses.FAKE_USER_DATA
-        )
-        self.assertIsNone(self.datasource.availability_zone)
-        self.assertIsNone(self.datasource.region)
+        assert self.datasource.availability_zone is None
+        assert self.datasource.region is None
 
     @responses.activate
     @mock.patch(
@@ -371,32 +358,30 @@ class TestDataSourceScaleway(CiTestCase):
             f"{self.datasource.metadata_urls[1]}/conf?format=json", 1
         )
 
-        self.assertEqual(
-            self.datasource.get_instance_id(),
-            MetadataResponses.FAKE_METADATA["id"],
+        assert (
+            self.datasource.get_instance_id()
+            == MetadataResponses.FAKE_METADATA["id"]
         )
         ssh_keys = self.datasource.get_public_ssh_keys()
         ssh_keys.sort()
-        self.assertEqual(
-            ssh_keys,
-            [
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA",
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC",
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD",
-            ],
+        assert ssh_keys == [
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA",
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC",
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD",
+        ]
+        assert (
+            self.datasource.get_hostname().hostname
+            == MetadataResponses.FAKE_METADATA["hostname"]
         )
-        self.assertEqual(
-            self.datasource.get_hostname().hostname,
-            MetadataResponses.FAKE_METADATA["hostname"],
+        assert (
+            self.datasource.get_userdata_raw() == DataResponses.FAKE_USER_DATA
         )
-        self.assertEqual(
-            self.datasource.get_userdata_raw(), DataResponses.FAKE_USER_DATA
+        assert (
+            self.datasource.get_vendordata_raw()
+            == DataResponses.FAKE_USER_DATA
         )
-        self.assertEqual(
-            self.datasource.get_vendordata_raw(), DataResponses.FAKE_USER_DATA
-        )
-        self.assertIsNone(self.datasource.availability_zone)
-        self.assertIsNone(self.datasource.region)
+        assert self.datasource.availability_zone is None
+        assert self.datasource.region is None
 
     @responses.activate
     @mock.patch(
@@ -428,14 +413,12 @@ class TestDataSourceScaleway(CiTestCase):
             callback=ConnectTimeout,
         )
         self.datasource.max_wait = 0
-        ret = self.datasource.get_data()
+        assert False is self.datasource.get_data()
         responses_assert_call_count(f"{self.datasource.metadata_urls[0]}", 2)
         responses_assert_call_count(f"{self.datasource.metadata_urls[1]}", 2)
-
-        self.assertFalse(ret)
-        self.assertEqual(self.datasource.metadata, {})
-        self.assertIsNone(self.datasource.get_userdata_raw())
-        self.assertIsNone(self.datasource.get_vendordata_raw())
+        assert self.datasource.metadata == {}
+        assert self.datasource.get_userdata_raw() is None
+        assert self.datasource.get_vendordata_raw() is None
 
     @responses.activate
     @mock.patch(
@@ -470,11 +453,9 @@ class TestDataSourceScaleway(CiTestCase):
             callback=DataResponses.empty,
         )
         self.datasource.get_data()
-        self.assertEqual(
-            self.datasource.metadata, MetadataResponses.FAKE_METADATA
-        )
-        self.assertIsNone(self.datasource.get_userdata_raw())
-        self.assertIsNone(self.datasource.get_vendordata_raw())
+        assert self.datasource.metadata == MetadataResponses.FAKE_METADATA
+        assert self.datasource.get_userdata_raw() is None
+        assert self.datasource.get_vendordata_raw() is None
 
     @responses.activate
     @mock.patch("cloudinit.url_helper.time.sleep", lambda x: None)
@@ -492,16 +473,16 @@ class TestDataSourceScaleway(CiTestCase):
         ]
 
         responses.reset()
-        with self.assertRaises(ConnectionError):
+        with pytest.raises(ConnectionError):
             responses.add_callback(
                 responses.GET,
                 f"{self.datasource.metadata_urls[0]}/",
                 callback=ConnectionError,
             )
             self.datasource._set_metadata_url(self.datasource.metadata_urls)
-        self.assertEqual(self.datasource.metadata, {})
-        self.assertIsNone(self.datasource.get_userdata_raw())
-        self.assertIsNone(self.datasource.get_vendordata_raw())
+        assert self.datasource.metadata == {}
+        assert self.datasource.get_userdata_raw() is None
+        assert self.datasource.get_vendordata_raw() is None
 
     @responses.activate
     @mock.patch(
@@ -561,8 +542,8 @@ class TestDataSourceScaleway(CiTestCase):
             f"{self.datasource.metadata_urls[1]}",
             2,
         )
-        self.assertIsNone(self.datasource.get_userdata_raw())
-        self.assertIsNone(self.datasource.get_vendordata_raw())
+        assert self.datasource.get_userdata_raw() is None
+        assert self.datasource.get_vendordata_raw() is None
 
     @responses.activate
     @mock.patch(
@@ -611,10 +592,10 @@ class TestDataSourceScaleway(CiTestCase):
             callback=_callback,
         )
         self.datasource.get_data()
-        self.assertEqual(
-            self.datasource.get_userdata_raw(), DataResponses.FAKE_USER_DATA
+        assert (
+            self.datasource.get_userdata_raw() == DataResponses.FAKE_USER_DATA
         )
-        self.assertEqual(sleep.call_count, 2)
+        assert sleep.call_count == 2
 
     def test_ssh_keys_empty(self):
         """
@@ -623,7 +604,7 @@ class TestDataSourceScaleway(CiTestCase):
         """
         self.datasource.metadata["tags"] = []
         self.datasource.metadata["ssh_public_keys"] = []
-        self.assertEqual(self.datasource.get_public_ssh_keys(), [])
+        assert self.datasource.get_public_ssh_keys() == []
 
     def test_ssh_keys_only_tags(self):
         """
@@ -636,13 +617,10 @@ class TestDataSourceScaleway(CiTestCase):
         self.datasource.metadata["ssh_public_keys"] = []
         ssh_keys = self.datasource.get_public_ssh_keys()
         ssh_keys.sort()
-        self.assertEqual(
-            ssh_keys,
-            [
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC",
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD",
-            ],
-        )
+        assert ssh_keys == [
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC",
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD",
+        ]
 
     def test_ssh_keys_only_conf(self):
         """
@@ -662,13 +640,10 @@ class TestDataSourceScaleway(CiTestCase):
         ]
         ssh_keys = self.datasource.get_public_ssh_keys()
         ssh_keys.sort()
-        self.assertEqual(
-            ssh_keys,
-            [
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA",
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC",
-            ],
-        )
+        assert ssh_keys == [
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA",
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC",
+        ]
 
     def test_ssh_keys_both(self):
         """
@@ -691,14 +666,11 @@ class TestDataSourceScaleway(CiTestCase):
         ]
         ssh_keys = self.datasource.get_public_ssh_keys()
         ssh_keys.sort()
-        self.assertEqual(
-            ssh_keys,
-            [
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA",
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC",
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD",
-            ],
-        )
+        assert ssh_keys == [
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA",
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC",
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD",
+        ]
 
     @mock.patch("cloudinit.distros.net.find_fallback_nic")
     @mock.patch("cloudinit.util.get_cmdline")
@@ -723,7 +695,7 @@ class TestDataSourceScaleway(CiTestCase):
                 }
             ],
         }
-        self.assertEqual(netcfg, resp)
+        assert netcfg == resp
 
     @mock.patch("cloudinit.distros.net.find_fallback_nic")
     @mock.patch("cloudinit.util.get_cmdline")
@@ -766,7 +738,7 @@ class TestDataSourceScaleway(CiTestCase):
                 }
             ],
         }
-        self.assertEqual(netcfg, resp)
+        assert netcfg == resp
 
     @mock.patch("cloudinit.distros.net.find_fallback_nic")
     @mock.patch("cloudinit.util.get_cmdline")
@@ -779,7 +751,7 @@ class TestDataSourceScaleway(CiTestCase):
         self.datasource._network_config = "0xdeadbeef"
 
         netcfg = self.datasource.network_config
-        self.assertEqual(netcfg, "0xdeadbeef")
+        assert netcfg == "0xdeadbeef"
 
     @mock.patch("cloudinit.distros.net.find_fallback_nic")
     @mock.patch("cloudinit.util.get_cmdline")
@@ -806,7 +778,7 @@ class TestDataSourceScaleway(CiTestCase):
         }
 
         netcfg = self.datasource.network_config
-        self.assertEqual(netcfg, resp)
+        assert netcfg == resp
 
     @mock.patch("cloudinit.sources.DataSourceScaleway.LOG.warning")
     @mock.patch("cloudinit.distros.net.find_fallback_nic")
@@ -836,7 +808,7 @@ class TestDataSourceScaleway(CiTestCase):
         }
 
         netcfg = self.datasource.network_config
-        self.assertEqual(netcfg, resp)
+        assert netcfg == resp
         logwarning.assert_called_with(
             "Found None as cached _network_config. Resetting to %s",
             sources.UNSET,
@@ -873,7 +845,7 @@ class TestDataSourceScaleway(CiTestCase):
             },
         }
 
-        self.assertEqual(netcfg, resp)
+        assert netcfg == resp
 
     @mock.patch("cloudinit.distros.net.find_fallback_nic")
     @mock.patch("cloudinit.util.get_cmdline")
@@ -919,7 +891,7 @@ class TestDataSourceScaleway(CiTestCase):
                 },
             },
         }
-        self.assertEqual(netcfg, resp)
+        assert netcfg == resp
 
     @mock.patch("cloudinit.distros.net.find_fallback_nic")
     @mock.patch("cloudinit.util.get_cmdline")
@@ -957,7 +929,7 @@ class TestDataSourceScaleway(CiTestCase):
             },
         }
 
-        self.assertEqual(netcfg, resp)
+        assert netcfg == resp
 
     @mock.patch("cloudinit.distros.net.find_fallback_nic")
     @mock.patch("cloudinit.util.get_cmdline")
@@ -1008,7 +980,7 @@ class TestDataSourceScaleway(CiTestCase):
             },
         }
 
-        self.assertEqual(netcfg, resp)
+        assert netcfg == resp
 
     @mock.patch("cloudinit.distros.net.find_fallback_nic")
     @mock.patch("cloudinit.util.get_cmdline")
@@ -1059,4 +1031,4 @@ class TestDataSourceScaleway(CiTestCase):
             },
         }
 
-        self.assertEqual(netcfg, resp)
+        assert netcfg == resp
