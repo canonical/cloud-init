@@ -98,9 +98,9 @@ projects, contributions, suggestions, fixes and constructive feedback.
    Contributing overview <development/index.rst>
    Contribute to code <development/contribute_code.rst>
    Contribute to docs <development/contribute_docs.rst>
+   Contribute to testing <development/contribute_testing.rst>
    Community <development/summit.rst>
    Downstream packaging <development/packaging.rst>
-
 
 .. LINKS
 .. include:: links.txt
