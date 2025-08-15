@@ -286,9 +286,10 @@ if util.is_FreeBSD():
 
 BUILTIN_DS_CONFIG = {
     "data_dir": AGENT_SEED_DIR,
-    "disk_aliases": {"ephemeral0": RESOURCE_DISK_PATH},
+    "apply_ephemeral_disk_config": True,  # Apply ephemeral disk configuration
     "apply_network_config": True,  # Use IMDS published network configuration
     "apply_network_config_for_secondary_ips": True,  # Configure secondary ips
+    "disk_aliases": {},
 }
 
 BUILTIN_CLOUD_EPHEMERAL_DISK_CONFIG = {
@@ -359,6 +360,12 @@ class DataSourceAzure(sources.DataSource):
     def __str__(self):
         root = sources.DataSource.__str__(self)
         return "%s [seed=%s]" % (root, self.seed)
+
+    def _get_apply_ephemeral_disk_config(self) -> bool:
+        """Return whether to apply ephemeral disk configuration."""
+        return util.get_cfg_option_bool(
+            self.ds_cfg, "apply_ephemeral_disk_config", True
+        )
 
     def _get_subplatform(self):
         """Return the subplatform metadata source details."""
@@ -944,27 +951,37 @@ class DataSourceAzure(sources.DataSource):
 
         # Process crawled data and augment with various config defaults
 
+        self.cfg = crawled_data["cfg"]
         # Only merge in default cloud config related to the ephemeral disk
-        # if the ephemeral disk exists
+        # if the ephemeral disk exists and not disabled by config.
         devpath = RESOURCE_DISK_PATH
         if os.path.exists(devpath):
-            report_diagnostic_event(
-                "Ephemeral resource disk '%s' exists. "
-                "Merging default Azure cloud ephemeral disk configs."
-                % devpath,
-                logger_func=LOG.debug,
-            )
-            self.cfg = util.mergemanydict(
-                [crawled_data["cfg"], BUILTIN_CLOUD_EPHEMERAL_DISK_CONFIG]
-            )
+            if self._get_apply_ephemeral_disk_config():
+                report_diagnostic_event(
+                    "Ephemeral resource disk %r exists. "
+                    "Merging default Azure cloud ephemeral disk configs."
+                    % devpath,
+                    logger_func=LOG.debug,
+                )
+                self.cfg = util.mergemanydict(
+                    [self.cfg, BUILTIN_CLOUD_EPHEMERAL_DISK_CONFIG]
+                )
+                self.ds_cfg["disk_aliases"]["ephemeral0"] = devpath
+            else:
+                report_diagnostic_event(
+                    "Ephemeral resource disk %r exists, but "
+                    "apply_ephemeral_disk_config is set to False. "
+                    "Not merging default Azure cloud ephemeral disk configs."
+                    % devpath,
+                    logger_func=LOG.debug,
+                )
         else:
             report_diagnostic_event(
-                "Ephemeral resource disk '%s' does not exist. "
+                "Ephemeral resource disk %r does not exist. "
                 "Not merging default Azure cloud ephemeral disk configs."
                 % devpath,
                 logger_func=LOG.debug,
             )
-            self.cfg = crawled_data["cfg"]
 
         self._metadata_imds = crawled_data["metadata"]["imds"]
         self.metadata = util.mergemanydict(
@@ -1558,6 +1575,13 @@ class DataSourceAzure(sources.DataSource):
 
     @azure_ds_telemetry_reporter
     def activate(self, cfg, is_new_instance):
+        if not self._get_apply_ephemeral_disk_config():
+            LOG.debug(
+                "apply_ephemeral_disk_config is set to False, "
+                "skipping ephemeral disk activation."
+            )
+            return
+
         instance_dir = self.paths.get_ipath_cur()
         try:
             address_ephemeral_resize(
