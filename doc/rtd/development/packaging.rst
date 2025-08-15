@@ -33,7 +33,7 @@ distribution can be obtained by the following command:
 
 .. code-block:: bash
 
-   ./tools/read-dependencies --system --distro=<your_distro_name>
+   ./tools/read-dependencies --system-pkg-names --distro=<your_distro_name>
 
 
 Manual build procedure
@@ -53,30 +53,7 @@ Steps to validate ``cloud-init`` package builds in a development environment:
    # List installed files
    find builddir/testinstall/
 
-
-Test builds of RPMs or DEBs
----------------------------
-To ease the development and testing of local changes, development-quality DEB
-or RPM packages can be built with one of the following scripts on a build host
-which already has all system build dependencies installed:
-
-.. code-block:: bash
-
-   ./packages/brpm --distro=redhat  # or --distro=suse to build an RPM
-   ./packages/bddeb -d  # to build a DEB
-
-OR if LXC is present, the full package build can be run in a container:
-
-.. code-block:: bash
-
-   ./tools/run-container ubuntu-daily:plucky --package --keep
-   ./tools/run-container rockylinux/9 --package --keep
-
-
-.. note::
-
-   meson support has not yet been added to the BSDs in :file:`tools/build-on-*bsd` or :file:`meson.build`.
-
+See :ref:`package_testing` for more information package testing.
 
 .. LINKS:
 .. _meson: https://mesonbuild.com/

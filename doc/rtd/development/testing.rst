@@ -125,6 +125,7 @@ Test argument ordering
   * ``pytest.mark.parametrize``
   * ``mock.patch``
 
+
 .. LINKS:
 .. _pytest: https://docs.pytest.org/
 .. _pytest fixtures: https://docs.pytest.org/en/latest/fixture.html
