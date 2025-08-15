@@ -331,8 +331,7 @@ class TestClean:
 
         init_class.fetch = ds_fetch
         with mock.patch(
-            "cloudinit.cmd.clean.settings.CLEAN_RUNPARTS_DIR",
-            os.devnull
+            "cloudinit.cmd.clean.settings.CLEAN_RUNPARTS_DIR", os.devnull
         ):
             retcode = clean.remove_artifacts(
                 init_class,
