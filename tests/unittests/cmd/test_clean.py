@@ -330,11 +330,15 @@ class TestClean:
             return ds
 
         init_class.fetch = ds_fetch
-        retcode = clean.remove_artifacts(
-            init_class,
-            remove_logs=False,
-            remove_config=["datasource"],
-        )
+        with mock.patch(
+            "cloudinit.cmd.clean.settings.CLEAN_RUNPARTS_DIR",
+            os.devnull
+        ):
+            retcode = clean.remove_artifacts(
+                init_class,
+                remove_logs=False,
+                remove_config=["datasource"],
+            )
         assert ds_conf.exists() is False, f"Unexpected file {ds_conf}"
         assert 0 == retcode
 
