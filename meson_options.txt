@@ -1,0 +1,1 @@
+option('init_system', type: 'string', value: 'systemd', description: 'Set target init system. Choices: systemd.')

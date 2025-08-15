@@ -11,6 +11,15 @@ releases.
     many operating system vendors patch out breaking changes in
     cloud-init to ensure consistent behavior on their platform.
 
+25.3
+====
+
+**For cloud-init downstream packagers**: the  packaging build backend changed
+to meson and away from python's setuptools.distutils in response to
+`PEP-0632's deprecation of distutils`_.
+
+See :ref:`downstream_packaging` for more info on packaging cloud-init.
+
 25.1.4
 ======
 
@@ -252,3 +261,4 @@ a ``datasource_list`` in ``/etc/cloud/cloud.cfg.d/*.cfg``.
 .. _attach a ConfigDrive: https://docs.openstack.org/nova/2024.1/admin/config-drive.html
 .. _this patch: https://github.com/canonical/cloud-init/blob/ubuntu/noble/debian/patches/no-single-process.patch
 .. _Python3 equivalent:  https://github.com/canonical/cloud-init/pull/5489#issuecomment-2408210561
+.. _PEP-0632's deprecation of distutils: https://peps.python.org/pep-0632/
