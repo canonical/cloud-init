@@ -2236,7 +2236,7 @@ scbus-1 on xpt0 bus 0
             "sys_cfg": sys_cfg,
         }
         dsrc = get_ds(data)
-        dsaz.get_metadata_from_fabric.return_value = ["key2"]
+        self.m_get_metadata_from_fabric.return_value = ["key2"]
         dsrc.get_data()
         dsrc.setup(True)
         ssh_keys = dsrc.get_public_ssh_keys()

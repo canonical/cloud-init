@@ -52,17 +52,17 @@ from cloudinit.url_helper import UrlError
 try:
     import crypt  # pylint: disable=W4901
 
-    blowfish_hash: Any = functools.partial(
+    blowfish_hash = functools.partial(
         crypt.crypt, salt=f"$6${util.rand_str(strlen=16)}"
     )
 except (ImportError, AttributeError):
     try:
         import passlib.hash
 
-        blowfish_hash = passlib.hash.sha512_crypt.hash
+        blowfish_hash = passlib.hash.sha512_crypt.hash  # type: ignore[assignment]
     except ImportError:
 
-        def blowfish_hash(_):
+        def blowfish_hash(_):  # type: ignore[misc]
             """Raise when called so that importing this module doesn't throw
             ImportError when ds_detect() returns false. In this case, crypt
             and passlib are not needed.
