@@ -37,11 +37,21 @@ class TestSystemCtlReader:
             "cloudinit.analyze.show.subp.subp",
             return_value=("", "something_invalid"),
         )
+
+        mocker.patch(
+            "cloudinit.analyze.show.subp.subp.which",
+            return_value="/bin/systemctl",
+        )
+
         reader = SystemctlReader("dont", "care")
         with pytest.raises(RuntimeError):
             reader.convert_val_to_float()
 
     @mock.patch("cloudinit.subp.subp", return_value=("U=1000000", None))
+    @mock.patch(
+        "cloudinit.analyze.show.subp.subp.which",
+        return_value="/bin/systemctl",
+    )
     def test_systemctl_works_correctly_threshold(self, m_subp):
         reader = SystemctlReader("dummyProperty", "dummyParameter")
         assert 1.0 == reader.convert_val_to_float()
@@ -50,6 +60,10 @@ class TestSystemCtlReader:
         assert thresh > (-1 * 1e-6)
 
     @mock.patch("cloudinit.subp.subp", return_value=("U=0", None))
+    @mock.patch(
+        "cloudinit.analyze.show.subp.subp.which",
+        return_value="/bin/systemctl",
+    )
     def test_systemctl_succeed_zero(self, m_subp):
         reader = SystemctlReader("dummyProperty", "dummyParameter")
         assert 0.0 == reader.convert_val_to_float()
@@ -58,11 +72,19 @@ class TestSystemCtlReader:
         "cloudinit.subp.subp",
         return_value=("U=Fri 1970-01-02 00:01:15.123 UTC", None),
     )
+    @mock.patch(
+        "cloudinit.analyze.show.subp.subp.which",
+        return_value="/bin/systemctl",
+    )
     def test_systemctl_succeed_human_readable_date(self, m_subp):
         reader = SystemctlReader("dummyProperty", "dummyParameter")
         assert 86475.123 == reader.convert_val_to_float()
 
     @mock.patch("cloudinit.subp.subp", return_value=("U=1", None))
+    @mock.patch(
+        "cloudinit.analyze.show.subp.subp.which",
+        return_value="/bin/systemctl",
+    )
     def test_systemctl_succeed_distinct(self, m_subp):
         reader = SystemctlReader("dummyProperty", "dummyParameter")
         val1 = reader.convert_val_to_float()
@@ -83,6 +105,10 @@ class TestSystemCtlReader:
         ],
     )
     @mock.patch("cloudinit.subp.subp")
+    @mock.patch(
+        "cloudinit.analyze.show.subp.subp.which",
+        return_value="/bin/systemctl",
+    )
     def test_systemctl_epoch_not_error(self, m_subp, return_value, exception):
         m_subp.return_value = return_value
         reader = SystemctlReader("dummyProperty", "dummyParameter")
