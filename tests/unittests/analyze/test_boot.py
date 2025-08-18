@@ -105,10 +105,6 @@ class TestSystemCtlReader:
         ],
     )
     @mock.patch("cloudinit.subp.subp")
-    @mock.patch(
-        "cloudinit.analyze.show.subp.subp.which",
-        return_value="/bin/systemctl",
-    )
     def test_systemctl_epoch_not_error(self, m_subp, return_value, exception):
         m_subp.return_value = return_value
         reader = SystemctlReader("dummyProperty", "dummyParameter")
