@@ -3,7 +3,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import url_helper, util
+from cloudinit import url_helper, util, net
 
 
 def read_metadata(url, timeout=2, sec_between=2, retries=30):
@@ -22,3 +22,9 @@ def read_userdata(url, timeout=2, sec_between=2, retries=30):
     if not response.ok():
         raise RuntimeError("unable to read userdata at %s" % url)
     return response.contents
+
+
+def get_interface_name_from_mac(mac: str) -> str | None:
+    mac_to_iface = net.get_interfaces_by_mac()
+    return mac_to_iface.get(mac.lower())
+

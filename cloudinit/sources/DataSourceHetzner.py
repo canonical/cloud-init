@@ -38,7 +38,6 @@ GOTO="cloudinit_end"
 
 
 class DataSourceHetzner(sources.DataSource):
-
     dsname = "Hetzner"
 
     default_update_events = {
@@ -164,87 +163,29 @@ class DataSourceHetzner(sources.DataSource):
         if not _net_config:
             raise RuntimeError("Unable to get meta-data from server....")
 
-        self._network_config_v2 = {
-            "version": 2,
-            "ethernets": {},
-        }
-        self._network_config_v2["ethernets"] = self._network_config_v1_to_v2(
-            _net_config
-        )
-
-        for private_network in self.metadata.get("private-networks", []):
-            network_config_v2 = {
-                "match": {
-                    "macaddress": private_network["mac_address"],
-                },
-                "dhcp4": True,
-            }
-            idx = private_network["interface_num"]
-            # The key name (priv...) is just a virtual interface name.
-            # To rename the interface, "set-name" must be used, but we
-            # want to keep the OS-chosen name.
-            self._network_config_v2["ethernets"][
-                f"priv{idx}"
-            ] = network_config_v2
-
-        return self._network_config_v2
-
-    def _network_config_v1_to_v2(self, network_config_v1):
-        ethernets = {}
-
-        for network in network_config_v1["config"]:
-            networkv2 = {
-                "match": {
-                    "macaddress": network["mac_address"],
-                },
-                "set-name": network["name"],
-                "addresses": [],
-                "nameservers": {
-                    "addresses": [],
-                },
-                "routes": [],
-            }
-
-            for subnet in network["subnets"]:
-                if (
-                    "ipv4" in subnet
-                    and subnet["ipv4"]
-                    and subnet["type"] == "dhcp"
-                ):
-                    networkv2["dhcp4"] = True
-                if (
-                    "ipv6" in subnet
-                    and subnet["ipv6"]
-                    and subnet["type"] == "dhcp"
-                ):
-                    networkv2["dhcp6"] = True
-
-                if subnet["type"] == "static":
-                    if "address" in subnet:
-                        networkv2["addresses"].append(subnet["address"])
-
-                    if "dns_nameservers" in subnet:
-                        for ns in subnet["dns_nameservers"]:
-                            networkv2["nameservers"]["addresses"].append(ns)
-
-                    target = None
-                    if "ipv4" in subnet and subnet["ipv4"]:
-                        target = "0.0.0.0/0"
-                    elif "ipv6" in subnet and subnet["ipv6"]:
-                        target = "::/0"
-
-                    if "gateway" in subnet and target:
-                        networkv2["routes"].append(
+        _private_networks = self.metadata.get("private-networks", [])
+        _private_networks_config = []
+        for _private_network in _private_networks:
+            _private_networks_config.extend(
+                [
+                    {
+                        "type": "physical",
+                        "mac_address": _private_network["mac_address"],
+                        "name": hc_helper.get_interface_name_from_mac(
+                            _private_network["mac_address"]
+                        ),
+                        "subnets": [
                             {
-                                "on-link": True,
-                                "to": target,
-                                "via": subnet["gateway"],
+                                "ipv4": True,
+                                "type": "dhcp",
                             }
-                        )
-
-            ethernets[network["name"]] = networkv2
-
-        return ethernets
+                        ],
+                    }
+                ]
+            )
+        _net_config["config"].extend(_private_networks_config)
+        self._network_config = _net_config
+        return self._network_config
 
 
 def get_hcloud_data():
