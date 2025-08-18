@@ -8,7 +8,7 @@ import datetime
 import json
 import sys
 import time
-from typing import IO, Any, Dict, List, Optional, Tuple, Union
+from typing import IO, Dict, List, Optional, Tuple, Union
 
 from cloudinit import subp, util
 from cloudinit.distros import uses_systemd
