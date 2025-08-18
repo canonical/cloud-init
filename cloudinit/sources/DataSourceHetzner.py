@@ -10,6 +10,7 @@ import logging
 
 import cloudinit.sources.helpers.hetzner as hc_helper
 from cloudinit import dmi, net, sources, util
+from cloudinit.event import EventScope, EventType
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralDHCPv4
 
@@ -39,6 +40,13 @@ GOTO="cloudinit_end"
 class DataSourceHetzner(sources.DataSource):
 
     dsname = "Hetzner"
+
+    default_update_events = {
+        EventScope.NETWORK: {
+            EventType.BOOT_NEW_INSTANCE,
+            EventType.HOTPLUG,
+        }
+    }
 
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
