@@ -52,7 +52,7 @@ CONTAINER_CODE = "container"
 TIMESTAMP_UNKNOWN = (FAIL_CODE, -1, -1, -1)
 
 
-def format_record(msg: str, event: Dict[str, str]) -> str:
+def format_record(msg: str, event: Dict) -> str:
     for i, j in format_key.items():
         if i in msg:
             # ensure consistent formatting of time values
@@ -63,19 +63,19 @@ def format_record(msg: str, event: Dict[str, str]) -> str:
     return msg.format(**event)
 
 
-def event_name(event: Dict[str, str]) -> Optional[str]:
+def event_name(event: Dict) -> Optional[str]:
     if event:
         return event.get("name")
     return None
 
 
-def event_type(event: Dict[str, str]) -> Optional[str]:
+def event_type(event: Dict) -> Optional[str]:
     if event:
         return event.get("event_type")
     return None
 
 
-def event_parent(event: Dict[str, str]) -> Optional[str]:
+def event_parent(event: Dict) -> Optional[str]:
     name = event_name(event)
     if name:
         return name.split("/")[0]
@@ -95,19 +95,19 @@ def event_datetime(event: Dict[str, float]) -> datetime.datetime:
     )
 
 
-def delta_seconds(t1: datetime.datetime, t2: datetime.datetime):
+def delta_seconds(t1: datetime.datetime, t2: datetime.datetime) -> float:
     return (t2 - t1).total_seconds()
 
 
-def event_duration(start: Dict[str, float], finish: Dict[str, float]):
+def event_duration(start: Dict, finish: Dict) -> float:
     return delta_seconds(event_datetime(start), event_datetime(finish))
 
 
 def event_record(
     start_time: datetime.datetime,
-    start: Dict[str, Any],
-    finish: Dict[str, Any],
-):
+    start: Dict,
+    finish: Dict,
+) -> Dict:
     record = finish.copy()
     name = event_name(start)
     indent = ""
@@ -133,12 +133,15 @@ class SystemctlReader:
     Class for dealing with all systemctl subp calls in a consistent manner.
     """
 
-    def __init__(self, property: str, parameter: Optional[str] = None) -> None:
+    def __init__(self, property: str, parameter: Optional[str] = None):
         self.stdout: Union[str, None] = None
-        self.args: Union[str, List[str]] = ["show"]
+        self.args: List[str] = ["show"]
         systemctl_path = subp.which("systemctl")
-        if systemctl_path:
-            self.args.append(systemctl_path)
+        if systemctl_path is None:
+            raise RuntimeError("Systemctl is not found")
+
+        self.args.append(systemctl_path)
+
         if parameter:
             self.args.append(parameter)
         # --timestamp=utc is needed for native date strings. Othwerise,
@@ -151,9 +154,9 @@ class SystemctlReader:
         # Don't want the init of our object to break. Instead of throwing
         # an exception, set an error code that gets checked when data is
         # requested from the object
-        self.failure = self.subp()
+        self.failure = self._subp()
 
-    def subp(self) -> Optional[Union[str, Exception]]:
+    def _subp(self) -> Optional[Union[str, Exception]]:
         """
         Make a subp call based on set args and handle errors by setting
         failure code
@@ -322,7 +325,7 @@ def gather_timestamps_using_systemd() -> Tuple[str, float, float, float]:
 
 
 def generate_records(
-    events: List[Dict[str, Any]],
+    events: List[Dict],
     print_format: str = "(%n) %d seconds in %I%D",
 ) -> List[List[str]]:
     """
@@ -390,7 +393,7 @@ def generate_records(
                             )
                             + "\n"
                         )
-                        total_time += record.get("delta")
+                        total_time += record.get("delta") or 0.0
                 else:
                     # not a match, put it back
                     unprocessed.append(prev_evt)
@@ -400,9 +403,7 @@ def generate_records(
     return boot_records
 
 
-def show_events(
-    events: List[Dict[str, Any]], print_format: str
-) -> List[List[str]]:
+def show_events(events: List[Dict], print_format: str) -> List[List[str]]:
     """
     A passthrough method that makes it easier to call generate_records()
 
@@ -417,7 +418,7 @@ def show_events(
 
 def load_events_infile(
     infile: IO,
-) -> Tuple[Optional[List[Dict[str, Any]]], str]:
+) -> Tuple[Optional[List[Dict]], str]:
     """
     Takes in a log file, read it, and convert to json.
 
