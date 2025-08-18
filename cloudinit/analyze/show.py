@@ -136,7 +136,6 @@ class SystemctlReader:
     def __init__(self, property: str, parameter: Optional[str] = None):
         self.stdout: Union[str, None] = None
         self.args: List = ["show", subp.which("systemctl")]
-        systemctl_path = subp.which("systemctl")
 
         if parameter:
             self.args.append(parameter)
