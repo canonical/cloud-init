@@ -135,7 +135,7 @@ class SystemctlReader:
 
     def __init__(self, property: str, parameter: Optional[str] = None):
         self.stdout: Union[str, None] = None
-        self.args: List[str] = ["show"]
+        self.args: List = ["show"]
         systemctl_path = subp.which("systemctl")
         if systemctl_path is None:
             raise RuntimeError("Systemctl is not found")
