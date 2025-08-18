@@ -37,18 +37,16 @@ class TestSystemCtlReader:
             "cloudinit.analyze.show.subp.subp",
             return_value=("", "something_invalid"),
         )
-
-        mocker.patch(
-            "cloudinit.analyze.show.subp.subp.which",
-            return_value="/bin/systemctl",
-        )
-
         reader = SystemctlReader("dont", "care")
         with pytest.raises(RuntimeError):
             reader.convert_val_to_float()
 
     @mock.patch("cloudinit.subp.subp", return_value=("U=1000000", None))
     def test_systemctl_works_correctly_threshold(self, m_subp):
+        m_subp.patch(
+            "cloudinit.analyze.show.subp.which",
+            return_value="/bin/systemctl",
+        )
         reader = SystemctlReader("dummyProperty", "dummyParameter")
         assert 1.0 == reader.convert_val_to_float()
         thresh = 1.0 - reader.convert_val_to_float()
