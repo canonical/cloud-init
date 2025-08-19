@@ -85,7 +85,7 @@ def ftp_get_return_code_from_exception(exc) -> int:
     }
     code = ftp_error_codes.get(type(exc))  # pyright: ignore
     if not code:
-        if isinstance(exc, OSError):
+        if isinstance(exc, OSError) and exc.errno:
             code = exc.errno
         else:
             LOG.warning(
