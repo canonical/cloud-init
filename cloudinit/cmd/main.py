@@ -80,6 +80,10 @@ LOG = logging.getLogger(__name__)
 
 
 class SubcommandAwareArgumentParser(argparse.ArgumentParser):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._raw_args = None
+
     def parse_args(self, args=None, namespace=None):
         """Override parse_args to store raw arguments for error handling."""
         self._raw_args = args
@@ -91,7 +95,7 @@ class SubcommandAwareArgumentParser(argparse.ArgumentParser):
 
         # Scan for the first valid subcommand
 
-        if not hasattr(self, "_raw_args"):
+        if not self._raw_args:
             self._raw_args = sys.argv[1:]
         subcommand = None
         if self._raw_args:
