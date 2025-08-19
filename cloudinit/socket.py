@@ -12,8 +12,6 @@ from cloudinit.settings import DEFAULT_RUN_DIR
 
 LOG = logging.getLogger(__name__)
 
-Socket = socket.socket
-
 
 def sd_notify(message: str):
     """Send a sd_notify message.
