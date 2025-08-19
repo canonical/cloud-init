@@ -620,7 +620,7 @@ class Renderer(renderer.Renderer):
                 "lacp-rate": ("LACPTransmitRate", str),
                 "learn-packet-interval": ("LearnPacketIntervalSec", str),
                 "mii-monitor-interval": ("MIIMonitorSec", lambda v: f"{v}ms"),
-                "min-links": ("MinLinks", lambda v: str(v)),
+                "min-links": ("MinLinks", str),
                 "mode": ("Mode", str),
                 "packets-per-slave": ("PacketsPerSlave", str),
                 "primary-reselect-policy": ("PrimaryReselectPolicy", str),
