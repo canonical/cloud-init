@@ -284,6 +284,12 @@ class TestDatasourceOVF:
 
 
 class TestTransportIso9660:
+    def __init__(self):
+        self.m_find_devs_with = None
+        self.m_mounts = None
+        self.m_mount_cb = None
+        self.m_get_ovf_env = None
+
     @pytest.fixture(autouse=True)
     def fixtures(self, mocker):
         self.m_find_devs_with = mocker.patch("cloudinit.util.find_devs_with")

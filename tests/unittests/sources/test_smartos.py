@@ -791,7 +791,7 @@ def joyent_metadata(mocker, m_serial):
             "request_id",
             "metadata_value",
             "response_parts",
-            "meta_source_data",
+            "metasource_data",
             "metasource_data_len",
         ],
         defaults=(None, None, None, None, None, None),
@@ -810,12 +810,15 @@ def joyent_metadata(mocker, m_serial):
 
     def make_response():
         payloadstr = ""
-        if "payload" in res.response_parts:
-            payloadstr = " {0}".format(res.response_parts["payload"])
+        if "payload" in res.response_parts:  # pylint: disable=E1135
+            payloadstr = " {0}".format(
+                res.response_parts["payload"]
+            )  # pylint: disable=E1136
         return (
             "V2 {length} {crc} {request_id} "
             "{command}{payloadstr}\n".format(
-                payloadstr=payloadstr, **res.response_parts
+                payloadstr=payloadstr,
+                **res.response_parts  # pylint: disable=E1134
             ).encode("ascii")
         )
 
@@ -825,8 +828,10 @@ def joyent_metadata(mocker, m_serial):
         if not res.metasource_data:
             res.metasource_data = make_response()
             res.metasource_data_len = len(res.metasource_data)
-        resp = res.metasource_data[:length]
-        res.metasource_data = res.metasource_data[length:]
+        resp = res.metasource_data[:length]  # pylint: disable=E1136
+        res.metasource_data = res.metasource_data[
+            length:
+        ]  # pylint: disable=E1136
         return resp
 
     res.serial.read.side_effect = read_response

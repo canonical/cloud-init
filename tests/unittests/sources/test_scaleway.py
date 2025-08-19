@@ -185,6 +185,10 @@ def _fix_mocking_url(url: str) -> str:
 
 
 class TestDataSourceScaleway:
+    def __init__(self):
+        self.datasource = None
+        self.base_urls = DataSourceScaleway.DS_BASE_URLS
+
     @pytest.fixture(autouse=True)
     def fixtures(self, mocker, paths, tmp_path):
         distro = ubuntu.Distro("", {}, {})
@@ -193,7 +197,6 @@ class TestDataSourceScaleway:
             settings.CFG_BUILTIN, distro, paths
         )
 
-        self.base_urls = DataSourceScaleway.DS_BASE_URLS
         for url in self.base_urls:
             # Make sure that API answers on the first try.
             # The trailing / at the end of the URL is needed to

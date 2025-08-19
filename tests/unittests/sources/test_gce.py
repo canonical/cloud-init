@@ -64,6 +64,11 @@ GUEST_ATTRIBUTES_URL = (
 class TestDataSourceGCE:
     with_logs = True
 
+    def __init__(self):
+        self.ds = None
+        self.m_platform_reports_gce = None
+        self.m_is_resolvable_url = None
+
     def _make_distro(self, dtype, def_user=None):
         cfg = dict(settings.CFG_BUILTIN)
         cfg["system_info"]["distro"] = dtype

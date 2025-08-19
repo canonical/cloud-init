@@ -9,6 +9,11 @@ from cloudinit.subp import SubpResult
 
 @pytest.mark.usefixtures("fake_filesystem")
 class TestReadDMIData:
+    def __init__(self):
+        self.m_is_container = mock.Mock()
+        self.m_is_freebsd = mock.Mock()
+        self.m_is_openbsd = mock.Mock()
+
     @pytest.fixture(autouse=True)
     def common_mocks(self, mocker):
         self.m_is_container = mocker.patch(
@@ -97,7 +102,7 @@ class TestReadDMIData:
                 "x-version",
                 "x86_64",
             )
-            expected_dmi_value == dmi.read_dmi_data("use-dmidecode")
+            assert expected_dmi_value == dmi.read_dmi_data("use-dmidecode")
 
     def test_dmidecode_not_used_on_arm(self, mocker):
         mocker.patch("cloudinit.dmi.DMIDECODE_TO_KERNEL", {})

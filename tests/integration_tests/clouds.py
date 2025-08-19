@@ -351,7 +351,7 @@ class _LxdIntegrationCloud(IntegrationCloud):
         try:
             profile_list = instance_kwargs["profile_list"]
         except KeyError:
-            profile_list = self._get_or_set_profile_list(release)
+            profile_list = None
 
         prefix = datetime.datetime.now(datetime.timezone.utc).strftime(
             "cloudinit-%m%d-%H%M%S"

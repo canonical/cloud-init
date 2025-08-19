@@ -104,6 +104,12 @@ class TestDataSourceCloudCIX:
     Test reading the meta-data
     """
 
+    def __init__(self):
+        self.paths = None
+        self.datasource = self._get_ds()
+        self.m_read_dmi_data = mock.Mock()
+        self._m_find_fallback_nic = None
+
     @pytest.fixture(autouse=True)
     def setup(self, mocker, tmpdir, paths):
         self.paths = paths

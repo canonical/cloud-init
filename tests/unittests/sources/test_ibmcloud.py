@@ -56,6 +56,11 @@ class TestGetIBMPlatform:
         }
     }
 
+    def __init__(self):
+        self.blkid_metadata = self.blkid_base
+        self.blkid_oscode = self.blkid_base
+        self.ds = None
+
     @pytest.fixture(autouse=True)
     def fixtures(self):
         self.blkid_metadata = copy.deepcopy(self.blkid_base)
@@ -378,6 +383,9 @@ class TestIsIBMProvisioning:
 
 
 class TestDataSourceIBMCloud:
+    def __init__(self):
+        self.ds = ibm.DataSourceIBMCloud(sys_cfg={}, distro=None, paths=None)
+
     @pytest.fixture(autouse=True)
     def fixture(self, paths):
         util.ensure_dir(paths.cloud_dir)

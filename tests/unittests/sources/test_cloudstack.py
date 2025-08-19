@@ -60,11 +60,13 @@ def cloudstack_ds(request, paths):
 
 @pytest.mark.usefixtures("dhclient_exists")
 class TestCloudStackHostname:
-    @pytest.fixture(autouse=True)
-    def setup(self, mocker, tmp_path):
+    def __init__(self):
         self.hostname = "vm-hostname"
         self.networkd_domainname = "networkd.local"
         self.isc_dhclient_domainname = "dhclient.local"
+
+    @pytest.fixture(autouse=True)
+    def setup(self, mocker, tmp_path):
 
         get_hostname_parent = mock.MagicMock(
             return_value=DataSourceHostname(self.hostname, True)

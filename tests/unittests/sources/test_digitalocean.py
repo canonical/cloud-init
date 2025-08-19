@@ -247,6 +247,9 @@ class TestDataSourceDigitalOcean:
 
 
 class TestNetworkConvert:
+    def __init__(self):
+        self.m_get_by_mac = mock.Mock()
+
     def _get_networking(self):
         self.m_get_by_mac.return_value = {
             "04:01:57:d1:9e:01": "ens1",

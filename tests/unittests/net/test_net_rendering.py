@@ -91,19 +91,17 @@ def _check_network_manager(network_state: NetworkState, tmp_path: Path):
     _check_file_diff(expected_paths, tmp_path)
 
 
-@mock.patch("cloudinit.net.util.chownbyname", return_value=True)
-def _check_networkd_renderer(
-    network_state: NetworkState, tmp_path: Path, m_chown
-):
-    renderer = NetworkdRenderer()
-    renderer.render_network_state(
-        network_state, target=str(tmp_path / "photon_net_config")
-    )
-    expected_paths = glob.glob(
-        str(ARTIFACT_DIR / "photon_net_config" / "**/*.net*"),
-        recursive=True,
-    )
-    _check_file_diff(expected_paths, tmp_path)
+def _check_networkd_renderer(network_state: NetworkState, tmp_path: Path):
+    with mock.patch("cloudinit.net.util.chownbyname", return_value=True):
+        renderer = NetworkdRenderer()
+        renderer.render_network_state(
+            network_state, target=str(tmp_path / "photon_net_config")
+        )
+        expected_paths = glob.glob(
+            str(ARTIFACT_DIR / "photon_net_config" / "**/*.net*"),
+            recursive=True,
+        )
+        _check_file_diff(expected_paths, tmp_path)
 
 
 @pytest.mark.parametrize(
