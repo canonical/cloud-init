@@ -1112,7 +1112,7 @@ def exec_mkpart_gpt_sgdisk(device, layout):
 def exec_mkpart_gpt_sfdisk(device, layout):
     cmd = ""
     # Promote partition types to GPT partition GUIDs
-    for partition_type, (start, end) in layout:
+    for partition_type, (_, end) in layout:
         partition_type = str(partition_type).ljust(4, "0")
         if len(partition_type) == 4 and partition_type in sgdisk_to_gpt_id:
             partition_type = sgdisk_to_gpt_id[partition_type]
