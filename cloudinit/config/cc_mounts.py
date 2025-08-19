@@ -514,18 +514,20 @@ def mount_if_needed(
             subp.subp(["systemctl", "daemon-reload"])
 
 
-def cleanup_fstab(ds_remove_entries: list = []) -> None:
+def cleanup_fstab(ds_remove_entry: Optional[str] = None) -> None:
     if not os.path.exists(FSTAB_PATH):
         return
 
-    base_entry = [MNT_COMMENT]
+    remove_entries = [MNT_COMMENT]
+    if ds_remove_entry:
+        remove_entries.append(ds_remove_entry)
 
     with open(FSTAB_PATH, "r") as f:
         lines = f.readlines()
     new_lines = []
     changed = False
     for line in lines:
-        if all(entry in line for entry in [*base_entry, *ds_remove_entries]):
+        if all(entry in line for entry in remove_entries):
             changed = True
             continue
         new_lines.append(line)
