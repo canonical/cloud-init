@@ -1340,9 +1340,9 @@ class TestPerformDHCPSetup:
         if ephemeral_dhcp_setup_raises_exception:
 
             def raise_exception(**kwargs):
-                raise Exception(
+                raise Exception(  # pylint: disable=W0719
                     "Failed to setup ephemeral network"
-                )  # pylint: disable=W0719
+                )
 
             m_ephemeral_network.side_effect = raise_exception
         else:
