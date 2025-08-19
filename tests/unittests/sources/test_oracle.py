@@ -1371,12 +1371,12 @@ class TestPerformDHCPSetup:
             ),
         ):
             # datasource fails/exits if ephemeral dhcp setup fails
-            with (
-                pytest.raises(Exception)
-                if ephemeral_dhcp_setup_raises_exception
-                else test_helpers.does_not_raise()
-            ):
-                assert oracle_ds._check_and_get_data()
+            if ephemeral_dhcp_setup_raises_exception:
+                with pytest.raises(Exception):
+                    assert oracle_ds._check_and_get_data()
+            else:
+                with test_helpers.does_not_raise():
+                    assert oracle_ds._check_and_get_data()
 
         if perform_dhcp_setup:
             assert [

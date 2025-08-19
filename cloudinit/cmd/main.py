@@ -345,7 +345,7 @@ def _should_bring_up_interfaces(init, args):
 
 
 def _should_wait_via_user_data(
-    raw_config: Optional[Union[str, bytes]]
+    raw_config: Optional[Union[str, bytes]],
 ) -> Tuple[bool, Reason]:
     """Determine if our cloud-config requires us to wait
 
@@ -767,7 +767,7 @@ def main_modules(action_name, args):
         util.logexc(LOG, msg)
         print_exc(msg)
         if not args.force:
-            return [(msg)]
+            return [msg]
     _maybe_persist_instance_data(init)
     # Stage 3
     mods = Modules(init, extract_fns(args), reporter=args.reporter)

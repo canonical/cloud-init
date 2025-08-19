@@ -199,7 +199,7 @@ module = [
 check_untyped_defs = false
 
 [tool.ruff]
-target-version = "py37"
+target-version = "py38"
 line-length = 79
 # E, W, and F make up the entirety of default flake8
 lint.select = [
