@@ -8,7 +8,7 @@ import datetime
 import json
 import sys
 import time
-from typing import IO, Dict, List, Optional, Tuple, Union
+from typing import IO, Any, Dict, List, Optional, Tuple, Union
 
 from cloudinit import subp, util
 from cloudinit.distros import uses_systemd
@@ -51,8 +51,10 @@ FAIL_CODE = "failure"
 CONTAINER_CODE = "container"
 TIMESTAMP_UNKNOWN = (FAIL_CODE, -1, -1, -1)
 
+Event = Dict
 
-def format_record(msg: str, event: Dict) -> str:
+
+def format_record(msg: str, event: Event) -> str:
     for i, j in format_key.items():
         if i in msg:
             # ensure consistent formatting of time values
@@ -63,33 +65,33 @@ def format_record(msg: str, event: Dict) -> str:
     return msg.format(**event)
 
 
-def event_name(event: Dict) -> Optional[str]:
+def event_name(event: Optional[Event]) -> Optional[str]:
     if event:
         return event.get("name")
     return None
 
 
-def event_type(event: Dict) -> Optional[str]:
+def event_type(event: Optional[Event]) -> Optional[str]:
     if event:
         return event.get("event_type")
     return None
 
 
-def event_parent(event: Dict) -> Optional[str]:
+def event_parent(event: Optional[Event]) -> Optional[str]:
     name = event_name(event)
     if name:
         return name.split("/")[0]
     return None
 
 
-def event_timestamp(event: Dict[str, float]) -> float:
+def event_timestamp(event: Event) -> float:
     ts = event.get("timestamp")
     if ts is None:
         raise ValueError("Event is missing a 'timestamp'")
     return float(ts)
 
 
-def event_datetime(event: Dict[str, float]) -> datetime.datetime:
+def event_datetime(event: Event) -> datetime.datetime:
     return datetime.datetime.fromtimestamp(
         event_timestamp(event), datetime.timezone.utc
     )
@@ -99,20 +101,20 @@ def delta_seconds(t1: datetime.datetime, t2: datetime.datetime) -> float:
     return (t2 - t1).total_seconds()
 
 
-def event_duration(start: Dict, finish: Dict) -> float:
+def event_duration(start: Event, finish: Event) -> float:
     return delta_seconds(event_datetime(start), event_datetime(finish))
 
 
 def event_record(
     start_time: datetime.datetime,
-    start: Dict,
-    finish: Dict,
-) -> Dict:
+    start: Event,
+    finish: Event,
+) -> Event:
     record = finish.copy()
     name = event_name(start)
-    indent = ""
+    indent = "|"
     if name:
-        indent = "|" + " " * (name.count("/") - 1) + "`->"
+        indent += " " * (name.count("/") - 1) + "`->"
     record.update(
         {
             "delta": event_duration(start, finish),
@@ -134,8 +136,8 @@ class SystemctlReader:
     """
 
     def __init__(self, property: str, parameter: Optional[str] = None):
-        self.stdout: Union[str, None] = None
-        self.args: List = ["show", subp.which("systemctl")]
+        self.stdout: Optional[str] = None
+        self.args: Any = [subp.which("systemctl"), "show"]
 
         if parameter:
             self.args.append(parameter)
@@ -181,10 +183,14 @@ class SystemctlReader:
                 "Subprocess call to systemctl has failed, "
                 "returning error code ({})".format(self.failure)
             )
-        # Output from systemctl show has the format Property=Value.
+        # this should never happen as the call to subp succeeded
 
         if self.stdout is None:
-            raise RuntimeError("SystemctlReader.stdout is None")
+            raise RuntimeError(
+                "stdout of subprocess call to systemctl is None"
+            )
+
+        # Output from systemctl show has the format Property=Value.
 
         val = self.stdout.split("=")[1].strip()
 
@@ -320,7 +326,7 @@ def gather_timestamps_using_systemd() -> Tuple[str, float, float, float]:
 
 
 def generate_records(
-    events: List[Dict],
+    events,
     print_format: str = "(%n) %d seconds in %I%D",
 ) -> List[List[str]]:
     """
@@ -362,43 +368,41 @@ def generate_records(
                 stage_start_time[event_parent(event)] = start_time
 
             # see if we have a pair
-            if next_evt is not None:
-                if event_name(event) == event_name(next_evt):
-                    if event_type(next_evt) == "finish":
-                        records.append(
-                            format_record(
-                                print_format,
-                                event_record(start_time, event, next_evt),
-                            )
+            if event_name(event) == event_name(next_evt):
+                if event_type(next_evt) == "finish":
+                    records.append(
+                        format_record(
+                            print_format,
+                            event_record(start_time, event, next_evt),
                         )
-                else:
-                    # This is a parent event
-                    records.append("Starting stage: %s" % event.get("name"))
-                    unprocessed.append(event)
-                    continue
+                    )
+            else:
+                # This is a parent event
+                records.append("Starting stage: %s" % event.get("name"))
+                unprocessed.append(event)
+                continue
         else:
             prev_evt = unprocessed.pop()
-            if prev_evt is not None:
-                if event_name(event) == event_name(prev_evt):
-                    if start_time:
-                        record = event_record(start_time, prev_evt, event)
-                        records.append(
-                            format_record(
-                                "Finished stage: (%n) %d seconds", record
-                            )
-                            + "\n"
+            if event_name(event) == event_name(prev_evt):
+                if start_time:
+                    record = event_record(start_time, prev_evt, event)
+                    records.append(
+                        format_record(
+                            "Finished stage: (%n) %d seconds", record
                         )
-                        total_time += record.get("delta") or 0.0
-                else:
-                    # not a match, put it back
-                    unprocessed.append(prev_evt)
+                        + "\n"
+                    )
+                    total_time += record.get("delta") or 0.0
+            else:
+                # not a match, put it back
+                unprocessed.append(prev_evt)
 
     records.append(total_time_record(total_time))
     boot_records.append(records)
     return boot_records
 
 
-def show_events(events: List[Dict], print_format: str) -> List[List[str]]:
+def show_events(events: List[Event], print_format: str) -> List[List[str]]:
     """
     A passthrough method that makes it easier to call generate_records()
 
@@ -413,7 +417,7 @@ def show_events(events: List[Dict], print_format: str) -> List[List[str]]:
 
 def load_events_infile(
     infile: IO,
-) -> Tuple[Optional[List[Dict]], str]:
+) -> Tuple[Optional[Any], str]:
     """
     Takes in a log file, read it, and convert to json.
 
