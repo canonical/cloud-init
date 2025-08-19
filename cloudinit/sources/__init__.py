@@ -26,9 +26,9 @@ from cloudinit import (
     net,
     performance,
     type_utils,
+    user_data,
+    util,
 )
-from cloudinit import user_data as ud
-from cloudinit import util
 from cloudinit.atomic_helper import write_json
 from cloudinit.distros import Distro
 from cloudinit.event import EventScope, EventType
@@ -354,7 +354,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
             self.ds_cfg = {}
 
         if not ud_proc:
-            self.ud_proc = ud.UserDataProcessor(self.paths)
+            self.ud_proc = user_data.UserDataProcessor(self.paths)
         else:
             self.ud_proc = ud_proc
 
