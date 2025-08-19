@@ -51,6 +51,7 @@ from cloudinit.url_helper import UrlError
 
 try:
     import crypt  # type: ignore # pylint: disable=W4901
+
     blowfish_hash: Any = functools.partial(
         crypt.crypt, salt=f"$6${util.rand_str(strlen=16)}"
     )
