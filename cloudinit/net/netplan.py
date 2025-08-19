@@ -431,6 +431,7 @@ class Renderer(renderer.Renderer):
         # net_setup_link on a device that no longer exists. When this happens,
         # we don't know what the device was renamed to, so re-gather the
         # entire list of devices and try again.
+        last_exception: Optional[Exception]
         for _ in range(5):
             try:
                 for iface in get_devicelist():
@@ -438,10 +439,11 @@ class Renderer(renderer.Renderer):
                         subp.subp(
                             setup_lnk + [SYS_CLASS_NET + iface], capture=True
                         )
+                last_exception = None
                 break
             except subp.ProcessExecutionError as e:
                 last_exception = e
-        else:
+        if last_exception:
             raise RuntimeError(
                 "'udevadm test-builtin net_setup_link' unable to run "
                 "successfully for all devices."
@@ -527,8 +529,9 @@ class Renderer(renderer.Renderer):
                 bridge_ports = ifcfg.get("bridge_ports")
                 if bridge_ports is None:
                     LOG.warning(
-                        "Invalid config. The key",
-                        f"'bridge_ports' is required in {config}.",
+                        "Invalid config. The key"
+                        "'bridge_ports' is required in %s.",
+                        config,
                     )
                     continue
                 ports = sorted(copy.copy(bridge_ports))

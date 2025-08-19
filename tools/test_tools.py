@@ -7,7 +7,7 @@ import pytest
 import setuptools
 
 
-from setup_utils import version_to_pep440
+from setup_utils import version_to_pep440  # pylint: disable=import-error
 
 try:
     validate_version = setuptools.dist.Distribution._validate_version  # type: ignore  # noqa: E501
