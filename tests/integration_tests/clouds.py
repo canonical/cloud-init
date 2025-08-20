@@ -334,6 +334,7 @@ class _LxdIntegrationCloud(IntegrationCloud):
             ).format(**format_variables)
             subp(command.split())
 
+    # pylint: disable=assignment-from-none
     def _perform_launch(
         self,
         *,
@@ -351,7 +352,7 @@ class _LxdIntegrationCloud(IntegrationCloud):
         try:
             profile_list = instance_kwargs["profile_list"]
         except KeyError:
-            profile_list = None
+            profile_list = self._get_or_set_profile_list(release)
 
         prefix = datetime.datetime.now(datetime.timezone.utc).strftime(
             "cloudinit-%m%d-%H%M%S"

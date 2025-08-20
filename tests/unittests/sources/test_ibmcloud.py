@@ -1,4 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+# pylint: disable=attribute-defined-outside-init
 
 import base64
 import copy
@@ -383,8 +384,6 @@ class TestIsIBMProvisioning:
 
 
 class TestDataSourceIBMCloud:
-    def __init__(self):
-        self.ds = ibm.DataSourceIBMCloud(sys_cfg={}, distro=None, paths=None)
 
     @pytest.fixture(autouse=True)
     def fixture(self, paths):

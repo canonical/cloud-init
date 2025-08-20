@@ -11,6 +11,9 @@ from cloudinit.atomic_helper import json_dumps
 from cloudinit.sources import DataSourceCloudCIX as ds_mod
 from cloudinit.sources import InvalidMetaDataException
 
+# pylint: disable=attribute-defined-outside-init
+
+
 METADATA = {
     "instance_id": "12_34",
     "network": {
@@ -103,12 +106,6 @@ class TestDataSourceCloudCIX:
     """
     Test reading the meta-data
     """
-
-    def __init__(self):
-        self.paths = None
-        self.datasource = self._get_ds()
-        self.m_read_dmi_data = mock.Mock()
-        self._m_find_fallback_nic = None
 
     @pytest.fixture(autouse=True)
     def setup(self, mocker, tmpdir, paths):

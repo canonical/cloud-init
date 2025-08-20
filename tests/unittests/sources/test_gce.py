@@ -3,6 +3,7 @@
 # Author: Vaidas Jablonskis <jablonskis@gmail.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
+# pylint: disable=attribute-defined-outside-init
 
 import datetime
 import json
@@ -63,11 +64,6 @@ GUEST_ATTRIBUTES_URL = (
 
 class TestDataSourceGCE:
     with_logs = True
-
-    def __init__(self):
-        self.ds = None
-        self.m_platform_reports_gce = None
-        self.m_is_resolvable_url = None
 
     def _make_distro(self, dtype, def_user=None):
         cfg = dict(settings.CFG_BUILTIN)

@@ -1,4 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+# pylint: disable=attribute-defined-outside-init
 
 import os
 import pwd
@@ -43,11 +44,6 @@ DS_PATH = "cloudinit.sources.DataSourceOpenNebula"
 @pytest.mark.allow_subp_for("bash", "sh")
 class TestOpenNebulaDataSource:
     parsed_user = None
-
-    def __init__(self):
-        self.seed_dir = None
-        self.sys_cfg = None
-        self.switch_user_cmd_real = None
 
     @pytest.fixture(autouse=True)
     def fixtures(self, paths):
@@ -376,9 +372,6 @@ class TestOpenNebulaDataSource:
 class TestOpenNebulaNetwork:
 
     system_nics = ("eth0", "ens3")
-
-    def __init__(self):
-        self.maxDiff = None
 
     def test_context_devname(self):
         """Verify context_devname correctly returns mac and name."""
@@ -878,6 +871,7 @@ class TestOpenNebulaNetwork:
             assert expected == net.gen_conf()
 
     def test_eth0_v4v6_override(self):
+        self.maxDiff = None
         context = {
             "DNS": "1.2.3.8",
             "ETH0_DNS": "1.2.3.6 1.2.3.7",

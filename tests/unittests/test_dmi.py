@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+# pylint: disable=attribute-defined-outside-init
 import os
 from unittest import mock
 
@@ -9,10 +11,6 @@ from cloudinit.subp import SubpResult
 
 @pytest.mark.usefixtures("fake_filesystem")
 class TestReadDMIData:
-    def __init__(self):
-        self.m_is_container = mock.Mock()
-        self.m_is_freebsd = mock.Mock()
-        self.m_is_openbsd = mock.Mock()
 
     @pytest.fixture(autouse=True)
     def common_mocks(self, mocker):
