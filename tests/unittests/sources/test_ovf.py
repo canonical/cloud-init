@@ -3,6 +3,7 @@
 # Author: Scott Moser <scott.moser@canonical.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
+# pylint: disable=attribute-defined-outside-init
 
 import base64
 import os
