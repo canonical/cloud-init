@@ -182,7 +182,9 @@ LIB = "lib"
 if os.uname()[0] in ["FreeBSD", "DragonFly", "OpenBSD"]:
     USR = "usr/local"
     USR_LIB_EXEC = "usr/local/lib"
-elif os.path.isfile("/etc/redhat-release"):
+elif os.path.isfile("/etc/redhat-release") or os.path.isfile(
+    "/etc/openEuler-release"
+):
     USR_LIB_EXEC = "usr/libexec"
 elif os.path.isfile("/etc/system-release-cpe"):
     with open("/etc/system-release-cpe") as f:
