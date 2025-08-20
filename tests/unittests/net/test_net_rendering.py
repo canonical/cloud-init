@@ -93,7 +93,7 @@ def _check_network_manager(network_state: NetworkState, tmp_path: Path):
 
 @mock.patch("cloudinit.net.util.chownbyname", return_value=True)
 def _check_networkd_renderer(
-    network_state: NetworkState, tmp_path: Path, _chown
+    network_state: NetworkState, tmp_path: Path, m_chown
 ):
     renderer = NetworkdRenderer()
     renderer.render_network_state(

@@ -1,4 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+# pylint: disable=attribute-defined-outside-init
+
 import json
 from unittest import mock
 
@@ -10,9 +12,6 @@ from cloudinit import url_helper as uh
 from cloudinit.atomic_helper import json_dumps
 from cloudinit.sources import DataSourceCloudCIX as ds_mod
 from cloudinit.sources import InvalidMetaDataException
-
-# pylint: disable=attribute-defined-outside-init
-
 
 METADATA = {
     "instance_id": "12_34",

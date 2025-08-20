@@ -11,7 +11,6 @@ from cloudinit.subp import SubpResult
 
 @pytest.mark.usefixtures("fake_filesystem")
 class TestReadDMIData:
-
     @pytest.fixture(autouse=True)
     def common_mocks(self, mocker):
         self.m_is_container = mocker.patch(
