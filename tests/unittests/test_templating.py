@@ -138,9 +138,11 @@ class TestTemplates:
         assert result == self.jinja_utf8_rbob
 
     @test_helpers.skipIfJinja()
-    def test_jinja_warns_on_missing_dep_and_uses_basic_renderer(self, caplog):
+    def test_jinja_warns_on_missing_dep_and_uses_basic_renderer(
+        self, caplog, tmp_path
+    ):
         """Test jinja render_from_file will fallback to basic renderer."""
-        tmpl_fn = self.tmp_path("j-render-from-file.template")
+        tmpl_fn = tmp_path("j-render-from-file.template")
         write_file(
             tmpl_fn,
             omode="wb",
