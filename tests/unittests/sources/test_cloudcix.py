@@ -1,6 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 # pylint: disable=attribute-defined-outside-init
-
 import json
 from unittest import mock
 

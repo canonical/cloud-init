@@ -61,7 +61,6 @@ def cloudstack_ds(request, paths):
 
 @pytest.mark.usefixtures("dhclient_exists")
 class TestCloudStackHostname:
-
     @pytest.fixture(autouse=True)
     def setup(self, mocker, tmp_path):
         self.hostname = "vm-hostname"
