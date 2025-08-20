@@ -11,7 +11,6 @@ from cloudinit import lifecycle
 from cloudinit.net import network_state
 from cloudinit.net.netplan import Renderer as NetplanRenderer
 from cloudinit.net.renderers import NAME_TO_RENDERER
-from tests.unittests.helpers import CiTestCase
 
 netstate_path = "cloudinit.net.network_state"
 
@@ -74,45 +73,45 @@ network:
 """
 
 
-class TestNetworkStateParseConfig(CiTestCase):
-    def setUp(self):
-        super(TestNetworkStateParseConfig, self).setUp()
-        nsi_path = netstate_path + ".NetworkStateInterpreter"
-        self.add_patch(nsi_path, "m_nsi")
-        self.m_nsi: MagicMock
+class TestNetworkStateParseConfig:
+    # pylint: disable=attribute-defined-outside-init
+    @pytest.fixture(autouse=True)
+    def fixtures(self, mocker):
+        self.m_nsi: MagicMock = mocker.patch(
+            netstate_path + ".NetworkStateInterpreter"
+        )
 
     def test_missing_version_returns_none(self):
         ncfg: Dict[str, int] = {}
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             network_state.parse_net_config_data(ncfg)
 
     def test_unknown_versions_returns_none(self):
         ncfg = {"version": 13.2}
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             network_state.parse_net_config_data(ncfg)
 
     def test_version_2_passes_self_as_config(self):
         ncfg = {"version": 2, "otherconfig": {}, "somemore": [1, 2, 3]}
         network_state.parse_net_config_data(ncfg)
-        self.assertEqual(
-            [mock.call(version=2, config=ncfg, renderer=None)],
-            self.m_nsi.call_args_list,
-        )
+        assert [
+            mock.call(version=2, config=ncfg, renderer=None)
+        ] == self.m_nsi.call_args_list
 
     def test_valid_config_gets_network_state(self):
         ncfg = {"version": 2, "otherconfig": {}, "somemore": [1, 2, 3]}
         result = network_state.parse_net_config_data(ncfg)
-        self.assertNotEqual(None, result)
+        assert None is not result
 
     def test_empty_v1_config_gets_network_state(self):
         ncfg = {"version": 1, "config": []}
         result = network_state.parse_net_config_data(ncfg)
-        self.assertNotEqual(None, result)
+        assert None is not result
 
     def test_empty_v2_config_gets_network_state(self):
         ncfg = {"version": 2}
         result = network_state.parse_net_config_data(ncfg)
-        self.assertNotEqual(None, result)
+        assert None is not result
 
 
 @mock.patch("cloudinit.net.network_state.get_interfaces_by_mac")
@@ -320,7 +319,7 @@ class TestNetworkStateParseNameservers:
             assert search not in config.dns_searchdomains
 
 
-class TestNetworkStateHelperFunctions(CiTestCase):
+class TestNetworkStateHelperFunctions:
     def test_mask_to_net_prefix_ipv4(self):
         netmask_value = "255.255.255.0"
         expected = 24
@@ -335,9 +334,8 @@ class TestNetworkStateHelperFunctions(CiTestCase):
 
     def test_mask_to_net_prefix_to_many_bits_ipv4(self):
         netmask_value = "33"
-        self.assertRaises(
-            ValueError, network_state.ipv4_mask_to_net_prefix, netmask_value
-        )
+        with pytest.raises(ValueError):
+            network_state.ipv4_mask_to_net_prefix(netmask_value)
 
     def test_mask_to_net_prefix_all_bits_ipv6(self):
         netmask_value = "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"
@@ -353,15 +351,13 @@ class TestNetworkStateHelperFunctions(CiTestCase):
 
     def test_mask_to_net_prefix_raises_value_error(self):
         netmask_value = "ff:ff:ff:ff::"
-        self.assertRaises(
-            ValueError, network_state.ipv6_mask_to_net_prefix, netmask_value
-        )
+        with pytest.raises(ValueError):
+            network_state.ipv6_mask_to_net_prefix(netmask_value)
 
     def test_mask_to_net_prefix_to_many_bits_ipv6(self):
         netmask_value = "129"
-        self.assertRaises(
-            ValueError, network_state.ipv6_mask_to_net_prefix, netmask_value
-        )
+        with pytest.raises(ValueError):
+            network_state.ipv6_mask_to_net_prefix(netmask_value)
 
     def test_mask_to_net_prefix_ipv4_object(self):
         netmask_value = ipaddress.IPv4Address("255.255.255.255")
