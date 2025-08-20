@@ -415,9 +415,7 @@ def show_events(events: List[Event], print_format: str) -> List[List[str]]:
     return generate_records(events, print_format=print_format)
 
 
-def load_events_infile(
-    infile: IO,
-) -> Tuple[Optional[Any], str]:
+def load_events_infile(infile: IO) -> Tuple[Optional[Any], str]:
     """
     Takes in a log file, read it, and convert to json.
 
