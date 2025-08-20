@@ -36,9 +36,6 @@ M_PATH = "cloudinit.config.cc_resizefs."
 
 
 class TestResizefs:
-    def setUp(self):
-        super(TestResizefs, self).setUp()
-        self.name = "resizefs"
 
     @mock.patch("cloudinit.subp.subp")
     def test_skip_ufs_resize(self, m_subp):
