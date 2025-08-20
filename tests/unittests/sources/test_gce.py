@@ -3,6 +3,7 @@
 # Author: Vaidas Jablonskis <jablonskis@gmail.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
+# pylint: disable=attribute-defined-outside-init
 
 import datetime
 import json

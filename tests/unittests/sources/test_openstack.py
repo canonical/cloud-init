@@ -557,8 +557,6 @@ class TestVendorDataLoading(test_helpers.TestCase):
 
 @test_helpers.mock.patch(MOCK_PATH + "util.is_x86")
 class TestDetectOpenStack:
-    def setUp(self):
-        self.tmp = self.tmp_dir()
 
     @pytest.fixture
     def fake_ds(self, paths) -> ds.DataSourceOpenStack:
