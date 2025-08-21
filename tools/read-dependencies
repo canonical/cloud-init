@@ -67,13 +67,13 @@ MAYBE_RELIABLE_YUM_INSTALL = [
             grep -q baseurl $CENTOS_REPO
             if [ $? -eq 1 ]; then
                 # CentOS 9 does not provide baseurl definitions
-                sed -i '/\[baseos\]/a baseurl=https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os' ${CENTOS_REPO}
-                sed -i '/\[appstream\]/a baseurl=https://mirror.stream.centos.org/9-stream/AppStream/x86_64/os' ${CENTOS_REPO}
-                sed -i '/\[crb\]/a baseurl=https://mirror.stream.centos.org/9-stream/CRB/x86_64/os' ${CENTOS_REPO}
+                sed -i '/\\[baseos\\]/a baseurl=https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os' ${CENTOS_REPO}
+                sed -i '/\\[appstream\\]/a baseurl=https://mirror.stream.centos.org/9-stream/AppStream/x86_64/os' ${CENTOS_REPO}
+                sed -i '/\\[crb\\]/a baseurl=https://mirror.stream.centos.org/9-stream/CRB/x86_64/os' ${CENTOS_REPO}
             fi
             CENTOS_EXTRAS_REPO="/etc/yum.repos.d/centos-addons.repo"
             if [ -f $CENTOS_EXTRAS_REPO ]; then
-                sed -i '/\[extras-common\]/a baseurl=https://mirror.stream.centos.org/SIGs/9-stream/extras/x86_64/extras-common' ${CENTOS_EXTRAS_REPO}
+                sed -i '/\\[extras-common\\]/a baseurl=https://mirror.stream.centos.org/SIGs/9-stream/extras/x86_64/extras-common' ${CENTOS_EXTRAS_REPO}
             fi
         fi
     }
