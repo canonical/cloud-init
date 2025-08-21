@@ -5,6 +5,7 @@
 # Author: Scott Moser <smoser@ubuntu.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
+# pylint: disable=attribute-defined-outside-init
 
 import json
 

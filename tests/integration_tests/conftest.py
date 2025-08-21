@@ -145,11 +145,11 @@ def session_cloud(
     image_types = [member.value for member in ImageType.__members__.values()]
     try:
         image_type = ImageType(integration_settings.OS_IMAGE_TYPE)
-    except ValueError:
+    except ValueError as e:
         raise ValueError(
             f"{integration_settings.OS_IMAGE_TYPE} is an invalid OS_IMAGE_TYPE"
             f" specified in settings. Must be one of {image_types}"
-        )
+        ) from e
 
     cloud: IntegrationCloud = platforms[integration_settings.PLATFORM](
         reaper=reaper, image_type=image_type

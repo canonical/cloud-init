@@ -8,7 +8,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import collections.abc
+import collections.abc  # pylint: disable=import-error
 import copy
 import io
 import logging
