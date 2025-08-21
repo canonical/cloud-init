@@ -16,6 +16,7 @@ from cloudinit.net import (
     ipv4_mask_to_net_prefix,
     ipv6_mask_to_net_prefix,
     is_ip_network,
+    is_ipv4_address,
     is_ipv4_network,
     is_ipv6_address,
     is_ipv6_network,
@@ -923,6 +924,7 @@ class NetworkStateInterpreter:
                         "gateway": route.get("via"),
                         "metric": route.get("metric"),
                         "mtu": route.get("mtu"),
+                        "table": route.get("table"),
                     }
                 )
             )
@@ -990,6 +992,22 @@ def _normalize_net_keys(network, address_keys=()):
         raise ValueError(message)
 
     addr = str(net.get(addr_key))
+    if addr == "default":
+        gw_ip = str(net.get("gateway"))
+        if not gw_ip:
+            message = "Gateway IP is empty"
+            LOG.error(message)
+            raise ValueError(message)
+
+        if is_ipv4_address(gw_ip):
+            addr = "0.0.0.0/0"
+        elif is_ipv6_address(gw_ip):
+            addr = "::/0"
+        else:
+            message = f"Invalid Gateway IP: '{gw_ip}'"
+            LOG.error(message)
+            raise ValueError(message)
+
     if not is_ip_network(addr):
         LOG.error("Address %s is not a valid ip network", addr)
         raise ValueError(f"Address {addr} is not a valid ip address")

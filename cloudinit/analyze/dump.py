@@ -179,6 +179,10 @@ def dump_events(
         data = rawdata.splitlines()
     elif cisource is not None:
         data = cisource.readlines()
+    else:
+        raise ValueError(
+            "Either cisource or rawdata parameters must have a value"
+        )
 
     for line in data:
         for match in CI_EVENT_MATCHES:
