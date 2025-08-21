@@ -370,6 +370,8 @@ def generate_records(
             # see if we have a pair
             if event_name(event) == event_name(next_evt):
                 if event_type(next_evt) == "finish":
+                    # next_evt is a dictionary because event_type has extracted
+                    # an event type from it:
                     next_evt = cast(Dict, next_evt)
                     records.append(
                         format_record(
