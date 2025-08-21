@@ -8,7 +8,7 @@ import datetime
 import json
 import sys
 import time
-from typing import IO, Any, Dict, List, Optional, Tuple, Union
+from typing import IO, Any, Dict, List, Optional, Tuple, Union, cast
 
 from cloudinit import subp, util
 from cloudinit.distros import uses_systemd
@@ -326,7 +326,7 @@ def gather_timestamps_using_systemd() -> Tuple[str, float, float, float]:
 
 
 def generate_records(
-    events,
+    events: List[Event],
     print_format: str = "(%n) %d seconds in %I%D",
 ) -> List[List[str]]:
     """
@@ -370,6 +370,7 @@ def generate_records(
             # see if we have a pair
             if event_name(event) == event_name(next_evt):
                 if event_type(next_evt) == "finish":
+                    next_evt = cast(Dict, next_evt)
                     records.append(
                         format_record(
                             print_format,
