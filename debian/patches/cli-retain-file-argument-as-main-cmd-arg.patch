@@ -9,7 +9,7 @@ Bug: https://bugs.launchpad.net/ubuntu/+source/cloud-init/+bug/2064300
 Last-Update: 2024-04-30 <YYYY-MM-DD, last update of the meta-information, optional>
 --- a/cloudinit/cmd/main.py
 +++ b/cloudinit/cmd/main.py
-@@ -159,6 +159,11 @@ def extract_fns(args):
+@@ -163,6 +163,11 @@ def extract_fns(args):
      # since it would of broke if it couldn't have
      # read that file already...
      fn_cfgs = []
@@ -21,7 +21,7 @@ Last-Update: 2024-04-30 <YYYY-MM-DD, last update of the meta-information, option
      if args.files:
          for fh in args.files:
              # The realpath is more useful in logging
-@@ -1085,6 +1090,17 @@ def main(sysv_args=None):
+@@ -1089,6 +1094,17 @@ def main(sysv_args=None):
          default=False,
      )
      parser.add_argument(
