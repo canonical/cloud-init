@@ -3,6 +3,7 @@
 .. _CLA: https://ubuntu.com/legal/contributors
 .. _Code of Conduct: https://ubuntu.com/community/code-of-conduct
 .. _Diataxis: https://diataxis.fr/
+.. _GitHub Discussions: https://github.com/canonical/cloud-init/discussions
 .. _GH repo: https://github.com/canonical/cloud-init
 .. _GitHub: https://github.com
 .. _Launchpad: https://launchpad.net
