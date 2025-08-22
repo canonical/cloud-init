@@ -5,8 +5,8 @@
 .. _Diataxis: https://diataxis.fr/
 .. _GH repo: https://github.com/canonical/cloud-init
 .. _GitHub: https://github.com
-.. _IRC: https://kiwiirc.com/nextclient/irc.libera.chat/cloud-init
 .. _Launchpad: https://launchpad.net
+.. _Matrix: https://matrix.to/#/#cloud-init:ubuntu.com
 .. _the docs: https://docs.cloud-init.io/en/latest/
 .. _tox: https://tox.readthedocs.io/en/latest/
 .. _Discourse: https://discourse.ubuntu.com/c/server/cloud-init/54

@@ -26,7 +26,7 @@ help if they need it. If you have questions about the code review process, or
 need advice on an open PR, these are the available avenues:
 
 * Open a PR, add "WIP:" to the title, and leave a comment on that PR
-* join the ``#cloud-init`` `channel on the Libera IRC <IRC_>`_ network
+* join the ``#cloud-init`` `room on Matrix <Matrix_>`_
 * post on the ``#cloud-init`` `Discourse topic <Discourse_>`_
 * send an email to the cloud-init mailing list: ::
 
