@@ -28,7 +28,7 @@ If you need support, start with the [user documentation](https://docs.cloud-init
 
 If you need additional help consider reaching out with one of the following options:
 
-- Ask a question in the [``#cloud-init`` IRC channel on Libera](https://kiwiirc.com/nextclient/irc.libera.chat/cloud-init)
+- Ask a question in the [``#cloud-init`` channel on Matrix](https://matrix.to/#/#cloud-init:ubuntu.com)
 - Search the cloud-init [mailing list archive](https://lists.launchpad.net/cloud-init/)
 * Follow announcements or ask a question on [the cloud-init Discourse forum](https://discourse.ubuntu.com/c/server/cloud-init/)
 - Join the [cloud-init mailing list](https://launchpad.net/~cloud-init) and participate

@@ -30,9 +30,9 @@ Before you can begin, you will need to:
 
 ## Getting help
 
-We use IRC and have a dedicated `#cloud-init` channel where you can contact
+We use Matrix and have a dedicated `#cloud-init` channel where you can contact
 us for help and guidance. This link will take you directly to our
-[IRC channel on Libera](https://kiwiirc.com/nextclient/irc.libera.chat/cloud-init).
+[Matrix room](https://matrix.to/#/#cloud-init:ubuntu.com).
 Please don't be afraid to reach out if you need help constructing your pull
 request.
 
