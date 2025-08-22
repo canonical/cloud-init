@@ -5,7 +5,7 @@ The following documents the upstream cloud-init security policy.
 ## Reporting
 
 If a security bug is found, please send an email to
-cloud-init-security@lists.canonical.com . After the bug is received,
+<cloud-init-security@lists.canonical.com> . After the bug is received,
 the issue is triaged within 2 working days of being reported and a response
 is sent to the reporter.
 
@@ -44,7 +44,7 @@ determined time for disclosure has arrived the following will occur:
 
 * A public bug is filed/made public with vulnerability details, CVE,
   mitigations and where to obtain the fix
-* An email is sent to the [public cloud-init mailing list](https://lists.launchpad.net/cloud-init/)
+* An announcement is made to [GitHub Discussions](https://github.com/canonical/cloud-init/discussions)
 
 The disclosure timeframe is coordinated with the reporter and members of the
 cloud-init-security list. This depends on a number of factors:

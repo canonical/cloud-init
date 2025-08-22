@@ -11,7 +11,7 @@ Having trouble? We would like to help!
 - First go through this page with answers to common questions
 - Use the search bar at the upper left to search our documentation
 - Ask questions in the ``#cloud-init`` `Matrix room <Matrix_>`_
-- Join and ask questions on the ``cloud-init`` `mailing list`_
+- Join and ask questions on `Github Discussions`_
 - Find a bug? Check out the :ref:`reporting_bugs` topic to find out how to
   report one
 
@@ -75,7 +75,6 @@ Whitepapers:
 - `Utilising cloud-init on Microsoft Azure (Whitepaper)`_
 - `Cloud Instance Initialization with cloud-init (Whitepaper)`_
 
-.. _mailing list: https://launchpad.net/~cloud-init
 .. _do: https://github.com/canonical/ubuntu-pro-client/blob/9b46480b9e4b88e918bac5ced0d4b8edb3cbbeab/lib/auto_attach.py#L35
 
 .. _cloud-init - The Good Parts: https://www.youtube.com/watch?v=2_m6EUo6VOI
