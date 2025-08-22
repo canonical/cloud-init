@@ -47,6 +47,5 @@ The `integration test suite` used for validation follows these steps:
 .. _SRU: https://wiki.ubuntu.com/StableReleaseUpdates
 .. _CloudinitUpdates: https://wiki.ubuntu.com/CloudinitUpdates
 .. _new cloud-init bug: https://github.com/canonical/cloud-init/issues
-.. _#cloud-init IRC channel: https://kiwiirc.com/nextclient/irc.libera.chat/cloud-init
 .. _integration test suite: https://github.com/canonical/cloud-init/tree/main/tests/integration_tests
 .. _SRU release version: https://github.com/canonical/ubuntu-maintainers-handbook/blob/main/VersionStrings.md#version-adding-a-change-in-ubuntu-as-a-stable-release-update

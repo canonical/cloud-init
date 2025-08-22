@@ -75,7 +75,7 @@ Project and community
 projects, contributions, suggestions, fixes and constructive feedback.
 
 * Read our `Code of Conduct`_
-* Ask questions in the ``#cloud-init`` `IRC channel on Libera <IRC_>`_
+* Ask questions in the ``#cloud-init`` `room on Matrix <Matrix_>`_
 * Follow announcements or ask a question on `the cloud-init Discourse forum`_
 * Join the `cloud-init mailing list`_
 * :ref:`Contribute on GitHub<contributing>`
