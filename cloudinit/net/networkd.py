@@ -396,7 +396,6 @@ class Renderer(renderer.Renderer):
             vlan_dict = self.render_vlans(ns)
             vlan_netdev = vlan_dict["vlan_netdev"]
             vlan_link = vlan_dict["vlan_link"]
-            vlan_link["macaddress"] = vlan_dict["vlan_mac_info"]
             ret_dict["vlan_netdev"] = vlan_netdev
 
         if "bonds" in ns.config:
@@ -426,23 +425,9 @@ class Renderer(renderer.Renderer):
             if rPolicy:
                 self.parseRoutingPolicy(rPolicy, cfg)
 
-            # TODO: revisit this once network state renders macaddress
-            # properly for vlan config
-            if not iface["mac_address"] and vlan_link.get("macaddress"):
-                mac = vlan_link["macaddress"].get(iface_name)
-                if mac:
-                    iface["mac_address"] = mac
-
             bond_link_name = bond_link.get(iface_name)
             if bond_link_name:
                 cfg.update_section("Network", "Bond", bond_link_name)
-
-            # TODO: revisit this once network state renders macaddress
-            # properly for bond config
-            if not iface["mac_address"] and bond_link.get("macaddress"):
-                mac = bond_link["macaddress"].get(iface_name)
-                if mac:
-                    iface["mac_address"] = mac
 
             bridge_link_name = bridge_link.get(iface_name)
             if bridge_link_name:
@@ -463,13 +448,6 @@ class Renderer(renderer.Renderer):
                     cfg.update_section("Bridge", "Priority", val)
 
                 cfg.update_section("Network", "Bridge", bridge_link_name)
-
-            # TODO: revisit this once network state renders macaddress
-            # properly for bridge config
-            if not iface["mac_address"] and bridge_link.get("macaddress"):
-                mac = bridge_link["macaddress"].get(iface_name)
-                if mac:
-                    iface["mac_address"] = mac
 
             link = self.generate_match_section(iface, cfg)
 
@@ -527,7 +505,6 @@ class Renderer(renderer.Renderer):
 
     def render_vlans(self, ns: NetworkState) -> dict:
         vlan_link_info = defaultdict(list)
-        vlan_mac_info = {}
         vlan_ndev_configs = {}
 
         vlans = ns.config.get("vlans", {})
@@ -554,9 +531,7 @@ class Renderer(renderer.Renderer):
 
             val = vlan_cfg.get("macaddress")
             if val:
-                val = val.lower()
-                cfg.update_section("NetDev", "MACAddress", val)
-                vlan_mac_info[vlan_name] = val
+                cfg.update_section("NetDev", "MACAddress", val.lower())
 
             cfg.update_section("VLAN", "Id", vlan_id)
             vlan_ndev_configs[vlan_name] = cfg.get_final_conf()
@@ -564,15 +539,12 @@ class Renderer(renderer.Renderer):
         return {
             "vlan_netdev": vlan_ndev_configs,
             "vlan_link": vlan_link_info,
-            "vlan_mac_info": vlan_mac_info,
         }
 
     def render_bonds(self, ns: NetworkState) -> dict:
         bond_link_info: Dict[str, Any] = {}
         bond_ndev_configs = {}
         section = "Bond"
-
-        bond_link_info["macaddress"] = {}
 
         bonds = ns.config.get("bonds", {})
         for bond_name, bond_cfg in bonds.items():
@@ -596,9 +568,7 @@ class Renderer(renderer.Renderer):
 
             val = bond_cfg.get("macaddress")
             if val:
-                val = val.lower()
-                cfg.update_section("NetDev", "MACAddress", val)
-                bond_link_info["macaddress"][bond_name] = val
+                cfg.update_section("NetDev", "MACAddress", val.lower())
 
             # Optional bond parameters
             params = bond_cfg.get("parameters", {})
@@ -678,9 +648,7 @@ class Renderer(renderer.Renderer):
 
             val = bridge_cfg.get("macaddress")
             if val:
-                val = val.lower()
-                cfg.update_section("NetDev", "MACAddress", val)
-                bridge_link_info["macaddress"][bridge_name] = val
+                cfg.update_section("NetDev", "MACAddress", val.lower())
 
             # Bridge parameters
             params = bridge_cfg.get("parameters", {})
