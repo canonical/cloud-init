@@ -95,8 +95,8 @@ def disable_subp_usage(request, fixture_utils):
 
     Note that this can only catch invocations where the ``subp`` module is
     imported and ``subp.subp(...)`` is called.  ``from cloudinit.subp import
-    subp`` imports happen before the patching here (or the CiTestCase
-    monkey-patching) happens, so are left untouched.
+    subp`` imports happen before the patching here happens, so are left
+    untouched.
 
     While ``disable_subp_usage`` unconditionally patches
     ``cloudinit.subp.subp``, any test-local patching will override this
@@ -128,11 +128,6 @@ def disable_subp_usage(request, fixture_utils):
         def test_several_things(self):
             subp.subp(["bash"])
             subp.subp(["whoami"])
-
-    This fixture (roughly) mirrors the functionality of
-    ``CiTestCase.allowed_subp``.  N.B. While autouse fixtures do affect
-    non-pytest tests, CiTestCase's ``allowed_subp`` does take precedence (and
-    we have ``TestDisableSubpUsageInTestSubclass`` to confirm that).
     """
     allow_subp_for = fixture_utils.closest_marker_args_or(
         request, "allow_subp_for", None
