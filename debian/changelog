@@ -1,4 +1,4 @@
-cloud-init (25.3-~1gxxxxxxxx-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (25.3~0g009c4cfd-0ubuntu1) UNRELEASED; urgency=medium
 
   * d/control: Ensure binary packages depend on same version of
     cloud-init-base.
