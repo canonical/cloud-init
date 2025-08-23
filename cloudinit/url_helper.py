@@ -85,7 +85,7 @@ def ftp_get_return_code_from_exception(exc) -> int:
     }
     code = ftp_error_codes.get(type(exc))  # pyright: ignore
     if not code:
-        if isinstance(exc, OSError):
+        if isinstance(exc, OSError) and exc.errno:
             code = exc.errno
         else:
             LOG.warning(
@@ -387,13 +387,15 @@ def _get_retry_after(retry_after: str) -> float:
     """
     try:
         to_wait = float(retry_after)
-    except ValueError:
+    except ValueError as exc:
         # Translate a date such as "Fri, 31 Dec 1999 23:59:59 GMT"
         # into seconds to wait
         try:
             time_tuple = parsedate(retry_after)
             if not time_tuple:
-                raise ValueError("Failed to parse Retry-After header value")
+                raise ValueError(
+                    "Failed to parse Retry-After header value"
+                ) from exc
             to_wait = float(time.mktime(time_tuple) - time.time())
         except ValueError:
             LOG.info(
