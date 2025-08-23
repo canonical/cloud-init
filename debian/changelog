@@ -1,7 +1,12 @@
 cloud-init (25.3~1g890873f5-0ubuntu1) UNRELEASED; urgency=medium
 
-  * d/control: Ensure binary packages depend on same version of
-    cloud-init-base.
+  * d/control:
+    - ensure binary packages depend on same version of cloud-init-base.
+    - update build-dependencies to support meson instead of setuptools
+      (LP: #1978328) (GH-5027)
+  * d/rules:
+    - use meson build backend instead of pybuild setuptools
+      (LP: #1978328) (GH-5027)
   * Upstream snapshot based on upstream/main at 890873f5.
     - Bugs fixed in this snapshot: (LP: #1978328)
 
