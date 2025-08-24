@@ -9,7 +9,7 @@ import logging
 import sys
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import IO, Any, List, Optional, Tuple
+from typing import List, Optional
 
 from cloudinit.handlers import INCLUSION_TYPES_MAP
 
