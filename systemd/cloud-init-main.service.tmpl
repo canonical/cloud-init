@@ -8,7 +8,7 @@
 # https://www.freedesktop.org/software/systemd/man/latest/systemd-remount-fs.service.html
 [Unit]
 Description=Cloud-init: Single Process
-{% if variant in ["almalinux", "cloudlinux", "ubuntu", "unknown", "debian", "raspberry-pi-os", "rhel"] %}
+{% if variant in ["almalinux", "cloudlinux", "ubuntu", "unknown", "debian", "raspberry-pi-os", "rhel", "fedora"] %}
 DefaultDependencies=no
 {% endif %}
 {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
@@ -31,7 +31,7 @@ ExecStart=/usr/bin/cloud-init --all-stages
 KillMode=process
 TasksMax=infinity
 TimeoutStartSec=infinity
-{% if variant in ["almalinux", "cloudlinux", "rhel"] %}
+{% if variant in ["almalinux", "cloudlinux", "rhel", "fedora"] %}
 ExecStartPre=/sbin/restorecon /run/cloud-init
 {% endif %}
 
