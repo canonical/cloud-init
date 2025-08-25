@@ -19,7 +19,7 @@ jobs:
       matrix:
         env: [ruff, mypy, pylint, black, isort]
     name: Check ${{ matrix.env }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - name: "Checkout #1"
         uses: actions/checkout@v4

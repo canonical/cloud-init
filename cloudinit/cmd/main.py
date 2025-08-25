@@ -80,6 +80,10 @@ LOG = logging.getLogger(__name__)
 
 
 class SubcommandAwareArgumentParser(argparse.ArgumentParser):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._raw_args = None
+
     def parse_args(self, args=None, namespace=None):
         """Override parse_args to store raw arguments for error handling."""
         self._raw_args = args
@@ -91,7 +95,7 @@ class SubcommandAwareArgumentParser(argparse.ArgumentParser):
 
         # Scan for the first valid subcommand
 
-        if not hasattr(self, "_raw_args"):
+        if not self._raw_args:
             self._raw_args = sys.argv[1:]
         subcommand = None
         if self._raw_args:
@@ -345,7 +349,7 @@ def _should_bring_up_interfaces(init, args):
 
 
 def _should_wait_via_user_data(
-    raw_config: Optional[Union[str, bytes]]
+    raw_config: Optional[Union[str, bytes]],
 ) -> Tuple[bool, Reason]:
     """Determine if our cloud-config requires us to wait
 
@@ -767,7 +771,7 @@ def main_modules(action_name, args):
         util.logexc(LOG, msg)
         print_exc(msg)
         if not args.force:
-            return [(msg)]
+            return [msg]
     _maybe_persist_instance_data(init)
     # Stage 3
     mods = Modules(init, extract_fns(args), reporter=args.reporter)

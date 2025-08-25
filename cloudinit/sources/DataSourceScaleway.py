@@ -235,7 +235,7 @@ class DataSourceScaleway(sources.DataSource):
         )
 
     @staticmethod
-    def ds_detect():
+    def ds_detect() -> bool:
         """
         There are three ways to detect if you are on Scaleway:
 
@@ -254,6 +254,7 @@ class DataSourceScaleway(sources.DataSource):
         cmdline = util.get_cmdline()
         if "scaleway" in cmdline:
             return True
+        return False
 
     def _get_data(self):
 

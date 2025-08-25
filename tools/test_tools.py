@@ -1,23 +1,10 @@
 import pathlib
+from packaging.version import Version, InvalidVersion
 from importlib.machinery import SourceFileLoader
 from importlib.util import module_from_spec, spec_from_loader
 from unittest import mock
 
 import pytest
-import setuptools
-
-
-from setup_utils import version_to_pep440
-
-try:
-    validate_version = setuptools.dist.Distribution._validate_version  # type: ignore  # noqa: E501
-    setuptools.sic  # pylint: disable=no-member,pointless-statement
-except AttributeError:
-    pytest.skip(
-        "Unable to import necessary setuptools utilities. "
-        "Version is likely too old.",
-        allow_module_level=True,
-    )
 
 # Since read-version has a '-' and no .py extension, we have to do this
 # to import it
@@ -36,9 +23,17 @@ if not spec.loader:
 spec.loader.exec_module(read_version)
 
 
+def version_to_pep440(version: str) -> str:
+    # read-version can spit out something like 22.4-15-g7f97aee24
+    # which is invalid under PEP 440. If we replace the first - with a +
+    # that should give us a valid version.
+    return version.replace("-", "+", 1)
+
+
 def assert_valid_version(version):
-    response = validate_version(version)
-    if isinstance(response, setuptools.sic):  # pylint: disable=no-member
+    try:
+        Version(version)
+    except InvalidVersion:
         pytest.fail(f"{version} is not PEP 440 compliant")
 
 

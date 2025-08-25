@@ -7,6 +7,9 @@
 
 import os
 import stat
+from unittest import mock
+
+import pytest
 
 from cloudinit import util
 from cloudinit.sources.helpers.vmware.imc.config_custom_script import (
@@ -15,17 +18,24 @@ from cloudinit.sources.helpers.vmware.imc.config_custom_script import (
     PostCustomScript,
     PreCustomScript,
 )
-from tests.unittests.helpers import CiTestCase, mock
 
 
-class TestVmwareCustomScript(CiTestCase):
-    def setUp(self):
-        self.tmpDir = self.tmp_dir()
-        # Mock the tmpDir as the root dir in VM.
-        self.execDir = os.path.join(self.tmpDir, ".customization")
-        self.execScript = os.path.join(self.execDir, ".customize.sh")
+@pytest.fixture
+def fake_exec_dir(mocker, tmp_path):
+    exec_dir = tmp_path / ".customization"
+    mocker.patch.object(CustomScriptConstant, "CUSTOM_TMP_DIR", str(exec_dir))
+    return exec_dir
 
-    def test_prepare_custom_script(self):
+
+@pytest.fixture
+def fake_exec_script(fake_exec_dir, mocker):
+    ex_script = fake_exec_dir / ".customize.sh"
+    mocker.patch.object(CustomScriptConstant, "CUSTOM_SCRIPT", str(ex_script))
+    return ex_script
+
+
+class TestVmwareCustomScript:
+    def test_prepare_custom_script(self, fake_exec_script, tmp_path):
         """
         This test is designed to verify the behavior based on the presence of
         custom script. Mainly needed for scenario where a custom script is
@@ -33,79 +43,60 @@ class TestVmwareCustomScript(CiTestCase):
         is raised in such cases.
         """
         # Custom script does not exist.
-        preCust = PreCustomScript("random-vmw-test", self.tmpDir)
-        self.assertEqual("random-vmw-test", preCust.scriptname)
-        self.assertEqual(self.tmpDir, preCust.directory)
-        self.assertEqual(
-            self.tmp_path("random-vmw-test", self.tmpDir), preCust.scriptpath
-        )
-        with self.assertRaises(CustomScriptNotFound):
+        preCust = PreCustomScript("random-vmw-test", str(tmp_path))
+        assert "random-vmw-test" == preCust.scriptname
+        assert str(tmp_path) == preCust.directory
+        assert str(tmp_path / "random-vmw-test") == preCust.scriptpath
+        with pytest.raises(CustomScriptNotFound):
             preCust.prepare_script()
 
         # Custom script exists.
-        custScript = self.tmp_path("test-cust", self.tmpDir)
+        custScript = str(tmp_path / "test-cust")
         util.write_file(custScript, "test-CR-strip\r\r")
-        with mock.patch.object(
-            CustomScriptConstant, "CUSTOM_TMP_DIR", self.execDir
-        ):
-            with mock.patch.object(
-                CustomScriptConstant, "CUSTOM_SCRIPT", self.execScript
-            ):
-                postCust = PostCustomScript(
-                    "test-cust", self.tmpDir, self.tmpDir
-                )
-                self.assertEqual("test-cust", postCust.scriptname)
-                self.assertEqual(self.tmpDir, postCust.directory)
-                self.assertEqual(custScript, postCust.scriptpath)
-                postCust.prepare_script()
 
-                # Custom script is copied with exec privilege
-                self.assertTrue(os.path.exists(self.execScript))
-                st = os.stat(self.execScript)
-                self.assertTrue(st.st_mode & stat.S_IEXEC)
-                with open(self.execScript, "r") as f:
-                    content = f.read()
-                self.assertEqual(content, "test-CR-strip")
-                # Check if all carraige returns are stripped from script.
-                self.assertFalse("\r" in content)
+        postCust = PostCustomScript("test-cust", str(tmp_path), str(tmp_path))
+        assert "test-cust" == postCust.scriptname
+        assert str(tmp_path) == preCust.directory
+        assert custScript == postCust.scriptpath
+        postCust.prepare_script()
 
-    def test_execute_post_cust(self):
+        # Custom script is copied with exec privilege
+        assert fake_exec_script.exists()
+        st = os.stat(fake_exec_script)
+        assert st.st_mode & stat.S_IEXEC
+        assert "test-CR-strip" == fake_exec_script.read_text()
+
+    def test_execute_post_cust(self, fake_exec_script, tmp_path):
         """
         This test is designed to verify the behavior after execute post
         customization.
         """
         # Prepare the customize package
-        postCustRun = self.tmp_path("post-customize-guest.sh", self.tmpDir)
+        postCustRun = str(tmp_path / "post-customize-guest.sh")
         util.write_file(postCustRun, "This is the script to run post cust")
-        userScript = self.tmp_path("test-cust", self.tmpDir)
+        userScript = str(tmp_path / "test-cust")
         util.write_file(userScript, "This is the post cust script")
 
         # Mock the cc_scripts_per_instance dir and marker file.
         # Create another tmp dir for cc_scripts_per_instance.
-        ccScriptDir = self.tmp_dir()
-        ccScript = os.path.join(ccScriptDir, "post-customize-guest.sh")
-        markerFile = os.path.join(self.tmpDir, ".markerFile")
+        ccScriptDir = tmp_path / "out"
+        ccScriptDir.mkdir()
+        ccScript = ccScriptDir / "post-customize-guest.sh"
+        markerFile = tmp_path / ".markerFile"
+
         with mock.patch.object(
-            CustomScriptConstant, "CUSTOM_TMP_DIR", self.execDir
+            CustomScriptConstant,
+            "POST_CUSTOM_PENDING_MARKER",
+            str(markerFile),
         ):
-            with mock.patch.object(
-                CustomScriptConstant, "CUSTOM_SCRIPT", self.execScript
-            ):
-                with mock.patch.object(
-                    CustomScriptConstant,
-                    "POST_CUSTOM_PENDING_MARKER",
-                    markerFile,
-                ):
-                    postCust = PostCustomScript(
-                        "test-cust", self.tmpDir, ccScriptDir
-                    )
-                    postCust.execute()
-                    # Check cc_scripts_per_instance and marker file
-                    # are created.
-                    self.assertTrue(os.path.exists(ccScript))
-                    with open(ccScript, "r") as f:
-                        content = f.read()
-                    self.assertEqual(
-                        content, "This is the script to run post cust"
-                    )
-                    self.assertTrue(os.path.exists(markerFile))
+            postCust = PostCustomScript(
+                "test-cust", str(tmp_path), ccScriptDir
+            )
+            postCust.execute()
+            # Check cc_scripts_per_instance and marker file
+            # are created.
+            assert ccScript.exists()
+            assert (
+                "This is the script to run post cust" == ccScript.read_text()
+            )
+            assert markerFile.exists()

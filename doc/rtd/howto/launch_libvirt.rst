@@ -21,8 +21,8 @@ Create an instance
 .. code-block:: shell-session
 
     virt-install --name cloud-init-001 --memory 4000 --noreboot \
-        --os-variant detect=on,name=ubuntujammy \
-        --disk=size=10,backing_store="$(pwd)/jammy-server-cloudimg-amd64.img" \
+        --os-variant detect=on,name=ubuntunoble \
+        --disk=size=10,backing_store="$(pwd)/noble-server-cloudimg-amd64.img" \
         --cloud-init user-data="$(pwd)/user-data,meta-data=$(pwd)/meta-data,network-config=$(pwd)/network-config"
 
 .. LINKS

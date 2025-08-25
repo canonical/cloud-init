@@ -24,7 +24,7 @@ class TestDistroChecker:
     @mock.patch("cloudinit.subp.subp")
     @mock.patch("cloudinit.util.is_FreeBSD", return_value=True)
     def test_freebsd_gentoo_cant_find(self, m_is_FreeBSD, m_subp):
-        err_code == dist_check_timestamp()
+        assert err_code == dist_check_timestamp()
 
     @mock.patch("cloudinit.subp.subp", return_value=(0, 1))
     def test_subp_fails(self, m_subp):

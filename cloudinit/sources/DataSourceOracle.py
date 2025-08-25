@@ -470,7 +470,7 @@ def read_opc_metadata(
     fetch_vnics_data: bool = False,
     max_wait=DataSourceOracle.url_max_wait,
     timeout=DataSourceOracle.url_timeout,
-    metadata_patterns: List[str] = [IPV4_METADATA_PATTERN],
+    metadata_patterns: Optional[List[str]] = None,
 ) -> Optional[ReadOpcMetadataResponse]:
     """
     Fetch metadata from the /opc/ routes from the IMDS.
@@ -487,6 +487,8 @@ def read_opc_metadata(
                 This allows for later determining if v1 or v2 endppoint was
                 used and whether the IMDS was reached via IPv4 or IPv6.
     """
+    if metadata_patterns is None:
+        metadata_patterns = [IPV4_METADATA_PATTERN]
     urls = [
         metadata_pattern.format(version=version, path="instance")
         for version in [2, 1]

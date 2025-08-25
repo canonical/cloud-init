@@ -19,8 +19,7 @@ every pull request to ensure that the CLA has been signed.
 
 For any questions or help with the process, email
 `James Falcon <mailto:james.falcon@canonical.com>`_ with the subject:
-"Cloud-init CLA". You can also contact user ``falcojr`` in the #cloud-init
-channel on the `Libera IRC network <IRC_>`_.
+"Cloud-init CLA".
 
 Create a sandbox environment
 ============================
