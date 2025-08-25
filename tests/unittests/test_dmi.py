@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+# pylint: disable=attribute-defined-outside-init
 import os
 from unittest import mock
 
@@ -97,7 +99,7 @@ class TestReadDMIData:
                 "x-version",
                 "x86_64",
             )
-            expected_dmi_value == dmi.read_dmi_data("use-dmidecode")
+            assert expected_dmi_value == dmi.read_dmi_data("use-dmidecode")
 
     def test_dmidecode_not_used_on_arm(self, mocker):
         mocker.patch("cloudinit.dmi.DMIDECODE_TO_KERNEL", {})

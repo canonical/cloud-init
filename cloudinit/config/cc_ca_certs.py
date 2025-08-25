@@ -259,6 +259,8 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             " Ignoring ca-certs."
         )
     ca_cert_cfg = cfg.get("ca_certs", cfg.get("ca-certs"))
+    if not isinstance(ca_cert_cfg, dict):
+        raise TypeError("unexpected type: {ca_cert_cfg}")
     distro_cfg = _distro_ca_certs_configs(cloud.distro.name)
 
     # If there is a remove_defaults option set to true, disable the system

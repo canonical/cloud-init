@@ -94,6 +94,7 @@ class DataSourceCloudStack(sources.DataSource):
         # http://<virtual-router-ip>/latest/
         self.api_ver = "latest"
         self.cfg = {}
+        self.vr_addr = None
 
     def _get_domainname(self):
         """

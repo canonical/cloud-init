@@ -125,4 +125,6 @@ def test_convert(test_name, renderers, tmp_path):
     if Renderer.NetworkManager in renderers:
         _check_network_manager(network_state, tmp_path)
     if Renderer.Networkd in renderers:
-        _check_networkd_renderer(network_state, tmp_path)
+        _check_networkd_renderer(  # pylint: disable=E1120
+            network_state, tmp_path
+        )

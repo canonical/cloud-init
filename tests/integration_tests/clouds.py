@@ -334,6 +334,7 @@ class _LxdIntegrationCloud(IntegrationCloud):
             ).format(**format_variables)
             subp(command.split())
 
+    # pylint: disable=assignment-from-none
     def _perform_launch(
         self,
         *,

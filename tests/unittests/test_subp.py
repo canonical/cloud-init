@@ -3,36 +3,38 @@
 """Tests for cloudinit.subp utility functions"""
 
 import json
+import logging
 import os
 import stat
 import sys
 from unittest import mock
 
+import pytest
+
 from cloudinit import subp, util
 from tests.helpers import get_top_level_dir
-from tests.unittests.helpers import CiTestCase
 
 SH = "sh"
 BOGUS_COMMAND = "this-is-not-expected-to-be-a-program-name"
 
 
-class TestPrependBaseCommands(CiTestCase):
-    with_logs = True
+class TestPrependBaseCommands:
 
     def test_prepend_base_command_errors_on_neither_string_nor_list(self):
         """Raise an error for each command which is not a string or list."""
         orig_commands = ["ls", 1, {"not": "gonna work"}, ["basecmd", "list"]]
-        with self.assertRaises(TypeError) as context_manager:
+        with pytest.raises(
+            TypeError,
+            match="Invalid basecmd config. These commands are not a string or"
+            " list:\n1\n{'not': 'gonna work'}",
+        ):
             subp.prepend_base_command(
                 base_command="basecmd", commands=orig_commands
             )
-        self.assertEqual(
-            "Invalid basecmd config. These commands are not a string or"
-            " list:\n1\n{'not': 'gonna work'}",
-            str(context_manager.exception),
-        )
 
-    def test_prepend_base_command_warns_on_non_base_string_commands(self):
+    def test_prepend_base_command_warns_on_non_base_string_commands(
+        self, caplog
+    ):
         """Warn on each non-base for commands of type string."""
         orig_commands = [
             "ls",
@@ -43,14 +45,16 @@ class TestPrependBaseCommands(CiTestCase):
         fixed_commands = subp.prepend_base_command(
             base_command="basecmd", commands=orig_commands
         )
-        self.assertEqual(
-            "WARNING: Non-basecmd commands in basecmd config:\n"
-            "ls\ntouch /blah\n",
-            self.logs.getvalue(),
-        )
-        self.assertEqual(orig_commands, fixed_commands)
+        assert (
+            mock.ANY,
+            logging.WARNING,
+            "Non-basecmd commands in basecmd config:\nls\ntouch /blah",
+        ) in caplog.record_tuples
+        assert orig_commands == fixed_commands
 
-    def test_prepend_base_command_prepends_on_non_base_list_commands(self):
+    def test_prepend_base_command_prepends_on_non_base_list_commands(
+        self, caplog
+    ):
         """Prepend 'basecmd' for each non-basecmd command of type list."""
         orig_commands = [
             ["ls"],
@@ -67,10 +71,10 @@ class TestPrependBaseCommands(CiTestCase):
         fixed_commands = subp.prepend_base_command(
             base_command="basecmd", commands=orig_commands
         )
-        self.assertEqual("", self.logs.getvalue())
-        self.assertEqual(expected, fixed_commands)
+        assert "" == caplog.text
+        assert expected == fixed_commands
 
-    def test_prepend_base_command_removes_first_item_when_none(self):
+    def test_prepend_base_command_removes_first_item_when_none(self, caplog):
         """Remove the first element of a non-basecmd when it is None."""
         orig_commands = [
             [None, "ls"],
@@ -87,20 +91,12 @@ class TestPrependBaseCommands(CiTestCase):
         fixed_commands = subp.prepend_base_command(
             base_command="basecmd", commands=orig_commands
         )
-        self.assertEqual("", self.logs.getvalue())
-        self.assertEqual(expected, fixed_commands)
+        assert "" == caplog.text
+        assert expected == fixed_commands
 
 
-class TestSubp(CiTestCase):
-    allowed_subp = [
-        SH,
-        "cat",
-        CiTestCase.SUBP_SHELL_TRUE,
-        BOGUS_COMMAND,
-        sys.executable,
-        "env",
-    ]
-
+@pytest.mark.allow_all_subp
+class TestSubp:
     stdin2err = [SH, "-c", "cat >&2"]
     stdin2out = ["cat"]
     utf8_invalid = b"ab\xaadef"
@@ -112,38 +108,38 @@ class TestSubp(CiTestCase):
         """print with builtin printf"""
         return [SH, "-c", 'printf "$@"', "printf", arg]
 
-    def test_subp_handles_bytestrings(self):
+    def test_subp_handles_bytestrings(self, tmp_path):
         """subp can run a bytestring command if shell is True."""
-        tmp_file = self.tmp_path("test.out")
+        tmp_file = str(tmp_path / "test.out")
         cmd = "echo HI MOM >> {tmp_file}".format(tmp_file=tmp_file)
         (out, _err) = subp.subp(cmd.encode("utf-8"), shell=True)
-        self.assertEqual("", out)
-        self.assertEqual("", _err)
-        self.assertEqual("HI MOM\n", util.load_text_file(tmp_file))
+        assert "" == out
+        assert "" == _err
+        assert "HI MOM\n" == util.load_text_file(tmp_file)
 
-    def test_subp_handles_strings(self):
+    def test_subp_handles_strings(self, tmp_path):
         """subp can run a string command if shell is True."""
-        tmp_file = self.tmp_path("test.out")
+        tmp_file = str(tmp_path / "test.out")
         cmd = "echo HI MOM >> {tmp_file}".format(tmp_file=tmp_file)
         (out, _err) = subp.subp(cmd, shell=True)
-        self.assertEqual("", out)
-        self.assertEqual("", _err)
-        self.assertEqual("HI MOM\n", util.load_text_file(tmp_file))
+        assert "" == out
+        assert "" == _err
+        assert "HI MOM\n" == util.load_text_file(tmp_file)
 
     def test_subp_handles_utf8(self):
         # The given bytes contain utf-8 accented characters as seen in e.g.
         # the "deja dup" package in Ubuntu.
         cmd = self.printf_cmd(self.utf8_valid_2)
         (out, _err) = subp.subp(cmd, capture=True)
-        self.assertEqual(out, self.utf8_valid_2.decode("utf-8"))
+        assert out == self.utf8_valid_2.decode("utf-8")
 
     def test_subp_respects_decode_false(self):
         (out, err) = subp.subp(
             self.stdin2out, capture=True, decode=False, data=self.utf8_valid
         )
-        self.assertTrue(isinstance(out, bytes))
-        self.assertTrue(isinstance(err, bytes))
-        self.assertEqual(out, self.utf8_valid)
+        assert isinstance(out, bytes)
+        assert isinstance(err, bytes)
+        assert out == self.utf8_valid
 
     def test_subp_decode_ignore(self):
         """ensure that invalid utf-8 is ignored with the "ignore" kwarg"""
@@ -166,14 +162,14 @@ class TestSubp(CiTestCase):
         (out, _err) = subp.subp(
             self.stdin2out, capture=True, decode="strict", data=self.utf8_valid
         )
-        self.assertEqual(out, self.utf8_valid.decode("utf-8"))
+        assert out == self.utf8_valid.decode("utf-8")
 
     def test_subp_decode_invalid_utf8_replaces(self):
         (out, _err) = subp.subp(
             self.stdin2out, capture=True, data=self.utf8_invalid
         )
         expected = self.utf8_invalid.decode("utf-8", "replace")
-        self.assertEqual(out, expected)
+        assert out == expected
 
     def test_subp_decode_strict_raises(self):
         args = []
@@ -183,7 +179,8 @@ class TestSubp(CiTestCase):
             "decode": "strict",
             "data": self.utf8_invalid,
         }
-        self.assertRaises(UnicodeDecodeError, subp.subp, *args, **kwargs)
+        with pytest.raises(UnicodeDecodeError):
+            subp.subp(*args, **kwargs)
 
     def test_subp_capture_stderr(self):
         data = b"hello world"
@@ -194,8 +191,8 @@ class TestSubp(CiTestCase):
             data=data,
             update_env={"LC_ALL": "C"},
         )
-        self.assertEqual(err, data)
-        self.assertEqual(out, b"")
+        assert err == data
+        assert out == b""
 
     def test_subp_reads_env(self):
         with mock.patch.dict("os.environ", values={"FOO": "BAR"}):
@@ -217,54 +214,48 @@ class TestSubp(CiTestCase):
             set(out.splitlines())
         )
 
-    def test_subp_warn_missing_shebang(self):
+    def test_subp_warn_missing_shebang(self, tmp_path):
         """Warn on no #! in script"""
-        noshebang = self.tmp_path("noshebang")
+        noshebang = str(tmp_path / "noshebang")
         util.write_file(noshebang, "true\n")
 
         print("os is %s" % os)
         os.chmod(noshebang, os.stat(noshebang).st_mode | stat.S_IEXEC)
-        with self.allow_subp([noshebang]):
-            self.assertRaisesRegex(
-                subp.ProcessExecutionError,
-                r"Missing #! in script\?",
-                subp.subp,
+        with pytest.raises(
+            subp.ProcessExecutionError, match=r"Missing #! in script\?"
+        ):
+            subp.subp(
                 (noshebang,),
             )
 
     def test_returns_none_if_no_capture(self):
         (out, err) = subp.subp(self.stdin2out, data=b"", capture=False)
-        self.assertIsNone(err)
-        self.assertIsNone(out)
+        assert err is None
+        assert out is None
 
     def test_exception_has_out_err_are_bytes_if_decode_false(self):
         """Raised exc should have stderr, stdout as bytes if no decode."""
-        with self.assertRaises(subp.ProcessExecutionError) as cm:
+        with pytest.raises(subp.ProcessExecutionError) as exc_info:
             subp.subp([BOGUS_COMMAND], decode=False)
-        self.assertTrue(isinstance(cm.exception.stdout, bytes))
-        self.assertTrue(isinstance(cm.exception.stderr, bytes))
+        assert isinstance(exc_info.value.stdout, bytes)
+        assert isinstance(exc_info.value.stderr, bytes)
 
     def test_exception_has_out_err_are_bytes_if_decode_true(self):
         """Raised exc should have stderr, stdout as string if no decode."""
-        with self.assertRaises(subp.ProcessExecutionError) as cm:
+        with pytest.raises(subp.ProcessExecutionError) as exc_info:
             subp.subp([BOGUS_COMMAND], decode=True)
-        self.assertTrue(isinstance(cm.exception.stdout, str))
-        self.assertTrue(isinstance(cm.exception.stderr, str))
+        assert isinstance(exc_info.value.stdout, str)
+        assert isinstance(exc_info.value.stderr, str)
 
     def test_exception_invalid_command(self):
         args = [None, "first", "arg", "missing"]
-        with self.assertRaises(
-            subp.ProcessExecutionError, msg="Running invalid command"
-        ):
-            with self.allow_subp(args):
-                subp.subp(args)
+        with pytest.raises(subp.ProcessExecutionError):
+            subp.subp(args)
 
     def test_bunch_of_slashes_in_path(self):
-        self.assertEqual(
-            "/target/my/path/", subp.target_path("/target/", "//my/path/")
-        )
-        self.assertEqual(
-            "/target/my/path/", subp.target_path("/target/", "///my/path/")
+        assert "/target/my/path/" == subp.target_path("/target/", "//my/path/")
+        assert "/target/my/path/" == subp.target_path(
+            "/target/", "///my/path/"
         )
 
     def test_c_lang_can_take_utf8_args(self):
@@ -308,4 +299,4 @@ class TestSubp(CiTestCase):
             data=json.dumps(cmd).encode("utf-8"),
             decode=False,
         )
-        self.assertEqual(self.utf8_valid, out)
+        assert self.utf8_valid == out

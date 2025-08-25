@@ -16,6 +16,7 @@ from cloudinit.net import (
     ipv4_mask_to_net_prefix,
     ipv6_mask_to_net_prefix,
     is_ip_network,
+    is_ipv4_address,
     is_ipv4_network,
     is_ipv6_address,
     is_ipv6_network,
@@ -431,6 +432,10 @@ class NetworkStateInterpreter:
                 "keep_configuration": command.get("keep_configuration"),
             }
         )
+
+        if iface["mac_address"]:
+            iface["mac_address"] = iface["mac_address"].lower()
+
         iface_key = command.get("config_id", command.get("name"))
         self._network_state["interfaces"].update({iface_key: iface})
         self.dump_network_state()
@@ -790,6 +795,7 @@ class NetworkStateInterpreter:
                 "name": vlan,
                 "vlan_id": cfg.get("id"),
                 "vlan_link": cfg.get("link"),
+                "mac_address": cfg.get("macaddress"),
             }
             if "mtu" in cfg:
                 vlan_cmd["mtu"] = cfg["mtu"]
@@ -847,8 +853,11 @@ class NetworkStateInterpreter:
                 cmd_type + "_interfaces": item_cfg.get("interfaces"),
                 "params": dict((v2key_to_v1[k], v) for k, v in params.items()),
             }
+
             if "mtu" in item_cfg:
                 v1_cmd["mtu"] = item_cfg["mtu"]
+            if "macaddress" in item_cfg:
+                v1_cmd["mac_address"] = item_cfg["macaddress"]
 
             warn_deprecated_all_devices(item_cfg)
             subnets = self._v2_to_v1_ipcfg(item_cfg)
@@ -923,6 +932,7 @@ class NetworkStateInterpreter:
                         "gateway": route.get("via"),
                         "metric": route.get("metric"),
                         "mtu": route.get("mtu"),
+                        "table": route.get("table"),
                     }
                 )
             )
@@ -990,6 +1000,22 @@ def _normalize_net_keys(network, address_keys=()):
         raise ValueError(message)
 
     addr = str(net.get(addr_key))
+    if addr == "default":
+        gw_ip = str(net.get("gateway"))
+        if not gw_ip:
+            message = "Gateway IP is empty"
+            LOG.error(message)
+            raise ValueError(message)
+
+        if is_ipv4_address(gw_ip):
+            addr = "0.0.0.0/0"
+        elif is_ipv6_address(gw_ip):
+            addr = "::/0"
+        else:
+            message = f"Invalid Gateway IP: '{gw_ip}'"
+            LOG.error(message)
+            raise ValueError(message)
+
     if not is_ip_network(addr):
         LOG.error("Address %s is not a valid ip network", addr)
         raise ValueError(f"Address {addr} is not a valid ip address")

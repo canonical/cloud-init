@@ -10,7 +10,6 @@ reimplement the entire library, only the minimal parts we actually use.
 """
 
 from cloudinit.simpletable import SimpleTable
-from tests.unittests.helpers import CiTestCase
 
 # Examples rendered by cloud-init using PrettyTable
 NET_DEVICE_FIELDS = ("Device", "Up", "Address", "Mask", "Scope", "Hw-Address")
@@ -85,25 +84,25 @@ NO_ROWS_TABLE = """\
 +--------+"""
 
 
-class TestSimpleTable(CiTestCase):
+class TestSimpleTable:
     def test_no_rows(self):
         """An empty table is rendered as PrettyTable would have done it."""
         table = SimpleTable(NO_ROWS_FIELDS)
-        self.assertEqual(str(table), NO_ROWS_TABLE)
+        assert str(table) == NO_ROWS_TABLE
 
     def test_net_dev(self):
         """Net device info is rendered as it was with PrettyTable."""
         table = SimpleTable(NET_DEVICE_FIELDS)
         for row in NET_DEVICE_ROWS:
             table.add_row(row)
-        self.assertEqual(str(table), NET_DEVICE_TABLE)
+        assert str(table) == NET_DEVICE_TABLE
 
     def test_route_ipv4(self):
         """Route IPv4 info is rendered as it was with PrettyTable."""
         table = SimpleTable(ROUTE_IPV4_FIELDS)
         for row in ROUTE_IPV4_ROWS:
             table.add_row(row)
-        self.assertEqual(str(table), ROUTE_IPV4_TABLE)
+        assert str(table) == ROUTE_IPV4_TABLE
 
     def test_authorized_keys(self):
         """SSH authorized keys are rendered as they were with PrettyTable."""
@@ -116,4 +115,4 @@ class TestSimpleTable(CiTestCase):
         table = SimpleTable(AUTHORIZED_KEYS_FIELDS)
         for row in AUTHORIZED_KEYS_ROWS:
             table.add_row(row)
-        self.assertEqual(table.get_string(), str(table))
+        assert table.get_string() == str(table)

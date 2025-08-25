@@ -49,9 +49,6 @@ class DataSourceAliYun(sources.DataSource):
         self.default_update_events = copy.deepcopy(self.default_update_events)
         self.default_update_events[EventScope.NETWORK].add(EventType.BOOT)
 
-    def _unpickle(self, ci_pkl_version: int) -> None:
-        super()._unpickle(ci_pkl_version)
-
     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
         hostname = self.metadata.get("hostname")
         is_default = False

@@ -27,10 +27,11 @@ from cloudinit.net.ephemeral import EphemeralDHCPv4
 from cloudinit.subp import SubpResult
 from cloudinit.util import ensure_file, load_binary_file, subp, write_file
 from tests.unittests.helpers import (
-    CiTestCase,
+    assert_count_equal,
     example_netdev,
     mock,
     populate_dir,
+    resourceLocation,
 )
 from tests.unittests.util import MockDistro
 
@@ -81,30 +82,32 @@ class TestParseDHCPServerFromLeaseFile:
             )
 
 
-@pytest.mark.usefixtures("dhclient_exists")
-class TestParseDHCPLeasesFile(CiTestCase):
-    def test_parse_empty_lease_file_errors(self):
-        """get_newest_lease errors when file content is empty."""
-        client = IscDhclient()
-        client.lease_file = self.tmp_path("leases")
-        ensure_file(client.lease_file)
-        assert not client.get_newest_lease("eth0")
+@pytest.fixture
+def isc_dh_cli(tmp_path):
+    cli = IscDhclient()
+    cli.lease_file = str(tmp_path / "leases")
+    return cli
 
-    def test_parse_malformed_lease_file_content_errors(self):
+
+@pytest.mark.usefixtures("dhclient_exists")
+class TestParseDHCPLeasesFile:
+
+    def test_parse_empty_lease_file_errors(self, isc_dh_cli):
+        """get_newest_lease errors when file content is empty."""
+        ensure_file(isc_dh_cli.lease_file)
+        assert not isc_dh_cli.get_newest_lease("eth0")
+
+    def test_parse_malformed_lease_file_content_errors(self, isc_dh_cli):
         """IscDhclient.get_newest_lease errors when file content isn't
         dhcp leases.
         """
-        client = IscDhclient()
-        client.lease_file = self.tmp_path("leases")
-        write_file(client.lease_file, "hi mom.")
-        assert not client.get_newest_lease("eth0")
+        write_file(isc_dh_cli.lease_file, "hi mom.")
+        assert not isc_dh_cli.get_newest_lease("eth0")
 
-    def test_parse_multiple_leases(self):
+    def test_parse_multiple_leases(self, isc_dh_cli):
         """IscDhclient().get_newest_lease returns the latest lease
         within.
         """
-        client = IscDhclient()
-        client.lease_file = self.tmp_path("leases")
         content = dedent(
             """
             lease {
@@ -132,22 +135,22 @@ class TestParseDHCPLeasesFile(CiTestCase):
             "subnet-mask": "255.255.255.0",
             "routers": "192.168.2.1",
         }
-        write_file(client.lease_file, content)
-        got = client.get_newest_lease("eth0")
-        self.assertCountEqual(got, expected)
+        write_file(isc_dh_cli.lease_file, content)
+        got = isc_dh_cli.get_newest_lease("eth0")
+        assert_count_equal(got, expected)
 
 
 @pytest.mark.usefixtures("dhclient_exists")
 @pytest.mark.usefixtures("disable_netdev_info")
-class TestDHCPRFC3442(CiTestCase):
-    def test_parse_lease_finds_rfc3442_classless_static_routes(self):
+class TestDHCPRFC3442:
+    def test_parse_lease_finds_rfc3442_classless_static_routes(
+        self, isc_dh_cli
+    ):
         """IscDhclient().get_newest_lease() returns
         rfc3442-classless-static-routes.
         """
-        client = IscDhclient()
-        client.lease_file = self.tmp_path("leases")
         write_file(
-            client.lease_file,
+            isc_dh_cli.lease_file,
             dedent(
                 """
             lease {
@@ -171,15 +174,13 @@ class TestDHCPRFC3442(CiTestCase):
             "renew": "4 2017/07/27 18:02:30",
             "expire": "5 2017/07/28 07:08:15",
         }
-        self.assertCountEqual(expected, client.get_newest_lease("eth0"))
+        assert_count_equal(expected, isc_dh_cli.get_newest_lease("eth0"))
 
-    def test_parse_lease_finds_classless_static_routes(self):
+    def test_parse_lease_finds_classless_static_routes(self, isc_dh_cli):
         """
         IscDhclient().get_newest_lease returns classless-static-routes
         for Centos lease format.
         """
-        client = IscDhclient()
-        client.lease_file = self.tmp_path("leases")
         content = dedent(
             """
             lease {
@@ -202,8 +203,8 @@ class TestDHCPRFC3442(CiTestCase):
             "renew": "4 2017/07/27 18:02:30",
             "expire": "5 2017/07/28 07:08:15",
         }
-        write_file(client.lease_file, content)
-        self.assertCountEqual(expected, client.get_newest_lease("eth0"))
+        write_file(isc_dh_cli.lease_file, content)
+        assert_count_equal(expected, isc_dh_cli.get_newest_lease("eth0"))
 
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
     @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
@@ -263,33 +264,29 @@ class TestDHCPRFC3442(CiTestCase):
         m_ipv4.assert_called_with(distro, **expected_kwargs)
 
 
-class TestDHCPParseStaticRoutes(CiTestCase):
-    with_logs = True
-
+class TestDHCPParseStaticRoutes:
     def test_parse_static_routes_empty_string(self):
-        self.assertEqual([], IscDhclient.parse_static_routes(""))
+        assert [] == IscDhclient.parse_static_routes("")
 
     def test_parse_static_routes_invalid_input_returns_empty_list(self):
         rfc3442 = "32,169,254,169,254,130,56,248"
-        self.assertEqual([], IscDhclient.parse_static_routes(rfc3442))
+        assert [] == IscDhclient.parse_static_routes(rfc3442)
 
     def test_parse_static_routes_bogus_width_returns_empty_list(self):
         rfc3442 = "33,169,254,169,254,130,56,248"
-        self.assertEqual([], IscDhclient.parse_static_routes(rfc3442))
+        assert [] == IscDhclient.parse_static_routes(rfc3442)
 
     def test_parse_static_routes_single_ip(self):
         rfc3442 = "32,169,254,169,254,130,56,248,255"
-        self.assertEqual(
-            [("169.254.169.254/32", "130.56.248.255")],
-            IscDhclient.parse_static_routes(rfc3442),
-        )
+        assert [
+            ("169.254.169.254/32", "130.56.248.255")
+        ] == IscDhclient.parse_static_routes(rfc3442)
 
     def test_parse_static_routes_single_ip_handles_trailing_semicolon(self):
         rfc3442 = "32,169,254,169,254,130,56,248,255;"
-        self.assertEqual(
-            [("169.254.169.254/32", "130.56.248.255")],
-            IscDhclient.parse_static_routes(rfc3442),
-        )
+        assert [
+            ("169.254.169.254/32", "130.56.248.255")
+        ] == IscDhclient.parse_static_routes(rfc3442)
 
     def test_unknown_121(self):
         for unknown121 in [
@@ -304,35 +301,30 @@ class TestDHCPParseStaticRoutes(CiTestCase):
 
     def test_parse_static_routes_default_route(self):
         rfc3442 = "0,130,56,240,1"
-        self.assertEqual(
-            [("0.0.0.0/0", "130.56.240.1")],
-            IscDhclient.parse_static_routes(rfc3442),
-        )
+        assert [
+            ("0.0.0.0/0", "130.56.240.1")
+        ] == IscDhclient.parse_static_routes(rfc3442)
 
     def test_unspecified_gateway(self):
         rfc3442 = "32,169,254,169,254,0,0,0,0"
-        self.assertEqual(
-            [("169.254.169.254/32", "0.0.0.0")],
-            IscDhclient.parse_static_routes(rfc3442),
-        )
+        assert [
+            ("169.254.169.254/32", "0.0.0.0")
+        ] == IscDhclient.parse_static_routes(rfc3442)
 
     def test_parse_static_routes_class_c_b_a(self):
         class_c = "24,192,168,74,192,168,0,4"
         class_b = "16,172,16,172,16,0,4"
         class_a = "8,10,10,0,0,4"
         rfc3442 = ",".join([class_c, class_b, class_a])
-        self.assertEqual(
-            sorted(
-                [
-                    ("192.168.74.0/24", "192.168.0.4"),
-                    ("172.16.0.0/16", "172.16.0.4"),
-                    ("10.0.0.0/8", "10.0.0.4"),
-                ]
-            ),
-            sorted(IscDhclient.parse_static_routes(rfc3442)),
-        )
+        assert sorted(
+            [
+                ("192.168.74.0/24", "192.168.0.4"),
+                ("172.16.0.0/16", "172.16.0.4"),
+                ("10.0.0.0/8", "10.0.0.4"),
+            ]
+        ) == sorted(IscDhclient.parse_static_routes(rfc3442))
 
-    def test_parse_static_routes_logs_error_truncated(self):
+    def test_parse_static_routes_logs_error_truncated(self, caplog):
         bad_rfc3442 = {
             "class_c": "24,169,254,169,10",
             "class_b": "16,172,16,10",
@@ -341,52 +333,43 @@ class TestDHCPParseStaticRoutes(CiTestCase):
             "netlen": "33,0",
         }
         for rfc3442 in bad_rfc3442.values():
-            self.assertEqual([], IscDhclient.parse_static_routes(rfc3442))
+            assert [] == IscDhclient.parse_static_routes(rfc3442)
 
-        logs = self.logs.getvalue()
-        self.assertEqual(len(bad_rfc3442.keys()), len(logs.splitlines()))
+        assert len(bad_rfc3442.keys()) == len(caplog.text.splitlines())
 
-    def test_parse_static_routes_returns_valid_routes_until_parse_err(self):
+    def test_parse_static_routes_returns_valid_routes_until_parse_err(
+        self, caplog
+    ):
         class_c = "24,192,168,74,192,168,0,4"
         class_b = "16,172,16,172,16,0,4"
         class_a_error = "8,10,10,0,0"
         rfc3442 = ",".join([class_c, class_b, class_a_error])
-        self.assertEqual(
-            sorted(
-                [
-                    ("192.168.74.0/24", "192.168.0.4"),
-                    ("172.16.0.0/16", "172.16.0.4"),
-                ]
-            ),
-            sorted(IscDhclient.parse_static_routes(rfc3442)),
-        )
+        assert sorted(
+            [
+                ("192.168.74.0/24", "192.168.0.4"),
+                ("172.16.0.0/16", "172.16.0.4"),
+            ]
+        ) == sorted(IscDhclient.parse_static_routes(rfc3442))
 
-        logs = self.logs.getvalue()
-        self.assertIn(rfc3442, logs.splitlines()[0])
+        assert rfc3442 in caplog.text.splitlines()[0]
 
     def test_redhat_format(self):
         redhat_format = "24.191.168.128 192.168.128.1,0 192.168.128.1"
-        self.assertEqual(
-            sorted(
-                [
-                    ("191.168.128.0/24", "192.168.128.1"),
-                    ("0.0.0.0/0", "192.168.128.1"),
-                ]
-            ),
-            sorted(IscDhclient.parse_static_routes(redhat_format)),
-        )
+        assert sorted(
+            [
+                ("191.168.128.0/24", "192.168.128.1"),
+                ("0.0.0.0/0", "192.168.128.1"),
+            ]
+        ) == sorted(IscDhclient.parse_static_routes(redhat_format))
 
     def test_redhat_format_with_a_space_too_much_after_comma(self):
         redhat_format = "24.191.168.128 192.168.128.1, 0 192.168.128.1"
-        self.assertEqual(
-            sorted(
-                [
-                    ("191.168.128.0/24", "192.168.128.1"),
-                    ("0.0.0.0/0", "192.168.128.1"),
-                ]
-            ),
-            sorted(IscDhclient.parse_static_routes(redhat_format)),
-        )
+        assert sorted(
+            [
+                ("191.168.128.0/24", "192.168.128.1"),
+                ("0.0.0.0/0", "192.168.128.1"),
+            ]
+        ) == sorted(IscDhclient.parse_static_routes(redhat_format))
 
 
 class TestDHCPDiscoveryClean:
@@ -696,7 +679,7 @@ class TestDHCPDiscoveryClean:
         )
 
 
-class TestSystemdParseLeases(CiTestCase):
+class TestSystemdParseLeases:
     lxd_lease = dedent(
         """\
     # This is private data. Do not parse.
@@ -775,49 +758,40 @@ class TestSystemdParseLeases(CiTestCase):
         "OPTION_245": "624c3620",
     }
 
-    def setUp(self):
-        super(TestSystemdParseLeases, self).setUp()
-        self.lease_d = self.tmp_dir()
-
-    def test_no_leases_returns_empty_dict(self):
+    def test_no_leases_returns_empty_dict(self, tmp_path):
         """A leases dir with no lease files should return empty dictionary."""
-        self.assertEqual({}, networkd_load_leases(self.lease_d))
+        assert {} == networkd_load_leases(str(tmp_path))
 
-    def test_no_leases_dir_returns_empty_dict(self):
+    def test_no_leases_dir_returns_empty_dict(self, tmp_path):
         """A non-existing leases dir should return empty dict."""
-        enodir = os.path.join(self.lease_d, "does-not-exist")
-        self.assertEqual({}, networkd_load_leases(enodir))
+        enodir = os.path.join(tmp_path, "does-not-exist")
+        assert {} == networkd_load_leases(enodir)
 
-    def test_single_leases_file(self):
+    def test_single_leases_file(self, tmp_path):
         """A leases dir with one leases file."""
-        populate_dir(self.lease_d, {"2": self.lxd_lease})
-        self.assertEqual(
-            {"2": self.lxd_parsed}, networkd_load_leases(self.lease_d)
-        )
+        populate_dir(str(tmp_path), {"2": self.lxd_lease})
+        assert {"2": self.lxd_parsed} == networkd_load_leases(str(tmp_path))
 
-    def test_single_azure_leases_file(self):
+    def test_single_azure_leases_file(self, tmp_path):
         """On Azure, option 245 should be present, verify it specifically."""
-        populate_dir(self.lease_d, {"1": self.azure_lease})
-        self.assertEqual(
-            {"1": self.azure_parsed}, networkd_load_leases(self.lease_d)
-        )
+        populate_dir(str(tmp_path), {"1": self.azure_lease})
+        assert {"1": self.azure_parsed} == networkd_load_leases(str(tmp_path))
 
-    def test_multiple_files(self):
+    def test_multiple_files(self, tmp_path):
         """Multiple leases files on azure with one found return that value."""
-        self.maxDiff = None
         populate_dir(
-            self.lease_d, {"1": self.azure_lease, "9": self.lxd_lease}
+            str(tmp_path), {"1": self.azure_lease, "9": self.lxd_lease}
         )
-        self.assertEqual(
-            {"1": self.azure_parsed, "9": self.lxd_parsed},
-            networkd_load_leases(self.lease_d),
-        )
+        assert {
+            "1": self.azure_parsed,
+            "9": self.lxd_parsed,
+        } == networkd_load_leases(str(tmp_path))
 
 
 @responses.activate
 @pytest.mark.usefixtures("disable_netdev_info")
 @mock.patch("cloudinit.net.ephemeral._check_connectivity_to_imds")
-class TestEphemeralDhcpNoNetworkSetup(CiTestCase):
+class TestEphemeralDhcpNoNetworkSetup:
     @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
     def test_ephemeral_dhcp_no_network_if_url_connectivity(
         self, m_dhcp, m_imds
@@ -832,7 +806,7 @@ class TestEphemeralDhcpNoNetworkSetup(CiTestCase):
             MockDistro(),
             connectivity_urls_data=[{"url": url}],
         ) as lease:
-            self.assertIsNone(lease)
+            assert lease is None
         # Ensure that no teardown happens:
         m_dhcp.assert_not_called()
 
@@ -857,7 +831,7 @@ class TestEphemeralDhcpNoNetworkSetup(CiTestCase):
             MockDistro(),
             connectivity_urls_data=[{"url": url}],
         ) as lease:
-            self.assertEqual(m_dhcp.return_value, lease)
+            assert m_dhcp.return_value == lease
         # Ensure that dhcp discovery occurs
         m_dhcp.assert_called_once()
 
@@ -917,10 +891,7 @@ class TestEphemeralDhcpLeaseErrors:
         assert len(m_dhcp.mock_calls) == 1
 
 
-class TestUDHCPCDiscoveryClean(CiTestCase):
-    with_logs = True
-    maxDiff = None
-
+class TestUDHCPCDiscoveryClean:
     @mock.patch("cloudinit.net.dhcp.is_ib_interface", return_value=False)
     @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/udhcpc")
     @mock.patch("cloudinit.net.dhcp.os.remove")
@@ -947,16 +918,13 @@ class TestUDHCPCDiscoveryClean(CiTestCase):
             "routers": "192.168.2.1",
             "static_routes": "10.240.0.1/32 0.0.0.0 0.0.0.0/0 10.240.0.1",
         }
-        self.assertEqual(
-            {
-                "fixed-address": "192.168.2.74",
-                "interface": "eth9",
-                "routers": "192.168.2.1",
-                "static_routes": "10.240.0.1/32 0.0.0.0 0.0.0.0/0 10.240.0.1",
-                "subnet-mask": "255.255.255.0",
-            },
-            Udhcpc().dhcp_discovery("eth9", distro=MockDistro()),
-        )
+        assert {
+            "fixed-address": "192.168.2.74",
+            "interface": "eth9",
+            "routers": "192.168.2.1",
+            "static_routes": "10.240.0.1/32 0.0.0.0 0.0.0.0/0 10.240.0.1",
+            "subnet-mask": "255.255.255.0",
+        } == Udhcpc().dhcp_discovery("eth9", distro=MockDistro())
         # Interface was brought up before dhclient called
         m_subp.assert_has_calls(
             [
@@ -1016,16 +984,13 @@ class TestUDHCPCDiscoveryClean(CiTestCase):
             "routers": "192.168.2.1",
             "static_routes": "10.240.0.1/32 0.0.0.0 0.0.0.0/0 10.240.0.1",
         }
-        self.assertEqual(
-            {
-                "fixed-address": "192.168.2.74",
-                "interface": "ib0",
-                "routers": "192.168.2.1",
-                "static_routes": "10.240.0.1/32 0.0.0.0 0.0.0.0/0 10.240.0.1",
-                "subnet-mask": "255.255.255.0",
-            },
-            Udhcpc().dhcp_discovery("ib0", distro=MockDistro()),
-        )
+        assert {
+            "fixed-address": "192.168.2.74",
+            "interface": "ib0",
+            "routers": "192.168.2.1",
+            "static_routes": "10.240.0.1/32 0.0.0.0 0.0.0.0/0 10.240.0.1",
+            "subnet-mask": "255.255.255.0",
+        } == Udhcpc().dhcp_discovery("ib0", distro=MockDistro())
         # Interface was brought up before dhclient called
         m_subp.assert_has_calls(
             [
@@ -1057,7 +1022,7 @@ class TestUDHCPCDiscoveryClean(CiTestCase):
         )
 
 
-class TestISCDHClient(CiTestCase):
+class TestISCDHClient:
     @mock.patch(
         "os.listdir",
         return_value=(
@@ -1072,9 +1037,9 @@ class TestISCDHClient(CiTestCase):
         """
         Test that an rhel style lease has been found
         """
-        self.assertEqual(
-            "/var/lib/NetworkManager/dhclient-0-u-u-i-d-enp2s0f0.lease",
-            IscDhclient.get_newest_lease_file_from_distro(rhel.Distro),
+        assert (
+            "/var/lib/NetworkManager/dhclient-0-u-u-i-d-enp2s0f0.lease"
+            == IscDhclient.get_newest_lease_file_from_distro(rhel.Distro)
         )
 
     @mock.patch(
@@ -1091,9 +1056,9 @@ class TestISCDHClient(CiTestCase):
         """
         Test that an amazon style lease has been found
         """
-        self.assertEqual(
-            "/var/lib/dhcp/dhclient--eth0.leases",
-            IscDhclient.get_newest_lease_file_from_distro(amazon.Distro),
+        assert (
+            "/var/lib/dhcp/dhclient--eth0.leases"
+            == IscDhclient.get_newest_lease_file_from_distro(amazon.Distro)
         )
 
     @mock.patch(
@@ -1110,9 +1075,9 @@ class TestISCDHClient(CiTestCase):
         """
         Test that an freebsd style lease has been found
         """
-        self.assertEqual(
-            "/var/db/dhclient.leases.vtynet0",
-            IscDhclient.get_newest_lease_file_from_distro(freebsd.Distro),
+        assert (
+            "/var/db/dhclient.leases.vtynet0"
+            == IscDhclient.get_newest_lease_file_from_distro(freebsd.Distro)
         )
 
     @mock.patch(
@@ -1129,9 +1094,9 @@ class TestISCDHClient(CiTestCase):
         """
         Test that an alpine style lease has been found
         """
-        self.assertEqual(
-            "/var/lib/dhcp/dhclient.leases",
-            IscDhclient.get_newest_lease_file_from_distro(alpine.Distro),
+        assert (
+            "/var/lib/dhcp/dhclient.leases"
+            == IscDhclient.get_newest_lease_file_from_distro(alpine.Distro)
         )
 
     @mock.patch(
@@ -1148,9 +1113,9 @@ class TestISCDHClient(CiTestCase):
         """
         Test that an debian style lease has been found
         """
-        self.assertEqual(
-            "/var/lib/dhcp/dhclient.eth0.leases",
-            IscDhclient.get_newest_lease_file_from_distro(debian.Distro),
+        assert (
+            "/var/lib/dhcp/dhclient.eth0.leases"
+            == IscDhclient.get_newest_lease_file_from_distro(debian.Distro)
         )
 
     # If argument to listdir is '/var/lib/NetworkManager'
@@ -1170,11 +1135,10 @@ class TestISCDHClient(CiTestCase):
         This tests a situation where Distro provides lease information
         but the lease wasn't found on that location
         """
-        self.assertEqual(
-            os.path.join(DHCLIENT_FALLBACK_LEASE_DIR, "!@#$-eth0.lease"),
-            IscDhclient.get_newest_lease_file_from_distro(
-                rhel.Distro("", {}, {})
-            ),
+        assert os.path.join(
+            DHCLIENT_FALLBACK_LEASE_DIR, "!@#$-eth0.lease"
+        ) == IscDhclient.get_newest_lease_file_from_distro(
+            rhel.Distro("", {}, {})
         )
 
     @mock.patch(
@@ -1191,9 +1155,8 @@ class TestISCDHClient(CiTestCase):
         Test the case when no leases were found
         """
         # Any Distro would suffice for the absense test, choose Centos then.
-        self.assertEqual(
-            None,
-            IscDhclient.get_newest_lease_file_from_distro(centos.Distro),
+        assert None is IscDhclient.get_newest_lease_file_from_distro(
+            centos.Distro
         )
 
 
@@ -1300,7 +1263,7 @@ class TestDhcpcd:
         ),
     )
     def test_parse_raw_lease(self, lease_file, option_245):
-        lease = load_binary_file(f"tests/data/net/dhcp/{lease_file}")
+        lease = load_binary_file(resourceLocation(f"net/dhcp/{lease_file}"))
         assert option_245 == Dhcpcd.parse_unknown_options_from_packet(
             lease, 245
         )

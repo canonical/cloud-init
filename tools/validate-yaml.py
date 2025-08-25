@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
-"""Try to read a YAML file and report any errors.
-"""
+"""Try to read a YAML file and report any errors."""
 
 import sys
 import yaml

@@ -258,7 +258,7 @@ def subp(
         ]
     try:
         with performance.Timed(
-            "Running {}".format(logstring if logstring else args)
+            "Running {!r}".format(logstring if logstring else args)
         ):
             sp = subprocess.Popen(
                 bytes_args,
