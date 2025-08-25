@@ -53,7 +53,7 @@ improvements you think can be made. This might be related to:
 * the CSS theming
 * or even just highlighting things you found confusing or unclear
 
-Feel free to `contact us on IRC <IRC_>`_ if you have other ideas about
+Feel free to `contact us on Matrix <Matrix_>`_ if you have other ideas about
 contributions you might want to make, such as blog posts, guides, or tutorials.
 
 .. LINKS

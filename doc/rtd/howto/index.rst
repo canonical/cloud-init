@@ -28,4 +28,3 @@ How do I...?
    Report a bug <bugs.rst>
    Identify my datasource <identify_datasource.rst>
    Disable cloud-init <disable_cloud_init.rst>
-   Test pre-release cloud-init on Ubuntu <ubuntu_test_prerelease.rst>
