@@ -1,11 +1,11 @@
-cloud-init (25.2~2g890873f5-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (25.2~2g890873f5-0ubuntu1) questing; urgency=medium
 
   * d/control: Ensure binary packages depend on same version of
     cloud-init-base.
   * Upstream snapshot based on upstream/main at 890873f5.
     - Bugs fixed in this snapshot: (LP: #1978328)
 
- -- Alberto Contreras <alberto.contreras@canonical.com>  Mon, 25 Aug 2025 15:49:47 +0200
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Mon, 25 Aug 2025 15:51:32 +0200
 
 cloud-init (25.2-0ubuntu1) questing; urgency=medium
 
