@@ -1,0 +1,896 @@
+Description: Retain setuptools build backend on stable series.
+ Avoid change in behavior in tip of main which switched to meson.build
+ as the default build backend. Retain the minimal patchset necessary
+ to retain setuptools pybuild default build backend.
+Author: Chad Smith <chad.smith@canonical.com>
+Origin: backport
+Last-Update: 2025-08-25
+--- a/doc-requirements.txt
++++ b/doc-requirements.txt
+@@ -1,9 +1,9 @@
+ -r requirements.txt
+ doc8
+ furo
+-meson
+ m2r2
+ pyyaml
++setuptools
+ sphinx==7.1.2
+ sphinx-design
+ sphinx-copybutton
+--- a/packages/bddeb
++++ b/packages/bddeb
+@@ -19,7 +19,7 @@
+         top_dir = os.path.dirname(
+             os.path.dirname(os.path.abspath(sys.argv[0]))
+         )
+-    if os.path.isfile(os.path.join(top_dir, "meson.build")):
++    if os.path.isfile(os.path.join(top_dir, "setup.py")):
+         return os.path.abspath(top_dir)
+     raise OSError(
+         (
+--- a/packages/brpm
++++ b/packages/brpm
+@@ -16,7 +16,7 @@
+         top_dir = os.path.dirname(
+             os.path.dirname(os.path.abspath(sys.argv[0]))
+         )
+-    if os.path.isfile(os.path.join(top_dir, "meson.build")):
++    if os.path.isfile(os.path.join(top_dir, "setup.py")):
+         return os.path.abspath(top_dir)
+     raise OSError(
+         (
+--- a/packages/debian/rules
++++ b/packages/debian/rules
+@@ -2,16 +2,13 @@
+ 
+ include /usr/share/dpkg/pkg-info.mk
+ 
+-export PYTHONDONTWRITEBYTECODE=1
++INIT_SYSTEM ?= systemd
++export PYBUILD_INSTALL_ARGS=--init-system=$(INIT_SYSTEM)
+ 
+ %:
+-	dh $@ --buildsystem meson
+-
+-override_dh_auto_configure:
+-	dh_auto_configure -- -Dinit_system=systemd -Dlibexecdir=lib -Ddistro_templates=chef_client.rb.tmpl,chrony.conf.ubuntu.tmpl,hosts.debian.tmpl,ntp.conf.ubuntu.tmpl,sources.list.ubuntu.deb822.tmpl,sources.list.ubuntu.deb822.tmpl,timesyncd.conf.tmpl
++	dh $@ --with python3 --buildsystem pybuild
+ 
+ override_dh_auto_test:
+-
+ ifeq (,$(findstring nocheck,$(DEB_BUILD_OPTIONS)))
+ 	http_proxy= make PYVER=python3 check
+ else
+@@ -22,8 +19,8 @@
+ 	dh_installsystemd --no-restart-on-upgrade --no-start
+ 
+ override_dh_auto_install:
+-	dh_auto_install --destdir=debian/cloud-init-base
+-	install -D -m 0644 ./tools/21-cloudinit.conf debian/cloud-init-base/etc/rsyslog.d/21-cloudinit.conf
+-	install -D ./tools/Z99-cloud-locale-test.sh debian/cloud-init-base/etc/profile.d/Z99-cloud-locale-test.sh
+-	install -D ./tools/Z99-cloudinit-warnings.sh debian/cloud-init-base/etc/profile.d/Z99-cloudinit-warnings.sh
++	dh_auto_install --destdir=debian/cloud-init
++	install -D -m 0644 ./tools/21-cloudinit.conf debian/cloud-init/etc/rsyslog.d/21-cloudinit.conf
++	install -D ./tools/Z99-cloud-locale-test.sh debian/cloud-init/etc/profile.d/Z99-cloud-locale-test.sh
++	install -D ./tools/Z99-cloudinit-warnings.sh debian/cloud-init/etc/profile.d/Z99-cloudinit-warnings.sh
+ 	flist=$$(find $(CURDIR)/debian/ -type f -name version.py) && sed -i 's,@@PACKAGED_VERSION@@,$(DEB_VERSION),' $${flist:-did-not-find-version-py-for-replacement}
+--- a/packages/redhat/cloud-init.spec.in
++++ b/packages/redhat/cloud-init.spec.in
+@@ -1,4 +1,11 @@
+ ## template: jinja
++%define use_systemd (0%{?fedora} && 0%{?fedora} >= 18) || (0%{?rhel} && 0%{?rhel} >= 7)
++
++%if %{use_systemd}
++%define init_system systemd
++%else
++%define init_system sysvinit
++%endif
+ 
+ # See: http://www.zarb.org/~jasonc/macros.php
+ # Or: http://fedoraproject.org/wiki/Packaging:ScriptletSnippets
+@@ -7,20 +14,30 @@
+ Name:           cloud-init
+ Version:        {{rpm_upstream_version}}
+ Release:        1{{subrelease}}%{?dist}
+-Summary:        Cloud instance initialization tool
++Summary:        Cloud instance init scripts
+ 
+ Group:          System Environment/Base
+ License:        Dual-licesed GPLv3 or Apache 2.0
+-URL:            https://github.com/canonical/cloud-init
++URL:            http://launchpad.net/cloud-init
+ 
+ Source0:        {{archive_name}}
+ BuildArch:      noarch
+ BuildRoot:      %{_tmppath}
+ 
+-Requires:       systemd
+-BuildRequires:  pkgconfig(systemd)
+-Requires:       systemd-units
+-BuildRequires:  systemd-units
++%if "%{?el6}" == "1"
++BuildRequires:  python-argparse
++%endif
++%if %{use_systemd}
++Requires:           systemd
++BuildRequires:      systemd
++Requires:           systemd-units
++BuildRequires:      systemd-units
++%else
++Requires:           initscripts >= 8.36
++Requires(postun):   initscripts
++Requires(post):     chkconfig
++Requires(preun):    chkconfig
++%endif
+ 
+ {% for r in buildrequires %}
+ BuildRequires:  {{r}}
+@@ -44,9 +61,16 @@
+ Patch{{loop.index0}}: {{p}}
+ {% endfor %}
+ 
++%if "%{init_system}" == "systemd"
+ Requires(post):       systemd
+ Requires(preun):      systemd
+ Requires(postun):     systemd
++%else
++Requires(post):       chkconfig
++Requires(postun):     initscripts
++Requires(preun):      chkconfig
++Requires(preun):      initscripts
++%endif
+ 
+ %description
+ Cloud-init is a set of init scripts for cloud instances.  Cloud instances
+@@ -62,11 +86,13 @@
+ {% endfor %}
+ 
+ %build
+-%meson -Dinit_system=systemd -Ddistro_templates=chef_client.rb.tmpl,chrony.conf.rhel.tmpl,hosts.redhat.tmpl,ntp.conf.rhel.tmpl,resolv.conf.tmpl,timesyncd.conf.tmpl
+-%meson_build
++%{__python3} setup.py build
+ 
+ %install
+-%meson_install
++
++%{__python3} setup.py install -O1 \
++            --skip-build --root $RPM_BUILD_ROOT \
++            --init-system=%{init_system}
+ 
+ # Note that /etc/rsyslog.d didn't exist by default until F15.
+ # el6 request: https://bugzilla.redhat.com/show_bug.cgi?id=740420
+@@ -74,6 +100,9 @@
+ cp -p tools/21-cloudinit.conf \
+       $RPM_BUILD_ROOT/%{_sysconfdir}/rsyslog.d/21-cloudinit.conf
+ 
++# Remove the tests
++rm -rf $RPM_BUILD_ROOT%{python3_sitelib}/tests
++
+ # Required dirs...
+ mkdir -p $RPM_BUILD_ROOT/%{_sharedstatedir}/cloud
+ mkdir -p $RPM_BUILD_ROOT/%{_libexecdir}/%{name}
+@@ -89,23 +118,66 @@
+ rm -rf $RPM_BUILD_ROOT
+ 
+ %post
+-%systemd_post cloud-init-main.service cloud-config.service cloud-config.target cloud-final.service cloud-init-network.service cloud-init.target cloud-init-local.service
+ 
++%if "%{init_system}" == "systemd"
++if [ $1 -eq 1 ]
++then
++    /bin/systemctl enable cloud-config.service     >/dev/null 2>&1 || :
++    /bin/systemctl enable cloud-final.service      >/dev/null 2>&1 || :
++    /bin/systemctl enable cloud-init-network.service       >/dev/null 2>&1 || :
++    /bin/systemctl enable cloud-init-local.service >/dev/null 2>&1 || :
++fi
++%else
++/sbin/chkconfig --add %{_initrddir}/cloud-init-local
++/sbin/chkconfig --add %{_initrddir}/cloud-init
++/sbin/chkconfig --add %{_initrddir}/cloud-config
++/sbin/chkconfig --add %{_initrddir}/cloud-final
++%endif
+ 
+ %preun
+-%systemd_preun cloud-init-main.service cloud-config.service cloud-config.target cloud-final.service cloud-init-network.service cloud-init.target cloud-init-local.service
+ 
++%if "%{init_system}" == "systemd"
++if [ $1 -eq 0 ]
++then
++    /bin/systemctl --no-reload disable cloud-config.service >/dev/null 2>&1 || :
++    /bin/systemctl --no-reload disable cloud-final.service  >/dev/null 2>&1 || :
++    /bin/systemctl --no-reload disable cloud-init-network.service   >/dev/null 2>&1 || :
++    /bin/systemctl --no-reload disable cloud-init-local.service >/dev/null 2>&1 || :
++fi
++%else
++if [ $1 -eq 0 ]
++then
++    /sbin/service cloud-init stop >/dev/null 2>&1 || :
++    /sbin/chkconfig --del cloud-init || :
++    /sbin/service cloud-init-local stop >/dev/null 2>&1 || :
++    /sbin/chkconfig --del cloud-init-local || :
++    /sbin/service cloud-config stop >/dev/null 2>&1 || :
++    /sbin/chkconfig --del cloud-config || :
++    /sbin/service cloud-final stop >/dev/null 2>&1 || :
++    /sbin/chkconfig --del cloud-final || :
++fi
++%endif
+ 
+ %postun
+-%systemd_postun cloud-init-main.service cloud-config.service cloud-config.target cloud-final.service cloud-init-network.service cloud-init.target cloud-init-local.service
++
++%if "%{init_system}" == "systemd"
++/bin/systemctl daemon-reload >/dev/null 2>&1 || :
++%endif
+ 
+ %files
+ 
+ %{_udevrulesdir}/66-azure-ephemeral.rules
+ 
++%if "%{init_system}" == "systemd"
+ /usr/lib/systemd/system-generators/cloud-init-generator
+ /usr/lib/systemd/system/sshd-keygen@.service.d/disable-sshd-keygen-if-cloud-init-active.conf
+ %{_unitdir}/cloud-*
++%else
++%attr(0755, root, root) %{_initddir}/cloud-config
++%attr(0755, root, root) %{_initddir}/cloud-final
++%attr(0755, root, root) %{_initddir}/cloud-init-local
++%attr(0755, root, root) %{_initddir}/cloud-init
++%endif
+ 
+ # Program binaries
+ %{_bindir}/cloud-init*
+@@ -117,6 +189,7 @@
+ 
+ # Configs
+ %config(noreplace)      %{_sysconfdir}/cloud/cloud.cfg
++%dir                    %{_sysconfdir}/cloud/clean.d
+ %dir                    %{_sysconfdir}/cloud/cloud.cfg.d
+ %config(noreplace)      %{_sysconfdir}/cloud/cloud.cfg.d/*.cfg
+ %config(noreplace)      %{_sysconfdir}/cloud/cloud.cfg.d/README
+@@ -125,13 +198,8 @@
+ %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
+ 
+ # Bash completion script
+-%dir %{_datadir}/bash-completion/completions
+ %{_datadir}/bash-completion/completions/cloud-init
+ 
+-# Man pages
+-%dir %{_mandir}/man1
+-%{_mandir}/man1/*.gz
+-
+ %{_libexecdir}/%{name}
+ %dir %{_sharedstatedir}/cloud
+ 
+--- a/packages/suse/cloud-init.spec.in
++++ b/packages/suse/cloud-init.spec.in
+@@ -48,15 +48,25 @@
+ {% endfor %}
+ 
+ %build
+-%meson -Dinit_system=systemd --libexecdir=/usr/lib -Ddistro_templates=chef_client.rb.tmpl,chrony.conf.opensuse.tmpl,hosts.suse.tmpl,ntp.conf.opensuse.tmpl,resolv.conf.tmpl,timesyncd.conf.tmpl
+-%meson_build
++%{__python} setup.py build
+ 
+ %install
+-%meson_install
++%{__python} setup.py install \
++            --skip-build --root=%{buildroot} --prefix=%{_prefix} \
++            --record-rpm=INSTALLED_FILES --install-lib=%{python_sitelib} \
++            --init-system=systemd
++
++# Move udev rules
++mkdir -p %{buildroot}/usr/lib/udev/rules.d/
++mv %{buildroot}/lib/udev/rules.d/* %{buildroot}/usr/lib/udev/rules.d/
++
++# Remove non-SUSE templates
++rm %{buildroot}/%{_sysconfdir}/cloud/templates/*.debian.*
++rm %{buildroot}/%{_sysconfdir}/cloud/templates/*.redhat.*
++rm %{buildroot}/%{_sysconfdir}/cloud/templates/*.ubuntu.*
+ 
+ # Move documentation
+ mkdir -p %{buildroot}/%{_defaultdocdir}
+-mkdir -p %{buildroot}/%{_sysconfdir}/cloud/clean.d
+ mv %{buildroot}/usr/share/doc/cloud-init %{buildroot}/%{_defaultdocdir}
+ for doc in LICENSE ChangeLog requirements.txt; do
+    cp ${doc} %{buildroot}/%{_defaultdocdir}/cloud-init
+@@ -92,7 +102,6 @@
+ # There doesn't seem to be an agreed upon place for these
+ # although it appears the standard says /usr/lib but rpmbuild
+ # will try /usr/lib64 ??
+-/usr/lib/%{name}/hook-hotplug
+ /usr/lib/%{name}/uncloud-init
+ /usr/lib/%{name}/write-ssh-key-fingerprints
+ /usr/lib/%{name}/ds-identify
+@@ -105,7 +114,7 @@
+ %doc %{_defaultdocdir}/cloud-init/*
+ 
+ # Configs
+-%dir               %{_sysconfdir}/cloud/clean.d
++%dir                    %{_sysconfdir}/cloud/clean.d
+ %config(noreplace) %{_sysconfdir}/cloud/cloud.cfg
+ %dir               %{_sysconfdir}/cloud/cloud.cfg.d
+ %config(noreplace) %{_sysconfdir}/cloud/cloud.cfg.d/*.cfg
+@@ -115,7 +124,8 @@
+ 
+ # Bash completion script
+ %{_datadir}/bash-completion/completions/cloud-init
+-/usr/share/man/man1/cloud-*gz
++
++%{_sysconfdir}/systemd/system/sshd-keygen@.service.d/disable-sshd-keygen-if-cloud-init-active.conf
+ 
+ # Python code is here...
+ %{python_sitelib}/*
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -1,6 +1,6 @@
+-[build-system]  # See meson.build. Empty build-system to avoid RTD builds
+-build-backend = ""
+-requires = []
++[build-system]
++requires = ["setuptools"]
++build-backend = "setuptools.build_meta"
+ 
+ [tool.black]
+ line-length = 79
+--- /dev/null
++++ b/setup.py
+@@ -0,0 +1,342 @@
++# Copyright (C) 2009 Canonical Ltd.
++# Copyright (C) 2012 Yahoo! Inc.
++#
++# Author: Soren Hansen <soren@canonical.com>
++# Author: Joshua Harlow <harlowja@yahoo-inc.com>
++#
++# This file is part of cloud-init.  See LICENSE file for license information.
++
++# Distutils magic for ec2-init
++
++import atexit
++import os
++import platform
++import shutil
++import subprocess
++import sys
++import tempfile
++from glob import glob
++
++import setuptools
++from setuptools.command.egg_info import egg_info
++from setuptools.command.install import install
++
++# Python-path here is a little unpredictable as setup.py could be run
++# from a directory other than the root of the repo, so ensure we can find
++# our utils
++sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
++# isort: off
++from setup_utils import (  # noqa: E402
++    get_version,
++    is_f,
++    is_generator,
++    pkg_config_read,
++    read_requires,
++)
++
++# isort: on
++del sys.path[0]
++
++# pylint: disable=W0402
++try:
++    from setuptools.errors import DistutilsError
++except ImportError:
++    from distutils.errors import DistutilsArgError as DistutilsError
++# pylint: enable=W0402
++
++RENDERED_TMPD_PREFIX = "RENDERED_TEMPD"
++VARIANT = None
++PREFIX = None
++
++
++def render_tmpl(template, mode=None, is_yaml=False):
++    """render template into a tmpdir under same dir as setup.py
++
++    This is rendered to a temporary directory under the top level
++    directory with the name 'cloud.cfg'.  The reason for not just rendering
++    to config/cloud.cfg is for a.) don't want to write over contents
++    in that file if user had something there. b.) debuild will complain
++    that files are different outside of the debian directory."""
++
++    # newer versions just use install.
++    if "install" not in sys.argv:
++        return template
++
++    tmpl_ext = ".tmpl"
++    # we may get passed a non-template file, just pass it back
++    if not template.endswith(tmpl_ext):
++        return template
++
++    topdir = os.path.dirname(sys.argv[0])
++    tmpd = tempfile.mkdtemp(dir=topdir, prefix=RENDERED_TMPD_PREFIX)
++    atexit.register(shutil.rmtree, tmpd)
++    bname = os.path.basename(template)
++    ename, ext = os.path.splitext(bname)
++    if ext == tmpl_ext:
++        bname = ename
++    fpath = os.path.join(tmpd, bname)
++    cmd_variant = []
++    cmd_prefix = []
++    if VARIANT:
++        cmd_variant = ["--variant", VARIANT]
++    if PREFIX:
++        cmd_prefix = ["--prefix", PREFIX]
++    subprocess.run(  # nosec B603
++        [
++            sys.executable,
++            "./tools/render-template",
++            *(["--is-yaml"] if is_yaml else []),
++            *cmd_prefix,
++            *cmd_variant,
++            *[template, fpath],
++        ],
++        check=True,
++    )
++    if mode:
++        os.chmod(fpath, mode)
++    # return path relative to setup.py
++    return os.path.join(os.path.basename(tmpd), bname)
++
++
++# User can set the variant for template rendering
++for a in sys.argv:
++    if a.startswith("--distro"):
++        idx = sys.argv.index(a)
++        if "=" in a:
++            _, VARIANT = a.split("=")
++            del sys.argv[idx]
++        else:
++            VARIANT = sys.argv[idx + 1]
++            del sys.argv[idx + 1]
++            sys.argv.remove("--distro")
++
++# parse PREFIX and pass it on from render_tmpl()
++for a in sys.argv:
++    if a.startswith("--prefix"):
++        idx = sys.argv.index(a)
++        if "=" in a:
++            _, PREFIX = a.split("=")
++        else:
++            PREFIX = sys.argv[idx + 1]
++
++INITSYS_FILES = {
++    "sysvinit": lambda: [f for f in glob("sysvinit/redhat/*") if is_f(f)],
++    "sysvinit_freebsd": lambda: [
++        render_tmpl(f, mode=0o755)
++        for f in glob("sysvinit/freebsd/*")
++        if is_f(f)
++    ],
++    "sysvinit_netbsd": lambda: [
++        render_tmpl(f, mode=0o755)
++        for f in glob("sysvinit/netbsd/*")
++        if is_f(f)
++    ],
++    "sysvinit_openbsd": lambda: [
++        render_tmpl(f, mode=0o755)
++        for f in glob("sysvinit/openbsd/*")
++        if is_f(f)
++    ],
++    "sysvinit_deb": lambda: [f for f in glob("sysvinit/debian/*") if is_f(f)],
++    "sysvinit_openrc": lambda: [
++        f for f in glob("sysvinit/openrc/*") if is_f(f)
++    ],
++    "sysvinit_openrc.dep": lambda: ["tools/cloud-init-hotplugd"],
++    "systemd": lambda: [
++        render_tmpl(f)
++        for f in (
++            glob("systemd/*.tmpl")
++            + glob("systemd/*.service")
++            + glob("systemd/*.socket")
++            + glob("systemd/*.target")
++        )
++        if (is_f(f) and not is_generator(f))
++    ],
++    "systemd.generators": lambda: [
++        render_tmpl(f, mode=0o755)
++        for f in glob("systemd/*")
++        if is_f(f) and is_generator(f)
++    ],
++}
++INITSYS_ROOTS = {
++    "sysvinit": "etc/rc.d/init.d",
++    "sysvinit_freebsd": "usr/local/etc/rc.d",
++    "sysvinit_netbsd": "usr/local/etc/rc.d",
++    "sysvinit_openbsd": "etc/rc.d",
++    "sysvinit_deb": "etc/init.d",
++    "sysvinit_openrc": "etc/init.d",
++    "sysvinit_openrc.dep": "usr/lib/cloud-init",
++    "systemd": pkg_config_read("systemd", "systemdsystemunitdir"),
++    "systemd.generators": pkg_config_read(
++        "systemd", "systemdsystemgeneratordir"
++    ),
++}
++INITSYS_TYPES = sorted([f.partition(".")[0] for f in INITSYS_ROOTS.keys()])
++
++
++# Install everything in the right location and take care of Linux (default) and
++# FreeBSD systems.
++USR = "usr"
++ETC = "etc"
++USR_LIB_EXEC = "usr/lib"
++LIB = "lib"
++if os.uname()[0] in ["FreeBSD", "DragonFly", "OpenBSD"]:
++    USR = "usr/local"
++    USR_LIB_EXEC = "usr/local/lib"
++elif os.path.isfile("/etc/redhat-release"):
++    USR_LIB_EXEC = "usr/libexec"
++elif os.path.isfile("/etc/system-release-cpe"):
++    with open("/etc/system-release-cpe") as f:
++        cpe_data = f.read().rstrip().split(":")
++        (cpe_vendor, cpe_product, cpe_version) = cpe_data[3:6]
++        if cpe_vendor == "amazon":
++            USR_LIB_EXEC = "usr/libexec"
++
++
++class MyEggInfo(egg_info):
++    """This makes sure to not include the rendered files in SOURCES.txt."""
++
++    def find_sources(self):
++        egg_info.find_sources(self)
++        # update the self.filelist.
++        self.filelist.exclude_pattern(
++            RENDERED_TMPD_PREFIX + ".*", is_regex=True
++        )
++        # but since mfname is already written we have to update it also.
++        mfname = os.path.join(self.egg_info, "SOURCES.txt")
++        if os.path.exists(mfname):
++            with open(mfname) as fp:
++                files = [
++                    f for f in fp if not f.startswith(RENDERED_TMPD_PREFIX)
++                ]
++            with open(mfname, "w") as fp:
++                fp.write("".join(files))
++
++
++# TODO: Is there a better way to do this??
++class InitsysInstallData(install):
++    init_system = None
++    user_options = install.user_options + [
++        # This will magically show up in member variable 'init_sys'
++        (
++            "init-system=",
++            None,
++            "init system(s) to configure (%s) [default: None]"
++            % ", ".join(INITSYS_TYPES),
++        ),
++    ]
++
++    def initialize_options(self):
++        install.initialize_options(self)
++        self.init_system = ""
++
++    def finalize_options(self):
++        install.finalize_options(self)
++
++        if self.init_system and isinstance(self.init_system, str):
++            self.init_system = self.init_system.split(",")
++
++        if not self.init_system and not platform.system().endswith("BSD"):
++            self.init_system = ["systemd"]
++
++        bad = [f for f in self.init_system if f not in INITSYS_TYPES]
++        if bad:
++            raise DistutilsError("Invalid --init-system: %s" % ",".join(bad))
++
++        for system in self.init_system:
++            # add data files for anything that starts with '<system>.'
++            datakeys = [
++                k for k in INITSYS_ROOTS if k.partition(".")[0] == system
++            ]
++            for k in datakeys:
++                files = INITSYS_FILES[k]()
++                if not files:
++                    continue
++                self.distribution.data_files.append((INITSYS_ROOTS[k], files))
++        # Force that command to reinitialize (with new file list)
++        self.distribution.reinitialize_command("install_data", True)
++
++
++USR = "/" + USR
++ETC = "/" + ETC
++USR_LIB_EXEC = "/" + USR_LIB_EXEC
++LIB = "/" + LIB
++for k in INITSYS_ROOTS.keys():
++    INITSYS_ROOTS[k] = "/" + INITSYS_ROOTS[k]
++
++data_files = [
++    (ETC + "/cloud", [render_tmpl("config/cloud.cfg.tmpl", is_yaml=True)]),
++    (ETC + "/cloud/clean.d", glob("config/clean.d/*")),
++    (ETC + "/cloud/cloud.cfg.d", glob("config/cloud.cfg.d/*")),
++    (ETC + "/cloud/templates", glob("templates/*")),
++    (
++        USR_LIB_EXEC + "/cloud-init",
++        [
++            "tools/ds-identify",
++            "tools/hook-hotplug",
++            "tools/uncloud-init",
++            "tools/write-ssh-key-fingerprints",
++        ],
++    ),
++    (
++        USR + "/share/bash-completion/completions",
++        ["bash_completion/cloud-init"],
++    ),
++    (USR + "/share/doc/cloud-init", [f for f in glob("doc/*") if is_f(f)]),
++    (
++        USR + "/share/doc/cloud-init/examples",
++        [f for f in glob("doc/examples/*") if is_f(f)],
++    ),
++    (
++        USR + "/share/doc/cloud-init/examples/seed",
++        [f for f in glob("doc/examples/seed/*") if is_f(f)],
++    ),
++    (
++        USR + "/share/doc/cloud-init/module-docs",
++        [f for f in glob("doc/module-docs/*", recursive=True) if is_f(f)],
++    ),
++]
++if not platform.system().endswith("BSD"):
++    RULES_PATH = pkg_config_read("udev", "udevdir")
++    RULES_PATH = "/" + RULES_PATH
++
++    data_files.extend(
++        [
++            (RULES_PATH + "/rules.d", [f for f in glob("udev/*.rules")]),
++            (
++                INITSYS_ROOTS["systemd"] + "/sshd-keygen@.service.d/",
++                ["systemd/disable-sshd-keygen-if-cloud-init-active.conf"],
++            ),
++        ]
++    )
++# Use a subclass for install that handles
++# adding on the right init system configuration files
++cmdclass = {
++    "install": InitsysInstallData,
++    "egg_info": MyEggInfo,
++}
++
++requirements = read_requires()
++
++setuptools.setup(
++    name="cloud-init",
++    version=get_version(),
++    description="Cloud instance initialization magic",
++    author="Scott Moser",
++    author_email="scott.moser@canonical.com",
++    url="http://launchpad.net/cloud-init/",
++    package_data={
++        "": ["*.json"],
++    },
++    packages=setuptools.find_packages(exclude=["tests.*", "tests"]),
++    scripts=["tools/cloud-init-per"],
++    license="Dual-licensed under GPLv3 or Apache 2.0",
++    data_files=data_files,
++    install_requires=requirements,
++    cmdclass=cmdclass,
++    entry_points={
++        "console_scripts": [
++            "cloud-init = cloudinit.cmd.main:main",
++            "cloud-id = cloudinit.cmd.cloud_id:main",
++        ],
++    },
++)
+--- a/test-requirements.txt
++++ b/test-requirements.txt
+@@ -11,9 +11,9 @@
+ pytest-cov
+ pytest-mock
+ pytest-xdist
++setuptools
+ jsonschema
+ responses
+-packaging
+ passlib
+ 
+ # This one is currently used only by the CloudSigma and SmartOS datasources.
+--- a/tools/test_tools.py
++++ b/tools/test_tools.py
+@@ -1,10 +1,23 @@
+ import pathlib
+-from packaging.version import Version, InvalidVersion
+ from importlib.machinery import SourceFileLoader
+ from importlib.util import module_from_spec, spec_from_loader
+ from unittest import mock
+ 
+ import pytest
++import setuptools
++
++
++from setup_utils import version_to_pep440  # pylint: disable=import-error
++
++try:
++    validate_version = setuptools.dist.Distribution._validate_version  # type: ignore  # noqa: E501
++    setuptools.sic  # pylint: disable=no-member,pointless-statement
++except AttributeError:
++    pytest.skip(
++        "Unable to import necessary setuptools utilities. "
++        "Version is likely too old.",
++        allow_module_level=True,
++    )
+ 
+ # Since read-version has a '-' and no .py extension, we have to do this
+ # to import it
+@@ -23,17 +36,9 @@
+ spec.loader.exec_module(read_version)
+ 
+ 
+-def version_to_pep440(version: str) -> str:
+-    # read-version can spit out something like 22.4-15-g7f97aee24
+-    # which is invalid under PEP 440. If we replace the first - with a +
+-    # that should give us a valid version.
+-    return version.replace("-", "+", 1)
+-
+-
+ def assert_valid_version(version):
+-    try:
+-        Version(version)
+-    except InvalidVersion:
++    response = validate_version(version)
++    if isinstance(response, setuptools.sic):  # pylint: disable=no-member
+         pytest.fail(f"{version} is not PEP 440 compliant")
+ 
+ 
+--- a/tox.ini
++++ b/tox.ini
+@@ -33,6 +33,7 @@
+     types-passlib
+     types-PyYAML
+     types-requests
++    types-setuptools
+     typing-extensions
+ 
+ [pinned_versions]
+@@ -185,6 +186,7 @@
+     pytest==4.6.9
+     pytest-cov==2.8.1
+     pytest-mock==1.10.4
++    setuptools==45.2.0
+     responses==0.9.0
+     passlib
+     # required for this version of jinja2
+--- a/packages/pkg-deps.json
++++ b/packages/pkg-deps.json
+@@ -1,12 +1,8 @@
+ {
+    "debian" : {
+       "build-requires" : [
+-         "meson",
+-         "pkgconf",
+-         "bash-completion",
+          "debhelper",
+-         "systemd-dev",
+-         "python3",
++         "dh-python",
+          "python3-debconf"
+       ],
+       "renames" : {
+@@ -14,11 +10,6 @@
+          "pyserial" : "python3-serial"
+       },
+       "requires" : [
+-         "debconf",
+-         "dhcpcd-base",
+-         "iproute2",
+-         "netcat-openbsd",
+-         "netplan.io",
+          "procps"
+       ]
+    },
+@@ -52,30 +43,7 @@
+    },
+    "redhat" : {
+       "build-requires" : [
+-         "bash-completion",
+-         "meson",
+-         "pkgconf",
+-         "python3-devel",
+-         "systemd-devel"
+-      ],
+-      "requires" : [
+-         "e2fsprogs",
+-         "iproute",
+-         "net-tools",
+-         "procps",
+-         "rsyslog",
+-         "shadow-utils",
+-         "sudo",
+-         "hostname"
+-      ]
+-   },
+-   "fedora": {
+-      "build-requires" : [
+-         "bash-completion-devel",
+-         "meson",
+-         "pkgconf",
+-         "python3-devel",
+-         "systemd-devel"
++         "python3-devel"
+       ],
+       "requires" : [
+          "e2fsprogs",
+@@ -94,12 +62,10 @@
+          "pyyaml" : "python3-PyYAML"
+       },
+       "build-requires" : [
+-         "meson",
+-         "pkgconf",
+-         "bash-completion-devel",
+          "fdupes",
+          "filesystem",
+-         "python3-devel"
++         "python3-devel",
++         "python3-setuptools"
+       ],
+       "requires" : [
+          "iproute2",
+--- /dev/null
++++ b/setup_utils.py
+@@ -0,0 +1,60 @@
++import os
++import subprocess
++import sys
++from typing import List
++
++
++def is_f(p: str) -> bool:
++    return os.path.isfile(p)
++
++
++def is_generator(p: str) -> bool:
++    return "-generator" in p
++
++
++def pkg_config_read(library: str, var: str) -> str:
++    pkg_config = "pkg-config"
++
++    if os.getenv("PKG_CONFIG"):
++        pkg_config = os.getenv("PKG_CONFIG")
++
++    fallbacks = {
++        "systemd": {
++            "systemdsystemconfdir": "/etc/systemd/system",
++            "systemdsystemunitdir": "/usr/lib/systemd/system",
++            "systemdsystemgeneratordir": "/usr/lib/systemd/system-generators",
++        },
++        "udev": {
++            "udevdir": "/usr/lib/udev",
++        },
++    }
++    cmd = [pkg_config, f"--variable={var}", library]
++    try:
++        path = subprocess.check_output(cmd).decode("utf-8")  # nosec B603
++        path = path.strip()
++    except Exception:
++        path = fallbacks[library][var]
++    if path.startswith("/"):
++        path = path[1:]
++
++    return path
++
++
++def version_to_pep440(version: str) -> str:
++    # read-version can spit out something like 22.4-15-g7f97aee24
++    # which is invalid under PEP 440. If we replace the first - with a +
++    # that should give us a valid version.
++    return version.replace("-", "+", 1)
++
++
++def get_version() -> str:
++    cmd = [sys.executable, "tools/read-version"]
++    ver = subprocess.check_output(cmd)  # B603
++    version = ver.decode("utf-8").strip()
++    return version_to_pep440(version)
++
++
++def read_requires() -> List[str]:
++    cmd = [sys.executable, "tools/read-dependencies"]
++    deps = subprocess.check_output(cmd)  # nosec B603
++    return deps.decode("utf-8").splitlines()
