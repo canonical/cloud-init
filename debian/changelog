@@ -1,9 +1,11 @@
-cloud-init (25.3-~1gxxxxxxxx-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (25.2~2g890873f5-0ubuntu1) UNRELEASED; urgency=medium
 
   * d/control: Ensure binary packages depend on same version of
     cloud-init-base.
+  * Upstream snapshot based on upstream/main at 890873f5.
+    - Bugs fixed in this snapshot: (LP: #1978328)
 
- -- James Falcon <james.falcon@canonical.com>  Fri, 15 Aug 2025 14:44:27 -0500
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Mon, 25 Aug 2025 15:49:47 +0200
 
 cloud-init (25.2-0ubuntu1) questing; urgency=medium
 
@@ -25,7 +27,7 @@ cloud-init (25.2~5g009c4cfd-0ubuntu1) questing; urgency=medium
 cloud-init (25.2~4geb9c1239-0ubuntu2) questing; urgency=medium
 
   * d/changelog: correct switched CVE references in prior release changelog
-    entry for 25.2~4geb9c1239-0ubuntu1 
+    entry for 25.2~4geb9c1239-0ubuntu1
 
  -- Chad Smith <chad.smith@canonical.com>  Tue, 24 Jun 2025 10:11:34 -0600
 
@@ -91,7 +93,7 @@ cloud-init (25.1-0ubuntu3) plucky; urgency=medium
       test_url_helper.py
     - cherry-pick 582f16c1: test: add OauthUrlHelper tests
     - cherry-pick 9311e066: fix: Update OauthUrlHelper to use readurl
-      exception_cb 
+      exception_cb
 
  -- James Falcon <james.falcon@canonical.com>  Thu, 13 Mar 2025 15:47:53 -0500
 
@@ -123,8 +125,8 @@ cloud-init (25.1~2g4ee65391-0ubuntu1) plucky; urgency=medium
   * d/cloud-init-base.lintian-overrides: Update lintian
     warnings to use /usr/lib rather than /lib
   * Upstream snapshot based on upstream/main at 4ee65391.
-    - Bugs fixed in this snapshot: 
-      (LP: #2094179, #2094208, #2094857, #2094858) 
+    - Bugs fixed in this snapshot:
+      (LP: #2094179, #2094208, #2094857, #2094858)
 
  -- James Falcon <james.falcon@canonical.com>  Tue, 14 Jan 2025 14:10:49 -0600
 
