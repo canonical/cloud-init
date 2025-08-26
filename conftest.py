@@ -95,8 +95,8 @@ def disable_subp_usage(request, fixture_utils):
 
     Note that this can only catch invocations where the ``subp`` module is
     imported and ``subp.subp(...)`` is called.  ``from cloudinit.subp import
-    subp`` imports happen before the patching here happens, so are left
-    untouched.
+    subp`` is left untouched because those imports happen before the patching
+    happens here.
 
     While ``disable_subp_usage`` unconditionally patches
     ``cloudinit.subp.subp``, any test-local patching will override this
