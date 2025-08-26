@@ -43,6 +43,8 @@ Depends: cloud-guest-utils | cloud-utils,
          python3,
          python3-debconf,
          python3-requests,
+         python3-jinja2,
+         python3-jsonpatch,
          ${misc:Depends},
          ${python3:Depends}
 Recommends: eatmydata, gdisk, gnupg, python3-apt, software-properties-common
