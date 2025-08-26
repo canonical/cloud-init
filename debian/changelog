@@ -1,3 +1,7 @@
+cloud-init (25.3~2g890873f5-0ubuntu1) UNRELEASED; urgency=medium
+
+  * d/control: add jinja2 and jsonpatch dependencies (LP: #2121482)
+
 cloud-init (25.3~1g890873f5-0ubuntu1) questing; urgency=medium
 
   * d/control:
