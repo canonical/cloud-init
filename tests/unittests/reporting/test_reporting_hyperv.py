@@ -10,7 +10,6 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import util
 from cloudinit.reporting import events, instantiated_handler_registry
 from cloudinit.reporting.handlers import HyperVKvpReportingHandler
 
@@ -34,9 +33,9 @@ class TestKvpEncoding:
 class TestKvpReporter:
     @pytest.fixture
     def kvp_file_path(self, tmp_path):
-        file_path = str(tmp_path / "kvp_pool_file")
-        util.ensure_file(file_path)
-        return file_path
+        file_path = tmp_path / "kvp_pool_file"
+        file_path.touch()
+        return str(file_path)
 
     @pytest.fixture
     def reporter(self, kvp_file_path):
