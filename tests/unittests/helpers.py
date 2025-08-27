@@ -16,17 +16,12 @@ from urllib.parse import urlsplit, urlunsplit
 import responses
 
 from cloudinit import distros, helpers, settings, util
-from cloudinit.config.schema import (
-    SchemaValidationError,
-    validate_cloudconfig_schema,
-)
 from cloudinit.helpers import Paths
 from cloudinit.templater import JINJA_AVAILABLE
 from tests.helpers import cloud_init_project_dir
 from tests.hypothesis_jsonschema import HAS_HYPOTHESIS_JSONSCHEMA
 
 # Used for skipping tests
-SkipTest = unittest.SkipTest
 skipIf = unittest.skipIf
 
 
@@ -220,22 +215,6 @@ def get_mock_paths(temp_dir):
             )
 
     return MockPaths
-
-
-class SchemaTestCaseMixin(unittest.TestCase):
-    def assertSchemaValid(self, cfg, msg="Valid Schema failed validation."):
-        """Assert the config is valid per self.schema.
-
-        If there is only one top level key in the schema properties, then
-        the cfg will be put under that key."""
-        props = list(self.schema.get("properties"))
-        # put cfg under top level key if there is only one in the schema
-        if len(props) == 1:
-            cfg = {props[0]: cfg}
-        try:
-            validate_cloudconfig_schema(cfg, self.schema, strict=True)
-        except SchemaValidationError:
-            self.fail(msg)
 
 
 def populate_dir(path, files):
