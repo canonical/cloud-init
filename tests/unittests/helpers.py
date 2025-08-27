@@ -123,6 +123,8 @@ def random_string(length=8):
     )
 
 
+# Note: The use of this class and unittests.TestCase is discouraged. Use pytest
+# instead. See development docs on testing.
 class TestCase(unittest.TestCase):
     def reset_global_state(self):
         """Reset any global state to its original settings.
