@@ -15,7 +15,7 @@ start() {
     ewarn "$RC_SVCNAME is disabled via cloud-init.disabled file"
   else
     ebegin "$description"
-    /usr/lib/cloud-init/ds-identify
+    /usr/libexec/cloud-init/ds-identify
     eend $?
   fi
 }
