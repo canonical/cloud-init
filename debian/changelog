@@ -1,4 +1,4 @@
-cloud-init (25.3~2g890873f5-0ubuntu2) UNRELEASED; urgency=medium
+cloud-init (25.3~2g890873f5-0ubuntu2) questing; urgency=medium
 
   * d/control: add all missing python3 package runtime deps (LP: #2121482)
 
