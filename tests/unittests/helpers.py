@@ -2,25 +2,20 @@
 # pylint: disable=attribute-defined-outside-init
 
 import copy
-import functools
-import io
-import logging
 import os
 import random
 import shutil
 import string
-import tempfile
 import time
 import unittest
 from contextlib import contextmanager
-from typing import ClassVar, List, Union
 from unittest import mock
 from unittest.util import strclass
 from urllib.parse import urlsplit, urlunsplit
 
 import responses
 
-from cloudinit import distros, helpers, settings, subp, util
+from cloudinit import distros, helpers, settings, util
 from cloudinit.config.schema import (
     SchemaValidationError,
     validate_cloudconfig_schema,
@@ -29,8 +24,6 @@ from cloudinit.helpers import Paths
 from cloudinit.templater import JINJA_AVAILABLE
 from tests.helpers import cloud_init_project_dir
 from tests.hypothesis_jsonschema import HAS_HYPOTHESIS_JSONSCHEMA
-
-_real_subp = subp.subp
 
 # Used for skipping tests
 SkipTest = unittest.SkipTest
@@ -162,107 +155,6 @@ class TestCase(unittest.TestCase):
         p = m.start()
         self.addCleanup(m.stop)
         setattr(self, attr, p)
-
-
-class CiTestCase(TestCase):
-    """This is the preferred test case base class unless user
-    needs other test case classes below."""
-
-    # Subclass overrides for specific test behavior
-    # Whether or not a unit test needs logfile setup
-    with_logs = False
-    allowed_subp: ClassVar[Union[List, bool]] = False
-    SUBP_SHELL_TRUE = "shell=true"
-
-    @contextmanager
-    def allow_subp(self, allowed_subp):
-        orig = self.allowed_subp
-        try:
-            self.allowed_subp = allowed_subp
-            yield
-        finally:
-            self.allowed_subp = orig
-
-    def setUp(self):
-        super(CiTestCase, self).setUp()
-        if self.with_logs:
-            # Create a log handler so unit tests can search expected logs.
-            self.logger = logging.getLogger()
-            self.logs = io.StringIO()
-            formatter = logging.Formatter("%(levelname)s: %(message)s")
-            handler = logging.StreamHandler(self.logs)
-            handler.setFormatter(formatter)
-            self.old_handlers = self.logger.handlers
-            self.logger.handlers = [handler]
-            self.old_level = logging.root.level
-            self.logger.level = logging.DEBUG
-        if self.allowed_subp is True:
-            subp.subp = _real_subp
-        else:
-            subp.subp = self._fake_subp
-
-    def _fake_subp(self, *args, **kwargs):
-        if "args" in kwargs:
-            cmd = kwargs["args"]
-        else:
-            if not args:
-                raise TypeError(
-                    "subp() missing 1 required positional argument: 'args'"
-                )
-            cmd = args[0]
-
-        if not isinstance(cmd, str):
-            cmd = cmd[0]
-        pass_through = False
-        if not isinstance(self.allowed_subp, (list, bool)):
-            raise TypeError("self.allowed_subp supports list or bool.")
-        if isinstance(self.allowed_subp, bool):
-            pass_through = self.allowed_subp
-        else:
-            pass_through = (cmd in self.allowed_subp) or (
-                self.SUBP_SHELL_TRUE in self.allowed_subp
-                and kwargs.get("shell")
-            )
-        if pass_through:
-            return _real_subp(*args, **kwargs)
-        raise RuntimeError(
-            "called subp. set self.allowed_subp=True to allow\n subp(%s)"
-            % ", ".join(
-                [str(repr(a)) for a in args]
-                + ["%s=%s" % (k, repr(v)) for k, v in kwargs.items()]
-            )
-        )
-
-    def tearDown(self):
-        if self.with_logs:
-            # Remove the handler we setup
-            logging.getLogger().handlers = self.old_handlers
-            logging.getLogger().setLevel(self.old_level)
-        subp.subp = _real_subp
-        super(CiTestCase, self).tearDown()
-
-    def tmp_dir(self, dir=None, cleanup=True):
-        # return a full path to a temporary directory that will be cleaned up.
-        if dir is None:
-            tmpd = tempfile.mkdtemp(prefix="ci-%s." % self.__class__.__name__)
-        else:
-            tmpd = tempfile.mkdtemp(dir=dir)
-        self.addCleanup(
-            functools.partial(shutil.rmtree, tmpd, ignore_errors=True)
-        )
-        return tmpd
-
-    def tmp_path(self, path, dir=None):
-        # return an absolute path to 'path' under dir.
-        # if dir is None, one will be created with tmp_dir()
-        # the file is not created or modified.
-        if dir is None:
-            dir = self.tmp_dir()
-        return os.path.normpath(os.path.abspath(os.path.join(dir, path)))
-
-    @classmethod
-    def random_string(cls, length=8):
-        return random_string(length)
 
 
 def replicate_test_root(example_root, target_root):
