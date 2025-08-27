@@ -2692,11 +2692,6 @@
                   "type": "boolean",
                   "description": "Enable 1-Wire interface. Default: ``false``.",
                   "default": false
-                },
-                "remote_gpio": {
-                  "type": "boolean",
-                  "description": "Enable remote GPIO interface. Default: ``false``.",
-                  "default": false
                 }
               }
             },
