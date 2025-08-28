@@ -15,9 +15,8 @@ class Sync:
     """
 
     def __init__(self, name: str, path: str):
-        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.sock.connect(f"{path}/share/{name}.sock")
-        self.sock.bind(f"{path}/share/{name}-return.sock")
         self.sock.sendall(b"start")
 
     def receive(self):
