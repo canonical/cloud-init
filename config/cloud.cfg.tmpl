@@ -315,8 +315,8 @@ system_info:
     renderers: ['network-manager', 'networkd']
 {% elif variant == "raspberry-pi-os" %}
   network:
-    renderers: ['netplan', 'network-manager']
-    activators: ['netplan', 'network-manager']
+    renderers: ['network-manager']
+    activators: ['network-manager']
 {% elif variant in ["ubuntu", "unknown"] %}
 {# SRU_BLOCKER: do not ship network renderers on Xenial, Bionic or Eoan #}
   network:
