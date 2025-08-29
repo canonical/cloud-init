@@ -140,6 +140,11 @@ DI_ON_NOTFOUND=""
 
 DI_EC2_STRICT_ID_DEFAULT="true"
 
+STATE_CDROM_PROBED=""
+STATE_FLOPPY_PROBED=""
+
+# PROBE_CDROM_MODULES - modules will be modprobed if /dev/cdrom does not exist.
+PROBE_CDROM_MODULES=""
 _IS_IBM_CLOUD=""
 
 error() {
@@ -304,6 +309,7 @@ ensure_sane_path() {
 blkid_export() {
     # call 'blkid -c /dev/null export', set DI_BLKID_EXPORT_OUT
     cached "$DI_BLKID_EXPORT_OUT" && return 0
+    probe_cdrom
     local out="" ret=0
     out=$(blkid -c /dev/null -o export) && DI_BLKID_EXPORT_OUT="$out" || {
         ret=$?
@@ -761,6 +767,51 @@ check_writable_seed_dir() {
     local sdir="${PATH_ROOT}$wdir${PATH_VAR_LIB_CLOUD#"${PATH_ROOT}"}"
     local PATH_VAR_LIB_CLOUD="$sdir"
     check_seed_dir "$@"
+}
+
+debugts() {
+    local lvl="$1"
+    shift
+    [ "$lvl" -gt "${DI_DEBUG_LEVEL}" ] && return
+    read_uptime
+    debug "$lvl" "[up ${_RET}s]" "$@"
+}
+
+probe_cdrom() {
+    cached "${STATE_CDROM_PROBED}" && return "${STATE_CDROM_PROBED}"
+    if [ -z "$PROBE_CDROM_MODULES" ]; then
+        STATE_CDROM_PROBED=1
+        return 0
+    fi
+
+    local fpath=/dev/cdrom
+    if [ -b "$fpath" ]; then
+        STATE_CDROM_PROBED=1;
+        debug 1 "$fpath existed before probe_cdrom"
+        return 0;
+    fi
+
+    debugts 1 "attempting modprobe of ${PROBE_CDROM_MODULES}"
+    local m="" modfails=""
+    for m in ${PROBE_CDROM_MODULES}; do
+        modprobe -b "$m" >/dev/null 2>&1 || modfails="${modfails:+$modfails }$m:$?"
+    done
+    [ -z "$modfails" ] ||
+        debug 1 "probe_cdrom modprobe had unsuccessful attempts: $modfails"
+
+    # Some Linux distros/non-Linux OSes may not have udev
+    if command -v udevadm >/dev/null 2>&1; then
+        debugts 1 "udev settling for $fpath"
+        if ! udevadm settle "--exit-if-exists=$fpath"; then
+            debugts 1 "udevadm settle returned $?"
+            return 1
+        fi
+        debugts 1 "udev settled for $fpath"
+    fi
+
+    [ -b "$fpath" ]
+    STATE_CDROM_PROBED=$?
+    return "${STATE_CDROM_PROBED}"
 }
 
 probe_floppy() {
