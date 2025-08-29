@@ -157,6 +157,33 @@ if init_system == 'systemd'
     install_mode: 'rw-r--r--',
     install_tag: 'systemd',
   )
+elif init_system == 'sysvinit_openrc'
+  openrc = dependency('openrc')
+  udev = dependency('udev')
+  openrc_initd_dir = '/etc/init.d'
+  udev_dir = udev.get_variable(pkgconfig: 'udevdir')
+  install_data(
+    'udev/66-azure-ephemeral.rules',
+    install_dir: udev_dir / 'rules.d',
+    install_mode: 'rw-r--r--',
+    install_tag: 'openrc',
+  )
+
+  install_data(
+    run_command(find, 'sysvinit/openrc', '-type', 'f', check: true).stdout().strip().split('\n'),
+    install_dir: openrc_initd_dir,
+    install_mode: 'rwxr-xr-x',
+    install_tag: 'openrc',
+  )
+
+  install_data(
+    [
+      'tools/cloud-init-hotplugd',
+    ],
+    install_dir: lib_exec_dir,
+    install_mode: 'rwxr-xr-x',
+    install_tag: 'bin',
+  )
 endif
 
 custom_target(
