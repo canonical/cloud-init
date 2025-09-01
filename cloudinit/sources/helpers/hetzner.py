@@ -8,10 +8,8 @@ from typing import Optional
 
 
 def skip_retry_on_empty_response(cause: url_helper.UrlError) -> bool:
-    """Returns False if cause.code is 200 and 'Content-Length' is '0'."""
-    return not (
-        cause.code == 200 and cause.headers.get("Content-Length") == "0"
-    )
+    """Returns False if cause.code is 204."""
+    return cause.code != 204
 
 
 def get_metadata(
@@ -26,7 +24,7 @@ def get_metadata(
     try:
         if not exception_cb:
             # It is ok for userdata to not exist (thats why we are stopping if
-            # response is empty) and just in that case returning an empty
+            # HTTP code is 204) and just in that case returning an empty
             # string.
             exception_cb = skip_retry_on_empty_response
         url, contents = url_helper.wait_for_url(
@@ -38,7 +36,7 @@ def get_metadata(
         )
         return url, contents
     except url_helper.UrlError as e:
-        if e.code == 200 and e.headers.get("Content-Length") == "0":
+        if e.code == 204:
             return e.url, b""
 
 
