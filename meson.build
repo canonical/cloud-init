@@ -28,16 +28,18 @@ install_subdir(
 )
 
 # Binaries and script entrypoints
-bash_completions_dir = dependency('bash-completion').get_variable(
-  pkgconfig: 'completionsdir',
-  default_value: get_option('datadir') / 'bash-completion' / 'completions',
-)
-install_data(
-  'bash_completion/cloud-init',
-  install_dir: bash_completions_dir,
-  install_mode: 'rw-r--r--',
-  install_tag: 'bin',
-)
+if get_option('bash-completion')
+  bash_completions_dir = dependency('bash-completion').get_variable(
+    pkgconfig: 'completionsdir',
+    default_value: get_option('datadir') / 'bash-completion' / 'completions',
+  )
+  install_data(
+    'bash_completion/cloud-init',
+    install_dir: bash_completions_dir,
+    install_mode: 'rw-r--r--',
+    install_tag: 'bin',
+  )
+endif
 
 install_data(
   [
