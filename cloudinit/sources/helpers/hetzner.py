@@ -34,7 +34,7 @@ def get_metadata(
             exception_cb=exception_cb,
         )
         if not url:
-            raise RuntimeError("No data received from urls: '%s:", urls)
+            raise RuntimeError("No data received from urls: '%s':" % urls)
         return url, contents
     except url_helper.UrlError as e:
         if e.code == 204:
