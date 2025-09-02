@@ -1,8 +1,10 @@
 # Copyright (C) 2009-2010 Canonical Ltd.
 # Copyright (C) 2012, 2013 Hewlett-Packard Development Company, L.P.
+# Copyright (C) 2025 Raspberry Pi Ltd.
 #
 # Author: Scott Moser <scott.moser@canonical.com>
 # Author: Juerg Haefliger <juerg.haefliger@hp.com>
+# Author: Paul Oberosler <paul.oberosler@raspberrypi.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 """SSH: Configure SSH and SSH keys"""
@@ -250,6 +252,10 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             keys.extend(cfgkeys)
 
         apply_credentials(keys, user, disable_root, disable_root_opts)
+
+        enable_service = util.get_cfg_option_bool(cfg, "enable_ssh", False)
+        if enable_service:
+            ssh_util.enable_service(cloud.distro)
     except Exception:
         util.logexc(LOG, "Applying SSH credentials failed!")
 
