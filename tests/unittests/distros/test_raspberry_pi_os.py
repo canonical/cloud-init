@@ -129,7 +129,7 @@ class TestRaspberryPiOS:
         args, kwargs = m_subp.call_args
         assert args[0][0] in (
             "/usr/lib/userconf-pi/userconf",
-            "/lib/userconf-pi/userconf"
+            "/lib/userconf-pi/userconf",
         )
         assert args[0][1] == "pi"
         # No env expected
@@ -152,9 +152,7 @@ class TestRaspberryPiOS:
         M_PATH + "subp.subp",
         side_effect=ProcessExecutionError("userconf failed"),
     )
-    def test_add_user_rename_fails_logs_error(
-        self, m_subp, caplog
-    ):
+    def test_add_user_rename_fails_logs_error(self, m_subp, caplog):
         cls = fetch("raspberry_pi_os")
         distro = cls("raspberry-pi-os", {}, None)
 
