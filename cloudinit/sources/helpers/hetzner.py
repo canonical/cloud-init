@@ -3,7 +3,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from typing import Optional
+from typing import Optional, Tuple
 
 from cloudinit import net, url_helper
 
@@ -16,12 +16,10 @@ def skip_retry_on_empty_response(cause: url_helper.UrlError) -> bool:
 def get_metadata(
     urls,
     max_wait=120,
-    sec_between=2,
-    retries=30,
     timeout=2,
     sleep_time=2,
     exception_cb=None,
-) -> tuple[str, bytes]:
+) -> Tuple[Optional[str], bytes]:
     try:
         if not exception_cb:
             # It is ok for userdata to not exist (thats why we are stopping if
@@ -35,10 +33,13 @@ def get_metadata(
             sleep_time=sleep_time,
             exception_cb=exception_cb,
         )
+        if not url:
+            raise RuntimeError("No data received from urls: '%s:", urls)
         return url, contents
     except url_helper.UrlError as e:
         if e.code == 204:
             return e.url, b""
+        raise
 
 
 def get_interface_name_from_mac(mac: str) -> Optional[str]:

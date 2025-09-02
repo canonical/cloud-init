@@ -16,12 +16,6 @@ from cloudinit.net.ephemeral import EphemeralIPNetwork
 
 LOG = logging.getLogger(__name__)
 
-BASE_URLS_V1 = [
-    f"http://[fe80::a9fe:a9fe%25{net.find_fallback_nic()}]/hetzner/v1/",
-    "http://169.254.169.254/hetzner/v1/",
-]
-
-
 BUILTIN_DS_CONFIG = {
     "metadata_path": "metadata",
     "metadata_private_networks_path": "metadata/private-networks",
@@ -40,6 +34,13 @@ EXTRA_HOTPLUG_UDEV_RULES = """
 SUBSYSTEM=="net", ATTR{address}=="86:*", GOTO="cloudinit_hook"
 GOTO="cloudinit_end"
 """
+
+
+def base_urls_v1():
+    return (
+        f"http://[fe80::a9fe:a9fe%25{net.find_fallback_nic()}]/hetzner/v1/",
+        "http://169.254.169.254/hetzner/v1/",
+    )
 
 
 class DataSourceHetzner(sources.DataSource):
@@ -79,12 +80,25 @@ class DataSourceHetzner(sources.DataSource):
 
         self.extra_hotplug_udev_rules = EXTRA_HOTPLUG_UDEV_RULES
 
+    def _unpickle(self, ci_pkl_version: int) -> None:
+        super()._unpickle(ci_pkl_version)
+        self.extra_hotplug_udev_rules = EXTRA_HOTPLUG_UDEV_RULES
+        self.wait_retry = self.ds_cfg.get("wait_retry", MD_WAIT_RETRY)
+        self.max_wait = self.ds_cfg.get("max_wait", MD_MAX_WAIT)
+        self.sleep_time = self.ds_cfg.get("sleep_time", MD_SLEEP_TIME)
+        self.metadata_path = self.ds_cfg["metadata_path"]
+        self.metadata_private_networks_path = self.ds_cfg[
+            "metadata_private_networks_path"
+        ]
+        self.userdata_path = self.ds_cfg["userdata_path"]
+
     def _get_data(self):
         (on_hetzner, serial) = get_hcloud_data()
 
         if not on_hetzner:
             return False
 
+        base_urls = base_urls_v1()
         try:
             with EphemeralIPNetwork(
                 self.distro,
@@ -97,13 +111,13 @@ class DataSourceHetzner(sources.DataSource):
                             url, "metadata/instance-id"
                         )
                     }
-                    for url in BASE_URLS_V1
+                    for url in base_urls
                 ],
             ):
                 url, contents = hc_helper.get_metadata(
                     [
                         url_helper.combine_url(url, self.metadata_path)
-                        for url in BASE_URLS_V1
+                        for url in base_urls
                     ],
                     max_wait=self.max_wait,
                     timeout=self.timeout,
@@ -116,7 +130,7 @@ class DataSourceHetzner(sources.DataSource):
                         url_helper.combine_url(
                             url, self.metadata_private_networks_path
                         )
-                        for url in BASE_URLS_V1
+                        for url in base_urls
                     ],
                     max_wait=self.max_wait,
                     timeout=self.timeout,
@@ -129,7 +143,7 @@ class DataSourceHetzner(sources.DataSource):
                 url, ud = hc_helper.get_metadata(
                     [
                         url_helper.combine_url(url, self.userdata_path)
-                        for url in BASE_URLS_V1
+                        for url in base_urls
                     ],
                     max_wait=self.max_wait,
                     timeout=self.timeout,
