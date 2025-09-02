@@ -17,13 +17,13 @@ SystemD
 
 Systems using systemd may be configured to start a service after cloud-init
 completes. This may be accomplished by including
-``After=cloud-final.service multi-user.target`` in the unit file. For example:
+``After=cloud-init.target multi-user.target`` in the unit file. For example:
 
 .. code-block::
 
     [Unit]
     Description=Example service
-    After=cloud-final.service multi-user.target
+    After=cloud-init.target multi-user.target
 
     [Service]
     Type=oneshot
