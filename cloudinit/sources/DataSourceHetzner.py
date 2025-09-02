@@ -9,7 +9,7 @@ https://docs.hetzner.cloud/"""
 import logging
 
 import cloudinit.sources.helpers.hetzner as hc_helper
-from cloudinit import dmi, net, sources, util, url_helper
+from cloudinit import dmi, net, sources, url_helper, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralIPNetwork

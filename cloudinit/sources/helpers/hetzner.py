@@ -3,8 +3,9 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import url_helper, net
 from typing import Optional
+
+from cloudinit import net, url_helper
 
 
 def skip_retry_on_empty_response(cause: url_helper.UrlError) -> bool:
