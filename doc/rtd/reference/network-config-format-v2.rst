@@ -244,7 +244,9 @@ through DHCP or RA. Each sequence entry is in CIDR notation, i.e., of the
 form ``addr/prefixlen``. ``addr`` is an IPv4 or IPv6 address as recognized
 by ``inet_pton(3)`` and ``prefixlen`` the number of bits of the subnet.
 
-Example: ``addresses: [192.168.14.2/24, 2001:1::1/64]``
+Example: ::
+
+  addresses: [192.168.14.2/24, 2001:1::1/64]
 
 ``gateway4: or gateway6: <(scalar)>``
 -------------------------------------
@@ -254,8 +256,13 @@ Set default gateway for IPv4/6, for manual address configuration. This
 requires setting ``addresses`` too. Gateway IPs must be in a form
 recognized by ``inet_pton(3)``
 
-Example for IPv4: ``gateway4: 172.16.0.1``
-Example for IPv6: ``gateway6: 2001:4::1``
+Example for IPv4: ::
+
+  gateway4: 172.16.0.1
+
+Example for IPv6: ::
+
+  gateway6: 2001:4::1
 
 ``mtu: <MTU SizeBytes>``
 ------------------------
@@ -289,12 +296,15 @@ Example: ::
 -----------------------------------
 
 Add device specific routes. Each mapping includes a ``to``, ``via`` key
-with an IPv4 or IPv6 address as value. ``metric`` is an optional value.
+with an IPv4 or IPv6 address as value. ``to: default`` may be used to
+configure the default route. ``metric`` is an optional value.
+``table`` is an optional numeric ID or name of the routing table for
+policy-based routing.
 
 Example: ::
 
   routes:
-   - to: 0.0.0.0/0
+   - to: default  # could be 0.0.0.0/0 optionally
      via: 10.23.2.1
      metric: 3
 

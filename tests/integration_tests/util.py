@@ -6,6 +6,7 @@ import re
 import time
 from collections import namedtuple
 from contextlib import contextmanager
+from datetime import datetime
 from functools import lru_cache
 from itertools import chain
 from pathlib import Path
@@ -85,6 +86,7 @@ def verify_clean_boot(
     require_deprecations: Optional[list] = None,
     require_warnings: Optional[list] = None,
     require_errors: Optional[list] = None,
+    verify_schema: Optional[bool] = True,
 ):
     """Raise exception if the client experienced unexpected conditions.
 
@@ -112,6 +114,7 @@ def verify_clean_boot(
         require
     :param require_warnings: list of expected warning messages to require
     :param require_errors: list of expected error messages to require
+    :param verify_schema: bool set True to validate cloud-init schema --system
     """
 
     def append_or_create_list(
@@ -185,6 +188,7 @@ def verify_clean_boot(
         require_deprecations=require_deprecations,
         require_warnings=require_warnings,
         require_errors=require_errors,
+        verify_schema=verify_schema,
     )
 
 
@@ -197,6 +201,7 @@ def _verify_clean_boot(
     require_deprecations: Optional[list] = None,
     require_warnings: Optional[list] = None,
     require_errors: Optional[list] = None,
+    verify_schema: Optional[bool] = True,
 ):
     ignore_deprecations = ignore_deprecations or []
     ignore_errors = ignore_errors or []
@@ -386,11 +391,22 @@ def _verify_clean_boot(
             f"Expected rc={rc}, received rc={out.return_code}\nstdout: "
             f"{out.stdout}\nstderr: {out.stderr}"
         )
+    if not verify_schema:
+        return
     schema = instance.execute("cloud-init schema --system --annotate")
-    assert schema.ok, (
-        f"Schema validation failed\nstdout:{schema.stdout}"
-        f"\nstderr:\n{schema.stderr}"
-    )
+    if "ibm" == PLATFORM:
+        # IBM provides invalid vendor-data resulting in schema errors
+        assert "Invalid schema: vendor-data" in schema.stderr
+        assert not schema.ok, (
+            f"Expected IBM schema validation errors due to vendor-data, did "
+            f"IBM images resolve this?\nstdout: {schema.stdout}\n"
+            f"stderr:\n{schema.stderr}"
+        )
+    else:
+        assert schema.ok, (
+            f"Schema validation failed\nstdout:{schema.stdout}"
+            f"\nstderr:\n{schema.stderr}"
+        )
 
 
 def verify_clean_log(log: str, ignore_deprecations: bool = True):
@@ -648,3 +664,31 @@ def network_wait_logged(log: str) -> bool:
         "Running command "
         "['systemctl', 'start', 'systemd-networkd-wait-online.service']"
     ) in log
+
+
+def get_datetime_from_string(
+    str, regex, datetime_strformat="%Y-%m-%d %H:%M:%S.%f%z"
+):
+    """
+    Extract datetime from a given line in a string
+    """
+    matched = re.search(regex, str, re.M)
+    assert matched, (
+        f"Unable to find the datetime using the regex {regex}",
+        f"inside the string {str}",
+    )
+
+    try:
+        converted_datetime = datetime.strptime(
+            matched.group(1), datetime_strformat
+        )
+    except ValueError:
+        pytest.fail(
+            " ".join(
+                (
+                    f"Unable to parse the datetime {matched.group(1)}",
+                    f"using the format {datetime_strformat}",
+                )
+            )
+        )
+    return converted_datetime

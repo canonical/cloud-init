@@ -19,7 +19,7 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import helpers, subp, util
+from cloudinit import subp, util
 
 
 @pytest.fixture(autouse=True, scope="function")
@@ -95,8 +95,8 @@ def disable_subp_usage(request, fixture_utils):
 
     Note that this can only catch invocations where the ``subp`` module is
     imported and ``subp.subp(...)`` is called.  ``from cloudinit.subp import
-    subp`` imports happen before the patching here (or the CiTestCase
-    monkey-patching) happens, so are left untouched.
+    subp`` is left untouched because those imports happen before the patching
+    happens here.
 
     While ``disable_subp_usage`` unconditionally patches
     ``cloudinit.subp.subp``, any test-local patching will override this
@@ -128,11 +128,6 @@ def disable_subp_usage(request, fixture_utils):
         def test_several_things(self):
             subp.subp(["bash"])
             subp.subp(["whoami"])
-
-    This fixture (roughly) mirrors the functionality of
-    ``CiTestCase.allowed_subp``.  N.B. While autouse fixtures do affect
-    non-pytest tests, CiTestCase's ``allowed_subp`` does take precedence (and
-    we have ``TestDisableSubpUsageInTestSubclass`` to confirm that).
     """
     allow_subp_for = fixture_utils.closest_marker_args_or(
         request, "allow_subp_for", None
@@ -195,22 +190,6 @@ def mocked_responses():
 
     with _responses.RequestsMock(assert_all_requests_are_fired=False) as rsps:
         yield rsps
-
-
-@pytest.fixture
-def paths(tmpdir):
-    """
-    Return a helpers.Paths object configured to use a tmpdir.
-
-    (This uses the builtin tmpdir fixture.)
-    """
-    dirs = {
-        "cloud_dir": tmpdir.mkdir("cloud_dir").strpath,
-        "docs_dir": tmpdir.mkdir("docs_dir").strpath,
-        "run_dir": tmpdir.mkdir("run_dir").strpath,
-        "templates_dir": tmpdir.mkdir("templates_dir").strpath,
-    }
-    return helpers.Paths(dirs)
 
 
 @pytest.fixture(autouse=True, scope="session")

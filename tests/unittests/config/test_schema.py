@@ -47,7 +47,6 @@ from tests.helpers import cloud_init_project_dir
 from tests.hypothesis import given
 from tests.hypothesis_jsonschema import from_schema
 from tests.unittests.helpers import (
-    CiTestCase,
     does_not_raise,
     mock,
     skipUnlessHypothesisJsonSchema,
@@ -183,13 +182,13 @@ class TestCheckSchema(unittest.TestCase):
             },
             "new",
         )
-        with self.assertRaises(AssertionError):
+        with pytest.raises(AssertionError):
             check_deprecation_keys({"changed": True}, "changed")
-        with self.assertRaises(AssertionError):
+        with pytest.raises(AssertionError):
             check_deprecation_keys(
                 {"properties": {"deprecated": True}}, "deprecated"
             )
-        with self.assertRaises(AssertionError):
+        with pytest.raises(AssertionError):
             check_deprecation_keys(
                 {"properties": {"properties": {"new": True}}}, "new"
             )
@@ -254,6 +253,7 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_phone_home"},
             {"$ref": "#/$defs/cc_power_state_change"},
             {"$ref": "#/$defs/cc_puppet"},
+            {"$ref": "#/$defs/cc_raspberry_pi"},
             {"$ref": "#/$defs/cc_resizefs"},
             {"$ref": "#/$defs/cc_resolv_conf"},
             {"$ref": "#/$defs/cc_rh_subscription"},
@@ -323,7 +323,7 @@ class TestModuleDocs:
             )
 
 
-class SchemaValidationErrorTest(CiTestCase):
+class SchemaValidationErrorTest:
     """Test validate_cloudconfig_schema"""
 
     def test_schema_validation_error_expects_schema_errors(self):
@@ -335,14 +335,14 @@ class SchemaValidationErrorTest(CiTestCase):
             ),
         ]
         exception = SchemaValidationError(schema_errors=errors)
-        self.assertIsInstance(exception, Exception)
-        self.assertEqual(exception.schema_errors, errors)
-        self.assertEqual(
+        assert isinstance(exception, Exception)
+        assert exception.schema_errors == errors
+        assert (
             'Cloud config schema errors: key.path: unexpected key "junk", '
-            'key2.path: "-123" is not a valid "hostname" format',
-            str(exception),
+            'key2.path: "-123" is not a valid "hostname" format'
+            == str(exception)
         )
-        self.assertTrue(isinstance(exception, ValueError))
+        assert isinstance(exception, ValueError)
 
 
 class FakeNetplanParserException(Exception):
@@ -456,6 +456,9 @@ class TestValidateCloudConfigSchema:
         """When strict is False validate_cloudconfig_schema emits warnings."""
         schema = {"properties": {"p1": {"type": "string"}}}
         validate_cloudconfig_schema({"p1": -1}, schema=schema, strict=False)
+        assert (
+            caplog.record_tuples and len(caplog.record_tuples) == 1
+        ), caplog.record_tuples
         [(module, log_level, log_msg)] = caplog.record_tuples
         assert "cloudinit.config.schema" == module
         assert logging.WARNING == log_level
@@ -1503,6 +1506,13 @@ class TestSchemaDocExamples:
     def test_cloud_config_schema_doc_examples(self, example_path):
         validate_cloudconfig_file(example_path, self.schema)
 
+        # Assert no use of deprecated keys
+        validate_cloudconfig_schema(
+            config=yaml.safe_load(open(example_path)),
+            schema=self.schema,
+            strict=True,
+        )
+
     @pytest.mark.parametrize(
         "example_path",
         _get_meta_doc_examples(file_glob="network-config-v1*yaml"),
@@ -1797,6 +1807,27 @@ class TestNetworkSchema:
                 does_not_raise(),
                 "",
                 id="GH-4710_mtu_none_and_str_address",
+            ),
+            pytest.param(
+                {
+                    "network": {
+                        "version": 1,
+                        "config": [
+                            {
+                                "type": "physical",
+                                "name": "eth0",
+                                "subnets": [
+                                    {"type": "dhcp4", "metric": 100},
+                                    {"type": "dhcp6", "metric": 1000},
+                                ],
+                            }
+                        ],
+                    }
+                },
+                SchemaType.NETWORK_CONFIG_V1,
+                does_not_raise(),
+                "",
+                id="subnet_metric_validation",
             ),
         ),
     )

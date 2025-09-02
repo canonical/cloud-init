@@ -1,9 +1,6 @@
 CWD=$(shell pwd)
 VARIANT ?= ubuntu
 
-YAML_FILES=$(shell find cloudinit tests tools -name "*.yaml" -type f )
-YAML_FILES+=$(shell find doc/examples -name "cloud-config*.txt" -type f )
-
 PYTHON ?= python3
 
 NUM_ITER ?= 100
@@ -19,7 +16,7 @@ BENCHMARK=./tools/benchmark.sh
 
 all: check
 
-check: check_version test yaml
+check: check_version test
 
 style-check: lint
 
@@ -93,9 +90,6 @@ clean_release:
 clean: clean_pyc clean_pytest clean_packaging clean_release
 	rm -rf doc/rtd_html .tox .coverage tags $(GENERATOR_F)
 
-yaml:
-	@$(PYTHON) $(CWD)/tools/validate-yaml.py $(YAML_FILES)
-
 rpm:
 	$(PYTHON) ./packages/brpm --distro=$(distro)
 
@@ -125,7 +119,7 @@ fmt-tip:
 	tox -e do_format_tip && tox -e check_format_tip
 
 
-.PHONY: all check test lint clean rpm srpm deb deb-src yaml
+.PHONY: all check test lint clean rpm srpm deb deb-src
 .PHONY: check_version clean_pyc
 .PHONY: unittest style-check render-template benchmark-generator
 .PHONY: clean_pytest clean_packaging clean_release doc

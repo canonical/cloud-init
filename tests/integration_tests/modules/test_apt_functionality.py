@@ -14,7 +14,12 @@ from tests.integration_tests.integration_settings import (
     KEEP_INSTANCE,
     PLATFORM,
 )
-from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU, MANTIC
+from tests.integration_tests.releases import (
+    CURRENT_RELEASE,
+    IS_UBUNTU,
+    MANTIC,
+    QUESTING,
+)
 from tests.integration_tests.util import (
     get_feature_flag_value,
     verify_clean_boot,
@@ -308,6 +313,8 @@ apt:
       - default
 """
 DEFAULT_DATA = _DEFAULT_DATA.format(uri="")
+# IBM sets sources_list in vendordata. Unset it
+IBM_DEFAULT_DATA = DEFAULT_DATA + "\n  sources_list: ''\n"
 
 
 @pytest.mark.skipif(not IS_UBUNTU, reason="Apt usage")
@@ -329,13 +336,17 @@ class TestDefaults:
         sources_list = class_client.read_from_file(src_file)
         assert "{}.clouds.archive.ubuntu.com".format(zone) in sources_list
 
+    @pytest.mark.skipif(
+        PLATFORM == "ibm",
+        reason="IBM has apt.sources_list in vendor-data overriding defaults",
+    )
     def test_security(self, class_client: IntegrationInstance):
         """Test apt default security sources."""
         series = CURRENT_RELEASE.series
         feature_deb822 = is_true(
             get_feature_flag_value(class_client, "APT_DEB822_SOURCE_LIST_FILE")
         )
-        if class_client.settings.PLATFORM == "azure":
+        if PLATFORM == "azure":
             sec_url = "http://azure.archive.ubuntu.com/ubuntu/"
         else:
             sec_url = "http://security.ubuntu.com/ubuntu"
@@ -375,21 +386,58 @@ class TestDefaults:
             )
 
 
+@pytest.mark.skipif(not IS_UBUNTU, reason="Apt usage")
+@pytest.mark.skipif(
+    PLATFORM != "ibm",
+    reason="Overrides IBM-specific apt.sources_list in vendor-data",
+)
+@pytest.mark.user_data(IBM_DEFAULT_DATA)
+def test_security_ibm(client: IntegrationInstance):
+    """Test IBM APT default security sources."""
+    series = CURRENT_RELEASE.series
+    feature_deb822 = is_true(
+        get_feature_flag_value(client, "APT_DEB822_SOURCE_LIST_FILE")
+    )
+    sec_url = "http://mirrors.adn.networklayer.com/ubuntu"
+    if feature_deb822:
+        expected_cfg = dedent(
+            f"""\
+            Types: deb
+            URIs: {sec_url}
+            Suites: {series}-security
+            """
+        )
+        sources_list = client.read_from_file(DEB822_SOURCES_FILE)
+        assert expected_cfg in sources_list
+    else:
+        sources_list = client.read_from_file(ORIG_SOURCES_FILE)
+        # 3 lines from main, universe, and multiverse
+        sec_deb_line = f"deb {sec_url} {series}-security"
+        sec_src_deb_line = sec_deb_line.replace("deb ", "# deb-src ")
+        assert 3 == sources_list.count(sec_deb_line)
+        assert 3 == sources_list.count(sec_src_deb_line)
+
+
 DEFAULT_DATA_WITH_URI = _DEFAULT_DATA.format(
     uri='uri: "http://something.random.invalid/ubuntu"'
 )
 
 
-@pytest.mark.user_data(DEFAULT_DATA_WITH_URI)
-def test_default_primary_with_uri(client: IntegrationInstance):
+@pytest.mark.skipif(not IS_UBUNTU, reason="Apt usage")
+def test_default_primary_with_uri(session_cloud: IntegrationCloud):
     """Test apt default primary sources."""
-    feature_deb822 = is_true(
-        get_feature_flag_value(client, "APT_DEB822_SOURCE_LIST_FILE")
-    )
-    src_file = DEB822_SOURCES_FILE if feature_deb822 else ORIG_SOURCES_FILE
-    sources_list = client.read_from_file(src_file)
-    assert "archive.ubuntu.com" not in sources_list
-    assert "something.random.invalid" in sources_list
+    userdata = DEFAULT_DATA_WITH_URI
+    if PLATFORM == "ibm":
+        # IBM provides apt.sources_list in vendordata. Unset it
+        userdata += "\n  sources_list: ''\n"
+    with session_cloud.launch(user_data=userdata) as client:
+        feature_deb822 = is_true(
+            get_feature_flag_value(client, "APT_DEB822_SOURCE_LIST_FILE")
+        )
+        src_file = DEB822_SOURCES_FILE if feature_deb822 else ORIG_SOURCES_FILE
+        sources_list = client.read_from_file(src_file)
+        assert "archive.ubuntu.com" not in sources_list
+        assert "something.random.invalid" in sources_list
 
 
 DISABLED_DATA = """\
@@ -501,6 +549,10 @@ def _do_oci_customization(cloud_config: str):
 
 
 @pytest.mark.skipif(not IS_UBUNTU, reason="Apt usage")
+@pytest.mark.skipif(
+    CURRENT_RELEASE == QUESTING,
+    reason="Trying to remove gpg on Questing makes apt unhappy",
+)
 def test_install_missing_deps(session_cloud: IntegrationCloud):
     """
     Test the installation of missing dependencies using apt on an Ubuntu

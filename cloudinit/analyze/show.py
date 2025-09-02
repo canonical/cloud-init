@@ -8,6 +8,7 @@ import datetime
 import json
 import sys
 import time
+from typing import IO, Any, Dict, List, Optional, Tuple, Union, cast
 
 from cloudinit import subp, util
 from cloudinit.distros import uses_systemd
@@ -50,8 +51,10 @@ FAIL_CODE = "failure"
 CONTAINER_CODE = "container"
 TIMESTAMP_UNKNOWN = (FAIL_CODE, -1, -1, -1)
 
+Event = Dict
 
-def format_record(msg, event):
+
+def format_record(msg: str, event: Event) -> str:
     for i, j in format_key.items():
         if i in msg:
             # ensure consistent formatting of time values
@@ -62,56 +65,68 @@ def format_record(msg, event):
     return msg.format(**event)
 
 
-def event_name(event):
+def event_name(event: Optional[Event]) -> Optional[str]:
     if event:
         return event.get("name")
     return None
 
 
-def event_type(event):
+def event_type(event: Optional[Event]) -> Optional[str]:
     if event:
         return event.get("event_type")
     return None
 
 
-def event_parent(event):
-    if event:
-        return event_name(event).split("/")[0]
+def event_parent(event: Optional[Event]) -> Optional[str]:
+    name = event_name(event)
+    if name:
+        return name.split("/")[0]
     return None
 
 
-def event_timestamp(event):
-    return float(event.get("timestamp"))
+def event_timestamp(event: Event) -> float:
+    ts = event.get("timestamp")
+    if ts is None:
+        raise ValueError("Event is missing a 'timestamp'")
+    return float(ts)
 
 
-def event_datetime(event):
+def event_datetime(event: Event) -> datetime.datetime:
     return datetime.datetime.fromtimestamp(
         event_timestamp(event), datetime.timezone.utc
     )
 
 
-def delta_seconds(t1, t2):
+def delta_seconds(t1: datetime.datetime, t2: datetime.datetime) -> float:
     return (t2 - t1).total_seconds()
 
 
-def event_duration(start, finish):
+def event_duration(start: Event, finish: Event) -> float:
     return delta_seconds(event_datetime(start), event_datetime(finish))
 
 
-def event_record(start_time, start, finish):
+def event_record(
+    start_time: datetime.datetime,
+    start: Event,
+    finish: Event,
+) -> Event:
     record = finish.copy()
+    name = event_name(start)
+    indent = "|"
+    if name:
+        indent += " " * (name.count("/") - 1) + "`->"
     record.update(
         {
             "delta": event_duration(start, finish),
             "elapsed": delta_seconds(start_time, event_datetime(start)),
-            "indent": "|" + " " * (event_name(start).count("/") - 1) + "`->",
+            "indent": indent,
         }
     )
 
     return record
 
 
-def total_time_record(total_time):
+def total_time_record(total_time: float) -> str:
     return "Total Time: %3.5f seconds\n" % total_time
 
 
@@ -120,18 +135,25 @@ class SystemctlReader:
     Class for dealing with all systemctl subp calls in a consistent manner.
     """
 
-    def __init__(self, property, parameter=None):
-        self.epoch = None
-        self.args = [subp.which("systemctl"), "show"]
+    def __init__(self, property: str, parameter: Optional[str] = None):
+        self.stdout: Optional[str] = None
+        self.args: Any = [subp.which("systemctl"), "show"]
+
         if parameter:
             self.args.append(parameter)
-        self.args.extend(["-p", property])
+        # --timestamp=utc is needed for native date strings. Othwerise,
+        # the datetime will be returned in the local timezone (which would be
+        # a problem for strptime used later on in this method)
+        # This option does not affect monotonic properties (values as
+        # microsecond int)
+        self.args.extend(["-p", property, "--timestamp=us+utc"])
+
         # Don't want the init of our object to break. Instead of throwing
         # an exception, set an error code that gets checked when data is
         # requested from the object
-        self.failure = self.subp()
+        self.failure = self._subp()
 
-    def subp(self):
+    def _subp(self) -> Optional[Union[str, Exception]]:
         """
         Make a subp call based on set args and handle errors by setting
         failure code
@@ -142,12 +164,12 @@ class SystemctlReader:
             value, err = subp.subp(self.args, capture=True)
             if err:
                 return err
-            self.epoch = value
+            self.stdout = value
             return None
         except Exception as systemctl_fail:
             return systemctl_fail
 
-    def parse_epoch_as_float(self):
+    def convert_val_to_float(self) -> float:
         """
         If subp call succeeded, return the timestamp from subp as a float.
 
@@ -161,14 +183,39 @@ class SystemctlReader:
                 "Subprocess call to systemctl has failed, "
                 "returning error code ({})".format(self.failure)
             )
+        # this should never happen as the call to subp succeeded
+
+        if self.stdout is None:
+            raise RuntimeError(
+                "stdout of subprocess call to systemctl is None"
+            )
+
         # Output from systemctl show has the format Property=Value.
-        # For example, UserspaceMonotonic=1929304
-        timestamp = self.epoch.split("=")[1]
-        # Timestamps reported by systemctl are in microseconds, converting
-        return float(timestamp) / 1000000
+
+        val = self.stdout.split("=")[1].strip()
+
+        if val.isnumeric():
+            # Float Timestamps reported by systemctl are in
+            # microseconds, converting to seconds
+            # For example, UserspaceMonotonic=1929304
+            timestamp = float(val) / 1000000
+        else:
+            # The format in this case is always "%a %Y-%m-%d %H:%M:%S %Z"
+            # For example, UserspaceTimestamp=Wed 2025-07-30 05:14:32 UTC
+
+            # strptime returns a naive datetime so we need to explictly
+            # set the timezone of this datetime
+            # at the timezone of the parsed string (utc)
+            timestamp = (
+                datetime.datetime.strptime(val, "%a %Y-%m-%d %H:%M:%S.%f %Z")
+                .replace(tzinfo=datetime.timezone.utc)
+                .timestamp()
+            )
+
+        return timestamp
 
 
-def dist_check_timestamp():
+def dist_check_timestamp() -> Tuple[str, float, float, float]:
     """
     Determine which init system a particular linux distro is using.
     Each init system (systemd, etc) has a different way of
@@ -190,7 +237,7 @@ def dist_check_timestamp():
     return TIMESTAMP_UNKNOWN
 
 
-def gather_timestamps_using_dmesg():
+def gather_timestamps_using_dmesg() -> Tuple[str, float, float, float]:
     """
     Gather timestamps that corresponds to kernel begin initialization,
     kernel finish initialization using dmesg as opposed to systemctl
@@ -221,29 +268,45 @@ def gather_timestamps_using_dmesg():
     return TIMESTAMP_UNKNOWN
 
 
-def gather_timestamps_using_systemd():
+def gather_timestamps_using_systemd() -> Tuple[str, float, float, float]:
     """
     Gather timestamps that corresponds to kernel begin initialization,
     kernel finish initialization. and cloud-init systemd unit activation
 
-    :return: the three timestamps
+    :return: the three timesread_propertystamps
     """
-    kernel_start = float(time.time()) - float(util.uptime())
     try:
-        delta_k_end = SystemctlReader(
-            "UserspaceTimestampMonotonic"
-        ).parse_epoch_as_float()
-        delta_ci_s = SystemctlReader(
-            "InactiveExitTimestampMonotonic", "cloud-init-local"
-        ).parse_epoch_as_float()
-        base_time = kernel_start
-        status = SUCCESS_CODE
-        # lxc based containers do not set their monotonic zero point to be when
-        # the container starts, instead keep using host boot as zero point
+        # The use of the monotonic timestamps is needed in cloud-init-related
+        # dates to account for the 2-second delay when cloud-init sets up NTP
         if util.is_container():
-            status = CONTAINER_CODE
-        kernel_end = base_time + delta_k_end
-        cloudinit_sysd = base_time + delta_ci_s
+            # lxc based containers do not set their monotonic zero point to be
+            # when the container starts,
+            # instead keep using host boot as zero point
+            kernel_start = SystemctlReader(
+                "UserspaceTimestamp"
+            ).convert_val_to_float()
+            monotonic_offset = SystemctlReader(
+                "UserspaceTimestampMonotonic"
+            ).convert_val_to_float()
+        else:
+            kernel_start = SystemctlReader(
+                "KernelTimestamp"
+            ).convert_val_to_float()
+            monotonic_offset = SystemctlReader(
+                "KernelTimestampMonotonic"
+            ).convert_val_to_float()
+        kernel_end = (
+            SystemctlReader(
+                "UserspaceTimestampMonotonic"
+            ).convert_val_to_float()
+            - monotonic_offset
+        )
+        cloudinit_sysd = (
+            SystemctlReader(
+                "InactiveExitTimestampMonotonic", "cloud-init-local"
+            ).convert_val_to_float()
+            - monotonic_offset
+        )
 
     except Exception as e:
         # Except ALL exceptions as Systemctl reader can throw many different
@@ -251,13 +314,21 @@ def gather_timestamps_using_systemd():
         # obtained
         print(e)
         return TIMESTAMP_UNKNOWN
-    return status, kernel_start, kernel_end, cloudinit_sysd
+
+    status = CONTAINER_CODE if util.is_container() else SUCCESS_CODE
+
+    return (
+        status,
+        kernel_start,
+        kernel_start + kernel_end,
+        kernel_start + cloudinit_sysd,
+    )
 
 
 def generate_records(
-    events,
-    print_format="(%n) %d seconds in %I%D",
-):
+    events: List[Event],
+    print_format: str = "(%n) %d seconds in %I%D",
+) -> List[List[str]]:
     """
     Take in raw events and create parent-child dependencies between events
     in order to order events in chronological order.
@@ -270,7 +341,7 @@ def generate_records(
     """
 
     sorted_events = sorted(events, key=lambda x: x["timestamp"])
-    records = []
+    records: List[str] = []
     start_time = None
     total_time = 0.0
     stage_start_time = {}
@@ -299,6 +370,9 @@ def generate_records(
             # see if we have a pair
             if event_name(event) == event_name(next_evt):
                 if event_type(next_evt) == "finish":
+                    # next_evt is a dictionary because event_type has extracted
+                    # an event type from it:
+                    next_evt = cast(Dict, next_evt)
                     records.append(
                         format_record(
                             print_format,
@@ -313,12 +387,15 @@ def generate_records(
         else:
             prev_evt = unprocessed.pop()
             if event_name(event) == event_name(prev_evt):
-                record = event_record(start_time, prev_evt, event)
-                records.append(
-                    format_record("Finished stage: (%n) %d seconds", record)
-                    + "\n"
-                )
-                total_time += record.get("delta")
+                if start_time:
+                    record = event_record(start_time, prev_evt, event)
+                    records.append(
+                        format_record(
+                            "Finished stage: (%n) %d seconds", record
+                        )
+                        + "\n"
+                    )
+                    total_time += record.get("delta") or 0.0
             else:
                 # not a match, put it back
                 unprocessed.append(prev_evt)
@@ -328,7 +405,7 @@ def generate_records(
     return boot_records
 
 
-def show_events(events, print_format):
+def show_events(events: List[Event], print_format: str) -> List[List[str]]:
     """
     A passthrough method that makes it easier to call generate_records()
 
@@ -341,7 +418,7 @@ def show_events(events, print_format):
     return generate_records(events, print_format=print_format)
 
 
-def load_events_infile(infile):
+def load_events_infile(infile: IO) -> Tuple[Optional[Any], str]:
     """
     Takes in a log file, read it, and convert to json.
 

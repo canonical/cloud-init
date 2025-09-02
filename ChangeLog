@@ -1,3 +1,243 @@
+25.2
+ - fix: Ensure 822 template renders correctly on Debian (#6381) (GH: 6380)
+ - test: support systemctl try-reload-or-restart messaging alternatives
+   (#6377)
+ - test: increase 2nd disk size for disk setup tests (#6376)
+ - feat(clean): Add a new clean option to clean fstab entries (#6348)
+   [Ani Sinha]
+ - test: handle TMPDIR != "/tmp" (#6356) [Dan Bungert]
+ - fix: add openeuler hosts template to avoid cloud-init service failures
+   (#6328) [xqs]
+ - test: increase timeout on test_clean_package_install (#6362)
+ - test: relax checks on authorized keys (#6361)
+ - fix: Correct v2 ENI route and dns rendering (#6331)
+ - test: drop citestcase from i sources (#6346)
+ - test: drop citestcase from g and h sources (#6344)
+ - test: drop citestcase from c and d sources (#6336)
+ - test: drop citestcase from al* sources tests (#6318)
+ - disk_setup: Optionally use 'sfdisk' for GPT [Vitaly Kuznetsov] (GH: 5797)
+ - disk_setup: Fully support full GPT partition GUIDs [Vitaly Kuznetsov]
+ - fix(ENI): render keys with hyphens (#6333) (GH: 5234)
+ - fix: fixed defs types in cloudinit analyze dump (#6343) [abdulganiyy]
+ - feat(networkd): support vlan and bond rendering (#6324)
+   [Shreenidhi Shedi]
+ - fix(analyze-boot): use monotonic clock for containers #6322
+   [Mostafa Abdelwahab] (GH: 5773)
+ - clean: do not attempt to find datasource when cache has been cleaned
+   (#6325) [Ani Sinha]
+ - test: drop citestcase from azure_helper tests (#6335)
+ - chore: remove unused target arg from Activator.available
+ - chore: add typing to cloudinit.net.eni
+ - feat(azure): Implement the clean callback for DataSourceAzure (#6321)
+   [Amy Chen]
+ - feat(oracle): set keep_configuration to true for iscsi instances [a-dubs]
+ - feat(network): add keep_configuration setting to v1 [a-dubs]
+ - doc: Document how to wait for cloud-init
+ - doc: Document changed systemd order in 24.4
+ - fixed defs types in cloudinit analyze (#6308) [abdulganiyy]
+ - ci: downgrade LXD to fix integration tests (#6340)
+ - test: drop citestcase from azure source test (#6320)
+ - fix: catch and log exception during pip upgrade in ansible pull (#6301)
+   [Mostafa Abdelwahab] (GH: 6074)
+ - test: drop citestcase from some config tests
+ - fix: GCE datasource query issue (#3398) (#6279)
+   [ludovictual-system-u] (GH: 3398)
+ - test: drop citestcase from distro tests (#6317)
+ - test: drop citestcase from rest of config tests (#6314)
+ - ci: update patch checking to use current supported releases (#6315)
+ - test: drop FilesystemMockingTestCase (#6294) (GH: 5760)
+ - test: ensure image setup only runs once, even for xdist
+ - test: turn reaper into a fixture
+ - test: refactor obtaining session args into new function
+ - test: simplify passing of lxd_setup callback
+ - test: drop citestcase from analyze tests (#6312)
+ - test: drop FilesystemMockingTestCase in netconfig (#6290)
+ - test: expose tests.unittests.ditros._get_distro (#6290)
+ - doc: detailed examples of openstack config alternatives for non-x86
+   images (#6303)
+ - test: drop FilesystemMockingTestCase in smartos (#6291)
+ - test: drop some FilesystemMockingTestCases (#6284)
+ - docs: clarify what #include can include (#6309)
+ - doc(ssdlc): Add hardening page (#6297)
+ - docs: Document network device table and limitations (#6187)
+   [Bryan Fraschetti]
+ - fix: allow downstreams to strip invalid MTU (#6246) (GH: 6239)
+ - test: drop FilesystemMockingTestCase from cc tests (#6282)
+ - docs: use correct jinja content-type (#6296) (GH: 6027)
+ - test: drop ResponsesTestCase (#6277)
+ - test: Consolidate use of paths fixture (#6289)
+ - test: pytestify test_vmware.py (#6288) [Mostafa Abdelwahab]
+ - feat(ca_certs): Add CentOS support (#6287) [Kees Bakker]
+ - feat(wsl): Reuse metadata as Landscape installation_request_id (#6200)
+   [Carlos Nihelton]
+ - test: drop / pytestify ResourceUsingTestCase (#6276)
+ - docs(mounts): Correct fs-freq reference to fs_freq (#6262)
+   [ibrahim-mojalled] (GH: 6210)
+ - test: pytestify ds_identify tests (#6274)
+ - test: pytestify t/u/test_log.py (#6275)
+ - feat(hetzner): integrate private networks metadata (#6224)
+   [Thomas Boerger]
+ - test: pytestify cloudinit.s.helpers.netlink tests (#6273)
+ - Release 25.1.4
+ - Release 25.1.3
+ - fix: strict disable in ds-identify on no datasources found (LP: #2069607)
+ - test: add integration test to install cloud-init from clean state (#6260)
+ - docs: provide example3 for PAM and ssh_pwauth behavior (#27)
+ - fix: Make hotplug socket writable only by root (#25)
+ - fix: Don't attempt to identify non-x86 OpenStack instances (LP: #2069607)
+ - doc: update discourse release schedule link (#6263)
+ - doc: update discourse link
+ - chore: log URL when retrying 503s (#6264)
+ - test: add option to keep instance on error (#6241)
+ - eni.py: ensure that a "dns" entry is not rendered in interfaces file
+   (#6253) [dermotbradley]
+ - feat(azure): improve handling for reading VM ID (#6199) [Chris Patterson]
+ - fix: remove unnecessary 'Wants' from cloud-init-main.service (#6255)
+ - test: use latest version of LXD in integration tests (#6249)
+ - docs: include missing --seed flags in clean CLI (#6244) [Faizan Alam]
+ - ec2: Improve metadata retrieval by iterating all interfaces (#6233)
+   [yukariatlas] (GH: 6232)
+ - feat: Add Raspberry Pi OS support (#5827) [Paul]
+ - feat(azure): add interface to dhcp_log_func (#6238) [Chris Patterson]
+ - fix: fix untyped-defs on tests/unittests and cloudinit/sources (#6230)
+   [Ritvikj23]
+ - test: pre-fetch instance id when logging from reaper (#6234)
+ - feat: Add subnet metric support for netplan (#6222) [Artsiom]
+ - test: remove FilesystemMockingTestCase from test_cc_apk_configure.py
+   (#6226)
+ - fix: make 'cloud-init --all-stages' work interactively (#6211)
+ - test: remove FilesystemMockingTestCase from test_util.py (#6220)
+ - test: remove FilesystemMockingTestCase from test_dmi.py (#6219)
+ - docs: merge "Availability" and "Supported distros" pages (#6217)
+   [Jacob C. Chin]
+ - fix: ansible-pull multiple playbooks on older ansible ver < 2.12 (#6218)
+ - docs: remove monospace formatting from SSH section heading (#6215)
+   [Chad Dougherty]
+ - fix: no traceback on command line missing subcommand (#6214)
+   [Robert Schweikert]
+ - feat: Change ansible pull module type from dict to list (#6010)
+   [Amirhossein Shaerpour]
+ - test(apt): add questing versiong for hello pkg (#6213)
+ - docs: Use Noble for examples instead of Jammy (#6209) [Aarni Koskela]
+ - feat(ca_certs): add rocky to rhel distro overrides (#6208)
+   [Lukas Friedhoff]
+ - docs: ensure proper 'sudo' representation (#6196) (GH: 6195)
+ - fix(net): ignore udevadm failures when enumerating nics (#6185)
+   [Chris Patterson]
+ - Release 25.1.2 (#6197)
+ - revert "chore: Deprecate partially supported system config (#5515)"
+   (LP: #2100232)
+ - fix: copr builds of CentOS9 require CRB and baseurl in centos.repo
+   (#6192)
+ - chore: add fedora package build support for run-container and read-deps
+   (#6174)
+ - test: drop fixed xfail tests
+ - fix: simplify MAAS check logic
+ - feat(azure): allow unspecified user name (#6177) [Chris Patterson]
+ - fix: stop reporting error if cloud-init receives signal (#6159)
+   (GH: 6151)
+ - Fix: Add Ephemeral Network for CloudStackLocal DS (#6144)
+   [Bryan Fraschetti] (GH: 6143)
+ - docs: clarify examples for network addresses/gateway (#6186)
+   [Dan Bungert]
+ - fix: setup.py doesn't match AmazonLinux CPE 2.2 releases (#6173)
+ - fix: ensure MAAS datasource retries on failure (#6167) (LP: #2106671)
+ - cloud.cfg.tmpl: do not enable cc_reset_rmc for Alpine Linux (#6170)
+   [dermotbradley]
+ - tests: ibm avoid schema validation for DataSourceNone on ibm (#6168)
+ - tests: ibm fix apt and ds-id testing (#6168)
+ - test: fix integration test on new lxd versions (#6164)
+ - tests: ibm correct logged message. Invalid schema: vendor-data (#6163)
+ - tests: ibm expect invalid vendor-data in stderr (#6160)
+ - tests: ibm expect invalid vendor-data in stderr (#6158)
+ - tests: fix ibm expected warnings on invalid vendor-data schema (#6157)
+ - fix: drop udev remove action in hotplug (#6152) [yukariatlas]
+ - chore: remove reference to refresh_rmc_and_interface module (#6156)
+   [Ani Sinha]
+ - chore: reorder iface filters & log on inherited MAC (#6140)
+   [Wesley Hershberger]
+ - fix(azure): update ReportableErrorUnhandledException (#6133)
+   [Ksenija Stanojevic]
+ - chore: make auditd wait for cloud-init-local.service (#6138)
+   [Robert Schweikert]
+ - chore: allow custom pkg-config binary path (#6118)
+   [Alexandre Burgoni] (GH: 6099)
+ - fix: rename "reload-or-try-restart" to "try-reload-or-restart" (#6142)
+   [sxt1001]
+ - chore: make lint interpreter configurable (#6121) [Robert Schweikert]
+ - fix: ensure system sshd_config is not overwritten (#6105) [Sludge]
+ - fix(oracle): properly detect ipv6 only for private ULA addresses (#6123)
+   [Alec Warren]
+ - feat(oracle): downgrade warning log about falling back to imds (#6134)
+   [Alec Warren]
+ - Release 25.1.1 (#6120)
+ - chore: remove remaining references to .github-cla-signers (#6116)
+ - fix(cli): wrong usage output when invalid arg in subcommand (#6115)
+   [Dillon] (GH: 4609)
+ - fix(Azure): don't reraise FileNotFoundError during ephemeral setup
+   (#6113)
+ - fix(azure): handle unexpected exceptions during obtain_lease() (#6092)
+   [Ksenija Stanojevic]
+ - feat: add callback for datasources to clean config changes (#6100)
+   [Ani Sinha]
+ - chore: Fix untyped-defs on tests/unittests/config (#6104) [Vlad Apostol]
+ - chore: switch to has-signed-canonical-cla GH action (#6109)
+ - Allow to set mac_address for VLAN subinterface (#6081)
+   [jumpojoy] (GH: 5364)
+ - change retry sleep for wireserver (#6107) [Ksenija Stanojevic]
+ - test: pytestify cc_chef tests, add migration test
+ - chef
+ - chef: migrate files in old config directories for backups and cache
+ - fix: correct the path for Chef's backups (#5994)
+ - test: replace version check with has_netplanlib() (#6106)
+ - feat(vmware): Support network events (#6063) [Andrew Kutz]
+ - test: correctly mock fallback nic in openstack tests (#6101)
+ - fix: Remove erroneous EC2 reference from 503 warning (#6077)
+ - test: update keys_to_console timeout (#6087)
+ - test: move to has_netplanlib() in test_networking.py (#6089)
+ - fix: NM reload and bring up individual network conns (#6073) [Ani Sinha]
+ - ci(oracle): fix issue installing cloud-init on custom image creation
+   (#6084) [Alec Warren]
+ - test: decouple netplan integrations from libnetplan SRU (#6085)
+ - test: warning on users/groups test is version specific (#6078)
+ - test: fix errors in custom datasource networking (#6076)
+ - test: ensure software-properties-common properly removed (#6080)
+ - test: remove script death check from test_signal_handler.py (#6079)
+ - test: ensure NoCloud networking works on plucky (#6072)
+ - fix: stop warning on dual-stack request failure (#6044)
+ - test: Add integration test for signal handling warnings/errors (#6037)
+ - feat(azure): format ReportableErrorImdsInvalidMetadata without repr
+   (#6052) [Ksenija Stanojevic]
+ - docs: v1.cloud_name section typo (#6070) [Jack Bernhardt]
+ - fix: install_method: pip cannot find ansible-pull command path (#6021)
+   [Hasan Aliyev] (GH: 5720)
+ - fix: Fix DataSourceAliYun exception_cb signature (#6068) (GH: 6066)
+ - fix: Update OauthUrlHelper to use readurl exception_cb signature
+   (GH: 6065)
+ - test: add OauthUrlHelper tests
+ - test: Remove CiTestCase from test_url_helper.py
+ - test: pytestify test_url_helper.py
+ - test: check for correct logrotate config (#6060)
+ - test: don't fail test if ppa has no uploads (#6059)
+ - test: make users/groups warning test release aware (#6056)
+ - fix: when get_session_cloud() fails, _SESSION_CLOUD isn't set (#6051)
+ - chore: Sort .gitignore
+ - chore: Add new entries to gitignore and glob more
+ - fix: track more removed modules (#6043)
+
+25.1.4
+- fix: disable cloud-init when non-x86 environments have no DMI-data and
+  no strict datasources detected (LP: #2069607) (CVE-2024-6174)
+
+25.1.3
+ - docs: provide example3 for PAM and ssh_pwauth behavior (#27)
+ - fix: Make hotplug socket writable only by root (#25) (CVE-2024-11584)
+ - fix: Don't attempt to identify non-x86 OpenStack instances (LP: #2069607)
+   (CVE-2024-6174)
+
+25.1.2
+ - fix: ensure MAAS datasource retries on failure (#6167)
+
 25.1.1
  - test: pytestify cc_chef tests, add migration test
  - chef: migrate files in old config directories for backups and cache

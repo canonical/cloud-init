@@ -1,0 +1,7 @@
+[NetDev]
+Kind=vlan
+MTUBytes=1400
+Name=vlan102
+
+[VLAN]
+Id=102

@@ -68,7 +68,7 @@ def get_parser(parser=None):
         "--udevaction",
         required=True,
         help="Specify action to take.",
-        choices=["add", "remove"],
+        choices=["add"],
     )
 
     subparsers.add_parser(
@@ -103,8 +103,6 @@ class UeventHandler(abc.ABC):
         detect_presence = None
         if self.action == "add":
             detect_presence = True
-        elif self.action == "remove":
-            detect_presence = False
         else:
             raise ValueError("Unknown action: %s" % self.action)
 
@@ -145,11 +143,6 @@ class NetHandler(UeventHandler):
             if not activator.bring_up_interface(interface_name):
                 raise RuntimeError(
                     "Failed to bring up device: {}".format(self.devpath)
-                )
-        elif self.action == "remove":
-            if not activator.bring_down_interface(interface_name):
-                raise RuntimeError(
-                    "Failed to bring down device: {}".format(self.devpath)
                 )
 
     @property

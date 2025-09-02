@@ -487,48 +487,6 @@ class TestNetworkConfigFromOpcImds:
 
     @pytest.mark.parametrize(
         "set_primary",
-        [True, False],
-    )
-    def test_secondary_nic_v2(self, set_primary, oracle_ds):
-        oracle_ds._vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)
-        oracle_ds._network_config = {
-            "version": 2,
-            "ethernets": {"primary": {"nic": {}}},
-        }
-        with mock.patch(
-            f"{DS_PATH}.get_interfaces_by_mac",
-            return_value={
-                "02:00:17:05:d1:db": "ens3",
-                "00:00:17:02:2b:b1": "ens4",
-            },
-        ):
-            oracle_ds._add_network_config_from_opc_imds(
-                set_primary=set_primary
-            )
-
-        nic_cfg = oracle_ds.network_config["ethernets"]
-        if set_primary:
-            assert "ens3" in nic_cfg
-            primary_cfg = nic_cfg["ens3"]
-
-            assert primary_cfg["dhcp4"] is True
-            assert primary_cfg["dhcp6"] is False
-            assert "02:00:17:05:d1:db" == primary_cfg["match"]["macaddress"]
-            assert 9000 == primary_cfg["mtu"]
-            assert "addresses" not in primary_cfg
-
-        assert "ens4" in nic_cfg
-        secondary_cfg = nic_cfg["ens4"]
-        assert secondary_cfg["dhcp4"] is False
-        assert secondary_cfg["dhcp6"] is False
-        assert "00:00:17:02:2b:b1" == secondary_cfg["match"]["macaddress"]
-        assert 9000 == secondary_cfg["mtu"]
-
-        assert 1 == len(secondary_cfg["addresses"])
-        assert "10.0.0.231/24" == secondary_cfg["addresses"][0]
-
-    @pytest.mark.parametrize(
-        "set_primary",
         [
             pytest.param(True, id="set_primary"),
             pytest.param(False, id="dont_set_primary"),
@@ -577,53 +535,6 @@ class TestNetworkConfigFromOpcImds:
             == secondary_cfg["subnets"][0]["address"]
         )
         assert "static" == secondary_cfg["subnets"][0]["type"]
-
-    @pytest.mark.parametrize(
-        "set_primary",
-        [True, False],
-    )
-    def test_secondary_nic_v2_ipv6_only(self, set_primary, oracle_ds):
-        oracle_ds._vnics_data = json.loads(
-            OPC_VM_IPV6_ONLY_SECONDARY_VNIC_RESPONSE
-        )
-        oracle_ds._network_config = {
-            "version": 2,
-            "ethernets": {"primary": {"nic": {}}},
-        }
-        with mock.patch(
-            f"{DS_PATH}.get_interfaces_by_mac",
-            return_value={
-                "02:00:17:0d:6b:be": "ens3",
-                "02:00:17:18:f6:ff": "ens4",
-            },
-        ):
-            oracle_ds._add_network_config_from_opc_imds(
-                set_primary=set_primary
-            )
-
-        nic_cfg = oracle_ds.network_config["ethernets"]
-        if set_primary:
-            assert "ens3" in nic_cfg
-            primary_cfg = nic_cfg["ens3"]
-
-            assert primary_cfg["dhcp4"] is False
-            assert primary_cfg["dhcp6"] is True
-            assert "02:00:17:0d:6b:be" == primary_cfg["match"]["macaddress"]
-            assert 9000 == primary_cfg["mtu"]
-            assert "addresses" not in primary_cfg
-
-        assert "ens4" in nic_cfg
-        secondary_cfg = nic_cfg["ens4"]
-        assert secondary_cfg["dhcp4"] is False
-        assert secondary_cfg["dhcp6"] is False
-        assert "02:00:17:18:f6:ff" == secondary_cfg["match"]["macaddress"]
-        assert 9000 == secondary_cfg["mtu"]
-
-        assert 1 == len(secondary_cfg["addresses"])
-        assert (
-            "2603:c020:400d:5d7e:aacc:8e5f:3b1b:3a4a/128"
-            == secondary_cfg["addresses"][0]
-        )
 
     @pytest.mark.parametrize("error_add_network", [None, Exception])
     @pytest.mark.parametrize(
@@ -1429,7 +1340,9 @@ class TestPerformDHCPSetup:
         if ephemeral_dhcp_setup_raises_exception:
 
             def raise_exception(**kwargs):
-                raise Exception("Failed to setup ephemeral network")
+                raise Exception(  # pylint: disable=W0719
+                    "Failed to setup ephemeral network"
+                )
 
             m_ephemeral_network.side_effect = raise_exception
         else:
@@ -1460,12 +1373,12 @@ class TestPerformDHCPSetup:
             ),
         ):
             # datasource fails/exits if ephemeral dhcp setup fails
-            with (
-                pytest.raises(Exception)
-                if ephemeral_dhcp_setup_raises_exception
-                else test_helpers.does_not_raise()
-            ):
-                assert oracle_ds._check_and_get_data()
+            if ephemeral_dhcp_setup_raises_exception:
+                with pytest.raises(Exception):
+                    assert oracle_ds._check_and_get_data()
+            else:
+                with test_helpers.does_not_raise():
+                    assert oracle_ds._check_and_get_data()
 
         if perform_dhcp_setup:
             assert [

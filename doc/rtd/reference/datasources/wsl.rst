@@ -135,14 +135,15 @@ the case to the best of our knowledge at the time of this writing.
 Most of what ``meta-data`` is intended for is not applicable under WSL, such as
 setting a hostname. Yet, the knowledge of ``meta-data.instance-id`` is vital
 for cloud-init. So, this datasource provides a default value but also supports
-optionally sourcing meta-data from a per-instance specific configuration file:
-``%USERPROFILE%\.cloud-init\<InstanceName>.meta-data``. If that file exists, it
-is a YAML-formatted file minimally providing a value for instance ID
-such as: ``instance-id: x-y-z``. Advanced users looking to share
-snapshots or relaunch a snapshot where cloud-init is re-triggered, must run
-``sudo cloud-init clean --logs`` on the instance before snapshot/export, or
-create the appropriate ``.meta-data`` file containing ``instance-id:
-some-new-instance-id``.
+optionally sourcing meta-data from a per-instance specific configuration file
+located either at ``%USERPROFILE%\.cloud-init\<InstanceName>.meta-data`` or
+``%USERPROFILE%\.ubuntupro\.cloud-init\<InstanceName>.meta-data``. When both
+files exist, only the second will be loaded. The file must be a YAML-formatted
+file minimally providing a value for instance ID such as: ``instance-id:
+x-y-z``. Advanced users looking to share snapshots or relaunch a snapshot where
+cloud-init is re-triggered, must run ``sudo cloud-init clean --logs`` on the
+instance before snapshot/export, or create the appropriate ``.meta-data`` file
+containing ``instance-id: some-new-instance-id``.
 
 Unsupported or restricted modules and features
 ===============================================
@@ -204,7 +205,7 @@ include file.
     - name: j
       gecos: Agent J
       groups: users,sudo,netdev,audio
-      sudo: ALL=(ALL) NOPASSWD:ALL
+      sudo: "ALL=(ALL) NOPASSWD:ALL"
       shell: /bin/bash
       lock_passwd: true
 

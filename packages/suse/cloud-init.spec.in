@@ -48,25 +48,15 @@ end for
 {% endfor %}
 
 %build
-%{__python} setup.py build
+%meson -Dinit_system=systemd --libexecdir=/usr/lib -Ddistro_templates=chef_client.rb.tmpl,chrony.conf.opensuse.tmpl,hosts.suse.tmpl,ntp.conf.opensuse.tmpl,resolv.conf.tmpl,timesyncd.conf.tmpl
+%meson_build
 
 %install
-%{__python} setup.py install \
-            --skip-build --root=%{buildroot} --prefix=%{_prefix} \
-            --record-rpm=INSTALLED_FILES --install-lib=%{python_sitelib} \
-            --init-system=systemd
-
-# Move udev rules
-mkdir -p %{buildroot}/usr/lib/udev/rules.d/
-mv %{buildroot}/lib/udev/rules.d/* %{buildroot}/usr/lib/udev/rules.d/
-
-# Remove non-SUSE templates
-rm %{buildroot}/%{_sysconfdir}/cloud/templates/*.debian.*
-rm %{buildroot}/%{_sysconfdir}/cloud/templates/*.redhat.*
-rm %{buildroot}/%{_sysconfdir}/cloud/templates/*.ubuntu.*
+%meson_install
 
 # Move documentation
 mkdir -p %{buildroot}/%{_defaultdocdir}
+mkdir -p %{buildroot}/%{_sysconfdir}/cloud/clean.d
 mv %{buildroot}/usr/share/doc/cloud-init %{buildroot}/%{_defaultdocdir}
 for doc in LICENSE ChangeLog requirements.txt; do
    cp ${doc} %{buildroot}/%{_defaultdocdir}/cloud-init
@@ -102,6 +92,7 @@ version_pys=$(cd "%{buildroot}" && find . -name version.py -type f)
 # There doesn't seem to be an agreed upon place for these
 # although it appears the standard says /usr/lib but rpmbuild
 # will try /usr/lib64 ??
+/usr/lib/%{name}/hook-hotplug
 /usr/lib/%{name}/uncloud-init
 /usr/lib/%{name}/write-ssh-key-fingerprints
 /usr/lib/%{name}/ds-identify
@@ -114,7 +105,7 @@ version_pys=$(cd "%{buildroot}" && find . -name version.py -type f)
 %doc %{_defaultdocdir}/cloud-init/*
 
 # Configs
-%dir                    %{_sysconfdir}/cloud/clean.d
+%dir               %{_sysconfdir}/cloud/clean.d
 %config(noreplace) %{_sysconfdir}/cloud/cloud.cfg
 %dir               %{_sysconfdir}/cloud/cloud.cfg.d
 %config(noreplace) %{_sysconfdir}/cloud/cloud.cfg.d/*.cfg
@@ -124,8 +115,7 @@ version_pys=$(cd "%{buildroot}" && find . -name version.py -type f)
 
 # Bash completion script
 %{_datadir}/bash-completion/completions/cloud-init
-
-%{_sysconfdir}/systemd/system/sshd-keygen@.service.d/disable-sshd-keygen-if-cloud-init-active.conf
+/usr/share/man/man1/cloud-*gz
 
 # Python code is here...
 %{python_sitelib}/*

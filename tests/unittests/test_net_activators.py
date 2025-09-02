@@ -83,7 +83,7 @@ def unavailable_mocks():
 
 class TestSearchAndSelect:
     def test_empty_list(self, available_mocks):
-        resp = search_activator(priority=DEFAULT_PRIORITY, target=None)
+        resp = search_activator(priority=DEFAULT_PRIORITY)
         assert resp == NAME_TO_ACTIVATOR[DEFAULT_PRIORITY[0]]
 
         activator = select_activator()
@@ -91,18 +91,11 @@ class TestSearchAndSelect:
 
     def test_priority(self, available_mocks):
         new_order = ["netplan", "network-manager"]
-        resp = search_activator(priority=new_order, target=None)
+        resp = search_activator(priority=new_order)
         assert resp == NetplanActivator
 
         activator = select_activator(priority=new_order)
         assert activator == NetplanActivator
-
-    def test_target(self, available_mocks):
-        search_activator(priority=DEFAULT_PRIORITY, target="/tmp")
-        assert "/tmp" == available_mocks.m_which.call_args[1]["target"]
-
-        select_activator(target="/tmp")
-        assert "/tmp" == available_mocks.m_which.call_args[1]["target"]
 
     @patch(
         "cloudinit.net.activators.IfUpDownActivator.available",
@@ -111,7 +104,7 @@ class TestSearchAndSelect:
     def test_first_not_available(self, m_available, available_mocks):
         # We've mocked out IfUpDownActivator as unavailable, so expect the
         # next in the list of default priorities
-        resp = search_activator(priority=DEFAULT_PRIORITY, target=None)
+        resp = search_activator(priority=DEFAULT_PRIORITY)
         assert resp == NAME_TO_ACTIVATOR[DEFAULT_PRIORITY[1]]
 
         resp = select_activator()
@@ -119,12 +112,12 @@ class TestSearchAndSelect:
 
     def test_priority_not_exist(self, available_mocks):
         with pytest.raises(ValueError):
-            search_activator(priority=["spam", "eggs"], target=None)
+            search_activator(priority=["spam", "eggs"])
         with pytest.raises(ValueError):
             select_activator(priority=["spam", "eggs"])
 
     def test_none_available(self, unavailable_mocks):
-        resp = search_activator(priority=DEFAULT_PRIORITY, target=None)
+        resp = search_activator(priority=DEFAULT_PRIORITY)
         assert resp is None
 
         with pytest.raises(NoActivatorException):
@@ -132,18 +125,18 @@ class TestSearchAndSelect:
 
 
 IF_UP_DOWN_AVAILABLE_CALLS = [
-    (("ifquery",), {"search": ["/sbin", "/usr/sbin"], "target": None}),
-    (("ifup",), {"search": ["/sbin", "/usr/sbin"], "target": None}),
-    (("ifdown",), {"search": ["/sbin", "/usr/sbin"], "target": None}),
+    (("ifquery",), {"search": ["/sbin", "/usr/sbin"]}),
+    (("ifup",), {"search": ["/sbin", "/usr/sbin"]}),
+    (("ifdown",), {"search": ["/sbin", "/usr/sbin"]}),
 ]
 
 NETPLAN_AVAILABLE_CALLS = [
-    (("netplan",), {"search": ["/usr/sbin", "/sbin"], "target": None}),
+    (("netplan",), {"search": ["/usr/sbin", "/sbin"]}),
 ]
 
 NETWORKD_AVAILABLE_CALLS = [
-    (("ip",), {"search": ["/usr/sbin", "/bin"], "target": None}),
-    (("systemctl",), {"search": ["/usr/sbin", "/bin"], "target": None}),
+    (("ip",), {"search": ["/usr/sbin", "/bin"]}),
+    (("systemctl",), {"search": ["/usr/sbin", "/bin"]}),
 ]
 
 

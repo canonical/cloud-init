@@ -154,24 +154,36 @@ class DataSourceEc2(sources.DataSource):
             if util.is_FreeBSD():
                 LOG.debug("FreeBSD doesn't support running dhclient with -sf")
                 return False
-            try:
-                with EphemeralIPNetwork(
-                    self.distro,
-                    self.distro.fallback_interface,
-                    ipv4=True,
-                    ipv6=True,
-                ) as netw:
-                    self._crawled_metadata = self.crawl_metadata()
-                    LOG.debug(
-                        "Crawled metadata service%s",
-                        f" {netw.state_msg}" if netw.state_msg else "",
-                    )
-
-            except NoDHCPLeaseError:
+            candidate_nics = net.find_candidate_nics()
+            LOG.debug("Looking for the primary NIC in: %s", candidate_nics)
+            if len(candidate_nics) < 1:
+                LOG.error("The instance must have at least one eligible NIC")
                 return False
+            for candidate_nic in candidate_nics:
+                try:
+                    with EphemeralIPNetwork(
+                        self.distro,
+                        candidate_nic,
+                        ipv4=True,
+                        ipv6=True,
+                    ) as netw:
+                        self._crawled_metadata = self.crawl_metadata()
+                        if self._crawled_metadata:
+                            self.distro.fallback_interface = candidate_nic
+                            LOG.debug("Set fallback NIC: %s.", candidate_nic)
+                            LOG.debug(
+                                "Crawled metadata service%s",
+                                f" {netw.state_msg}" if netw.state_msg else "",
+                            )
+                            break
+                except NoDHCPLeaseError:
+                    LOG.debug(
+                        "Unable to obtain a DHCP lease for %s", candidate_nic
+                    )
         else:
             self._crawled_metadata = self.crawl_metadata()
         if not self._crawled_metadata:
+            LOG.error("Unable to get metadata")
             return False
         self.metadata = self._crawled_metadata.get("meta-data", None)
         self.userdata_raw = self._crawled_metadata.get("user-data", None)

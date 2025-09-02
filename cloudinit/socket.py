@@ -5,6 +5,7 @@ import os
 import socket
 import sys
 from contextlib import suppress
+from typing import Dict
 
 from cloudinit import performance
 from cloudinit.settings import DEFAULT_RUN_DIR
@@ -55,16 +56,16 @@ class SocketSync:
         :param names: stage names, used as a unique identifiers
         """
         self.stage = ""
-        self.remote = ""
         self.first_exception = ""
         self.systemd_exit_code = 0
         self.experienced_any_error = False
         self.sockets = {
             name: socket.socket(
-                socket.AF_UNIX, socket.SOCK_DGRAM | socket.SOCK_CLOEXEC
+                socket.AF_UNIX, socket.SOCK_STREAM | socket.SOCK_CLOEXEC
             )
             for name in names
         }
+        self.connections: Dict[str, socket.socket] = {}
         # ensure the directory exists
         os.makedirs(f"{DEFAULT_RUN_DIR}/share", mode=0o700, exist_ok=True)
         # removing stale sockets and bind
@@ -73,6 +74,7 @@ class SocketSync:
             with suppress(FileNotFoundError):
                 os.remove(socket_path)
             sock.bind(socket_path)
+            sock.listen()
 
     def __call__(self, stage: str):
         """Set the stage before entering context.
@@ -116,25 +118,23 @@ class SocketSync:
         #     reply, which is expected to be /path/to/{self.stage}-return.sock
         sock = self.sockets[self.stage]
         with performance.Timed(f"Waiting to start stage {self.stage}"):
-            chunk, self.remote = sock.recvfrom(5)
+            connection, _ = sock.accept()
+            chunk, _ = connection.recvfrom(5)
+            self.connections[self.stage] = connection
 
         if b"start" != chunk:
             # The protocol expects to receive a command "start"
             self.__exit__(None, None, None)
             raise ValueError(f"Received invalid message: [{str(chunk)}]")
-        elif f"{DEFAULT_RUN_DIR}/share/{self.stage}-return.sock" != str(
-            self.remote
-        ):
-            # assert that the return path is in a directory with appropriate
-            # permissions
-            self.__exit__(None, None, None)
-            raise ValueError(f"Unexpected path to unix socket: {self.remote}")
 
         sd_notify(f"STATUS=Running ({self.stage} stage)")
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Notify the socket that this stage is complete."""
+        if os.isatty(sys.stdin.fileno()):
+            # See corresponding log for __enter__()
+            return
         message = f"Completed socket interaction for boot stage {self.stage}"
         if exc_type:
             # handle exception thrown in context
@@ -153,8 +153,7 @@ class SocketSync:
         self.experienced_any_error = self.experienced_any_error or bool(
             self.systemd_exit_code
         )
-        sock = self.sockets[self.stage]
-        sock.connect(self.remote)
+        sock = self.connections[self.stage]
 
         # the returned message will be executed in a subshell
         # hardcode this message rather than sending a more informative message

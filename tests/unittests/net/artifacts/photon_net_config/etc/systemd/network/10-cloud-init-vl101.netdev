@@ -1,0 +1,6 @@
+[NetDev]
+Kind=vlan
+Name=vl101
+
+[VLAN]
+Id=101

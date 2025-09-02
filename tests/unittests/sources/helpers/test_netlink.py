@@ -6,6 +6,8 @@ import codecs
 import socket
 import struct
 
+import pytest
+
 from cloudinit.sources.helpers.netlink import (
     MAX_SIZE,
     OPER_DORMANT,
@@ -29,7 +31,7 @@ from cloudinit.sources.helpers.netlink import (
     wait_for_nic_attach_event,
     wait_for_nic_detach_event,
 )
-from tests.unittests.helpers import CiTestCase, mock
+from tests.unittests.helpers import mock
 
 
 def int_to_bytes(i):
@@ -39,22 +41,22 @@ def int_to_bytes(i):
     return codecs.decode(hex_value, "hex_codec")
 
 
-class TestCreateBoundNetlinkSocket(CiTestCase):
+class TestCreateBoundNetlinkSocket:
     @mock.patch("cloudinit.sources.helpers.netlink.socket.socket")
     def test_socket_error_on_create(self, m_socket):
         """create_bound_netlink_socket catches socket creation exception"""
 
         # NetlinkCreateSocketError is raised when socket creation errors.
         m_socket.side_effect = socket.error("Fake socket failure")
-        with self.assertRaises(NetlinkCreateSocketError) as ctx_mgr:
+        with pytest.raises(
+            NetlinkCreateSocketError,
+            match="Exception during netlink socket create: Fake socket"
+            " failure",
+        ):
             create_bound_netlink_socket()
-        self.assertEqual(
-            "Exception during netlink socket create: Fake socket failure",
-            str(ctx_mgr.exception),
-        )
 
 
-class TestReadNetlinkSocket(CiTestCase):
+class TestReadNetlinkSocket:
     @mock.patch("cloudinit.sources.helpers.netlink.socket.socket")
     @mock.patch("cloudinit.sources.helpers.netlink.select.select")
     def test_read_netlink_socket(self, m_select, m_socket):
@@ -65,8 +67,8 @@ class TestReadNetlinkSocket(CiTestCase):
         recv_data = read_netlink_socket(m_socket, 2)
         m_select.assert_called_with([m_socket], [], [], 2)
         m_socket.recv.assert_called_with(MAX_SIZE)
-        self.assertIsNotNone(recv_data)
-        self.assertEqual(recv_data, data)
+        assert recv_data is not None
+        assert recv_data == data
 
     @mock.patch("cloudinit.sources.helpers.netlink.socket.socket")
     @mock.patch("cloudinit.sources.helpers.netlink.select.select")
@@ -75,18 +77,17 @@ class TestReadNetlinkSocket(CiTestCase):
         m_select.return_value = [], None, None
         data = read_netlink_socket(m_socket, 1)
         m_select.assert_called_with([m_socket], [], [], 1)
-        self.assertEqual(m_socket.recv.call_count, 0)
-        self.assertIsNone(data)
+        assert m_socket.recv.call_count == 0
+        assert data is None
 
     def test_read_invalid_socket(self):
         """read_netlink_socket raises assert error if socket is invalid"""
         socket = None
-        with self.assertRaises(AssertionError) as context:
+        with pytest.raises(AssertionError, match="netlink socket is none"):
             read_netlink_socket(socket, 1)
-        self.assertTrue("netlink socket is none" in str(context.exception))
 
 
-class TestParseNetlinkMessage(CiTestCase):
+class TestParseNetlinkMessage:
     def test_read_rta_oper_state(self):
         """read_rta_oper_state could parse netlink message and extract data"""
         ifname = "eth0"
@@ -104,15 +105,14 @@ class TestParseNetlinkMessage(CiTestCase):
             int_to_bytes(OPER_DOWN),
         )
         interface_state = read_rta_oper_state(buf)
-        self.assertEqual(interface_state.ifname, ifname)
-        self.assertEqual(interface_state.operstate, OPER_DOWN)
+        assert interface_state.ifname == ifname
+        assert interface_state.operstate == OPER_DOWN
 
     def test_read_none_data(self):
         """read_rta_oper_state raises assert error if data is none"""
         data = None
-        with self.assertRaises(AssertionError) as context:
+        with pytest.raises(AssertionError, match="data is none"):
             read_rta_oper_state(data)
-        self.assertEqual("data is none", str(context.exception))
 
     def test_read_invalid_rta_operstate_none(self):
         """read_rta_oper_state returns none if operstate is none"""
@@ -121,7 +121,7 @@ class TestParseNetlinkMessage(CiTestCase):
         bytes = ifname.encode("utf-8")
         struct.pack_into("HH4s", buf, RTATTR_START_OFFSET, 8, 3, bytes)
         interface_state = read_rta_oper_state(buf)
-        self.assertIsNone(interface_state)
+        assert interface_state is None
 
     def test_read_invalid_rta_ifname_none(self):
         """read_rta_oper_state returns none if ifname is none"""
@@ -130,41 +130,37 @@ class TestParseNetlinkMessage(CiTestCase):
             "HHc", buf, RTATTR_START_OFFSET, 5, 16, int_to_bytes(OPER_DOWN)
         )
         interface_state = read_rta_oper_state(buf)
-        self.assertIsNone(interface_state)
+        assert interface_state is None
 
     def test_read_invalid_data_len(self):
         """raise assert error if data size is smaller than required size"""
         buf = bytearray(32)
-        with self.assertRaises(AssertionError) as context:
+        with pytest.raises(
+            AssertionError,
+            match="length of data is smaller than RTATTR_START_OFFSET",
+        ):
             read_rta_oper_state(buf)
-        self.assertTrue(
-            "length of data is smaller than RTATTR_START_OFFSET"
-            in str(context.exception)
-        )
 
     def test_unpack_rta_attr_none_data(self):
         """unpack_rta_attr raises assert error if data is none"""
         data = None
-        with self.assertRaises(AssertionError) as context:
+        with pytest.raises(AssertionError, match="data is none"):
             unpack_rta_attr(data, RTATTR_START_OFFSET)
-        self.assertTrue("data is none" in str(context.exception))
 
     def test_unpack_rta_attr_invalid_offset(self):
         """unpack_rta_attr raises assert error if offset is invalid"""
         data = bytearray(48)
-        with self.assertRaises(AssertionError) as context:
+        with pytest.raises(AssertionError, match="offset is not integer"):
             unpack_rta_attr(data, "offset")
-        self.assertTrue("offset is not integer" in str(context.exception))
-        with self.assertRaises(AssertionError) as context:
+        with pytest.raises(
+            AssertionError, match="rta offset is less than expected length"
+        ):
             unpack_rta_attr(data, 31)
-        self.assertTrue(
-            "rta offset is less than expected length" in str(context.exception)
-        )
 
 
 @mock.patch("cloudinit.sources.helpers.netlink.socket.socket")
 @mock.patch("cloudinit.sources.helpers.netlink.read_netlink_socket")
-class TestNicAttachDetach(CiTestCase):
+class TestNicAttachDetach:
     with_logs = True
 
     def _media_switch_data(self, ifname, msg_type, operstate):
@@ -206,8 +202,8 @@ class TestNicAttachDetach(CiTestCase):
         data_op_down = self._media_switch_data(ifname, RTM_NEWLINK, OPER_DOWN)
         m_read_netlink_socket.side_effect = [data_op_down]
         ifread = wait_for_nic_attach_event(m_socket, [])
-        self.assertEqual(m_read_netlink_socket.call_count, 1)
-        self.assertEqual(ifname, ifread)
+        assert m_read_netlink_socket.call_count == 1
+        assert ifname == ifread
 
     def test_nic_attached_oper_up(self, m_read_netlink_socket, m_socket):
         """Test for a new nic attached"""
@@ -215,8 +211,8 @@ class TestNicAttachDetach(CiTestCase):
         data_op_up = self._media_switch_data(ifname, RTM_NEWLINK, OPER_UP)
         m_read_netlink_socket.side_effect = [data_op_up]
         ifread = wait_for_nic_attach_event(m_socket, [])
-        self.assertEqual(m_read_netlink_socket.call_count, 1)
-        self.assertEqual(ifname, ifread)
+        assert m_read_netlink_socket.call_count == 1
+        assert ifname == ifread
 
     def test_nic_attach_ignore_existing(self, m_read_netlink_socket, m_socket):
         """Test that we read only the interfaces we are interested in."""
@@ -224,8 +220,8 @@ class TestNicAttachDetach(CiTestCase):
         data_eth1 = self._media_switch_data("eth1", RTM_NEWLINK, OPER_DOWN)
         m_read_netlink_socket.side_effect = [data_eth0, data_eth1]
         ifread = wait_for_nic_attach_event(m_socket, ["eth0"])
-        self.assertEqual(m_read_netlink_socket.call_count, 2)
-        self.assertEqual("eth1", ifread)
+        assert m_read_netlink_socket.call_count == 2
+        assert "eth1" == ifread
 
     def test_nic_attach_read_first(self, m_read_netlink_socket, m_socket):
         """Test that we read only the interfaces we are interested in."""
@@ -233,8 +229,8 @@ class TestNicAttachDetach(CiTestCase):
         data_eth1 = self._media_switch_data("eth1", RTM_NEWLINK, OPER_DOWN)
         m_read_netlink_socket.side_effect = [data_eth0, data_eth1]
         ifread = wait_for_nic_attach_event(m_socket, ["eth1"])
-        self.assertEqual(m_read_netlink_socket.call_count, 1)
-        self.assertEqual("eth0", ifread)
+        assert m_read_netlink_socket.call_count == 1
+        assert "eth0" == ifread
 
     def test_nic_detached(self, m_read_netlink_socket, m_socket):
         """Test for an existing nic detached"""
@@ -242,13 +238,13 @@ class TestNicAttachDetach(CiTestCase):
         data_op_down = self._media_switch_data(ifname, RTM_DELLINK, OPER_DOWN)
         m_read_netlink_socket.side_effect = [data_op_down]
         ifread = wait_for_nic_detach_event(m_socket)
-        self.assertEqual(m_read_netlink_socket.call_count, 1)
-        self.assertEqual(ifname, ifread)
+        assert m_read_netlink_socket.call_count == 1
+        assert ifname == ifread
 
 
 @mock.patch("cloudinit.sources.helpers.netlink.socket.socket")
 @mock.patch("cloudinit.sources.helpers.netlink.read_netlink_socket")
-class TestWaitForMediaDisconnectConnect(CiTestCase):
+class TestWaitForMediaDisconnectConnect:
     with_logs = True
 
     def _media_switch_data(self, ifname, msg_type, operstate):
@@ -293,10 +289,10 @@ class TestWaitForMediaDisconnectConnect(CiTestCase):
         data_op_up = self._media_switch_data(ifname, RTM_NEWLINK, OPER_UP)
         m_read_netlink_socket.side_effect = [data_op_down, data_op_up]
         wait_for_media_disconnect_connect(m_socket, ifname)
-        self.assertEqual(m_read_netlink_socket.call_count, 2)
+        assert m_read_netlink_socket.call_count == 2
 
     def test_wait_for_media_switch_diff_interface(
-        self, m_read_netlink_socket, m_socket
+        self, m_read_netlink_socket, m_socket, caplog
     ):
         """wait_for_media_disconnect_connect ignores unexpected interfaces.
 
@@ -326,11 +322,11 @@ class TestWaitForMediaDisconnectConnect(CiTestCase):
             data_op_up_eth0,
         ]
         wait_for_media_disconnect_connect(m_socket, expected_ifname)
-        self.assertIn(
-            "Ignored netlink event on interface %s" % other_ifname,
-            self.logs.getvalue(),
+        assert (
+            "Ignored netlink event on interface %s" % other_ifname
+            in caplog.text
         )
-        self.assertEqual(m_read_netlink_socket.call_count, 4)
+        assert m_read_netlink_socket.call_count == 4
 
     def test_invalid_msgtype_getlink(self, m_read_netlink_socket, m_socket):
         """wait_for_media_disconnect_connect ignores GETLINK events.
@@ -357,7 +353,7 @@ class TestWaitForMediaDisconnectConnect(CiTestCase):
             data_newlink_up,
         ]
         wait_for_media_disconnect_connect(m_socket, ifname)
-        self.assertEqual(m_read_netlink_socket.call_count, 4)
+        assert m_read_netlink_socket.call_count == 4
 
     def test_invalid_msgtype_setlink(self, m_read_netlink_socket, m_socket):
         """wait_for_media_disconnect_connect ignores SETLINK events.
@@ -387,7 +383,7 @@ class TestWaitForMediaDisconnectConnect(CiTestCase):
             data_newlink_up,
         ]
         wait_for_media_disconnect_connect(m_socket, ifname)
-        self.assertEqual(m_read_netlink_socket.call_count, 4)
+        assert m_read_netlink_socket.call_count == 4
 
     def test_netlink_invalid_switch_scenario(
         self, m_read_netlink_socket, m_socket
@@ -428,7 +424,7 @@ class TestWaitForMediaDisconnectConnect(CiTestCase):
             data_op_up,
         ]
         wait_for_media_disconnect_connect(m_socket, ifname)
-        self.assertEqual(m_read_netlink_socket.call_count, 14)
+        assert m_read_netlink_socket.call_count == 14
 
     def test_netlink_valid_inbetween_transitions(
         self, m_read_netlink_socket, m_socket
@@ -450,7 +446,7 @@ class TestWaitForMediaDisconnectConnect(CiTestCase):
             data_op_up,
         ]
         wait_for_media_disconnect_connect(m_socket, ifname)
-        self.assertEqual(m_read_netlink_socket.call_count, 4)
+        assert m_read_netlink_socket.call_count == 4
 
     def test_netlink_invalid_operstate(self, m_read_netlink_socket, m_socket):
         """wait_for_media_disconnect_connect should handle invalid operstates.
@@ -470,28 +466,25 @@ class TestWaitForMediaDisconnectConnect(CiTestCase):
             data_op_up,
         ]
         wait_for_media_disconnect_connect(m_socket, ifname)
-        self.assertEqual(m_read_netlink_socket.call_count, 5)
+        assert m_read_netlink_socket.call_count == 5
 
     def test_wait_invalid_socket(self, m_read_netlink_socket, m_socket):
         """wait_for_media_disconnect_connect handle none netlink socket."""
         socket = None
         ifname = "eth0"
-        with self.assertRaises(AssertionError) as context:
+        with pytest.raises(AssertionError, match="netlink socket is none"):
             wait_for_media_disconnect_connect(socket, ifname)
-        self.assertTrue("netlink socket is none" in str(context.exception))
 
     def test_wait_invalid_ifname(self, m_read_netlink_socket, m_socket):
         """wait_for_media_disconnect_connect handle none interface name"""
         ifname = None
-        with self.assertRaises(AssertionError) as context:
+        with pytest.raises(AssertionError, match="interface name is none"):
             wait_for_media_disconnect_connect(m_socket, ifname)
-        self.assertTrue("interface name is none" in str(context.exception))
         ifname = ""
-        with self.assertRaises(AssertionError) as context:
+        with pytest.raises(
+            AssertionError, match="interface name cannot be empty"
+        ):
             wait_for_media_disconnect_connect(m_socket, ifname)
-        self.assertTrue(
-            "interface name cannot be empty" in str(context.exception)
-        )
 
     def test_wait_invalid_rta_attr(self, m_read_netlink_socket, m_socket):
         """wait_for_media_disconnect_connect handles invalid rta data"""
@@ -507,7 +500,7 @@ class TestWaitForMediaDisconnectConnect(CiTestCase):
             data_op_up,
         ]
         wait_for_media_disconnect_connect(m_socket, ifname)
-        self.assertEqual(m_read_netlink_socket.call_count, 4)
+        assert m_read_netlink_socket.call_count == 4
 
     def test_read_multiple_netlink_msgs(self, m_read_netlink_socket, m_socket):
         """Read multiple messages in single receive call"""
@@ -540,7 +533,7 @@ class TestWaitForMediaDisconnectConnect(CiTestCase):
         )
         m_read_netlink_socket.return_value = data
         wait_for_media_disconnect_connect(m_socket, ifname)
-        self.assertEqual(m_read_netlink_socket.call_count, 1)
+        assert m_read_netlink_socket.call_count == 1
 
     def test_read_partial_netlink_msgs(self, m_read_netlink_socket, m_socket):
         """Read partial messages in receive call"""
@@ -570,4 +563,4 @@ class TestWaitForMediaDisconnectConnect(CiTestCase):
         )
         m_read_netlink_socket.side_effect = [data1, data2]
         wait_for_media_disconnect_connect(m_socket, ifname)
-        self.assertEqual(m_read_netlink_socket.call_count, 2)
+        assert m_read_netlink_socket.call_count == 2

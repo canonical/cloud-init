@@ -1,6 +1,7 @@
 *.asc
 *.build
 *.buildinfo
+*.builddir
 *.changes
 *.cover
 *.deb
@@ -36,3 +37,4 @@ srpm/
 stage
 tags
 tests/integration_tests/user_settings.py
+

@@ -1,12 +1,14 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+# pylint: disable=attribute-defined-outside-init
 
 import base64
 import copy
 import json
 from textwrap import dedent
 
+import pytest
+
 from cloudinit import util
-from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceIBMCloud as ibm
 from tests.unittests import helpers as test_helpers
 
@@ -18,7 +20,7 @@ D_PATH = "cloudinit.sources.DataSourceIBMCloud."
 @mock.patch(D_PATH + "_is_xen", return_value=True)
 @mock.patch(D_PATH + "_is_ibm_provisioning")
 @mock.patch(D_PATH + "util.blkid")
-class TestGetIBMPlatform(test_helpers.CiTestCase):
+class TestGetIBMPlatform:
     """Test the get_ibm_platform helper."""
 
     blkid_base = {
@@ -55,7 +57,8 @@ class TestGetIBMPlatform(test_helpers.CiTestCase):
         }
     }
 
-    def setUp(self):
+    @pytest.fixture(autouse=True)
+    def fixtures(self):
         self.blkid_metadata = copy.deepcopy(self.blkid_base)
         self.blkid_metadata.update(copy.deepcopy(self.blkid_metadata_disk))
 
@@ -66,36 +69,34 @@ class TestGetIBMPlatform(test_helpers.CiTestCase):
         """identify TEMPLATE_LIVE_METADATA."""
         m_blkid.return_value = self.blkid_metadata
         m_is_prov.return_value = False
-        self.assertEqual(
-            (ibm.Platforms.TEMPLATE_LIVE_METADATA, "/dev/xvdh1"),
-            ibm.get_ibm_platform(),
-        )
+        assert (
+            ibm.Platforms.TEMPLATE_LIVE_METADATA,
+            "/dev/xvdh1",
+        ) == ibm.get_ibm_platform()
 
     def test_id_template_prov_metadata(self, m_blkid, m_is_prov, _m_xen):
         """identify TEMPLATE_PROVISIONING_METADATA."""
         m_blkid.return_value = self.blkid_metadata
         m_is_prov.return_value = True
-        self.assertEqual(
-            (ibm.Platforms.TEMPLATE_PROVISIONING_METADATA, "/dev/xvdh1"),
-            ibm.get_ibm_platform(),
-        )
+        assert (
+            ibm.Platforms.TEMPLATE_PROVISIONING_METADATA,
+            "/dev/xvdh1",
+        ) == ibm.get_ibm_platform()
 
     def test_id_template_prov_nodata(self, m_blkid, m_is_prov, _m_xen):
         """identify TEMPLATE_PROVISIONING_NODATA."""
         m_blkid.return_value = self.blkid_base
         m_is_prov.return_value = True
-        self.assertEqual(
-            (ibm.Platforms.TEMPLATE_PROVISIONING_NODATA, None),
-            ibm.get_ibm_platform(),
-        )
+        assert (
+            ibm.Platforms.TEMPLATE_PROVISIONING_NODATA,
+            None,
+        ) == ibm.get_ibm_platform()
 
     def test_id_os_code(self, m_blkid, m_is_prov, _m_xen):
         """Identify OS_CODE."""
         m_blkid.return_value = self.blkid_oscode
         m_is_prov.return_value = False
-        self.assertEqual(
-            (ibm.Platforms.OS_CODE, "/dev/xvdh"), ibm.get_ibm_platform()
-        )
+        assert (ibm.Platforms.OS_CODE, "/dev/xvdh") == ibm.get_ibm_platform()
 
     def test_id_os_code_must_match_uuid(self, m_blkid, m_is_prov, _m_xen):
         """Test against false positive on openstack with non-ibm UUID."""
@@ -103,12 +104,12 @@ class TestGetIBMPlatform(test_helpers.CiTestCase):
         blkid["/dev/xvdh"]["UUID"] = "9999-9999"
         m_blkid.return_value = blkid
         m_is_prov.return_value = False
-        self.assertEqual((None, None), ibm.get_ibm_platform())
+        assert (None, None) == ibm.get_ibm_platform()
 
 
 @mock.patch(D_PATH + "_read_system_uuid", return_value=None)
 @mock.patch(D_PATH + "get_ibm_platform")
-class TestReadMD(test_helpers.CiTestCase):
+class TestReadMD:
     """Test the read_datasource helper."""
 
     template_md = {
@@ -235,7 +236,7 @@ class TestReadMD(test_helpers.CiTestCase):
             ibm.Platforms.TEMPLATE_PROVISIONING_METADATA,
             "/dev/xvdh",
         )
-        self.assertIsNone(ibm.read_md())
+        assert ibm.read_md() is None
 
     def test_provisioning_no_metadata(self, m_platform, m_sysuuid):
         """Provisioning env with no metadata disk should return None."""
@@ -243,16 +244,16 @@ class TestReadMD(test_helpers.CiTestCase):
             ibm.Platforms.TEMPLATE_PROVISIONING_NODATA,
             None,
         )
-        self.assertIsNone(ibm.read_md())
+        assert ibm.read_md() is None
 
     def test_provisioning_not_ibm(self, m_platform, m_sysuuid):
         """Provisioning env but not identified as IBM should return None."""
         m_platform.return_value = (None, None)
-        self.assertIsNone(ibm.read_md())
+        assert ibm.read_md() is None
 
-    def test_template_live(self, m_platform, m_sysuuid):
+    def test_template_live(self, m_platform, m_sysuuid, tmp_path):
         """Template live environment should be identified."""
-        tmpdir = self.tmp_dir()
+        tmpdir = str(tmp_path)
         m_platform.return_value = (
             ibm.Platforms.TEMPLATE_LIVE_METADATA,
             tmpdir,
@@ -273,18 +274,16 @@ class TestReadMD(test_helpers.CiTestCase):
 
         ret = ibm.read_md()
         if ret is None:  # this is needed for mypy - ensures ret is not None
-            self.fail("read_md returned None unexpectedly")
-        self.assertEqual(ibm.Platforms.TEMPLATE_LIVE_METADATA, ret["platform"])
-        self.assertEqual(tmpdir, ret["source"])
-        self.assertEqual(self.userdata, ret["userdata"])
-        self.assertEqual(
-            self._get_expected_metadata(self.template_md), ret["metadata"]
-        )
-        self.assertEqual(self.sysuuid, ret["system-uuid"])
+            pytest.fail("read_md returned None unexpectedly")
+        assert ibm.Platforms.TEMPLATE_LIVE_METADATA == ret["platform"]
+        assert tmpdir == ret["source"]
+        assert self.userdata == ret["userdata"]
+        assert self._get_expected_metadata(self.template_md) == ret["metadata"]
+        assert self.sysuuid == ret["system-uuid"]
 
-    def test_os_code_live(self, m_platform, m_sysuuid):
+    def test_os_code_live(self, m_platform, m_sysuuid, tmp_path):
         """Verify an os_code metadata path."""
-        tmpdir = self.tmp_dir()
+        tmpdir = str(tmp_path)
         m_platform.return_value = (ibm.Platforms.OS_CODE, tmpdir)
         netdata = json.dumps(self.network_data)
         test_helpers.populate_dir(
@@ -301,17 +300,15 @@ class TestReadMD(test_helpers.CiTestCase):
 
         ret = ibm.read_md()
         if ret is None:  # this is needed for mypy - ensures ret is not None
-            self.fail("read_md returned None unexpectedly")
-        self.assertEqual(ibm.Platforms.OS_CODE, ret["platform"])
-        self.assertEqual(tmpdir, ret["source"])
-        self.assertEqual(self.userdata, ret["userdata"])
-        self.assertEqual(
-            self._get_expected_metadata(self.oscode_md), ret["metadata"]
-        )
+            pytest.fail("read_md returned None unexpectedly")
+        assert ibm.Platforms.OS_CODE == ret["platform"]
+        assert tmpdir == ret["source"]
+        assert self.userdata == ret["userdata"]
+        assert self._get_expected_metadata(self.oscode_md) == ret["metadata"]
 
-    def test_os_code_live_no_userdata(self, m_platform, m_sysuuid):
+    def test_os_code_live_no_userdata(self, m_platform, m_sysuuid, tmp_path):
         """Verify os_code without user-data."""
-        tmpdir = self.tmp_dir()
+        tmpdir = str(tmp_path)
         m_platform.return_value = (ibm.Platforms.OS_CODE, tmpdir)
         test_helpers.populate_dir(
             tmpdir,
@@ -325,84 +322,72 @@ class TestReadMD(test_helpers.CiTestCase):
 
         ret = ibm.read_md()
         if ret is None:  # this is needed for mypy - ensures ret is not None
-            self.fail("read_md returned None unexpectedly")
-        self.assertEqual(ibm.Platforms.OS_CODE, ret["platform"])
-        self.assertEqual(tmpdir, ret["source"])
-        self.assertIsNone(ret["userdata"])
-        self.assertEqual(
-            self._get_expected_metadata(self.oscode_md), ret["metadata"]
-        )
+            pytest.fail("read_md returned None unexpectedly")
+        assert ibm.Platforms.OS_CODE == ret["platform"]
+        assert tmpdir == ret["source"]
+        assert ret["userdata"] is None
+        assert self._get_expected_metadata(self.oscode_md) == ret["metadata"]
 
 
-class TestIsIBMProvisioning(test_helpers.FilesystemMockingTestCase):
+@pytest.mark.usefixtures("fake_filesystem")
+class TestIsIBMProvisioning:
     """Test the _is_ibm_provisioning method."""
 
     inst_log = "/root/swinstall.log"
     prov_cfg = "/root/provisioningConfiguration.cfg"
     boot_ref = "/proc/1/environ"
-    with_logs = True
-
-    def _call_with_root(self, rootd):
-        self.reRoot(rootd)
-        return ibm._is_ibm_provisioning()
 
     def test_no_config(self):
         """No provisioning config means not provisioning."""
-        self.assertFalse(self._call_with_root(self.tmp_dir()))
+        assert not ibm._is_ibm_provisioning()
 
-    def test_config_only(self):
+    def test_config_only(self, tmp_path):
         """A provisioning config without a log means provisioning."""
-        rootd = self.tmp_dir()
-        test_helpers.populate_dir(rootd, {self.prov_cfg: "key=value"})
-        self.assertTrue(self._call_with_root(rootd))
+        test_helpers.populate_dir(str(tmp_path), {self.prov_cfg: "key=value"})
+        assert ibm._is_ibm_provisioning()
 
-    def test_config_with_old_log(self):
+    def test_config_with_old_log(self, caplog, tmp_path):
         """A config with a log from previous boot is not provisioning."""
-        rootd = self.tmp_dir()
         data = {
             self.prov_cfg: ("key=value\nkey2=val2\n", -10),
             self.inst_log: ("log data\n", -30),
             self.boot_ref: ("PWD=/", 0),
         }
-        test_helpers.populate_dir_with_ts(rootd, data)
-        self.assertFalse(self._call_with_root(rootd=rootd))
-        self.assertIn("from previous boot", self.logs.getvalue())
+        test_helpers.populate_dir_with_ts(str(tmp_path), data)
+        assert not ibm._is_ibm_provisioning()
+        assert "from previous boot" in caplog.text
 
-    def test_config_with_new_log(self):
+    def test_config_with_new_log(self, caplog, tmp_path):
         """A config with a log from this boot is provisioning."""
-        rootd = self.tmp_dir()
         data = {
             self.prov_cfg: ("key=value\nkey2=val2\n", -10),
             self.inst_log: ("log data\n", 30),
             self.boot_ref: ("PWD=/", 0),
         }
-        test_helpers.populate_dir_with_ts(rootd, data)
-        self.assertTrue(self._call_with_root(rootd=rootd))
-        self.assertIn("from current boot", self.logs.getvalue())
+        test_helpers.populate_dir_with_ts(str(tmp_path), data)
+        assert ibm._is_ibm_provisioning()
+        assert "from current boot" in caplog.text
 
-    def test_config_and_log_no_reference(self):
+    def test_config_and_log_no_reference(self, caplog, tmp_path):
         """If the config and log existed, but no reference, assume not."""
-        rootd = self.tmp_dir()
         test_helpers.populate_dir(
-            rootd, {self.prov_cfg: "key=value", self.inst_log: "log data\n"}
+            str(tmp_path),
+            {self.prov_cfg: "key=value", self.inst_log: "log data\n"},
         )
-        self.assertFalse(self._call_with_root(rootd=rootd))
-        self.assertIn("no reference file", self.logs.getvalue())
+        assert not ibm._is_ibm_provisioning()
+        assert "no reference file" in caplog.text
 
 
-class TestDataSourceIBMCloud(test_helpers.CiTestCase):
-    def setUp(self):
-        super(TestDataSourceIBMCloud, self).setUp()
-        self.tmp = self.tmp_dir()
-        self.cloud_dir = self.tmp_path("cloud", dir=self.tmp)
-        util.ensure_dir(self.cloud_dir)
-        paths = Paths({"run_dir": self.tmp, "cloud_dir": self.cloud_dir})
+class TestDataSourceIBMCloud:
+    @pytest.fixture(autouse=True)
+    def fixture(self, paths):
+        util.ensure_dir(paths.cloud_dir)
         self.ds = ibm.DataSourceIBMCloud(sys_cfg={}, distro=None, paths=paths)
 
     def test_get_data_false(self):
         """When read_md returns None, get_data returns False."""
         with mock.patch(D_PATH + "read_md", return_value=None):
-            self.assertFalse(self.ds.get_data())
+            assert not self.ds.get_data()
 
     def test_get_data_processes_read_md(self):
         """get_data processes and caches content returned by read_md."""
@@ -416,13 +401,13 @@ class TestDataSourceIBMCloud(test_helpers.CiTestCase):
             "vendordata": "vd",
         }
         with mock.patch(D_PATH + "read_md", return_value=md):
-            self.assertTrue(self.ds.get_data())
-        self.assertEqual("src", self.ds.source)
-        self.assertEqual("plat", self.ds.platform)
-        self.assertEqual({}, self.ds.metadata)
-        self.assertEqual("ud", self.ds.userdata_raw)
-        self.assertEqual("net", self.ds.network_json)
-        self.assertEqual("uuid", self.ds.system_uuid)
-        self.assertEqual("ibmcloud", self.ds.cloud_name)
-        self.assertEqual("ibmcloud", self.ds.platform_type)
-        self.assertEqual("plat (src)", self.ds.subplatform)
+            assert self.ds.get_data()
+        assert "src" == self.ds.source
+        assert "plat" == self.ds.platform
+        assert {} == self.ds.metadata
+        assert "ud" == self.ds.userdata_raw
+        assert "net" == self.ds.network_json
+        assert "uuid" == self.ds.system_uuid
+        assert "ibmcloud" == self.ds.cloud_name
+        assert "ibmcloud" == self.ds.platform_type
+        assert "plat (src)" == self.ds.subplatform

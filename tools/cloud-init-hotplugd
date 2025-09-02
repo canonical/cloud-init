@@ -9,15 +9,14 @@
 # upon a network device event). Anything received via the pipe is then
 # passed on via the "cloud-init devel hotplug-hook handle" command.
 
-PIPE="/run/cloud-init/hook-hotplug-cmd"
+PIPE="/run/cloud-init/share/hook-hotplug-cmd"
 
-mkfifo -m700 $PIPE
+[ -p $PIPE ] || mkfifo -m700 $PIPE
 
 while true; do
   # shellcheck disable=SC2162
-  read args < $PIPE
-  # shellcheck disable=SC2086
-  exec /usr/bin/cloud-init devel hotplug-hook $args
+  if read args < $PIPE; then
+    # shellcheck disable=SC2086
+    /usr/bin/cloud-init devel hotplug-hook $args
+  fi
 done
-
-exit

@@ -1,31 +1,27 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+# pylint: disable=attribute-defined-outside-init
 import os
-import shutil
-import tempfile
 from unittest import mock
 
 import pytest
 
 from cloudinit import dmi, subp, util
 from cloudinit.subp import SubpResult
-from tests.unittests import helpers
 
 
-class TestReadDMIData(helpers.FilesystemMockingTestCase):
-    def setUp(self):
-        super(TestReadDMIData, self).setUp()
-        self.new_root = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, self.new_root)
-        self.reRoot(self.new_root)
-        p = mock.patch("cloudinit.dmi.is_container", return_value=False)
-        self.addCleanup(p.stop)
-        self._m_is_container = p.start()
-        p = mock.patch("cloudinit.dmi.is_FreeBSD", return_value=False)
-        self.addCleanup(p.stop)
-        self._m_is_FreeBSD = p.start()
-
-        p = mock.patch("cloudinit.dmi.is_OpenBSD", return_value=False)
-        self.addCleanup(p.stop)
-        self._m_is_OpenBSD = p.start()
+@pytest.mark.usefixtures("fake_filesystem")
+class TestReadDMIData:
+    @pytest.fixture(autouse=True)
+    def common_mocks(self, mocker):
+        self.m_is_container = mocker.patch(
+            "cloudinit.dmi.is_container", return_value=False
+        )
+        self.m_is_freebsd = mocker.patch(
+            "cloudinit.dmi.is_FreeBSD", return_value=False
+        )
+        self.m_is_openbsd = mocker.patch(
+            "cloudinit.dmi.is_OpenBSD", return_value=False
+        )
 
     def _create_sysfs_parent_directory(self):
         util.ensure_dir(os.path.join("sys", "class", "dmi", "id"))
@@ -36,7 +32,7 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
         dmi_key = "/sys/class/dmi/id/{0}".format(key)
         util.write_file(dmi_key, content)
 
-    def _configure_dmidecode_return(self, key, content, error=None):
+    def _configure_dmidecode_return(self, mocker, key, content, error=None):
         """
         In order to test a missing sys path and call outs to dmidecode, this
         function fakes the results of dmidecode to test the results.
@@ -47,14 +43,10 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
                 raise subp.ProcessExecutionError()
             return SubpResult(content, error)
 
-        self.patched_funcs.enter_context(
-            mock.patch("cloudinit.dmi.subp.which", side_effect=lambda _: True)
-        )
-        self.patched_funcs.enter_context(
-            mock.patch("cloudinit.dmi.subp.subp", side_effect=_dmidecode_subp)
-        )
+        mocker.patch("cloudinit.dmi.subp.which", side_effect=lambda _: True)
+        mocker.patch("cloudinit.dmi.subp.subp", side_effect=_dmidecode_subp)
 
-    def _configure_kenv_return(self, key, content, error=None):
+    def _configure_kenv_return(self, mocker, key, content, error=None):
         """
         In order to test a FreeBSD system call outs to kenv, this
         function fakes the results of kenv to test the results.
@@ -65,11 +57,9 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
                 raise subp.ProcessExecutionError()
             return SubpResult(content, error)
 
-        self.patched_funcs.enter_context(
-            mock.patch("cloudinit.dmi.subp.subp", side_effect=_kenv_subp)
-        )
+        mocker.patch("cloudinit.dmi.subp.subp", side_effect=_kenv_subp)
 
-    def _configure_sysctl_return(self, key, content, error=None):
+    def _configure_sysctl_return(self, mocker, key, content, error=None):
         """
         In order to test an OpenBSD system call outs to sysctl, this
         function fakes the results of kenv to test the results.
@@ -80,29 +70,27 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
                 raise subp.ProcessExecutionError()
             return SubpResult(content, error)
 
-        self.patched_funcs.enter_context(
-            mock.patch("cloudinit.dmi.subp.subp", side_effect=_sysctl_subp)
-        )
+        mocker.patch("cloudinit.dmi.subp.subp", side_effect=_sysctl_subp)
 
-    def patch_mapping(self, new_mapping):
-        self.patched_funcs.enter_context(
-            mock.patch("cloudinit.dmi.DMIDECODE_TO_KERNEL", new_mapping)
-        )
-
-    def test_sysfs_used_with_key_in_mapping_and_file_on_disk(self):
-        self.patch_mapping(
-            {"mapped-key": dmi.KernelNames("mapped-value", None, None)}
+    def test_sysfs_used_with_key_in_mapping_and_file_on_disk(self, mocker):
+        mocker.patch(
+            "cloudinit.dmi.DMIDECODE_TO_KERNEL",
+            {"mapped-key": dmi.KernelNames("mapped-value", None, None)},
         )
         expected_dmi_value = "sys-used-correctly"
         self._create_sysfs_file("mapped-value", expected_dmi_value)
-        self._configure_dmidecode_return("mapped-key", "wrong-wrong-wrong")
-        self.assertEqual(expected_dmi_value, dmi.read_dmi_data("mapped-key"))
+        self._configure_dmidecode_return(
+            mocker, "mapped-key", "wrong-wrong-wrong"
+        )
+        assert expected_dmi_value == dmi.read_dmi_data("mapped-key")
 
-    def test_dmidecode_used_if_no_sysfs_file_on_disk(self):
-        self.patch_mapping({})
+    def test_dmidecode_used_if_no_sysfs_file_on_disk(self, mocker):
+        mocker.patch("cloudinit.dmi.DMIDECODE_TO_KERNEL", {})
         self._create_sysfs_parent_directory()
         expected_dmi_value = "dmidecode-used"
-        self._configure_dmidecode_return("use-dmidecode", expected_dmi_value)
+        self._configure_dmidecode_return(
+            mocker, "use-dmidecode", expected_dmi_value
+        )
         with mock.patch("cloudinit.util.os.uname") as m_uname:
             m_uname.return_value = (
                 "x-sysname",
@@ -111,17 +99,15 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
                 "x-version",
                 "x86_64",
             )
-            self.assertEqual(
-                expected_dmi_value, dmi.read_dmi_data("use-dmidecode")
-            )
+            assert expected_dmi_value == dmi.read_dmi_data("use-dmidecode")
 
-    def test_dmidecode_not_used_on_arm(self):
-        self.patch_mapping({})
+    def test_dmidecode_not_used_on_arm(self, mocker):
+        mocker.patch("cloudinit.dmi.DMIDECODE_TO_KERNEL", {})
         print("current =%s", subp)
         self._create_sysfs_parent_directory()
         dmi_val = "from-dmidecode"
         dmi_name = "use-dmidecode"
-        self._configure_dmidecode_return(dmi_name, dmi_val)
+        self._configure_dmidecode_return(mocker, dmi_name, dmi_val)
         print("now =%s", subp)
 
         expected = {"armel": None, "aarch64": dmi_val, "x86_64": dmi_val}
@@ -140,19 +126,17 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
                 )
                 print("now2 =%s", subp)
                 found[arch] = dmi.read_dmi_data(dmi_name)
-        self.assertEqual(expected, found)
+        assert expected == found
 
-    def test_none_returned_if_neither_source_has_data(self):
-        self.patch_mapping({})
-        self._configure_dmidecode_return("key", "value")
-        self.assertIsNone(dmi.read_dmi_data("expect-fail"))
+    def test_none_returned_if_neither_source_has_data(self, mocker):
+        mocker.patch("cloudinit.dmi.DMIDECODE_TO_KERNEL", {})
+        self._configure_dmidecode_return(mocker, "key", "value")
+        assert dmi.read_dmi_data("expect-fail") is None
 
-    def test_none_returned_if_dmidecode_not_in_path(self):
-        self.patched_funcs.enter_context(
-            mock.patch.object(subp, "which", lambda _: False)
-        )
-        self.patch_mapping({})
-        self.assertIsNone(dmi.read_dmi_data("expect-fail"))
+    def test_none_returned_if_dmidecode_not_in_path(self, mocker):
+        mocker.patch.object(subp, "which", lambda _: False)
+        mocker.patch("cloudinit.dmi.DMIDECODE_TO_KERNEL", {})
+        assert dmi.read_dmi_data("expect-fail") is None
 
     def test_empty_string_returned_instead_of_foxfox(self):
         # uninitialized dmi values show as \xff, return empty string
@@ -162,41 +146,41 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
         dmi_key = "system-product-name"
         sysfs_key = "product_name"
         self._create_sysfs_file(sysfs_key, dmi_value)
-        self.assertEqual(expected, dmi.read_dmi_data(dmi_key))
+        assert expected == dmi.read_dmi_data(dmi_key)
 
     def test_container_returns_none(self):
         """In a container read_dmi_data should always return None."""
 
         # first verify we get the value if not in container
-        self._m_is_container.return_value = False
+        self.m_is_container.return_value = False
         key, val = "system-product-name", "my_product"
         self._create_sysfs_file("product_name", val)
-        self.assertEqual(val, dmi.read_dmi_data(key))
+        assert val == dmi.read_dmi_data(key)
 
         # then verify in container returns None
-        self._m_is_container.return_value = True
-        self.assertIsNone(dmi.read_dmi_data(key))
+        self.m_is_container.return_value = True
+        assert dmi.read_dmi_data(key) is None
 
     def test_container_returns_none_on_unknown(self):
         """In a container even bogus keys return None."""
-        self._m_is_container.return_value = True
+        self.m_is_container.return_value = True
         self._create_sysfs_file("product_name", "should-be-ignored")
-        self.assertIsNone(dmi.read_dmi_data("bogus"))
-        self.assertIsNone(dmi.read_dmi_data("system-product-name"))
+        assert dmi.read_dmi_data("bogus") is None
+        assert dmi.read_dmi_data("system-product-name") is None
 
-    def test_freebsd_uses_kenv(self):
+    def test_freebsd_uses_kenv(self, mocker):
         """On a FreeBSD system, kenv is called."""
-        self._m_is_FreeBSD.return_value = True
+        self.m_is_freebsd.return_value = True
         key, val = "system-product-name", "my_product"
-        self._configure_kenv_return(key, val)
-        self.assertEqual(dmi.read_dmi_data(key), val)
+        self._configure_kenv_return(mocker, key, val)
+        assert dmi.read_dmi_data(key) == val
 
-    def test_openbsd_uses_kenv(self):
+    def test_openbsd_uses_kenv(self, mocker):
         """On a OpenBSD system, sysctl is called."""
-        self._m_is_OpenBSD.return_value = True
+        self.m_is_openbsd.return_value = True
         key, val = "system-product-name", "my_product"
-        self._configure_sysctl_return(key, val)
-        self.assertEqual(dmi.read_dmi_data(key), val)
+        self._configure_sysctl_return(mocker, key, val)
+        assert dmi.read_dmi_data(key) == val
 
 
 class TestSubDMIVars:

@@ -22,7 +22,7 @@ packages:
 # set up mount points
 # 'mounts' contains a list of lists
 #  the inner list are entries for an /etc/fstab line
-#  ie : [ fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno ]
+#  ie : [ fs_spec, fs_file, fs_vfstype, fs_mntops, fs_freq, fs_passno ]
 #
 # default:
 # mounts:
@@ -411,10 +411,10 @@ ssh_pwauth: True
 # syslog being taken down while cloud-init is running.
 #
 # delay: form accepted by shutdown.  default is 'now'. other format
-#        accepted is '+m' (m in minutes)
+#        accepted is an integer for the number of minutes to delay
 # mode: required. must be one of 'poweroff', 'halt', 'reboot'
 # message: provided as the message argument to 'shutdown'. default is none.
 power_state:
-  delay: '+30'
+  delay: 30
   mode: poweroff
   message: Bye Bye

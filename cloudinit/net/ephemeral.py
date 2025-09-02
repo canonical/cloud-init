@@ -1,7 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""Module for ephemeral network context managers
-"""
+"""Module for ephemeral network context managers"""
 import contextlib
 import logging
 from functools import partial
@@ -283,7 +282,7 @@ class EphemeralDHCPv4:
         distro,
         iface=None,
         connectivity_urls_data: Optional[List[Dict[str, Any]]] = None,
-        dhcp_log_func=None,
+        dhcp_log_func: Optional[Callable[[str, str, str], None]] = None,
     ):
         self.iface = iface
         self._ephipv4: Optional[EphemeralIPv4Network] = None

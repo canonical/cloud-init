@@ -9,7 +9,7 @@ from errno import ENOEXEC
 from io import TextIOWrapper
 from typing import List, Optional, Union
 
-from cloudinit import performance, signal_handler
+from cloudinit import performance
 
 LOG = logging.getLogger(__name__)
 
@@ -258,7 +258,7 @@ def subp(
         ]
     try:
         with performance.Timed(
-            "Running {}".format(logstring if logstring else args)
+            "Running {!r}".format(logstring if logstring else args)
         ):
             sp = subprocess.Popen(
                 bytes_args,
@@ -368,8 +368,7 @@ def runparts(dirp, skip_no_exist=True, exe_prefix=None):
         if is_exe(exe_path):
             attempted.append(exe_path)
             try:
-                with signal_handler.suspend_crash():
-                    subp(prefix + [exe_path], capture=False)
+                subp(prefix + [exe_path], capture=False)
             except ProcessExecutionError as e:
                 LOG.debug(e)
                 failed.append(exe_name)

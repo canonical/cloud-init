@@ -13,7 +13,7 @@ users:
 - name: ansible
   gecos: Ansible User
   groups: users,admin,wheel
-  sudo: ALL=(ALL) NOPASSWD:ALL
+  sudo: "ALL=(ALL) NOPASSWD:ALL"
   shell: /bin/bash
   lock_passwd: true
   ssh_authorized_keys:

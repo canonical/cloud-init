@@ -40,6 +40,10 @@
         "accept-ra": {
           "type": "boolean",
           "description": "Whether to accept IPv6 Router Advertisements (RA) on this interface. If unset, it will not be rendered"
+        },
+        "keep_configuration": {
+          "type": "boolean",
+          "description": "Designate the connection as 'critical to the system', meaning that special care will be taken not to release the assigned IP when the daemon is restarted. (only recognized by Netplan renderer)."
         }
       }
     },
@@ -545,6 +549,10 @@
         "ipv6": {
           "type": "boolean",
           "description": "Indicate if the subnet is IPv6. If not specified, it will be inferred from the subnet type or address. This is exists for compatibility with OpenStack's ``network_data.json`` when rendered through sysconfig."
+        },
+        "metric": {
+          "type": "integer",
+          "description": "Specify metric cost for interface and routes of this subnet. "
         }
       }
     },

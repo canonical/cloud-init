@@ -6,25 +6,29 @@ from cloudinit.analyze import analyze_boot, get_parser
 from cloudinit.analyze.show import (
     CONTAINER_CODE,
     FAIL_CODE,
+    SUCCESS_CODE,
     SystemctlReader,
     dist_check_timestamp,
+    gather_timestamps_using_systemd,
 )
-from tests.unittests.helpers import CiTestCase, mock
+from tests.unittests.helpers import mock
 
 err_code = (FAIL_CODE, -1, -1, -1)
 
 
-class TestDistroChecker(CiTestCase):
-    def test_blank_distro(self):
-        self.assertEqual(err_code, dist_check_timestamp())
+class TestDistroChecker:
+    @mock.patch("cloudinit.subp.subp")
+    def test_blank_distro(self, m_subp):
+        assert err_code == dist_check_timestamp()
 
+    @mock.patch("cloudinit.subp.subp")
     @mock.patch("cloudinit.util.is_FreeBSD", return_value=True)
-    def test_freebsd_gentoo_cant_find(self, m_is_FreeBSD):
-        self.assertEqual(err_code, dist_check_timestamp())
+    def test_freebsd_gentoo_cant_find(self, m_is_FreeBSD, m_subp):
+        assert err_code == dist_check_timestamp()
 
     @mock.patch("cloudinit.subp.subp", return_value=(0, 1))
     def test_subp_fails(self, m_subp):
-        self.assertEqual(err_code, dist_check_timestamp())
+        assert err_code == dist_check_timestamp()
 
 
 class TestSystemCtlReader:
@@ -35,28 +39,36 @@ class TestSystemCtlReader:
         )
         reader = SystemctlReader("dont", "care")
         with pytest.raises(RuntimeError):
-            reader.parse_epoch_as_float()
+            reader.convert_val_to_float()
 
     @mock.patch("cloudinit.subp.subp", return_value=("U=1000000", None))
     def test_systemctl_works_correctly_threshold(self, m_subp):
         reader = SystemctlReader("dummyProperty", "dummyParameter")
-        assert 1.0 == reader.parse_epoch_as_float()
-        thresh = 1.0 - reader.parse_epoch_as_float()
+        assert 1.0 == reader.convert_val_to_float()
+        thresh = 1.0 - reader.convert_val_to_float()
         assert thresh < 1e-6
         assert thresh > (-1 * 1e-6)
 
     @mock.patch("cloudinit.subp.subp", return_value=("U=0", None))
     def test_systemctl_succeed_zero(self, m_subp):
         reader = SystemctlReader("dummyProperty", "dummyParameter")
-        assert 0.0 == reader.parse_epoch_as_float()
+        assert 0.0 == reader.convert_val_to_float()
+
+    @mock.patch(
+        "cloudinit.subp.subp",
+        return_value=("U=Fri 1970-01-02 00:01:15.123 UTC", None),
+    )
+    def test_systemctl_succeed_human_readable_date(self, m_subp):
+        reader = SystemctlReader("dummyProperty", "dummyParameter")
+        assert 86475.123 == reader.convert_val_to_float()
 
     @mock.patch("cloudinit.subp.subp", return_value=("U=1", None))
     def test_systemctl_succeed_distinct(self, m_subp):
         reader = SystemctlReader("dummyProperty", "dummyParameter")
-        val1 = reader.parse_epoch_as_float()
+        val1 = reader.convert_val_to_float()
         m_subp.return_value = ("U=2", None)
         reader2 = SystemctlReader("dummyProperty", "dummyParameter")
-        val2 = reader2.parse_epoch_as_float()
+        val2 = reader2.convert_val_to_float()
         assert val1 != val2
 
     @pytest.mark.parametrize(
@@ -75,7 +87,7 @@ class TestSystemCtlReader:
         m_subp.return_value = return_value
         reader = SystemctlReader("dummyProperty", "dummyParameter")
         with pytest.raises(exception):
-            reader.parse_epoch_as_float()
+            reader.convert_val_to_float()
 
 
 class TestAnalyzeBoot:
@@ -179,3 +191,86 @@ class TestAnalyzeBoot:
 
         self.remove_dummy_file(path, log_path)
         assert CONTAINER_CODE == finish_code
+
+    @mock.patch("cloudinit.analyze.show.SystemctlReader")
+    @pytest.mark.parametrize(
+        (
+            "is_container_returnvalue",
+            "expected_first_2_constructors_call_list",
+            "m_returns_of_convert_call",
+            "expected_return",
+        ),
+        (
+            (
+                True,
+                [
+                    mock.call("UserspaceTimestamp"),
+                    mock.call("UserspaceTimestampMonotonic"),
+                ],
+                [1500, 7, 7, 18],
+                (CONTAINER_CODE, 1500, 1500, 1511),
+            ),
+            (
+                False,
+                [
+                    mock.call("KernelTimestamp"),
+                    mock.call("KernelTimestampMonotonic"),
+                ],
+                [1000, 1, 3, 8],
+                (SUCCESS_CODE, 1000, 1002, 1007),
+            ),
+        ),
+    )
+    def test_gather_timestamps_using_systemd(
+        self,
+        mock_SystemctlReader,
+        is_container_returnvalue,
+        expected_first_2_constructors_call_list,
+        m_returns_of_convert_call,
+        expected_return,
+        mocker,
+    ):
+        """
+        Testing the behavior based on whether or not the
+        instance is a container
+        """
+        mocker.patch(
+            "cloudinit.util.is_container",
+            return_value=is_container_returnvalue,
+        )
+
+        # Mocking the return values of the 4 calls to convert_val_to_float
+        # in gather_timestamps_using_systemd
+        mock_SystemctlReader_instances = [mock.Mock() for _ in range(4)]
+        for instance, value in zip(
+            mock_SystemctlReader_instances, m_returns_of_convert_call
+        ):
+            instance.convert_val_to_float.return_value = value
+        mock_SystemctlReader.side_effect = mock_SystemctlReader_instances
+
+        assert expected_return == gather_timestamps_using_systemd()
+
+        # Verifying that the 4 constructor calls of SystemctlReader in
+        # gather_timestamps_using_systemd were with the expected arguments
+        assert (
+            mock_SystemctlReader.call_args_list[:2]
+            == expected_first_2_constructors_call_list
+        )
+        assert mock_SystemctlReader.call_args_list[2:] == [
+            mock.call("UserspaceTimestampMonotonic"),
+            mock.call("InactiveExitTimestampMonotonic", "cloud-init-local"),
+        ]
+
+    @mock.patch(
+        "cloudinit.analyze.show.SystemctlReader",
+        side_effect=Exception("ARandomError"),
+    )
+    @mock.patch("cloudinit.subp.subp")
+    def test_gather_timestamps_using_systemd_with_SystemctlReader_exception(
+        self, m_subp, systemctlReader_mock
+    ):
+        """
+        Confirm the function returns the error code when SystemctlReader
+        raises an exception
+        """
+        assert gather_timestamps_using_systemd() == err_code

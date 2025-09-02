@@ -43,6 +43,7 @@
         "power-state-change",
         "power_state_change",
         "puppet",
+        "raspberry_pi",
         "reset-rmc",
         "reset_rmc",
         "resizefs",
@@ -493,6 +494,108 @@
         }
       }
     },
+    "ansible.pull": {
+      "oneOf": [
+        {
+          "required": [
+            "url",
+            "playbook_name"
+          ]
+        },
+        {
+          "required": [
+            "url",
+            "playbook_names"
+          ]
+        }
+      ],
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "accept_host_key": {
+          "type": "boolean",
+          "default": false
+        },
+        "clean": {
+          "type": "boolean",
+          "default": false
+        },
+        "full": {
+          "type": "boolean",
+          "default": false
+        },
+        "diff": {
+          "type": "boolean",
+          "default": false
+        },
+        "ssh_common_args": {
+          "type": "string"
+        },
+        "scp_extra_args": {
+          "type": "string"
+        },
+        "sftp_extra_args": {
+          "type": "string"
+        },
+        "private_key": {
+          "type": "string"
+        },
+        "checkout": {
+          "type": "string"
+        },
+        "module_path": {
+          "type": "string"
+        },
+        "timeout": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "connection": {
+          "type": "string"
+        },
+        "vault_id": {
+          "type": "string"
+        },
+        "vault_password_file": {
+          "type": "string"
+        },
+        "verify_commit": {
+          "type": "boolean",
+          "default": false
+        },
+        "inventory": {
+          "type": "string"
+        },
+        "module_name": {
+          "type": "string"
+        },
+        "sleep": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "string"
+        },
+        "skip_tags": {
+          "type": "string"
+        },
+        "playbook_name": {
+          "deprecated": true,
+          "deprecated_version": "25.2",
+          "deprecated_description": "Use **playbook_names** key instead.",
+          "description": "Single playbook_name to run with ansible-pull",
+          "type": "string"
+        },
+        "playbook_names": {
+          "type": "array",
+          "description": "List of playbook_names to run with ansible-pull",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "apt_configure.mirror": {
       "type": "array",
       "items": {
@@ -866,85 +969,21 @@
               "default": "ansible"
             },
             "pull": {
-              "required": [
-                "url",
-                "playbook_name"
-              ],
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "accept_host_key": {
-                  "type": "boolean",
-                  "default": false
+              "description": "pull playbooks from a VCS repo and run them on the host",
+              "oneOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/ansible.pull"
+                  }
                 },
-                "clean": {
-                  "type": "boolean",
-                  "default": false
-                },
-                "full": {
-                  "type": "boolean",
-                  "default": false
-                },
-                "diff": {
-                  "type": "boolean",
-                  "default": false
-                },
-                "ssh_common_args": {
-                  "type": "string"
-                },
-                "scp_extra_args": {
-                  "type": "string"
-                },
-                "sftp_extra_args": {
-                  "type": "string"
-                },
-                "private_key": {
-                  "type": "string"
-                },
-                "checkout": {
-                  "type": "string"
-                },
-                "module_path": {
-                  "type": "string"
-                },
-                "timeout": {
-                  "type": "string"
-                },
-                "url": {
-                  "type": "string"
-                },
-                "connection": {
-                  "type": "string"
-                },
-                "vault_id": {
-                  "type": "string"
-                },
-                "vault_password_file": {
-                  "type": "string"
-                },
-                "verify_commit": {
-                  "type": "boolean",
-                  "default": false
-                },
-                "inventory": {
-                  "type": "string"
-                },
-                "module_name": {
-                  "type": "string"
-                },
-                "sleep": {
-                  "type": "string"
-                },
-                "tags": {
-                  "type": "string"
-                },
-                "skip_tags": {
-                  "type": "string"
-                },
-                "playbook_name": {
-                  "type": "string"
+                {
+                  "$ref": "#/$defs/ansible.pull",
+                  "deprecated": true,
+                  "deprecated_version": "25.2",
+                  "deprecated_description": "Expect **ansible.pull** as list of objects instead of a single object."
                 }
-              }
+              ]
             }
           }
         }
@@ -2029,7 +2068,7 @@
             "minItems": 1,
             "maxItems": 6
           },
-          "description": "List of lists. Each inner list entry is a list of ``/etc/fstab`` mount declarations of the format: [ fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno ]. A mount declaration with less than 6 items will get remaining values from **mount_default_fields**. A mount declaration with only `fs_spec` and no `fs_file` mountpoint will be skipped.",
+          "description": "List of lists. Each inner list entry is a list of ``/etc/fstab`` mount declarations of the format: [ fs_spec, fs_file, fs_vfstype, fs_mntops, fs_freq, fs_passno ]. A mount declaration with less than 6 items will get remaining values from **mount_default_fields**. A mount declaration with only `fs_spec` and no `fs_file` mountpoint will be skipped.",
           "minItems": 1
         },
         "mount_default_fields": {
@@ -2601,6 +2640,65 @@
             "server-hostname": {
               "type": "string",
               "description": "Sets the serverurl in ``/etc/rhsm/rhsm.conf``."
+            }
+          }
+        }
+      }
+    },
+    "cc_raspberry_pi": {
+      "type": "object",
+      "properties": {
+        "rpi": {
+          "type": "object",
+          "properties": {
+            "interfaces": {
+              "type": "object",
+              "properties": {
+                "spi": {
+                  "type": "boolean",
+                  "description": "Enable SPI interface. Default: ``false``.",
+                  "default": false
+                },
+                "i2c": {
+                  "type": "boolean",
+                  "description": "Enable I2C interface. Default: ``false``.",
+                  "default": false
+                },
+                "serial": {
+                  "default": false,
+                  "description": "Enable serial console. Default: ``false``.",
+                  "oneOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "console": {
+                          "type": "boolean",
+                          "description": "Enable serial console. Default: ``false``.",
+                          "default": false
+                        },
+                        "hardware": {
+                          "type": "boolean",
+                          "description": "Enable UART hardware. Default: ``false``.",
+                          "default": false
+                        }
+                      }
+                    }
+                  ]
+                },
+                "onewire": {
+                  "type": "boolean",
+                  "description": "Enable 1-Wire interface. Default: ``false``.",
+                  "default": false
+                }
+              }
+            },
+            "enable_rpi_connect": {
+              "type": "boolean",
+              "default": false,
+              "description": "Install and enable Raspberry Pi Connect. Default: ``false``."
             }
           }
         }
@@ -3225,7 +3323,7 @@
       "properties": {
         "manage_etc_hosts": {
           "default": false,
-          "description": "Whether to manage ``/etc/hosts`` on the system. If ``true``, render the hosts file using ``/etc/cloud/templates/hosts.tmpl`` replacing ``$hostname`` and ``$fdqn``. If ``localhost``, append a ``127.0.1.1`` entry that resolves from FQDN and hostname every boot. Default: ``false``.",
+          "description": "Whether to manage ``/etc/hosts`` on the system. If ``true``, render the hosts file using ``/etc/cloud/templates/hosts.tmpl`` replacing ``$hostname`` and ``$fqdn``. If ``localhost``, append a ``127.0.1.1`` entry that resolves from FQDN and hostname every boot. Default: ``false``.",
           "oneOf": [
             {
               "enum": [
@@ -3862,6 +3960,9 @@
       "$ref": "#/$defs/cc_puppet"
     },
     {
+      "$ref": "#/$defs/cc_raspberry_pi"
+    },
+    {
       "$ref": "#/$defs/cc_resizefs"
     },
     {
@@ -4011,6 +4112,7 @@
     "resize_rootfs": {},
     "resolv_conf": {},
     "rh_subscription": {},
+    "rpi": {},
     "rsyslog": {},
     "runcmd": {},
     "salt_minion": {},

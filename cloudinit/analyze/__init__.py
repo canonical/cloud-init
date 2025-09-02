@@ -6,13 +6,15 @@ import argparse
 import re
 import sys
 from datetime import datetime, timezone
-from typing import IO
+from typing import IO, Dict, List, Optional, Tuple, Union
 
 from cloudinit.analyze import dump, show
 from cloudinit.atomic_helper import json_dumps
 
 
-def get_parser(parser=None):
+def get_parser(
+    parser: Optional[argparse.ArgumentParser] = None,
+) -> argparse.ArgumentParser:
     if not parser:
         parser = argparse.ArgumentParser(
             prog="cloudinit-analyze",
@@ -113,7 +115,7 @@ def get_parser(parser=None):
     return parser
 
 
-def analyze_boot(name, args):
+def analyze_boot(name: str, args: argparse.Namespace) -> str:
     """Report a list of how long different boot operations took.
 
     For Example:
@@ -138,10 +140,10 @@ def analyze_boot(name, args):
             e
             for e in _get_events(infh)
             if e["name"] == "init-local"
-            and "starting search" in e["description"]
+            and "starting search" in str(e["description"])
         ][-1]
-        ci_start = datetime.fromtimestamp(
-            last_init_local["timestamp"], timezone.utc
+        ci_start: Union[datetime, str] = datetime.fromtimestamp(
+            float(last_init_local["timestamp"]), timezone.utc
         )
     except IndexError:
         ci_start = "Could not find init-local log-line in cloud-init.log"
@@ -200,7 +202,7 @@ def analyze_boot(name, args):
     return status_code
 
 
-def analyze_blame(name, args):
+def analyze_blame(name, args: argparse.Namespace) -> None:
     """Report a list of records sorted by largest time delta.
 
     For example:
@@ -227,7 +229,7 @@ def analyze_blame(name, args):
     clean_io(infh, outfh)
 
 
-def analyze_show(name, args):
+def analyze_show(name, args: argparse.Namespace) -> None:
     """Generate output records using the 'standard' format to printing events.
 
     Example output follows:
@@ -264,14 +266,14 @@ def analyze_show(name, args):
     clean_io(infh, outfh)
 
 
-def analyze_dump(name, args):
+def analyze_dump(name, args: argparse.Namespace) -> None:
     """Dump cloud-init events in json format"""
     infh, outfh = configure_io(args)
     outfh.write(json_dumps(_get_events(infh)) + "\n")
     clean_io(infh, outfh)
 
 
-def _get_events(infile):
+def _get_events(infile: IO) -> List[Dict[str, Union[str, float]]]:
     rawdata = None
     events, rawdata = show.load_events_infile(infile)
     if not events:
@@ -279,7 +281,7 @@ def _get_events(infile):
     return events
 
 
-def configure_io(args):
+def configure_io(args: argparse.Namespace) -> Tuple[IO, IO]:
     """Common parsing and setup of input/output files"""
     if args.infile == "-":
         infh = sys.stdin

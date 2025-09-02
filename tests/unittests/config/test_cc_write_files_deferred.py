@@ -1,8 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
-import shutil
-import tempfile
+from unittest import mock
 
 import pytest
 
@@ -13,25 +12,19 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import (
-    FilesystemMockingTestCase,
-    skipUnlessJsonSchema,
-)
+from tests.unittests.helpers import skipUnlessJsonSchema
+from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
 
 
-class TestWriteFilesDeferred(FilesystemMockingTestCase):
+@pytest.mark.usefixtures("fake_filesystem")
+class TestWriteFilesDeferred:
 
-    with_logs = True
+    USER = "root"
 
-    def setUp(self):
-        super(TestWriteFilesDeferred, self).setUp()
-        self.tmp = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, self.tmp)
-
-    def test_filtering_deferred_files(self):
-        self.patchUtils(self.tmp)
+    @mock.patch("cloudinit.config.cc_write_files.util.chownbyname")
+    def test_filtering_deferred_files(self, m_chownbyname):
         expected = "hello world\n"
         config = {
             "write_files": [
@@ -43,11 +36,18 @@ class TestWriteFilesDeferred(FilesystemMockingTestCase):
                 {"path": "/tmp/not_deferred.file"},
             ]
         }
-        cc = self.tmp_cloud("ubuntu")
-        handle("cc_write_files_deferred", config, cc, [])
-        self.assertEqual(util.load_text_file("/tmp/deferred.file"), expected)
-        with self.assertRaises(FileNotFoundError):
+        cc = get_cloud("ubuntu")
+        # fake_filesytem's tree is owned by $USER:$USER
+        with mock.patch.object(
+            cc.distro, "default_owner", f"{self.USER}:{self.USER}"
+        ):
+            handle("cc_write_files_deferred", config, cc, [])
+        assert util.load_text_file("/tmp/deferred.file") == expected
+        with pytest.raises(FileNotFoundError):
             util.load_text_file("/tmp/not_deferred.file")
+        assert [
+            mock.call(mock.ANY, self.USER, self.USER)
+        ] == m_chownbyname.call_args_list
 
 
 class TestWriteFilesDeferredSchema:

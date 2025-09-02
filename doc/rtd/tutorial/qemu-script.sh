@@ -1,7 +1,7 @@
 #!/bin/bash
 
 TEMP_DIR=temp
-IMAGE_URL="https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
+IMAGE_URL="https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
 
 # setup
 mkdir "$TEMP_DIR" && cd "$TEMP_DIR" || {
@@ -36,7 +36,7 @@ qemu-system-x86_64                                              \
     -cpu host                                                   \
     -m 512                                                      \
     -nographic                                                  \
-    -hda jammy-server-cloudimg-amd64.img                        \
+    -hda noble-server-cloudimg-amd64.img                        \
     -smbios type=1,serial=ds='nocloud;s=http://10.0.2.2:8000/'
 
 echo -e "\nTo reuse the image and config files, start the python webserver and "

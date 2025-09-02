@@ -54,7 +54,6 @@ Name=eth0
 
 [Network]
 DHCP=ipv4
-
 """
 
 SAMPLE_SYSCONFIG_CONTENT = """\

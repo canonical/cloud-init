@@ -1,6 +1,6 @@
-[build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+[build-system]  # See meson.build. Empty build-system to avoid RTD builds
+build-backend = ""
+requires = []
 
 [tool.black]
 line-length = 79
@@ -42,10 +42,6 @@ no_implicit_optional = true
 # See GH-5445
 [[tool.mypy.overrides]]
 module = [
-    "cloudinit.analyze",
-    "cloudinit.analyze.dump",
-    "cloudinit.analyze.show",
-    "cloudinit.cmd.devel.hotplug_hook",
     "cloudinit.cmd.devel.make_mime",
     "cloudinit.cmd.devel.net_convert",
     "cloudinit.cmd.main",
@@ -66,7 +62,6 @@ module = [
     "cloudinit.distros.ug_util",
     "cloudinit.helpers",
     "cloudinit.net.cmdline",
-    "cloudinit.net.eni",
     "cloudinit.net.ephemeral",
     "cloudinit.net.freebsd",
     "cloudinit.net.netbsd",
@@ -85,7 +80,6 @@ module = [
     "cloudinit.sources.DataSourceExoscale",
     "cloudinit.sources.DataSourceGCE",
     "cloudinit.sources.DataSourceHetzner",
-    "cloudinit.sources.DataSourceMAAS",
     "cloudinit.sources.DataSourceNoCloud",
     "cloudinit.sources.DataSourceOVF",
     "cloudinit.sources.DataSourceOpenNebula",
@@ -110,10 +104,8 @@ module = [
     "cloudinit.user_data",
     "tests.integration_tests.instances",
     "tests.unittests.analyze.test_show",
-    "tests.unittests.config.test_apt_configure_sources_list_v1",
     "tests.unittests.config.test_apt_configure_sources_list_v3",
     "tests.unittests.config.test_apt_source_v1",
-    "tests.unittests.config.test_apt_source_v3",
     "tests.unittests.config.test_cc_apk_configure",
     "tests.unittests.config.test_cc_apt_pipelining",
     "tests.unittests.config.test_cc_bootcmd",
@@ -125,7 +117,6 @@ module = [
     "tests.unittests.config.test_cc_grub_dpkg",
     "tests.unittests.config.test_cc_install_hotplug",
     "tests.unittests.config.test_cc_keys_to_console",
-    "tests.unittests.config.test_cc_landscape",
     "tests.unittests.config.test_cc_mcollective",
     "tests.unittests.config.test_cc_phone_home",
     "tests.unittests.config.test_cc_puppet",
@@ -168,7 +159,6 @@ module = [
     "tests.unittests.sources.test_exoscale",
     "tests.unittests.sources.test_gce",
     "tests.unittests.sources.test_init",
-    "tests.unittests.sources.test_lxd",
     "tests.unittests.sources.test_nocloud",
     "tests.unittests.sources.test_opennebula",
     "tests.unittests.sources.test_openstack",
@@ -208,7 +198,7 @@ module = [
 check_untyped_defs = false
 
 [tool.ruff]
-target-version = "py37"
+target-version = "py38"
 line-length = 79
 # E, W, and F make up the entirety of default flake8
 lint.select = [

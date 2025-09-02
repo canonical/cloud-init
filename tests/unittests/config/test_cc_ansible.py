@@ -1,5 +1,6 @@
 import os
 import re
+from contextlib import nullcontext
 from copy import deepcopy
 from textwrap import dedent
 from typing import Any, Dict
@@ -15,7 +16,11 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import skipUnlessJsonSchema
+from cloudinit.subp import ProcessExecutionError
+from tests.unittests.helpers import (
+    skipUnlessJsonSchema,
+    skipUnlessJsonSchemaVersionGreaterThan,
+)
 from tests.unittests.util import get_cloud
 
 try:
@@ -100,7 +105,7 @@ CFG_CTRL = {
     },
 }
 
-CFG_FULL_PULL: Dict[str, Any] = {
+CFG_FULL_PULL_DICT: Dict[str, Any] = {
     "ansible": {
         "install_method": "distro",
         "package_name": "ansible-core",
@@ -110,7 +115,7 @@ CFG_FULL_PULL: Dict[str, Any] = {
         },
         "pull": {
             "url": "https://github/holmanb/vmboot",
-            "playbook_name": "arch.yml",
+            "playbook_names": ["arch.yml"],
             "accept_host_key": True,
             "clean": True,
             "full": True,
@@ -134,46 +139,107 @@ CFG_FULL_PULL: Dict[str, Any] = {
     }
 }
 
-CFG_MINIMAL = {
+CFG_FULL_PULL_LIST: Dict[str, Any] = {
+    "ansible": {
+        "install_method": "distro",
+        "package_name": "ansible-core",
+        "ansible_config": "/etc/ansible/ansible.cfg",
+        "galaxy": {
+            "actions": [["ansible-galaxy", "install", "debops.apt"]],
+        },
+        "pull": [
+            {
+                "url": "https://github/holmanb/vmboot",
+                "playbook_names": ["arch.yml"],
+                "accept_host_key": True,
+                "clean": True,
+                "full": True,
+                "diff": False,
+                "ssh_common_args": "-y",
+                "scp_extra_args": "-l",
+                "sftp_extra_args": "-f",
+                "checkout": "tree",
+                "module_path": "~/.ansible/plugins/modules:"
+                "/usr/share/ansible/plugins/modules",
+                "timeout": "10",
+                "vault_id": "me",
+                "connection": "smart",
+                "vault_password_file": "/path/to/file",
+                "module_name": "git",
+                "sleep": "1",
+                "tags": "cumulus",
+                "skip_tags": "cisco",
+                "private_key": "{nope}",
+            }
+        ],
+    }
+}
+
+CFG_MINIMAL_DICT = {
     "ansible": {
         "install_method": "pip",
         "package_name": "ansible",
         "run_user": "ansible",
         "pull": {
             "url": "https://github/holmanb/vmboot",
-            "playbook_name": "ubuntu.yml",
+            "playbook_names": ["ubuntu.yml"],
         },
+    }
+}
+
+CFG_MINIMAL_LIST = {
+    "ansible": {
+        "install_method": "pip",
+        "package_name": "ansible",
+        "run_user": "ansible",
+        "pull": [
+            {
+                "url": "https://github/holmanb/vmboot",
+                "playbook_names": ["ubuntu.yml"],
+            }
+        ],
     }
 }
 
 
 class TestSchema:
+
     @mark.parametrize(
         ("config", "error_msg"),
         (
             param(
-                CFG_MINIMAL,
-                None,
-                id="essentials",
+                CFG_MINIMAL_DICT,
+                "Expect **ansible.pull** as list of objects",
+                id="essentials_dict",
             ),
+            param(
+                CFG_FULL_PULL_DICT,
+                "Expect **ansible.pull** as list of objects",
+                id="all-pull-keys-dict",
+            ),
+        ),
+    )
+    @skipUnlessJsonSchemaVersionGreaterThan(version=(3, 2, 0))
+    def test_schema_validation_deprecations(self, config, error_msg):
+        with raises(SchemaValidationError, match=re.escape(error_msg)):
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
+
+    @mark.parametrize(
+        ("config", "error_msg"),
+        (
             param(
                 {
                     "ansible": {
                         "install_method": "distro",
                         "pull": {
                             "url": "https://github/holmanb/vmboot",
-                            "playbook_name": "centos.yml",
+                            "playbook_names": ["centos.yml"],
                             "dance": "bossa nova",
                         },
                     }
                 },
                 "Additional properties are not allowed ",
-                id="additional-properties",
-            ),
-            param(
-                CFG_FULL_PULL,
-                None,
-                id="all-pull-keys",
+                id="additional-properties-dict",
             ),
             param(
                 CFG_CTRL,
@@ -186,24 +252,24 @@ class TestSchema:
                         "install_method": "true",
                         "pull": {
                             "url": "https://github/holmanb/vmboot",
-                            "playbook_name": "debian.yml",
+                            "playbook_names": ["debian.yml"],
                         },
                     }
                 },
                 "'true' is not one of ['distro', 'pip']",
-                id="install-type",
+                id="install-type-dict",
             ),
             param(
                 {
                     "ansible": {
                         "install_method": "pip",
                         "pull": {
-                            "playbook_name": "fedora.yml",
+                            "playbook_names": ["fedora.yml"],
                         },
                     }
                 },
                 "'url' is a required property",
-                id="require-url",
+                id="require-url-dict",
             ),
             param(
                 {
@@ -215,7 +281,81 @@ class TestSchema:
                     }
                 },
                 "'playbook_name' is a required property",
-                id="require-url",
+                id="require-url-dict",
+            ),
+            param(
+                CFG_MINIMAL_LIST,
+                None,
+                id="essentials_list",
+            ),
+            param(
+                {
+                    "ansible": {
+                        "install_method": "distro",
+                        "pull": [
+                            {
+                                "url": "https://github/holmanb/vmboot",
+                                "playbook_names": ["centos.yml"],
+                                "dance": "bossa nova",
+                            }
+                        ],
+                    }
+                },
+                "Additional properties are not allowed ",
+                id="additional-properties-list",
+            ),
+            param(
+                CFG_FULL_PULL_LIST,
+                None,
+                id="all-pull-keys-list",
+            ),
+            param(
+                CFG_CTRL,
+                None,
+                id="ctrl-keys",
+            ),
+            param(
+                {
+                    "ansible": {
+                        "install_method": "true",
+                        "pull": [
+                            {
+                                "url": "https://github/holmanb/vmboot",
+                                "playbook_names": ["debian.yml"],
+                            }
+                        ],
+                    }
+                },
+                "'true' is not one of ['distro', 'pip']",
+                id="install-type-list",
+            ),
+            param(
+                {
+                    "ansible": {
+                        "install_method": "pip",
+                        "pull": [
+                            {
+                                "playbook_names": ["fedora.yml"],
+                            }
+                        ],
+                    }
+                },
+                "'url' is a required property",
+                id="require-url-list",
+            ),
+            param(
+                {
+                    "ansible": {
+                        "install_method": "pip",
+                        "pull": [
+                            {
+                                "url": "gophers://encrypted-gophers/",
+                            }
+                        ],
+                    }
+                },
+                "'playbook_name' is a required property",
+                id="require-url-list",
             ),
         ),
     )
@@ -231,12 +371,13 @@ class TestSchema:
 class TestAnsible:
     def test_filter_args(self):
         """only diff should be removed"""
-        out = cc_ansible.filter_args(
-            CFG_FULL_PULL.get("ansible", {}).get("pull", {}),
+        src_cfg = deepcopy(
+            CFG_FULL_PULL_DICT.get("ansible", {}).get("pull", {})
         )
-        assert out == {
+        src_cfg.pop("playbook_names")
+        out_dict = cc_ansible.filter_args(src_cfg)
+        assert out_dict == {
             "url": "https://github/holmanb/vmboot",
-            "playbook-name": "arch.yml",
             "accept-host-key": True,
             "clean": True,
             "full": True,
@@ -258,17 +399,17 @@ class TestAnsible:
         }
 
     @mark.parametrize(
-        ("cfg", "exception"),
+        ("cfg_dict", "exception"),
         (
-            (CFG_FULL_PULL, None),
-            (CFG_MINIMAL, None),
+            (CFG_FULL_PULL_DICT, None),
+            (CFG_MINIMAL_DICT, None),
             (
                 {
                     "ansible": {
                         "package_name": "ansible-core",
                         "install_method": "distro",
                         "pull": {
-                            "playbook_name": "ubuntu.yml",
+                            "playbook_names": ["ubuntu.yml"],
                         },
                     }
                 },
@@ -287,7 +428,7 @@ class TestAnsible:
             ),
         ),
     )
-    def test_required_keys(self, cfg, exception, mocker):
+    def test_required_keys_dict(self, cfg_dict, exception, mocker):
         mocker.patch(M_PATH + "subp.subp", return_value=("", ""))
         mocker.patch(M_PATH + "subp.which", return_value=True)
         mocker.patch(M_PATH + "AnsiblePull.check_deps")
@@ -301,12 +442,79 @@ class TestAnsible:
         )
         if exception:
             with raises(exception):
-                cc_ansible.handle("", cfg, get_cloud(), [])
+                cc_ansible.handle("", cfg_dict, get_cloud(), [])
         else:
             cloud = get_cloud(mocked_distro=True)
             cloud.distro.pip_package_name = "python3-pip"
-            install = cfg["ansible"]["install_method"]
-            cc_ansible.handle("", cfg, cloud, [])
+            install = cfg_dict["ansible"]["install_method"]
+            cc_ansible.handle("", cfg_dict, cloud, [])
+            if install == "distro":
+                cloud.distro.install_packages.assert_called_once()
+                cloud.distro.install_packages.assert_called_with(
+                    ["ansible-core"]
+                )
+            elif install == "pip":
+                if HAS_PIP:
+                    assert 0 == cloud.distro.install_packages.call_count
+                else:
+                    cloud.distro.install_packages.assert_called_with(
+                        ["python3-pip"]
+                    )
+
+    @mark.parametrize(
+        ("cfg_list", "exception"),
+        (
+            (CFG_FULL_PULL_LIST, None),
+            (CFG_MINIMAL_LIST, None),
+            (
+                {
+                    "ansible": {
+                        "package_name": "ansible-core",
+                        "install_method": "distro",
+                        "pull": [
+                            {
+                                "playbook_names": ["ubuntu.yml"],
+                            }
+                        ],
+                    }
+                },
+                ValueError,
+            ),
+            (
+                {
+                    "ansible": {
+                        "install_method": "pip",
+                        "pull": [
+                            {
+                                "url": "https://github/holmanb/vmboot",
+                            }
+                        ],
+                    }
+                },
+                ValueError,
+            ),
+        ),
+    )
+    def test_required_keys_list(self, cfg_list, exception, mocker):
+        mocker.patch(M_PATH + "subp.subp", return_value=("", ""))
+        mocker.patch(M_PATH + "subp.which", return_value=True)
+        mocker.patch(M_PATH + "AnsiblePull.check_deps")
+        mocker.patch(
+            M_PATH + "AnsiblePull.get_version",
+            return_value=cc_ansible.lifecycle.Version(2, 7, 1),
+        )
+        mocker.patch(
+            M_PATH + "AnsiblePullDistro.is_installed",
+            return_value=False,
+        )
+        if exception:
+            with raises(exception):
+                cc_ansible.handle("", cfg_list, get_cloud(), [])
+        else:
+            cloud = get_cloud(mocked_distro=True)
+            cloud.distro.pip_package_name = "python3-pip"
+            install = cfg_list["ansible"]["install_method"]
+            cc_ansible.handle("", cfg_list, cloud, [])
             if install == "distro":
                 cloud.distro.install_packages.assert_called_once()
                 cloud.distro.install_packages.assert_called_with(
@@ -344,16 +552,75 @@ class TestAnsible:
             cc_ansible.AnsiblePullPip(distro, "ansible").install("")
         distro.install_packages.assert_called_once()
 
+    @mark.parametrize(
+        "mocked_doas_kwargs,expected_result,expected_present_logs,expected_absent_logs",
+        [
+            (
+                {"return_value": ("", "")},
+                nullcontext(),
+                ["Upgraded pip"],
+                ["Failed at upgrading pip"],
+            ),
+            # When do_as raises a ProcessExecutionError, __upgrade_pip will
+            #  catch it then return without raising it
+            (
+                {"side_effect": ProcessExecutionError()},
+                nullcontext(),
+                ["Failed at upgrading pip"],
+                ["Upgraded pip"],
+            ),
+            # The below use case is to ensure that the function will raise the
+            # error if the error is not ProcessExecutionError (i.e. something
+            # went really sideways with do_as and not simply a non-zero exit
+            # by the executed command)
+            (
+                {"side_effect": ZeroDivisionError()},
+                raises(ZeroDivisionError),
+                [],
+                ["Failed at upgrading pip", "Upgraded pip"],
+            ),
+        ],
+    )
+    def test_upgrade_pip(
+        self,
+        mocked_doas_kwargs,
+        expected_result,
+        expected_present_logs,
+        expected_absent_logs,
+        caplog,
+    ):
+        """assert __upgrade_pip will succeed
+        or will catch an exception and not fail"""
+        distro = get_cloud(mocked_distro=True).distro
+        pip = cc_ansible.AnsiblePullPip(distro, "ansible")
+        base_cmd = ["echo", "abc"]
+        with mock.patch.object(
+            pip, "do_as", **mocked_doas_kwargs
+        ) as mocked_doas:
+            with expected_result as e:
+                assert (
+                    getattr(pip, "_AnsiblePullPip__upgrade_pip")(base_cmd) == e
+                )
+
+                mocked_doas.assert_called_once()
+                mocked_doas.assert_called_with([*base_cmd, "--upgrade", "pip"])
+
+                for expected_present_log in expected_present_logs:
+                    assert expected_present_log in caplog.text
+
+                for expected_absent_log in expected_absent_logs:
+                    assert expected_absent_log not in caplog.text
+
     @mock.patch(M_PATH + "subp.which", return_value=True)
-    @mock.patch(M_PATH + "subp.subp", return_value=("stdout", "stderr"))
+    @mock.patch(M_PATH + "subp.subp", return_value=(distro_version, "stderr"))
     @mock.patch(
-        "cloudinit.distros.subp.subp", return_value=("stdout", "stderr")
+        "cloudinit.distros.subp.subp", return_value=(distro_version, "stderr")
     )
     @mark.parametrize(
-        ("cfg", "expected"),
+        ("cfg_dict", "expected"),
         (
             (
-                CFG_FULL_PULL,
+                CFG_FULL_PULL_DICT,
                 [
                     "ansible-pull",
                     "--url=https://github/holmanb/vmboot",
@@ -379,7 +646,7 @@ class TestAnsible:
                 ],
             ),
             (
-                CFG_MINIMAL,
+                CFG_MINIMAL_DICT,
                 [
                     "ansible-pull",
                     "--url=https://github/holmanb/vmboot",
@@ -388,18 +655,87 @@ class TestAnsible:
             ),
         ),
     )
-    def test_ansible_pull(self, m_subp1, m_subp2, m_which, cfg, expected):
+    def test_ansible_pull_dict(
+        self, m_subp1, m_subp2, m_which, cfg_dict, expected
+    ):
         """verify expected ansible invocation from userdata config"""
-        pull_type = cfg["ansible"]["install_method"]
+        pull_type = cfg_dict["ansible"]["install_method"]
         distro = get_cloud().distro
+        distro.do_as = MagicMock(return_value=(distro_version, ""))
+
         ansible_pull = (
             cc_ansible.AnsiblePullPip(distro, "ansible")
             if pull_type == "pip"
             else cc_ansible.AnsiblePullDistro(distro, "")
         )
         cc_ansible.run_ansible_pull(
-            ansible_pull, deepcopy(cfg["ansible"]["pull"])
+            ansible_pull, deepcopy(cfg_dict["ansible"]["pull"])
         )
+
+        if pull_type != "pip":
+            assert m_subp2.call_args[0][0] == expected
+            assert m_subp2.call_args[1]["update_env"].get(
+                "HOME"
+            ) == os.environ.get("HOME", "/root")
+
+    @mock.patch(M_PATH + "subp.which", return_value=True)
+    @mock.patch(M_PATH + "subp.subp", return_value=(distro_version, ""))
+    @mock.patch(
+        "cloudinit.distros.subp.subp", return_value=(distro_version, "")
+    )
+    @mark.parametrize(
+        ("cfg_list", "expected"),
+        (
+            (
+                CFG_FULL_PULL_LIST,
+                [
+                    "ansible-pull",
+                    "--url=https://github/holmanb/vmboot",
+                    "--accept-host-key",
+                    "--clean",
+                    "--full",
+                    "--ssh-common-args=-y",
+                    "--scp-extra-args=-l",
+                    "--sftp-extra-args=-f",
+                    "--checkout=tree",
+                    "--module-path=~/.ansible/plugins/modules"
+                    ":/usr/share/ansible/plugins/modules",
+                    "--timeout=10",
+                    "--vault-id=me",
+                    "--connection=smart",
+                    "--vault-password-file=/path/to/file",
+                    "--module-name=git",
+                    "--sleep=1",
+                    "--tags=cumulus",
+                    "--skip-tags=cisco",
+                    "--private-key={nope}",
+                    "arch.yml",
+                ],
+            ),
+            (
+                CFG_MINIMAL_LIST,
+                [
+                    "ansible-pull",
+                    "--url=https://github/holmanb/vmboot",
+                    "ubuntu.yml",
+                ],
+            ),
+        ),
+    )
+    def test_ansible_pull_list(
+        self, m_subp1, m_subp2, m_which, cfg_list, expected
+    ):
+        """verify expected ansible invocation from userdata config"""
+        pull_type = cfg_list["ansible"]["install_method"]
+        distro = get_cloud().distro
+        distro.do_as = MagicMock(return_value=(distro_version, ""))
+        ansible_pull = (
+            cc_ansible.AnsiblePullPip(distro, "ansible")
+            if pull_type == "pip"
+            else cc_ansible.AnsiblePullDistro(distro, "")
+        )
+        for cfg in cfg_list["ansible"]["pull"]:
+            cc_ansible.run_ansible_pull(ansible_pull, deepcopy(cfg))
 
         if pull_type != "pip":
             assert m_subp2.call_args[0][0] == expected
@@ -433,10 +769,13 @@ class TestAnsible:
         expected = lifecycle.Version(2, 13, 2)
         assert received == expected
 
-    @mock.patch(M_PATH + "subp.subp", return_value=("stdout", "stderr"))
+    @mock.patch(
+        M_PATH + "subp.subp",
+        side_effect=[("out", "err"), (distro_version, ""), ("out", "err")],
+    )
     @mock.patch(M_PATH + "subp.which", return_value=True)
     def test_ansible_env_var(self, m_which, m_subp):
-        cc_ansible.handle("", CFG_FULL_PULL, get_cloud(), [])
+        cc_ansible.handle("", CFG_FULL_PULL_DICT, get_cloud(), [])
 
         # python 3.8 required for Mock.call_args.kwargs dict attribute
         if isinstance(m_subp.call_args.kwargs, dict):

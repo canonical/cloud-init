@@ -45,6 +45,7 @@ distros = [
     "opensuse-tumbleweed",
     "opensuse-leap",
     "photon",
+    "raspberry-pi-os",
     "rhel",
     "rocky",
     "sle_hpc",
@@ -209,6 +210,11 @@ DISTRO_CLIENT_CONFIG: Dict[str, Dict] = {
         "systemd-timesyncd": {
             "check_exe": "/usr/lib/systemd/systemd-timesyncd",
             "confpath": "/etc/systemd/timesyncd.conf",
+        },
+    },
+    "raspberry-pi-os": {
+        "systemd-timesyncd": {
+            "check_exe": "/usr/lib/systemd/systemd-timesyncd",
         },
     },
     "rhel": {

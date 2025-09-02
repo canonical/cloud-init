@@ -4,6 +4,7 @@ import copy
 import io
 import logging
 import os
+import re
 import textwrap
 from tempfile import SpooledTemporaryFile
 from typing import Callable, List, Optional
@@ -107,12 +108,24 @@ def _extract_addresses(config: dict, entry: dict, ifname, features: Callable):
         subnets = []
     for subnet in subnets:
         sn_type = subnet.get("type")
+        sn_metric = subnet.get("metric")
         if sn_type.startswith("dhcp"):
             if sn_type == "dhcp":
                 sn_type += "4"
             entry.update({sn_type: True})
+            if sn_metric is not None:
+                # Add metric to DHCP override if specified in the subnet
+                dhcp_override_key = f"{sn_type}-overrides"
+                dhcp_override = entry.get(dhcp_override_key, {})
+                dhcp_override["route-metric"] = sn_metric
+                entry.update({dhcp_override_key: dhcp_override})
         elif sn_type in IPV6_DYNAMIC_TYPES:
             entry.update({"dhcp6": True})
+            if sn_metric is not None:
+                # Add metric to DHCP6 override if specified in the subnet```
+                dhcp_override = entry.get("dhcp6-overrides", {})
+                dhcp_override["route-metric"] = sn_metric
+                entry.update({"dhcp6-overrides": dhcp_override})
         elif sn_type in ["static", "static6"]:
             addr = "%s" % subnet.get("address")
             if "prefix" in subnet:
@@ -133,6 +146,9 @@ def _extract_addresses(config: dict, entry: dict, ifname, features: Callable):
                         addr,
                     )
                     new_route["on-link"] = True
+                if sn_metric is not None:
+                    # Add metric to default route if specified in the subnet
+                    new_route["metric"] = sn_metric
                 routes.append(new_route)
             if "dns_nameservers" in subnet:
                 nameservers += _listify(subnet.get("dns_nameservers", []))
@@ -149,8 +165,12 @@ def _extract_addresses(config: dict, entry: dict, ifname, features: Callable):
                     "via": route.get("gateway"),
                     "to": to_net,
                 }
-                if "metric" in route:
-                    new_route.update({"metric": route.get("metric", 100)})
+                # Priority for metric: 1. route's metric, 2. subnet's metric
+                route_metric = route.get("metric")
+                if route_metric is not None:
+                    new_route["metric"] = route_metric
+                elif sn_metric is not None:
+                    new_route["metric"] = sn_metric
                 routes.append(new_route)
 
             addresses.append(addr)
@@ -246,6 +266,7 @@ def netplan_api_write_yaml_file(net_config_content: str) -> bool:
             CLOUDINIT_NETPLAN_FILE,
         )
         return False
+    net_config_content = _maybe_strip_invalid_mtu(net_config_content)
     try:
         with SpooledTemporaryFile(mode="w") as f:
             f.write(net_config_content)
@@ -273,6 +294,29 @@ def netplan_api_write_yaml_file(net_config_content: str) -> bool:
         return False
     LOG.debug("Rendered netplan config using netplan python API")
     return True
+
+
+def _maybe_strip_invalid_mtu(net_config_content: str):
+    """Strip invalid MTU from the netplan config.
+
+    This is a fix for https://github.com/canonical/cloud-init/issues/6239
+    A 0 MTU value is NOT valid, but cloud-init accepted it prior to 24.2,
+    so rejecting it after c465de8 is a breaking change for existing releases.
+    """
+    if features.STRIP_INVALID_MTU:
+        # Using regex here is admittedly not great, but this is post-processing
+        # of the netplan config, and we'd have to be dealing with some very
+        # gnarly yaml to get a multiline mtu: 0 entry. The alternative is
+        # another round trip of yaml parsing, which is more expensive. Unless
+        # there's a demonstrated need for proper yaml parsing, the added
+        # complexity does not seem worth it.
+        net_config_content = re.sub(
+            r"^\s*mtu:\s*0\s*\n",
+            "",
+            net_config_content,
+            flags=re.MULTILINE,
+        )
+    return net_config_content
 
 
 def has_netplan_config_changed(cfg_file: str, content: str) -> bool:
@@ -387,6 +431,7 @@ class Renderer(renderer.Renderer):
         # net_setup_link on a device that no longer exists. When this happens,
         # we don't know what the device was renamed to, so re-gather the
         # entire list of devices and try again.
+        last_exception: Optional[Exception]
         for _ in range(5):
             try:
                 for iface in get_devicelist():
@@ -394,10 +439,11 @@ class Renderer(renderer.Renderer):
                         subp.subp(
                             setup_lnk + [SYS_CLASS_NET + iface], capture=True
                         )
+                last_exception = None
                 break
             except subp.ProcessExecutionError as e:
                 last_exception = e
-        else:
+        if last_exception:
             raise RuntimeError(
                 "'udevadm test-builtin net_setup_link' unable to run "
                 "successfully for all devices."
@@ -437,6 +483,8 @@ class Renderer(renderer.Renderer):
                     "set-name": ifname,
                     "match": ifcfg.get("match", None),
                 }
+                if "keep_configuration" in ifcfg:
+                    eth["critical"] = ifcfg["keep_configuration"]
                 if eth["match"] is None:
                     macaddr = ifcfg.get("mac_address", None)
                     if macaddr is not None:
@@ -481,8 +529,9 @@ class Renderer(renderer.Renderer):
                 bridge_ports = ifcfg.get("bridge_ports")
                 if bridge_ports is None:
                     LOG.warning(
-                        "Invalid config. The key",
-                        f"'bridge_ports' is required in {config}.",
+                        "Invalid config. The key"
+                        "'bridge_ports' is required in %s.",
+                        config,
                     )
                     continue
                 ports = sorted(copy.copy(bridge_ports))
@@ -563,10 +612,10 @@ class Renderer(renderer.Renderer):
         return "".join(content)
 
 
-def available(target=None):
+def available():
     expected = ["netplan"]
     search = ["/usr/sbin", "/sbin"]
     for p in expected:
-        if not subp.which(p, search=search, target=target):
+        if not subp.which(p, search=search):
             return False
     return True
