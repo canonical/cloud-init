@@ -13,6 +13,10 @@ LOG = logging.getLogger(__name__)
 
 
 class Distro(debian.Distro):
+    def __init__(self, name, cfg, paths):
+        super().__init__(name, cfg, paths)
+        self.default_user_renamed = False
+
     def set_keymap(self, layout: str, model: str, variant: str, options: str):
         super().set_keymap(layout, model, variant, options)
 
@@ -69,26 +73,20 @@ class Distro(debian.Distro):
 
     def add_user(self, name, **kwargs) -> bool:
         """
-        Add a user to the system using standard GNU tools
-
-        This should be overridden on distros where useradd is not desirable or
-        not available.
+        Add a user to the system using standard Raspberry Pi tools
 
         Returns False if user already exists, otherwise True.
         """
-        result = super().add_user(name, **kwargs)
-
-        if not result:
-            return result
+        if self.default_user_renamed:
+            return super().add_user(name, **kwargs)
+        self.default_user_renamed = True
 
         try:
             subp.subp(
                 [
-                    "/usr/bin/rename-user",
-                    "-f",
-                    "-s",
+                    "/usr/lib/userconf-pi/userconf",
+                    name,
                 ],
-                update_env={"SUDO_USER": name},
             )
 
         except subp.ProcessExecutionError as e:

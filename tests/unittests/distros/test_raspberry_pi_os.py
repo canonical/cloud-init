@@ -121,33 +121,39 @@ class TestRaspberryPiOS:
     def test_add_user_happy_path(self, m_subp):
         cls = fetch("raspberry_pi_os")
         distro = cls("raspberry-pi-os", {}, None)
-        # Mock the superclass add_user to return True
-        with mock.patch(
-            "cloudinit.distros.debian.Distro.add_user", return_value=True
-        ):
-            assert distro.add_user("pi") is True
-            m_subp.assert_called_once_with(
-                ["/usr/bin/rename-user", "-f", "-s"],
-                update_env={"SUDO_USER": "pi"},
-            )
+
+        assert distro.add_user("pi") is True
+        m_subp.assert_called_once()
+
+        # Accept both common locations for userconf
+        args, kwargs = m_subp.call_args
+        assert args[0][0] in (
+            "/usr/lib/userconf-pi/userconf",
+            "/lib/userconf-pi/userconf"
+        )
+        assert args[0][1] == "pi"
+        # No env expected
+        assert kwargs == {}
 
     @mock.patch(M_PATH + "subp.subp")
     def test_add_user_existing_user(self, m_subp):
         cls = fetch("raspberry_pi_os")
         distro = cls("raspberry-pi-os", {}, None)
+
+        distro.default_user_renamed = True
         with mock.patch(
             "cloudinit.distros.debian.Distro.add_user", return_value=False
-        ):
+        ) as m_super:
             assert distro.add_user("pi") is False
             m_subp.assert_not_called()
+            m_super.assert_called_once()  # called with ("pi", **{})
 
     @mock.patch(
         M_PATH + "subp.subp",
-        side_effect=ProcessExecutionError("rename-user failed"),
+        side_effect=ProcessExecutionError("userconf failed"),
     )
-    @mock.patch("cloudinit.distros.debian.Distro.add_user", return_value=True)
     def test_add_user_rename_fails_logs_error(
-        self, m_super_add_user, m_subp, caplog
+        self, m_subp, caplog
     ):
         cls = fetch("raspberry_pi_os")
         distro = cls("raspberry-pi-os", {}, None)
