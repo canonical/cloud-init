@@ -484,6 +484,48 @@ class TestHandleSsh:
         for expected_log_msg in expected_log_msgs:
             assert caplog.text.count(expected_log_msg) == 1
 
+    @pytest.mark.parametrize(
+        "cfg, should_call",
+        [
+            pytest.param({"enable_ssh": True}, True, id="enable_true"),
+            pytest.param({"enable_ssh": False}, False, id="enable_false"),
+            pytest.param({}, False, id="missing_option"),
+        ],
+    )
+    @mock.patch(MODPATH + "ssh_util.enable_service")
+    @mock.patch(MODPATH + "glob.glob")
+    @mock.patch(MODPATH + "ug_util.normalize_users_groups")
+    @mock.patch(MODPATH + "os.path.exists")
+    @mock.patch(MODPATH + "util.fips_enabled", return_value=False)
+    def test_enable_ssh_option_calls_enable_service(
+        self,
+        m_fips,
+        m_path_exists,
+        m_nug,
+        m_glob,
+        m_enable_service,
+        m_setup_keys,
+        cfg,
+        should_call,
+    ):
+        """When enable_ssh is True, enable and start the SSH service."""
+        keys = ["key1"]
+        user = "clouduser"
+
+        # Avoid side-effects unrelated to this test
+        m_glob.return_value = []  # no hostkeys removed
+        m_path_exists.return_value = True  # skip key writing paths
+        m_nug.return_value = ({user: {"default": user}}, {})
+
+        cloud = get_cloud(distro="ubuntu", metadata={"public-keys": keys})
+
+        cc_ssh.handle("name", cfg, cloud, [])
+
+        if should_call:
+            m_enable_service.assert_called_once_with(cloud.distro)
+        else:
+            m_enable_service.assert_not_called()
+
 
 class TestSshSchema:
     @pytest.mark.parametrize(

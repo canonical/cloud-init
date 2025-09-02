@@ -3264,6 +3264,11 @@
               }
             }
           }
+        },
+        "enable_ssh": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether to enable the distribution's SSH service. Default: ``false``."
         }
       }
     },

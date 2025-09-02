@@ -22,3 +22,4 @@ ssh_publish_hostkeys:
   blacklist: [rsa]
   enabled: true
 ssh_quiet_keygen: true
+enable_ssh: true
