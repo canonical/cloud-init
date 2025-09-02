@@ -31,7 +31,10 @@ import serial
 from cloudinit.atomic_helper import b64e
 from cloudinit.event import EventScope, EventType
 from cloudinit.sources import DataSourceSmartOS
-from cloudinit.sources.DataSourceSmartOS import SERIAL_DEVICE, SMARTOS_ENV_KVM
+from cloudinit.sources.DataSourceSmartOS import (
+    SERIAL_DEVICE,
+    SMARTOS_ENV_KVM,
+)
 from cloudinit.sources.DataSourceSmartOS import (
     convert_smartos_network_data as convert_net,
 )
