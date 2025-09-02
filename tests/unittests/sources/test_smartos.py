@@ -1430,7 +1430,6 @@ class TestNetworkConversion:
         assert expected == found
 
 
-@pytest.mark.allow_subp_for("mdata-get")
 @pytest.fixture
 def mdata_proc():
     mdata_proc = multiprocessing.Process(target=start_mdata_loop)
