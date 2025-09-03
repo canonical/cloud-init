@@ -28,7 +28,7 @@ install_subdir(
 )
 
 # Binaries and script entrypoints
-if get_option('bash-completion')
+if get_option('bash_completion')
   bash_completions_dir = dependency('bash-completion').get_variable(
     pkgconfig: 'completionsdir',
     default_value: get_option('datadir') / 'bash-completion' / 'completions',
