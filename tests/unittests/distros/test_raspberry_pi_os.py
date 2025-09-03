@@ -1,8 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
+from typing import cast
 
 from cloudinit.distros import fetch
+from cloudinit.distros.raspberry_pi_os import Distro as RpiDistro
 from cloudinit.subp import ProcessExecutionError
 from tests.unittests.helpers import mock
 
@@ -138,7 +140,7 @@ class TestRaspberryPiOS:
     @mock.patch(M_PATH + "subp.subp")
     def test_add_user_existing_user(self, m_subp):
         cls = fetch("raspberry_pi_os")
-        distro = cls("raspberry-pi-os", {}, None)
+        distro = cast(RpiDistro, cls("raspberry-pi-os", {}, None))
 
         distro.default_user_renamed = True
         with mock.patch(
