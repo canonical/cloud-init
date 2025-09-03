@@ -62,19 +62,6 @@ Last-Update: 2025-08-25
  ifeq (,$(findstring nocheck,$(DEB_BUILD_OPTIONS)))
  	http_proxy= make PYVER=python3 check
  else
-@@ -22,8 +19,8 @@
- 	dh_installsystemd --no-restart-on-upgrade --no-start
- 
- override_dh_auto_install:
--	dh_auto_install --destdir=debian/cloud-init-base
--	install -D -m 0644 ./tools/21-cloudinit.conf debian/cloud-init-base/etc/rsyslog.d/21-cloudinit.conf
--	install -D ./tools/Z99-cloud-locale-test.sh debian/cloud-init-base/etc/profile.d/Z99-cloud-locale-test.sh
--	install -D ./tools/Z99-cloudinit-warnings.sh debian/cloud-init-base/etc/profile.d/Z99-cloudinit-warnings.sh
-+	dh_auto_install --destdir=debian/cloud-init
-+	install -D -m 0644 ./tools/21-cloudinit.conf debian/cloud-init/etc/rsyslog.d/21-cloudinit.conf
-+	install -D ./tools/Z99-cloud-locale-test.sh debian/cloud-init/etc/profile.d/Z99-cloud-locale-test.sh
-+	install -D ./tools/Z99-cloudinit-warnings.sh debian/cloud-init/etc/profile.d/Z99-cloudinit-warnings.sh
- 	flist=$$(find $(CURDIR)/debian/ -type f -name version.py) && sed -i 's,@@PACKAGED_VERSION@@,$(DEB_VERSION),' $${flist:-did-not-find-version-py-for-replacement}
 --- a/packages/redhat/cloud-init.spec.in
 +++ b/packages/redhat/cloud-init.spec.in
 @@ -1,4 +1,11 @@
