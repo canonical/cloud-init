@@ -13,7 +13,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from cloudinit.reporting import events, handlers
+from cloudinit.reporting import events
 from tests.unittests.helpers import skipUnlessJsonSchema
 
 
