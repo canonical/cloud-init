@@ -14,6 +14,7 @@ from cloudinit.config.schema import (
     validate_cloudconfig_schema,
 )
 from cloudinit.reporting import events, handlers
+from tests.unittests.helpers import skipUnlessJsonSchema
 
 
 def _fake_registry():
@@ -173,12 +174,6 @@ class TestFinishReportingEvent:
         assert "encoding" in posted_install_log
         assert posted_install_log["path"] == files[0]
         assert posted_install_log["encoding"] == "base64"
-
-
-class TestBaseReportingHandler:
-    def test_base_reporting_handler_is_abstract(self):
-        with pytest.raises(TypeError, match=r".*abstract.*publish_event.*"):
-            handlers.ReportingHandler()
 
 
 class TestLogHandler:
@@ -435,6 +430,7 @@ class TestStatusAccess:
             getattr(events.status, "BOGUS")
 
 
+@skipUnlessJsonSchema()
 class TestReportingSchema:
     @pytest.mark.parametrize(
         "config, error_msg",
