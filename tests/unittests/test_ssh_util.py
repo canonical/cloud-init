@@ -1607,7 +1607,7 @@ class TestEnableService:
 
         m_logexc.assert_called_once()
         # Basic shape of the message and service name included
-        args, kwargs = m_logexc.call_args
+        args, _ = m_logexc.call_args
         # args[0] is LOG, args[1] is format string,
         # then service name and error str
         assert "Failed to enable or start ssh service" in args[1]
