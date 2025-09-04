@@ -85,7 +85,7 @@ class TestDataSourceHetzner:
     def test_read_data(
         self,
         m_get_hcloud_data,
-        m_readmd,
+        m_get_metadata,
         m_fallback_nic,
         m_net,
         m_dhcp,
@@ -97,7 +97,7 @@ class TestDataSourceHetzner:
         )
         # Use side_effect to return values for the three sequential calls to
         # helpers.hetzner.get_metadata: metadata, private-networks, userdata
-        m_readmd.side_effect = [
+        m_get_metadata.side_effect = [
             ("metadata_url", METADATA),
             ("privnets_url", PRIVATE_NETWORKS),
             ("userdata_url", USERDATA),
@@ -130,7 +130,7 @@ class TestDataSourceHetzner:
             ],
         )
 
-        assert 0 != m_readmd.call_count
+        assert 0 != m_get_metadata.call_count
 
         assert (
             util.load_yaml(METADATA).get("hostname")
@@ -155,7 +155,7 @@ class TestDataSourceHetzner:
     @mock.patch("cloudinit.net.find_fallback_nic")
     @mock.patch("cloudinit.sources.DataSourceHetzner.get_hcloud_data")
     def test_not_on_hetzner_returns_false(
-        self, m_get_hcloud_data, m_find_fallback, m_read_md, ds
+        self, m_get_hcloud_data, m_find_fallback, m_get_metadata, ds
     ):
         """If helper 'get_hcloud_data' returns False,
         return False from get_data."""
@@ -165,4 +165,4 @@ class TestDataSourceHetzner:
         assert not ret
         # These are a white box attempt to ensure it did not search.
         assert 0 == m_find_fallback.call_count
-        assert 0 == m_read_md.call_count
+        assert 0 == m_get_metadata.call_count

@@ -108,7 +108,7 @@ class DataSourceHetzner(sources.DataSource):
                 connectivity_urls_data=[
                     {
                         "url": url_helper.combine_url(
-                            url, "metadata/instance-id"
+                            url, f"{self.metadata_path}/instance-id"
                         )
                     }
                     for url in base_urls
@@ -206,32 +206,30 @@ class DataSourceHetzner(sources.DataSource):
         if self._network_config != sources.UNSET:
             return self._network_config
 
-        _net_config = self.metadata["network-config"]
-        if not _net_config:
+        net_config = self.metadata["network-config"]
+        if not net_config:
             raise RuntimeError("Unable to get meta-data from server....")
 
-        _private_networks = self.metadata.get("private-networks", [])
-        _private_networks_config = []
-        for _private_network in _private_networks:
-            _private_networks_config.extend(
-                [
-                    {
-                        "type": "physical",
-                        "mac_address": _private_network["mac_address"],
-                        "name": hc_helper.get_interface_name_from_mac(
-                            _private_network["mac_address"]
-                        ),
-                        "subnets": [
-                            {
-                                "ipv4": True,
-                                "type": "dhcp",
-                            }
-                        ],
-                    }
-                ]
+        private_networks = self.metadata.get("private-networks", [])
+        private_networks_config = []
+        for private_network in private_networks:
+            private_networks_config.append(
+                {
+                    "type": "physical",
+                    "mac_address": private_network["mac_address"],
+                    "name": hc_helper.get_interface_name_from_mac(
+                        private_network["mac_address"]
+                    ),
+                    "subnets": [
+                        {
+                            "ipv4": True,
+                            "type": "dhcp",
+                        }
+                    ],
+                }
             )
-        _net_config["config"].extend(_private_networks_config)
-        self._network_config = _net_config
+        net_config["config"].extend(private_networks_config)
+        self._network_config = net_config
         return self._network_config
 
 
