@@ -150,7 +150,7 @@ filesystem path for those that require more flexibility. This may be
 done with a line configuration: ::
 
 
-  ds=nocloud;s=file://path/to/directory/
+  ds=nocloud;s=file:///path/to/directory/
 
 Or a system configuration:
 
@@ -158,7 +158,7 @@ Or a system configuration:
 
    datasource:
      NoCloud:
-       seedfrom: file://path/to/directory
+       seedfrom: file:///path/to/directory
 
 Source 2: Drive with labeled filesystem
 ---------------------------------------
