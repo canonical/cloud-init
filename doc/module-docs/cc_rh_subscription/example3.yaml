@@ -17,3 +17,6 @@ rh_subscription:
   rhsm-baseurl: http://url
   # Alter the server hostname in /etc/rhsm/rhsm.conf
   server-hostname: foo.bar.com
+  # Set `subscription-manager release --set=6Server` then
+  # delete /var/cache/{dnf,yum}
+  release_version: 6Server

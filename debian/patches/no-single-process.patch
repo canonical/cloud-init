@@ -58,7 +58,7 @@ Last-Update: 2024-08-02
 -# process has completed this stage. The output from the return socket is piped
 -# into a shell so that the process can send a completion message (defaults to
 -# "done", otherwise includes an error message) and an exit code to systemd.
--ExecStart=sh -c 'echo "start" | nc -Uu -W1 /run/cloud-init/share/config.sock -s /run/cloud-init/share/config-return.sock | sh'
+-ExecStart=sh -c 'echo "start" | nc -U /run/cloud-init/share/config.sock | sh'
 +ExecStart=/usr/bin/cloud-init modules --mode=config
  RemainAfterExit=yes
  TimeoutSec=0
@@ -86,7 +86,7 @@ Last-Update: 2024-08-02
 -# process has completed this stage. The output from the return socket is piped
 -# into a shell so that the process can send a completion message (defaults to
 -# "done", otherwise includes an error message) and an exit code to systemd.
--ExecStart=sh -c 'echo "start" | nc -Uu -W1 /run/cloud-init/share/final.sock -s /run/cloud-init/share/final-return.sock | sh'
+-ExecStart=sh -c 'echo "start" | nc -U /run/cloud-init/share/final.sock | sh'
 +ExecStart=/usr/bin/cloud-init modules --mode=final
  RemainAfterExit=yes
  TimeoutSec=0
@@ -101,10 +101,10 @@ Last-Update: 2024-08-02
  Wants=network-pre.target
  After=hv_kvp_daemon.service
 +After=systemd-remount-fs.service
- Before=auditd.service
  Before=network-pre.target
  Before=shutdown.target
-@@ -17,6 +18,7 @@ Before=firewalld.target
+ {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
+@@ -16,6 +17,7 @@ Before=firewalld.target
  Before=sysinit.target
  {% endif %}
  Conflicts=shutdown.target
@@ -112,7 +112,7 @@ Last-Update: 2024-08-02
  ConditionPathExists=!/etc/cloud/cloud-init.disabled
  ConditionKernelCommandLine=!cloud-init=disabled
  ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
-@@ -26,14 +28,7 @@ Type=oneshot
+@@ -25,14 +27,7 @@ Type=oneshot
  {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
  ExecStartPre=/sbin/restorecon /run/cloud-init
  {% endif %}
@@ -123,7 +123,7 @@ Last-Update: 2024-08-02
 -# process has completed this stage. The output from the return socket is piped
 -# into a shell so that the process can send a completion message (defaults to
 -# "done", otherwise includes an error message) and an exit code to systemd.
--ExecStart=sh -c 'echo "start" | nc -Uu -W1 /run/cloud-init/share/local.sock -s /run/cloud-init/share/local-return.sock | sh'
+-ExecStart=sh -c 'echo "start" | nc -U /run/cloud-init/share/local.sock | sh'
 +ExecStart=cloud-init init --local
  RemainAfterExit=yes
  TimeoutSec=0
@@ -234,7 +234,7 @@ Last-Update: 2024-08-02
 -# process has completed this stage. The output from the return socket is piped
 -# into a shell so that the process can send a completion message (defaults to
 -# "done", otherwise includes an error message) and an exit code to systemd.
--ExecStart=sh -c 'echo "start" | nc -Uu -W1 /run/cloud-init/share/network.sock -s /run/cloud-init/share/network-return.sock | sh'
+-ExecStart=sh -c 'echo "start" | nc -U /run/cloud-init/share/network.sock | sh'
 -RemainAfterExit=yes
 -TimeoutSec=0
 -

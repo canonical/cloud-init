@@ -67,7 +67,7 @@ Last-Update: 2024-02-14
  
  if TYPE_CHECKING:
      # Avoid circular import
-@@ -3020,18 +3020,6 @@ def wait_for_files(flist, maxwait, naple
+@@ -3030,18 +3030,6 @@ def wait_for_files(flist, maxwait, naple
      return need
  
  

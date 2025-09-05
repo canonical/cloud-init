@@ -35,9 +35,9 @@ Before you can begin, you will need to:
 Getting help
 ============
 
-We use IRC and have a dedicated `#cloud-init` channel where you can contact
+We use Matrix and have a dedicated `#cloud-init` room where you can contact
 us for help and guidance. This link will take you directly to our
-`IRC channel on Libera <IRC_>`_.
+`room on Matrix <Matrix_>`_.
 
 Getting started
 ===============

@@ -37,7 +37,7 @@ cloud-init developers missed during testing before cloud-init gets
 released more broadly.
 
 If issues are found during testing, please file a `new cloud-init bug`_ and
-leave a message in the `#cloud-init IRC channel`_.
+leave a message in the `Matrix room <Matrix_>`_.
 
 Remove the proposed repository
 ------------------------------
@@ -58,5 +58,6 @@ This will cause cloud-init to rerun as if it is a first boot.
 
     sudo cloud-init clean --logs --reboot
 
+.. LINKS
+.. include:: ../links.txt
 .. _new cloud-init bug: https://github.com/canonical/cloud-init/issues
-.. _#cloud-init IRC channel: https://kiwiirc.com/nextclient/irc.libera.chat/cloud-init

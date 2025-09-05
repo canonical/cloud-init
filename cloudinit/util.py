@@ -914,8 +914,18 @@ def center(text, fill, max_len):
 
 
 def del_dir(path):
+    '''
+    Deletes a directory and all its contents by calling shutil.rmtree
+    Will ignore FileNotFoundError
+
+    @param path: The path of the directory.
+    """
+    '''
     LOG.debug("Recursively deleting %s", path)
-    shutil.rmtree(path)
+    try:
+        shutil.rmtree(path)
+    except FileNotFoundError:
+        pass
 
 
 def read_optional_seed(fill, base="", ext="", timeout=5):

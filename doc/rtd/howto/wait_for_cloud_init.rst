@@ -23,7 +23,7 @@ completes. This may be accomplished by including
 
     [Unit]
     Description=Example service
-    After=cloud-final.service multi-user.target
+    After=cloud-init.target multi-user.target
 
     [Service]
     Type=oneshot
