@@ -9,6 +9,7 @@ import logging
 import sys
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from typing import List, Optional
 
 from cloudinit.handlers import INCLUSION_TYPES_MAP
 
@@ -22,7 +23,7 @@ EPILOG = (
 
 def create_mime_message(files):
     sub_messages = []
-    errors = []
+    errors: List[str] = []
     for i, (fh, filename, format_type) in enumerate(files):
         contents = fh.read()
         sub_message = MIMEText(contents, format_type, sys.getdefaultencoding())
@@ -43,18 +44,20 @@ def create_mime_message(files):
     return (combined_message, errors)
 
 
-def file_content_type(text):
+def file_content_type(text: str):
     """Return file content type by reading the first line of the input."""
     try:
         filename, content_type = text.split(":", 1)
         return (open(filename, "r"), filename, content_type.strip())
     except ValueError as e:
         raise argparse.ArgumentError(
-            text, "Invalid value for %r" % (text)
+            None, "Invalid value for %r" % (text)
         ) from e
 
 
-def get_parser(parser=None):
+def get_parser(
+    parser: Optional[argparse.ArgumentParser] = None,
+) -> argparse.ArgumentParser:
     """Build or extend and arg parser for make-mime utility.
 
     @param parser: Optional existing ArgumentParser instance representing the
@@ -94,7 +97,7 @@ def get_parser(parser=None):
     return parser
 
 
-def get_content_types(strip_prefix=False):
+def get_content_types(strip_prefix: bool = False) -> List[str]:
     """Return a list of cloud-init supported content types.  Optionally
     strip out the leading 'text/' of the type if strip_prefix=True.
     """
@@ -106,7 +109,7 @@ def get_content_types(strip_prefix=False):
     )
 
 
-def handle_args(name, args):
+def handle_args(name: str, args: argparse.Namespace) -> int:
     """Create a multi-part MIME archive for use as user-data.  Optionally
        print out the list of supported content types of cloud-init.
 

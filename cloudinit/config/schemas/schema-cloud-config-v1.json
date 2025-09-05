@@ -2633,6 +2633,10 @@
                 "type": "string"
               }
             },
+            "release_version": {
+              "type": "string",
+              "description": "Sets the release_version via``subscription-manager release --set=<release_version>`` then deletes the package manager cache ``/var/cache/{dnf,yum}`` . These steps are applied after any pool attachment and/or enabling/disabling repos. For more information about this key, check https://access.redhat.com/solutions/238533 ."
+            },
             "rhsm-baseurl": {
               "type": "string",
               "description": "Sets the baseurl in ``/etc/rhsm/rhsm.conf``."
@@ -2691,11 +2695,6 @@
                 "onewire": {
                   "type": "boolean",
                   "description": "Enable 1-Wire interface. Default: ``false``.",
-                  "default": false
-                },
-                "remote_gpio": {
-                  "type": "boolean",
-                  "description": "Enable remote GPIO interface. Default: ``false``.",
                   "default": false
                 }
               }
@@ -3328,7 +3327,7 @@
       "properties": {
         "manage_etc_hosts": {
           "default": false,
-          "description": "Whether to manage ``/etc/hosts`` on the system. If ``true``, render the hosts file using ``/etc/cloud/templates/hosts.tmpl`` replacing ``$hostname`` and ``$fdqn``. If ``localhost``, append a ``127.0.1.1`` entry that resolves from FQDN and hostname every boot. Default: ``false``.",
+          "description": "Whether to manage ``/etc/hosts`` on the system. If ``true``, render the hosts file using ``/etc/cloud/templates/hosts.tmpl`` replacing ``$hostname`` and ``$fqdn``. If ``localhost``, append a ``127.0.1.1`` entry that resolves from FQDN and hostname every boot. Default: ``false``.",
           "oneOf": [
             {
               "enum": [

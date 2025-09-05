@@ -24,7 +24,7 @@ from cloudinit.sources import (
     redact_sensitive_keys,
 )
 from cloudinit.user_data import UserDataProcessor
-from tests.unittests.helpers import CiTestCase, assert_count_equal, mock
+from tests.unittests.helpers import assert_count_equal, mock
 
 
 class DataSourceTestSubclassNet(DataSource):
@@ -933,7 +933,7 @@ class TestDataSource:
         ) in caplog.record_tuples
 
 
-class TestRedactSensitiveData(CiTestCase):
+class TestRedactSensitiveData:
     def test_redact_sensitive_data_noop_when_no_sensitive_keys_present(self):
         """When sensitive_keys is absent or empty from metadata do nothing."""
         md = {"my": "data"}
@@ -962,7 +962,7 @@ class TestRedactSensitiveData(CiTestCase):
         assert secure_md == redact_sensitive_keys(md)
 
 
-class TestCanonicalCloudID(CiTestCase):
+class TestCanonicalCloudID:
     def test_cloud_id_returns_platform_on_unknowns(self):
         """When region and cloud_name are unknown, return platform."""
         assert "platform" == canonical_cloud_id(

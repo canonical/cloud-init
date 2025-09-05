@@ -8,6 +8,7 @@ import datetime
 import json
 import sys
 import time
+from typing import IO, Any, Dict, List, Optional, Tuple, Union, cast
 
 from cloudinit import subp, util
 from cloudinit.distros import uses_systemd
@@ -50,8 +51,10 @@ FAIL_CODE = "failure"
 CONTAINER_CODE = "container"
 TIMESTAMP_UNKNOWN = (FAIL_CODE, -1, -1, -1)
 
+Event = Dict
 
-def format_record(msg, event):
+
+def format_record(msg: str, event: Event) -> str:
     for i, j in format_key.items():
         if i in msg:
             # ensure consistent formatting of time values
@@ -62,56 +65,68 @@ def format_record(msg, event):
     return msg.format(**event)
 
 
-def event_name(event):
+def event_name(event: Optional[Event]) -> Optional[str]:
     if event:
         return event.get("name")
     return None
 
 
-def event_type(event):
+def event_type(event: Optional[Event]) -> Optional[str]:
     if event:
         return event.get("event_type")
     return None
 
 
-def event_parent(event):
-    if event:
-        return event_name(event).split("/")[0]
+def event_parent(event: Optional[Event]) -> Optional[str]:
+    name = event_name(event)
+    if name:
+        return name.split("/")[0]
     return None
 
 
-def event_timestamp(event):
-    return float(event.get("timestamp"))
+def event_timestamp(event: Event) -> float:
+    ts = event.get("timestamp")
+    if ts is None:
+        raise ValueError("Event is missing a 'timestamp'")
+    return float(ts)
 
 
-def event_datetime(event):
+def event_datetime(event: Event) -> datetime.datetime:
     return datetime.datetime.fromtimestamp(
         event_timestamp(event), datetime.timezone.utc
     )
 
 
-def delta_seconds(t1, t2):
+def delta_seconds(t1: datetime.datetime, t2: datetime.datetime) -> float:
     return (t2 - t1).total_seconds()
 
 
-def event_duration(start, finish):
+def event_duration(start: Event, finish: Event) -> float:
     return delta_seconds(event_datetime(start), event_datetime(finish))
 
 
-def event_record(start_time, start, finish):
+def event_record(
+    start_time: datetime.datetime,
+    start: Event,
+    finish: Event,
+) -> Event:
     record = finish.copy()
+    name = event_name(start)
+    indent = "|"
+    if name:
+        indent += " " * (name.count("/") - 1) + "`->"
     record.update(
         {
             "delta": event_duration(start, finish),
             "elapsed": delta_seconds(start_time, event_datetime(start)),
-            "indent": "|" + " " * (event_name(start).count("/") - 1) + "`->",
+            "indent": indent,
         }
     )
 
     return record
 
 
-def total_time_record(total_time):
+def total_time_record(total_time: float) -> str:
     return "Total Time: %3.5f seconds\n" % total_time
 
 
@@ -120,9 +135,10 @@ class SystemctlReader:
     Class for dealing with all systemctl subp calls in a consistent manner.
     """
 
-    def __init__(self, property, parameter=None):
-        self.stdout = None
-        self.args = [subp.which("systemctl"), "show"]
+    def __init__(self, property: str, parameter: Optional[str] = None):
+        self.stdout: Optional[str] = None
+        self.args: Any = [subp.which("systemctl"), "show"]
+
         if parameter:
             self.args.append(parameter)
         # --timestamp=utc is needed for native date strings. Othwerise,
@@ -135,9 +151,9 @@ class SystemctlReader:
         # Don't want the init of our object to break. Instead of throwing
         # an exception, set an error code that gets checked when data is
         # requested from the object
-        self.failure = self.subp()
+        self.failure = self._subp()
 
-    def subp(self):
+    def _subp(self) -> Optional[Union[str, Exception]]:
         """
         Make a subp call based on set args and handle errors by setting
         failure code
@@ -153,7 +169,7 @@ class SystemctlReader:
         except Exception as systemctl_fail:
             return systemctl_fail
 
-    def convert_val_to_float(self):
+    def convert_val_to_float(self) -> float:
         """
         If subp call succeeded, return the timestamp from subp as a float.
 
@@ -167,7 +183,15 @@ class SystemctlReader:
                 "Subprocess call to systemctl has failed, "
                 "returning error code ({})".format(self.failure)
             )
+        # this should never happen as the call to subp succeeded
+
+        if self.stdout is None:
+            raise RuntimeError(
+                "stdout of subprocess call to systemctl is None"
+            )
+
         # Output from systemctl show has the format Property=Value.
+
         val = self.stdout.split("=")[1].strip()
 
         if val.isnumeric():
@@ -191,7 +215,7 @@ class SystemctlReader:
         return timestamp
 
 
-def dist_check_timestamp():
+def dist_check_timestamp() -> Tuple[str, float, float, float]:
     """
     Determine which init system a particular linux distro is using.
     Each init system (systemd, etc) has a different way of
@@ -213,7 +237,7 @@ def dist_check_timestamp():
     return TIMESTAMP_UNKNOWN
 
 
-def gather_timestamps_using_dmesg():
+def gather_timestamps_using_dmesg() -> Tuple[str, float, float, float]:
     """
     Gather timestamps that corresponds to kernel begin initialization,
     kernel finish initialization using dmesg as opposed to systemctl
@@ -244,7 +268,7 @@ def gather_timestamps_using_dmesg():
     return TIMESTAMP_UNKNOWN
 
 
-def gather_timestamps_using_systemd():
+def gather_timestamps_using_systemd() -> Tuple[str, float, float, float]:
     """
     Gather timestamps that corresponds to kernel begin initialization,
     kernel finish initialization. and cloud-init systemd unit activation
@@ -302,9 +326,9 @@ def gather_timestamps_using_systemd():
 
 
 def generate_records(
-    events,
-    print_format="(%n) %d seconds in %I%D",
-):
+    events: List[Event],
+    print_format: str = "(%n) %d seconds in %I%D",
+) -> List[List[str]]:
     """
     Take in raw events and create parent-child dependencies between events
     in order to order events in chronological order.
@@ -317,7 +341,7 @@ def generate_records(
     """
 
     sorted_events = sorted(events, key=lambda x: x["timestamp"])
-    records = []
+    records: List[str] = []
     start_time = None
     total_time = 0.0
     stage_start_time = {}
@@ -346,6 +370,9 @@ def generate_records(
             # see if we have a pair
             if event_name(event) == event_name(next_evt):
                 if event_type(next_evt) == "finish":
+                    # next_evt is a dictionary because event_type has extracted
+                    # an event type from it:
+                    next_evt = cast(Dict, next_evt)
                     records.append(
                         format_record(
                             print_format,
@@ -360,12 +387,15 @@ def generate_records(
         else:
             prev_evt = unprocessed.pop()
             if event_name(event) == event_name(prev_evt):
-                record = event_record(start_time, prev_evt, event)
-                records.append(
-                    format_record("Finished stage: (%n) %d seconds", record)
-                    + "\n"
-                )
-                total_time += record.get("delta")
+                if start_time:
+                    record = event_record(start_time, prev_evt, event)
+                    records.append(
+                        format_record(
+                            "Finished stage: (%n) %d seconds", record
+                        )
+                        + "\n"
+                    )
+                    total_time += record.get("delta") or 0.0
             else:
                 # not a match, put it back
                 unprocessed.append(prev_evt)
@@ -375,7 +405,7 @@ def generate_records(
     return boot_records
 
 
-def show_events(events, print_format):
+def show_events(events: List[Event], print_format: str) -> List[List[str]]:
     """
     A passthrough method that makes it easier to call generate_records()
 
@@ -388,7 +418,7 @@ def show_events(events, print_format):
     return generate_records(events, print_format=print_format)
 
 
-def load_events_infile(infile):
+def load_events_infile(infile: IO) -> Tuple[Optional[Any], str]:
     """
     Takes in a log file, read it, and convert to json.
 

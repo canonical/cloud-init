@@ -115,7 +115,7 @@ def get_parser(
     return parser
 
 
-def analyze_boot(name: str, args: argparse.Namespace) -> int:
+def analyze_boot(name: str, args: argparse.Namespace) -> str:
     """Report a list of how long different boot operations took.
 
     For Example:
