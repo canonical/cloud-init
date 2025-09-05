@@ -20,7 +20,7 @@ Last-Update: 2025-08-25
  sphinx-copybutton
 --- a/packages/bddeb
 +++ b/packages/bddeb
-@@ -19,7 +19,7 @@
+@@ -19,7 +19,7 @@ def find_root():
          top_dir = os.path.dirname(
              os.path.dirname(os.path.abspath(sys.argv[0]))
          )
@@ -31,7 +31,7 @@ Last-Update: 2025-08-25
          (
 --- a/packages/brpm
 +++ b/packages/brpm
-@@ -16,7 +16,7 @@
+@@ -16,7 +16,7 @@ def find_root():
          top_dir = os.path.dirname(
              os.path.dirname(os.path.abspath(sys.argv[0]))
          )
@@ -113,7 +113,7 @@ Last-Update: 2025-08-25
  
  {% for r in buildrequires %}
  BuildRequires:  {{r}}
-@@ -44,9 +61,16 @@
+@@ -44,9 +61,16 @@ Requires:       {{r}}
  Patch{{loop.index0}}: {{p}}
  {% endfor %}
  
@@ -130,7 +130,7 @@ Last-Update: 2025-08-25
  
  %description
  Cloud-init is a set of init scripts for cloud instances.  Cloud instances
-@@ -62,11 +86,13 @@
+@@ -62,11 +86,13 @@ ssh keys and to let the user run various
  {% endfor %}
  
  %build
@@ -147,7 +147,7 @@ Last-Update: 2025-08-25
  
  # Note that /etc/rsyslog.d didn't exist by default until F15.
  # el6 request: https://bugzilla.redhat.com/show_bug.cgi?id=740420
-@@ -74,6 +100,9 @@
+@@ -74,6 +100,9 @@ mkdir -p $RPM_BUILD_ROOT/%{_sysconfdir}/
  cp -p tools/21-cloudinit.conf \
        $RPM_BUILD_ROOT/%{_sysconfdir}/rsyslog.d/21-cloudinit.conf
  
@@ -157,7 +157,7 @@ Last-Update: 2025-08-25
  # Required dirs...
  mkdir -p $RPM_BUILD_ROOT/%{_sharedstatedir}/cloud
  mkdir -p $RPM_BUILD_ROOT/%{_libexecdir}/%{name}
-@@ -89,23 +118,66 @@
+@@ -89,23 +118,66 @@ version_pys=$(cd "$RPM_BUILD_ROOT" && fi
  rm -rf $RPM_BUILD_ROOT
  
  %post
@@ -227,7 +227,7 @@ Last-Update: 2025-08-25
  
  # Program binaries
  %{_bindir}/cloud-init*
-@@ -117,6 +189,7 @@
+@@ -117,6 +189,7 @@ rm -rf $RPM_BUILD_ROOT
  
  # Configs
  %config(noreplace)      %{_sysconfdir}/cloud/cloud.cfg
@@ -235,7 +235,7 @@ Last-Update: 2025-08-25
  %dir                    %{_sysconfdir}/cloud/cloud.cfg.d
  %config(noreplace)      %{_sysconfdir}/cloud/cloud.cfg.d/*.cfg
  %config(noreplace)      %{_sysconfdir}/cloud/cloud.cfg.d/README
-@@ -125,13 +198,8 @@
+@@ -125,13 +198,8 @@ rm -rf $RPM_BUILD_ROOT
  %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
  
  # Bash completion script
@@ -251,7 +251,7 @@ Last-Update: 2025-08-25
  
 --- a/packages/suse/cloud-init.spec.in
 +++ b/packages/suse/cloud-init.spec.in
-@@ -48,15 +48,25 @@
+@@ -48,15 +48,25 @@ end for
  {% endfor %}
  
  %build
@@ -281,7 +281,7 @@ Last-Update: 2025-08-25
  mv %{buildroot}/usr/share/doc/cloud-init %{buildroot}/%{_defaultdocdir}
  for doc in LICENSE ChangeLog requirements.txt; do
     cp ${doc} %{buildroot}/%{_defaultdocdir}/cloud-init
-@@ -92,7 +102,6 @@
+@@ -92,7 +102,6 @@ version_pys=$(cd "%{buildroot}" && find
  # There doesn't seem to be an agreed upon place for these
  # although it appears the standard says /usr/lib but rpmbuild
  # will try /usr/lib64 ??
@@ -289,7 +289,7 @@ Last-Update: 2025-08-25
  /usr/lib/%{name}/uncloud-init
  /usr/lib/%{name}/write-ssh-key-fingerprints
  /usr/lib/%{name}/ds-identify
-@@ -105,7 +114,7 @@
+@@ -105,7 +114,7 @@ version_pys=$(cd "%{buildroot}" && find
  %doc %{_defaultdocdir}/cloud-init/*
  
  # Configs
@@ -298,7 +298,7 @@ Last-Update: 2025-08-25
  %config(noreplace) %{_sysconfdir}/cloud/cloud.cfg
  %dir               %{_sysconfdir}/cloud/cloud.cfg.d
  %config(noreplace) %{_sysconfdir}/cloud/cloud.cfg.d/*.cfg
-@@ -115,7 +124,8 @@
+@@ -115,7 +124,8 @@ version_pys=$(cd "%{buildroot}" && find
  
  # Bash completion script
  %{_datadir}/bash-completion/completions/cloud-init
@@ -667,7 +667,7 @@ Last-Update: 2025-08-25
 +)
 --- a/test-requirements.txt
 +++ b/test-requirements.txt
-@@ -11,9 +11,9 @@
+@@ -11,9 +11,9 @@ pytest!=7.3.2
  pytest-cov
  pytest-mock
  pytest-xdist
@@ -705,7 +705,7 @@ Last-Update: 2025-08-25
  
  # Since read-version has a '-' and no .py extension, we have to do this
  # to import it
-@@ -23,17 +36,9 @@
+@@ -23,17 +36,9 @@ if not spec.loader:
  spec.loader.exec_module(read_version)
  
  
@@ -727,7 +727,7 @@ Last-Update: 2025-08-25
  
 --- a/tox.ini
 +++ b/tox.ini
-@@ -33,6 +33,7 @@
+@@ -33,6 +33,7 @@ deps =
      types-passlib
      types-PyYAML
      types-requests
@@ -735,7 +735,7 @@ Last-Update: 2025-08-25
      typing-extensions
  
  [pinned_versions]
-@@ -185,6 +186,7 @@
+@@ -185,6 +186,7 @@ deps =
      pytest==4.6.9
      pytest-cov==2.8.1
      pytest-mock==1.10.4
