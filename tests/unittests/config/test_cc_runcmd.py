@@ -91,7 +91,7 @@ class TestRunCmdSchema:
                         {"a": "n"},
                     ]
                 },
-                "",
+                "is not of type",
             ),
         ),
     )

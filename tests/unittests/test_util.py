@@ -13,6 +13,7 @@ import shutil
 import stat
 import tempfile
 from collections import deque
+from contextlib import nullcontext as does_not_raise
 from pathlib import Path
 from textwrap import dedent
 from unittest import mock
@@ -2025,6 +2026,45 @@ class TestDeleteDirContents(helpers.TestCase):
         util.delete_dir_contents(self.tmp)
 
         self.assertDirEmpty(self.tmp)
+
+
+class TestDelDir:
+    """
+    Test the del_dir function
+    """
+
+    def test_del_dir_existing_directory(self, tmpdir):
+        """
+        An existing directory can be deleted without issues
+        """
+        assert os.path.exists(tmpdir)
+        with does_not_raise():
+            util.del_dir(tmpdir)
+        assert not os.path.exists(tmpdir)
+
+    def test_del_dir_file_not_found(self):
+        """
+        Should not raise FileNotFoundError
+        """
+        non_existing_dir = "/blabla"
+        assert not os.path.exists(non_existing_dir)
+        with does_not_raise():
+            util.del_dir(non_existing_dir)
+        assert not os.path.exists(non_existing_dir)
+
+    def test_del_dir_generic_errors(self, mocker):
+        """
+        If shutil.rmtree raises a non-FileNotFoundError , del_dir should
+        raise this error
+        """
+        mocked_side_effect = PermissionError
+        mock_rmtree = mocker.patch(
+            "shutil.rmtree",
+            side_effect=mocked_side_effect,
+        )
+        with pytest.raises(mocked_side_effect):
+            util.del_dir("somedir")
+        assert mock_rmtree.call_count == 1
 
 
 class TestKeyValStrings(helpers.TestCase):

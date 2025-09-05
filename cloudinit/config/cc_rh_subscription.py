@@ -69,6 +69,10 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             return_stat = sm.update_repos()
             if not return_stat:
                 raise SubscriptionError("Unable to add or remove repos")
+            if sm.release_version:
+                sm._set_release_version()
+                sm._delete_packagemanager_cache()
+
             sm.log_success("rh_subscription plugin completed successfully")
         except SubscriptionError as e:
             sm.log_warn(str(e))
@@ -94,6 +98,7 @@ class SubscriptionManager:
         "server-hostname",
         "auto-attach",
         "service-level",
+        "release_version",
     ]
 
     def __init__(self, cfg, log=None):
@@ -113,6 +118,7 @@ class SubscriptionManager:
         self.enable_repo = self.rhel_cfg.get("enable-repo")
         self.disable_repo = self.rhel_cfg.get("disable-repo")
         self.servicelevel = self.rhel_cfg.get("service-level")
+        self.release_version = self.rhel_cfg.get("release_version")
 
     def log_success(self, msg):
         """Simple wrapper for logging info messages. Useful for unittests"""
@@ -155,6 +161,13 @@ class SubscriptionManager:
                 "auto-attach: True"
             )
             return False, no_auto
+
+        # Not verifying the release_version statically in _verify_keys
+        # (by verifying the key is in the output of
+        # `subscription-manager release --list`) because sometimes
+        # the release will become available only after enabling some repos
+        # (which is executed after verify_keys). So we will catch this error
+        # during "subscription-manager release --set=<release_version>"
         return True, None
 
     def is_registered(self):
@@ -445,6 +458,34 @@ class SubscriptionManager:
 
     def is_configured(self):
         return bool((self.userid and self.password) or self.activation_key)
+
+    def _set_release_version(self):
+        """
+        Execute "subscription-manager release --set=<release_version>"
+        Raises Subscription error if the command fails
+        """
+
+        cmd = ["release", f"--set={self.release_version}"]
+        try:
+            _sub_man_cli(cmd)
+        except subp.ProcessExecutionError as e:
+            raise SubscriptionError(
+                f"Unable to set release_version using: {cmd}"
+            ) from e
+
+    def _delete_packagemanager_cache(self):
+        """
+        Delete the package manager cache.
+        Raises Subscription error if the deletion fails
+        """
+        LOG.debug("Deleting the package manager cache")
+        try:
+            util.del_dir("/var/cache/dnf")
+            util.del_dir("/var/cache/yum")
+        except Exception as e:
+            raise SubscriptionError(
+                "Unable to delete the package manager cache"
+            ) from e
 
 
 def _sub_man_cli(cmd, logstring_val=False):

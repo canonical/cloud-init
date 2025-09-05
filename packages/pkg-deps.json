@@ -1,8 +1,12 @@
 {
    "debian" : {
       "build-requires" : [
+         "meson",
+         "pkgconf",
+         "bash-completion",
          "debhelper",
-         "dh-python",
+         "systemd-dev",
+         "python3",
          "python3-debconf"
       ],
       "renames" : {
@@ -10,6 +14,11 @@
          "pyserial" : "python3-serial"
       },
       "requires" : [
+         "debconf",
+         "dhcpcd-base",
+         "iproute2",
+         "netcat-openbsd",
+         "netplan.io",
          "procps"
       ]
    },
@@ -43,7 +52,30 @@
    },
    "redhat" : {
       "build-requires" : [
-         "python3-devel"
+         "bash-completion",
+         "meson",
+         "pkgconf",
+         "python3-devel",
+         "systemd-devel"
+      ],
+      "requires" : [
+         "e2fsprogs",
+         "iproute",
+         "net-tools",
+         "procps",
+         "rsyslog",
+         "shadow-utils",
+         "sudo",
+         "hostname"
+      ]
+   },
+   "fedora": {
+      "build-requires" : [
+         "bash-completion-devel",
+         "meson",
+         "pkgconf",
+         "python3-devel",
+         "systemd-devel"
       ],
       "requires" : [
          "e2fsprogs",
@@ -62,10 +94,12 @@
          "pyyaml" : "python3-PyYAML"
       },
       "build-requires" : [
+         "meson",
+         "pkgconf",
+         "bash-completion-devel",
          "fdupes",
          "filesystem",
-         "python3-devel",
-         "python3-setuptools"
+         "python3-devel"
       ],
       "requires" : [
          "iproute2",

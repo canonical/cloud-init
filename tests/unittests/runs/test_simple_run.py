@@ -12,7 +12,6 @@ from cloudinit.sources import NetworkConfigSource
 from tests.unittests.helpers import replicate_test_root
 
 
-@pytest.mark.usefixtures("fake_filesystem_hook")
 @pytest.fixture(autouse=True)
 def replicate_root(tmp_path):
     replicate_test_root("simple_ubuntu", str(tmp_path))

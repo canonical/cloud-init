@@ -3,10 +3,6 @@ import glob
 import os
 import sys
 
-from cloudinit import version
-from cloudinit.config.schema import get_schema
-from cloudinit.handlers.jinja_template import render_jinja_payload
-
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
@@ -14,6 +10,12 @@ sys.path.insert(0, os.path.abspath("../../"))
 sys.path.insert(0, os.path.abspath("../"))
 sys.path.insert(0, os.path.abspath("./"))
 sys.path.insert(0, os.path.abspath("."))
+
+# Readthedocs builds will pip install packages and not have PYTHONPATH set
+# So avoid cloudinit imports until we have updated our path first.
+from cloudinit import version
+from cloudinit.config.schema import get_schema
+from cloudinit.handlers.jinja_template import render_jinja_payload
 
 # Suppress warnings for docs that aren't used yet
 # unused_docs = [

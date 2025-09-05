@@ -20,9 +20,28 @@ from cloudinit.net import (
     networkd,
     sysconfig,
 )
-from cloudinit.sources import DataSourceAzure as azure
-from cloudinit.sources.helpers import openstack
-from cloudinit.sources.helpers.vmware.imc import guestcust_util
+
+try:
+    from cloudinit.sources import DataSourceAzure as azure
+except ImportError:
+    azure_kind_available = False
+else:
+    azure_kind_available = True
+
+try:
+    from cloudinit.sources.helpers import openstack
+except ImportError:
+    openstack_kind_available = False
+else:
+    openstack_kind_available = True
+
+try:
+    from cloudinit.sources.helpers.vmware.imc import guestcust_util
+except ImportError:
+    vmware_kind_available = False
+else:
+    vmware_kind_available = True
+
 
 NAME = "net-convert"
 
@@ -45,16 +64,22 @@ def get_parser(parser=None):
         required=True,
         help="The network configuration to read",
     )
+
+    available_kinds = ["eni", "yaml"]
+
+    if azure_kind_available:
+        available_kinds.append("azure-imds")
+
+    if openstack_kind_available:
+        available_kinds.append("network_data.json")
+
+    if vmware_kind_available:
+        available_kinds.append("vmware-imc")
+
     parser.add_argument(
         "-k",
         "--kind",
-        choices=[
-            "eni",
-            "network_data.json",
-            "yaml",
-            "azure-imds",
-            "vmware-imc",
-        ],
+        choices=available_kinds,
         required=True,
         help="The format of the given network config",
     )

@@ -53,9 +53,9 @@ In your first PR
 =================
 
 If you need some help with your contribution, you can contact us on our
-`IRC channel <IRC_>`_. If you have already submitted a work-in-progress PR, you
-can also ask for guidance from our technical author by `tagging s-makin`_ as a
-reviewer.
+`Matrix room <Matrix_>`_. If you have already submitted a
+work-in-progress PR, you can also ask for guidance from our technical author
+by `tagging s-makin`_ as a reviewer.
 
 .. LINKS
 .. include:: ../links.txt
