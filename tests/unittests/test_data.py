@@ -23,7 +23,6 @@ from cloudinit import user_data as ud
 from cloudinit import util
 from cloudinit.config.modules import Modules
 from cloudinit.settings import DEFAULT_RUN_DIR, PER_INSTANCE
-from tests.unittests import helpers
 from tests.unittests.util import FakeDataSource
 
 MPATH = "cloudinit.stages"
@@ -790,29 +789,29 @@ class TestUDProcess:
         assert count_messages(message) == 1
 
 
-class TestConvertString(helpers.TestCase):
+class TestConvertString:
     def test_handles_binary_non_utf8_decodable(self):
         """Printable unicode (not utf8-decodable) is safely converted."""
         blob = b"#!/bin/bash\necho \xc3\x84\n"
         msg = ud.convert_string(blob)
-        self.assertEqual(blob, msg.get_payload(decode=True))
+        assert blob == msg.get_payload(decode=True)
 
     def test_handles_binary_utf8_decodable(self):
         blob = b"\x32\x32"
         msg = ud.convert_string(blob)
-        self.assertEqual(blob, msg.get_payload(decode=True))
+        assert blob == msg.get_payload(decode=True)
 
     def test_handle_headers(self):
         text = "hi mom"
         msg = ud.convert_string(text)
-        self.assertEqual(text, msg.get_payload(decode=False))
+        assert text == msg.get_payload(decode=False)
 
     def test_handle_mime_parts(self):
         """Mime parts are properly returned as a mime message."""
         message = MIMEBase("text", "plain")
         message.set_payload("Just text")
         msg = ud.convert_string(str(message))
-        self.assertEqual("Just text", msg.get_payload(decode=False))
+        assert "Just text" == msg.get_payload(decode=False)
 
 
 class TestFetchBaseConfig:

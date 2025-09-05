@@ -22,7 +22,6 @@ SUPPORTED_INTERFACES = {
     "i2c": "do_i2c",
     "serial": "do_serial",
     "onewire": "do_onewire",
-    "remote_gpio": "do_rgpio",
 }
 RASPI_CONFIG_SERIAL_CONS_FN = "do_serial_cons"
 RASPI_CONFIG_SERIAL_HW_FN = "do_serial_hw"

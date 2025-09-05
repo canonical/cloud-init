@@ -11,9 +11,9 @@ pytest!=7.3.2
 pytest-cov
 pytest-mock
 pytest-xdist
-setuptools
 jsonschema
 responses
+packaging
 passlib
 
 # This one is currently used only by the CloudSigma and SmartOS datasources.

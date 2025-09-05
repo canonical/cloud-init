@@ -26,7 +26,7 @@ DISTRO_PKG_TYPE_MAP = {
     "centos": "redhat",
     "eurolinux": "redhat",
     "miraclelinux": "redhat",
-    "fedora": "redhat",
+    "fedora": "fedora",
     "rocky": "redhat",
     "redhat": "redhat",
     "debian": "debian",
@@ -67,13 +67,13 @@ MAYBE_RELIABLE_YUM_INSTALL = [
             grep -q baseurl $CENTOS_REPO
             if [ $? -eq 1 ]; then
                 # CentOS 9 does not provide baseurl definitions
-                sed -i '/\[baseos\]/a baseurl=https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os' ${CENTOS_REPO}
-                sed -i '/\[appstream\]/a baseurl=https://mirror.stream.centos.org/9-stream/AppStream/x86_64/os' ${CENTOS_REPO}
-                sed -i '/\[crb\]/a baseurl=https://mirror.stream.centos.org/9-stream/CRB/x86_64/os' ${CENTOS_REPO}
+                sed -i '/\\[baseos\\]/a baseurl=https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os' ${CENTOS_REPO}
+                sed -i '/\\[appstream\\]/a baseurl=https://mirror.stream.centos.org/9-stream/AppStream/x86_64/os' ${CENTOS_REPO}
+                sed -i '/\\[crb\\]/a baseurl=https://mirror.stream.centos.org/9-stream/CRB/x86_64/os' ${CENTOS_REPO}
             fi
             CENTOS_EXTRAS_REPO="/etc/yum.repos.d/centos-addons.repo"
             if [ -f $CENTOS_EXTRAS_REPO ]; then
-                sed -i '/\[extras-common\]/a baseurl=https://mirror.stream.centos.org/SIGs/9-stream/extras/x86_64/extras-common' ${CENTOS_EXTRAS_REPO}
+                sed -i '/\\[extras-common\\]/a baseurl=https://mirror.stream.centos.org/SIGs/9-stream/extras/x86_64/extras-common' ${CENTOS_EXTRAS_REPO}
             fi
         fi
     }
@@ -107,12 +107,20 @@ ZYPPER_INSTALL = [
 
 DRYRUN_DISTRO_INSTALL_PKG_CMD = {
     "redhat": ["yum", "install", "--assumeyes"],
+    "fedora": ["yum", "install", "--assumeyes"],
 }
 
 DISTRO_INSTALL_PKG_CMD = {
     "redhat": MAYBE_RELIABLE_YUM_INSTALL,
+    "fedora": MAYBE_RELIABLE_YUM_INSTALL,
     "debian": ["apt", "install", "-y"],
     "suse": ZYPPER_INSTALL,
+}
+
+DISTRO_UPDATE_PKG_CMD = {
+    "redhat": ["yum", "update"],
+    "debian": ["apt", "update", "-q"],
+    "suse": ["zypper", "update"],
 }
 
 # List of base system packages required to enable ci automation
@@ -347,18 +355,26 @@ def pkg_install(pkg_list, distro, test_distro=False, dry_run=False):
             "(dryrun)" if dry_run else "", " ".join(pkg_list)
         )
     )
+    distro_family = DISTRO_PKG_TYPE_MAP[distro]
     install_cmd = []
+    update_cmd = DISTRO_UPDATE_PKG_CMD.get(distro_family, [])
     if dry_run:
         install_cmd.append("echo")
+        if update_cmd:
+            update_cmd.insert(0, "echo")
     if os.geteuid() != 0:
         install_cmd.append("sudo")
+        if update_cmd:
+            update_cmd.append("sudo")
 
-    distro_family = DISTRO_PKG_TYPE_MAP[distro]
     if dry_run and distro_family in DRYRUN_DISTRO_INSTALL_PKG_CMD:
         cmd = DRYRUN_DISTRO_INSTALL_PKG_CMD[distro_family]
     else:
         cmd = DISTRO_INSTALL_PKG_CMD[distro_family]
     install_cmd.extend(cmd)
+
+    if update_cmd:
+        subprocess.check_call(update_cmd)
 
     if distro in ["centos", "redhat", "rocky", "eurolinux"]:
         # CentOS and Redhat need epel-release to access oauthlib and jsonschema
@@ -371,15 +387,7 @@ def pkg_install(pkg_list, distro, test_distro=False, dry_run=False):
         subprocess.call(
             ["dnf", "config-manager", "--set-disabled", "epel-cisco-openh264"]
         )
-    if distro in [
-        "suse",
-        "opensuse",
-        "fedora",
-        "redhat",
-        "rocky",
-        "centos",
-        "eurolinux",
-    ]:
+    if DISTRO_PKG_TYPE_MAP.get(distro) in ["redhat", "suse", "fedora"]:
         pkg_list.append("rpm-build")
     subprocess.check_call(install_cmd + pkg_list)
 

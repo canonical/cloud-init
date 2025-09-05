@@ -20,7 +20,7 @@ jobs:
         stale-pr-message: |
           Hello! Thank you for this proposed change to cloud-init. This pull request is now marked as stale as it has not seen any activity in 14 days. If no activity occurs within the next 7 days, this pull request will automatically close.
 
-          If you are waiting for code review and you are seeing this message, apologies!  Please reply, tagging TheRealFalcon, and he will ensure that someone takes a look soon.
+          If you are waiting for code review and you are seeing this message, apologies!  Please reply, tagging blackboxsw, and he will ensure that someone takes a look soon.
 
-          (If the pull request is closed and you would like to continue working on it, please do tag TheRealFalcon to reopen it.)
+          (If the pull request is closed and you would like to continue working on it, please do tag blackboxsw to reopen it.)
         stale-pr-label: 'stale-pr'
