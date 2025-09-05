@@ -20,7 +20,7 @@ Last-Update: 2025-08-25
  sphinx-copybutton
 --- a/packages/bddeb
 +++ b/packages/bddeb
-@@ -19,7 +19,7 @@
+@@ -19,7 +19,7 @@ def find_root():
          top_dir = os.path.dirname(
              os.path.dirname(os.path.abspath(sys.argv[0]))
          )
@@ -31,7 +31,7 @@ Last-Update: 2025-08-25
          (
 --- a/packages/brpm
 +++ b/packages/brpm
-@@ -16,7 +16,7 @@
+@@ -16,7 +16,7 @@ def find_root():
          top_dir = os.path.dirname(
              os.path.dirname(os.path.abspath(sys.argv[0]))
          )
@@ -62,252 +62,6 @@ Last-Update: 2025-08-25
  ifeq (,$(findstring nocheck,$(DEB_BUILD_OPTIONS)))
  	http_proxy= make PYVER=python3 check
  else
---- a/packages/redhat/cloud-init.spec.in
-+++ b/packages/redhat/cloud-init.spec.in
-@@ -1,4 +1,11 @@
- ## template: jinja
-+%define use_systemd (0%{?fedora} && 0%{?fedora} >= 18) || (0%{?rhel} && 0%{?rhel} >= 7)
-+
-+%if %{use_systemd}
-+%define init_system systemd
-+%else
-+%define init_system sysvinit
-+%endif
- 
- # See: http://www.zarb.org/~jasonc/macros.php
- # Or: http://fedoraproject.org/wiki/Packaging:ScriptletSnippets
-@@ -7,20 +14,30 @@
- Name:           cloud-init
- Version:        {{rpm_upstream_version}}
- Release:        1{{subrelease}}%{?dist}
--Summary:        Cloud instance initialization tool
-+Summary:        Cloud instance init scripts
- 
- Group:          System Environment/Base
- License:        Dual-licesed GPLv3 or Apache 2.0
--URL:            https://github.com/canonical/cloud-init
-+URL:            http://launchpad.net/cloud-init
- 
- Source0:        {{archive_name}}
- BuildArch:      noarch
- BuildRoot:      %{_tmppath}
- 
--Requires:       systemd
--BuildRequires:  pkgconfig(systemd)
--Requires:       systemd-units
--BuildRequires:  systemd-units
-+%if "%{?el6}" == "1"
-+BuildRequires:  python-argparse
-+%endif
-+%if %{use_systemd}
-+Requires:           systemd
-+BuildRequires:      systemd
-+Requires:           systemd-units
-+BuildRequires:      systemd-units
-+%else
-+Requires:           initscripts >= 8.36
-+Requires(postun):   initscripts
-+Requires(post):     chkconfig
-+Requires(preun):    chkconfig
-+%endif
- 
- {% for r in buildrequires %}
- BuildRequires:  {{r}}
-@@ -44,9 +61,16 @@
- Patch{{loop.index0}}: {{p}}
- {% endfor %}
- 
-+%if "%{init_system}" == "systemd"
- Requires(post):       systemd
- Requires(preun):      systemd
- Requires(postun):     systemd
-+%else
-+Requires(post):       chkconfig
-+Requires(postun):     initscripts
-+Requires(preun):      chkconfig
-+Requires(preun):      initscripts
-+%endif
- 
- %description
- Cloud-init is a set of init scripts for cloud instances.  Cloud instances
-@@ -62,11 +86,13 @@
- {% endfor %}
- 
- %build
--%meson -Dinit_system=systemd -Ddistro_templates=chef_client.rb.tmpl,chrony.conf.rhel.tmpl,hosts.redhat.tmpl,ntp.conf.rhel.tmpl,resolv.conf.tmpl,timesyncd.conf.tmpl
--%meson_build
-+%{__python3} setup.py build
- 
- %install
--%meson_install
-+
-+%{__python3} setup.py install -O1 \
-+            --skip-build --root $RPM_BUILD_ROOT \
-+            --init-system=%{init_system}
- 
- # Note that /etc/rsyslog.d didn't exist by default until F15.
- # el6 request: https://bugzilla.redhat.com/show_bug.cgi?id=740420
-@@ -74,6 +100,9 @@
- cp -p tools/21-cloudinit.conf \
-       $RPM_BUILD_ROOT/%{_sysconfdir}/rsyslog.d/21-cloudinit.conf
- 
-+# Remove the tests
-+rm -rf $RPM_BUILD_ROOT%{python3_sitelib}/tests
-+
- # Required dirs...
- mkdir -p $RPM_BUILD_ROOT/%{_sharedstatedir}/cloud
- mkdir -p $RPM_BUILD_ROOT/%{_libexecdir}/%{name}
-@@ -89,23 +118,66 @@
- rm -rf $RPM_BUILD_ROOT
- 
- %post
--%systemd_post cloud-init-main.service cloud-config.service cloud-config.target cloud-final.service cloud-init-network.service cloud-init.target cloud-init-local.service
- 
-+%if "%{init_system}" == "systemd"
-+if [ $1 -eq 1 ]
-+then
-+    /bin/systemctl enable cloud-config.service     >/dev/null 2>&1 || :
-+    /bin/systemctl enable cloud-final.service      >/dev/null 2>&1 || :
-+    /bin/systemctl enable cloud-init-network.service       >/dev/null 2>&1 || :
-+    /bin/systemctl enable cloud-init-local.service >/dev/null 2>&1 || :
-+fi
-+%else
-+/sbin/chkconfig --add %{_initrddir}/cloud-init-local
-+/sbin/chkconfig --add %{_initrddir}/cloud-init
-+/sbin/chkconfig --add %{_initrddir}/cloud-config
-+/sbin/chkconfig --add %{_initrddir}/cloud-final
-+%endif
- 
- %preun
--%systemd_preun cloud-init-main.service cloud-config.service cloud-config.target cloud-final.service cloud-init-network.service cloud-init.target cloud-init-local.service
- 
-+%if "%{init_system}" == "systemd"
-+if [ $1 -eq 0 ]
-+then
-+    /bin/systemctl --no-reload disable cloud-config.service >/dev/null 2>&1 || :
-+    /bin/systemctl --no-reload disable cloud-final.service  >/dev/null 2>&1 || :
-+    /bin/systemctl --no-reload disable cloud-init-network.service   >/dev/null 2>&1 || :
-+    /bin/systemctl --no-reload disable cloud-init-local.service >/dev/null 2>&1 || :
-+fi
-+%else
-+if [ $1 -eq 0 ]
-+then
-+    /sbin/service cloud-init stop >/dev/null 2>&1 || :
-+    /sbin/chkconfig --del cloud-init || :
-+    /sbin/service cloud-init-local stop >/dev/null 2>&1 || :
-+    /sbin/chkconfig --del cloud-init-local || :
-+    /sbin/service cloud-config stop >/dev/null 2>&1 || :
-+    /sbin/chkconfig --del cloud-config || :
-+    /sbin/service cloud-final stop >/dev/null 2>&1 || :
-+    /sbin/chkconfig --del cloud-final || :
-+fi
-+%endif
- 
- %postun
--%systemd_postun cloud-init-main.service cloud-config.service cloud-config.target cloud-final.service cloud-init-network.service cloud-init.target cloud-init-local.service
-+
-+%if "%{init_system}" == "systemd"
-+/bin/systemctl daemon-reload >/dev/null 2>&1 || :
-+%endif
- 
- %files
- 
- %{_udevrulesdir}/66-azure-ephemeral.rules
- 
-+%if "%{init_system}" == "systemd"
- /usr/lib/systemd/system-generators/cloud-init-generator
- /usr/lib/systemd/system/sshd-keygen@.service.d/disable-sshd-keygen-if-cloud-init-active.conf
- %{_unitdir}/cloud-*
-+%else
-+%attr(0755, root, root) %{_initddir}/cloud-config
-+%attr(0755, root, root) %{_initddir}/cloud-final
-+%attr(0755, root, root) %{_initddir}/cloud-init-local
-+%attr(0755, root, root) %{_initddir}/cloud-init
-+%endif
- 
- # Program binaries
- %{_bindir}/cloud-init*
-@@ -117,6 +189,7 @@
- 
- # Configs
- %config(noreplace)      %{_sysconfdir}/cloud/cloud.cfg
-+%dir                    %{_sysconfdir}/cloud/clean.d
- %dir                    %{_sysconfdir}/cloud/cloud.cfg.d
- %config(noreplace)      %{_sysconfdir}/cloud/cloud.cfg.d/*.cfg
- %config(noreplace)      %{_sysconfdir}/cloud/cloud.cfg.d/README
-@@ -125,13 +198,8 @@
- %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
- 
- # Bash completion script
--%dir %{_datadir}/bash-completion/completions
- %{_datadir}/bash-completion/completions/cloud-init
- 
--# Man pages
--%dir %{_mandir}/man1
--%{_mandir}/man1/*.gz
--
- %{_libexecdir}/%{name}
- %dir %{_sharedstatedir}/cloud
- 
---- a/packages/suse/cloud-init.spec.in
-+++ b/packages/suse/cloud-init.spec.in
-@@ -48,15 +48,25 @@
- {% endfor %}
- 
- %build
--%meson -Dinit_system=systemd --libexecdir=/usr/lib -Ddistro_templates=chef_client.rb.tmpl,chrony.conf.opensuse.tmpl,hosts.suse.tmpl,ntp.conf.opensuse.tmpl,resolv.conf.tmpl,timesyncd.conf.tmpl
--%meson_build
-+%{__python} setup.py build
- 
- %install
--%meson_install
-+%{__python} setup.py install \
-+            --skip-build --root=%{buildroot} --prefix=%{_prefix} \
-+            --record-rpm=INSTALLED_FILES --install-lib=%{python_sitelib} \
-+            --init-system=systemd
-+
-+# Move udev rules
-+mkdir -p %{buildroot}/usr/lib/udev/rules.d/
-+mv %{buildroot}/lib/udev/rules.d/* %{buildroot}/usr/lib/udev/rules.d/
-+
-+# Remove non-SUSE templates
-+rm %{buildroot}/%{_sysconfdir}/cloud/templates/*.debian.*
-+rm %{buildroot}/%{_sysconfdir}/cloud/templates/*.redhat.*
-+rm %{buildroot}/%{_sysconfdir}/cloud/templates/*.ubuntu.*
- 
- # Move documentation
- mkdir -p %{buildroot}/%{_defaultdocdir}
--mkdir -p %{buildroot}/%{_sysconfdir}/cloud/clean.d
- mv %{buildroot}/usr/share/doc/cloud-init %{buildroot}/%{_defaultdocdir}
- for doc in LICENSE ChangeLog requirements.txt; do
-    cp ${doc} %{buildroot}/%{_defaultdocdir}/cloud-init
-@@ -92,7 +102,6 @@
- # There doesn't seem to be an agreed upon place for these
- # although it appears the standard says /usr/lib but rpmbuild
- # will try /usr/lib64 ??
--/usr/lib/%{name}/hook-hotplug
- /usr/lib/%{name}/uncloud-init
- /usr/lib/%{name}/write-ssh-key-fingerprints
- /usr/lib/%{name}/ds-identify
-@@ -105,7 +114,7 @@
- %doc %{_defaultdocdir}/cloud-init/*
- 
- # Configs
--%dir               %{_sysconfdir}/cloud/clean.d
-+%dir                    %{_sysconfdir}/cloud/clean.d
- %config(noreplace) %{_sysconfdir}/cloud/cloud.cfg
- %dir               %{_sysconfdir}/cloud/cloud.cfg.d
- %config(noreplace) %{_sysconfdir}/cloud/cloud.cfg.d/*.cfg
-@@ -115,7 +124,8 @@
- 
- # Bash completion script
- %{_datadir}/bash-completion/completions/cloud-init
--/usr/share/man/man1/cloud-*gz
-+
-+%{_sysconfdir}/systemd/system/sshd-keygen@.service.d/disable-sshd-keygen-if-cloud-init-active.conf
- 
- # Python code is here...
- %{python_sitelib}/*
 --- a/pyproject.toml
 +++ b/pyproject.toml
 @@ -1,6 +1,6 @@
@@ -667,7 +421,7 @@ Last-Update: 2025-08-25
 +)
 --- a/test-requirements.txt
 +++ b/test-requirements.txt
-@@ -11,9 +11,9 @@
+@@ -11,9 +11,9 @@ pytest!=7.3.2
  pytest-cov
  pytest-mock
  pytest-xdist
@@ -705,7 +459,7 @@ Last-Update: 2025-08-25
  
  # Since read-version has a '-' and no .py extension, we have to do this
  # to import it
-@@ -23,17 +36,9 @@
+@@ -23,17 +36,9 @@ if not spec.loader:
  spec.loader.exec_module(read_version)
  
  
@@ -727,7 +481,7 @@ Last-Update: 2025-08-25
  
 --- a/tox.ini
 +++ b/tox.ini
-@@ -33,6 +33,7 @@
+@@ -33,6 +33,7 @@ deps =
      types-passlib
      types-PyYAML
      types-requests
@@ -735,7 +489,7 @@ Last-Update: 2025-08-25
      typing-extensions
  
  [pinned_versions]
-@@ -185,6 +186,7 @@
+@@ -185,6 +186,7 @@ deps =
      pytest==4.6.9
      pytest-cov==2.8.1
      pytest-mock==1.10.4
