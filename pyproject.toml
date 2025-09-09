@@ -43,7 +43,6 @@ no_implicit_optional = true
 [[tool.mypy.overrides]]
 module = [
     "cloudinit.cmd.devel.make_mime",
-    "cloudinit.cmd.devel.net_convert",
     "cloudinit.cmd.main",
     "cloudinit.config.cc_apt_configure",
     "cloudinit.config.cc_ca_certs",

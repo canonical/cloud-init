@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import sys
+from typing import Optional
 
 import yaml
 
@@ -46,7 +47,9 @@ else:
 NAME = "net-convert"
 
 
-def get_parser(parser=None):
+def get_parser(
+    parser: Optional[argparse.ArgumentParser] = None,
+) -> argparse.ArgumentParser:
     """Build or extend and arg parser for net-convert utility.
 
     @param parser: Optional existing ArgumentParser instance representing the
