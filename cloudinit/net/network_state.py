@@ -432,6 +432,10 @@ class NetworkStateInterpreter:
                 "keep_configuration": command.get("keep_configuration"),
             }
         )
+
+        if iface["mac_address"]:
+            iface["mac_address"] = iface["mac_address"].lower()
+
         iface_key = command.get("config_id", command.get("name"))
         self._network_state["interfaces"].update({iface_key: iface})
         self.dump_network_state()
@@ -791,6 +795,7 @@ class NetworkStateInterpreter:
                 "name": vlan,
                 "vlan_id": cfg.get("id"),
                 "vlan_link": cfg.get("link"),
+                "mac_address": cfg.get("macaddress"),
             }
             if "mtu" in cfg:
                 vlan_cmd["mtu"] = cfg["mtu"]
@@ -848,8 +853,11 @@ class NetworkStateInterpreter:
                 cmd_type + "_interfaces": item_cfg.get("interfaces"),
                 "params": dict((v2key_to_v1[k], v) for k, v in params.items()),
             }
+
             if "mtu" in item_cfg:
                 v1_cmd["mtu"] = item_cfg["mtu"]
+            if "macaddress" in item_cfg:
+                v1_cmd["mac_address"] = item_cfg["macaddress"]
 
             warn_deprecated_all_devices(item_cfg)
             subnets = self._v2_to_v1_ipcfg(item_cfg)

@@ -40,6 +40,7 @@ class TestHappyPath:
             "add-pool": ["pool1", "pool2", "pool3"],
             "enable-repo": ["repo1", "repo2", "repo3"],
             "disable-repo": ["repo4", "repo5"],
+            "release_version": "7.6b",
         }
     }
 
@@ -52,7 +53,12 @@ class TestHappyPath:
         assert m_sman_cli.call_count == 1
         assert "System is already registered" in caplog.text
 
-    def test_simple_registration(self, m_sman_cli, caplog):
+    @mock.patch.object(
+        cc_rh_subscription.SubscriptionManager, "_set_release_version"
+    )
+    def test_simple_registration(
+        self, m_set_release_version, m_sman_cli, caplog
+    ):
         """
         Simple registration with username and password
         """
@@ -76,6 +82,7 @@ class TestHappyPath:
         )
         assert "rh_subscription plugin completed successfully" in caplog.text
         assert m_sman_cli.call_count == 2
+        assert m_set_release_version.call_count == 0
 
     @mock.patch.object(cc_rh_subscription.SubscriptionManager, "_getRepos")
     def test_update_repos_disable_with_none(self, m_get_repos, m_sman_cli):
@@ -94,7 +101,7 @@ class TestHappyPath:
     def test_full_registration(self, m_sman_cli, caplog):
         """
         Registration with auto-attach, service-level, adding pools,
-        and enabling and disabling yum repos
+        enabling and disabling yum repos and setting release_version
         """
         call_lists = []
         call_lists.append(["attach", "--pool=pool1", "--pool=pool3"])
@@ -102,6 +109,7 @@ class TestHappyPath:
             ["repos", "--disable=repo5", "--enable=repo2", "--enable=repo3"]
         )
         call_lists.append(["attach", "--auto", "--servicelevel=self-support"])
+        call_lists.append(["release", "--set=7.6b"])
         reg = (
             "The system has been registered with ID:"
             " 12345678-abde-abcde-1234-1234567890abc"
@@ -116,9 +124,15 @@ class TestHappyPath:
             ("Repo ID: repo1\nRepo ID: repo5\n", ""),
             ("Repo ID: repo2\nRepo ID: repo3\nRepo ID: repo4", ""),
             ("", ""),
+            ("Release set to: 7.6b", ""),
         ]
+        # to avoid deleting the actual cache files
+        # (triggered by the presence of the release_version key)
+        # on the host running the tests
+        mock.patch("shutil.rmtree")
+
         cc_rh_subscription.handle(NAME, self.CONFIG_FULL, None, [])
-        assert m_sman_cli.call_count == 9
+        assert m_sman_cli.call_count == 10
         for call in call_lists:
             assert mock.call(call) in m_sman_cli.call_args_list
         assert "rh_subscription plugin completed successfully" in caplog.text
@@ -167,6 +181,13 @@ class TestBadInput:
             "activation-key": "abcdef1234",
             "fookey": "bar",
             "org": "ABC",
+        }
+    }
+    CONFIG_BAD_RELEASE_VERSION = {
+        "rh_subscription": {
+            "username": "scooby@do.com",
+            "password": "scooby-snacks",
+            "release_version": "bad_release_version",
         }
     }
 
@@ -272,7 +293,65 @@ class TestBadInput:
                 "fookey is not a valid key for rh_subscription. Valid keys"
                 " are: org, activation-key, username, password, disable-repo,"
                 " enable-repo, add-pool, rhsm-baseurl, server-hostname,"
-                " auto-attach, service-level",
+                " auto-attach, service-level, release_version",
+                "rh_subscription plugin did not complete successfully",
+            ),
+            caplog,
+        )
+
+    @mock.patch.object(
+        cc_rh_subscription.SubscriptionManager, "_delete_packagemanager_cache"
+    )
+    def test_bad_release_version(self, m_delete_pm_cache, m_sman_cli, caplog):
+        """
+        Failure at setting release_version
+        """
+        m_sman_cli.side_effect = [
+            subp.ProcessExecutionError,
+            (self.REG, "bar"),
+            subp.ProcessExecutionError,
+        ]
+        cc_rh_subscription.handle(
+            NAME, self.CONFIG_BAD_RELEASE_VERSION, None, []
+        )
+        assert m_sman_cli.call_count == 3
+        assert m_delete_pm_cache.call_count == 0
+        expected_cmd = [
+            "release",
+            f"--set={self.CONFIG_BAD_RELEASE_VERSION['rh_subscription']['release_version']}",
+        ]
+        self.assert_logged_warnings(
+            (
+                f"Unable to set release_version using: {expected_cmd}",
+                "rh_subscription plugin did not complete successfully",
+            ),
+            caplog,
+        )
+
+    @mock.patch("shutil.rmtree", side_effect=[PermissionError])
+    def test_pm_cache_deletion_after_setting_release_version(
+        self, m_rmtree, m_sman_cli, caplog
+    ):
+        """
+        Failure at deleting package manager cache
+        after setting release_version
+        """
+        good_release_ver_cfg = copy.deepcopy(self.CONFIG_BAD_RELEASE_VERSION)
+        good_release_ver_cfg["rh_subscription"][
+            "release_version"
+        ] = "1.2Server"
+        m_sman_cli.side_effect = [
+            subp.ProcessExecutionError,
+            (self.REG, "bar"),
+            ("Release set to: 1.2Server", ""),
+        ]
+        cc_rh_subscription.handle(NAME, good_release_ver_cfg, None, [])
+        # assert "rh_subscription plugin completed successfully" in caplog.text
+        assert m_sman_cli.call_count == 3
+        assert m_rmtree.call_args_list == [mock.call("/var/cache/dnf")]
+        self.assert_logged_warnings(
+            (
+                "Unable to delete the package manager cache",
                 "rh_subscription plugin did not complete successfully",
             ),
             caplog,
@@ -298,6 +377,10 @@ class TestRhSubscriptionSchema:
             (
                 {"rh_subscription": {"disable-repo": "name"}},
                 "'name' is not of type 'array'",
+            ),
+            (
+                {"rh_subscription": {"release_version": [10]}},
+                r"\[10\] is not of type 'string'",
             ),
             (
                 {

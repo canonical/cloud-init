@@ -2,7 +2,6 @@ import pytest
 
 from cloudinit import subp
 from conftest import UnexpectedSubpError
-from tests.unittests.helpers import CiTestCase
 
 
 class TestDisableSubpUsage:
@@ -51,27 +50,3 @@ class TestDisableSubpUsage:
     def test_both_marks_raise_an_error(self):
         with pytest.raises(UnexpectedSubpError, match="marked both"):
             subp.subp(["sh"])
-
-
-class TestDisableSubpUsageInTestSubclass(CiTestCase):
-    """Test that disable_subp_usage doesn't impact CiTestCase's subp logic.
-
-    Once the rest of the CiTestCase tests are removed, this class
-    should be removed as well.
-    """
-
-    def test_using_subp_raises_exception(self):
-        with pytest.raises(Exception):
-            subp.subp(["some", "args"])
-
-    def test_typeerrors_on_incorrect_usage(self):
-        with pytest.raises(TypeError):
-            subp.subp()
-
-    def test_subp_usage_can_be_reenabled(self):
-        _old_allowed_subp = self.allow_subp
-        self.allowed_subp = True
-        try:
-            subp.subp(["sh", "-c", "true"])
-        finally:
-            self.allowed_subp = _old_allowed_subp

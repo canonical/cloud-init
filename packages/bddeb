@@ -19,7 +19,7 @@ def find_root():
         top_dir = os.path.dirname(
             os.path.dirname(os.path.abspath(sys.argv[0]))
         )
-    if os.path.isfile(os.path.join(top_dir, "setup.py")):
+    if os.path.isfile(os.path.join(top_dir, "meson.build")):
         return os.path.abspath(top_dir)
     raise OSError(
         (
@@ -102,7 +102,13 @@ def write_debian_folder(root, templ_data, cloud_util_deps):
     reqs = reqs_output.splitlines()
     test_reqs = run_helper(
         "read-dependencies",
-        ["--requirements-file", "test-requirements.txt", "--system-pkg-names"],
+        [
+            "--distro",
+            "debian",
+            "--requirements-file",
+            "test-requirements.txt",
+            "--system-pkg-names",
+        ],
     ).splitlines()
 
     requires = ["cloud-utils | cloud-guest-utils"] if cloud_util_deps else []
