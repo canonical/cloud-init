@@ -1748,7 +1748,7 @@ class FakeSelinux:
         self.restored = []
 
     def matchpathcon(self, path, mode):
-        if path == self.match_what:
+        if os.path.realpath(path) == os.path.realpath(self.match_what):
             return
         else:
             raise OSError("No match!")
