@@ -123,7 +123,7 @@ def fake_filesystem(mocker, tmpdir, fake_filesystem_hook):
     # assuming that it already exists, but then it fails because of the
     # retargeting that happens here.
     TMPDIR = os.getenv("TMPDIR", "/tmp")
-    Path(tmpdir, TMPDIR[1:]).mkdir(exist_ok=True)
+    Path(tmpdir, TMPDIR[1:]).mkdir(parents=True, exist_ok=True)
 
     for mod, funcs in FS_FUNCS.items():
         for f, nargs in funcs:
