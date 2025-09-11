@@ -12,7 +12,8 @@ import json
 import os
 import sys
 from copy import deepcopy
-from time import gmtime, sleep, strftime
+from datetime import datetime, timezone
+from time import sleep
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 from cloudinit import safeyaml, subp
@@ -480,11 +481,11 @@ def get_status_details(
     description = get_description(status_v1, boot_description)
 
     latest_event = get_latest_event(status_v1)
-    last_update = (
-        strftime("%a, %d %b %Y %H:%M:%S %z", gmtime(latest_event))
-        if latest_event
-        else ""
-    )
+    if latest_event:
+        dt = datetime.fromtimestamp(latest_event, tz=timezone.utc)
+        last_update = dt.strftime("%a, %d %b %Y %H:%M:%S %z")
+    else:
+        last_update = ""
 
     errors, recoverable_errors = get_errors(status_v1)
     if errors:
