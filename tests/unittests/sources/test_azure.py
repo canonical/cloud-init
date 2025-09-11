@@ -1727,7 +1727,13 @@ scbus-1 on xpt0 bus 0
 
         assert "ssh_pwauth" not in dsrc.cfg
 
-    def test_password_given(self, get_ds):
+    def test_password_given(self, get_ds, mocker):
+        # The crypt module has platform-specific behavior and the purpose of
+        # this test isn't to verify the differences between crypt and passlib,
+        # so hardcode passlib usage as crypt is deprecated.
+        mocker.patch.object(
+            dsaz, "blowfish_hash", passlib.hash.sha512_crypt.hash
+        )
         data = {
             "ovfcontent": construct_ovf_env(
                 username="myuser", password="mypass"
