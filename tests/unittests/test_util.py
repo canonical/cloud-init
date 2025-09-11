@@ -2862,6 +2862,10 @@ class TestGetProcPpid:
         assert os.getpgid(0) == Distro.get_proc_pgid(os.getpid())
 
     @pytest.mark.allow_subp_for("ps")
+    @pytest.mark.skipif(
+        not util.is_Linux(),
+        reason="/proc/$pid/stat is not useful on not-Linux",
+    )
     def test_get_proc_ppid_ps(self):
         """get_proc_ppid returns correct parent pid value."""
         my_pid = os.getpid()
