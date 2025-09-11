@@ -2,10 +2,11 @@ cc_raspberry_pi:
   description: |
     This module handles ARM interface configuration for Raspberry Pi.
 
-    It also handles Raspberry Pi Connect installation and enablement.
-    Raspberry Pi Connect service will be installed and enabled to auto start on boot.
+    It also handles Raspberry Pi USB Gadget setup.
+    The USB Gadget mode will be enabled to auto start on boot.
+    Make sure you read the documentation on it carefully before enabling it.
 
-    This only works on Raspberry Pi OS (bookworm and later).
+    This only works on Raspberry Pi OS (trixie and later).
   examples:
   - comment: >
       This example will enable the SPI and I2C interfaces on Raspberry Pi.
@@ -20,7 +21,7 @@ cc_raspberry_pi:
       This example will enable ssh and the UART hardware without binding it to the console.
     file: cc_raspberry_pi/example4.yaml
   - comment: >
-      This example will enable the Raspberry Pi Connect service.
+      This example will enable the Raspberry Pi USB Gadget mode.
     file: cc_raspberry_pi/example5.yaml
   name: Raspberry Pi Configuration
-  title: Configure Raspberry Pi ARM interfaces and enable Raspberry Pi Connect
+  title: Configure Raspberry Pi ARM interfaces and enable Raspberry Pi USB Gadget mode

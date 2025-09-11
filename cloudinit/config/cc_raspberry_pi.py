@@ -5,6 +5,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
+import os
 from typing import Union
 
 from cloudinit import subp
@@ -16,7 +17,7 @@ from cloudinit.settings import PER_INSTANCE
 LOG = logging.getLogger(__name__)
 RPI_BASE_KEY = "rpi"
 RPI_INTERFACES_KEY = "interfaces"
-ENABLE_RPI_CONNECT_KEY = "enable_rpi_connect"
+ENABLE_USB_GADGET_KEY = "enable_usb_gadget"
 SUPPORTED_INTERFACES = {
     "spi": "do_spi",
     "i2c": "do_i2c",
@@ -25,6 +26,7 @@ SUPPORTED_INTERFACES = {
 }
 RASPI_CONFIG_SERIAL_CONS_FN = "do_serial_cons"
 RASPI_CONFIG_SERIAL_HW_FN = "do_serial_hw"
+RPI_USB_GADGET_SCRIPT = "/usr/bin/rpi-usb-gadget"
 
 meta: MetaSchema = {
     "id": "cc_raspberry_pi",
@@ -34,15 +36,30 @@ meta: MetaSchema = {
 }
 
 
-def configure_rpi_connect(enable: bool) -> None:
-    LOG.debug("Configuring rpi-connect: %s", enable)
+def configure_usb_gadget(enable: bool) -> None:
+    LOG.debug("Enable rpi-usb-gadget mode: %s", enable)
 
-    num = 0 if enable else 1
+    # TODO: maybe skip if enable=false because
+    # that is the default on official rpios
+    mod = "on" if enable else "off"
 
     try:
-        subp.subp(["/usr/bin/raspi-config", "do_rpi_connect", str(num)])
+        if not os.path.exists(RPI_USB_GADGET_SCRIPT):
+            LOG.error(
+                "rpi-usb-gadget script not found: %s", RPI_USB_GADGET_SCRIPT
+            )
+            return
+
+        subp.subp(
+            [
+                RPI_USB_GADGET_SCRIPT,
+                mod,
+            ],
+            capture=False,
+            timeout=15,
+        )
     except subp.ProcessExecutionError as e:
-        LOG.error("Failed to configure rpi-connect: %s", e)
+        LOG.error("Failed to configure rpi-usb-gadget: %s", e)
 
 
 def is_pifive() -> bool:
@@ -152,15 +169,13 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         return
 
     for key in cfg[RPI_BASE_KEY]:
-        if key == ENABLE_RPI_CONNECT_KEY:
+        if key == ENABLE_USB_GADGET_KEY:
             enable = cfg[RPI_BASE_KEY][key]
 
             if isinstance(enable, bool):
-                configure_rpi_connect(enable)
+                configure_usb_gadget(enable)
             else:
-                LOG.warning(
-                    "Invalid value for %s: %s", ENABLE_RPI_CONNECT_KEY, enable
-                )
+                raise ValueError(f"Invalid value for {ENABLE_USB_GADGET_KEY}")
             continue
         elif key == RPI_INTERFACES_KEY:
             if not isinstance(cfg[RPI_BASE_KEY][key], dict):
