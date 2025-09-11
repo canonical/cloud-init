@@ -500,7 +500,9 @@ class TestOpenSSLManager:
 
         m_subp.side_effect = capture_directory
         manager = azure_helper.OpenSSLManager()
-        assert manager.tmpdir == subp_directory["path"]
+        assert os.path.realpath(manager.tmpdir) == os.path.realpath(
+            subp_directory["path"]
+        )
         manager.clean_up()
 
     @mock.patch.object(azure_helper, "cd", mock.MagicMock())
