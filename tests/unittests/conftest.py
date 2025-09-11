@@ -124,6 +124,7 @@ def fake_filesystem(mocker, tmpdir, fake_filesystem_hook):
     # retargeting that happens here.
     TMPDIR = os.getenv("TMPDIR", "/tmp")
     Path(tmpdir, TMPDIR[1:]).mkdir(parents=True, exist_ok=True)
+    Path(tmpdir, "tmp").mkdir(exist_ok=True)
 
     for mod, funcs in FS_FUNCS.items():
         for f, nargs in funcs:
