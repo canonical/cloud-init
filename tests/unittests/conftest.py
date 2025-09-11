@@ -7,9 +7,17 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import atomic_helper, distros, helpers, lifecycle, temp_utils
+from cloudinit import (
+    atomic_helper,
+    distros,
+    helpers,
+    lifecycle,
+    temp_utils,
+)
 from cloudinit import user_data as ud
-from cloudinit import util
+from cloudinit import (
+    util,
+)
 from cloudinit.gpg import GPG
 from cloudinit.log import loggers
 from tests.hypothesis import HAS_HYPOTHESIS
@@ -240,3 +248,24 @@ def paths(tmpdir) -> helpers.Paths:
 @pytest.fixture
 def ud_proc(paths):
     return ud.UserDataProcessor(paths)
+
+
+@pytest.fixture
+def socket_attrs(mocker):
+    """A fixture to add to some attributes to the socket module.
+
+    Many socket attributes are OS-specific, so ensure we have attributes
+    that work for the tests that need them.
+    """
+    mocker.patch("socket.AF_NETLINK", 0, create=True)
+    mocker.patch("socket.NETLINK_ROUTE", 0, create=True)
+    mocker.patch("socket.SOCK_CLOEXEC", 0, create=True)
+
+
+@pytest.fixture
+def fake_socket(mocker, socket_attrs):
+    """A fixture to mock socket.socket()."""
+    # Even though this is just a one-liner, if we need to mock
+    # socket.socket, we want to ensure that socket_attrs is
+    # applied too.
+    return mocker.patch("socket.socket", autospec=True)
