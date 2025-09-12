@@ -35,11 +35,11 @@ class TestHappyPath:
         "rh_subscription": {
             "username": "scooby@do.com",
             "password": "scooby-snacks",
-            "auto-attach": True,
-            "service-level": "self-support",
-            "add-pool": ["pool1", "pool2", "pool3"],
-            "enable-repo": ["repo1", "repo2", "repo3"],
-            "disable-repo": ["repo4", "repo5"],
+            "auto_attach": True,
+            "service_level": "self-support",
+            "add_pool": ["pool1", "pool2", "pool3"],
+            "enable_repo": ["repo1", "repo2", "repo3"],
+            "disable_repo": ["repo4", "repo5"],
             "release_version": "7.6b",
         }
     }
@@ -89,7 +89,7 @@ class TestHappyPath:
         cfg = copy.deepcopy(self.CONFIG)
         m_get_repos.return_value = ([], ["repo1"])
         cfg["rh_subscription"].update(
-            {"enable-repo": ["repo1"], "disable-repo": None}
+            {"enable_repo": ["repo1"], "disable_repo": None}
         )
         mysm = cc_rh_subscription.SubscriptionManager(cfg)
         assert True is mysm.update_repos()
@@ -100,7 +100,7 @@ class TestHappyPath:
 
     def test_full_registration(self, m_sman_cli, caplog):
         """
-        Registration with auto-attach, service-level, adding pools,
+        Registration with auto_attach, service_level, adding pools,
         enabling and disabling yum repos and setting release_version
         """
         call_lists = []
@@ -150,7 +150,7 @@ class TestBadInput:
 
     CONFIG_NO_KEY = {
         "rh_subscription": {
-            "activation-key": "1234abcde",
+            "activation_key": "1234abcde",
         }
     }
 
@@ -158,7 +158,7 @@ class TestBadInput:
         "rh_subscription": {
             "username": "scooby@do.com",
             "password": "scooby-snacks",
-            "service-level": "self-support",
+            "service_level": "self-support",
         }
     }
 
@@ -166,19 +166,19 @@ class TestBadInput:
         "rh_subscription": {
             "username": "scooby@do.com",
             "password": "scooby-snacks",
-            "add-pool": "not_a_list",
+            "add_pool": "not_a_list",
         }
     }
     CONFIG_BADREPO = {
         "rh_subscription": {
             "username": "scooby@do.com",
             "password": "scooby-snacks",
-            "enable-repo": "not_a_list",
+            "enable_repo": "not_a_list",
         }
     }
     CONFIG_BADKEY = {
         "rh_subscription": {
-            "activation-key": "abcdef1234",
+            "activation_key": "abcdef1234",
             "fookey": "bar",
             "org": "ABC",
         }
@@ -225,7 +225,7 @@ class TestBadInput:
         )
 
     def test_service_level_without_auto(self, m_sman_cli, caplog):
-        """Attempt to register using service-level without auto-attach key."""
+        """Attempt to register using service_level without auto_attach key."""
         m_sman_cli.side_effect = [
             subp.ProcessExecutionError,
             (self.REG, "bar"),
@@ -234,8 +234,8 @@ class TestBadInput:
         assert m_sman_cli.call_count == 1
         self.assert_logged_warnings(
             (
-                "The service-level key must be used in conjunction with the"
-                " auto-attach key.  Please re-run with auto-attach: True",
+                "The service_level key must be used in conjunction with the"
+                " auto_attach key.  Please re-run with auto_attach: True",
                 "rh_subscription plugin did not complete successfully",
             ),
             caplog,
@@ -291,9 +291,11 @@ class TestBadInput:
         self.assert_logged_warnings(
             (
                 "fookey is not a valid key for rh_subscription. Valid keys"
-                " are: org, activation-key, username, password, disable-repo,"
-                " enable-repo, add-pool, rhsm-baseurl, server-hostname,"
-                " auto-attach, service-level, release_version",
+                " are: org, username, password, release_version,"
+                " activation_key, disable_repo, enable_repo, add_pool,"
+                " rhsm_baseurl, server_hostname, auto_attach, service_level,"
+                " activation-key, disable-repo, enable-repo, add-pool,"
+                " rhsm-baseurl, server-hostname, auto-attach, service-level",
                 "rh_subscription plugin did not complete successfully",
             ),
             caplog,
@@ -371,11 +373,32 @@ class TestRhSubscriptionSchema:
                 "1 is not of type 'string'",
             ),
             (
-                {"rh_subscription": {"enable-repo": "name"}},
+                {"rh_subscription": {"add-pool": ["1"]}},
+                r"Deprecated in version 25.3. Use \*\*add_pool\*\* instead.",
+            ),
+            (
+                {"rh_subscription": {"add_pool": [1]}},
+                "1 is not of type 'string'",
+            ),
+            (
+                {"rh_subscription": {"add_pool": ["1"]}},
+                None,
+            ),
+            # The json schema error message is not descriptive
+            # but basically we need to confirm the schema will faill
+            # the config validation when both add_pool and the deprecated
+            # add-pool are added
+            (
+                {"rh_subscription": {"add_pool": ["1"], "add-pool": ["2"]}},
+                r"{'add_pool': \['1'\], 'add-pool': \['2'\]} should not be"
+                r" valid under {'required': \['add_pool', 'add-pool'\]}",
+            ),
+            (
+                {"rh_subscription": {"enable_repo": "name"}},
                 "'name' is not of type 'array'",
             ),
             (
-                {"rh_subscription": {"disable-repo": "name"}},
+                {"rh_subscription": {"disable_repo": "name"}},
                 "'name' is not of type 'array'",
             ),
             (
@@ -385,14 +408,14 @@ class TestRhSubscriptionSchema:
             (
                 {
                     "rh_subscription": {
-                        "activation-key": "foobar",
+                        "activation_key": "foobar",
                         "org": "ABC",
                     }
                 },
                 None,
             ),
             (
-                {"rh_subscription": {"activation-key": "foobar", "org": 314}},
+                {"rh_subscription": {"activation_key": "foobar", "org": 314}},
                 "Deprecated in version 24.2. Use of type integer for this"
                 " value is deprecated. Use a string instead.",
             ),
@@ -405,3 +428,78 @@ class TestRhSubscriptionSchema:
         else:
             with pytest.raises(SchemaValidationError, match=error_msg):
                 validate_cloudconfig_schema(config, get_schema(), strict=True)
+
+
+class TestConstructor:
+    """
+    Test Constructor operations
+    """
+
+    def test_deprecated_values(self):
+        """
+        Confirm the constructor assigns the deprecated fields' cfg keys to the
+        correct python object fields
+        """
+        # "hard-code" assertion to confirm this list should never change
+        assert cc_rh_subscription.DEPRECATION_TUPLES == [
+            ("activation-key", "activation_key"),
+            ("disable-repo", "disable_repo"),
+            ("enable-repo", "enable_repo"),
+            ("add-pool", "add_pool"),
+            ("rhsm-baseurl", "rhsm_baseurl"),
+            ("server-hostname", "server_hostname"),
+            ("auto-attach", "auto_attach"),
+            ("service-level", "service_level"),
+        ]
+        assert cc_rh_subscription.SubscriptionManager.valid_rh_keys[
+            -2 * len(cc_rh_subscription.DEPRECATION_TUPLES) :
+        ] == [
+            "activation_key",
+            "disable_repo",
+            "enable_repo",
+            "add_pool",
+            "rhsm_baseurl",
+            "server_hostname",
+            "auto_attach",
+            "service_level",
+            "activation-key",
+            "disable-repo",
+            "enable-repo",
+            "add-pool",
+            "rhsm-baseurl",
+            "server-hostname",
+            "auto-attach",
+            "service-level",
+        ]
+
+        cfg_with_new_keys = {"rh_subscription": {}}
+        cfg_with_deprecated_keys = {"rh_subscription": {}}
+
+        counter = 0
+        for tuple in cc_rh_subscription.DEPRECATION_TUPLES:
+            cfg_with_new_keys["rh_subscription"][tuple[0]] = counter
+            cfg_with_deprecated_keys["rh_subscription"][tuple[1]] = counter
+            counter = counter + 1
+
+        mgr_with_new_keys = cc_rh_subscription.SubscriptionManager(
+            cfg_with_new_keys
+        )
+        mgr_with_deprecated_keys = cc_rh_subscription.SubscriptionManager(
+            cfg_with_deprecated_keys
+        )
+
+        assert (
+            mgr_with_new_keys.rhel_cfg == cfg_with_new_keys["rh_subscription"]
+        )
+        assert (
+            mgr_with_deprecated_keys.rhel_cfg
+            == cfg_with_deprecated_keys["rh_subscription"]
+        )
+
+        dict_new_without_rhel_cfg = mgr_with_new_keys.__dict__
+        del dict_new_without_rhel_cfg["rhel_cfg"]
+
+        dict_deprecated_without_rhel_cfg = mgr_with_deprecated_keys.__dict__
+        del dict_deprecated_without_rhel_cfg["rhel_cfg"]
+
+        assert dict_new_without_rhel_cfg == dict_deprecated_without_rhel_cfg
