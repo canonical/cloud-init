@@ -4076,6 +4076,7 @@
     "disable_root_opts": {},
     "disk_setup": {},
     "drivers": {},
+    "enable_ssh": {},
     "fan": {},
     "final_message": {},
     "fqdn": {},
