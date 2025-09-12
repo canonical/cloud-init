@@ -437,4 +437,8 @@ def regenerate_locale(locale, keyname="LANG", install_function=None):
     # finally, generate locales listed in /etc/locale.gen
     LOG.debug("Generating locales for %s", locale)
     # TODO: maybe --keep-existing to avoid removing existing locales?
-    subp.subp(["locale-gen"], capture=False)
+    subp.subp(
+        ["locale-gen"],
+        capture=False,
+        update_env={"LANG": "C", "LC_ALL": "C"},
+    )
