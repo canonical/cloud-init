@@ -666,6 +666,47 @@
       },
       "minProperties": 1
     },
+    "activation_key.properties": {
+      "type": "string",
+      "description": "The activation key to use. Must be used with **org**. Should not be used with **username** or **password**."
+    },
+    "auto_attach.properties": {
+      "type": "boolean",
+      "description": "Whether to attach subscriptions automatically."
+    },
+    "service_level.properties": {
+      "type": "string",
+      "description": "The service level to use when subscribing to RH repositories. ``auto_attach`` must be true for this to be used."
+    },
+    "add_pool.properties": {
+      "type": "array",
+      "description": "A list of pools ids add to the subscription.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "enable_repo.properties": {
+      "type": "array",
+      "description": "A list of repositories to enable.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "disable_repo.properties": {
+      "type": "array",
+      "description": "A list of repositories to disable.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "rhsm_baseurl.properties": {
+      "type": "string",
+      "description": "Sets the baseurl in ``/etc/rhsm/rhsm.conf``."
+    },
+    "server_hostname.properties": {
+      "type": "string",
+      "description": "Sets the serverurl in ``/etc/rhsm/rhsm.conf``."
+    },
     "modules_definition": {
       "type": "array",
       "items": {
@@ -2580,18 +2621,29 @@
           "properties": {
             "username": {
               "type": "string",
-              "description": "The username to use. Must be used with password. Should not be used with **activation-key** or **org**."
+              "description": "The username to use. Must be used with password. Should not be used with **activation_key** or **org**."
             },
             "password": {
               "type": "string",
-              "description": "The password to use. Must be used with username. Should not be used with **activation-key** or **org**."
+              "description": "The password to use. Must be used with username. Should not be used with **activation_key** or **org**."
+            },
+            "activation_key": {
+              "$ref": "#/$defs/activation_key.properties"
             },
             "activation-key": {
-              "type": "string",
-              "description": "The activation key to use. Must be used with **org**. Should not be used with **username** or **password**."
+              "allOf": [
+                {
+                  "$ref": "#/$defs/activation_key.properties"
+                },
+                {
+                  "deprecated": true,
+                  "deprecated_version": "25.3",
+                  "deprecated_description": "Use **activation_key** instead."
+                }
+              ]
             },
             "org": {
-              "description": "The organization to use. Must be used with **activation-key**. Should not be used with **username** or **password**.",
+              "description": "The organization to use. Must be used with **activation_key**. Should not be used with **username** or **password**.",
               "oneOf": [
                 {
                   "type": "string"
@@ -2604,48 +2656,182 @@
                 }
               ]
             },
+            "auto_attach": {
+              "$ref": "#/$defs/auto_attach.properties"
+            },
             "auto-attach": {
-              "type": "boolean",
-              "description": "Whether to attach subscriptions automatically."
+              "allOf": [
+                {
+                  "$ref": "#/$defs/auto_attach.properties"
+                },
+                {
+                  "deprecated": true,
+                  "deprecated_version": "25.3",
+                  "deprecated_description": "Use **auto_attach** instead."
+                }
+              ]
+            },
+            "service_level": {
+              "$ref": "#/$defs/service_level.properties"
             },
             "service-level": {
-              "type": "string",
-              "description": "The service level to use when subscribing to RH repositories. ``auto-attach`` must be true for this to be used."
+              "allOf": [
+                {
+                  "$ref": "#/$defs/service_level.properties"
+                },
+                {
+                  "deprecated": true,
+                  "deprecated_version": "25.3",
+                  "deprecated_description": "Use **service_level** instead."
+                }
+              ]
+            },
+            "add_pool": {
+              "$ref": "#/$defs/add_pool.properties"
             },
             "add-pool": {
-              "type": "array",
-              "description": "A list of pools ids add to the subscription.",
-              "items": {
-                "type": "string"
-              }
+              "allOf": [
+                {
+                  "$ref": "#/$defs/add_pool.properties"
+                },
+                {
+                  "deprecated": true,
+                  "deprecated_version": "25.3",
+                  "deprecated_description": "Use **add_pool** instead."
+                }
+              ]
+            },
+            "enable_repo": {
+              "$ref": "#/$defs/enable_repo.properties"
             },
             "enable-repo": {
-              "type": "array",
-              "description": "A list of repositories to enable.",
-              "items": {
-                "type": "string"
-              }
+              "allOf": [
+                {
+                  "$ref": "#/$defs/enable_repo.properties"
+                },
+                {
+                  "deprecated": true,
+                  "deprecated_version": "25.3",
+                  "deprecated_description": "Use **enable_repo** instead."
+                }
+              ]
+            },
+            "disable_repo": {
+              "$ref": "#/$defs/disable_repo.properties"
             },
             "disable-repo": {
-              "type": "array",
-              "description": "A list of repositories to disable.",
-              "items": {
-                "type": "string"
-              }
+              "allOf": [
+                {
+                  "$ref": "#/$defs/disable_repo.properties"
+                },
+                {
+                  "deprecated": true,
+                  "deprecated_version": "25.3",
+                  "deprecated_description": "Use **disable_repo** instead."
+                }
+              ]
             },
             "release_version": {
               "type": "string",
               "description": "Sets the release_version via``subscription-manager release --set=<release_version>`` then deletes the package manager cache ``/var/cache/{dnf,yum}`` . These steps are applied after any pool attachment and/or enabling/disabling repos. For more information about this key, check https://access.redhat.com/solutions/238533 ."
             },
+            "rhsm_baseurl": {
+              "$ref": "#/$defs/rhsm_baseurl.properties"
+            },
             "rhsm-baseurl": {
-              "type": "string",
-              "description": "Sets the baseurl in ``/etc/rhsm/rhsm.conf``."
+              "allOf": [
+                {
+                  "$ref": "#/$defs/rhsm_baseurl.properties"
+                },
+                {
+                  "deprecated": true,
+                  "deprecated_version": "25.3",
+                  "deprecated_description": "Use **rhsm_baseurl** instead."
+                }
+              ]
+            },
+            "server_hostname": {
+              "$ref": "#/$defs/server_hostname.properties"
             },
             "server-hostname": {
-              "type": "string",
-              "description": "Sets the serverurl in ``/etc/rhsm/rhsm.conf``."
+              "allOf": [
+                {
+                  "$ref": "#/$defs/server_hostname.properties"
+                },
+                {
+                  "deprecated": true,
+                  "deprecated_version": "25.3",
+                  "deprecated_description": "Use **server_hostname** instead."
+                }
+              ]
             }
-          }
+          },
+          "allOf": [
+            {
+              "not": {
+                "required": [
+                  "activation_key",
+                  "activation-key"
+                ]
+              }
+            },
+            {
+              "not": {
+                "required": [
+                  "auto_attach",
+                  "auto-attach"
+                ]
+              }
+            },
+            {
+              "not": {
+                "required": [
+                  "service_level",
+                  "service-level"
+                ]
+              }
+            },
+            {
+              "not": {
+                "required": [
+                  "add_pool",
+                  "add-pool"
+                ]
+              }
+            },
+            {
+              "not": {
+                "required": [
+                  "enable_repo",
+                  "enable-repo"
+                ]
+              }
+            },
+            {
+              "not": {
+                "required": [
+                  "disable_repo",
+                  "disable-repo"
+                ]
+              }
+            },
+            {
+              "not": {
+                "required": [
+                  "rhsm_baseurl",
+                  "rhsm-baseurl"
+                ]
+              }
+            },
+            {
+              "not": {
+                "required": [
+                  "server_hostname",
+                  "server-hostname"
+                ]
+              }
+            }
+          ]
         }
       }
     },
