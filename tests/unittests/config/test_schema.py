@@ -531,8 +531,9 @@ class TestValidateCloudConfigSchema:
             (
                 {"required": ["a", "b"]},
                 True,
-                "Cloud config schema errors: : {'a': 5, 'b': 6} should not"
-                r" be valid under {'required': \['a', 'b'\]}",
+                "Cloud config schema errors: : ({'a': 5, 'b': 6} should not"
+                r" be valid under {'required': \['a', 'b'\]}|{'required': "
+                r"\['a', 'b'\]} is not allowed for {'a': 5, 'b': 6})",
             ),
             (
                 {"required": ["a", "c"]},
