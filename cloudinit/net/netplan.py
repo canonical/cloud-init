@@ -395,8 +395,14 @@ class Renderer(renderer.Renderer):
             header += "\n"
         content = header + content
 
+        # Customize target only if explicitly passed in
+        if target is None:
+            target_ = target
+        else:
+            target_ = fpnplan
+
         netplan_config_changed = has_netplan_config_changed(fpnplan, content)
-        if not netplan_api_write_yaml_file(content, target=fpnplan):
+        if not netplan_api_write_yaml_file(content, target=target_):
             fallback_write_netplan_yaml(fpnplan, content)
 
         if self.clean_default:
