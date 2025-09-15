@@ -89,11 +89,7 @@ class Distro(debian.Distro):
 
         if pw_hash:
             subp.subp(
-                [
-                    "/usr/lib/userconf-pi/userconf",
-                    name,
-                    pw_hash
-                ],
+                ["/usr/lib/userconf-pi/userconf", name, pw_hash],
             )
         else:
             subp.subp(
@@ -105,7 +101,8 @@ class Distro(debian.Distro):
             if plain:
                 self.set_passwd(name, plain, hashed=False)
 
-        # honor all other options that would otherwise add_user have taken care of
+        # honor all other options that would otherwise
+        # add_user have taken care of
 
         # Ensure groups exist if requested
         create_groups = kwargs.get("create_groups", True)
@@ -142,9 +139,13 @@ class Distro(debian.Distro):
             if os.path.exists(homedir):
                 for root, dirs, files in os.walk(homedir):
                     for d in dirs:
-                        util.chownbyid(os.path.join(root, d), uid=new_uid, gid=-1)
+                        util.chownbyid(
+                            os.path.join(root, d), uid=new_uid, gid=-1
+                        )
                     for f in files:
-                        util.chownbyid(os.path.join(root, f), uid=new_uid, gid=-1)
+                        util.chownbyid(
+                            os.path.join(root, f), uid=new_uid, gid=-1
+                        )
                 util.chownbyid(homedir, uid=new_uid, gid=-1)
         if kwargs.get("homedir"):
             subp.subp(["usermod", "-d", kwargs["homedir"], "-m", name])

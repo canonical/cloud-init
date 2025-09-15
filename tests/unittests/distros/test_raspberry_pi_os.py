@@ -1,7 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import logging
 from typing import cast
+
+import pytest
 
 from cloudinit.distros import fetch
 from cloudinit.distros.raspberry_pi_os import Distro as RpiDistro
@@ -154,13 +155,12 @@ class TestRaspberryPiOS:
         M_PATH + "subp.subp",
         side_effect=ProcessExecutionError("userconf failed"),
     )
-    def test_add_user_rename_fails_logs_error(self, m_subp, caplog):
+    def test_add_user_rename_fails_logs_error(self, m_subp):
         cls = fetch("raspberry_pi_os")
         distro = cls("raspberry-pi-os", {}, None)
 
-        with caplog.at_level(logging.ERROR):
-            assert distro.add_user("pi") is False
-            assert "Failed to setup user" in caplog.text
+        with pytest.raises(ProcessExecutionError, match="userconf failed"):
+            distro.add_user("pi")
 
     @mock.patch(
         "cloudinit.net.generate_fallback_config",
