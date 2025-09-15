@@ -5,8 +5,9 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
+import os
 
-from cloudinit import net, subp
+from cloudinit import net, subp, util
 from cloudinit.distros import debian
 
 LOG = logging.getLogger(__name__)
@@ -79,20 +80,78 @@ class Distro(debian.Distro):
         """
         if self.default_user_renamed:
             return super().add_user(name, **kwargs)
+
         self.default_user_renamed = True
 
-        try:
+        # Password precedence: hashed > passwd (legacy hash) > plaintext
+        pw_hash = kwargs.get("hashed_passwd") or kwargs.get("passwd")
+        plain = kwargs.get("plain_text_passwd")
+
+        if pw_hash:
+            subp.subp(
+                [
+                    "/usr/lib/userconf-pi/userconf",
+                    name,
+                    pw_hash
+                ],
+            )
+        else:
             subp.subp(
                 [
                     "/usr/lib/userconf-pi/userconf",
                     name,
                 ],
             )
+            if plain:
+                self.set_passwd(name, plain, hashed=False)
 
-        except subp.ProcessExecutionError as e:
-            LOG.error("Failed to setup user: %s", e)
-            return False
+        # honor all other options that would otherwise add_user have taken care of
 
+        # Ensure groups exist if requested
+        create_groups = kwargs.get("create_groups", True)
+        groups = kwargs.get("groups")
+        if isinstance(groups, str):
+            groups = [g.strip() for g in groups.split(",")]
+        if create_groups and groups:
+            for g in groups:
+                if not util.is_group(g):
+                    self.create_group(g)
+
+        # apply creation-time attributes post-rename
+        if kwargs.get("gecos"):
+            subp.subp(["usermod", "-c", kwargs["gecos"], name])
+        if kwargs.get("shell"):
+            subp.subp(["usermod", "-s", kwargs["shell"], name])
+        if kwargs.get("primary_group"):
+            pg = kwargs["primary_group"]
+            if create_groups and not util.is_group(pg):
+                self.create_group(pg)
+            subp.subp(["usermod", "-g", pg, name])
+        if groups:
+            subp.subp(["usermod", "-G", ",".join(groups), name])
+        if kwargs.get("expiredate"):
+            subp.subp(["usermod", "--expiredate", kwargs["expiredate"], name])
+        if kwargs.get("inactive"):
+            subp.subp(["usermod", "--inactive", str(kwargs["inactive"]), name])
+        if kwargs.get("uid") is not None:
+            new_uid = int(kwargs["uid"])
+            subp.subp(["usermod", "-u", str(new_uid), name])
+
+            # Also adjust ownership of the homedir if it exists
+            homedir = kwargs.get("homedir") or f"/home/{name}"
+            if os.path.exists(homedir):
+                for root, dirs, files in os.walk(homedir):
+                    for d in dirs:
+                        util.chownbyid(os.path.join(root, d), uid=new_uid, gid=-1)
+                    for f in files:
+                        util.chownbyid(os.path.join(root, f), uid=new_uid, gid=-1)
+                util.chownbyid(homedir, uid=new_uid, gid=-1)
+        if kwargs.get("homedir"):
+            subp.subp(["usermod", "-d", kwargs["homedir"], "-m", name])
+
+        # `create_user` will still run post-creation bits:
+        # hashed/plain_text passwd (already set above, ok if redundant),
+        # lock_passwd, sudo, doas, ssh_authorized_keys, ssh_redirect_user
         return True
 
     def generate_fallback_config(self):
