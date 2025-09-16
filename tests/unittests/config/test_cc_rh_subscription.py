@@ -385,7 +385,7 @@ class TestRhSubscriptionSchema:
                 None,
             ),
             # The json schema error message is not descriptive
-            # but basically we need to confirm the schema will faill
+            # but basically we need to confirm the schema will fail
             # the config validation when both add_pool and the deprecated
             # add-pool are added
             (
