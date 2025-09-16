@@ -390,8 +390,10 @@ class TestRhSubscriptionSchema:
             # add-pool are added
             (
                 {"rh_subscription": {"add_pool": ["1"], "add-pool": ["2"]}},
-                r"{'add_pool': \['1'\], 'add-pool': \['2'\]} should not be"
-                r" valid under {'required': \['add_pool', 'add-pool'\]}",
+                r"({'add_pool': \['1'\], 'add-pool': \['2'\]} should not be"
+                r" valid under {'required': \['add_pool', 'add-pool'\]}|"
+                r"{'required': \['add_pool', 'add-pool'\]} is not allowed"
+                r" for {'add_pool': \['1'\], 'add-pool': \['2'\]})",
             ),
             (
                 {"rh_subscription": {"enable_repo": "name"}},
