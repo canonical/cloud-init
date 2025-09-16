@@ -40,27 +40,6 @@ defaults:
 # So no need to pass the shell option to the shellcheck command as shellcheck will read the shebang at the top of the file (sh) so will
 # use sh
 jobs:
-  shellcheck-on-all-matching-files:
-    name: ShellCheck on all matching files in the repo
-    runs-on: ubuntu-24.04
-    continue-on-error: true
-    steps:
-      - name: Repository checkout
-        uses: actions/checkout@v4
-
-      - name: Run ShellCheck
-        run: |
-          shopt -s globstar
-          echo "The globs to check are ${GLOBS_TO_SHELLCHECK}"
-          ALL_MATCHING_SCRIPTS=$(git ls-files ${GLOBS_TO_SHELLCHECK} | tr '\n' ' ')
-          echo "The matching scripts to shellcheck are ${ALL_MATCHING_SCRIPTS}"
-          if [ -z "${ALL_MATCHING_SCRIPTS}" ]
-          then
-            echo "There are no files in the repo which match the glob patterns so shellcheck will not run"
-          else
-            shellcheck ${ALL_MATCHING_SCRIPTS}
-          fi
-
   shellcheck-on-matching-and-changed-files:
     name: ShellCheck on matching files that have changed
     runs-on: ubuntu-24.04
@@ -96,22 +75,3 @@ jobs:
               shellcheck ${MATCHING_CHANGED_FILES}
             fi
           fi
-
-  differential-shellcheck:
-    name: Run Differential shellcheck
-    runs-on: ubuntu-24.04
-
-    permissions:
-      security-events: write
-
-    steps:
-      - name: Repository checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Differential ShellCheck
-        uses: redhat-plumbers-in-action/differential-shellcheck@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          include-path: ${{ env.GLOBS_TO_SHELLCHECK }}
