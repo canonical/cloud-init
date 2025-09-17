@@ -1,9 +1,9 @@
 cloud-init (25.3-0ubuntu1~25.04.1) UNRELEASED; urgency=medium
 
   * d/p/retain-setuptools.patch: avoid upstream switch to meson build backend.
-  * Upstream snapshot based on upstream/main at 2cdc58f2.
+  * Upstream snapshot based on upstream/main at b04c475f.
 
- -- Chad Smith <chad.smith@canonical.com>  Wed, 03 Sep 2025 13:33:17 -0600
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Wed, 17 Sep 2025 13:07:53 +0200
 
 cloud-init (25.2-0ubuntu1~25.04.1) plucky; urgency=medium
 
