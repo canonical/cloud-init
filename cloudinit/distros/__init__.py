@@ -13,6 +13,7 @@ import abc
 import logging
 import os
 import re
+import shlex
 import stat
 import string
 import urllib.parse
@@ -1419,7 +1420,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 "-",
                 user,
                 "-c",
-                directory + "env PATH=$PATH " + " ".join(command),
+                directory
+                + "env PATH=$PATH "
+                + " ".join(shlex.quote(arg) for arg in command),
             ],
             **kwargs,
         )

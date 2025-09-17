@@ -325,6 +325,28 @@ class TestGenericDistro:
             ["pw", "usermod", "myuser", "-p", "01-Jan-1970"]
         )
 
+    @mock.patch(M_PATH + "subp.subp")
+    def test_do_as_nested_py_cmd(self, m_subp):
+        cls = distros.fetch("ubuntu")
+        d = cls("ubuntu", {}, None)
+        d.do_as(
+            command=[
+                "/usr/bin/python3",
+                "-c",
+                "import site; print(site.getuserbase())",
+            ],
+            user="ubuntu",
+        )
+        m_subp.assert_called_once_with(
+            [
+                "su",
+                "-",
+                "ubuntu",
+                "-c",
+                "env PATH=$PATH /usr/bin/python3 -c 'import site; print(site.getuserbase())'",  # noqa: E501
+            ]
+        )
+
 
 class TestGetPackageMirrors:
     def return_first(self, mlist):
