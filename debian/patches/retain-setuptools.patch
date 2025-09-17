@@ -20,7 +20,7 @@ Last-Update: 2025-08-25
  sphinx-copybutton
 --- a/packages/bddeb
 +++ b/packages/bddeb
-@@ -19,7 +19,7 @@
+@@ -19,7 +19,7 @@ def find_root():
          top_dir = os.path.dirname(
              os.path.dirname(os.path.abspath(sys.argv[0]))
          )
@@ -31,7 +31,7 @@ Last-Update: 2025-08-25
          (
 --- a/packages/brpm
 +++ b/packages/brpm
-@@ -16,7 +16,7 @@
+@@ -16,7 +16,7 @@ def find_root():
          top_dir = os.path.dirname(
              os.path.dirname(os.path.abspath(sys.argv[0]))
          )
@@ -62,6 +62,81 @@ Last-Update: 2025-08-25
  ifeq (,$(findstring nocheck,$(DEB_BUILD_OPTIONS)))
  	http_proxy= make PYVER=python3 check
  else
+--- a/packages/pkg-deps.json
++++ b/packages/pkg-deps.json
+@@ -1,12 +1,8 @@
+ {
+    "debian" : {
+       "build-requires" : [
+-         "meson",
+-         "pkgconf",
+-         "bash-completion",
+          "debhelper",
+-         "systemd-dev",
+-         "python3",
++         "dh-python",
+          "python3-debconf"
+       ],
+       "renames" : {
+@@ -14,11 +10,6 @@
+          "pyserial" : "python3-serial"
+       },
+       "requires" : [
+-         "debconf",
+-         "dhcpcd-base",
+-         "iproute2",
+-         "netcat-openbsd",
+-         "netplan.io",
+          "procps"
+       ]
+    },
+@@ -52,30 +43,7 @@
+    },
+    "redhat" : {
+       "build-requires" : [
+-         "bash-completion",
+-         "meson",
+-         "pkgconf",
+-         "python3-devel",
+-         "systemd-devel"
+-      ],
+-      "requires" : [
+-         "e2fsprogs",
+-         "iproute",
+-         "net-tools",
+-         "procps",
+-         "rsyslog",
+-         "shadow-utils",
+-         "sudo",
+-         "hostname"
+-      ]
+-   },
+-   "fedora": {
+-      "build-requires" : [
+-         "bash-completion-devel",
+-         "meson",
+-         "pkgconf",
+-         "python3-devel",
+-         "systemd-devel"
++         "python3-devel"
+       ],
+       "requires" : [
+          "e2fsprogs",
+@@ -94,12 +62,10 @@
+          "pyyaml" : "python3-PyYAML"
+       },
+       "build-requires" : [
+-         "meson",
+-         "pkgconf",
+-         "bash-completion-devel",
+          "fdupes",
+          "filesystem",
+-         "python3-devel"
++         "python3-devel",
++         "python3-setuptools"
+       ],
+       "requires" : [
+          "iproute2",
 --- a/packages/redhat/cloud-init.spec.in
 +++ b/packages/redhat/cloud-init.spec.in
 @@ -1,4 +1,11 @@
@@ -113,7 +188,7 @@ Last-Update: 2025-08-25
  
  {% for r in buildrequires %}
  BuildRequires:  {{r}}
-@@ -44,9 +61,16 @@
+@@ -44,9 +61,16 @@ Requires:       {{r}}
  Patch{{loop.index0}}: {{p}}
  {% endfor %}
  
@@ -130,7 +205,7 @@ Last-Update: 2025-08-25
  
  %description
  Cloud-init is a set of init scripts for cloud instances.  Cloud instances
-@@ -62,11 +86,13 @@
+@@ -62,11 +86,13 @@ ssh keys and to let the user run various
  {% endfor %}
  
  %build
@@ -147,7 +222,7 @@ Last-Update: 2025-08-25
  
  # Note that /etc/rsyslog.d didn't exist by default until F15.
  # el6 request: https://bugzilla.redhat.com/show_bug.cgi?id=740420
-@@ -74,6 +100,9 @@
+@@ -74,6 +100,9 @@ mkdir -p $RPM_BUILD_ROOT/%{_sysconfdir}/
  cp -p tools/21-cloudinit.conf \
        $RPM_BUILD_ROOT/%{_sysconfdir}/rsyslog.d/21-cloudinit.conf
  
@@ -157,7 +232,7 @@ Last-Update: 2025-08-25
  # Required dirs...
  mkdir -p $RPM_BUILD_ROOT/%{_sharedstatedir}/cloud
  mkdir -p $RPM_BUILD_ROOT/%{_libexecdir}/%{name}
-@@ -89,23 +118,66 @@
+@@ -89,23 +118,66 @@ version_pys=$(cd "$RPM_BUILD_ROOT" && fi
  rm -rf $RPM_BUILD_ROOT
  
  %post
@@ -227,7 +302,7 @@ Last-Update: 2025-08-25
  
  # Program binaries
  %{_bindir}/cloud-init*
-@@ -117,6 +189,7 @@
+@@ -117,6 +189,7 @@ rm -rf $RPM_BUILD_ROOT
  
  # Configs
  %config(noreplace)      %{_sysconfdir}/cloud/cloud.cfg
@@ -235,7 +310,7 @@ Last-Update: 2025-08-25
  %dir                    %{_sysconfdir}/cloud/cloud.cfg.d
  %config(noreplace)      %{_sysconfdir}/cloud/cloud.cfg.d/*.cfg
  %config(noreplace)      %{_sysconfdir}/cloud/cloud.cfg.d/README
-@@ -125,13 +198,8 @@
+@@ -125,13 +198,8 @@ rm -rf $RPM_BUILD_ROOT
  %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
  
  # Bash completion script
@@ -251,7 +326,7 @@ Last-Update: 2025-08-25
  
 --- a/packages/suse/cloud-init.spec.in
 +++ b/packages/suse/cloud-init.spec.in
-@@ -48,15 +48,25 @@
+@@ -48,15 +48,25 @@ end for
  {% endfor %}
  
  %build
@@ -281,7 +356,7 @@ Last-Update: 2025-08-25
  mv %{buildroot}/usr/share/doc/cloud-init %{buildroot}/%{_defaultdocdir}
  for doc in LICENSE ChangeLog requirements.txt; do
     cp ${doc} %{buildroot}/%{_defaultdocdir}/cloud-init
-@@ -92,7 +102,6 @@
+@@ -92,7 +102,6 @@ version_pys=$(cd "%{buildroot}" && find
  # There doesn't seem to be an agreed upon place for these
  # although it appears the standard says /usr/lib but rpmbuild
  # will try /usr/lib64 ??
@@ -289,7 +364,7 @@ Last-Update: 2025-08-25
  /usr/lib/%{name}/uncloud-init
  /usr/lib/%{name}/write-ssh-key-fingerprints
  /usr/lib/%{name}/ds-identify
-@@ -105,7 +114,7 @@
+@@ -105,7 +114,7 @@ version_pys=$(cd "%{buildroot}" && find
  %doc %{_defaultdocdir}/cloud-init/*
  
  # Configs
@@ -298,7 +373,7 @@ Last-Update: 2025-08-25
  %config(noreplace) %{_sysconfdir}/cloud/cloud.cfg
  %dir               %{_sysconfdir}/cloud/cloud.cfg.d
  %config(noreplace) %{_sysconfdir}/cloud/cloud.cfg.d/*.cfg
-@@ -115,7 +124,8 @@
+@@ -115,7 +124,8 @@ version_pys=$(cd "%{buildroot}" && find
  
  # Bash completion script
  %{_datadir}/bash-completion/completions/cloud-init
@@ -665,159 +740,6 @@ Last-Update: 2025-08-25
 +        ],
 +    },
 +)
---- a/test-requirements.txt
-+++ b/test-requirements.txt
-@@ -11,9 +11,9 @@
- pytest-cov
- pytest-mock
- pytest-xdist
-+setuptools
- jsonschema
- responses
--packaging
- passlib
- 
- # This one is currently used only by the CloudSigma and SmartOS datasources.
---- a/tools/test_tools.py
-+++ b/tools/test_tools.py
-@@ -1,10 +1,23 @@
- import pathlib
--from packaging.version import Version, InvalidVersion
- from importlib.machinery import SourceFileLoader
- from importlib.util import module_from_spec, spec_from_loader
- from unittest import mock
- 
- import pytest
-+import setuptools
-+
-+
-+from setup_utils import version_to_pep440  # pylint: disable=import-error
-+
-+try:
-+    validate_version = setuptools.dist.Distribution._validate_version  # type: ignore  # noqa: E501
-+    setuptools.sic  # pylint: disable=no-member,pointless-statement
-+except AttributeError:
-+    pytest.skip(
-+        "Unable to import necessary setuptools utilities. "
-+        "Version is likely too old.",
-+        allow_module_level=True,
-+    )
- 
- # Since read-version has a '-' and no .py extension, we have to do this
- # to import it
-@@ -23,17 +36,9 @@
- spec.loader.exec_module(read_version)
- 
- 
--def version_to_pep440(version: str) -> str:
--    # read-version can spit out something like 22.4-15-g7f97aee24
--    # which is invalid under PEP 440. If we replace the first - with a +
--    # that should give us a valid version.
--    return version.replace("-", "+", 1)
--
--
- def assert_valid_version(version):
--    try:
--        Version(version)
--    except InvalidVersion:
-+    response = validate_version(version)
-+    if isinstance(response, setuptools.sic):  # pylint: disable=no-member
-         pytest.fail(f"{version} is not PEP 440 compliant")
- 
- 
---- a/tox.ini
-+++ b/tox.ini
-@@ -33,6 +33,7 @@
-     types-passlib
-     types-PyYAML
-     types-requests
-+    types-setuptools
-     typing-extensions
- 
- [pinned_versions]
-@@ -185,6 +186,7 @@
-     pytest==4.6.9
-     pytest-cov==2.8.1
-     pytest-mock==1.10.4
-+    setuptools==45.2.0
-     responses==0.9.0
-     passlib
-     # required for this version of jinja2
---- a/packages/pkg-deps.json
-+++ b/packages/pkg-deps.json
-@@ -1,12 +1,8 @@
- {
-    "debian" : {
-       "build-requires" : [
--         "meson",
--         "pkgconf",
--         "bash-completion",
-          "debhelper",
--         "systemd-dev",
--         "python3",
-+         "dh-python",
-          "python3-debconf"
-       ],
-       "renames" : {
-@@ -14,11 +10,6 @@
-          "pyserial" : "python3-serial"
-       },
-       "requires" : [
--         "debconf",
--         "dhcpcd-base",
--         "iproute2",
--         "netcat-openbsd",
--         "netplan.io",
-          "procps"
-       ]
-    },
-@@ -52,30 +43,7 @@
-    },
-    "redhat" : {
-       "build-requires" : [
--         "bash-completion",
--         "meson",
--         "pkgconf",
--         "python3-devel",
--         "systemd-devel"
--      ],
--      "requires" : [
--         "e2fsprogs",
--         "iproute",
--         "net-tools",
--         "procps",
--         "rsyslog",
--         "shadow-utils",
--         "sudo",
--         "hostname"
--      ]
--   },
--   "fedora": {
--      "build-requires" : [
--         "bash-completion-devel",
--         "meson",
--         "pkgconf",
--         "python3-devel",
--         "systemd-devel"
-+         "python3-devel"
-       ],
-       "requires" : [
-          "e2fsprogs",
-@@ -94,12 +62,10 @@
-          "pyyaml" : "python3-PyYAML"
-       },
-       "build-requires" : [
--         "meson",
--         "pkgconf",
--         "bash-completion-devel",
-          "fdupes",
-          "filesystem",
--         "python3-devel"
-+         "python3-devel",
-+         "python3-setuptools"
-       ],
-       "requires" : [
-          "iproute2",
 --- /dev/null
 +++ b/setup_utils.py
 @@ -0,0 +1,60 @@
@@ -881,3 +803,81 @@ Last-Update: 2025-08-25
 +    cmd = [sys.executable, "tools/read-dependencies"]
 +    deps = subprocess.check_output(cmd)  # nosec B603
 +    return deps.decode("utf-8").splitlines()
+--- a/test-requirements.txt
++++ b/test-requirements.txt
+@@ -11,9 +11,9 @@ pytest!=7.3.2
+ pytest-cov
+ pytest-mock
+ pytest-xdist
++setuptools
+ jsonschema
+ responses
+-packaging
+ passlib
+ 
+ # This one is currently used only by the CloudSigma and SmartOS datasources.
+--- a/tools/test_tools.py
++++ b/tools/test_tools.py
+@@ -1,10 +1,23 @@
+ import pathlib
+-from packaging.version import Version, InvalidVersion
+ from importlib.machinery import SourceFileLoader
+ from importlib.util import module_from_spec, spec_from_loader
+ from unittest import mock
+ 
+ import pytest
++import setuptools
++
++
++from setup_utils import version_to_pep440  # pylint: disable=import-error
++
++try:
++    validate_version = setuptools.dist.Distribution._validate_version  # type: ignore  # noqa: E501
++    setuptools.sic  # pylint: disable=no-member,pointless-statement
++except AttributeError:
++    pytest.skip(
++        "Unable to import necessary setuptools utilities. "
++        "Version is likely too old.",
++        allow_module_level=True,
++    )
+ 
+ # Since read-version has a '-' and no .py extension, we have to do this
+ # to import it
+@@ -23,17 +36,9 @@ if not spec.loader:
+ spec.loader.exec_module(read_version)
+ 
+ 
+-def version_to_pep440(version: str) -> str:
+-    # read-version can spit out something like 22.4-15-g7f97aee24
+-    # which is invalid under PEP 440. If we replace the first - with a +
+-    # that should give us a valid version.
+-    return version.replace("-", "+", 1)
+-
+-
+ def assert_valid_version(version):
+-    try:
+-        Version(version)
+-    except InvalidVersion:
++    response = validate_version(version)
++    if isinstance(response, setuptools.sic):  # pylint: disable=no-member
+         pytest.fail(f"{version} is not PEP 440 compliant")
+ 
+ 
+--- a/tox.ini
++++ b/tox.ini
+@@ -33,6 +33,7 @@ deps =
+     types-passlib
+     types-PyYAML
+     types-requests
++    types-setuptools
+     typing-extensions
+ 
+ [pinned_versions]
+@@ -185,6 +186,7 @@ deps =
+     pytest==4.6.9
+     pytest-cov==2.8.1
+     pytest-mock==1.10.4
++    setuptools==45.2.0
+     responses==0.9.0
+     passlib
+     # required for this version of jinja2
