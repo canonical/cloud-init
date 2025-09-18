@@ -287,7 +287,7 @@ class TestSubp:
         cmd = [
             SH,
             "-c",
-            'echo -n "$@"',
+            'printf "$@"',
             "--",
             self.utf8_valid.decode("utf-8"),
         ]
