@@ -112,7 +112,7 @@ class TestDebianApplyLocale:
         ] == [p[0][0] for p in m_subp.call_args_list]
         calls = [c.args[0] for c in m_which.call_args_list]
         # collapse consecutive duplicates from _ensure_tool re-check
-        uniq = []
+        uniq: list[str] = []
         for name in calls:
             if not uniq or uniq[-1] != name:
                 uniq.append(name)
