@@ -84,12 +84,26 @@ class TestHappyPath:
         assert m_sman_cli.call_count == 2
         assert m_set_release_version.call_count == 0
 
+    @pytest.mark.parametrize(
+        "variable_name_separator",
+        (
+            pytest.param("_", id="update_repos_disable_with_none"),
+            pytest.param(
+                "-", id="same_functional_behavior_with_deprecated_keys"
+            ),
+        ),
+    )
     @mock.patch.object(cc_rh_subscription.SubscriptionManager, "_getRepos")
-    def test_update_repos_disable_with_none(self, m_get_repos, m_sman_cli):
+    def test_update_repos_disable_with_none(
+        self, m_get_repos, m_sman_cli, variable_name_separator
+    ):
         cfg = copy.deepcopy(self.CONFIG)
         m_get_repos.return_value = ([], ["repo1"])
+
+        enable_repo_key = "enable_repo".replace("_", variable_name_separator)
+        disable_repo_key = "disable_repo".replace("_", variable_name_separator)
         cfg["rh_subscription"].update(
-            {"enable_repo": ["repo1"], "disable_repo": None}
+            {enable_repo_key: ["repo1"], disable_repo_key: None}
         )
         mysm = cc_rh_subscription.SubscriptionManager(cfg)
         assert True is mysm.update_repos()
@@ -179,7 +193,7 @@ class TestBadInput:
     CONFIG_BADKEY = {
         "rh_subscription": {
             "activation_key": "abcdef1234",
-            "fookey": "bar",
+            "foo-key": "bar",
             "org": "ABC",
         }
     }
@@ -290,12 +304,10 @@ class TestBadInput:
         assert m_sman_cli.call_count == 1
         self.assert_logged_warnings(
             (
-                "fookey is not a valid key for rh_subscription. Valid keys"
-                " are: org, username, password, release_version,"
-                " activation_key, disable_repo, enable_repo, add_pool,"
-                " rhsm_baseurl, server_hostname, auto_attach, service_level,"
-                " activation-key, disable-repo, enable-repo, add-pool,"
-                " rhsm-baseurl, server-hostname, auto-attach, service-level",
+                "foo-key is not a valid key for rh_subscription. Valid keys"
+                " are: org, activation_key, username, password, disable_repo,"
+                " enable_repo, add_pool, rhsm_baseurl, server_hostname,"
+                " auto_attach, service_level, release_version",
                 "rh_subscription plugin did not complete successfully",
             ),
             caplog,
@@ -442,8 +454,11 @@ class TestConstructor:
         Confirm the constructor assigns the deprecated fields' cfg keys to the
         correct python object fields
         """
-        # "hard-code" assertion to confirm this list should never change
-        assert cc_rh_subscription.DEPRECATION_TUPLES == [
+
+        cfg_with_new_keys = {"rh_subscription": {}}
+        cfg_with_deprecated_keys = {"rh_subscription": {}}
+
+        deprecation_pairs = [
             ("activation-key", "activation_key"),
             ("disable-repo", "disable_repo"),
             ("enable-repo", "enable_repo"),
@@ -453,32 +468,9 @@ class TestConstructor:
             ("auto-attach", "auto_attach"),
             ("service-level", "service_level"),
         ]
-        assert cc_rh_subscription.SubscriptionManager.valid_rh_keys[
-            -2 * len(cc_rh_subscription.DEPRECATION_TUPLES) :
-        ] == [
-            "activation_key",
-            "disable_repo",
-            "enable_repo",
-            "add_pool",
-            "rhsm_baseurl",
-            "server_hostname",
-            "auto_attach",
-            "service_level",
-            "activation-key",
-            "disable-repo",
-            "enable-repo",
-            "add-pool",
-            "rhsm-baseurl",
-            "server-hostname",
-            "auto-attach",
-            "service-level",
-        ]
-
-        cfg_with_new_keys = {"rh_subscription": {}}
-        cfg_with_deprecated_keys = {"rh_subscription": {}}
 
         counter = 0
-        for tuple in cc_rh_subscription.DEPRECATION_TUPLES:
+        for tuple in deprecation_pairs:
             cfg_with_new_keys["rh_subscription"][tuple[0]] = counter
             cfg_with_deprecated_keys["rh_subscription"][tuple[1]] = counter
             counter = counter + 1

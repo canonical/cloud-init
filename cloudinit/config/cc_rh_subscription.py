@@ -14,19 +14,6 @@ from cloudinit.config.schema import MetaSchema
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
-# Do not add new elements to DEPRECATION_TUPLES
-# New keys should not contain hyphens and
-# should be added "directly" to valid_rh_keys
-DEPRECATION_TUPLES = [
-    ("activation-key", "activation_key"),
-    ("disable-repo", "disable_repo"),
-    ("enable-repo", "enable_repo"),
-    ("add-pool", "add_pool"),
-    ("rhsm-baseurl", "rhsm_baseurl"),
-    ("server-hostname", "server_hostname"),
-    ("auto-attach", "auto_attach"),
-    ("service-level", "service_level"),
-]
 
 meta: MetaSchema = {
     "id": "cc_rh_subscription",
@@ -99,11 +86,20 @@ class SubscriptionError(Exception):
 
 
 class SubscriptionManager:
-    valid_rh_keys = (
-        ["org", "username", "password", "release_version"]
-        + [x[1] for x in DEPRECATION_TUPLES]
-        + [x[0] for x in DEPRECATION_TUPLES]
-    )
+    valid_rh_keys = [
+        "org",
+        "activation_key",
+        "username",
+        "password",
+        "disable_repo",
+        "enable_repo",
+        "add_pool",
+        "rhsm_baseurl",
+        "server_hostname",
+        "auto_attach",
+        "service_level",
+        "release_version",
+    ]
 
     def __init__(self, cfg):
         self.rhel_cfg = cfg.get("rh_subscription", {})
@@ -112,7 +108,7 @@ class SubscriptionManager:
         self.password = self.rhel_cfg.get("password")
         self.release_version = self.rhel_cfg.get("release_version")
 
-        # The hyphenated fields have been deprecated in this modeule.
+        # The hyphenated fields have been deprecated in this module.
         # For new fields in the future, do not use hyphenated fields.
         # The json schema validator (ran before initializing
         # SubscriptionManager) already validated that the user did not
@@ -149,7 +145,8 @@ class SubscriptionManager:
         """
 
         for k in self.rhel_cfg:
-            if k not in self.valid_rh_keys:
+            k_with_no_hyphen = k.replace("-", "_")
+            if k_with_no_hyphen not in self.valid_rh_keys:
                 bad_key = (
                     "{0} is not a valid key for rh_subscription. "
                     "Valid keys are: "
