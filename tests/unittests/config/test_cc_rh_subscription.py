@@ -14,7 +14,11 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import mock, skipUnlessJsonSchema
+from tests.unittests.helpers import (
+    mock,
+    skipUnlessJsonSchema,
+    skipUnlessJsonSchemaVersionGreaterThan,
+)
 
 SUBMGR = cc_rh_subscription.SubscriptionManager
 SUB_MAN_CLI = "cloudinit.config.cc_rh_subscription._sub_man_cli"
@@ -385,10 +389,6 @@ class TestRhSubscriptionSchema:
                 "1 is not of type 'string'",
             ),
             (
-                {"rh_subscription": {"add-pool": ["1"]}},
-                r"Deprecated in version 25.3. Use \*\*add_pool\*\* instead.",
-            ),
-            (
                 {"rh_subscription": {"add_pool": [1]}},
                 "1 is not of type 'string'",
             ),
@@ -437,6 +437,27 @@ class TestRhSubscriptionSchema:
     )
     @skipUnlessJsonSchema()
     def test_schema_validation(self, config, error_msg):
+        self._validation_steps(config, error_msg)
+
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        [
+            (
+                {"rh_subscription": {"add-pool": ["1"]}},
+                # The deprecation is not raised for jsonschema<4.0
+                # as the latter can't merge $defs and inline keys
+                r"Deprecated in version 25.3. Use \*\*add_pool\*\* instead.",
+            ),
+        ],
+    )
+    @skipUnlessJsonSchemaVersionGreaterThan(version=(3, 2, 0))
+    def test_schema_validation_requiring_new_json_schema(
+        self, config, error_msg
+    ):
+        self._validation_steps(config, error_msg)
+
+    @staticmethod
+    def _validation_steps(config, error_msg):
         if error_msg is None:
             validate_cloudconfig_schema(config, get_schema(), strict=True)
         else:
