@@ -48,12 +48,11 @@ jobs:
             echo "There are no changed files in the repo which match the glob pattern \'${GLOBS_TO_SHELLCHECK}\' so shellcheck will not run"
           else
             RETAINED_CHANGED_FILES=$(git ls-files ${ALL_CHANGED_FILES} | tr '\n' ' ') #filter out deleted files
-            echo "The remaining changed files are ${RETAINED_CHANGED_FILES}"
             if [ -z "${RETAINED_CHANGED_FILES}" ]
             then
               echo "There are no changed files remaining in the repo which match the glob pattern \'${GLOBS_TO_SHELLCHECK}\' so shellcheck will not run"
             else
-              echo "shellcheck will run on the remaining changed files"
+              echo "shellcheck will run on the remaining changed files: ${RETAINED_CHANGED_FILES}"
               shellcheck ${RETAINED_CHANGED_FILES}
               echo "shellcheck succeeded running on the remaining changed files"
             fi
