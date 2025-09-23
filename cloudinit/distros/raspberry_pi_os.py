@@ -14,16 +14,34 @@ LOG = logging.getLogger(__name__)
 
 class Distro(debian.Distro):
     def set_keymap(self, layout: str, model: str, variant: str, options: str):
-        """Currently Raspberry Pi OS sys-mods only supports
-        setting the layout"""
+        super().set_keymap(layout, model, variant, options)
 
         subp.subp(
             [
-                "/usr/lib/raspberrypi-sys-mods/imager_custom",
-                "set_keymap",
-                layout,
-            ]
+                "/usr/bin/raspi-config",
+                "nonint",
+                "update_labwc_keyboard",
+            ],
         )
+        subp.subp(
+            [
+                "/usr/bin/raspi-config",
+                "nonint",
+                "update_squeekboard",
+                "restart",
+            ],
+        )
+        self.manage_service("restart", "keyboard-setup")
+
+        if subp.which("udevadm"):
+            subp.subp(
+                [
+                    "udevadm",
+                    "trigger",
+                    "--subsystem-match=input",
+                    "--action=change",
+                ],
+            )
 
     def apply_locale(self, locale, out_fn=None, keyname="LANG"):
         try:
