@@ -3,8 +3,9 @@ name: ShellCheck Debian package scripts
 env:
   # This is a space separated string for multiple globs
   # Do not use curly braces as they will be treated as literal string in `git ls-files ${GLOBS_TO_SHELLCHECK}`
+  # If you decide to use globstar, make sure to use the bash shell and to `shopt -s globstar`
   # Assumption in this workflow: the resolved filepaths do not contain spaces.
-  GLOBS_TO_SHELLCHECK: "**/*.postinst **/*.postrm **/*.preinst **/*.prerm"
+  GLOBS_TO_SHELLCHECK: "debian/cherry-pick debian/*.config debian/*.postinst debian/*.postrm debian/*.preinst debian/*.prerm packages/debian/*.postrm"
 
 on:
   pull_request:
@@ -15,18 +16,10 @@ on:
     # then the second PR will show these checks that were triggered by the first PR but not the second PR.
     branches:
       - 'ubuntu/**'
-  push:
-    branches:
-      - 'ubuntu/**'
 
 concurrency:
   group: 'ci-${{ github.workflow }}-${{ github.ref }}'
   cancel-in-progress: true
-
-defaults:
-  run:
-    # Using bash instead of the usual sh in the other workflows in order to support the globstar **
-    shell: bash -ex {0}
 
 # Note: No need to specify the shell option in the shellcheck command
 # as shellcheck reads and uses the shebang at the top of the linted scripts.
@@ -40,7 +33,7 @@ jobs:
 
       - name: Get all matching changed files
         id: matching-changed-files
-        # make sure to use a SHA not a version
+        # For security, make sure to use a SHA not a version
         uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62
         with:
           files: ${{ env.GLOBS_TO_SHELLCHECK }}
@@ -50,19 +43,16 @@ jobs:
         env:
           ALL_CHANGED_FILES: ${{ steps.matching-changed-files.outputs.all_changed_and_modified_files }}
         run: |
-          shopt -s globstar
           if [ -z "${ALL_CHANGED_FILES}" ]
           then
             echo "There are no changed files in the repo which match the glob pattern \'${GLOBS_TO_SHELLCHECK}\' so shellcheck will not run"
           else
-            echo "The changed and modified (including deleted) files are ${ALL_CHANGED_FILES}"
-            echo "The globs used are ${GLOBS_TO_SHELLCHECK}"
-            MATCHING_CHANGED_FILES=$(git ls-files ${ALL_CHANGED_FILES} | tr '\n' ' ') #filter out deleted files
-            echo "The matching and changed files are ${MATCHING_CHANGED_FILES}"
-            if [ -z "${MATCHING_CHANGED_FILES}" ]
+            RETAINED_CHANGED_FILES=$(git ls-files ${ALL_CHANGED_FILES} | tr '\n' ' ') #filter out deleted files
+            echo "The remaining changed files are ${RETAINED_CHANGED_FILES}"
+            if [ -z "${RETAINED_CHANGED_FILES}" ]
             then
-              echo "There are no changed files in the repo which match the glob pattern \'${GLOBS_TO_SHELLCHECK}\' so shellcheck will not run"
+              echo "There are no changed files remaining in the repo which match the glob pattern \'${GLOBS_TO_SHELLCHECK}\' so shellcheck will not run"
             else
-              shellcheck ${MATCHING_CHANGED_FILES}
+              shellcheck ${RETAINED_CHANGED_FILES}
             fi
           fi
