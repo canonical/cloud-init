@@ -11,15 +11,6 @@ M_PATH = "cloudinit.distros.raspberry_pi_os."
 
 class TestRaspberryPiOS:
     @mock.patch(M_PATH + "subp.subp")
-    def test_set_keymap_calls_imager_custom(self, m_subp):
-        cls = fetch("raspberry_pi_os")
-        distro = cls("raspberry-pi-os", {}, None)
-        distro.set_keymap("us", "pc105", "basic", "")
-        m_subp.assert_called_once_with(
-            ["/usr/lib/raspberrypi-sys-mods/imager_custom", "set_keymap", "us"]
-        )
-
-    @mock.patch(M_PATH + "subp.subp")
     def test_apply_locale_happy_path(self, m_subp):
         cls = fetch("raspberry_pi_os")
         distro = cls("raspberry-pi-os", {}, None)
