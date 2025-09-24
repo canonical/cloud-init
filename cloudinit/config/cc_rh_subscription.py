@@ -135,7 +135,7 @@ class SubscriptionManager:
             util.is_true(self.auto_attach) or util.is_false(self.auto_attach)
         ):
             not_bool = (
-                "The key auto_attach must be a boolean value (True/False "
+                "The key auto_attach must be a boolean value (True/False)"
             )
             return False, not_bool
 

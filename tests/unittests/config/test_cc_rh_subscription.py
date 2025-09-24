@@ -156,6 +156,23 @@ class TestHappyPath:
         assert "rh_subscription plugin completed successfully" in caplog.text
 
 
+CONFIG_BADAUTOATTACH = {
+    "rh_subscription": {
+        "username": "scooby@do.com",
+        "password": "scooby-snacks",
+        "auto_attach": 3,
+    }
+}
+
+CONFIG_SERVICE = {
+    "rh_subscription": {
+        "username": "scooby@do.com",
+        "password": "scooby-snacks",
+        "service_level": "self-support",
+    }
+}
+
+
 @mock.patch(SUB_MAN_CLI)
 class TestBadInput:
     SM = cc_rh_subscription.SubscriptionManager
@@ -169,14 +186,6 @@ class TestBadInput:
     CONFIG_NO_KEY = {
         "rh_subscription": {
             "activation_key": "1234abcde",
-        }
-    }
-
-    CONFIG_SERVICE = {
-        "rh_subscription": {
-            "username": "scooby@do.com",
-            "password": "scooby-snacks",
-            "service_level": "self-support",
         }
     }
 
@@ -235,20 +244,36 @@ class TestBadInput:
             caplog,
         )
 
-    def test_service_level_without_auto(self, m_sman_cli, caplog):
+    @pytest.mark.parametrize(
+        "auto_attach_cfg,warnings",
+        (
+            (
+                CONFIG_SERVICE,
+                [
+                    "The service_level key must be used in conjunction with"
+                    " the auto_attach key.  Please re-run with"
+                    " auto_attach: True",
+                    "rh_subscription plugin did not complete successfully",
+                ],
+            ),
+            (
+                CONFIG_BADAUTOATTACH,
+                ["The key auto_attach must be a boolean value (True/False)"],
+            ),
+        ),
+    )
+    def test_service_level_without_auto(
+        self, m_sman_cli, auto_attach_cfg, warnings, caplog
+    ):
         """Attempt to register using service_level without auto_attach key."""
         m_sman_cli.side_effect = [
             subp.ProcessExecutionError,
             (self.REG, "bar"),
         ]
-        cc_rh_subscription.handle(NAME, self.CONFIG_SERVICE, None, [])
+        cc_rh_subscription.handle(NAME, auto_attach_cfg, None, [])
         assert m_sman_cli.call_count == 1
         self.assert_logged_warnings(
-            (
-                "The service_level key must be used in conjunction with the"
-                " auto_attach key.  Please re-run with auto_attach: True",
-                "rh_subscription plugin did not complete successfully",
-            ),
+            warnings,
             caplog,
         )
 
