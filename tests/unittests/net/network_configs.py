@@ -115,7 +115,30 @@ NETWORK_CONFIGS = {
             DNS=1.2.3.4 5.6.7.8
         """
         ).rstrip(" "),
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+                dns-nameservers 1.2.3.4 5.6.7.8
+                dns-search wark.maas
+
+            iface eth1 inet manual
+
+            auto eth99
+            iface eth99 inet dhcp
+
+            # control-alias eth99
+            iface eth99 inet static
+                address 192.168.21.3/24
+                dns-nameservers 8.8.8.8 8.8.4.4
+                dns-search barley.maas sach.maas
+                post-up ip route add default via 65.61.151.37 metric 10000 \
+|| true
+                pre-down ip route del default via 65.61.151.37 metric 10000 \
+|| true
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
@@ -319,7 +342,28 @@ NETWORK_CONFIGS = {
             DHCP=no
         """
         ).rstrip(" "),
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            iface eth1 inet manual
+
+            auto eth99
+            iface eth99 inet dhcp
+
+            # control-alias eth99
+            iface eth99 inet static
+                address 192.168.21.3/24
+                dns-nameservers 8.8.8.8 8.8.4.4
+                dns-search barley.maas sach.maas
+                post-up ip route add default via 65.61.151.37 metric 10000 \
+|| true
+                pre-down ip route del default via 65.61.151.37 metric 10000 \
+|| true
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
@@ -468,7 +512,19 @@ NETWORK_CONFIGS = {
             DHCP=yes
         """
         ).rstrip(" "),
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet dhcp
+
+            # control-alias iface0
+            iface iface0 inet6 dhcp
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
@@ -562,7 +618,23 @@ NETWORK_CONFIGS = {
             Address=2001:1::1/64
         """
         ).rstrip(" "),
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+                mtu 1500
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
@@ -696,7 +768,22 @@ NETWORK_CONFIGS = {
             Address=2001:1::1/64
         """
         ).rstrip(" "),
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
@@ -845,7 +932,16 @@ NETWORK_CONFIGS = {
             DHCP=ipv6
         """
         ).rstrip(" "),
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet6 dhcp
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
@@ -930,7 +1026,17 @@ NETWORK_CONFIGS = {
         },
     },
     "dhcpv6_accept_ra": {
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet6 dhcp
+                accept-ra 1
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
@@ -1005,7 +1111,17 @@ NETWORK_CONFIGS = {
         ).rstrip(" "),
     },
     "dhcpv6_reject_ra": {
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet6 dhcp
+                accept-ra 0
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
@@ -1080,7 +1196,17 @@ NETWORK_CONFIGS = {
         ).rstrip(" "),
     },
     "ipv6_slaac": {
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet6 auto
+                dhcp 0
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
@@ -1203,7 +1329,17 @@ NETWORK_CONFIGS = {
         },
     },
     "dhcpv6_stateless": {
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+        auto lo
+        iface lo inet loopback
+
+        auto iface0
+        iface iface0 inet6 auto
+            dhcp 1
+    """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
         auto lo
         iface lo inet loopback
@@ -1288,7 +1424,16 @@ NETWORK_CONFIGS = {
         },
     },
     "dhcpv6_stateful": {
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+        auto lo
+        iface lo inet loopback
+
+        auto iface0
+        iface iface0 inet6 dhcp
+    """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
         auto lo
         iface lo inet loopback
@@ -1348,7 +1493,16 @@ NETWORK_CONFIGS = {
         },
     },
     "wakeonlan_disabled": {
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet dhcp
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
@@ -1421,7 +1575,17 @@ NETWORK_CONFIGS = {
         ).rstrip(" "),
     },
     "wakeonlan_enabled": {
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet dhcp
+                ethernet-wol g
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
@@ -1498,7 +1662,102 @@ NETWORK_CONFIGS = {
         ).rstrip(" "),
     },
     "large_v1": {
-        "expected_eni": """\
+        "expected_eni_ip_cmd": """\
+auto lo
+iface lo inet loopback
+    dns-nameservers 8.8.8.8 4.4.4.4 8.8.4.4
+    dns-search barley.maas wark.maas foobar.maas
+
+iface eth0 inet manual
+
+auto eth1
+iface eth1 inet manual
+    bond-master bond0
+    bond-miimon 100
+    bond-mode active-backup
+    bond-xmit-hash-policy layer3+4
+
+auto eth2
+iface eth2 inet manual
+    bond-master bond0
+    bond-miimon 100
+    bond-mode active-backup
+    bond-xmit-hash-policy layer3+4
+
+iface eth3 inet manual
+
+iface eth4 inet manual
+
+# control-manual eth5
+iface eth5 inet dhcp
+
+auto ib0
+iface ib0 inet static
+    address 192.168.200.7/24
+    mtu 9000
+    hwaddress a0:00:02:20:fe:80:00:00:00:00:00:00:ec:0d:9a:03:00:15:e2:c1
+
+auto bond0
+iface bond0 inet6 dhcp
+    bond-miimon 100
+    bond-mode active-backup
+    bond-slaves none
+    bond-xmit-hash-policy layer3+4
+    hwaddress aa:bb:cc:dd:ee:ff
+
+auto br0
+iface br0 inet static
+    address 192.168.14.2/24
+    bridge-ageing 250
+    bridge-bridgeprio 22
+    bridge-fd 1
+    bridge-gcint 2
+    bridge-hello 1
+    bridge-maxage 10
+    bridge-pathcost eth3 50
+    bridge-pathcost eth4 75
+    bridge-portprio eth3 28
+    bridge-portprio eth4 14
+    bridge-ports eth3 eth4
+    bridge-stp off
+    bridge-waitport 1 eth3
+    bridge-waitport 2 eth4
+    hwaddress bb:bb:bb:bb:bb:aa
+
+# control-alias br0
+iface br0 inet6 static
+    address 2001:1::1/64
+    post-up ip -family inet6 route add default via 2001:4800:78ff:1b::1 \
+|| true
+    pre-down ip -family inet6 route del default via 2001:4800:78ff:1b::1 \
+|| true
+
+auto bond0.200
+iface bond0.200 inet dhcp
+    vlan-id 200
+    vlan-raw-device bond0
+
+auto eth0.101
+iface eth0.101 inet static
+    address 192.168.0.2/24
+    dns-nameservers 192.168.0.10 10.23.23.134
+    dns-search barley.maas sacchromyces.maas brettanomyces.maas
+    gateway 192.168.0.1
+    mtu 1500
+    hwaddress aa:bb:cc:dd:ee:11
+    vlan-id 101
+    vlan-raw-device eth0
+
+# control-alias eth0.101
+iface eth0.101 inet static
+    address 192.168.2.10/24
+    dns-nameservers 192.168.0.10 10.23.23.134
+    dns-search barley.maas sacchromyces.maas brettanomyces.maas
+
+post-up ip route add 10.0.0.0/8 via 11.0.0.1 metric 3 || true
+pre-down ip route del 10.0.0.0/8 via 11.0.0.1 metric 3 || true
+""",
+        "expected_eni_route_cmd": """\
 auto lo
 iface lo inet loopback
     dns-nameservers 8.8.8.8 4.4.4.4 8.8.4.4
@@ -2341,7 +2600,100 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
         ).lstrip(),
     },
     "large_v2": {
-        "expected_eni": """\
+        "expected_eni_ip_cmd": """\
+auto lo
+iface lo inet loopback
+    dns-nameservers 8.8.8.8 4.4.4.4 8.8.4.4
+    dns-search barley.maas wark.maas foobar.maas
+
+iface eth0 inet manual
+
+auto eth1
+iface eth1 inet manual
+    bond-master bond0
+    bond-miimon 100
+    bond-mode active-backup
+    bond-xmit-hash-policy layer3+4
+
+auto eth2
+iface eth2 inet manual
+    bond-master bond0
+    bond-miimon 100
+    bond-mode active-backup
+    bond-xmit-hash-policy layer3+4
+
+iface eth3 inet manual
+
+iface eth4 inet manual
+
+# control-manual eth5
+iface eth5 inet dhcp
+
+auto ib0
+iface ib0 inet static
+    address 192.168.200.7/24
+    mtu 9000
+    hwaddress a0:00:02:20:fe:80:00:00:00:00:00:00:ec:0d:9a:03:00:15:e2:c1
+
+auto bond0
+iface bond0 inet6 dhcp
+    bond-miimon 100
+    bond-mode active-backup
+    bond-slaves none
+    bond-xmit-hash-policy layer3+4
+    hwaddress aa:bb:cc:dd:ee:ff
+
+auto br0
+iface br0 inet static
+    address 192.168.14.2/24
+    bridge-ageing 250
+    bridge-bridgeprio 22
+    bridge-fd 1
+    bridge-gcint 2
+    bridge-hello 1
+    bridge-maxage 10
+    bridge-pathcost eth3 50
+    bridge-pathcost eth4 75
+    bridge-portprio eth3 28
+    bridge-portprio eth4 14
+    bridge-ports eth3 eth4
+    bridge-stp off
+    bridge-waitport 1 eth3
+    bridge-waitport 2 eth4
+    hwaddress bb:bb:bb:bb:bb:aa
+
+# control-alias br0
+iface br0 inet6 static
+    address 2001:1::1/64
+    post-up ip -family inet6 route add default via 2001:4800:78ff:1b::1 \
+|| true
+    pre-down ip -family inet6 route del default via 2001:4800:78ff:1b::1 \
+|| true
+
+auto bond0.200
+iface bond0.200 inet dhcp
+    vlan-id 200
+    vlan-raw-device bond0
+
+auto eth0.101
+iface eth0.101 inet static
+    address 192.168.0.2/24
+    dns-nameservers 192.168.0.10 10.23.23.134
+    dns-search barley.maas sacchromyces.maas brettanomyces.maas
+    gateway 192.168.0.1
+    mtu 1500
+    hwaddress aa:bb:cc:dd:ee:11
+    vlan-id 101
+    vlan-raw-device eth0
+
+# control-alias eth0.101
+iface eth0.101 inet static
+    address 192.168.2.10/24
+
+post-up ip route add 10.0.0.0/8 via 11.0.0.1 metric 3 || true
+pre-down ip route del 10.0.0.0/8 via 11.0.0.1 metric 3 || true
+""",
+        "expected_eni_route_cmd": """\
 auto lo
 iface lo inet loopback
     dns-nameservers 8.8.8.8 4.4.4.4 8.8.4.4
@@ -3132,7 +3484,74 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                          via: 3001:67c:15::1
         """
         ),
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+auto lo
+iface lo inet loopback
+
+auto bond0s0
+iface bond0s0 inet manual
+    bond-downdelay 10
+    bond-fail-over-mac active
+    bond-master bond0
+    bond-miimon 100
+    bond-mode active-backup
+    bond-num-grat-arp 5
+    bond-primary bond0s0
+    bond-primary-reselect always
+    bond-updelay 20
+    bond-xmit-hash-policy layer3+4
+
+auto bond0s1
+iface bond0s1 inet manual
+    bond-downdelay 10
+    bond-fail-over-mac active
+    bond-master bond0
+    bond-miimon 100
+    bond-mode active-backup
+    bond-num-grat-arp 5
+    bond-primary bond0s0
+    bond-primary-reselect always
+    bond-updelay 20
+    bond-xmit-hash-policy layer3+4
+
+auto bond0
+iface bond0 inet static
+    address 192.168.0.2/24
+    gateway 192.168.0.1
+    bond-downdelay 10
+    bond-fail-over-mac active
+    bond-miimon 100
+    bond-mode active-backup
+    bond-num-grat-arp 5
+    bond-primary bond0s0
+    bond-primary-reselect always
+    bond-slaves none
+    bond-updelay 20
+    bond-xmit-hash-policy layer3+4
+    hwaddress aa:bb:cc:dd:e8:ff
+    mtu 9000
+    post-up ip route add 10.1.3.0/24 via 192.168.0.3 || true
+    pre-down ip route del 10.1.3.0/24 via 192.168.0.3 || true
+
+# control-alias bond0
+iface bond0 inet static
+    address 192.168.1.2/24
+
+# control-alias bond0
+iface bond0 inet6 static
+    address 2001:1::1/92
+    post-up ip -family inet6 route add 2001:67c::/32 via 2001:67c:1562::1 \
+|| true
+    pre-down ip -family inet6 route del 2001:67c::/32 via 2001:67c:1562::1 \
+|| true
+    post-up ip -family inet6 route add 3001:67c::/32 via 3001:67c:15::1 \
+metric 10000 || true
+    pre-down ip -family inet6 route del 3001:67c::/32 via 3001:67c:15::1 \
+metric 10000 || true
+        """
+        ),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
 auto lo
 iface lo inet loopback
@@ -3481,7 +3900,74 @@ iface bond0 inet6 static
                          via: 3001:67c:15::1
         """
         ),
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+auto lo
+iface lo inet loopback
+
+auto bond0s0
+iface bond0s0 inet manual
+    bond-downdelay 10
+    bond-fail-over-mac active
+    bond-master bond0
+    bond_miimon 100
+    bond-mode active-backup
+    bond-num-grat-arp 5
+    bond-primary bond0s0
+    bond-primary-reselect always
+    bond-updelay 20
+    bond-xmit-hash-policy layer3+4
+
+auto bond0s1
+iface bond0s1 inet manual
+    bond-downdelay 10
+    bond-fail-over-mac active
+    bond-master bond0
+    bond_miimon 100
+    bond-mode active-backup
+    bond-num-grat-arp 5
+    bond-primary bond0s0
+    bond-primary-reselect always
+    bond-updelay 20
+    bond-xmit-hash-policy layer3+4
+
+auto bond0
+iface bond0 inet static
+    address 192.168.0.2/24
+    gateway 192.168.0.1
+    bond-downdelay 10
+    bond-fail-over-mac active
+    bond_miimon 100
+    bond-mode active-backup
+    bond-num-grat-arp 5
+    bond-primary bond0s0
+    bond-primary-reselect always
+    bond-slaves none
+    bond-updelay 20
+    bond-xmit-hash-policy layer3+4
+    hwaddress aa:bb:cc:dd:e8:ff
+    mtu 9000
+    post-up ip route add 10.1.3.0/24 via 192.168.0.3 || true
+    pre-down ip route del 10.1.3.0/24 via 192.168.0.3 || true
+
+# control-alias bond0
+iface bond0 inet static
+    address 192.168.1.2/24
+
+# control-alias bond0
+iface bond0 inet6 static
+    address 2001:1::1/92
+    post-up ip -family inet6 route add 2001:67c::/32 via 2001:67c:1562::1 \
+|| true
+    pre-down ip -family inet6 route del 2001:67c::/32 via 2001:67c:1562::1 \
+|| true
+    post-up ip -family inet6 route add 3001:67c::/32 via 3001:67c:15::1 \
+metric 10000 || true
+    pre-down ip -family inet6 route del 3001:67c::/32 via 3001:67c:15::1 \
+metric 10000 || true
+        """
+        ),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
 auto lo
 iface lo inet loopback
@@ -4246,7 +4732,24 @@ iface bond0 inet6 static
                     control: manual
                   """
         ),
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            # control-manual eth0
+            iface eth0 inet static
+                address 192.168.1.2/24
+
+            auto eth1
+            iface eth1 inet manual
+                mtu 1480
+
+            # control-manual eth2
+            iface eth2 inet manual
+            """
+        ),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
@@ -4437,7 +4940,31 @@ iface bond0 inet6 static
             Gateway=192.168.1.1
         """
         ),
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            # This file is generated from information provided by the datasource.  Changes
+            # to it will not persist across an instance reboot.  To disable cloud-init's
+            # network configuration capabilities, write a file
+            # /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:
+            # network: {config: disabled}
+            auto lo
+            iface lo inet loopback
+                dns-nameservers 2.2.2.2
+                dns-search bbbb
+
+            iface lo inet6 loopback
+                dns-nameservers FEDC::1
+                dns-search bbbb
+
+            auto interface0
+            iface interface0 inet static
+                address 192.168.1.20/16
+                dns-nameservers 1.1.1.1 3.3.3.3
+                dns-search aaaa cccc
+                gateway 192.168.1.1
+        """  # noqa: E501
+        ),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             # This file is generated from information provided by the datasource.  Changes
             # to it will not persist across an instance reboot.  To disable cloud-init's
@@ -4604,7 +5131,40 @@ iface bond0 inet6 static
         ),
     },
     "v2-mixed-routes": {
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto eth0
+            iface eth0 inet dhcp
+                mtu 500
+                post-up ip route add 169.254.42.42/32 via 62.210.0.1 || true
+                pre-down ip route del 169.254.42.42/32 via 62.210.0.1 || true
+                post-up ip route add 169.254.42.43/32 via 62.210.0.2 || true
+                pre-down ip route del 169.254.42.43/32 via 62.210.0.2 || true
+
+            # control-alias eth0
+            iface eth0 inet6 dhcp
+                post-up ip -family inet6 route add default via fe80::dc00:ff:fe20:186 || true
+                pre-down ip -family inet6 route del default via fe80::dc00:ff:fe20:186 || true
+                post-up ip -family inet6 route add fe80::dc00:ff:fe20:188/64 via fe80::dc00:ff:fe20:187 || true
+                pre-down ip -family inet6 route del fe80::dc00:ff:fe20:188/64 via fe80::dc00:ff:fe20:187 || true
+
+            # control-alias eth0
+            iface eth0 inet static
+                address 192.168.1.20/16
+                dns-nameservers 8.8.8.8
+                dns-search lab home
+
+            # control-alias eth0
+            iface eth0 inet6 static
+                address 2001:bc8:1210:232:dc00:ff:fe20:185/64
+                dns-nameservers FEDC::1
+                dns-search lab home
+        """  # noqa: E501
+        ),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
@@ -4711,7 +5271,40 @@ iface bond0 inet6 static
         ),
     },
     "v2-mixed-routes-reversed": {
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto eth0
+            iface eth0 inet dhcp
+                mtu 500
+                post-up ip route add 169.254.42.42/32 via 62.210.0.1 || true
+                pre-down ip route del 169.254.42.42/32 via 62.210.0.1 || true
+                post-up ip route add 169.254.42.43/32 via 62.210.0.2 || true
+                pre-down ip route del 169.254.42.43/32 via 62.210.0.2 || true
+
+            # control-alias eth0
+            iface eth0 inet6 dhcp
+                post-up ip -family inet6 route add default via fe80::dc00:ff:fe20:186 || true
+                pre-down ip -family inet6 route del default via fe80::dc00:ff:fe20:186 || true
+                post-up ip -family inet6 route add fe80::dc00:ff:fe20:188/64 via fe80::dc00:ff:fe20:187 || true
+                pre-down ip -family inet6 route del fe80::dc00:ff:fe20:188/64 via fe80::dc00:ff:fe20:187 || true
+
+            # control-alias eth0
+            iface eth0 inet6 static
+                address 2001:bc8:1210:232:dc00:ff:fe20:185/64
+                dns-nameservers FEDC::1
+                dns-search home lab
+
+            # control-alias eth0
+            iface eth0 inet static
+                address 192.168.1.20/16
+                dns-nameservers 8.8.8.8
+                dns-search home lab
+        """  # noqa: E501
+        ),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
@@ -4818,7 +5411,31 @@ iface bond0 inet6 static
         ),
     },
     "v2-mixed-routes-no-ipv6-addr": {
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto eth0
+            iface eth0 inet dhcp
+                post-up ip route add 169.254.42.42/32 via 62.210.0.1 || true
+                pre-down ip route del 169.254.42.42/32 via 62.210.0.1 || true
+
+            # control-alias eth0
+            iface eth0 inet static
+                address 192.168.1.20/16
+                dns-nameservers 8.8.8.8
+                dns-search lab home
+
+            # control-alias eth0
+            iface eth0 inet6 static
+                dns-nameservers FEDC::1
+                dns-search lab home
+                post-up ip -family inet6 route add default via fe80::dc00:ff:fe20:186 || true
+                pre-down ip -family inet6 route del default via fe80::dc00:ff:fe20:186 || true
+        """  # noqa: E501
+        ),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
@@ -4912,7 +5529,25 @@ iface bond0 inet6 static
             Domains=lab home
         """
         ),
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto eth0
+            iface eth0 inet static
+                address 192.168.1.20/16
+                dns-nameservers 8.8.8.8
+                dns-search lab home
+
+            # control-alias eth0
+            iface eth0 inet6 static
+                address 2001:bc8:1210:232:dc00:ff:fe20:185/64
+                dns-nameservers FEDC::1
+                dns-search lab home
+        """  # noqa: E501
+        ),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
@@ -5014,7 +5649,19 @@ iface bond0 inet6 static
         ),
     },
     "v2-dns-no-if-ips": {
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto eth0
+            iface eth0 inet dhcp
+
+            # control-alias eth0
+            iface eth0 inet6 dhcp
+        """  # noqa: E501
+        ),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
@@ -5072,7 +5719,15 @@ iface bond0 inet6 static
         ),
     },
     "v2-dns-no-dhcp": {
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            iface eth0 inet manual
+        """  # noqa: E501
+        ),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback

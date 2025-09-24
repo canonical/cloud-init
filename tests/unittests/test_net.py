@@ -4550,17 +4550,30 @@ class TestEniRoundTrip:
             ("v2-dns-no-dhcp", "yaml"),
         ],
     )
-    def test_config(self, expected_name, yaml_version):
+    @mock.patch("cloudinit.subp.which")
+    def test_config(self, m_which, expected_name, yaml_version):
         entry = NETWORK_CONFIGS[expected_name]
+
+        m_which.return_value = "/sbin/ip"
         files = self._render_and_read(
             network_config=yaml.safe_load(entry[yaml_version])
         )
         assert (
-            entry["expected_eni"].splitlines()
+            entry["expected_eni_ip_cmd"].splitlines()
             == files["/etc/network/interfaces"].splitlines()
         )
 
-    def test_routes_rendered(self):
+        m_which.return_value = None
+        files = self._render_and_read(
+            network_config=yaml.safe_load(entry[yaml_version])
+        )
+        assert (
+            entry["expected_eni_route_cmd"].splitlines()
+            == files["/etc/network/interfaces"].splitlines()
+        )
+
+    @mock.patch("cloudinit.subp.which")
+    def test_routes_rendered_ip_cmd(self, m_which):
         # as reported in bug 1649652
         conf = [
             {
@@ -4605,6 +4618,85 @@ class TestEniRoundTrip:
             },
         ]
 
+        m_which.return_value = "/sbin/ip"
+        files = self._render_and_read(
+            network_config={"config": conf, "version": 1}
+        )
+        expected = [
+            "auto lo",
+            "iface lo inet loopback",
+            "auto eth0",
+            "iface eth0 inet static",
+            "    address 172.23.31.42/26",
+            "    gateway 172.23.31.2",
+            "post-up ip route add 10.0.0.0/12 via "
+            "172.23.31.1 metric 0 || true",
+            "pre-down ip route del 10.0.0.0/12 via "
+            "172.23.31.1 metric 0 || true",
+            "post-up ip route add 192.168.2.0/16 via "
+            "172.23.31.1 metric 0 || true",
+            "pre-down ip route del 192.168.2.0/16 via "
+            "172.23.31.1 metric 0 || true",
+            "post-up ip route add 10.0.200.0/16 via "
+            "172.23.31.1 metric 1 || true",
+            "pre-down ip route del 10.0.200.0/16 via "
+            "172.23.31.1 metric 1 || true",
+            "post-up ip route add 10.0.0.100/32 via "
+            "172.23.31.1 metric 1 || true",
+            "pre-down ip route del 10.0.0.100/32 via "
+            "172.23.31.1 metric 1 || true",
+        ]
+        found = files["/etc/network/interfaces"].splitlines()
+
+        assert expected == [line for line in found if line]
+
+    @mock.patch("cloudinit.subp.which")
+    def test_routes_rendered_route_cmd(self, m_which):
+        # as reported in bug 1649652
+        conf = [
+            {
+                "name": "eth0",
+                "type": "physical",
+                "subnets": [
+                    {
+                        "address": "172.23.31.42/26",
+                        "dns_nameservers": [],
+                        "gateway": "172.23.31.2",
+                        "type": "static",
+                    }
+                ],
+            },
+            {
+                "type": "route",
+                "id": 4,
+                "metric": 0,
+                "destination": "10.0.0.0/12",
+                "gateway": "172.23.31.1",
+            },
+            {
+                "type": "route",
+                "id": 5,
+                "metric": 0,
+                "destination": "192.168.2.0/16",
+                "gateway": "172.23.31.1",
+            },
+            {
+                "type": "route",
+                "id": 6,
+                "metric": 1,
+                "destination": "10.0.200.0/16",
+                "gateway": "172.23.31.1",
+            },
+            {
+                "type": "route",
+                "id": 7,
+                "metric": 1,
+                "destination": "10.0.0.100/32",
+                "gateway": "172.23.31.1",
+            },
+        ]
+
+        m_which.return_value = None
         files = self._render_and_read(
             network_config={"config": conf, "version": 1}
         )
@@ -4636,7 +4728,8 @@ class TestEniRoundTrip:
 
         assert expected == [line for line in found if line]
 
-    def test_ipv6_static_routes(self):
+    @mock.patch("cloudinit.subp.which")
+    def test_ipv6_static_routes_ip_cmd(self, m_which):
         # as reported in bug 1818669
         conf = [
             {
@@ -4678,6 +4771,87 @@ class TestEniRoundTrip:
             },
         ]
 
+        m_which.return_value = "/sbin/ip"
+        files = self._render_and_read(
+            network_config={"config": conf, "version": 1}
+        )
+        expected = [
+            "auto lo",
+            "iface lo inet loopback",
+            "auto eno3",
+            "iface eno3 inet6 static",
+            "    address fd00::12/64",
+            "    dns-nameservers fd00:2::15",
+            "    gateway fd00::1",
+            "    post-up ip -family inet6 route add fd00:12::/32 via fd00::2 "
+            "|| true",
+            "    pre-down ip -family inet6 route del fd00:12::/32 via fd00::2 "
+            "|| true",
+            "    post-up ip -family inet6 route add fd00:14::/64 via fd00::3 "
+            "|| true",
+            "    pre-down ip -family inet6 route del fd00:14::/64 via fd00::3 "
+            "|| true",
+            "    post-up ip -family inet6 route add fe00:14::/48 via "
+            "fe00::4 metric 500 || true",
+            "    pre-down ip -family inet6 route del fe00:14::/48 via "
+            "fe00::4 metric 500 || true",
+            "    post-up ip route add 192.168.23.0/24 via "
+            "192.168.23.1 metric 999 || true",
+            "    pre-down ip route del 192.168.23.0/24 via "
+            "192.168.23.1 metric 999 || true",
+            "    post-up ip route add 10.23.23.0/24 via "
+            "10.23.23.2 metric 300 || true",
+            "    pre-down ip route del 10.23.23.0/24 via "
+            "10.23.23.2 metric 300 || true",
+        ]
+        found = files["/etc/network/interfaces"].splitlines()
+
+        assert expected == [line for line in found if line]
+
+    @mock.patch("cloudinit.subp.which")
+    def test_ipv6_static_routes_route_cmd(self, m_which):
+        # as reported in bug 1818669
+        conf = [
+            {
+                "name": "eno3",
+                "type": "physical",
+                "subnets": [
+                    {
+                        "address": "fd00::12/64",
+                        "dns_nameservers": ["fd00:2::15"],
+                        "gateway": "fd00::1",
+                        "ipv6": True,
+                        "type": "static",
+                        "routes": [
+                            {
+                                "netmask": "32",
+                                "network": "fd00:12::",
+                                "gateway": "fd00::2",
+                            },
+                            {"network": "fd00:14::", "gateway": "fd00::3"},
+                            {
+                                "destination": "fe00:14::/48",
+                                "gateway": "fe00::4",
+                                "metric": 500,
+                            },
+                            {
+                                "gateway": "192.168.23.1",
+                                "metric": 999,
+                                "netmask": 24,
+                                "network": "192.168.23.0",
+                            },
+                            {
+                                "destination": "10.23.23.0/24",
+                                "gateway": "10.23.23.2",
+                                "metric": 300,
+                            },
+                        ],
+                    }
+                ],
+            },
+        ]
+
+        m_which.return_value = None
         files = self._render_and_read(
             network_config={"config": conf, "version": 1}
         )
