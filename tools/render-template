@@ -50,7 +50,7 @@ def main():
         default=platform["variant"],
         action="store",
         help="define the variant.",
-        choices=VARIANTS,
+        choices=VARIANTS + [ "auto" ],
     )
     parser.add_argument(
         "--prefix",
@@ -83,8 +83,14 @@ def main():
     )
 
     args = parser.parse_args(sys.argv[1:])
+    # Use the detected variant if the variant is "auto".
+    # This is done this way so meson doesn't need conditionals
+    # every time it calls this script.
+    variant = args.variant
+    if args.variant == "auto":
+        variant = platform["variant"]
     templater.render_template(
-        args.variant, args.template, args.output, args.is_yaml, prefix=args.prefix
+        variant, args.template, args.output, args.is_yaml, prefix=args.prefix
     )
 
 
