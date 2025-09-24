@@ -194,13 +194,6 @@ class TestBadInput:
             "enable_repo": "not_a_list",
         }
     }
-    CONFIG_BADKEY = {
-        "rh_subscription": {
-            "activation_key": "abcdef1234",
-            "foo-key": "bar",
-            "org": "ABC",
-        }
-    }
     CONFIG_BAD_RELEASE_VERSION = {
         "rh_subscription": {
             "username": "scooby@do.com",
@@ -291,27 +284,6 @@ class TestBadInput:
             (
                 "Repo IDs must in the format of a list.",
                 "Unable to add or remove repos",
-                "rh_subscription plugin did not complete successfully",
-            ),
-            caplog,
-        )
-
-    def test_bad_key_value(self, m_sman_cli, caplog):
-        """
-        Attempt to register with a key that we don't know
-        """
-        m_sman_cli.side_effect = [
-            subp.ProcessExecutionError,
-            (self.REG, "bar"),
-        ]
-        cc_rh_subscription.handle(NAME, self.CONFIG_BADKEY, None, [])
-        assert m_sman_cli.call_count == 1
-        self.assert_logged_warnings(
-            (
-                "foo-key is not a valid key for rh_subscription. Valid keys"
-                " are: org, activation_key, username, password, disable_repo,"
-                " enable_repo, add_pool, rhsm_baseurl, server_hostname,"
-                " auto_attach, service_level, release_version",
                 "rh_subscription plugin did not complete successfully",
             ),
             caplog,

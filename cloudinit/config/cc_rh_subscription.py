@@ -144,16 +144,6 @@ class SubscriptionManager:
         are what we expect.
         """
 
-        for k in self.rhel_cfg:
-            k_with_no_hyphen = k.replace("-", "_")
-            if k_with_no_hyphen not in self.valid_rh_keys:
-                bad_key = (
-                    "{0} is not a valid key for rh_subscription. "
-                    "Valid keys are: "
-                    "{1}".format(k, ", ".join(self.valid_rh_keys))
-                )
-                return False, bad_key
-
         # Check for bad auto_attach value
         if (self.auto_attach is not None) and not (
             util.is_true(self.auto_attach) or util.is_false(self.auto_attach)
