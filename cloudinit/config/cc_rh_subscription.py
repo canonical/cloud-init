@@ -86,20 +86,6 @@ class SubscriptionError(Exception):
 
 
 class SubscriptionManager:
-    valid_rh_keys = [
-        "org",
-        "activation_key",
-        "username",
-        "password",
-        "disable_repo",
-        "enable_repo",
-        "add_pool",
-        "rhsm_baseurl",
-        "server_hostname",
-        "auto_attach",
-        "service_level",
-        "release_version",
-    ]
 
     def __init__(self, cfg):
         self.rhel_cfg = cfg.get("rh_subscription", {})
