@@ -5,11 +5,11 @@ cc_rh_subscription:
     
     Following a successful registration, you can:
 
-    - auto-attach subscriptions
+    - auto_attach subscriptions
     - set the service level
     - add subscriptions based on pool ID
     - enable/disable yum repositories based on repo ID
-    - alter the ``rhsm_baseurl`` and ``server-hostname`` in
+    - alter the ``rhsm_baseurl`` and ``server_hostname`` in
       ``/etc/rhsm/rhs.conf``.
   examples:
   - comment: |
