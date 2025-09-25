@@ -2680,12 +2680,12 @@
                       "properties": {
                         "console": {
                           "type": "boolean",
-                          "description": "Enable serial console. Default: ``false``.",
+                          "description": "Enable login shell to be accessible over serial. Default: ``false``.",
                           "default": false
                         },
                         "hardware": {
                           "type": "boolean",
-                          "description": "Enable UART hardware. Default: ``false``.",
+                          "description": "Enable serial port hardware. Default: ``false``.",
                           "default": false
                         }
                       }
