@@ -13,6 +13,7 @@ init_system = get_option('init_system')
 
 lib_exec_dir = get_option('prefix') / get_option('libexecdir') / 'cloud-init'
 render_tmpl = './tools/render-template'
+distro = get_option('distro')
 
 pymod = import('python')
 python = pymod.find_installation('python3')
@@ -107,6 +108,7 @@ if init_system == 'systemd'
     output: '@BASENAME@',
     command: [
       render_tmpl,
+      '--variant', distro,
       '@INPUT@',
       meson.current_build_dir() / '@OUTPUT@',
     ],
@@ -130,6 +132,7 @@ if init_system == 'systemd'
       output: '@BASENAME@',
       command: [
         render_tmpl,
+        '--variant', distro,
         '@INPUT@',
         meson.current_build_dir() / '@OUTPUT@',
       ],
@@ -192,6 +195,7 @@ custom_target(
   output: 'cloud.cfg',
   command: [
     render_tmpl,
+    '--variant', distro,
     '--is-yaml', '@INPUT@',
     meson.current_build_dir() / '@OUTPUT@',
   ],
