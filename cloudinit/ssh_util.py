@@ -1,8 +1,10 @@
 # Copyright (C) 2012 Canonical Ltd.
 # Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+# Copyright (C) 2025 Raspberry Pi Ltd.
 #
 # Author: Scott Moser <scott.moser@canonical.com>
 # Author: Juerg Hafliger <juerg.haefliger@hp.com>
+# Author: Paul Oberosler <paul.oberosler@raspberrypi.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
@@ -686,3 +688,33 @@ def get_opensshd_upstream_version():
         return upstream_version
     except (ValueError, TypeError):
         LOG.warning("Could not parse sshd version: %s", upstream_version)
+
+
+def enable_service(distro) -> None:
+    """Enable and start the ssh service for the given distro.
+
+    This will enable and start the appropriate ssh service for the given
+    distro. If the service is already enabled and started, this is a no-op.
+
+    If we fail to enable or start the service, we log the error but do not
+    raise an exception.
+    """
+    service = distro.get_option("ssh_svcname", "ssh")
+    if not service:
+        LOG.warning("Distro does not have a known ssh service name")
+        return
+
+    try:
+        distro.manage_service(
+            "enable",
+            service,
+            "--now",
+            "--no-block",
+        )
+    except subp.ProcessExecutionError as e:
+        util.logexc(
+            LOG,
+            "Failed to enable or start ssh service '%s': %s",
+            service,
+            str(e),
+        )

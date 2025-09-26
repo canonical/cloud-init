@@ -1569,3 +1569,48 @@ class TestMultipleSshAuthorizedKeysFile:
 
         self.execute_and_check(user_bobby, sshd_config, authorized_keys, keys)
         self.execute_and_check(user_suzie, sshd_config, authorized_keys2, keys)
+
+
+class TestEnableService:
+    def test_enable_service_happy_path(self):
+        """If ssh service name is known, we enable it via the distro helper."""
+        distro = mock.Mock()
+        distro.get_option.return_value = "ssh"
+
+        ssh_util.enable_service(distro)
+
+        distro.manage_service.assert_called_once_with(
+            "enable", "ssh", "--now", "--no-block"
+        )
+
+    def test_enable_service_noop_when_service_unknown(self):
+        """If no known ssh service name, warn and do not attempt to enable."""
+        distro = mock.Mock()
+        distro.get_option.return_value = ""
+
+        with mock.patch(M_PATH + "LOG") as m_log:
+            ssh_util.enable_service(distro)
+            distro.manage_service.assert_not_called()
+            # message content covered by unit below
+            m_log.warning.assert_called_once()
+
+    @mock.patch(M_PATH + "util.logexc")
+    def test_enable_service_logs_on_failure(self, m_logexc):
+        """Failure to enable/start service is logged and not raised."""
+        distro = mock.Mock()
+        service_name = "ssh"
+        distro.get_option.return_value = service_name
+
+        err = ssh_util.subp.ProcessExecutionError("boom")
+        distro.manage_service.side_effect = err
+
+        # Should not raise
+        ssh_util.enable_service(distro)
+
+        m_logexc.assert_called_once()
+        # Basic shape of the message and service name included
+        args, _ = m_logexc.call_args
+        # args[0] is LOG, args[1] is format string,
+        # then service name and error str
+        assert "Failed to enable or start ssh service" in args[1]
+        assert service_name in args[2]
