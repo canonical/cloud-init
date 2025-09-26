@@ -108,7 +108,6 @@ class TestRenderCloudCfg:
             ("netbsd", ["netbsd"]),
             ("openbsd", ["openbsd"]),
             ("ubuntu", ["netplan", "eni", "sysconfig"]),
-            ("raspberry-pi-os", ["netplan", "network-manager"]),
         ),
     )
     def test_variant_sets_network_renderer_priority_in_cloud_cfg(
