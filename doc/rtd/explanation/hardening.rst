@@ -2,7 +2,7 @@ Security Hardening
 ******************
 
 Cloud-init's use case is automating cloud instance initialization, with support
-across distributions and platforms. There are a myriad of ways to imrpove the
+across distributions and platforms. There are a myriad of ways to improve the
 security posture of a cloud-init configured machine.
 
 Follow the security hardening guidelines provided by the OSes and cloud

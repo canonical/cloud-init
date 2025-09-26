@@ -415,7 +415,7 @@ class DataSourceNoCloudNet(DataSourceNoCloud):
 
         NoCloud historically used "nocloud-net" as its dsname
         for network timeframe (DEP_NETWORK), which supports http(s) urls.
-        For backwards compatiblity, check for that dsname.
+        For backwards compatibility, check for that dsname.
         """
         log_deprecated = partial(
             lifecycle.deprecate,

@@ -66,7 +66,7 @@ Cloud-init supports a range of versions for each of its test dependencies, as
 well as runtime dependencies. If you are unsure whether a specific feature is
 supported for a particular dependency, check the ``lowest-supported``
 environment in ``tox.ini``. This can be run using ``tox -e lowest-supported``.
-This runs as a Github Actions job when a pull request is submitted or updated.
+This runs as a GitHub Actions job when a pull request is submitted or updated.
 
 Mocking and assertions
 ----------------------

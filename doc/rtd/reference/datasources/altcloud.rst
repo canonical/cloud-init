@@ -28,7 +28,7 @@ For example, to pass a simple bash script:
     IyEvYmluL2Jhc2gKZWNobyAiSGVsbG8gSm9lISIgPj4gL3RtcC9KSlZfSm9lX291dC50eHQK
 
 To pass this example script to ``cloud-init`` running in a  `RHEVm`_ v3.0 VM
-set the "Custom Properties" when creating the RHEMv v3.0 VM to: ::
+set the "Custom Properties" when creating the THEMv v3.0 VM to: ::
 
     floppyinject=user-data.txt:IyEvYmluL2Jhc2gKZWNobyAiSGVsbG8gSm9lISIgPj4gL3RtcC9KSlZfSm9lX291dC50eHQK
 
