@@ -19,7 +19,9 @@ def user_data(tmp_path):
 
 @pytest.fixture(autouse=True)
 def cfg(tmp_path, mocker):
-    mocker.patch("cloudinit.util.os.chown")
+    # root group doesn't exist everywhere
+    mocker.patch("cloudinit.util.chownbyname")
+
     new_root = str(tmp_path)
     cfg = {
         "datasource_list": ["None"],

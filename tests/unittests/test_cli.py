@@ -346,14 +346,13 @@ class TestCLI:
         assert False is parseargs.debug
         assert False is parseargs.force
 
-    def test_all_stages_with_tty(self, mocker):
+    def test_all_stages_with_tty(self, mocker, fake_socket):
         """Ensure all stages get called when using a tty."""
         mocker.patch("cloudinit.cmd.main.os.isatty", return_value=True)
         mocker.patch("cloudinit.cmd.main.sys.stdin.fileno")
         mocker.patch("cloudinit.cmd.main.socket.sd_notify")
         mocker.patch("cloudinit.cmd.main.socket.os.makedirs")
         mocker.patch("cloudinit.cmd.main.socket.os.remove")
-        mocker.patch("cloudinit.cmd.main.socket.socket")
         m_sub_main = mocker.patch(
             "cloudinit.cmd.main.sub_main", return_value=0
         )
