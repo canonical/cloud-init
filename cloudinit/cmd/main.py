@@ -1105,7 +1105,7 @@ def main(sysv_args=None):
         action="store_true",
         help=(
             "Run cloud-init's stages under a single process using a "
-            "syncronization protocol. This is not intended for CLI usage."
+            "synchronization protocol. This is not intended for CLI usage."
         ),
         default=False,
     )

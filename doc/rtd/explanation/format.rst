@@ -304,7 +304,7 @@ Explanation
 -----------
 
 A cloud-config-archive is a way to specify more than one type of data
-using YAML. Since building a MIME multipart archive can be somewhat unwieldly
+using YAML. Since building a MIME multipart archive can be somewhat unwieldy
 to build by hand or requires using a cloud-init helper utility, the
 cloud-config-archive provides a simpler alternative to building the MIME
 multi-part archive for those that would prefer to use YAML.

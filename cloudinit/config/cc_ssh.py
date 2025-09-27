@@ -80,7 +80,7 @@ def set_redhat_keyfile_perms(keyfile: str) -> None:
         permissions_private = 0o640
     else:
         # fedora 38, centos 10 stream and above. sshd-keygen sets
-        # private key persmissions to 0o600.
+        # private key permissions to 0o600.
         permissions_private = 0o600
 
     gid = util.get_group_id("ssh_keys")

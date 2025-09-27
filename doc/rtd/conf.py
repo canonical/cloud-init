@@ -337,7 +337,7 @@ def debug_module_docs(
 
     :param module_id: A specific 'cc_*' module name to print rendered RST for,
         or provide 'all' to print out all rendered module docs.
-    :param mod_docs: A dict represnting doc metadata for each config module.
+    :param mod_docs: A dict representing doc metadata for each config module.
         The dict is keyed on config module id (cc_*) and each value is a dict
         with values such as: title, name, examples, schema_doc.
     :param debug_file_path: A specific file to write the rendered RST content.

@@ -1121,7 +1121,7 @@ class Renderer(renderer.Renderer):
                 netcfg.append("IPV6_AUTOCONF=no")
 
             # if sysconfig file exists and is not empty, append rest of the
-            # file content, do not remove the exsisting customizations.
+            # file content, do not remove the existing customizations.
             if os.path.exists(sysconfig_path):
                 for line in util.load_text_file(sysconfig_path).splitlines():
                     if (
