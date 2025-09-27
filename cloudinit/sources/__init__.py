@@ -319,10 +319,10 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     # in the updated metadata
     skip_hotplug_detect = False
 
-    # AWS interface data propagates to the IMDS without a synchronization method
-    # Since no better alternative exists, use a datasource-specific mechanism
-    # which retries periodically for a set amount of time - apply configuration
-    # as needed. Do not force retry on other datasources.
+    # AWS interface data propagates to the IMDS without a synchronization
+    # method. Since no better alternative exists, use a datasource-specific
+    # mechanism which retries periodically for a set amount of time - apply
+    # configuration as needed. Do not force retry on other datasources.
     #
     # https://github.com/amazonlinux/amazon-ec2-net-utils/blob/601bc3513fa7b8a6ab46d9496b233b079e55f2e9/lib/lib.sh#L483
     hotplug_retry_settings = HotplugRetrySettings(False, 0, 0)

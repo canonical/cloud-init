@@ -39,8 +39,8 @@ vendor-data
 -----------
 
 Vendor-data may be used to provide default cloud-specific configurations which
-may be overridden by user-data. This may be useful, for example, to configure an
-instance with a cloud provider's repository mirror for faster package
+may be overridden by user-data. This may be useful, for example, to configure
+an instance with a cloud provider's repository mirror for faster package
 installation.
 
 network config

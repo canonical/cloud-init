@@ -136,8 +136,8 @@ communicates with the init system over a Unix socket to allow the init system
 to tell it when it should start each stage and to tell the init system when
 each stage has completed. Init system ordering is preserved.
 
-This should have no noticeable affect for end users, besides a faster boot time.
-This is labeled a breaking change for three reasons:
+This should have no noticeable affect for end users, besides a faster boot
+time. This is labeled a breaking change for three reasons:
 
 1. this change included renaming a systemd service:
    ``cloud-init.service`` -> ``cloud-init-network.service``
