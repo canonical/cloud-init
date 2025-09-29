@@ -81,7 +81,7 @@ in non-x86 images without DMI-data:
 
 
 - Charmed OpenStack Admins using glance-simplestreams-sync can default all
-  syncronized images to use config_drive:
+  synchronized images to use config_drive:
 
 .. code-block:: shell-session
 
@@ -130,14 +130,14 @@ for more details.
 Single Process Optimization
 ---------------------------
 
-As a performance optimization, cloud-init no longer runs as four seperate
+As a performance optimization, cloud-init no longer runs as four separate
 Python processes. Instead, it launches a single process and then
 communicates with the init system over a Unix socket to allow the init system
 to tell it when it should start each stage and to tell the init system when
 each stage has completed. Init system ordering is preserved.
 
-This should have no noticable affect for end users, besides a faster boot time.
-This is labeled a breaking change for three reasons:
+This should have no noticeable affect for end users, besides a faster boot
+time. This is labeled a breaking change for three reasons:
 
 1. this change included renaming a systemd service:
    ``cloud-init.service`` -> ``cloud-init-network.service``
