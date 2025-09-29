@@ -930,7 +930,7 @@ def del_dir(path):
 
 def read_optional_seed(fill, base="", ext="", timeout=5):
     """
-    returns boolean indicating success or failure (presense of files)
+    returns boolean indicating success or failure (presence of files)
     if files are present, populates 'fill' dictionary with 'user-data' and
     'meta-data' entries
     """

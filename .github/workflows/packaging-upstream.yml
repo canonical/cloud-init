@@ -43,7 +43,7 @@ jobs:
 
       - name: Setup - configure git
         run: |
-          git config user.name "Github Actions"
+          git config user.name "GitHub Actions"
           git config user.email "noreply@github.com"
 
       - name: Run test - apply patches and run unit tests for each series
