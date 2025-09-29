@@ -1,10 +1,10 @@
-cloud-init (25.3-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (25.3-0ubuntu1) questing; urgency=medium
 
   * Upstream snapshot based on 25.3.
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/25.3/ChangeLog
 
- -- Alberto Contreras <alberto.contreras@canonical.com>  Mon, 29 Sep 2025 11:40:46 +0200
+ -- Alberto Contreras <alberto.contreras@canonical.com>  Mon, 29 Sep 2025 11:41:39 +0200
 
 cloud-init (25.3~2g890873f5-0ubuntu2) questing; urgency=medium
 
