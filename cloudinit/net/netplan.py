@@ -243,7 +243,9 @@ def _clean_default(target=None):
         os.unlink(f)
 
 
-def netplan_api_write_yaml_file(net_config_content: str) -> bool:
+def netplan_api_write_yaml_file(
+    net_config_content: str, target: Optional[str] = None
+) -> bool:
     """Use netplan.State._write_yaml_file to write netplan config
 
     Where netplan python API exists, prefer to use of the private
@@ -281,9 +283,11 @@ def netplan_api_write_yaml_file(net_config_content: str) -> bool:
             # determine default root-dir /etc/netplan and/or specialized
             # filenames or read permissions based on whether this config
             # contains secrets.
-            state_output_file._write_yaml_file(
-                os.path.basename(CLOUDINIT_NETPLAN_FILE)
-            )
+            if not target:
+                file = os.path.basename(CLOUDINIT_NETPLAN_FILE)
+            else:
+                file = target
+            state_output_file._write_yaml_file(file)
     except Exception as e:
         LOG.warning(
             "Unable to render network config using netplan python module."
@@ -391,8 +395,14 @@ class Renderer(renderer.Renderer):
             header += "\n"
         content = header + content
 
+        # Customize target only if explicitly passed in
+        if target is None:
+            target_ = target
+        else:
+            target_ = fpnplan
+
         netplan_config_changed = has_netplan_config_changed(fpnplan, content)
-        if not netplan_api_write_yaml_file(content):
+        if not netplan_api_write_yaml_file(content, target=target_):
             fallback_write_netplan_yaml(fpnplan, content)
 
         if self.clean_default:

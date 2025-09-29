@@ -2,7 +2,7 @@
 
 description="cloud-init hotplug daemon"
 
-command="/usr/lib/cloud-init/cloud-init-hotplugd"
+command="/usr/libexec/cloud-init/cloud-init-hotplugd"
 pidfile="/run/$RC_SVCNAME.pid"
 
 depend() {

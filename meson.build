@@ -28,16 +28,18 @@ install_subdir(
 )
 
 # Binaries and script entrypoints
-bash_completions_dir = dependency('bash-completion').get_variable(
-  pkgconfig: 'completionsdir',
-  default_value: get_option('datadir') / 'bash-completion' / 'completions',
-)
-install_data(
-  'bash_completion/cloud-init',
-  install_dir: bash_completions_dir,
-  install_mode: 'rw-r--r--',
-  install_tag: 'bin',
-)
+if get_option('bash_completion')
+  bash_completions_dir = dependency('bash-completion').get_variable(
+    pkgconfig: 'completionsdir',
+    default_value: get_option('datadir') / 'bash-completion' / 'completions',
+  )
+  install_data(
+    'bash_completion/cloud-init',
+    install_dir: bash_completions_dir,
+    install_mode: 'rw-r--r--',
+    install_tag: 'bin',
+  )
+endif
 
 install_data(
   [
@@ -156,6 +158,32 @@ if init_system == 'systemd'
     install_dir: systemd_unit_dir,
     install_mode: 'rw-r--r--',
     install_tag: 'systemd',
+  )
+elif init_system == 'sysvinit_openrc'
+  openrc = dependency('openrc')
+  udev = dependency('udev')
+  udev_dir = udev.get_variable(pkgconfig: 'udevdir')
+  install_data(
+    'udev/66-azure-ephemeral.rules',
+    install_dir: udev_dir / 'rules.d',
+    install_mode: 'rw-r--r--',
+    install_tag: 'openrc',
+  )
+
+  install_data(
+    run_command(find, 'sysvinit/openrc', '-type', 'f', check: true).stdout().strip().split('\n'),
+    install_dir: '/etc/init.d',
+    install_mode: 'rwxr-xr-x',
+    install_tag: 'openrc',
+  )
+
+  install_data(
+    [
+      'tools/cloud-init-hotplugd',
+    ],
+    install_dir: lib_exec_dir,
+    install_mode: 'rwxr-xr-x',
+    install_tag: 'bin',
   )
 endif
 
