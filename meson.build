@@ -185,6 +185,25 @@ elif init_system == 'sysvinit_openrc'
     install_mode: 'rwxr-xr-x',
     install_tag: 'bin',
   )
+elif init_system == 'sysvinit_freebsd'
+  rcd_templates = run_command(find, 'sysvinit/freebsd', '-type', 'f', check: true)
+  foreach template : rcd_templates.stdout().strip().split('\n')
+    custom_target(
+      input: template,
+      output: '@BASENAME@',
+      command: [
+        render_tmpl,
+        '@INPUT@',
+        meson.current_build_dir() / '@OUTPUT@',
+      ],
+      install: true,
+      install_dir: sysconfdir / 'rc.d',
+      install_mode: 'r-xr-xr-x',
+      install_tag: 'sysvinit',
+    )
+  endforeach
+  # Enable cloud-init on reboot
+  meson.add_install_script('sh', '-c', '/usr/sbin/sysrc cloudinit_enable=YES')
 endif
 
 custom_target(

@@ -15,34 +15,15 @@ if [ ! $(which ${PYTHON}) ]; then
     echo "Please install python first."
     exit 1
 fi
-py_prefix=$(${PYTHON} -c 'import sys; print("py%d%d" % (sys.version_info.major, sys.version_info.minor))')
 
 # Check dependencies:
 depschecked=/tmp/c-i.dependencieschecked
-pkgs="
-    bash
-    e2fsprogs
-    $py_prefix-Jinja2
-    $py_prefix-configobj
-    $py_prefix-jsonpatch
-    $py_prefix-jsonpointer
-    $py_prefix-jsonschema
-    $py_prefix-oauthlib
-    $py_prefix-requests
-    $py_prefix-pyserial
-    $py_prefix-pyyaml
-    sudo
-"
-[ -f "$depschecked" ] || pkg install --yes ${pkgs} || fail "install packages"
+[ -f "$depschecked" ] || ./tools/read-dependencies --distro freebsd -t || fail "install packages"
 touch $depschecked
 
 # Build the code and install in /usr/local/:
-${PYTHON} setup.py build
-${PYTHON} setup.py install -O1 --skip-build --prefix /usr/local/ --init-system sysvinit_freebsd
-
-# Enable cloud-init in /etc/rc.conf:
-sed -i.bak -e "/cloudinit_enable=.*/d" /etc/rc.conf
-echo 'cloudinit_enable="YES"' >> /etc/rc.conf
+meson setup builddir -Dinit_system=sysvinit_freebsd
+meson install -C builddir
 
 echo "Installation completed."
 

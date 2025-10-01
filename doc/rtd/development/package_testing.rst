@@ -21,6 +21,5 @@ OR if LXD is present, the full package build can be run in a container:
    ./tools/run-container rockylinux/9 --package --keep
 
 
-.. note::
-
-   meson support has not yet been added to the BSDs in :file:`tools/build-on-*bsd` or :file:`meson.build`.
+Additionally, :file:`tools/build-on-freebsd` supports build and install
+of cloud-init on FreeBSD systems.
