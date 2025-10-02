@@ -327,10 +327,11 @@ system_info:
   network:
     renderers: ['eni', 'netplan', 'network-manager', 'sysconfig', 'networkd']
 {% endif %}
-{% if variant == "photon" %}
+{% if variant in ["photon", "raspberry-pi-os"] %}
   # If set to true, cloud-init will not use fallback network config.
-  # In Photon, we have default network settings, hence if network settings are
-  # not explicitly given in metadata, don't use fallback network config.
+  # In Photon and Raspberry Pi OS, we have default network settings,
+  # hence if network settings are not explicitly given in metadata,
+  # don't use fallback network config.
   disable_fallback_netcfg: true
 {% endif %}
 {% if variant in ["debian", "ubuntu", "unknown"] %}
@@ -356,19 +357,6 @@ system_info:
       failsafe:
         primary: https://deb.debian.org/debian
         security: https://deb.debian.org/debian-security
-{% elif variant == "raspberry-pi-os" %}
-  package_mirrors:
-    - arches: [arm64]
-      failsafe:
-        primary: 
-          - https://deb.debian.org/debian
-          - http://archive.raspberrypi.com/debian/
-        security: https://deb.debian.org/debian-security
-    - arches: [armhf]
-      failsafe:
-        primary: 
-          - http://raspbian.raspberrypi.com/raspbian/
-          - http://archive.raspberrypi.com/debian/
 {% elif variant in ["ubuntu", "unknown"] %}
   package_mirrors:
     - arches: [i386, amd64]
