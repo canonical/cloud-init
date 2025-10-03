@@ -21,12 +21,13 @@ ENABLE_USB_GADGET_KEY = "enable_usb_gadget"
 SUPPORTED_INTERFACES = {
     "spi": "do_spi",
     "i2c": "do_i2c",
-    "serial": "do_serial",
     "onewire": "do_onewire",
 }
+SERIAL_INTERFACE = "serial"
 RASPI_CONFIG_SERIAL_CONS_FN = "do_serial_cons"
 RASPI_CONFIG_SERIAL_HW_FN = "do_serial_hw"
 RPI_USB_GADGET_SCRIPT = "/usr/bin/rpi-usb-gadget"
+REBOOT_MSG = "Rebooting to apply config.txt changes..."
 
 meta: MetaSchema = {
     "id": "cc_raspberry_pi",
@@ -73,9 +74,7 @@ def is_pifive() -> bool:
         return False
 
 
-def configure_serial_interface(
-    cfg: Union[dict, bool], instCfg: Config, cloud: Cloud
-) -> None:
+def configure_serial_interface(cfg: Union[dict, bool]) -> None:
     global want_reboot
 
     def get_bool_field(cfg_dict: dict, name: str, default=False):
@@ -136,8 +135,10 @@ def configure_serial_interface(
 
 
 def configure_interface(iface: str, enable: bool) -> None:
+    global want_reboot
+
     assert (
-        iface in SUPPORTED_INTERFACES.keys() and iface != "serial"
+        iface in SUPPORTED_INTERFACES.keys()
     ), f"Unsupported interface: {iface}"
 
     try:
@@ -149,6 +150,8 @@ def configure_interface(iface: str, enable: bool) -> None:
                 str(0 if enable else 1),
             ]
         )
+
+        want_reboot = True
     except subp.ProcessExecutionError as e:
         LOG.error("Failed to configure %s: %s", iface, e)
 
@@ -189,13 +192,13 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                 return
 
             subkeys = list(cfg[RPI_BASE_KEY][key].keys())
-            # Move " serial" to the end if it exists
-            if "serial" in subkeys:
-                subkeys.append(subkeys.pop(subkeys.index("serial")))
 
             # check for supported ARM interfaces
             for subkey in subkeys:
-                if subkey not in SUPPORTED_INTERFACES.keys():
+                if (
+                    subkey not in SUPPORTED_INTERFACES.keys()
+                    and subkey != SERIAL_INTERFACE
+                ):
                     LOG.warning(
                         "Invalid key for %s: %s", RPI_INTERFACES_KEY, subkey
                     )
@@ -203,7 +206,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
                 enable = cfg[RPI_BASE_KEY][key][subkey]
 
-                if subkey == "serial":
+                if subkey == SERIAL_INTERFACE:
                     if not isinstance(enable, (dict, bool)):
                         LOG.warning(
                             "Invalid value for %s.%s: %s",
@@ -212,7 +215,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                             enable,
                         )
                     else:
-                        configure_serial_interface(enable, cfg, cloud)
+                        configure_serial_interface(enable)
                     continue
 
                 if isinstance(enable, bool):
@@ -233,6 +236,6 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         cmd = cloud.distro.shutdown_command(
             mode="reboot",
             delay="now",
-            message="Rebooting to apply config.txt changes...",
+            message=REBOOT_MSG,
         )
         subp.subp(cmd)
