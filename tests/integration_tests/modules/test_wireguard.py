@@ -74,7 +74,7 @@ class TestWireguard:
             # test if file was written for wg0
             (
                 "stat -c '%N' /etc/wireguard/wg0.conf",
-                r"'/etc/wireguard/wg0.conf'",
+                r"['\"]/etc/wireguard/wg0.conf['\"]",
             ),
             # check permissions for wg0
             ("stat -c '%U %a' /etc/wireguard/wg0.conf", r"root 600"),
