@@ -125,7 +125,10 @@ class TestRaspberryPiOS:
         cls = fetch("raspberry_pi_os")
         distro = cls("raspberry-pi-os", {}, None)
 
-        assert distro.add_user("pi") is True
+        with mock.patch(
+            "cloudinit.distros.Distro.manage_service", return_value=True
+        ):
+            assert distro.add_user("pi") is True
         m_subp.assert_called_once()
 
         # Accept both common locations for userconf

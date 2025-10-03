@@ -101,6 +101,9 @@ class Distro(debian.Distro):
             if plain:
                 self.set_passwd(name, plain, hashed=False)
 
+        # Mask userconfig.service
+        self.manage_service("mask", "userconfig.service", "--now")
+
         # honor all other options that would otherwise
         # add_user have taken care of
 
