@@ -59,7 +59,7 @@ class TestHandleRaspberryPi:
 class TestRaspberryPiMethods:
     @mock.patch("cloudinit.subp.subp")
     def test_configure_usb_gadget_enable(self, m_subp):
-        with mock.patch("os.path.exists", return_value=True): 
+        with mock.patch("os.path.exists", return_value=True):
             cc_rpi.configure_usb_gadget(True)
         m_subp.assert_called_once_with(
             ["/usr/bin/rpi-usb-gadget", "on"], capture=False, timeout=15
@@ -94,10 +94,7 @@ class TestRaspberryPiMethods:
         cfg = {"console": True, "hardware": False}
 
         # Simulate is_pifive returning True to prevent enable_hw override
-        with mock.patch.object(
-            cloud.distro, "shutdown_command", return_value=["reboot"]
-        ):
-            cc_rpi.configure_serial_interface(cfg, {}, cloud)
+        cc_rpi.configure_serial_interface(cfg, {}, cloud)
 
         expected_calls = [
             mock.call(
@@ -116,7 +113,6 @@ class TestRaspberryPiMethods:
                     "1",
                 ]
             ),
-            mock.call(["reboot"]),
         ]
         m_subp.assert_has_calls(expected_calls, any_order=False)
 
@@ -127,12 +123,7 @@ class TestRaspberryPiMethods:
     ):
         cloud = get_cloud("raspberry_pi_os")
 
-        with mock.patch.object(
-            cloud.distro,
-            "shutdown_command",
-            return_value=["shutdown", "-r", "now"],
-        ):
-            cc_rpi.configure_serial_interface(True, {}, cloud)
+        cc_rpi.configure_serial_interface(True, {}, cloud)
 
         expected_calls = [
             mock.call(
@@ -151,7 +142,6 @@ class TestRaspberryPiMethods:
                     "0",
                 ]
             ),
-            mock.call(["shutdown", "-r", "now"]),
         ]
         m_subp.assert_has_calls(expected_calls, any_order=False)
 

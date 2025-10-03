@@ -35,12 +35,13 @@ meta: MetaSchema = {
     "activate_by_schema_keys": [RPI_BASE_KEY],
 }
 
+want_reboot = False
+
 
 def configure_usb_gadget(enable: bool) -> None:
+    global want_reboot
     LOG.debug("Enable rpi-usb-gadget mode: %s", enable)
 
-    # TODO: maybe skip if enable=false because
-    # that is the default on official rpios
     mod = "on" if enable else "off"
 
     try:
@@ -58,6 +59,8 @@ def configure_usb_gadget(enable: bool) -> None:
             capture=False,
             timeout=15,
         )
+
+        want_reboot = True
     except subp.ProcessExecutionError as e:
         LOG.error("Failed to configure rpi-usb-gadget: %s", e)
 
@@ -73,6 +76,8 @@ def is_pifive() -> bool:
 def configure_serial_interface(
     cfg: Union[dict, bool], instCfg: Config, cloud: Cloud
 ) -> None:
+    global want_reboot
+
     def get_bool_field(cfg_dict: dict, name: str, default=False):
         val = cfg_dict.get(name, default)
         if not isinstance(val, bool):
@@ -125,13 +130,7 @@ def configure_serial_interface(
         except subp.ProcessExecutionError as e:
             LOG.error("Failed to configure serial hardware: %s", e)
 
-        # Reboot to apply changes
-        cmd = cloud.distro.shutdown_command(
-            mode="reboot",
-            delay="now",
-            message="Rebooting to apply serial console changes",
-        )
-        subp.subp(cmd)
+        want_reboot = True
     except subp.ProcessExecutionError as e:
         LOG.error("Failed to configure serial console: %s", e)
 
@@ -228,3 +227,12 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         else:
             LOG.warning("Unsupported key: %s", key)
             continue
+
+    if want_reboot:
+        # Reboot to apply changes to config.txt and modprobe
+        cmd = cloud.distro.shutdown_command(
+            mode="reboot",
+            delay="now",
+            message="Rebooting to apply config.txt changes...",
+        )
+        subp.subp(cmd)

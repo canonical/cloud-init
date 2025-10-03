@@ -182,6 +182,9 @@ cloud_config_modules:
 {% endif %}
   - ntp
   - timezone
+{% if variant == "raspberry-pi-os" %}
+  - raspberry_pi
+{% endif %}
 {% if variant not in ["azurelinux"] %}
   - disable_ec2_metadata
 {% endif %}
@@ -213,9 +216,6 @@ cloud_final_modules:
 {% if variant not in ["alpine"] %}
   - reset_rmc
 {% endif %}
-{% endif %}
-{% if variant == "raspberry-pi-os" %}
-  - raspberry_pi
 {% endif %}
   - scripts_vendor
   - scripts_per_once
