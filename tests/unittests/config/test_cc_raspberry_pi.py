@@ -45,7 +45,7 @@ class TestHandleRaspberryPi:
         }
         cfg = {RPI_BASE_KEY: {RPI_INTERFACES_KEY: {"serial": serial_value}}}
         cc_rpi.handle("cc_raspberry_pi", cfg, cloud, [])
-        m_serial.assert_called_once_with(serial_value, cfg, cloud)
+        m_serial.assert_called_once_with(serial_value)
 
     @mock.patch(M_PATH + "configure_serial_interface")
     @mock.patch(M_PATH + "is_pifive", return_value=True)
@@ -53,7 +53,57 @@ class TestHandleRaspberryPi:
         cloud = get_cloud("raspberry_pi_os")
         cfg = {RPI_BASE_KEY: {RPI_INTERFACES_KEY: {"serial": True}}}
         cc_rpi.handle("cc_raspberry_pi", cfg, cloud, [])
-        m_serial.assert_called_once_with(True, cfg, cloud)
+        m_serial.assert_called_once_with(True)
+
+    @mock.patch(
+        "cloudinit.distros.raspberry_pi_os.Distro.shutdown_command",
+        return_value=["shutdown", "-r", "now", cc_rpi.REBOOT_MSG],
+    )
+    @mock.patch("cloudinit.subp.subp")
+    @mock.patch(M_PATH + "is_pifive", return_value=True)
+    def test_trigger_reboot(self, is_pi5, m_subp, m_shutdown):
+        keys = list(cc_rpi.SUPPORTED_INTERFACES.keys()) + [
+            cc_rpi.SERIAL_INTERFACE
+        ]
+        cloud = get_cloud("raspberry_pi_os")
+        for key in keys:
+            cfg = {RPI_BASE_KEY: {RPI_INTERFACES_KEY: {key: True}}}
+            cc_rpi.want_reboot = False
+
+            m_subp.reset_mock()
+            m_shutdown.reset_mock()
+
+            cc_rpi.handle("cc_raspberry_pi", cfg, cloud, [])
+
+            # reboot requested
+            assert cc_rpi.want_reboot is True
+            m_shutdown.assert_called_once()
+
+            # last subp call should be the reboot
+            assert m_subp.call_count == (
+                3 if key == cc_rpi.SERIAL_INTERFACE else 2
+            )
+            assert m_subp.call_args == mock.call(
+                ["shutdown", "-r", "now", cc_rpi.REBOOT_MSG]
+            )
+
+        # enable_usb_gadget path: ensure script exists so the code runs
+        with mock.patch(M_PATH + "os.path.exists", return_value=True):
+            cfg = {RPI_BASE_KEY: {ENABLE_USB_GADGET_KEY: True}}
+            cc_rpi.want_reboot = False
+
+            m_subp.reset_mock()
+            m_shutdown.reset_mock()
+
+            cc_rpi.handle("cc_raspberry_pi", cfg, cloud, [])
+
+            assert cc_rpi.want_reboot is True
+            m_shutdown.assert_called_once()
+            # gadget call + reboot
+            assert m_subp.call_count == 2
+            assert m_subp.call_args == mock.call(
+                ["shutdown", "-r", "now", cc_rpi.REBOOT_MSG]
+            )
 
 
 class TestRaspberryPiMethods:
@@ -90,11 +140,10 @@ class TestRaspberryPiMethods:
     @mock.patch("cloudinit.subp.subp")
     @mock.patch(M_PATH + "is_pifive", return_value=True)
     def test_configure_serial_interface_dict_config(self, m_ispi5, m_subp):
-        cloud = get_cloud("raspberry_pi_os")
         cfg = {"console": True, "hardware": False}
 
         # Simulate is_pifive returning True to prevent enable_hw override
-        cc_rpi.configure_serial_interface(cfg, {}, cloud)
+        cc_rpi.configure_serial_interface(cfg)
 
         expected_calls = [
             mock.call(
@@ -121,9 +170,7 @@ class TestRaspberryPiMethods:
     def test_configure_serial_interface_boolean_config_non_pi5(
         self, m_ispi5, m_subp
     ):
-        cloud = get_cloud("raspberry_pi_os")
-
-        cc_rpi.configure_serial_interface(True, {}, cloud)
+        cc_rpi.configure_serial_interface(True)
 
         expected_calls = [
             mock.call(
