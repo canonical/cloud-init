@@ -140,9 +140,6 @@ cloud_init_modules:
   - users_groups
   - ssh
   - set_passwords
-{% if variant == "raspberry-pi-os" %}
-  - raspberry_pi
-{% endif %}
 
 # The modules that run in the 'config' stage
 cloud_config_modules:
@@ -185,6 +182,9 @@ cloud_config_modules:
 {% endif %}
   - ntp
   - timezone
+{% if variant == "raspberry-pi-os" %}
+  - raspberry_pi
+{% endif %}
 {% if variant not in ["azurelinux"] %}
   - disable_ec2_metadata
 {% endif %}

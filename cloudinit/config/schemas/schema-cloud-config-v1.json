@@ -2837,10 +2837,10 @@
                 }
               }
             },
-            "enable_rpi_connect": {
+            "enable_usb_gadget": {
               "type": "boolean",
               "default": false,
-              "description": "Install and enable Raspberry Pi Connect. Default: ``false``."
+              "description": "Enable Raspberry Pi USB Gadget mode. Default: ``false``."
             }
           }
         }
