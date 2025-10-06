@@ -231,6 +231,16 @@ install_data(
 )
 install_data(
   [
+    'doc/status.txt',
+    'doc/userdata.txt',
+    'doc/var-lib-cloud.txt',
+  ],
+  install_dir: get_option('datadir') / 'doc' / 'cloud-init',
+  install_mode: 'rw-r--r--',
+  install_tag: 'doc',
+)
+install_data(
+  [
     'doc/examples/seed/README',
     'doc/examples/seed/meta-data',
     'doc/examples/seed/user-data',
