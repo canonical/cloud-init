@@ -112,8 +112,8 @@ class Distro(debian.Distro):
         # adds consistency and causes no harm.
         self.manage_service("mask", "userconfig.service", "--now")
 
-        # honor all other options that would otherwise
-        # add_user have taken care of
+        # Continue handling any remaining options
+        # that the base add_user() implementation would normally process.
 
         # Ensure groups exist if requested
         create_groups = kwargs.get("create_groups", True)
