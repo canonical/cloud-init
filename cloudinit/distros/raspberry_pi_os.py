@@ -101,7 +101,15 @@ class Distro(debian.Distro):
             if plain:
                 self.set_passwd(name, plain, hashed=False)
 
-        # Mask userconfig.service
+        # Mask userconfig.service to ensure it does not start the
+        # first-run setup wizard on Raspberry Pi OS Lite images.
+        # The 'systemctl disable' call performed by the userconf tool
+        # only takes effect after a reboot, so masking it ensures the
+        # service stays inactive immediately.
+        #
+        # On desktop images, userconf alone is sufficient to prevent
+        # the graphical first-run wizard, but masking the service here
+        # adds consistency and causes no harm.
         self.manage_service("mask", "userconfig.service", "--now")
 
         # honor all other options that would otherwise
