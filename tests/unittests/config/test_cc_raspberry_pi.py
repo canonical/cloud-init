@@ -67,13 +67,13 @@ class TestHandleRaspberryPi:
         ]
         cloud = get_cloud("raspberry_pi_os")
         for key in keys:
-            cfg = {RPI_BASE_KEY: {RPI_INTERFACES_KEY: {key: True}}}
+            cfg1 = {RPI_BASE_KEY: {RPI_INTERFACES_KEY: {key: True}}}
             cc_rpi.want_reboot = False
 
             m_subp.reset_mock()
             m_shutdown.reset_mock()
 
-            cc_rpi.handle("cc_raspberry_pi", cfg, cloud, [])
+            cc_rpi.handle("cc_raspberry_pi", cfg1, cloud, [])
 
             # reboot requested
             assert cc_rpi.want_reboot is True
@@ -89,13 +89,13 @@ class TestHandleRaspberryPi:
 
         # enable_usb_gadget path: ensure script exists so the code runs
         with mock.patch(M_PATH + "os.path.exists", return_value=True):
-            cfg = {RPI_BASE_KEY: {ENABLE_USB_GADGET_KEY: True}}
+            cfg2 = {RPI_BASE_KEY: {ENABLE_USB_GADGET_KEY: True}}
             cc_rpi.want_reboot = False
 
             m_subp.reset_mock()
             m_shutdown.reset_mock()
 
-            cc_rpi.handle("cc_raspberry_pi", cfg, cloud, [])
+            cc_rpi.handle("cc_raspberry_pi", cfg2, cloud, [])
 
             assert cc_rpi.want_reboot is True
             m_shutdown.assert_called_once()
