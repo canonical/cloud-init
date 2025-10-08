@@ -1,3 +1,11 @@
+cloud-init (25.3-0ubuntu2~25.10.1) UNRELEASED; urgency=medium
+
+  * d/cloud-init-base.postinst: fix release upgrade affecting the set of
+    multi-line debconf value cloud-init/local-cloud-config used by MAAS.
+    (LP: #2127022)
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 07 Oct 2025 15:21:57 -0600
+
 cloud-init (25.3-0ubuntu1) questing; urgency=medium
 
   * Upstream snapshot based on 25.3.
