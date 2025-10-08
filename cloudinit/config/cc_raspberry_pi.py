@@ -74,6 +74,25 @@ def is_pifive() -> bool:
 
 
 def configure_serial_interface(cfg: Union[dict, bool]) -> bool:
+    """Configure the serial (UART) interface on Raspberry Pi.
+
+    Depending on the configuration, this enables or disables
+    the serial console and the hardware UART by invoking
+    `raspi-config` non-interactively.
+
+    Args:
+        cfg: Either a boolean or a dictionary:
+            - If a bool, enables or disables the serial
+              console and hardware UART together.
+            - If a dict, may contain the keys `console`
+              and `hardware` with boolean values controlling
+              each individually.
+
+    Returns:
+        True if the configuration was applied successfully,
+        False otherwise.
+    """
+
     def get_bool_field(cfg_dict: dict, name: str, default=False):
         val = cfg_dict.get(name, default)
         if not isinstance(val, bool):
@@ -133,6 +152,19 @@ def configure_serial_interface(cfg: Union[dict, bool]) -> bool:
 
 
 def configure_interface(iface: str, enable: bool) -> bool:
+    """Enable or disable a supported hardware interface.
+
+    Supported interfaces are defined in `SUPPORTED_INTERFACES` and
+    currently include SPI, I2C, and 1-Wire. The function applies
+    the change using `raspi-config` in non-interactive mode.
+
+    Args:
+        iface: The interface name (e.g. `"spi"` or `"i2c"`).
+        enable: True to enable the interface, False to disable it.
+
+    Returns:
+        True if the interface configuration succeeded, False otherwise.
+    """
     assert (
         iface in SUPPORTED_INTERFACES.keys()
     ), f"Unsupported interface: {iface}"

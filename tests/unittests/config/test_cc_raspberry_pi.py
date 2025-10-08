@@ -66,23 +66,23 @@ class TestHandleRaspberryPi:
             cc_rpi.SERIAL_INTERFACE
         ]
         cloud = get_cloud("raspberry_pi_os")
+
         for key in keys:
             cfg1 = {RPI_BASE_KEY: {RPI_INTERFACES_KEY: {key: True}}}
-            cc_rpi.want_reboot = False
 
             m_subp.reset_mock()
             m_shutdown.reset_mock()
 
             cc_rpi.handle("cc_raspberry_pi", cfg1, cloud, [])
 
-            # reboot requested
-            assert cc_rpi.want_reboot is True
+            # Reboot requested via shutdown command
             m_shutdown.assert_called_once()
 
-            # last subp call should be the reboot
-            assert m_subp.call_count == (
-                3 if key == cc_rpi.SERIAL_INTERFACE else 2
-            )
+            # subp calls: raspi-config(s) + shutdown
+            expected_calls = 3 if key == cc_rpi.SERIAL_INTERFACE else 2
+            assert m_subp.call_count == expected_calls
+
+            # Last call is the shutdown
             assert m_subp.call_args == mock.call(
                 ["shutdown", "-r", "now", cc_rpi.REBOOT_MSG]
             )
@@ -90,16 +90,14 @@ class TestHandleRaspberryPi:
         # enable_usb_gadget path: ensure script exists so the code runs
         with mock.patch(M_PATH + "os.path.exists", return_value=True):
             cfg2 = {RPI_BASE_KEY: {ENABLE_USB_GADGET_KEY: True}}
-            cc_rpi.want_reboot = False
 
             m_subp.reset_mock()
             m_shutdown.reset_mock()
 
             cc_rpi.handle("cc_raspberry_pi", cfg2, cloud, [])
 
-            assert cc_rpi.want_reboot is True
             m_shutdown.assert_called_once()
-            # gadget call + reboot
+            # gadget script + shutdown
             assert m_subp.call_count == 2
             assert m_subp.call_args == mock.call(
                 ["shutdown", "-r", "now", cc_rpi.REBOOT_MSG]
@@ -117,7 +115,8 @@ class TestRaspberryPiMethods:
 
     @mock.patch("cloudinit.subp.subp")
     def test_configure_usb_gadget_missing_script(self, m_subp, caplog):
-        """If the rpi-usb-gadget script is missing, log an error and return False."""
+        """If the rpi-usb-gadget script is missing, log an error
+        and return False."""
         # Simulate missing rpi-usb-gadget script
         with mock.patch("os.path.exists", return_value=False):
             with caplog.at_level("ERROR"):
@@ -135,7 +134,8 @@ class TestRaspberryPiMethods:
 
     @mock.patch("cloudinit.subp.subp")
     def test_configure_usb_gadget_script_failure(self, m_subp, caplog):
-        """If the rpi-usb-gadget script fails, log an error and return False."""
+        """If the rpi-usb-gadget script fails, log an error
+        and return False."""
         m_subp.side_effect = cc_rpi.subp.ProcessExecutionError(
             cmd=["/usr/bin/rpi-usb-gadget", "on"],
             exit_code=1,
