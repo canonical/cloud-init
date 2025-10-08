@@ -115,6 +115,49 @@ class TestRaspberryPiMethods:
             ["/usr/bin/rpi-usb-gadget", "on"], capture=False, timeout=15
         )
 
+    @mock.patch("cloudinit.subp.subp")
+    def test_configure_usb_gadget_missing_script(self, m_subp, caplog):
+        """If the rpi-usb-gadget script is missing, log an error and return False."""
+        # Simulate missing rpi-usb-gadget script
+        with mock.patch("os.path.exists", return_value=False):
+            with caplog.at_level("ERROR"):
+                # Should not raise
+                result = cc_rpi.configure_usb_gadget(True)
+
+        # No subprocess call should be made
+        m_subp.assert_not_called()
+
+        # Verify an error was logged
+        assert "rpi-usb-gadget script not found" in caplog.text
+
+        # Reboot should not be requested
+        assert result is False
+
+    @mock.patch("cloudinit.subp.subp")
+    def test_configure_usb_gadget_script_failure(self, m_subp, caplog):
+        """If the rpi-usb-gadget script fails, log an error and return False."""
+        m_subp.side_effect = cc_rpi.subp.ProcessExecutionError(
+            cmd=["/usr/bin/rpi-usb-gadget", "on"],
+            exit_code=1,
+            stdout="",
+            stderr="fail",
+        )
+
+        with mock.patch("os.path.exists", return_value=True):
+            with caplog.at_level("ERROR"):
+                result = cc_rpi.configure_usb_gadget(True)
+
+        # Subprocess should have been invoked once
+        m_subp.assert_called_once_with(
+            ["/usr/bin/rpi-usb-gadget", "on"], capture=False, timeout=15
+        )
+
+        # Error log should contain failure message
+        assert "Failed to configure rpi-usb-gadget" in caplog.text
+
+        # Function should return False (no reboot triggered)
+        assert result is False
+
     @mock.patch("cloudinit.subp.subp", return_value=("ok", ""))
     def test_is_pifive_true(self, m_subp):
         assert cc_rpi.is_pifive() is True

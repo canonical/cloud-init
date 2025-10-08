@@ -36,34 +36,33 @@ meta: MetaSchema = {
     "activate_by_schema_keys": [RPI_BASE_KEY],
 }
 
-want_reboot = False
 
+def configure_usb_gadget(enable: bool) -> bool:
+    """Enable / Disable Raspberry Pi USB gadget mode when
+    the script is present.
 
-def configure_usb_gadget(enable: bool) -> None:
-    global want_reboot
+    Returns True when a reboot is required.
+    """
     LOG.debug("Enable rpi-usb-gadget mode: %s", enable)
 
-    mod = "on" if enable else "off"
+    if not os.path.exists(RPI_USB_GADGET_SCRIPT):
+        LOG.error("rpi-usb-gadget script not found: %s", RPI_USB_GADGET_SCRIPT)
+        return False
 
     try:
-        if not os.path.exists(RPI_USB_GADGET_SCRIPT):
-            LOG.error(
-                "rpi-usb-gadget script not found: %s", RPI_USB_GADGET_SCRIPT
-            )
-            return
-
         subp.subp(
             [
                 RPI_USB_GADGET_SCRIPT,
-                mod,
+                "on" if enable else "off",
             ],
             capture=False,
             timeout=15,
         )
 
-        want_reboot = True
+        return True
     except subp.ProcessExecutionError as e:
         LOG.error("Failed to configure rpi-usb-gadget: %s", e)
+        return False
 
 
 def is_pifive() -> bool:
@@ -74,9 +73,7 @@ def is_pifive() -> bool:
         return False
 
 
-def configure_serial_interface(cfg: Union[dict, bool]) -> None:
-    global want_reboot
-
+def configure_serial_interface(cfg: Union[dict, bool]) -> bool:
     def get_bool_field(cfg_dict: dict, name: str, default=False):
         val = cfg_dict.get(name, default)
         if not isinstance(val, bool):
@@ -129,14 +126,13 @@ def configure_serial_interface(cfg: Union[dict, bool]) -> None:
         except subp.ProcessExecutionError as e:
             LOG.error("Failed to configure serial hardware: %s", e)
 
-        want_reboot = True
+        return True
     except subp.ProcessExecutionError as e:
         LOG.error("Failed to configure serial console: %s", e)
+        return False
 
 
-def configure_interface(iface: str, enable: bool) -> None:
-    global want_reboot
-
+def configure_interface(iface: str, enable: bool) -> bool:
     assert (
         iface in SUPPORTED_INTERFACES.keys()
     ), f"Unsupported interface: {iface}"
@@ -151,9 +147,10 @@ def configure_interface(iface: str, enable: bool) -> None:
             ]
         )
 
-        want_reboot = True
+        return True
     except subp.ProcessExecutionError as e:
         LOG.error("Failed to configure %s: %s", iface, e)
+        return False
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
@@ -170,12 +167,14 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         LOG.debug("Empty value for %s. Skipping...", RPI_BASE_KEY)
         return
 
+    want_reboot = False
+
     for key in cfg[RPI_BASE_KEY]:
         if key == ENABLE_USB_GADGET_KEY:
             enable = cfg[RPI_BASE_KEY][key]
 
             if isinstance(enable, bool):
-                configure_usb_gadget(enable)
+                want_reboot |= configure_usb_gadget(enable)
             else:
                 raise ValueError(f"Invalid value for {ENABLE_USB_GADGET_KEY}")
             continue
@@ -215,11 +214,11 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                             enable,
                         )
                     else:
-                        configure_serial_interface(enable)
+                        want_reboot |= configure_serial_interface(enable)
                     continue
 
                 if isinstance(enable, bool):
-                    configure_interface(subkey, enable)
+                    want_reboot |= configure_interface(subkey, enable)
                 else:
                     LOG.warning(
                         "Invalid value for %s.%s: %s",
@@ -231,7 +230,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             LOG.warning("Unsupported key: %s", key)
             continue
 
-    if want_reboot:
+    if want_reboot is True:
         # Reboot to apply changes to config.txt and modprobe
         cmd = cloud.distro.shutdown_command(
             mode="reboot",
