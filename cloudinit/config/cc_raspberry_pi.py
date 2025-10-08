@@ -132,22 +132,22 @@ def configure_serial_interface(cfg: Union[dict, bool]) -> bool:
                 str(0 if enable_console else 1),
             ]
         )
-
-        try:
-            subp.subp(
-                [
-                    "/usr/bin/raspi-config",
-                    "nonint",
-                    RASPI_CONFIG_SERIAL_HW_FN,
-                    str(0 if enable_hw else 1),
-                ]
-            )
-        except subp.ProcessExecutionError as e:
-            LOG.error("Failed to configure serial hardware: %s", e)
-
-        return True
     except subp.ProcessExecutionError as e:
         LOG.error("Failed to configure serial console: %s", e)
+        return False
+
+    try:
+        subp.subp(
+            [
+                "/usr/bin/raspi-config",
+                "nonint",
+                RASPI_CONFIG_SERIAL_HW_FN,
+                str(0 if enable_hw else 1),
+            ]
+        )
+        return True
+    except subp.ProcessExecutionError as e:
+        LOG.error("Failed to configure serial hardware: %s", e)
         return False
 
 
