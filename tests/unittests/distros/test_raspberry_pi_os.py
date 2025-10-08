@@ -93,3 +93,30 @@ class TestRaspberryPiOS:
         with caplog.at_level(logging.ERROR):
             assert distro.add_user("pi") is False
             assert "Failed to setup user" in caplog.text
+
+    @mock.patch("cloudinit.net.generate_fallback_config")
+    def test_fallback_netcfg(self, m_fallback_cfg, caplog):
+        # This test is based on Photon OS test_fallback_netcfg
+        cls = fetch("raspberry_pi_os")
+        distro = cls("raspberry-pi-os", {}, None)
+        key = "disable_fallback_netcfg"
+        expected_log_line = (
+            "Skipping generation of fallback network "
+            "config as per configuration. "
+            "Rely on Raspberry Pi OS's default network configuration."
+        )
+
+        # Don't use fallback if no setting given
+        caplog.clear()
+        assert distro.generate_fallback_config() is None
+        assert expected_log_line in caplog.text
+
+        caplog.clear()
+        distro._cfg[key] = True
+        assert distro.generate_fallback_config() is None
+        assert expected_log_line in caplog.text
+
+        caplog.clear()
+        distro._cfg[key] = False
+        assert distro.generate_fallback_config() is not None
+        assert expected_log_line not in caplog.text
