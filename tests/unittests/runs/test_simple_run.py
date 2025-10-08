@@ -19,6 +19,9 @@ def replicate_root(tmp_path):
 
 @pytest.fixture(autouse=True)
 def cfg(mocker, tmp_path):
+    # root group doesn't exist everywhere
+    mocker.patch("cloudinit.util.chownbyname")
+
     new_root = str(tmp_path)
     _cfg = {
         "datasource_list": ["None"],
@@ -42,7 +45,6 @@ def cfg(mocker, tmp_path):
     util.write_file(
         os.path.join(new_root, "etc", "cloud", "cloud.cfg"), cloud_cfg
     )
-    mocker.patch("cloudinit.util.os.chown")
     return _cfg
 
 
