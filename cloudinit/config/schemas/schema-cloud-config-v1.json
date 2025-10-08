@@ -3406,6 +3406,11 @@
               }
             }
           }
+        },
+        "enable_ssh": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether to enable and start the distribution's SSH service. Default: ``false``."
         }
       }
     },
@@ -4213,6 +4218,7 @@
     "disable_root_opts": {},
     "disk_setup": {},
     "drivers": {},
+    "enable_ssh": {},
     "fan": {},
     "final_message": {},
     "fqdn": {},
