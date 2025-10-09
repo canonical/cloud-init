@@ -275,14 +275,28 @@ move_socket_fifo_to_share_dir() {
 #   Name of the debconf question
 migrate_debconf_to_cloud_init_base() {
     local old="cloud-init/$1" new="cloud-init-base/$1"
-    if db_get "$new"; then
+    db_get "$new" && new_value="$RET" || new_value=
+    if [ -n "$new_value" ]; then
        # cloud-init-base/* win against cloud-init/* values
+       # Empty cloud-init/* values because we have a cloud-init-base/* value.
+       # db_unregister cloud-init/* doesn't work because cloud-init-base deb
+       # silently cannot unregister other package debconf values.
+       db_get "$old" && db_set "$old" "" || :
        return 0
     fi
-    if db_get "$old"; then
+    if [ "$1" = "local-cloud-config" ]; then
+        # local-cloud-config is multi-line value which we need escaped
+        db_metaget "$old" value && old_value="$RET" || old_value=
+    else
+        db_get "$old" && old_value="$RET" || old_value=
+    fi
+    if [ -n "$old_value" ]; then
        echo "Migrating debconf value: ${old} -> ${new}" 1>&2 || :
-       db_set "$new" "$RET"
-       db_unregister "$old" || :
+       db_set "$new" "$(echo "$old_value" | debconf-escape -e )"
+       # Empty cloud-init/* values because we have a cloud-init-base/* value.
+       # db_unregister cloud-init/* doesn't work because cloud-init-base deb
+       # silently cannot unregister other package debconf values.
+       db_set "$old" "" || :
     fi
 }
 
@@ -294,7 +308,7 @@ upgrade_to_cloud_init_base() {
 }
 
 if [ "$1" = "configure" ]; then
-   upgrade_to_cloud_init_base "$2"
+   upgrade_to_cloud_init_base
 
    if db_get cloud-init-base/datasources; then
       values="$RET"

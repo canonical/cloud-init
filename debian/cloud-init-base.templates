@@ -19,3 +19,10 @@ _Description: Which data sources should be searched?
    requires one.
  - Install cloud-init, containing all dependencies, if the target is
    unknown.
+
+Template: cloud-init-base/local-cloud-config
+Type: string
+Description: Multi-line local cloud-init configuration (YAML)
+ Enter your local cloud-init configuration (YAML) which will be installed
+ in /etc/cloud/cloud.cfg.d/90_dpkg_local_cloud_config.cfg.
+ Leave empty to skip applying local config.
