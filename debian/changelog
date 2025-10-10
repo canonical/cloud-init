@@ -1,3 +1,14 @@
+cloud-init (25.4~1gcb12e00e-0ubuntu1) UNRELEASED; urgency=medium
+
+  * d/cloud-init-base.config: update migrate_debconf_settings to
+    set an empty cloud-init/datasources value once it migrates the value to
+    cloud-init-base/datasources. (LP: #2127022)
+  * d/cloud-init-base.postinst: fix release upgrade affecting the set of
+    multi-line debconf value cloud-init/local-cloud-config used by MAAS.
+    (LP: #2127022)
+
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 10 Oct 2025 16:58:05 -0600
+
 cloud-init (25.3-0ubuntu1) resolute; urgency=medium
 
   * Upstream snapshot based on 25.3.
