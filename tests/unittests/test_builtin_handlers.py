@@ -351,7 +351,7 @@ class TestConvertJinjaInstanceData:
 class TestRenderJinjaPayload:
     @skipUnlessJinja()
     def test_render_jinja_payload_logs_jinja_vars_on_debug(self, caplog):
-        """When debug is True, log jinja varables available."""
+        """When debug is True, log jinja variables available."""
         payload = (
             "## template: jinja\n#!/bin/sh\necho hi from {{ v1.hostname }}"
         )

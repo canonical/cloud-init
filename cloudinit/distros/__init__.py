@@ -582,7 +582,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             )
             return
 
-        # Remove duplicates (incase the previous config filename)
+        # Remove duplicates (in case the previous config filename)
         # is the same as the system config filename, don't bother
         # doing it twice
         update_files = set([f for f in update_files if f])
