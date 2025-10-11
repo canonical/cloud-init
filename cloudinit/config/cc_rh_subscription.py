@@ -17,7 +17,7 @@ LOG = logging.getLogger(__name__)
 
 meta: MetaSchema = {
     "id": "cc_rh_subscription",
-    "distros": ["fedora", "rhel", "openeuler"],
+    "distros": ["fedora", "rhel"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["rh_subscription"],
 }
