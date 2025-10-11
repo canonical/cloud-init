@@ -1,4 +1,4 @@
-cloud-init (25.4~1gcb12e00e-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (25.4~1gcb12e00e-0ubuntu1) resolute; urgency=medium
 
   * d/cloud-init-base.config: update migrate_debconf_settings to
     set an empty cloud-init/datasources value once it migrates the value to
