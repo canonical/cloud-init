@@ -54,6 +54,13 @@ def configure_usb_gadget(enable: bool) -> bool:
             [
                 RPI_USB_GADGET_SCRIPT,
                 "on" if enable else "off",
+                # Force even if the device isn't supported
+                # to avoid timeout in action request
+                # and to allow activation with microSD card
+                # in a unsupported device because its maybe faster
+                # and then the user might switch it to a
+                # supported device later
+                "-f",
             ],
             capture=False,
             timeout=15,

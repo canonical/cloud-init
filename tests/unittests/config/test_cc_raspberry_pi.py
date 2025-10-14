@@ -7,6 +7,7 @@ from cloudinit.config.cc_raspberry_pi import (
     ENABLE_USB_GADGET_KEY,
     RPI_BASE_KEY,
     RPI_INTERFACES_KEY,
+    RPI_USB_GADGET_SCRIPT,
 )
 from cloudinit.config.schema import (
     SchemaValidationError,
@@ -110,7 +111,7 @@ class TestRaspberryPiMethods:
         with mock.patch("os.path.exists", return_value=True):
             cc_rpi.configure_usb_gadget(True)
         m_subp.assert_called_once_with(
-            ["/usr/bin/rpi-usb-gadget", "on"], capture=False, timeout=15
+            [RPI_USB_GADGET_SCRIPT, "on", "-f"], capture=False, timeout=15
         )
 
     @mock.patch("cloudinit.subp.subp")
@@ -137,7 +138,7 @@ class TestRaspberryPiMethods:
         """If the rpi-usb-gadget script fails, log an error
         and return False."""
         m_subp.side_effect = cc_rpi.subp.ProcessExecutionError(
-            cmd=["/usr/bin/rpi-usb-gadget", "on"],
+            cmd=[RPI_USB_GADGET_SCRIPT, "on", "-f"],
             exit_code=1,
             stdout="",
             stderr="fail",
@@ -149,7 +150,7 @@ class TestRaspberryPiMethods:
 
         # Subprocess should have been invoked once
         m_subp.assert_called_once_with(
-            ["/usr/bin/rpi-usb-gadget", "on"], capture=False, timeout=15
+            [RPI_USB_GADGET_SCRIPT, "on", "-f"], capture=False, timeout=15
         )
 
         # Error log should contain failure message
