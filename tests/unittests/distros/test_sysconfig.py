@@ -30,7 +30,7 @@ IPV6TO4_ROUTING='eth0-:0004::1/64 eth1-:0005::1/64'
 ETHTOOL_OPTS="-K ${DEVICE} tso on; -G ${DEVICE} rx 256 tx 256"
 USEMD5=no"""
         conf = SysConf(contents.splitlines())
-        assert conf["HOSTNAME"], "blahblah"
+        assert conf["HOSTNAME"] == "blahblah"
         assert conf["SHORTDATE"] == "$(date +%y:%m:%d:%H:%M)"
         # Should be unquoted
         assert (
