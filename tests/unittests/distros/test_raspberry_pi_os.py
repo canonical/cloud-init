@@ -10,13 +10,75 @@ M_PATH = "cloudinit.distros.raspberry_pi_os."
 
 
 class TestRaspberryPiOS:
+    @mock.patch("cloudinit.distros.debian.Distro.set_keymap")
     @mock.patch(M_PATH + "subp.subp")
-    def test_set_keymap_calls_imager_custom(self, m_subp):
+    @mock.patch(M_PATH + "subp.which", return_value=False)
+    def test_set_keymap_writes_file_and_runs_basics(
+        self, m_which, m_subp, m_set_keymap
+    ):
         cls = fetch("raspberry_pi_os")
         distro = cls("raspberry-pi-os", {}, None)
-        distro.set_keymap("us", "pc105", "basic", "")
-        m_subp.assert_called_once_with(
-            ["/usr/lib/raspberrypi-sys-mods/imager_custom", "set_keymap", "us"]
+
+        args = [
+            "gb",
+            "pc105",
+            "",
+            "grp:alt_shift_toggle",
+        ]
+
+        # Avoid touching real services
+        with mock.patch.object(cls, "manage_service") as m_manage_service:
+            distro.set_keymap(*args)
+
+            m_manage_service.assert_called_once_with(
+                "restart", "keyboard-setup"
+            )
+
+        m_set_keymap.assert_called_once_with(*args)
+
+        # Two raspi-config calls are always expected
+        m_subp.assert_any_call(
+            ["/usr/bin/raspi-config", "nonint", "update_labwc_keyboard"],
+        )
+        m_subp.assert_any_call(
+            [
+                "/usr/bin/raspi-config",
+                "nonint",
+                "update_squeekboard",
+                "restart",
+            ],
+        )
+
+        # No optional tools available, so only the two calls above
+        assert m_subp.call_count == 2
+
+    @mock.patch("cloudinit.distros.debian.Distro.set_keymap")
+    @mock.patch(M_PATH + "subp.subp")
+    def test_set_keymap_triggers_udevadm_when_available(
+        self, m_subp, m_set_keymap
+    ):
+        cls = fetch("raspberry_pi_os")
+        distro = cls("raspberry-pi-os", {}, None)
+
+        # Only udevadm available
+        def which_side_effect(name):
+            return name == "udevadm"
+
+        with mock.patch(M_PATH + "subp.which", side_effect=which_side_effect):
+            with mock.patch.object(cls, "manage_service"):
+                distro.set_keymap("de", "pc105", "nodeadkeys", "")
+
+        m_set_keymap.assert_called_once_with("de", "pc105", "nodeadkeys", "")
+
+        # Expect 3 subp calls: two raspi-config + one udevadm trigger
+        assert m_subp.call_count == 3
+        m_subp.assert_any_call(
+            [
+                "udevadm",
+                "trigger",
+                "--subsystem-match=input",
+                "--action=change",
+            ],
         )
 
     @mock.patch(M_PATH + "subp.subp")
