@@ -48,7 +48,13 @@ def get_version_details(version, version_long, is_release_branch_ci):
     long_regex = r"(\d+\.\d+\.?\d*){1}.*-(\d+)+-g([a-f0-9]{8}){1}.*"
 
     short_match = re.search(short_regex, version)
-    long_match = re.search(long_regex, version_long)
+    # For local development, we don't want the `check_version` make target to
+    # fail. Forcing long_match to None ensures that we only parse the base
+    # version from git describe, which will match the version in
+    # cloudinit/version.py.
+    # Release builds on CI run on `upstream/` branches which have special
+    # handling and do not rely on this regex matching.
+    long_match = None
     if long_match:
         release, distance, commit = long_match.groups()
         extra = f"-{distance}-g{commit}"

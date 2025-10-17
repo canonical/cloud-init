@@ -12,7 +12,7 @@ import cloudinit.distros.bsd
 from cloudinit import subp, util
 
 try:
-    import crypt  # pylint: disable=W4901
+    import crypt  # type: ignore # pylint: disable=W4901
 
     salt = crypt.METHOD_BLOWFISH  # pylint: disable=E1101
     blowfish_hash: Any = functools.partial(
