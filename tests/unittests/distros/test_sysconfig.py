@@ -9,13 +9,6 @@ from cloudinit.distros.parsers.sys_conf import SysConf
 
 
 class TestSysConfHelper:
-    # This function was added in 2.7, make it work for 2.6
-    def assertRegMatches(self, text, regexp):
-        regexp = re.compile(regexp)
-        assert regexp.search(text), "%s must match %s!" % (
-            text,
-            regexp.pattern,
-        )
 
     def test_parse_no_change(self):
         contents = """# A comment
