@@ -1,10 +1,9 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 # pylint: disable=attribute-defined-outside-init
 import re
-import shutil
-import tempfile
-import unittest
+from collections import namedtuple
 from contextlib import ExitStack
+from typing import List
 from unittest import mock
 
 import pytest
@@ -16,25 +15,21 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import (
-    SCHEMA_EMPTY_ERROR,
-    TestCase,
-    skipUnlessJsonSchema,
-)
+from tests.unittests.helpers import SCHEMA_EMPTY_ERROR, skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
+CAMocks = namedtuple("CAMocks", ["add", "update", "remove", "reset"])
 
-class TestNoConfig(unittest.TestCase):
-    def setUp(self):
-        super(TestNoConfig, self).setUp()
-        self.name = "ca_certs"
-        self.cloud_init = None
-        self.args = []
 
+class TestNoConfig:
     def test_no_config(self):
         """
         Test that nothing is done if no ca-certs configuration is provided.
         """
+        name = "ca_certs"
+        cloud_init = None
+        args = []
+
         config = util.get_builtin_cfg()
         with ExitStack() as mocks:
             util_mock = mocks.enter_context(
@@ -44,44 +39,49 @@ class TestNoConfig(unittest.TestCase):
                 mock.patch.object(cc_ca_certs, "update_ca_certs")
             )
 
-            cc_ca_certs.handle(self.name, config, self.cloud_init, self.args)
+            cc_ca_certs.handle(name, config, cloud_init, args)
 
-            self.assertEqual(util_mock.call_count, 0)
-            self.assertEqual(certs_mock.call_count, 0)
+            assert util_mock.call_count == 0
+            assert certs_mock.call_count == 0
 
 
-class TestConfig(TestCase):
-    def setUp(self):
-        super(TestConfig, self).setUp()
-        self.name = "ca_certs"
-        self.paths = None
-        self.args = []
+class TestConfig:
+    name = "ca_certs"
+    paths = None
+    args: List = []
 
     def _fetch_distro(self, kind):
         cls = distros.fetch(kind)
         paths = helpers.Paths({})
         return cls(kind, {}, paths)
 
-    def _mock_init(self):
-        self.mocks = ExitStack()
-        self.addCleanup(self.mocks.close)
+    @pytest.fixture
+    def ca_mocks(self):
+        """Fixture to provide mocked ca_cert functions with reset capability"""
+        with ExitStack() as mocks:
+            mock_add = mocks.enter_context(
+                mock.patch.object(cc_ca_certs, "add_ca_certs")
+            )
+            mock_update = mocks.enter_context(
+                mock.patch.object(cc_ca_certs, "update_ca_certs")
+            )
+            mock_remove = mocks.enter_context(
+                mock.patch.object(cc_ca_certs, "disable_default_ca_certs")
+            )
 
-        # Mock out the functions that actually modify the system
-        self.mock_add = self.mocks.enter_context(
-            mock.patch.object(cc_ca_certs, "add_ca_certs")
-        )
-        self.mock_update = self.mocks.enter_context(
-            mock.patch.object(cc_ca_certs, "update_ca_certs")
-        )
-        self.mock_remove = self.mocks.enter_context(
-            mock.patch.object(cc_ca_certs, "disable_default_ca_certs")
-        )
+            def reset():
+                """Reset all mocks for next iteration"""
+                mock_add.reset_mock()
+                mock_update.reset_mock()
+                mock_remove.reset_mock()
+
+            yield CAMocks(mock_add, mock_update, mock_remove, reset)
 
     @mock.patch(
         "cloudinit.distros.networking.subp.subp",
         return_value=("", None),
     )
-    def test_no_trusted_list(self, _):
+    def test_no_trusted_list(self, _, ca_mocks):
         """
         Test that no certificates are written if the 'trusted' key is not
         present.
@@ -89,133 +89,140 @@ class TestConfig(TestCase):
         config = {"ca_certs": {}}
 
         for distro_name in cc_ca_certs.distros:
-            self._mock_init()
             cloud = get_cloud(distro_name)
             cc_ca_certs.handle(self.name, config, cloud, self.args)
 
-            self.assertEqual(self.mock_add.call_count, 0)
-            self.assertEqual(self.mock_update.call_count, 1)
-            self.assertEqual(self.mock_remove.call_count, 0)
+            assert ca_mocks.add.call_count == 0
+            assert ca_mocks.update.call_count == 1
+            assert ca_mocks.remove.call_count == 0
+
+            ca_mocks.reset()
 
     @mock.patch(
         "cloudinit.distros.networking.subp.subp",
         return_value=("", None),
     )
-    def test_empty_trusted_list(self, _):
+    def test_empty_trusted_list(self, _, ca_mocks):
         """Test that no certificate are written if 'trusted' list is empty."""
         config = {"ca_certs": {"trusted": []}}
 
         for distro_name in cc_ca_certs.distros:
-            self._mock_init()
             cloud = get_cloud(distro_name)
             cc_ca_certs.handle(self.name, config, cloud, self.args)
 
-            self.assertEqual(self.mock_add.call_count, 0)
-            self.assertEqual(self.mock_update.call_count, 1)
-            self.assertEqual(self.mock_remove.call_count, 0)
+            assert ca_mocks.add.call_count == 0
+            assert ca_mocks.update.call_count == 1
+            assert ca_mocks.remove.call_count == 0
+
+            ca_mocks.reset()
 
     @mock.patch(
         "cloudinit.distros.networking.subp.subp",
         return_value=("", None),
     )
-    def test_single_trusted(self, _):
+    def test_single_trusted(self, _, ca_mocks):
         """Test that a single cert gets passed to add_ca_certs."""
         config = {"ca_certs": {"trusted": ["CERT1"]}}
 
         for distro_name in cc_ca_certs.distros:
-            self._mock_init()
             cloud = get_cloud(distro_name)
             conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
             cc_ca_certs.handle(self.name, config, cloud, self.args)
 
-            self.mock_add.assert_called_once_with(conf, ["CERT1"])
-            self.assertEqual(self.mock_update.call_count, 1)
-            self.assertEqual(self.mock_remove.call_count, 0)
+            ca_mocks.add.assert_called_once_with(conf, ["CERT1"])
+            assert ca_mocks.update.call_count == 1
+            assert ca_mocks.remove.call_count == 0
+
+            ca_mocks.reset()
 
     @mock.patch(
         "cloudinit.distros.networking.subp.subp",
         return_value=("", None),
     )
-    def test_multiple_trusted(self, _):
+    def test_multiple_trusted(self, _, ca_mocks):
         """Test that multiple certs get passed to add_ca_certs."""
         config = {"ca_certs": {"trusted": ["CERT1", "CERT2"]}}
 
         for distro_name in cc_ca_certs.distros:
-            self._mock_init()
             cloud = get_cloud(distro_name)
             conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
             cc_ca_certs.handle(self.name, config, cloud, self.args)
 
-            self.mock_add.assert_called_once_with(conf, ["CERT1", "CERT2"])
-            self.assertEqual(self.mock_update.call_count, 1)
-            self.assertEqual(self.mock_remove.call_count, 0)
+            ca_mocks.add.assert_called_once_with(conf, ["CERT1", "CERT2"])
+            assert ca_mocks.update.call_count == 1
+            assert ca_mocks.remove.call_count == 0
+
+            ca_mocks.reset()
 
     @mock.patch(
         "cloudinit.distros.networking.subp.subp",
         return_value=("", None),
     )
-    def test_remove_default_ca_certs(self, _):
+    def test_remove_default_ca_certs(self, _, ca_mocks):
         """Test remove_defaults works as expected."""
         config = {"ca_certs": {"remove_defaults": True}}
 
         for distro_name in cc_ca_certs.distros:
-            self._mock_init()
             cloud = get_cloud(distro_name)
             cc_ca_certs.handle(self.name, config, cloud, self.args)
 
-            self.assertEqual(self.mock_add.call_count, 0)
-            self.assertEqual(self.mock_update.call_count, 1)
-            self.assertEqual(self.mock_remove.call_count, 1)
+            assert ca_mocks.add.call_count == 0
+            assert ca_mocks.update.call_count == 1
+            assert ca_mocks.remove.call_count == 1
+
+            ca_mocks.reset()
 
     @mock.patch(
         "cloudinit.distros.networking.subp.subp",
         return_value=("", None),
     )
-    def test_no_remove_defaults_if_false(self, _):
+    def test_no_remove_defaults_if_false(self, _, ca_mocks):
         """Test remove_defaults is not called when config value is False."""
         config = {"ca_certs": {"remove_defaults": False}}
 
         for distro_name in cc_ca_certs.distros:
-            self._mock_init()
             cloud = get_cloud(distro_name)
             cc_ca_certs.handle(self.name, config, cloud, self.args)
 
-            self.assertEqual(self.mock_add.call_count, 0)
-            self.assertEqual(self.mock_update.call_count, 1)
-            self.assertEqual(self.mock_remove.call_count, 0)
+            assert ca_mocks.add.call_count == 0
+            assert ca_mocks.update.call_count == 1
+            assert ca_mocks.remove.call_count == 0
+
+            ca_mocks.reset()
 
     @mock.patch(
         "cloudinit.distros.networking.subp.subp",
         return_value=("", None),
     )
-    def test_correct_order_for_remove_then_add(self, _):
+    def test_correct_order_for_remove_then_add(self, _, ca_mocks):
         """
         Test remove_defaults is called before add.
         """
         config = {"ca_certs": {"remove_defaults": True, "trusted": ["CERT1"]}}
 
         for distro_name in cc_ca_certs.distros:
-            self._mock_init()
             cloud = get_cloud(distro_name)
             conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
             cc_ca_certs.handle(self.name, config, cloud, self.args)
 
-            self.assertEqual(self.mock_remove.call_count, 1)
-            self.mock_add.assert_called_once_with(conf, ["CERT1"])
-            self.assertEqual(self.mock_update.call_count, 1)
+            assert ca_mocks.remove.call_count == 1
+            ca_mocks.add.assert_called_once_with(conf, ["CERT1"])
+            assert ca_mocks.update.call_count == 1
+
+            ca_mocks.reset()
 
 
-class TestAddCaCerts(TestCase):
-    def setUp(self):
-        super(TestAddCaCerts, self).setUp()
-        tmpdir = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, tmpdir)
-        self.paths = helpers.Paths(
+class TestAddCaCerts:
+    @pytest.fixture
+    def setup_test(self, tmp_path, mocker):
+        """Fixture to set up test environment"""
+        paths = helpers.Paths(
             {
-                "cloud_dir": tmpdir,
+                "cloud_dir": str(tmp_path),
             }
         )
-        self.add_patch("cloudinit.config.cc_ca_certs.os.stat", "m_stat")
+        m_stat = mocker.patch("cloudinit.config.cc_ca_certs.os.stat")
+        return paths, m_stat
 
     def _fetch_distro(self, kind):
         cls = distros.fetch(kind)
@@ -228,13 +235,14 @@ class TestAddCaCerts(TestCase):
             conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
             with mock.patch.object(util, "write_file") as mockobj:
                 cc_ca_certs.add_ca_certs(conf, [])
-            self.assertEqual(mockobj.call_count, 0)
+            assert mockobj.call_count == 0
 
-    def test_single_cert(self):
+    def test_single_cert(self, setup_test):
         """Test adding a single certificate to the trusted CAs."""
+        _, m_stat = setup_test
         cert = "CERT1\nLINE2\nLINE3"
 
-        self.m_stat.return_value.st_size = 1
+        m_stat.return_value.st_size = 1
 
         for distro_name in cc_ca_certs.distros:
             conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
@@ -256,13 +264,14 @@ class TestAddCaCerts(TestCase):
                     ]
                 )
 
-    def test_multiple_certs(self):
+    def test_multiple_certs(self, setup_test):
         """Test adding multiple certificates to the trusted CAs."""
+        _, m_stat = setup_test
         certs = ["CERT1\nLINE2\nLINE3", "CERT2\nLINE2\nLINE3"]
         expected_cert_1_file = certs[0]
         expected_cert_2_file = certs[1]
 
-        self.m_stat.return_value.st_size = 1
+        m_stat.return_value.st_size = 1
 
         for distro_name in cc_ca_certs.distros:
             conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
@@ -290,7 +299,7 @@ class TestAddCaCerts(TestCase):
                 )
 
 
-class TestUpdateCaCerts(unittest.TestCase):
+class TestUpdateCaCerts:
     def test_commands(self):
         for distro_name in cc_ca_certs.distros:
             conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
@@ -301,25 +310,26 @@ class TestUpdateCaCerts(unittest.TestCase):
                 )
 
 
-class TestRemoveDefaultCaCerts(TestCase):
-    def setUp(self):
-        super(TestRemoveDefaultCaCerts, self).setUp()
-        tmpdir = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, tmpdir)
-        self.paths = helpers.Paths(
+class TestRemoveDefaultCaCerts:
+    @pytest.fixture
+    def setup_test(self, tmp_path, mocker):
+        """Fixture to set up test environment"""
+        paths = helpers.Paths(
             {
-                "cloud_dir": tmpdir,
+                "cloud_dir": str(tmp_path),
             }
         )
-        self.add_patch("cloudinit.config.cc_ca_certs.os.stat", "m_stat")
+        m_stat = mocker.patch("cloudinit.config.cc_ca_certs.os.stat")
+        return paths, m_stat
 
-    def test_commands(self):
+    def test_commands(self, setup_test):
+        _, m_stat = setup_test
         ca_certs_content = "# line1\nline2\nline3\n"
         expected = (
             "# line1\n# Modified by cloud-init to deselect certs due to"
             " user-data\n!line2\n!line3\n"
         )
-        self.m_stat.return_value.st_size = 1
+        m_stat.return_value.st_size = 1
 
         for distro_name in cc_ca_certs.distros:
             conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
@@ -349,7 +359,7 @@ class TestRemoveDefaultCaCerts(TestCase):
                             mock.call(conf["ca_cert_local_path"]),
                         ]
                     )
-                    self.assertEqual([], mock_subp.call_args_list)
+                    assert [] == mock_subp.call_args_list
                 elif distro_name in ["alpine", "debian", "ubuntu"]:
                     mock_load.assert_called_once_with(conf["ca_cert_config"])
                     mock_write.assert_called_once_with(
@@ -367,8 +377,9 @@ class TestRemoveDefaultCaCerts(TestCase):
                     else:
                         assert mock_subp.call_count == 0
 
-    def test_non_existent_cert_cfg(self):
-        self.m_stat.return_value.st_size = 0
+    def test_non_existent_cert_cfg(self, setup_test):
+        _, m_stat = setup_test
+        m_stat.return_value.st_size = 0
 
         for distro_name in cc_ca_certs.distros:
             conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
