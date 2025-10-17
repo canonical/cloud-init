@@ -1779,7 +1779,7 @@ class FakeSelinux:
         self.restored = []
 
     def matchpathcon(self, path, mode):
-        if path == self.match_what:
+        if os.path.realpath(path) == os.path.realpath(self.match_what):
             return
         else:
             raise OSError("No match!")
@@ -1826,7 +1826,7 @@ class TestGetCfgOptionListOrStr(helpers.TestCase):
 class TestWriteFile(helpers.TestCase):
     def setUp(self):
         super(TestWriteFile, self).setUp()
-        self.tmp = tempfile.mkdtemp()
+        self.tmp = os.path.realpath(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, self.tmp)
 
     def test_basic_usage(self):
@@ -2901,6 +2901,7 @@ class TestGetProcPpid(helpers.TestCase):
         assert os.getpgid(0) == Distro.get_proc_pgid(os.getpid())
 
     @pytest.mark.allow_subp_for("ps")
+    @skipIf(not util.is_Linux(), "/proc/$pid/stat is not useful on not-Linux")
     def test_get_proc_ppid_ps(self):
         """get_proc_ppid returns correct parent pid value."""
         my_pid = os.getpid()

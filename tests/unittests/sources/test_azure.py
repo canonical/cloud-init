@@ -1527,7 +1527,12 @@ scbus-1 on xpt0 bus 0
     )
     @mock.patch("cloudinit.sources.DataSourceAzure.DataSourceAzure._poll_imds")
     def test_crawl_metadata_call_imds_twice_with_reprovision(
-        self, poll_imds_func, m_report_ready, m_write, get_ds
+        self,
+        poll_imds_func,
+        m_report_ready,
+        m_write,
+        get_ds,
+        fake_socket,
     ):
         """If reprovisioning, imds metadata will be fetched twice"""
         ovfenv = construct_ovf_env(preprovisioned_vm=True)
@@ -1709,7 +1714,13 @@ scbus-1 on xpt0 bus 0
 
         assert "ssh_pwauth" not in dsrc.cfg
 
-    def test_password_given(self, get_ds):
+    def test_password_given(self, get_ds, mocker):
+        # The crypt module has platform-specific behavior and the purpose of
+        # this test isn't to verify the differences between crypt and passlib,
+        # so hardcode passlib usage as crypt is deprecated.
+        mocker.patch.object(
+            dsaz, "blowfish_hash", passlib.hash.sha512_crypt.hash
+        )
         data = {
             "ovfcontent": construct_ovf_env(
                 username="myuser", password="mypass"
@@ -3028,6 +3039,7 @@ class TestPreprovisioningHotAttachNics:
         m_report_ready,
         m_writefile,
         paths,
+        fake_socket,
     ):
         """Report ready first and then wait for nic detach"""
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=paths)
@@ -3058,6 +3070,7 @@ class TestPreprovisioningHotAttachNics:
         m_writefile,
         paths,
         tmp_path,
+        fake_socket,
     ):
         """Wait for nic attach if we do not have a fallback interface.
         Skip waiting for additional nics after we have found primary"""
