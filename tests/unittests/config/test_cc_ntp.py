@@ -543,7 +543,7 @@ class TestNtp:
 
     @mock.patch("cloudinit.config.cc_ntp.subp.which")
     def test_ntp_distro_searches_all_preferred_clients(self, m_which):
-        """Test select_ntp_client search all distro perferred clients"""
+        """Test select_ntp_client search all distro preferred clients"""
         # nothing is installed
         m_which.return_value = None
         for distro in cc_ntp.distros:

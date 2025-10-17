@@ -113,7 +113,7 @@ def read_netlink_socket(netlink_socket, timeout=None):
     """
     assert netlink_socket is not None, "netlink socket is none"
     read_set, _, _ = select.select([netlink_socket], [], [], timeout)
-    # Incase of timeout,read_set doesn't contain netlink socket.
+    # In case of timeout,read_set doesn't contain netlink socket.
     # just return from this function
     if netlink_socket not in read_set:
         return None

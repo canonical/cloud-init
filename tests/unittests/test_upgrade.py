@@ -240,7 +240,7 @@ class TestUpgrade:
 
             if getattr(ds.__class__.__bases__[0], "dsname", None) == ds.dsname:
                 # We are a subclass in a different boot mode (Local/Net) and
-                # share a common parent with class atttributes
+                # share a common parent with class attributes
                 class_attrs.update(ds.__class__.__bases__[0].__dict__)
 
             # Determine new instance attributes created by __init__

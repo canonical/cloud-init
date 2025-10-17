@@ -284,7 +284,7 @@ class TestDataSource:
         with mock.patch("cloudinit.sources.util.get_hostname") as m_gethost:
             with mock.patch(mock_fqdn) as m_fqdn:
                 m_gethost.return_value = "systemhostname.domain.com"
-                m_fqdn.return_value = None  # No maching fqdn in /etc/hosts
+                m_fqdn.return_value = None  # No matching fqdn in /etc/hosts
                 assert "systemhostname" == datasource.get_hostname().hostname
                 assert (
                     "systemhostname.domain.com"

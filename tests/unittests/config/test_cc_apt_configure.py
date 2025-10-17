@@ -194,7 +194,7 @@ class TestAPTConfigureSchema:
         else:
             with pytest.raises(SchemaValidationError, match=error_msg):
                 validate_cloudconfig_schema(config, schema, strict=True)
-            # Note apt['primary'] and apt['security'] have same defition
+            # Note apt['primary'] and apt['security'] have same definition
             # Avoid test setup duplicates by running same test using 'security'
             if isinstance(config.get("apt"), dict) and config["apt"].get(
                 "primary"

@@ -43,7 +43,7 @@ class TestSysDevPath:
 class TestReadSysNet:
     @pytest.fixture(autouse=True)
     def setup(self, tmpdir_factory):
-        # We mock invididual numbered tmpdirs here because these tests write
+        # We mock individual numbered tmpdirs here because these tests write
         # to the sysfs directory and stale test artifacts break later tests.
         mock_sysfs = f"{tmpdir_factory.mktemp('sysfs', numbered=True)}/"
         with mock.patch(
@@ -638,7 +638,7 @@ class TestGetDeviceList:
         assert [] == net.get_devicelist()
 
     def test_get_devicelist_empty_with_no_devices_in_sys_net(self):
-        """get_devicelist returns empty directoty listing for SYS_CLASS_NET."""
+        """get_devicelist returns empty directory listing for SYS_CLASS_NET."""
         assert [] == net.get_devicelist()
 
     def test_get_devicelist_lists_any_subdirectories_in_sys_net(self):

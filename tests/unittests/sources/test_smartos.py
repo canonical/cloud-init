@@ -691,7 +691,7 @@ class TestSmartOSDataSource:
         assert isinstance(cfg["fs_setup"], list)
 
     def test_override_disk_aliases(self, paths):
-        # Test to make sure that the built-in DS is overriden
+        # Test to make sure that the built-in DS is overridden
         builtin = DataSourceSmartOS.BUILTIN_DS_CONFIG
 
         mydscfg = {"disk_aliases": {"FOO": "/dev/bar"}}

@@ -33,7 +33,7 @@ cloud-init state information is made visible under a top level aggregate key
           "Failed at merging in cloud config part from p-01: empty cloud config",
           "No template found in /etc/cloud/templates for template source.deb822",
           "No template found in /etc/cloud/templates for template sources.list",
-          "No template found, not rendering /etc/apt/soures.list.d/ubuntu.source"
+          "No template found, not rendering /etc/apt/sources.list.d/ubuntu.source"
         ]
       },
       "status": "done"
@@ -74,7 +74,7 @@ occurred.
         "WARNING": [
           "No template found in /etc/cloud/templates for template source.deb822",
           "No template found in /etc/cloud/templates for template sources.list",
-          "No template found, not rendering /etc/apt/soures.list.d/ubuntu.source"
+          "No template found, not rendering /etc/apt/sources.list.d/ubuntu.source"
         ]
       },
       "datasource": "",
@@ -94,7 +94,7 @@ occurred.
           "Failed at merging in cloud config part from p-01: empty cloud config",
           "No template found in /etc/cloud/templates for template source.deb822",
           "No template found in /etc/cloud/templates for template sources.list",
-          "No template found, not rendering /etc/apt/soures.list.d/ubuntu.source"
+          "No template found, not rendering /etc/apt/sources.list.d/ubuntu.source"
         ]
       },
       "status": "done"

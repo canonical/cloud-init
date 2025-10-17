@@ -297,7 +297,7 @@ def disable_is_resolvable():
 def _register_ssh_keys(rfunc, base_url, keys_data):
     r"""handle ssh key inconsistencies.
 
-    public-keys in the ec2 metadata is inconsistently formated compared
+    public-keys in the ec2 metadata is inconsistently formatted compared
     to other entries.
     Given keys_data of {name1: pubkey1, name2: pubkey2}
 

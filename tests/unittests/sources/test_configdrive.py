@@ -964,7 +964,7 @@ class TestConvertNetworkData:
         )
 
         words = eni_rendering.split()
-        # 'eth0' and 'eth1' are the ids. because their mac adresses
+        # 'eth0' and 'eth1' are the ids. because their mac addresses
         # map to other names, we should not see them in the ENI
         assert "eth0" not in words
         assert "eth1" not in words

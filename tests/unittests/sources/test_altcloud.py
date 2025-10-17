@@ -49,7 +49,7 @@ def _remove_user_data_files(mount_dir, dc_file=True, non_dc_file=True):
     deltacloud_user_data_file = mount_dir + "/deltacloud-user-data.txt"
     user_data_file = mount_dir + "/user-data.txt"
 
-    # Ignore any failures removeing files that are already gone.
+    # Ignore any failures removing files that are already gone.
     if dc_file:
         try:
             os.remove(deltacloud_user_data_file)
