@@ -26,7 +26,7 @@ class TestResolvHelper:
         assert rp.local_domain is None
 
         rp.local_domain = "bob"
-        assert "bob" == rp.local_domain
+        assert rp.local_domain == "bob"
         assert "domain bob" in str(rp)
 
     def test_nameservers(self):
