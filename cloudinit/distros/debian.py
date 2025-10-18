@@ -1,14 +1,17 @@
 # Copyright (C) 2012 Canonical Ltd.
 # Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
 # Copyright (C) 2012 Yahoo! Inc.
+# Copyright (C) 2025 Raspberry Pi Ltd.
 #
 # Author: Scott Moser <scott.moser@canonical.com>
 # Author: Juerg Haefliger <juerg.haefliger@hp.com>
 # Author: Joshua Harlow <harlowja@yahoo-inc.com>
+# Author: Paul Oberosler <paul.oberosler@raspberrypi.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
 import os
+import re
 from typing import List
 
 from cloudinit import distros, subp, util
@@ -28,6 +31,8 @@ NETWORK_FILE_HEADER = """\
 """
 
 LOCALE_CONF_FN = "/etc/default/locale"
+LOCALE_GEN_FN = "/etc/locale.gen"
+SUPPORTED_FN = "/usr/share/i18n/SUPPORTED"
 
 
 class Distro(distros.Distro):
@@ -83,6 +88,9 @@ class Distro(distros.Distro):
         if not locale:
             raise ValueError("Failed to provide locale value.")
 
+        # Make sure it has a charset for system commands to work
+        locale = _normalize_locale(locale)
+
         # Only call locale regeneration if needed
         # Update system locale config with specified locale if needed
         distro_locale = self.get_locale()
@@ -111,7 +119,7 @@ class Distro(distros.Distro):
         if need_regen:
             regenerate_locale(
                 locale,
-                out_fn,
+                self.default_locale,
                 keyname=keyname,
                 install_function=self.install_packages,
             )
@@ -127,6 +135,7 @@ class Distro(distros.Distro):
             update_locale_conf(
                 locale,
                 out_fn,
+                self.default_locale,
                 keyname=keyname,
                 install_function=self.install_packages,
             )
@@ -277,31 +286,132 @@ def read_system_locale(sys_path=LOCALE_CONF_FN, keyname="LANG"):
     return sys_val
 
 
+def _ensure_tool(bin_name: str, install_function=None, pkgs=None):
+    if subp.which(bin_name):
+        return
+    if install_function and pkgs:
+        install_function(pkgs)
+    # if not present and installed raise no RuntimeError
+    # but wait for subp to fail
+
+
+def _normalize_locale(requested: str) -> str:
+    if not requested:
+        raise ValueError("Failed to provide locale value.")
+    req = requested.strip()
+
+    # Accept canonical “no-regeneration” values as-is
+    if req.lower() in ("c", "posix", "c.utf-8", "c.utf8"):
+        return (
+            "C.UTF-8" if req.lower() != "c" and "utf" in req.lower() else "C"
+        )
+
+    # If no charset specified, default to UTF-8
+    if "." not in req and "@" not in req:
+        return req + ".UTF-8"
+    return req
+
+
 def update_locale_conf(
-    locale, sys_path, keyname="LANG", install_function=None
+    locale, sys_path, default_locale, keyname="LANG", install_function=None
 ):
     """Update system locale config"""
     LOG.debug(
         "Updating %s with locale setting %s=%s", sys_path, keyname, locale
     )
-    if not subp.which("update-locale"):
-        install_function(["locales"])
+    _ensure_tool("update-locale", install_function, ["locales"])
     subp.subp(
         [
             "update-locale",
             "--locale-file=" + sys_path,
             "%s=%s" % (keyname, locale),
         ],
+        update_env={
+            "LANGUAGE": default_locale,
+            "LANG": default_locale,
+            "LC_ALL": default_locale,
+        },
         capture=False,
     )
 
 
-def regenerate_locale(locale, sys_path, keyname="LANG", install_function=None):
+def _lookup_supported_line(requested: str) -> str:
     """
-    Run locale-gen for the provided locale and set the default
-    system variable `keyname` appropriately in the provided `sys_path`.
+    Return the canonical line from /usr/share/i18n/SUPPORTED for `requested`.
 
+    Accepts:
+      - bare language_region:   "fi_FI"
+      - with charset:           "fi_FI.ISO-8859-1" or "fi_FI.UTF-8"
+      - with modifier:          "fi_FI@euro" (works with/without charset)
+
+    Prefers UTF-8 only when the request didn’t specify a charset and multiple
+    candidates exist; otherwise returns the first match.
     """
+    try:
+        sup = util.load_text_file(SUPPORTED_FN).splitlines()
+    except Exception:
+        sup = []
+
+    # Parse requested into locale[.charset][@mod]
+    m = re.match(
+        r"^([A-Za-z_]+)(?:\.([A-Za-z0-9\-]+))?(?:@([A-Za-z0-9_\-]+))?$",
+        requested,
+    )
+    if not m:
+        # fallback: treat whole string as a prefix
+        prefix = requested
+        wanted_charset = None
+        wanted_mod = None
+    else:
+        base, wanted_charset, wanted_mod = m.group(1), m.group(2), m.group(3)
+        prefix = base + (f"@{wanted_mod}" if wanted_mod else "")
+
+    # Collect candidates that start with requested locale (+modifier),
+    # each SUPPORTED line is "locale[.charset][@mod] <space> CHARMAP"
+    candidates = []
+    rx = re.compile(
+        rf"^{re.escape(prefix)}(?:\.[^\s@]+)?(?:@[^\s]+)?\s+[^\s]+$"
+    )
+    for line in sup:
+        if not line or line.startswith("#"):
+            continue
+        if rx.match(line):
+            candidates.append(line.strip())
+
+    if not candidates:
+        # As a last resort, construct a reasonable default (don’t force UTF-8)
+        # If user gave a charset, use it; else use UTF-8.
+        if wanted_charset:
+            constructed = f"{prefix}.{wanted_charset} {wanted_charset}"
+        else:
+            constructed = f"{prefix}.UTF-8 UTF-8"
+        return constructed
+
+    if wanted_charset:
+        # Find exact charset match on first field (before space)
+        rx_exact = re.compile(
+            rf"^{re.escape(prefix)}\.{re.escape(wanted_charset)}(?:@[^\s]+)?\s+"
+        )
+        for line in candidates:
+            if rx_exact.match(line):
+                return line
+
+    # No explicit charset requested: prefer UTF-8 if
+    # present, else first candidate
+    for line in candidates:
+        if re.search(r"\sUTF-8$", line, re.IGNORECASE):
+            return line
+    return candidates[0]
+
+
+def regenerate_locale(
+    locale, default_locale, keyname="LANG", install_function=None
+):
+    """
+    Ensure `locale` is enabled in /etc/locale.gen, then run locale-gen.
+    Debian's locale-gen reads /etc/locale.gen and ignores positional args.
+    """
+
     # special case for locales which do not require regen
     # % locale -a
     # C
@@ -311,8 +421,57 @@ def regenerate_locale(locale, sys_path, keyname="LANG", install_function=None):
         LOG.debug("%s=%s does not require rengeneration", keyname, locale)
         return
 
-    # finally, trigger regeneration
-    if not subp.which("locale-gen"):
-        install_function(["locales"])
+    # ensure tooling
+    _ensure_tool("locale-gen", install_function, ["locales"])
+
+    # compute canonical line and NEW_LANG (first field)
+    line = _lookup_supported_line(locale)
+
+    # ensure /etc/locale.gen contains the
+    # line (uncomment if present; append if absent)
+    existing = ""
+    if os.path.exists(LOCALE_GEN_FN):
+        try:
+            existing = util.load_text_file(LOCALE_GEN_FN)
+        except Exception:
+            existing = ""
+
+    out_lines = []
+    found_enabled = False
+    target_re = re.compile(rf"^#?\s*{re.escape(line)}\s*$")
+
+    for raw in existing.splitlines():
+        s = raw.strip()
+        if not s:
+            out_lines.append(raw)
+            continue
+
+        if target_re.match(s.lstrip("# ").rstrip()):
+            # enable target locale
+            out_lines.append(line)
+            found_enabled = True
+        else:
+            # disable everything else
+            if raw.lstrip().startswith("#"):
+                out_lines.append(raw)  # already commented
+            else:
+                out_lines.append("# " + raw)
+
+    if not found_enabled:
+        out_lines.append(line)
+
+    util.ensure_dir(os.path.dirname(LOCALE_GEN_FN))
+    util.write_file(LOCALE_GEN_FN, "\n".join(out_lines).rstrip() + "\n")
+
+    # finally, generate locales listed in /etc/locale.gen
     LOG.debug("Generating locales for %s", locale)
-    subp.subp(["locale-gen", locale], capture=False)
+    # TODO: maybe --keep-existing to avoid removing existing locales?
+    subp.subp(
+        ["locale-gen"],
+        capture=False,
+        update_env={
+            "LANGUAGE": default_locale,
+            "LANG": default_locale,
+            "LC_ALL": default_locale,
+        },
+    )
