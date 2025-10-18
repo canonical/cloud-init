@@ -176,7 +176,7 @@ class TestUGNormalize:
             "user": "zetta",
         }
         users, _groups = self._norm(ug_cfg, distro)
-        assert "zetta", users
+        assert "zetta" in users
         ug_cfg = {}
         users, groups = self._norm(ug_cfg, distro)
         assert {} == users
@@ -193,8 +193,8 @@ class TestUGNormalize:
             ",".join(distro.get_default_user()["groups"])
             == users["bob"]["groups"]
         )
-        assert True == users["bob"]["blah"]
-        assert True == users["bob"]["default"]
+        assert users["bob"]["blah"]
+        assert users["bob"]["default"]
 
     def test_users_dict_extract(self):
         distro = self._make_distro("ubuntu", bcfg)
@@ -236,7 +236,7 @@ class TestUGNormalize:
             ",".join(distro.get_default_user()["groups"])
             == users["bob"]["groups"]
         )
-        assert True == users["bob"]["default"]
+        assert users["bob"]["default"]
 
     def test_users_dict_trans(self):
         distro = self._make_distro("ubuntu")
