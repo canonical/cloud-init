@@ -29,7 +29,7 @@ class TestAptProxyConfig:
     @pytest.mark.parametrize(
         "cfg", [{"proxy": "myproxy"}, {"http_proxy": "myproxy"}]
     )
-    def test_apt_proxy_written(self, p_c_files, cfg):
+    def test_apt_proxy_written_variants(self, p_c_files, cfg):
         pfile, cfile = p_c_files
         cc_apt_configure.apply_apt_config(cfg, pfile, cfile)
 
