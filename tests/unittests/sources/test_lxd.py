@@ -312,7 +312,7 @@ class TestDataSourceLXD:
         assert "LXD socket API v. 1.0 (/dev/lxd/sock)" == lxd_ds.subplatform
 
     def test__get_data(self, lxd_ds):
-        """get_data calls read_metadata, setting appropiate instance attrs."""
+        """get_data calls read_metadata, setting appropriate instance attrs."""
         assert UNSET == lxd_ds._crawled_metadata
         assert UNSET == lxd_ds._network_config
         assert None is lxd_ds.userdata_raw

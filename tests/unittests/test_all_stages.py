@@ -32,7 +32,7 @@ class Timeout:
     TimeoutError is raised on successful timeout.
 
     Create a signal handler and use signal.alarm to verify that the
-    timeout occured.
+    timeout occurred.
     """
 
     def handle_timeout(self, *_):
