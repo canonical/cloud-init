@@ -995,7 +995,7 @@ def load_yaml(blob, default=None, allowed=(dict,)):
             LOG.debug("loaded blob returned None, returning default.")
             converted = default
         elif not isinstance(converted, allowed):
-            # Yes this will just be caught, but thats ok for now...
+            # Yes this will just be caught, but that's ok for now...
             raise TypeError(
                 "Yaml load allows %s root types, but got %s instead"
                 % (allowed, type_utils.obj_name(converted))
@@ -1294,7 +1294,7 @@ def get_fqdn_from_hosts(hostname, filename="/etc/hosts"):
 @performance.timed("Resolving URL")
 def is_resolvable(url) -> bool:
     """determine if a url's network address is resolvable, return a boolean
-    This also attempts to be resilent against dns redirection.
+    This also attempts to be resilient against dns redirection.
 
     Note, that normal nsswitch resolution is used here.  So in order
     to avoid any utilization of 'search' entries in /etc/resolv.conf
@@ -1867,7 +1867,7 @@ def load_json(text, root_types=(dict,)):
 def get_non_exist_parent_dir(path):
     """Get the last directory in a path that does not exist.
 
-    Example: when path=/usr/a/b and /usr/a does not exis but /usr does,
+    Example: when path=/usr/a/b and /usr/a does not exist but /usr does,
     return /usr/a
     """
     p_path = os.path.dirname(path)

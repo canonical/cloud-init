@@ -198,7 +198,7 @@ def disable_root_logger_setup():
 @pytest.fixture
 def clear_deprecation_log():
     """Clear any deprecation warnings before and after running tests."""
-    # Since deprecations are de-duped, the existance (or non-existance) of
+    # Since deprecations are de-duped, the existence (or non-existence) of
     # a deprecation warning in a previous test can cause the next test to
     # fail.
     setattr(lifecycle.deprecate, "log", set())

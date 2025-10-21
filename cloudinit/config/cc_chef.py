@@ -337,7 +337,7 @@ def install_chef(cloud: Cloud, chef_cfg):
         )
         install_chef_from_gems(ruby_version, chef_version, cloud.distro)
         # Retain backwards compat, by preferring True instead of False
-        # when not provided/overriden...
+        # when not provided/overridden...
         run = util.get_cfg_option_bool(chef_cfg, "exec", default=True)
     elif install_type == "packages":
         # This will install and run the chef-client from packages
