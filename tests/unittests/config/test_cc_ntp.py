@@ -580,8 +580,9 @@ class TestNtp:
     @mock.patch("cloudinit.config.cc_ntp.write_ntp_config_template")
     @mock.patch("cloudinit.cloud.Cloud.get_template_filename")
     @mock.patch("cloudinit.config.cc_ntp.subp.which")
+    @mock.patch("cloudinit.util.rename")
     def test_ntp_custom_client_overrides_installed_clients(
-        self, m_which, m_tmpfn, m_write
+        self, m_rename, m_which, m_tmpfn, m_write
     ):
         """Test user client is installed despite other clients present"""
         client = "ntpdate"

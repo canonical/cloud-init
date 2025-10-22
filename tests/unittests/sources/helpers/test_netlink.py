@@ -42,12 +42,11 @@ def int_to_bytes(i):
 
 
 class TestCreateBoundNetlinkSocket:
-    @mock.patch("cloudinit.sources.helpers.netlink.socket.socket")
-    def test_socket_error_on_create(self, m_socket):
+    def test_socket_error_on_create(self, fake_socket):
         """create_bound_netlink_socket catches socket creation exception"""
 
         # NetlinkCreateSocketError is raised when socket creation errors.
-        m_socket.side_effect = socket.error("Fake socket failure")
+        fake_socket.side_effect = socket.error("Fake socket failure")
         with pytest.raises(
             NetlinkCreateSocketError,
             match="Exception during netlink socket create: Fake socket"
