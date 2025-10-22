@@ -524,7 +524,7 @@ class TestOpenStackDataSource:
         assert 2 == crawled_data["version"]
 
 
-class TestVendorDataLoading(test_helpers.TestCase):
+class TestVendorDataLoading:
     def cvj(self, data):
         return convert_vendordata(data)
 
