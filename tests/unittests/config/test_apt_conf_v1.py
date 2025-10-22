@@ -65,14 +65,14 @@ class TestAptProxyConfig:
 
     def test_proxy_deleted(self, p_c_files):
         pfile, cfile = p_c_files
-        util.write_file(cfile, "content doesnt matter")
+        util.write_file(cfile, "content doesn't matter")
         cc_apt_configure.apply_apt_config({}, pfile, cfile)
         assert not os.path.isfile(pfile)
         assert not os.path.isfile(cfile)
 
     def test_proxy_replaced(self, p_c_files):
         pfile, cfile = p_c_files
-        util.write_file(cfile, "content doesnt matter")
+        util.write_file(cfile, "content doesn't matter")
         cc_apt_configure.apply_apt_config({"proxy": "foo"}, pfile, cfile)
         assert os.path.isfile(pfile)
         contents = util.load_text_file(pfile)
@@ -92,7 +92,7 @@ class TestAptProxyConfig:
 
     def test_config_replaced(self, p_c_files):
         pfile, cfile = p_c_files
-        util.write_file(pfile, "content doesnt matter")
+        util.write_file(pfile, "content doesn't matter")
         cc_apt_configure.apply_apt_config({"conf": "foo"}, pfile, cfile)
         assert os.path.isfile(cfile)
         assert util.load_text_file(cfile) == "foo"
@@ -100,7 +100,7 @@ class TestAptProxyConfig:
     def test_config_deleted(self, p_c_files):
         # if no 'conf' is provided, delete any previously written file
         pfile, cfile = p_c_files
-        util.write_file(pfile, "content doesnt matter")
+        util.write_file(pfile, "content doesn't matter")
         cc_apt_configure.apply_apt_config({}, pfile, cfile)
         assert not os.path.isfile(pfile)
         assert not os.path.isfile(cfile)
