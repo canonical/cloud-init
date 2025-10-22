@@ -145,21 +145,21 @@ class TestUGNormalize:
         users, _groups = self._norm(ug_cfg, distro)
         assert "bob" not in users  # Bob is not the default now, zetta is
         assert "zetta" in users
-        assert users["zetta"]["default"]
+        assert users["zetta"]["default"] is True
         assert "default" not in users
         ug_cfg = {"user": "zetta", "users": "default, joe"}
         users, _groups = self._norm(ug_cfg, distro)
         assert "bob" not in users  # Bob is not the default now, zetta is
         assert "joe" in users
         assert "zetta" in users
-        assert users["zetta"]["default"]
+        assert users["zetta"]["default"] is True
         assert "default" not in users
         ug_cfg = {"user": "zetta", "users": ["bob", "joe"]}
         users, _groups = self._norm(ug_cfg, distro)
         assert "bob" in users
         assert "joe" in users
         assert "zetta" in users
-        assert users["zetta"]["default"]
+        assert users["zetta"]["default"] is True
         ug_cfg = {
             "user": "zetta",
             "users": {
@@ -171,7 +171,7 @@ class TestUGNormalize:
         assert "bob" in users
         assert "joe" in users
         assert "zetta" in users
-        assert users["zetta"]["default"]
+        assert users["zetta"]["default"] is True
         ug_cfg = {
             "user": "zetta",
         }
@@ -193,8 +193,8 @@ class TestUGNormalize:
             ",".join(distro.get_default_user()["groups"])
             == users["bob"]["groups"]
         )
-        assert users["bob"]["blah"]
-        assert users["bob"]["default"]
+        assert users["bob"]["blah"] is True
+        assert users["bob"]["default"] is True
 
     def test_users_dict_extract(self):
         distro = self._make_distro("ubuntu", bcfg)
@@ -236,7 +236,7 @@ class TestUGNormalize:
             ",".join(distro.get_default_user()["groups"])
             == users["bob"]["groups"]
         )
-        assert users["bob"]["default"]
+        assert users["bob"]["default"] is True
 
     def test_users_dict_trans(self):
         distro = self._make_distro("ubuntu")
