@@ -135,7 +135,7 @@ class TestConfig:
         assert util.load_text_file(pubcert_file) == cfg["public-cert"]
 
 
-class TestHandler(t_help.TestCase):
+class TestHandler:
     @t_help.mock.patch("cloudinit.config.cc_mcollective.subp")
     @t_help.mock.patch("cloudinit.config.cc_mcollective.util")
     def test_mcollective_install(self, mock_util, mock_subp):
@@ -144,15 +144,16 @@ class TestHandler(t_help.TestCase):
         mock_util.load_binary_file.return_value = b""
         mycfg = {"mcollective": {"conf": {"loglevel": "debug"}}}
         cc_mcollective.handle("cc_mcollective", mycfg, cc, [])
-        self.assertTrue(cc.distro.install_packages.called)
+        assert cc.distro.install_packages.called is True
         install_pkg = cc.distro.install_packages.call_args_list[0][0][0]
-        self.assertEqual(install_pkg, ["mcollective"])
+        assert install_pkg == ["mcollective"]
 
-        self.assertTrue(mock_subp.subp.called)
-        self.assertEqual(
-            mock_subp.subp.call_args_list[0][0][0],
-            ["service", "mcollective", "restart"],
-        )
+        assert mock_subp.subp.called is True
+        assert mock_subp.subp.call_args_list[0][0][0] == [
+            "service",
+            "mcollective",
+            "restart",
+        ]
 
 
 class TestMcollectiveSchema:
