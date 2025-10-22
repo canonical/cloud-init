@@ -76,7 +76,7 @@ class TestWireguard:
             # test if file was written for wg0
             (
                 "stat -c '%N' /etc/wireguard/wg0.conf",
-                r"['\"]/etc/wireguard/wg0.conf['\"]",
+                re.compile(r"['\"]/etc/wireguard/wg0.conf['\"]"),
             ),
             # check permissions for wg0
             ("stat -c '%U %a' /etc/wireguard/wg0.conf", r"root 600"),
@@ -112,7 +112,10 @@ class TestWireguard:
     ):
         result = class_client.execute(cmd)
         assert result.ok
-        assert re.search(expected_out, result.stdout)
+        if isinstance(expected_out, re.Pattern):
+            assert re.search(expected_out, result.stdout)
+            return
+        assert expected_out in result.stdout
 
     def test_wireguard_tools_installed(
         self, class_client: IntegrationInstance
