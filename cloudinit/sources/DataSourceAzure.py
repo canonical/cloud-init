@@ -420,9 +420,24 @@ class DataSourceAzure(sources.DataSource):
                 "Bringing up networking when already configured."
             )
 
+        if iface is None:
+            candidate_nics = net.find_candidate_nics()
+
+            if candidate_nics is not None and len(candidate_nics) > 0:
+                iface = candidate_nics[0]
+                
+        driver = None
+        mac = None
+        interfaces = net.get_interfaces()
+        for interface_name, interface_mac, interface_driver, _ in interfaces:
+            if interface_name == iface:
+                driver = interface_driver
+                mac = interface_mac
+                break
+
         report_diagnostic_event(
-            "Bringing up ephemeral networking with iface=%s: %r"
-            % (iface, net.get_interfaces()),
+            "Bringing up ephemeral networking with iface=%s, mac=%s, driver=%s : %r"
+            % (iface, mac, driver, interfaces),
             logger_func=LOG.debug,
         )
         self._ephemeral_dhcp_ctx = EphemeralDHCPv4(
