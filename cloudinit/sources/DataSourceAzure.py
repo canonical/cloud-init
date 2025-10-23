@@ -421,11 +421,8 @@ class DataSourceAzure(sources.DataSource):
             )
 
         if iface is None:
-            candidate_nics = net.find_candidate_nics()
+            iface = find_primary_nic()
 
-            if candidate_nics is not None and len(candidate_nics) > 0:
-                iface = candidate_nics[0]
-                
         driver = None
         mac = None
         interfaces = net.get_interfaces()
@@ -436,7 +433,7 @@ class DataSourceAzure(sources.DataSource):
                 break
 
         report_diagnostic_event(
-            "Bringing up ephemeral networking with iface=%s, mac=%s, driver=%s : %r"
+            "Bringing up ephemeral networking with iface=%s mac=%s driver=%s : %r"
             % (iface, mac, driver, interfaces),
             logger_func=LOG.debug,
         )
@@ -509,6 +506,7 @@ class DataSourceAzure(sources.DataSource):
                 # Sleep before retrying, otherwise break if past deadline.
                 if lease is None and monotonic() + retry_sleep < deadline:
                     sleep(retry_sleep)
+                    self._ephemeral_dhcp_ctx.iface = find_primary_nic()
                 else:
                     break
 
@@ -2010,6 +2008,13 @@ def read_azure_ovf(contents):
 
 def encrypt_pass(password):
     return blowfish_hash(password)
+
+
+def find_primary_nic():
+    candidate_nics = net.find_candidate_nics()
+
+    if candidate_nics is not None and len(candidate_nics) > 0:
+        return candidate_nics[0]
 
 
 @azure_ds_telemetry_reporter
