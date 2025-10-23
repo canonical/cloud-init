@@ -1,5 +1,6 @@
 project(
   'cloud-init',
+  version: '25.3',
   meson_version: '>=0.63.0', # rockylinux/9
   license: 'GPL-3 OR Apache-2.0',
   default_options: [
@@ -26,6 +27,20 @@ install_subdir(
   install_tag: 'python-runtime',
   install_mode: 'rw-r--r--',
 )
+
+# Update packaged version strings
+downstream_version = get_option('downstream_version')
+configure_file(
+  input: 'meson_versions.py.in',
+  output: 'meson_versions.py',
+  configuration: {
+    'UPSTREAM_VERSION': meson.project_version(),
+    'DOWNSTREAM_VERSION': downstream_version,  # Optional for packagers
+  },
+  install_dir: python.get_install_dir()  / 'cloudinit',
+  install_tag: 'python-runtime',
+)
+
 
 # Binaries and script entrypoints
 if get_option('bash_completion')
