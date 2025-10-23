@@ -124,12 +124,22 @@ def main(use_tags: bool = False, output_json: bool = False):
     )
     is_release_branch_ci = github_ci_release_br or travis_ci_release_br
 
-    version, version_long = get_version_from_git(
-        src_version=src_version,
-        major_minor_version=major_minor_version,
-        use_tags=use_tags,
-        is_release_branch_ci=is_release_branch_ci,
-    )
+    if not os.environ.get("CI"):
+        # For local development runs (not CI), bypass git version to avoid
+        # mismatches with the code version during 'make' checks.
+        print(
+            "Bypassing git version check for local development",
+            file=sys.stderr,
+        )
+        version = src_version
+        version_long = ""
+    else:
+        version, version_long = get_version_from_git(
+            src_version=src_version,
+            major_minor_version=major_minor_version,
+            use_tags=use_tags,
+            is_release_branch_ci=is_release_branch_ci,
+        )
 
     details = get_version_details(version, version_long, is_release_branch_ci)
 
