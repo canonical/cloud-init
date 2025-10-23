@@ -8,7 +8,6 @@ import logging
 import os
 import re
 import sys
-import unittest
 from collections import namedtuple
 from copy import deepcopy
 from errno import EACCES
@@ -152,7 +151,7 @@ class TestVersionedSchemas:
             )
 
 
-class TestCheckSchema(unittest.TestCase):
+class TestCheckSchema:
     def test_schema_bools_have_dates(self):
         """ensure that new/changed/deprecated keys have an associated
         version key

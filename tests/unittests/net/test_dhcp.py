@@ -1154,7 +1154,7 @@ class TestISCDHClient:
         """
         Test the case when no leases were found
         """
-        # Any Distro would suffice for the absense test, choose Centos then.
+        # Any Distro would suffice for the absence test, choose Centos then.
         assert None is IscDhclient.get_newest_lease_file_from_distro(
             centos.Distro
         )

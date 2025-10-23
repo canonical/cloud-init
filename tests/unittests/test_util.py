@@ -561,7 +561,7 @@ class TestUtil:
         logging warnings.
 
         Note: This is used in cmd, therefore want to keep the invariant of
-        not outputing to the console and log file permission errors.
+        not outputting to the console and log file permission errors.
         """
         confs = []
         for i in range(2):
@@ -604,7 +604,7 @@ class TestUtil:
         sys output is empty and the user is informed via logging warnings.
 
         Note: This is used in cmd, therefore want to keep the invariant of
-        not outputing to the console and log file permission errors.
+        not outputting to the console and log file permission errors.
         """
         conf_fn = tmpdir.join("conf.cfg")
         if create_confd:
@@ -1845,7 +1845,7 @@ class TestWriteFile(helpers.TestCase):
         assert 0o644 == stat.S_IMODE(file_stat.st_mode)
 
     def test_dir_is_created_if_required(self):
-        """Verifiy that directories are created is required."""
+        """Verify that directories are created is required."""
         dirname = os.path.join(self.tmp, "subdir")
         path = os.path.join(dirname, "NewFile.txt")
         contents = "Hey there"
@@ -1856,7 +1856,7 @@ class TestWriteFile(helpers.TestCase):
         assert os.path.isfile(path)
 
     def test_dir_ownership(self):
-        """Verifiy that directories is created with appropriate ownership."""
+        """Verify that directories is created with appropriate ownership."""
         dirname = os.path.join(self.tmp, "subdir", "subdir2")
         path = os.path.join(dirname, "NewFile.txt")
         contents = "Hey there"

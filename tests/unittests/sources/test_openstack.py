@@ -529,7 +529,7 @@ class TestVendorDataLoading(test_helpers.TestCase):
         return convert_vendordata(data)
 
     def test_vd_load_none(self):
-        # non-existant vendor-data should return none
+        # non-existent vendor-data should return none
         assert self.cvj(None) is None
 
     def test_vd_load_string(self):
@@ -741,7 +741,7 @@ class TestDetectOpenStack:
             if dmi_key == "system-product-name":
                 return "HVM domU"  # Nothing 'openstackish'
             if dmi_key == "chassis-asset-tag":
-                return ""  # Nothin 'openstackish'
+                return ""  # Nothing 'openstackish'
             assert False, "Unexpected dmi read of %s" % dmi_key
 
         m_dmi.side_effect = fake_dmi_read

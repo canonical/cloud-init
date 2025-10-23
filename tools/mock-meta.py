@@ -56,7 +56,7 @@ BLOCK_DEVS = [
     "root",
 ]
 
-DEV_PREFIX = "v"  # This seems to vary alot depending on images...
+DEV_PREFIX = "v"  # This seems to vary a lot depending on images...
 DEV_MAPPINGS = {
     "ephemeral0": "%sda2" % (DEV_PREFIX),
     "root": "/dev/%sda1" % (DEV_PREFIX),
