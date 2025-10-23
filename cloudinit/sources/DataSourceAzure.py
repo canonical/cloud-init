@@ -2015,6 +2015,8 @@ def find_primary_nic():
 
     if candidate_nics is not None and len(candidate_nics) > 0:
         return candidate_nics[0]
+    
+    return None
 
 
 @azure_ds_telemetry_reporter
