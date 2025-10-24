@@ -93,14 +93,14 @@ def _check_network_manager(network_state: NetworkState, tmp_path: Path):
 
 @mock.patch("cloudinit.net.util.chownbyname", return_value=True)
 def _check_networkd_renderer(
-    network_state: NetworkState, tmp_path: Path, m_chown
+    test_name: str, network_state: NetworkState, tmp_path: Path, m_chown
 ):
     renderer = NetworkdRenderer()
     renderer.render_network_state(
-        network_state, target=str(tmp_path / "photon_net_config")
+        network_state, target=str(tmp_path / test_name)
     )
     expected_paths = glob.glob(
-        str(ARTIFACT_DIR / "photon_net_config" / "**/*.net*"),
+        str(ARTIFACT_DIR / test_name / "**/*.net*"),
         recursive=True,
     )
     _check_file_diff(expected_paths, tmp_path)
@@ -110,6 +110,7 @@ def _check_networkd_renderer(
     "test_name, renderers",
     [
         ("no_matching_mac_v2", Renderer.Netplan | Renderer.NetworkManager),
+        ("openstack_net_config_v1", Renderer.Networkd),
         ("photon_net_config_v2", Renderer.Networkd),
     ],
 )
@@ -126,5 +127,5 @@ def test_convert(test_name, renderers, tmp_path):
         _check_network_manager(network_state, tmp_path)
     if Renderer.Networkd in renderers:
         _check_networkd_renderer(  # pylint: disable=E1120
-            network_state, tmp_path
+            test_name, network_state, tmp_path
         )

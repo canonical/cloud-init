@@ -1,0 +1,84 @@
+network:
+  version: 1
+
+  config:
+  - mac_address: 00:00:00:00:00:01
+    mtu: 1500
+    name: slot1port1
+    subnets: []
+    type: physical
+  - mac_address: 00:00:00:00:00:02
+    mtu: 1500
+    name: slot1port2
+    subnets: []
+    type: physical
+  - mac_address: 00:00:00:00:01:01
+    mtu: 1500
+    name: slot2port1
+    subnets: []
+    type: physical
+  - mac_address: 00:00:00:00:01:02
+    mtu: 1500
+    name: slot2port2
+    subnets: []
+    type: physical
+  - mac_address: 00:00:00:00:02:01
+    mtu: 1500
+    name: slot3port1
+    subnets: []
+    type: physical
+  - mac_address: 00:00:00:00:02:02
+    mtu: 1500
+    name: slot3port2
+    subnets: []
+    type: physical
+  - bond_interfaces:
+    - slot1port1
+    - slot3port1
+    mac_address: 01:00:00:00:00:01
+    mtu: 1500
+    name: bond0
+    params:
+      bond-mode: active-backup
+    subnets:
+    - address: 10.11.12.13
+      ipv4: true
+      netmask: 255.255.255.0
+      type: static
+    type: bond
+  - bond_interfaces:
+    - slot1port2
+    - slot2port1
+    mac_address: 01:00:00:00:00:02
+    mtu: 1500
+    name: bond1
+    params:
+      bond-mode: active-backup
+    subnets:
+    - address: 10.20.30.2
+      ipv4: true
+      netmask: 255.255.255.0
+      routes:
+      - gateway: 10.20.30.1
+        netmask: 0.0.0.0
+        network: 0.0.0.0
+      type: static
+    type: bond
+  - bond_interfaces:
+    - slot2port2
+    - slot3port2
+    mac_address: 01:00:00:00:00:02
+    mtu: 1500
+    name: bond2
+    params:
+      bond-mode: active-backup
+    subnets:
+    - address: 10.20.30.3
+      ipv4: true
+      netmask: 255.255.255.0
+      type: static
+    type: bond
+  - address: 8.8.8.8
+    type: nameserver
+  - address: 4.4.4.4
+    type: nameserver
