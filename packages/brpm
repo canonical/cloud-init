@@ -68,8 +68,34 @@ def read_dependencies(distro):
     return (build_deps, run_deps, test_deps)
 
 
-def read_version():
-    return json.loads(run_helper("read-version", ["--json"]))
+def read_version_from_meson():
+    """Read package version from meson project and git."""
+    if not subp.which("meson"):
+        print(
+            "meson utility not found.\n"
+            "First install build dependencies with:\n"
+            "./tools/read-dependencies --distro <YOUR_DISTRO> --test-distro"
+        )
+        sys.exit(1)
+    with temp_utils.tempdir(needs_exe=True) as tdir:
+        builddir = os.path.abspath(os.path.join(tdir, "builddir"))
+        subp.subp(
+            [
+                "meson",
+                "setup",
+                "builddir",
+                "-Dinit_system=systemd",
+                "-Ddisable_sshd_keygen=true",
+            ]
+        )
+        out, _ = subp.subp(["meson", "introspect", "--projectinfo", builddir])
+    version = json.loads(out)["version"]
+    try:
+        out, _ = subp.subp(["git", "describe", "--abbrev=8"])
+        version_long = out.strip()
+    except subp.ProcessExecutionError:  # no git available set long to upstream
+        version_long = version
+    return {"version": version, "version_long": version_long}
 
 
 def generate_spec_contents(args, version_data, tmpl_fn, top_dir, arc_fn):
@@ -180,7 +206,7 @@ def main():
         build_dirs = [os.path.join(topdir, dir) for dir in RPM_BUILD_SUBDIRS]
         util.ensure_dirs(build_dirs)
 
-        version_data = read_version()
+        version_data = read_version_from_meson()
 
         # Archive the code
         archive_fn = "cloud-init-%s.tar.gz" % version_data["version_long"]
@@ -219,8 +245,7 @@ def main():
             cmd = ["rpmbuild", "-bs", "--nodeps", spec_fn]
         else:
             cmd = ["rpmbuild", "-ba", spec_fn]
-
-        subp.subp(cmd, capture=capture)
+        subp.subp(cmd, capture=capture, update_env={"RPM_BUILD_DIR": topdir})
 
         # Copy the items built to our local dir
         globs = []
