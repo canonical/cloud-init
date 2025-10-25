@@ -62,7 +62,7 @@ ssh keys and to let the user run various scripts.
 {% endfor %}
 
 %build
-%meson -Dinit_system=systemd -Ddistro_templates=chef_client.rb.tmpl,chrony.conf.rhel.tmpl,hosts.redhat.tmpl,ntp.conf.rhel.tmpl,resolv.conf.tmpl,timesyncd.conf.tmpl
+%meson -Dinit_system=systemd -Ddistro_templates=chef_client.rb.tmpl,chrony.conf.rhel.tmpl,hosts.redhat.tmpl,ntp.conf.rhel.tmpl,resolv.conf.tmpl,timesyncd.conf.tmpl -Ddisable_sshd_keygen=true
 %meson_build
 
 %install
