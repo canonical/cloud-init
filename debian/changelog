@@ -1,3 +1,14 @@
+cloud-init (25.3~2g890873f5-0ubuntu3) UNRELEASED; urgency=medium
+
+  * d/cloud-init-base.config: update migrate_debconf_settings to
+    set an empty cloud-init/datasources value once it migrates the value to
+    cloud-init-base/datasources. (LP: #2127022)
+  * d/cloud-init-base.postinst: fix release upgrade affecting the set of
+    multi-line debconf value cloud-init/local-cloud-config used by MAAS.
+    (LP: #2127022)
+
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 27 Oct 2025 13:48:39 -0600
+
 cloud-init (25.3~2g890873f5-0ubuntu2) questing; urgency=medium
 
   * d/control: add all missing python3 package runtime deps (LP: #2121482)
