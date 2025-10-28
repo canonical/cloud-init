@@ -227,12 +227,14 @@ class TestPurgeDisk:
     return_value=("/dev/xdb1", False),
 )
 @mock.patch("cloudinit.config.cc_disk_setup.device_type", return_value=None)
+@mock.patch("cloudinit.config.cc_disk_setup.util.udevadm_settle")
 @mock.patch("cloudinit.config.cc_disk_setup.subp.subp", return_value=("", ""))
 class TestMkfsCommandHandling:
 
     def test_with_cmd(
         self,
         subp,
+        m_udevadm_settle,
         m_device_type,
         m_find_device,
         m_assert_and_settle_device,
@@ -266,10 +268,9 @@ class TestMkfsCommandHandling:
             "mkfs -t ext4 -L with_cmd /dev/xdb1", shell=True
         )
 
-    @mock.patch("cloudinit.config.cc_disk_setup.util.udevadm_settle")
     @mock.patch("cloudinit.config.cc_disk_setup.subp.which")
     def test_overwrite_and_extra_opts_without_cmd(
-        self, m_which, m_udevadm_settle, subp, *args
+        self, m_which, subp, m_udevadm_settle, *args
     ):
         """mkfs observes extra_opts and overwrite settings when cmd is not
         present."""
@@ -297,9 +298,8 @@ class TestMkfsCommandHandling:
             shell=False,
         )
 
-    @mock.patch("cloudinit.config.cc_disk_setup.util.udevadm_settle")
     @mock.patch("cloudinit.config.cc_disk_setup.subp.which")
-    def test_mkswap(self, m_which, m_udevadm_settle, subp, *args):
+    def test_mkswap(self, m_which, subp, m_udevadm_settle, *args):
         """mkfs observes extra_opts and overwrite settings when cmd is not
         present."""
         m_which.side_effect = iter([None, "/sbin/mkswap"])
