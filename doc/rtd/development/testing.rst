@@ -140,10 +140,11 @@ Test pre-release cloud-init
 
 After the cloud-init team creates an upstream release, cloud-init will
 be released in the -proposed APT repository for a
-:ref:`period of testing<sru_testing>`. Users are encouraged to test their
-workloads on this pending release so that bugs can be caught and fixed prior
-to becoming more broadly available via the -updates repository. This guide
-describes how to test the pre-release package on Ubuntu.
+:ref:`period of testing<sru_testing>` which provides
+:ref:`SRU updates to multiple Ubuntu releases<sru_supported_releases>`. Users
+are encouraged to test their workloads on pending releases so bugs can be
+caught and fixed prior to becoming more broadly available via the -updates
+repository. This guide describes how to test the pre-release package on Ubuntu.
 
 Add the -proposed repository pocket
 -----------------------------------
