@@ -15,6 +15,8 @@ init_system = get_option('init_system')
 lib_exec_dir = get_option('prefix') / get_option('libexecdir') / 'cloud-init'
 render_tmpl = './tools/render-template'
 
+is_readthedocs = run_command('bash', '-c', 'echo ${READTHEDOCS}', check: true).stdout().strip()
+
 pymod = import('python')
 python = pymod.find_installation('python3')
 
@@ -43,7 +45,7 @@ configure_file(
 
 
 # Binaries and script entrypoints
-if get_option('bash_completion')
+if get_option('bash_completion') and is_readthedocs != 'True'
   bash_completions_dir = dependency('bash-completion').get_variable(
     pkgconfig: 'completionsdir',
     default_value: get_option('datadir') / 'bash-completion' / 'completions',
@@ -101,7 +103,7 @@ install_data(
   install_tag: 'config',
 )
 
-if init_system == 'systemd'
+if init_system == 'systemd' and is_readthedocs != 'True'
   systemd = dependency('systemd')
   udev = dependency('udev')
   systemd_unit_dir = systemd.get_variable(pkgconfig: 'systemdsystemunitdir')
