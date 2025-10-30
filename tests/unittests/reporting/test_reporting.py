@@ -49,7 +49,7 @@ class TestReportFinishEvent:
     def _report_finish_event(self, result=events.status.SUCCESS):
         event_name, event_description = "my_test_event", "my description"
         events.report_finish_event(
-            event_name, event_description, result=result
+            event_name, event_description, duration=1.0, result=result
         )
         return event_name, event_description
 
@@ -149,7 +149,9 @@ class TestFinishReportingEvent:
     def test_as_has_result(self):
         result = events.status.SUCCESS
         name, desc = "test_name", "test_desc"
-        event = events.FinishReportingEvent(name, desc, result)
+        event = events.FinishReportingEvent(
+            name, desc, duration=1.5, result=result
+        )
         ret = event.as_dict()
         assert "result" in ret
         assert ret["result"] == result
@@ -162,7 +164,7 @@ class TestFinishReportingEvent:
             ["/really/fake/path/install.log"],
         )
         event = events.FinishReportingEvent(
-            name, desc, result, post_files=files
+            name, desc, duration=2.0, result=result, post_files=files
         )
         ret = event.as_dict()
         assert "result" in ret
@@ -174,6 +176,21 @@ class TestFinishReportingEvent:
         assert "encoding" in posted_install_log
         assert posted_install_log["path"] == files[0]
         assert posted_install_log["encoding"] == "base64"
+
+    def test_includes_duration_in_as_dict(self):
+        event = events.FinishReportingEvent(
+            "test_name", "test_desc", duration=1.234
+        )
+        ret = event.as_dict()
+        assert "duration" in ret
+        assert ret["duration"] == 1.234
+
+    def test_includes_duration_in_as_string(self):
+        event = events.FinishReportingEvent(
+            "test_name", "test_desc", duration=1.234
+        )
+        string_repr = event.as_string()
+        assert "(duration: 1.234s)" in string_repr
 
 
 class TestLogHandler:
@@ -302,7 +319,13 @@ class TestReportingEventStack:
             pass
         assert report_start.call_args_list == [mock.call("myname", "mydesc")]
         assert report_finish.call_args_list == [
-            mock.call("myname", "mydesc", events.status.SUCCESS, post_files=[])
+            mock.call(
+                "myname",
+                "mydesc",
+                duration=mock.ANY,
+                result=events.status.SUCCESS,
+                post_files=[],
+            )
         ]
 
     @mock.patch("cloudinit.reporting.events.report_finish_event")
@@ -317,7 +340,13 @@ class TestReportingEventStack:
             pass
         assert report_start.call_args_list == [mock.call(name, desc)]
         assert report_finish.call_args_list == [
-            mock.call(name, desc, events.status.FAIL, post_files=[])
+            mock.call(
+                name,
+                desc,
+                duration=mock.ANY,
+                result=events.status.FAIL,
+                post_files=[],
+            )
         ]
 
     @mock.patch("cloudinit.reporting.events.report_finish_event")
@@ -334,7 +363,13 @@ class TestReportingEventStack:
             pass
         assert report_start.call_args_list == [mock.call(name, desc)]
         assert report_finish.call_args_list == [
-            mock.call(name, desc, events.status.WARN, post_files=[])
+            mock.call(
+                name,
+                desc,
+                duration=mock.ANY,
+                result=events.status.WARN,
+                post_files=[],
+            )
         ]
 
     @mock.patch("cloudinit.reporting.events.report_start_event")
@@ -362,7 +397,11 @@ class TestReportingEventStack:
                 child.result = events.status.WARN
 
         report_finish.assert_called_with(
-            "topname", "topdesc", events.status.WARN, post_files=[]
+            "topname",
+            "topdesc",
+            duration=mock.ANY,
+            result=events.status.WARN,
+            post_files=[],
         )
 
     @mock.patch("cloudinit.reporting.events.report_finish_event")
@@ -371,7 +410,11 @@ class TestReportingEventStack:
             pass
         assert report_finish.call_args_list == [
             mock.call(
-                "myname", "mymessage", events.status.SUCCESS, post_files=[]
+                "myname",
+                "mymessage",
+                duration=mock.ANY,
+                result=events.status.SUCCESS,
+                post_files=[],
             )
         ]
 
@@ -381,7 +424,11 @@ class TestReportingEventStack:
             c.message = "all good"
         assert report_finish.call_args_list == [
             mock.call(
-                "myname", "all good", events.status.SUCCESS, post_files=[]
+                "myname",
+                "all good",
+                duration=mock.ANY,
+                result=events.status.SUCCESS,
+                post_files=[],
             )
         ]
 
