@@ -177,8 +177,26 @@ def write_debian_folder_from_branch(root, templ_data, branch):
     )
 
 
-def read_version():
-    return json.loads(run_helper("read-version", ["--json"]))
+def read_version_from_meson():
+    """Read package version from meson project and git."""
+    if not subp.which("meson"):
+        print(
+            "meson utility not found.\n"
+            "First install build dependencies with:\n"
+            "./tools/read-dependencies --distro <YOUR_DISTRO> --test-distro"
+        )
+        sys.exit(1)
+    with temp_utils.tempdir(needs_exe=True) as tdir:
+        builddir = os.path.abspath(os.path.join(tdir, "builddir"))
+        subp.subp(["meson", "setup", builddir, "-Dinit_system=systemd"])
+        out, _ = subp.subp(["meson", "introspect", "--projectinfo", builddir])
+    version = json.loads(out)["version"]
+    try:
+        out, _ = subp.subp(["git", "describe", "--abbrev=8"])
+        version_long = out.strip()
+    except subp.ProcessExecutionError:  # no git available set long to upstream
+        version_long = version
+    return {"version": version, "version_long": version_long}
 
 
 def get_parser():
@@ -309,8 +327,8 @@ def main():
     with temp_utils.tempdir(needs_exe=True) as tdir:
 
         # output like 0.7.6-1022-g36e92d3
-        ver_data = read_version()
-        if ver_data["is_release_branch_ci"]:
+        ver_data = read_version_from_meson()
+        if not ver_data["version_long"]:
             # If we're performing CI for a new release branch, we don't yet
             # have the tag required to generate version_long; use version
             # instead.
@@ -321,23 +339,15 @@ def main():
         # folder, then re-archive it for debian happiness
         tarball = "cloud-init_%s.orig.tar.gz" % ver_data["version_long"]
         tarball_fp = os.path.abspath(os.path.join(tdir, tarball))
-        path = None
-        for pd in ("./", "../", "../dl/"):
-            if os.path.exists(pd + tarball):
-                path = pd + tarball
-                print("Using existing tarball %s" % path)
-                shutil.copy(path, tarball_fp)
-                break
-        if path is None:
-            print("Creating a temp tarball using the 'make-tarball' helper")
-            run_helper(
-                "make-tarball",
-                [
-                    "--version",
-                    ver_data["version_long"],
-                    "--output=" + tarball_fp,
-                ],
-            )
+        print("Creating a temp tarball using the 'make-tarball' helper")
+        run_helper(
+            "make-tarball",
+            [
+                "--version",
+                ver_data["version_long"],
+                "--output=" + tarball_fp,
+            ],
+        )
 
         print("Extracting temporary tarball %r" % (tarball))
         cmd = ["tar", "-xvzf", tarball_fp, "-C", tdir]

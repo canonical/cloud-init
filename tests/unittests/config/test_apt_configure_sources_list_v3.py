@@ -255,7 +255,7 @@ class TestAptSourceConfigSourceList:
 
     def test_apt_v3_source_list_ubuntu_snappy(self, mocker):
         """test_apt_v3_source_list_ubuntu_snappy - without custom sources or
-        parms"""
+        params"""
         cfg = {"apt": {}}
         mycloud = get_cloud()
 
