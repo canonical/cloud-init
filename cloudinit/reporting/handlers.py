@@ -16,6 +16,7 @@ from typing import Union
 
 from cloudinit import performance, url_helper, util
 from cloudinit.registry import DictRegistry
+from cloudinit.sources.azure import identity
 
 LOG = logging.getLogger(__name__)
 
@@ -209,6 +210,13 @@ class HyperVKvpReportingHandler(ReportingHandler):
         self.event_key_prefix = "{0}|{1}".format(
             self.EVENT_PREFIX, self.incarnation_no
         )
+
+        try:
+            self.vm_id = identity.query_vm_id()
+        except Exception as e:
+            LOG.warning("Failed to query VM ID: %s. Using empty string.", e)
+            self.vm_id = ""
+
         self.publish_thread = threading.Thread(
             target=self._publish_event_routine
         )
@@ -268,10 +276,14 @@ class HyperVKvpReportingHandler(ReportingHandler):
         """
         the event key format is:
         CLOUD_INIT|<incarnation number>|<event_type>|<event_name>|<uuid>
-        [|subevent_index]
+        |<vm_id>[|subevent_index]
         """
-        return "{0}|{1}|{2}|{3}".format(
-            self.event_key_prefix, event.event_type, event.name, uuid.uuid4()
+        return "{0}|{1}|{2}|{3}|{4}".format(
+            self.event_key_prefix,
+            event.event_type,
+            event.name,
+            uuid.uuid4(),
+            self.vm_id,
         )
 
     def _encode_kvp_item(self, key, value):
