@@ -2,6 +2,7 @@
 import logging
 import os
 from io import BytesIO
+from unittest import mock
 
 import configobj
 import pytest
@@ -13,7 +14,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests import helpers as t_help
+from tests.unittests.helpers import skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
@@ -136,19 +137,19 @@ class TestConfig:
 
 
 class TestHandler:
-    @t_help.mock.patch("cloudinit.config.cc_mcollective.subp")
-    @t_help.mock.patch("cloudinit.config.cc_mcollective.util")
+    @mock.patch("cloudinit.config.cc_mcollective.subp")
+    @mock.patch("cloudinit.config.cc_mcollective.util")
     def test_mcollective_install(self, mock_util, mock_subp):
         cc = get_cloud()
-        cc.distro = t_help.mock.MagicMock()
+        cc.distro = mock.MagicMock()
         mock_util.load_binary_file.return_value = b""
         mycfg = {"mcollective": {"conf": {"loglevel": "debug"}}}
         cc_mcollective.handle("cc_mcollective", mycfg, cc, [])
-        assert cc.distro.install_packages.called is True
+        assert cc.distro.install_packages.called
         install_pkg = cc.distro.install_packages.call_args_list[0][0][0]
         assert install_pkg == ["mcollective"]
 
-        assert mock_subp.subp.called is True
+        assert mock_subp.subp.called
         assert mock_subp.subp.call_args_list[0][0][0] == [
             "service",
             "mcollective",
@@ -178,7 +179,7 @@ class TestMcollectiveSchema:
             ),
         ],
     )
-    @t_help.skipUnlessJsonSchema()
+    @skipUnlessJsonSchema()
     def test_schema_validation(self, config, error_msg):
         if error_msg is None:
             validate_cloudconfig_schema(config, get_schema(), strict=True)
