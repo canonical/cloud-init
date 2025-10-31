@@ -8,6 +8,7 @@ import copy
 import json
 import re
 from io import StringIO
+from unittest import mock
 from urllib.parse import urlparse
 
 import pytest
@@ -18,9 +19,7 @@ from cloudinit.sources import UNSET, BrokenMetadata
 from cloudinit.sources import DataSourceOpenStack as ds
 from cloudinit.sources import convert_vendordata
 from cloudinit.sources.helpers import openstack
-from tests.unittests import helpers as test_helpers
 from tests.unittests import util as test_util
-from tests.unittests.helpers import mock
 
 BASE_URL = "http://169.254.169.254"
 PUBKEY = "ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460\n"
@@ -306,7 +305,7 @@ class TestOpenStackDataSource:
             _read_metadata_service()
 
     @responses.activate
-    @test_helpers.mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
+    @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
     def test_datasource(self, m_dhcp, ds_os):
         _register_uris(
             self.VERSION,
@@ -330,10 +329,8 @@ class TestOpenStackDataSource:
         m_dhcp.assert_not_called()
 
     @responses.activate
-    @test_helpers.mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
-    @test_helpers.mock.patch(
-        "cloudinit.net.ephemeral.maybe_perform_dhcp_discovery"
-    )
+    @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
+    @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
     @pytest.mark.usefixtures("disable_netdev_info")
     def test_local_datasource(self, m_dhcp, m_net, paths, tmp_path):
         """OpenStackLocal calls EphemeralDHCPNetwork and gets instance data."""
@@ -359,7 +356,7 @@ class TestOpenStackDataSource:
         }
 
         assert ds_os_local.version is None
-        with test_helpers.mock.patch.object(
+        with mock.patch.object(
             ds_os_local, "override_ds_detect"
         ) as m_detect_os:
             m_detect_os.return_value = True
@@ -385,9 +382,7 @@ class TestOpenStackDataSource:
             self.VERSION, {}, {}, os_files, responses_mock=responses
         )
         assert ds_os.version is None
-        with test_helpers.mock.patch.object(
-            ds_os, "override_ds_detect"
-        ) as m_detect_os:
+        with mock.patch.object(ds_os, "override_ds_detect") as m_detect_os:
             m_detect_os.return_value = True
             found = ds_os.get_data()
         assert not found
@@ -426,7 +421,7 @@ class TestOpenStackDataSource:
             "services": [],
         }
         ds_os.network_json = sample_json  # Ignore this content from metadata
-        with test_helpers.mock.patch(mock_path) as m_convert_json:
+        with mock.patch(mock_path) as m_convert_json:
             assert ds_os.network_config is None
         m_convert_json.assert_not_called()
 
@@ -440,7 +435,7 @@ class TestOpenStackDataSource:
             "services": [],
         }
         ds_os.network_json = sample_json
-        with test_helpers.mock.patch(mock_path) as m_convert_json:
+        with mock.patch(mock_path) as m_convert_json:
             m_convert_json.return_value = example_cfg
             assert example_cfg == ds_os.network_config
         assert "network config provided via network_json" in caplog.text
@@ -451,7 +446,7 @@ class TestOpenStackDataSource:
         mock_path = MOCK_PATH + "openstack.convert_net_json"
         example_cfg = {"version": 1, "config": []}
         ds_os._network_config = example_cfg
-        with test_helpers.mock.patch(mock_path) as m_convert_json:
+        with mock.patch(mock_path) as m_convert_json:
             assert example_cfg == ds_os.network_config
         m_convert_json.assert_not_called()
 
@@ -473,9 +468,7 @@ class TestOpenStackDataSource:
             "timeout": 0,
         }
         assert ds_os.version is None
-        with test_helpers.mock.patch.object(
-            ds_os, "override_ds_detect"
-        ) as m_detect_os:
+        with mock.patch.object(ds_os, "override_ds_detect") as m_detect_os:
             m_detect_os.return_value = True
             found = ds_os.get_data()
         assert not found
@@ -524,7 +517,7 @@ class TestOpenStackDataSource:
         assert 2 == crawled_data["version"]
 
 
-class TestVendorDataLoading(test_helpers.TestCase):
+class TestVendorDataLoading:
     def cvj(self, data):
         return convert_vendordata(data)
 
@@ -555,7 +548,7 @@ class TestVendorDataLoading(test_helpers.TestCase):
         assert self.cvj(data) == data["cloud-init"]
 
 
-@test_helpers.mock.patch(MOCK_PATH + "util.is_x86")
+@mock.patch(MOCK_PATH + "util.is_x86")
 class TestDetectOpenStack:
 
     @pytest.fixture
@@ -571,8 +564,8 @@ class TestDetectOpenStack:
         m_is_x86.return_value = False
         assert fake_ds.ds_detect(), "Expected ds_detect == True"
 
-    @test_helpers.mock.patch(MOCK_PATH + "util.get_proc_env")
-    @test_helpers.mock.patch(MOCK_PATH + "dmi.read_dmi_data")
+    @mock.patch(MOCK_PATH + "util.get_proc_env")
+    @mock.patch(MOCK_PATH + "dmi.read_dmi_data")
     def test_not_ds_detect_intel_x86_ec2(
         self, m_dmi, m_proc_env, m_is_x86, fake_ds
     ):
@@ -592,7 +585,7 @@ class TestDetectOpenStack:
         assert not fake_ds.ds_detect(), "Expected ds_detect == False on EC2"
         m_proc_env.assert_called_with(1)
 
-    @test_helpers.mock.patch(MOCK_PATH + "dmi.read_dmi_data")
+    @mock.patch(MOCK_PATH + "dmi.read_dmi_data")
     def test_ds_detect_intel_product_name_compute(
         self, m_dmi, m_is_x86, fake_ds
     ):
@@ -604,7 +597,7 @@ class TestDetectOpenStack:
             m_dmi.return_value = product_name
             assert fake_ds.ds_detect(), "Failed to ds_detect"
 
-    @test_helpers.mock.patch(MOCK_PATH + "dmi.read_dmi_data")
+    @mock.patch(MOCK_PATH + "dmi.read_dmi_data")
     def test_ds_detect_opentelekomcloud_chassis_asset_tag(
         self, m_dmi, m_is_x86, fake_ds
     ):
@@ -623,7 +616,7 @@ class TestDetectOpenStack:
             fake_ds.ds_detect()
         ), "Expected ds_detect == True on OpenTelekomCloud"
 
-    @test_helpers.mock.patch(MOCK_PATH + "dmi.read_dmi_data")
+    @mock.patch(MOCK_PATH + "dmi.read_dmi_data")
     def test_ds_detect_sapccloud_chassis_asset_tag(
         self, m_dmi, m_is_x86, fake_ds
     ):
@@ -642,7 +635,7 @@ class TestDetectOpenStack:
             fake_ds.ds_detect()
         ), "Expected ds_detect == True on SAP CCloud VM"
 
-    @test_helpers.mock.patch(MOCK_PATH + "dmi.read_dmi_data")
+    @mock.patch(MOCK_PATH + "dmi.read_dmi_data")
     def test_ds_detect_huaweicloud_chassis_asset_tag(
         self, m_dmi, m_is_x86, fake_ds
     ):
@@ -661,7 +654,7 @@ class TestDetectOpenStack:
             fake_ds.ds_detect()
         ), "Expected ds_detect == True on Huawei Cloud VM"
 
-    @test_helpers.mock.patch(MOCK_PATH + "dmi.read_dmi_data")
+    @mock.patch(MOCK_PATH + "dmi.read_dmi_data")
     def test_ds_detect_samsung_cloud_platform_chassis_asset_tag(
         self, m_dmi, m_is_x86, fake_ds
     ):
@@ -681,7 +674,7 @@ class TestDetectOpenStack:
             fake_ds.ds_detect()
         ), "Expected ds_detect == True on Samsung Cloud Platform VM"
 
-    @test_helpers.mock.patch(MOCK_PATH + "dmi.read_dmi_data")
+    @mock.patch(MOCK_PATH + "dmi.read_dmi_data")
     def test_ds_detect_oraclecloud_chassis_asset_tag(
         self, m_dmi, m_is_x86, fake_ds
     ):
@@ -705,7 +698,7 @@ class TestDetectOpenStack:
     @pytest.mark.parametrize(
         ["chassis_tag"], [("OpenStack Nova",), ("OpenStack Compute",)]
     )
-    @test_helpers.mock.patch(MOCK_PATH + "dmi.read_dmi_data")
+    @mock.patch(MOCK_PATH + "dmi.read_dmi_data")
     def test_ds_detect_chassis_asset_tag(
         self, m_dmi, m_is_x86, chassis_tag, fake_ds
     ):
@@ -724,8 +717,8 @@ class TestDetectOpenStack:
             fake_ds.ds_detect()
         ), "Expected ds_detect == True on Generic OpenStack Platform"
 
-    @test_helpers.mock.patch(MOCK_PATH + "util.get_proc_env")
-    @test_helpers.mock.patch(MOCK_PATH + "dmi.read_dmi_data")
+    @mock.patch(MOCK_PATH + "util.get_proc_env")
+    @mock.patch(MOCK_PATH + "dmi.read_dmi_data")
     def test_ds_detect_by_proc_1_environ(
         self, m_dmi, m_proc_env, m_is_x86, fake_ds
     ):
@@ -835,7 +828,7 @@ class TestMetadataReader:
         self.register_versions([openstack.OS_OCATA, openstack.OS_LATEST])
         self.register_version(openstack.OS_OCATA, data)
 
-        mock_read_ec2 = test_helpers.mock.MagicMock(
+        mock_read_ec2 = mock.MagicMock(
             return_value={"instance-id": "unused-ec2"}
         )
         expected_md = copy.deepcopy(md)
