@@ -433,7 +433,7 @@ class DataSourceAzure(sources.DataSource):
                 break
 
         report_diagnostic_event(
-            "Bringing up ephemeral networking with iface=%s mac=%s driver=%s : %r"
+            "Bringing up ephemeral networking with iface=%s mac=%s driver=%s: %r"
             % (iface, mac, driver, interfaces),
             logger_func=LOG.debug,
         )
@@ -2015,7 +2015,7 @@ def find_primary_nic():
 
     if candidate_nics is not None and len(candidate_nics) > 0:
         return candidate_nics[0]
-    
+
     return None
 
 
