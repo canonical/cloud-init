@@ -1,7 +1,11 @@
 [Bond]
+ARPAllTargets=ff
+AllSlavesActive=true
 LACPTransmitRate=fast
+LearnPacketIntervalSec=12
 MIIMonitorSec=100ms
 Mode=802.3ad
+PacketsPerSlave=42
 TransmitHashPolicy=layer2+3
 
 [NetDev]
