@@ -3568,7 +3568,7 @@ class TestEphemeralNetworking:
         assert mock_report_diagnostic_event.mock_calls == [
             mock.call(
                 "Bringing up ephemeral networking with "
-                "iface=None mac=None driver=None: " 
+                "iface=None mac=None driver=None: "
                 "[('dummy0', '9e:65:d6:19:19:01', None, None), "
                 "('enP3', '00:11:22:33:44:02', 'unknown_accel', '0x3'), "
                 "('eth0', '00:11:22:33:44:00', 'hv_netvsc', '0x3'), "
