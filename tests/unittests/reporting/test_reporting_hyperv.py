@@ -294,3 +294,20 @@ class TestKvpReporter:
         reporter.write_key("test-key", value)
 
         assert len(list(reporter._iterate_kvps(0))[0]["value"]) == 1023
+
+    @pytest.mark.parametrize(
+        "patch_kwargs",
+        (
+            {"side_effect": Exception("Failed to query VM ID")},
+            {"return_value": ""},
+        ),
+    )
+    def test_vm_id_fallback_to_zero_guid(
+        self, kvp_file_path, mocker, patch_kwargs
+    ):
+        """Test zero-guid used when vm_id lookup fails or returns empty."""
+        mocker.patch(
+            "cloudinit.sources.azure.identity.query_vm_id", **patch_kwargs
+        )
+        reporter = HyperVKvpReportingHandler(kvp_file_path=kvp_file_path)
+        assert reporter.vm_id == HyperVKvpReportingHandler.ZERO_GUID

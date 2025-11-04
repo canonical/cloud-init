@@ -190,6 +190,7 @@ class HyperVKvpReportingHandler(ReportingHandler):
         HV_KVP_EXCHANGE_MAX_KEY_SIZE + HV_KVP_EXCHANGE_MAX_VALUE_SIZE
     )
     EVENT_PREFIX = "CLOUD_INIT"
+    ZERO_GUID = str(uuid.UUID(int=0))
     MSG_KEY = "msg"
     RESULT_KEY = "result"
     DESC_IDX_KEY = "msg_i"
@@ -212,10 +213,18 @@ class HyperVKvpReportingHandler(ReportingHandler):
         )
 
         try:
-            self.vm_id = identity.query_vm_id()
+            vm_id = identity.query_vm_id()
         except Exception as e:
-            LOG.warning("Failed to query VM ID: %s. Using empty string.", e)
-            self.vm_id = ""
+            LOG.warning("Failed to query VM ID: %s. Using zero-guid.", e)
+            vm_id = self.ZERO_GUID
+        else:
+            if not vm_id:
+                LOG.warning(
+                    "Query for VM ID returned empty value. Using zero-guid."
+                )
+                vm_id = self.ZERO_GUID
+
+        self.vm_id = vm_id
 
         self.publish_thread = threading.Thread(
             target=self._publish_event_routine
