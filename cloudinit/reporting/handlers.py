@@ -16,7 +16,6 @@ from typing import Union
 
 from cloudinit import performance, url_helper, util
 from cloudinit.registry import DictRegistry
-from cloudinit.sources.azure import identity
 
 LOG = logging.getLogger(__name__)
 
@@ -213,16 +212,24 @@ class HyperVKvpReportingHandler(ReportingHandler):
         )
 
         try:
-            vm_id = identity.query_vm_id()
+            from cloudinit.sources.azure.identity import query_vm_id
         except Exception as e:
-            LOG.warning("Failed to query VM ID: %s. Using zero-guid.", e)
+            LOG.warning(
+                "Failed to import query_vm_id: %s. Using zero-guid.", e
+            )
             vm_id = self.ZERO_GUID
         else:
-            if not vm_id:
-                LOG.warning(
-                    "Query for VM ID returned empty value. Using zero-guid."
-                )
+            try:
+                vm_id = query_vm_id()
+            except Exception as e:
+                LOG.warning("Failed to query VM ID: %s. Using zero-guid.", e)
                 vm_id = self.ZERO_GUID
+            else:
+                if not vm_id:
+                    LOG.warning(
+                        "Query for VM ID returned empty. Using zero-guid."
+                    )
+                    vm_id = self.ZERO_GUID
 
         self.vm_id = vm_id
 
