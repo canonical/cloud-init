@@ -142,6 +142,11 @@ class TestReportingEvent:
         assert "timestamp" in as_dict
         del as_dict["timestamp"]
 
+        # duration should be present and set to 0 for start events
+        assert "duration" in as_dict
+        assert as_dict["duration"] == 0
+        del as_dict["duration"]
+
         assert expected == as_dict
 
 
