@@ -2026,6 +2026,56 @@ class TestDelDir:
         assert mock_rmtree.call_count == 1
 
 
+class TestDelFile:
+    """Test the del_file function"""
+
+    def test_del_file_removes_regular_file(self, tmpdir):
+        """del_file removes regular files."""
+        test_file = tmpdir.join("testfile")
+        test_file.write("content")
+        assert os.path.exists(test_file)
+
+        util.del_file(str(test_file))
+
+        assert not os.path.exists(test_file)
+
+    def test_del_file_removes_symlink(self, tmpdir):
+        """del_file removes symlinks."""
+        target = tmpdir.join("target")
+        target.write("content")
+        link = tmpdir.join("link")
+        os.symlink(str(target), str(link))
+        assert os.path.islink(link)
+
+        util.del_file(str(link))
+
+        assert not os.path.exists(link)
+        assert os.path.exists(target)
+
+    def test_del_file_skips_directory(self, tmpdir):
+        """del_file skips directories without error."""
+        test_dir = tmpdir.join("testdir")
+        test_dir.mkdir()
+        assert os.path.isdir(test_dir)
+
+        util.del_file(str(test_dir))
+
+        assert os.path.exists(test_dir)
+
+    def test_del_file_skips_character_device(self):
+        """del_file skips character devices without error."""
+        util.del_file("/dev/null")
+        assert os.path.exists("/dev/null")
+
+    def test_del_file_handles_nonexistent_file(self, tmpdir):
+        """del_file handles nonexistent files without error."""
+        nonexistent = tmpdir.join("nonexistent")
+        assert not os.path.exists(nonexistent)
+
+        with does_not_raise():
+            util.del_file(str(nonexistent))
+
+
 class TestKeyValStrings:
     def test_keyval_str_to_dict(self):
         expected = {"1": "one", "2": "one+one", "ro": True}

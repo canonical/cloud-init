@@ -126,7 +126,8 @@ def remove_artifacts(init, remove_logs, remove_seed=False, remove_config=None):
     init.read_cfg()
     if remove_logs:
         for log_file in get_config_logfiles(init.cfg):
-            del_file(log_file)
+            if os.path.isfile(log_file):
+                del_file(log_file)
     if remove_config and set(remove_config).intersection(["all", "network"]):
         for path in GEN_NET_CONFIG_FILES:
             for conf in glob.glob(path):
