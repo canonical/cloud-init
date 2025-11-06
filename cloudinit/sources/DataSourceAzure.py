@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
-from cloudinit import net, performance, sources, ssh_util, subp, util
+from cloudinit import net, performance, sources, subp, util
 from cloudinit.config import cc_mounts
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import device_driver
@@ -30,7 +30,7 @@ from cloudinit.net.dhcp import (
 )
 from cloudinit.net.ephemeral import EphemeralDHCPv4, EphemeralIPv4Network
 from cloudinit.reporting import events
-from cloudinit.sources.azure import errors, identity, imds, kvp
+from cloudinit.sources.azure import certs, errors, identity, imds, kvp
 from cloudinit.sources.helpers import netlink
 from cloudinit.sources.helpers.azure import (
     DEFAULT_WIRESERVER_ENDPOINT,
@@ -1718,17 +1718,7 @@ def _key_is_openssh_formatted(key):
     """
     Validate whether or not the key is OpenSSH-formatted.
     """
-    # See https://bugs.launchpad.net/cloud-init/+bug/1910835
-    if "\r\n" in key.strip():
-        return False
-
-    parser = ssh_util.AuthKeyLineParser()
-    try:
-        akl = parser.parse(key)
-    except TypeError:
-        return False
-
-    return akl.keytype is not None
+    return certs.is_openssh_formatted(key)
 
 
 def _partitions_on_device(devpath, maxnum=16):
