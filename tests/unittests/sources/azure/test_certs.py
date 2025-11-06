@@ -8,10 +8,18 @@ import pytest
 
 from cloudinit import subp
 from cloudinit.sources.azure import certs
-from tests.unittests.helpers import CiTestCase
 
 
-class TestIsOpensshFormatted(CiTestCase):
+def _require_commands(*commands):
+    """Skip the test if any required external command is unavailable."""
+    for command in commands:
+        try:
+            subp.which(command)
+        except subp.ProcessExecutionError:
+            pytest.skip(f"{command} not available")
+
+
+class TestIsOpensshFormatted:
     """Test is_openssh_formatted() function."""
 
     def test_valid_rsa_key_without_comment(self):
@@ -69,52 +77,16 @@ class TestIsOpensshFormatted(CiTestCase):
 
     def test_malformed_key(self):
         """Malformed key should return False."""
-        key = "ssh-rsa NOTBASE64!@#$%"
+        key = "not-a-key-type AAAAB3NzaC1yc2EAAAADAQABAAABAQ"
         assert certs.is_openssh_formatted(key) is False
 
 
-class TestIsX509Certificate(CiTestCase):
+class TestIsX509Certificate:
     """Test is_x509_certificate() function."""
 
     def _data_file_path(self, name):
         """Helper to get path to test data file."""
         return os.path.join("tests", "data", "azure", name)
-
-    def test_valid_certificate(self):
-        """Valid x509 certificate should return True."""
-        cert_file = self._data_file_path("pubkey_extract_cert")
-
-        # Skip if test data file doesn't exist or openssl not available
-        if not os.path.exists(cert_file):
-            pytest.skip("Test data file not found")
-        try:
-            subp.which("openssl")
-        except subp.ProcessExecutionError:
-            pytest.skip("openssl not available")
-
-        with open(cert_file, "r") as f:
-            cert = f.read()
-
-        assert certs.is_x509_certificate(cert) is True
-
-    def test_certificate_with_extra_whitespace(self):
-        """Certificate with extra whitespace should return True."""
-        cert_file = self._data_file_path("pubkey_extract_cert")
-
-        # Skip if test data file doesn't exist or openssl not available
-        if not os.path.exists(cert_file):
-            pytest.skip("Test data file not found")
-        try:
-            subp.which("openssl")
-        except subp.ProcessExecutionError:
-            pytest.skip("openssl not available")
-
-        with open(cert_file, "r") as f:
-            cert = f.read()
-
-        # Add extra whitespace
-        cert = "\n\n" + cert + "\n\n"
-        assert certs.is_x509_certificate(cert) is True
 
     def test_openssh_key_returns_false(self):
         """OpenSSH keys should return False."""
@@ -142,15 +114,68 @@ class TestIsX509Certificate(CiTestCase):
         cert = "-----END CERTIFICATE-----"
         assert certs.is_x509_certificate(cert) is False
 
-    def test_invalid_certificate_content(self):
+    @mock.patch("cloudinit.sources.azure.certs.subp.subp")
+    def test_invalid_certificate_content(self, m_subp):
         """Certificate with invalid content should return False."""
         cert = (
             "-----BEGIN CERTIFICATE-----\nINVALID\n-----END CERTIFICATE-----"
         )
+
+        # Mock openssl failure for invalid certificate
+        m_subp.side_effect = subp.ProcessExecutionError(
+            "unable to load certificate"
+        )
+
+        assert certs.is_x509_certificate(cert) is False
+
+    @pytest.mark.allow_subp_for("openssl")
+    def test_valid_certificate_integration(self):
+        """Integration test: Actually validate certificate with openssl."""
+        _require_commands("openssl")
+        cert_file = self._data_file_path("pubkey_extract_cert")
+
+        # Skip if test data file doesn't exist
+        if not os.path.exists(cert_file):
+            pytest.skip("Test data file not found")
+
+        with open(cert_file, "r") as f:
+            cert = f.read()
+
+        # Actually calls openssl to validate
+        assert certs.is_x509_certificate(cert) is True
+
+    @pytest.mark.allow_subp_for("openssl")
+    def test_certificate_with_extra_whitespace_integration(self):
+        """Integration test: Certificate with extra whitespace should validate."""
+        _require_commands("openssl")
+        cert_file = self._data_file_path("pubkey_extract_cert")
+
+        # Skip if test data file doesn't exist
+        if not os.path.exists(cert_file):
+            pytest.skip("Test data file not found")
+
+        with open(cert_file, "r") as f:
+            cert = f.read()
+
+        # Add extra whitespace
+        cert = "\n\n" + cert + "\n\n"
+
+        # Actually calls openssl to validate
+        assert certs.is_x509_certificate(cert) is True
+
+    @pytest.mark.allow_subp_for("openssl")
+    def test_invalid_certificate_integration(self):
+        """Integration test: Reject invalid certificate with real openssl."""
+        _require_commands("openssl")
+        cert = (
+            "-----BEGIN CERTIFICATE-----\nINVALID\n-----END CERTIFICATE-----"
+        )
+
+        # Actually calls openssl, which will fail on invalid cert
         assert certs.is_x509_certificate(cert) is False
 
 
-class TestConvertX509ToOpenssh(CiTestCase):
+class TestConvertX509ToOpenssh:
     """Test convert_x509_to_openssh() function."""
 
     def _data_file_path(self, name):
@@ -233,24 +258,16 @@ class TestConvertX509ToOpenssh(CiTestCase):
 
         assert "ssh-keygen failed" in str(exc_info.value)
 
-    def test_conversion_with_real_test_data(self):
-        """Test conversion using actual test certificate data.
-
-        This test uses real openssl/ssh-keygen if available, otherwise skips.
-        """
+    @pytest.mark.allow_subp_for("openssl", "ssh-keygen")
+    def test_conversion_integration(self):
+        """Integration test: Actually convert certificate with real commands."""
+        _require_commands("openssl", "ssh-keygen")
         cert_file = self._data_file_path("pubkey_extract_cert")
         key_file = self._data_file_path("pubkey_extract_ssh_key")
 
         # Skip if test data files don't exist
         if not os.path.exists(cert_file) or not os.path.exists(key_file):
             pytest.skip("Test data files not found")
-
-        # Skip if openssl or ssh-keygen not available
-        try:
-            subp.which("openssl")
-            subp.which("ssh-keygen")
-        except subp.ProcessExecutionError:
-            pytest.skip("openssl or ssh-keygen not available")
 
         # Load test data
         with open(cert_file, "r") as f:
