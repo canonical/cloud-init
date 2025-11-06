@@ -314,8 +314,8 @@ class ReportEventStack:
             report_finish_event(
                 self.fullname,
                 msg,
-                duration,
-                result,
+                duration=duration,
+                result=result,
                 post_files=self.post_files,
             )
 
