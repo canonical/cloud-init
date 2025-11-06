@@ -110,6 +110,15 @@ def mock_device_driver():
         yield m
 
 
+@pytest.fixture
+def mock_find_primary_nic():
+    with mock.patch(
+        MOCKPATH + "find_primary_nic",
+        return_value="eth2",
+    ) as m:
+        yield m
+
+
 @pytest.fixture(autouse=True)
 def mock_netinfo(disable_netdev_info):
     pass
@@ -3532,6 +3541,29 @@ class TestEphemeralNetworking:
             assert call[0][0].startswith(
                 "result=error|reason=failure to find DHCP interface"
             )
+
+    def test_logging_found_iface_mac_driver(
+        self,
+        azure_ds,
+        mock_find_primary_nic,
+        mock_ephemeral_dhcp_v4,
+        mock_report_diagnostic_event,
+        mock_sleep,
+    ):
+        azure_ds._setup_ephemeral_networking()
+
+        assert mock.call(
+                "Bringing up ephemeral networking with "
+                "iface=eth2 mac=00:11:22:33:44:01 driver=unknown: "
+                "[('dummy0', '9e:65:d6:19:19:01', None, None), "
+                "('enP3', '00:11:22:33:44:02', 'unknown_accel', '0x3'), "
+                "('eth0', '00:11:22:33:44:00', 'hv_netvsc', '0x3'), "
+                "('eth2', '00:11:22:33:44:01', 'unknown', '0x3'), "
+                "('eth3', '00:11:22:33:44:02', "
+                "'unknown_with_unknown_vf', '0x3'), "
+                "('lo', '00:00:00:00:00:00', None, None)]",
+                logger_func=dsaz.LOG.debug,
+            ) in mock_report_diagnostic_event.mock_calls
 
     def test_retry_process_error(
         self,
