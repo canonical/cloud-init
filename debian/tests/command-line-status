@@ -1,0 +1,15 @@
+#!/bin/bash
+set -e
+if [ -z "${AUTOPKGTEST_REBOOT_MARK}" ]; then
+    echo "Check initial image cloud-init status run"
+    cloud-init status --format yaml || echo "WARNING: cloud-init status: non-zero exit code"
+    # Setup clean boot environment to ensure no cloud-init cache from
+    # test image setup
+    echo "Removing cloud-init cache and rebooting ..."
+    cloud-init clean --logs
+    /tmp/autopkgtest-reboot boot1
+else
+    cloud-init status --wait
+    cloud-init status --format yaml
+    cloud-init status --format json
+fi

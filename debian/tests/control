@@ -1,0 +1,2 @@
+Tests: command-line-status
+Restrictions: needs-root, needs-reboot, breaks-testbed, allow-stderr
