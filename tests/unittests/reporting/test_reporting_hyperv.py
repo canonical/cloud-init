@@ -21,7 +21,12 @@ from cloudinit.sources.helpers import azure
 
 
 class TestKvpEncoding:
-    def test_encode_decode(self):
+    def test_encode_decode(self, mocker):
+        # Mock query_vm_id to avoid subp calls during HyperVKvpReportingHandler init
+        mocker.patch(
+            "cloudinit.sources.azure.identity.query_vm_id",
+            return_value="00000000-0000-0000-0000-000000000000",
+        )
         kvp = {"key": "key1", "value": "value1"}
         kvp_reporting = HyperVKvpReportingHandler()
         data = kvp_reporting._encode_kvp_item(kvp["key"], kvp["value"])
@@ -38,7 +43,12 @@ class TestKvpReporter:
         return str(file_path)
 
     @pytest.fixture
-    def reporter(self, kvp_file_path):
+    def reporter(self, kvp_file_path, mocker):
+        # Mock query_vm_id to avoid subp calls during HyperVKvpReportingHandler init
+        mocker.patch(
+            "cloudinit.sources.azure.identity.query_vm_id",
+            return_value="00000000-0000-0000-0000-000000000000",
+        )
         return HyperVKvpReportingHandler(kvp_file_path=kvp_file_path)
 
     def test_events_with_higher_incarnation_not_over_written(
