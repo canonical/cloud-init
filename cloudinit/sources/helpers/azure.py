@@ -18,7 +18,7 @@ from xml.sax.saxutils import escape  # nosec B406
 
 from cloudinit import distros, subp, temp_utils, url_helper, util, version
 from cloudinit.reporting import events
-from cloudinit.sources.azure import errors
+from cloudinit.sources.azure import certs, errors
 
 LOG = logging.getLogger(__name__)
 
@@ -490,10 +490,7 @@ class OpenSSLManager:
 
     @azure_ds_telemetry_reporter
     def _get_ssh_key_from_cert(self, certificate):
-        pub_key = self._run_x509_action("-pubkey", certificate)
-        keygen_cmd = ["ssh-keygen", "-i", "-m", "PKCS8", "-f", "/dev/stdin"]
-        ssh_key, _ = subp.subp(keygen_cmd, data=pub_key)
-        return ssh_key
+        return certs.convert_x509_to_openssh(certificate)
 
     @azure_ds_telemetry_reporter
     def _get_fingerprint_from_cert(self, certificate):
