@@ -3552,7 +3552,8 @@ class TestEphemeralNetworking:
     ):
         azure_ds._setup_ephemeral_networking()
 
-        assert mock.call(
+        assert (
+            mock.call(
                 "Bringing up ephemeral networking with "
                 "iface=eth2 mac=00:11:22:33:44:01 driver=unknown: "
                 "[('dummy0', '9e:65:d6:19:19:01', None, None), "
@@ -3563,7 +3564,9 @@ class TestEphemeralNetworking:
                 "'unknown_with_unknown_vf', '0x3'), "
                 "('lo', '00:00:00:00:00:00', None, None)]",
                 logger_func=dsaz.LOG.debug,
-            ) in mock_report_diagnostic_event.mock_calls
+            )
+            in mock_report_diagnostic_event.mock_calls
+        )
 
     def test_retry_process_error(
         self,
