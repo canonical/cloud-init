@@ -124,11 +124,14 @@ def test_reportable_errors(
 
 
 def test_dhcp_lease(mocker):
-    error = errors.ReportableErrorDhcpLease(duration=5.6, interface="foo")
+    error = errors.ReportableErrorDhcpLease(
+        duration=5.6, interface="foo", mac_address="00:11:22:33:44:55"
+    )
 
     assert error.reason == "failure to obtain DHCP lease"
     assert error.supporting_data["duration"] == 5.6
     assert error.supporting_data["interface"] == "foo"
+    assert error.supporting_data["mac_address"] == "00:11:22:33:44:55"
 
 
 def test_dhcp_interface_not_found(mocker):

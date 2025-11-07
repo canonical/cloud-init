@@ -475,12 +475,15 @@ class DataSourceAzure(sources.DataSource):
                 except NoDHCPLeaseError:
                     # Typical DHCP failure, continue after sleeping 1 second.
                     report_diagnostic_event(
-                        "Failed to obtain DHCP lease (iface=%s)" % iface,
+                        "Failed to obtain DHCP lease (iface=%s mac=%s)"
+                        % (iface, mac),
                         logger_func=LOG.error,
                     )
                     self._report_failure(
                         errors.ReportableErrorDhcpLease(
-                            duration=monotonic() - start_time, interface=iface
+                            duration=monotonic() - start_time,
+                            interface=iface,
+                            mac_address=mac,
                         ),
                         host_only=True,
                     )
