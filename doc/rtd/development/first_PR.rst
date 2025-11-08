@@ -1,55 +1,62 @@
-Submit your first pull request
-******************************
+Contribution requirements
+*************************
 
-Follow these steps prior to submitting  your first pull request to cloud-init:
+The following steps must be completed before a contribution can be accepted.
 
-Setup Git and GitHub appropriately
-==================================
+Understand the process
+======================
 
-Understanding how to use Git and GitHub is a prerequisite for contributing to
-cloud-init. Please refer to the `GitHub quickstart`_ documentation
-for more information.
+Make sure that you understand the
+:ref:`code review process<code_review_process>`.
 
 Sign the CLA
 ============
 
-To contribute to cloud-init, you must first sign the Canonical
-`contributor license agreement <CLA_>`_ (CLA). A check is run against
-every pull request to ensure that the CLA has been signed.
+The Canonical `contributor license agreement <CLA_>`_ (CLA) must be signed
+- for either an individual or on behalf of an organization.
 
-For any questions or help with the process, email
-`Chad Smith <mailto:chad.smith@canonical.com>`_ with the subject:
-"Cloud-init CLA".
+Make a change
+=============
 
-Create a sandbox environment
-============================
+Modify the source with your desired change.
 
-It is very often helpful to create a safe and sandboxed environment to test
-your changes in while you work. If you are not sure how to do this, check out
-:ref:`our QEMU tutorial<tutorial_qemu>`, which walks through this process
-step-by-step.
+Properly format the change
+==========================
 
-Format the code
-===============
-
-Apply the ``black`` and ``isort`` formatting rules with `tox`_: ::
+Auto-formatters can be used to make your changes satisfy linters. ::
 
     tox -e do_format
 
-Run unit tests
-==============
+Verify that tests pass
+======================
 
-Run unit tests and lint/formatting checks with `tox`_: ::
+Unit tests and linters can be executed with `tox`_. ::
 
     tox
 
-Read our code review process
-============================
+Open a PR on Github
+===================
 
-Once you have submitted your PR (if not earlier!) you will want to read the
-cloud-init :ref:`Code Review Process<code_review_process>`, so you can
-understand how your changes will end up in cloud-init's codebase.
+A Github Issue must be filed which describes the issue / feature that your PR
+resolves. This issue must be linked to from the PR. This is not required for
+simple PRs.
 
-.. include:: ../links.txt
-.. _PR #344: https://github.com/canonical/cloud-init/pull/344
-.. _PR #345: https://github.com/canonical/cloud-init/pull/345
+Take special care to follow the template format and describe why the change is
+required. Simply describing the modifications is not sufficient except in simple
+PRs (ex: spelling / grammar changes).
+
+Follow up
+=========
+
+Your PR may not be reviewed immediately, but maintainers regularly
+monitor the queue. Changes may be requested which must be addressed before the
+PR can be merged. PRs will be closed after they go stale. If a PR goes stale
+without response, feel free to ping a maintainer for feedback. 
+
+
+Questions
+=========
+
+For help with the process, email
+`Chad Smith <mailto:chad.smith@canonical.com>`_ with the subject:
+"Cloud-init CLA".
