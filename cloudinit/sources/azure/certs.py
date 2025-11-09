@@ -3,6 +3,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
+from typing import Optional
 
 from cloudinit import ssh_util, subp
 
@@ -14,25 +15,25 @@ def is_openssh_formatted(key: str) -> bool:
 
     This checks if a given string is a valid OpenSSH public key format
     (e.g., ssh-rsa, ssh-ed25519, ecdsa-sha2-nistp256).
+
     """
     if not key:
-        LOG.debug("OpenSSH key validation failed: empty key content provided.")
+        LOG.debug("Empty key content provided.")
         return False
+    # See https://bugs.launchpad.net/cloud-init/+bug/1910835
     if "\r\n" in key.strip():
-        LOG.debug(
-            "OpenSSH key validation failed: carriage returns detected in key."
-        )
+        LOG.debug("Key contains carriage returns.")
         return False
 
     parser = ssh_util.AuthKeyLineParser()
     try:
         akl = parser.parse(key)
     except TypeError:
-        LOG.debug("OpenSSH key validation failed: parser rejected key.")
+        LOG.debug("Key could not be parsed.")
         return False
 
     if akl.keytype is None:
-        LOG.debug("OpenSSH key validation failed: key type missing.")
+        LOG.debug("Key type is missing.")
         return False
 
     return True
@@ -45,21 +46,17 @@ def is_x509_certificate(cert: str) -> bool:
     attempting to parse it with openssl.
     """
     if not cert:
-        LOG.debug("Certificate validation failed: empty certificate provided.")
+        LOG.debug("Empty certificate provided.")
         return False
 
     cert = cert.strip()
 
     if "-----BEGIN CERTIFICATE-----" not in cert:
-        LOG.debug(
-            "Certificate validation failed: missing BEGIN CERTIFICATE marker."
-        )
+        LOG.debug("Missing BEGIN CERTIFICATE marker.")
         return False
 
     if "-----END CERTIFICATE-----" not in cert:
-        LOG.debug(
-            "Certificate validation failed: missing END CERTIFICATE marker."
-        )
+        LOG.debug("Missing END CERTIFICATE marker.")
         return False
 
     # Attempt to parse the certificate with openssl to validate it.
@@ -68,8 +65,51 @@ def is_x509_certificate(cert: str) -> bool:
         subp.subp(cmd, data=cert)
         return True
     except subp.ProcessExecutionError as e:
-        LOG.debug("Certificate validation failed: %s", e)
+        LOG.debug("Certificate could not be parsed: %s", e)
         return False
+
+
+def extract_x509_certificate(data: str) -> Optional[str]:
+    """Extract and validate the first x509 certificate from a data bundle.
+
+    The data may contain a mix of certificates and private keys. This function
+    finds the first valid x509 certificate and returns it.
+
+    Args:
+        data: String containing certificate data, potentially mixed with
+              private keys or other content.
+
+    Returns:
+        The first valid x509 certificate as a string, or None if no valid
+        certificate is found.
+    """
+    import re
+
+    if not data:
+        LOG.debug("No data provided for certificate extraction.")
+        return None
+
+    current = []
+    for line in data.splitlines():
+        current.append(line)
+        if re.match(r"[-]+END .*?KEY[-]+$", line):
+            # Skip private keys
+            current = []
+        elif re.match(r"[-]+END .*?CERTIFICATE[-]+$", line):
+            certificate = "\n".join(current)
+            if is_x509_certificate(certificate):
+                LOG.debug(
+                    "Successfully extracted x509 certificate from bundle."
+                )
+                return certificate
+            else:
+                LOG.debug(
+                    "Found certificate block but validation failed, skipping."
+                )
+                current = []
+
+    LOG.debug("No valid x509 certificate found in data bundle.")
+    return None
 
 
 def convert_x509_to_openssh(certificate: str) -> str:

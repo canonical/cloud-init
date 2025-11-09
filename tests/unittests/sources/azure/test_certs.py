@@ -13,9 +13,7 @@ from cloudinit.sources.azure import certs
 def _require_commands(*commands):
     """Skip the test if any required external command is unavailable."""
     for command in commands:
-        try:
-            subp.which(command)
-        except subp.ProcessExecutionError:
+        if subp.which(command) is None:
             pytest.skip(f"{command} not available")
 
 
@@ -52,7 +50,7 @@ class TestIsOpensshFormatted:
         assert certs.is_openssh_formatted(key) is True
 
     def test_key_with_windows_line_endings(self):
-        """Keys with Windows line endings (\\r\\n) should return False."""
+        r"""Keys with Windows line endings (\\r\\n) should return False."""
         key = "ssh-rsa AAAAB3NzaC1yc2EAAAA\r\nBBBB user@host"
         assert certs.is_openssh_formatted(key) is False
 
@@ -146,7 +144,7 @@ class TestIsX509Certificate:
 
     @pytest.mark.allow_subp_for("openssl")
     def test_certificate_with_extra_whitespace_integration(self):
-        """Integration test: Certificate with extra whitespace should validate."""
+        """Integration test: Certificate with extra whitespace validates."""
         _require_commands("openssl")
         cert_file = self._data_file_path("pubkey_extract_cert")
 
@@ -173,6 +171,133 @@ class TestIsX509Certificate:
 
         # Actually calls openssl, which will fail on invalid cert
         assert certs.is_x509_certificate(cert) is False
+
+
+class TestExtractX509Certificate:
+    """Test extract_x509_certificate() function."""
+
+    def _data_file_path(self, name):
+        """Helper to get path to test data file."""
+        return os.path.join("tests", "data", "azure", name)
+
+    def test_no_certificate_returns_none(self):
+        """Data with no certificate should return None."""
+        data = "this is just some random text\nwith no certificate"
+        assert certs.extract_x509_certificate(data) is None
+
+    @mock.patch("cloudinit.sources.azure.certs.is_x509_certificate")
+    def test_extracts_first_valid_certificate(self, m_is_x509):
+        """Should extract and return the first valid certificate."""
+        cert1 = dedent(
+            """\
+            -----BEGIN CERTIFICATE-----
+            CERT1DATA
+            -----END CERTIFICATE-----
+            """
+        )
+        cert2 = dedent(
+            """\
+            -----BEGIN CERTIFICATE-----
+            CERT2DATA
+            -----END CERTIFICATE-----
+            """
+        )
+        bundle = cert1 + "\n" + cert2
+
+        # Mock validation to accept cert1
+        m_is_x509.return_value = True
+
+        result = certs.extract_x509_certificate(bundle)
+
+        # Should return first cert
+        assert result is not None
+        assert "CERT1DATA" in result
+        assert "CERT2DATA" not in result
+
+    @mock.patch("cloudinit.sources.azure.certs.is_x509_certificate")
+    def test_skips_private_keys(self, m_is_x509):
+        """Should skip private keys and extract certificate."""
+        private_key = dedent(
+            """\
+            -----BEGIN PRIVATE KEY-----
+            PRIVATEKEYDATA
+            -----END PRIVATE KEY-----
+            """
+        )
+        certificate = dedent(
+            """\
+            -----BEGIN CERTIFICATE-----
+            CERTDATA
+            -----END CERTIFICATE-----
+            """
+        )
+        bundle = private_key + "\n" + certificate
+
+        m_is_x509.return_value = True
+
+        result = certs.extract_x509_certificate(bundle)
+
+        assert result is not None
+        assert "CERTDATA" in result
+        assert "PRIVATEKEYDATA" not in result
+
+    @mock.patch("cloudinit.sources.azure.certs.is_x509_certificate")
+    def test_returns_first_valid_cert_after_invalid(self, m_is_x509):
+        """Should skip invalid cert and return next valid one."""
+        invalid_cert = dedent(
+            """\
+            -----BEGIN CERTIFICATE-----
+            INVALID
+            -----END CERTIFICATE-----
+            """
+        )
+        valid_cert = dedent(
+            """\
+            -----BEGIN CERTIFICATE-----
+            VALID
+            -----END CERTIFICATE-----
+            """
+        )
+        bundle = invalid_cert + "\n" + valid_cert
+
+        # First call returns False (invalid), second returns True (valid)
+        m_is_x509.side_effect = [False, True]
+
+        result = certs.extract_x509_certificate(bundle)
+
+        assert result is not None
+        assert "VALID" in result
+        assert "INVALID" not in result
+
+    @pytest.mark.allow_subp_for("openssl")
+    def test_extraction_from_mixed_bundle_integration(self):
+        """Integration test: Extract cert from bundle with private key."""
+        _require_commands("openssl")
+        cert_file = self._data_file_path("pubkey_extract_cert")
+
+        # Skip if test data file doesn't exist
+        if not os.path.exists(cert_file):
+            pytest.skip("Test data file not found")
+
+        with open(cert_file, "r") as f:
+            cert = f.read()
+
+        # Create a bundle with a private key and certificate
+        private_key = dedent(
+            """\
+            -----BEGIN PRIVATE KEY-----
+            MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDExample
+            -----END PRIVATE KEY-----
+            """
+        )
+        bundle = private_key + "\n" + cert
+
+        result = certs.extract_x509_certificate(bundle)
+
+        # Should extract the valid certificate, not the private key
+        assert result is not None
+        assert "-----BEGIN CERTIFICATE-----" in result
+        assert "PRIVATE KEY" not in result
 
 
 class TestConvertX509ToOpenssh:
@@ -260,7 +385,7 @@ class TestConvertX509ToOpenssh:
 
     @pytest.mark.allow_subp_for("openssl", "ssh-keygen")
     def test_conversion_integration(self):
-        """Integration test: Actually convert certificate with real commands."""
+        """Integration test: Convert certificate with real commands."""
         _require_commands("openssl", "ssh-keygen")
         cert_file = self._data_file_path("pubkey_extract_cert")
         key_file = self._data_file_path("pubkey_extract_ssh_key")

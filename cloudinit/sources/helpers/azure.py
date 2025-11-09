@@ -545,9 +545,13 @@ class OpenSSLManager:
                 current = []
             elif re.match(r"[-]+END .*?CERTIFICATE[-]+$", line):
                 certificate = "\n".join(current)
-                ssh_key = self._get_ssh_key_from_cert(certificate)
-                fingerprint = self._get_fingerprint_from_cert(certificate)
-                keys[fingerprint] = ssh_key
+                # Validate the certificate before processing
+                if certs.is_x509_certificate(certificate):
+                    ssh_key = self._get_ssh_key_from_cert(certificate)
+                    fingerprint = self._get_fingerprint_from_cert(certificate)
+                    keys[fingerprint] = ssh_key
+                else:
+                    LOG.debug("Skipping invalid certificate in bundle.")
                 current = []
         return keys
 
