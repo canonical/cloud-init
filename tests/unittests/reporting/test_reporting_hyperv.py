@@ -22,7 +22,8 @@ from cloudinit.sources.helpers import azure
 
 class TestKvpEncoding:
     def test_encode_decode(self, mocker):
-        # Mock query_vm_id to avoid subp calls during HyperVKvpReportingHandler init
+        # Mock query_vm_id to avoid subp calls during
+        # HyperVKvpReportingHandler init
         mocker.patch(
             "cloudinit.sources.azure.identity.query_vm_id",
             return_value="00000000-0000-0000-0000-000000000000",
@@ -44,7 +45,8 @@ class TestKvpReporter:
 
     @pytest.fixture
     def reporter(self, kvp_file_path, mocker):
-        # Mock query_vm_id to avoid subp calls during HyperVKvpReportingHandler init
+        # Mock query_vm_id to avoid subp calls during
+        # HyperVKvpReportingHandler init
         mocker.patch(
             "cloudinit.sources.azure.identity.query_vm_id",
             return_value="00000000-0000-0000-0000-000000000000",

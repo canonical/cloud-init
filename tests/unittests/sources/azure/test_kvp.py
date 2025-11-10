@@ -28,7 +28,8 @@ def fake_vm_id(mocker):
 
 @pytest.fixture
 def telemetry_reporter(tmp_path, mocker):
-    # Mock query_vm_id to avoid subp calls during HyperVKvpReportingHandler init
+    # Mock query_vm_id to avoid subp calls during
+    # HyperVKvpReportingHandler init
     mocker.patch(
         "cloudinit.sources.azure.identity.query_vm_id",
         return_value="00000000-0000-0000-0000-000000000000",
