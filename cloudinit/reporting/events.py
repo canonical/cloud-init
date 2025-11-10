@@ -233,6 +233,7 @@ class ReportEventStack:
         self.message = message
         self.result_on_exception = result_on_exception
         self.result = status.SUCCESS
+        self.start_timestamp = None
         if post_files is None:
             post_files = []
         self.post_files = post_files
@@ -310,7 +311,10 @@ class ReportEventStack:
         if self.parent:
             self.parent.children[self.name] = (result, msg)
         if self.reporting_enabled:
-            duration = time.monotonic() - self.start_timestamp
+            if self.start_timestamp is not None:
+                duration = time.monotonic() - self.start_timestamp
+            else:
+                duration = 0.0
             report_finish_event(
                 self.fullname,
                 msg,
