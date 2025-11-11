@@ -10,6 +10,8 @@ Contribute to the code
    module_creation.rst
    datasource_creation.rst
    dir_layout.rst
+   logging.rst
+   internal_files.rst
    feature_flags.rst
 
 For a run-through of the entire process, the following pages will be your best
