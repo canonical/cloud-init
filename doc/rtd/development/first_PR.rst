@@ -1,67 +1,112 @@
+.. _first-PR:
 Contribution requirements
 *************************
 
-The following steps must be completed before a contribution can be accepted.
+The following steps must be completed to contribute to cloud-init. A PR that
+fails to meet the contribution requirements is unlikely to be successful.
 
 Understand contribution expectations
 ====================================
 
 Read and agree to abide by our `Code of Conduct`_.
 
-Make sure that you understand the
-:ref:`code review process<code_review_process>`.
-
 Sign the CLA
 ============
 
 The Canonical `contributor license agreement <CLA_>`_ (CLA) must be signed
-- for either an individual or on behalf of an organization. This is enforced
+- as either an individual or on behalf of an organization. This is enforced
 by CI.
 
 Make a change
 =============
 
-Modify the source with your desired change.
+Modify the source. Make sure to update comments, limit unnecessary code changes,
+and remove any code that is no longer used. Functions, methods, and classes
+should include docstrings and type annotations. 
 
-Properly format the change
-==========================
+Format the change
+=================
 
-Auto-formatters can be used to make your changes satisfy the linters. ::
+Changes that are inconsistent with the style and conventions of the existing
+code are undesireable. CI jobs run linters to enforce certain rules.
+Auto-formatting the code catches most issues: ::
 
     tox -e do_format
 
 Test the change
 ===============
 
-Unit tests and linters can be executed with `tox`_. ::
+Manual tests
+------------
+
+Before submitting a PR, one should verify that the change produces the desired
+result. While verifying the change, make sure to capture evidence of manual
+testing (CLI output or logs) to include in the PR description for reviewers.
+
+See the :ref:`QEMU tutorial<tutorial_qemu>` for instructions to run cloud-init
+in a virtual machine - this is often sufficient to manually test changes.
+
+Unit tests
+----------
+
+Unit tests should be added to PRs to verify descrete chunks of code.
+Unit tests and linters can be executed with `tox`_: ::
 
     tox
 
-Check out the :ref:`QEMU tutorial<tutorial_qemu>` to see how to run cloud-init
-in a virtual machine. This can often be used to verify a change.
+Proposed changes should not reduce test coverage. Existing tests in ``tests/``
+may serve as a source of inspiration for new tests.
+
+Integration tests
+-----------------
+
+Integration tests may also be required, depending on the scope of the change.
+
+Linters
+-------
+
+If a linter is silenced in a contribution, a code comment should document the
+justification for this decision.
+
+Run linters with: ::
+
+    tox -e check_format
+
+Document the change
+===================
+
+Changes that modify behavior of cloud-init must be documented. The docs can be
+build locally with: ::
+
+    tox -e doc
 
 Contribute the change
 =====================
 
 Submit a PR against the ``main`` branch of the canonical/cloud-init repository.
+Take special care when filling in the PR description template to include all
+requested information.
 
-A Github Issue must be filed which describes the issue / feature that is
-resolved by your PR. This issue must be linked to from the PR.
-
-Take special care to follow the template format and describe why the change is
-required.
-
-Follow up
-=========
+A Github Issue must be linked to the PR that describes the issue / feature which is
+resolved by PR.
 
 All CI jobs must pass. If a job failes that seems unrelated to your change, it
-may be a temporary issue with Github. Pushing an empty commit will force CI to
-re-run.
+may be a temporary issue with Github. Push an empty commit to re-run CI.
 
-Your PR may not be reviewed immediately, but maintainers regularly monitor the
-queue. Changes may be requested by maintainers which must be addressed before
-the PR will be merged. PRs will be closed after they go stale. If a PR goes
-stale without response, feel free to ping a maintainer for feedback. 
+PR lifecycle
+============
+
+A PR may not be reviewed immediately, but developers monitor the queue. Changes
+to a PR that are requested by core developers must be resolved before the PR
+can be merged.
+
+PRs are automatically tagged as **stale** after 14 days of inactivity and are
+automatically closed after 7 more days of inactivity.
+
+Any PR that does not meet the requirements may be assumed to be under
+development. If a PR has gone stale and you are certain that it meets the
+documented requirements, then pinging a developer for feedback may be
+appropriate.
 
 Questions
 =========

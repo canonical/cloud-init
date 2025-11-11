@@ -11,26 +11,23 @@
 How to contribute to cloud-init
 *******************************
 
-Thank you for wanting to help us improve cloud-init! There are a variety of
+Thank you for your interest in improving cloud-init! There are a variety of
 ways you can contribute to this project, including no-code and low-code
-options. This documentation will help orient you with our processes.
+options. This documentation will help orient you to the project.
 
-Please make sure that you read all of the pages in this guide before starting
-to contribute. It contains everything that you need to give your contribution
-the best chance of being accepted.
+Make sure to read the `first PR guide<first-PR>` before starting
+to contribute for the best chance of being accepted.
 
-Cloud-init is hosted and managed on `GitHub`_. If you're not
-familiar with how GitHub works, their
-`quickstart documentation`_
-provides an excellent introduction to all the tools and processes you'll need
-to know.
+Cloud-init is hosted and managed on `GitHub<repository>`_. If you are not familiar with how
+GitHub works, its `quickstart documentation`_ provides an excellent
+introduction to all the tools and processes you will need to know.
 
 Getting help
 ============
 
 We use Matrix and have a dedicated `#cloud-init` room where you can contact
-us for help and guidance. This link will take you directly to our
-`room on Matrix <Matrix_>`_.
+us for help and guidance. `This link<Matrix_>`_ will take you directly to our
+room on Matrix.
 
 .. LINKS:
 .. include:: ../links.txt

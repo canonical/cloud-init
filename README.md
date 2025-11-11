@@ -41,8 +41,8 @@ supported, please get in contact with that distribution and send them our way!
 
 ## To start developing cloud-init
 
-Checkout the [contributing](https://docs.cloud-init.io/en/latest/development/index.html)
-document that outlines the steps necessary to develop, test, and submit code.
+Check out the [contributing](https://docs.cloud-init.io/en/latest/development/index.html)
+guide that outlines the steps necessary to develop, test, and submit code.
 
 ## Daily builds
 
