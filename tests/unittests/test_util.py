@@ -35,7 +35,7 @@ from cloudinit.log import log_util
 from cloudinit.sources import DataSourceHostname
 from cloudinit.subp import SubpResult
 from tests.unittests import helpers
-from tests.unittests.helpers import random_string, skipIf, skipUnlessJinja
+from tests.unittests.helpers import random_string, skipUnlessJinja
 
 LOG = logging.getLogger(__name__)
 M_PATH = "cloudinit.util."
@@ -2819,8 +2819,9 @@ class TestLoadShellContent:
         )
 
 
-@skipIf(
-    not util.is_Linux(), "These tests don't make sense on non-Linux systems."
+@pytest.mark.skipif(
+    not util.is_Linux(),
+    reason="These tests don't make sense on non-Linux systems.",
 )
 class TestGetProcEnv:
     """test get_proc_env."""
@@ -2871,14 +2872,20 @@ class TestGetProcEnv:
 class TestGetProcPpid:
     """test get_proc_ppid"""
 
-    @skipIf(not util.is_Linux(), "/proc/$pid/stat is not useful on not-Linux")
+    @pytest.mark.skipif(
+        not util.is_Linux(),
+        reason="/proc/$pid/stat is not useful on not-Linux",
+    )
     def test_get_proc_ppid_linux(self):
         """get_proc_ppid returns correct parent pid value."""
         my_pid = os.getpid()
         my_ppid = os.getppid()
         assert my_ppid == Distro.get_proc_ppid(my_pid)
 
-    @skipIf(not util.is_Linux(), "/proc/$pid/stat is not useful on not-Linux")
+    @pytest.mark.skipif(
+        not util.is_Linux(),
+        reason="/proc/$pid/stat is not useful on not-Linux",
+    )
     def test_get_proc_pgrp_linux(self):
         """get_proc_ppid returns correct parent pid value."""
         assert os.getpgid(0) == Distro.get_proc_pgid(os.getpid())
