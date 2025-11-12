@@ -23,9 +23,10 @@ by CI. For help with the CLA, email
 Make a change
 =============
 
-Modify the source: fix a bug or add a feature. Make sure to update comments,
-limit unnecessary code changes, and remove any code that is no longer used.
-Functions, methods, and classes should include docstrings and type annotations.
+Modify the source: fix a bug or add a feature. Make sure to update comments
+and docs, limit unnecessary code changes, and remove any code that is no longer
+used. Functions, methods, and classes should include docstrings and type
+annotations.
 
 Format the change
 =================
@@ -85,10 +86,10 @@ build locally with: ::
 Contribute the change
 =====================
 
-Submit a PR against the ``main`` branch of the canonical/cloud-init repository.
-Take special care when filling in the PR description template to include all
-requested information. A Github Issue must be linked to the PR that describes
-the issue or feature.
+Submit a PR against the ``main`` branch of the `canonical/cloud-init`_
+repository. Take special care when filling in the PR description template to
+include all requested information. A Github Issue must be linked to the PR that
+describes the issue or feature.
 
 All CI jobs must pass. If a job failes that seems unrelated to your change, it
 may be a temporary issue with Github. Push an empty commit if you need to
@@ -108,4 +109,5 @@ Any PR that does not meet the requirements might be assumed by core developers
 to be under development. If a PR has gone stale and you are certain that it
 meets the documented requirements, then you may ping a core developer.
 
+.. _canonical/cloud-init: https://github.com/canonical/cloud-init
 .. include:: ../links.txt
