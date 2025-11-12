@@ -1,4 +1,5 @@
 .. _first-PR:
+
 Contribution requirements
 *************************
 
@@ -20,9 +21,9 @@ by CI.
 Make a change
 =============
 
-Modify the source. Make sure to update comments, limit unnecessary code changes,
-and remove any code that is no longer used. Functions, methods, and classes
-should include docstrings and type annotations. 
+Modify the source. Make sure to update comments, limit unnecessary code
+changes, and remove any code that is no longer used. Functions, methods, and
+classes should include docstrings and type annotations.
 
 Format the change
 =================
@@ -87,8 +88,8 @@ Submit a PR against the ``main`` branch of the canonical/cloud-init repository.
 Take special care when filling in the PR description template to include all
 requested information.
 
-A Github Issue must be linked to the PR that describes the issue / feature which is
-resolved by PR.
+A Github Issue must be linked to the PR that describes the issue / feature
+which is resolved by PR.
 
 All CI jobs must pass. If a job failes that seems unrelated to your change, it
 may be a temporary issue with Github. Push an empty commit to re-run CI.
@@ -96,17 +97,17 @@ may be a temporary issue with Github. Push an empty commit to re-run CI.
 PR lifecycle
 ============
 
-A PR may not be reviewed immediately, but developers monitor the queue. Changes
-to a PR that are requested by core developers must be resolved before the PR
-can be merged.
+A PR may not be reviewed immediately, but the queue is actively monitored.
+Changes requested by core developers must be resolved before the PR can be
+merged.
 
 PRs are automatically tagged as **stale** after 14 days of inactivity and are
 automatically closed after 7 more days of inactivity.
 
-Any PR that does not meet the requirements may be assumed to be under
-development. If a PR has gone stale and you are certain that it meets the
-documented requirements, then pinging a developer for feedback may be
-appropriate.
+Any PR that does not meet the requirements might be assumed by core developers
+to be under development. If a PR has gone stale and you are certain that it
+meets the documented requirements, then it is appropriate to ping a core
+developer.
 
 Questions
 =========
