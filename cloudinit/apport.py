@@ -28,47 +28,6 @@ except ImportError:
     has_apport = False
 
 
-KNOWN_CLOUD_NAMES = [
-    "AliYun",
-    "AltCloud",
-    "Akamai",
-    "Amazon - Ec2",
-    "Azure",
-    "Bigstep",
-    "Brightbox",
-    "CloudCIX",
-    "CloudSigma",
-    "CloudStack",
-    "DigitalOcean",
-    "E24Cloud",
-    "GCE - Google Compute Engine",
-    "Huawei Cloud",
-    "Exoscale",
-    "Hetzner Cloud",
-    "NWCS",
-    "IBM - (aka SoftLayer or BlueMix)",
-    "LXD",
-    "MAAS",
-    "NoCloud",
-    "OpenNebula",
-    "OpenStack",
-    "Oracle",
-    "OVF",
-    "RbxCloud - (HyperOne, Rootbox, Rubikon)",
-    "OpenTelekomCloud",
-    "Samsung Cloud Platform",
-    "SAP Converged Cloud",
-    "Scaleway",
-    "SmartOS",
-    "UpCloud",
-    "VMware",
-    "Vultr",
-    "ZStack",
-    "Outscale",
-    "WSL",
-    "Other",
-]
-
 
 def attach_cloud_init_logs(report, ui=None, include_sensitive=False):
     """Attach cloud-init logs and tarfile from 'cloud-init collect-logs'."""

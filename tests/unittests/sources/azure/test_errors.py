@@ -26,13 +26,7 @@ def fake_utcnow():
         yield timestamp
 
 
-@pytest.fixture(autouse=True)
-def fake_vm_id(mocker):
-    vm_id = "foo"
-    mocker.patch(
-        "cloudinit.sources.azure.identity.query_vm_id", return_value=vm_id
-    )
-    yield vm_id
+
 
 
 def quote_csv_value(value: str) -> str:
@@ -99,10 +93,10 @@ def quote_csv_value(value: str) -> str:
 )
 def test_reportable_errors(
     fake_utcnow,
-    fake_vm_id,
     reason,
     supporting_data,
 ):
+    vm_id = "foo"
     error = errors.ReportableError(
         reason=reason,
         supporting_data=supporting_data,
@@ -115,12 +109,12 @@ def test_reportable_errors(
     ]
     data += [quote_csv_value(f"{k}={v}") for k, v in supporting_data.items()]
     data += [
-        f"vm_id={fake_vm_id}",
+        f"vm_id={vm_id}",
         f"timestamp={fake_utcnow.isoformat()}",
         "documentation_url=https://aka.ms/linuxprovisioningerror",
     ]
 
-    assert error.as_encoded_report(vm_id=fake_vm_id) == "|".join(data)
+    assert error.as_encoded_report(vm_id=vm_id) == "|".join(data)
 
 
 def test_dhcp_lease(mocker):

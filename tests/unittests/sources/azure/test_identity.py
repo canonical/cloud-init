@@ -114,21 +114,7 @@ class TestQuerySystemUuid:
         assert exc_info.value.args[0] == "failed to read system-uuid"
 
 
-class TestQueryVmId:
-    def test_gen1(self, monkeypatch):
-        system_uuid = "527c2691-029f-fe4c-b1f4-a4da7ebac2cf"
-        swapped_uuid = "91267c52-9f02-4cfe-b1f4-a4da7ebac2cf"
-        monkeypatch.setattr(identity, "query_system_uuid", lambda: system_uuid)
-        monkeypatch.setattr(identity, "is_vm_gen1", lambda: True)
 
-        assert identity.query_vm_id() == swapped_uuid
-
-    def test_gen2(self, monkeypatch):
-        system_uuid = "527c2691-029f-fe4c-b1f4-a4da7ebac2cf"
-        monkeypatch.setattr(identity, "query_system_uuid", lambda: system_uuid)
-        monkeypatch.setattr(identity, "is_vm_gen1", lambda: False)
-
-        assert identity.query_vm_id() == system_uuid
 
 
 class TestChassisAssetTag:

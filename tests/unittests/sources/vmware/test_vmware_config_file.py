@@ -14,7 +14,7 @@ import textwrap
 
 import pytest
 
-from cloudinit.sources.helpers.vmware.imc.boot_proto import BootProtoEnum
+
 from cloudinit.sources.helpers.vmware.imc.config import Config
 from cloudinit.sources.helpers.vmware.imc.config_file import (
     ConfigFile as WrappedConfigFile,
@@ -96,7 +96,7 @@ class TestVmwareConfigFile:
         assert 2 == len(nics), "nics"
         assert "NIC1" == nics[0].name, "nic0"
         assert "00:50:56:a6:8c:08" == nics[0].mac, "mac0"
-        assert BootProtoEnum.STATIC == nics[0].bootProto, "bootproto0"
+        assert "static" == nics[0].bootProto, "bootproto0"
         assert "10.20.87.154" == ipv40[0].ip, "ipv4Addr0"
         assert "255.255.252.0" == ipv40[0].netmask, "ipv4Mask0"
         assert 2 == len(ipv40[0].gateways), "ipv4Gw0"
@@ -118,7 +118,7 @@ class TestVmwareConfigFile:
         assert 2 == len(nics), "nics"
         assert "NIC1" == nics[0].name, "nic0"
         assert "00:50:56:a6:8c:08" == nics[0].mac, "mac0"
-        assert BootProtoEnum.DHCP == nics[0].bootProto, "bootproto0"
+        assert "dhcp" == nics[0].bootProto, "bootproto0"
 
     def test_config_password(self):
         cf = ConfigFile("tests/data/vmware/cust-dhcp-2nic.cfg")

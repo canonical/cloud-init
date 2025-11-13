@@ -30,7 +30,6 @@ class Ifstate:
         self.inet6 = {}
         self.up = False
         self.options = []
-        self.nd6 = []
         self.flags = []
         self.mtu: int = 0
         self.metric: int = 0
@@ -169,11 +168,6 @@ class Ifconfig:
 
             if toks[0] == "media:":
                 dev.media = line[line.index(": ") + 2 :]
-
-            if toks[0] == "nd6":
-                nd6_opts = re.split(r"<|>", toks[0])
-                if len(nd6_opts) > 1:
-                    dev.nd6 = nd6_opts[1].split(",")
 
             if toks[0] == "status":
                 dev.status = toks[1]

@@ -17,13 +17,7 @@ def fake_utcnow():
         yield timestamp
 
 
-@pytest.fixture
-def fake_vm_id(mocker):
-    vm_id = "foo"
-    mocker.patch(
-        "cloudinit.sources.azure.identity.query_vm_id", return_value=vm_id
-    )
-    yield vm_id
+
 
 
 @pytest.fixture
@@ -62,9 +56,10 @@ class TestReportFailureToHost:
 
 class TestReportSuccessToHost:
     def test_report_success_to_host(
-        self, caplog, fake_utcnow, fake_vm_id, telemetry_reporter
+        self, caplog, fake_utcnow, telemetry_reporter
     ):
-        assert kvp.report_success_to_host(vm_id=fake_vm_id) is True
+        vm_id = "foo"
+        assert kvp.report_success_to_host(vm_id=vm_id) is True
         assert (
             "KVP handler not enabled, skipping host report." not in caplog.text
         )
@@ -74,7 +69,7 @@ class TestReportSuccessToHost:
                 "result=success",
                 f"agent=Cloud-Init/{version.version_string()}",
                 f"timestamp={fake_utcnow.isoformat()}",
-                f"vm_id={fake_vm_id}",
+                f"vm_id={vm_id}",
             ]
         )
 
@@ -84,9 +79,6 @@ class TestReportSuccessToHost:
         }
         assert report in list(telemetry_reporter._iterate_kvps(0))
 
-    def test_report_skipped_without_telemetry(self, caplog, mocker):
-        mocker.patch(
-            "cloudinit.sources.azure.identity.query_vm_id", return_value="foo"
-        )
+    def test_report_skipped_without_telemetry(self, caplog):
         assert kvp.report_success_to_host(vm_id="fake") is False
         assert "KVP handler not enabled, skipping host report." in caplog.text

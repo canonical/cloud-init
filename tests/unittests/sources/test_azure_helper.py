@@ -109,13 +109,7 @@ HEALTH_REPORT_DESCRIPTION_TRIM_LEN = 512
 MOCKPATH = "cloudinit.sources.helpers.azure."
 
 
-@pytest.fixture(autouse=True)
-def fake_vm_id(mocker):
-    vm_id = "foo"
-    mocker.patch(
-        "cloudinit.sources.azure.identity.query_vm_id", return_value=vm_id
-    )
-    yield vm_id
+
 
 
 @pytest.fixture

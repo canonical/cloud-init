@@ -718,23 +718,6 @@ has_fs_with_label() {
     return 1
 }
 
-nocase_equal() {
-    # nocase_equal(a, b)
-    # return 0 if case insensitive comparison a.lower() == b.lower()
-    # different lengths
-    [ "${#1}" = "${#2}" ] || return 1
-    # case sensitive equal
-    [ "$1" = "$2" ] && return 0
-
-    local delim="-delim-"
-    out=$(echo "$1${delim}$2" | tr '[:upper:]' '[:lower:]')
-    # delim is known not to be a pattern, and some editors currently struggle
-    # with parsing the quoted output required to satisfy SC2295
-    # shellcheck disable=2295
-    # https://github.com/tree-sitter/tree-sitter-bash/issues/254
-    [ "${out#*${delim}}" = "${out%${delim}*}" ]
-}
-
 check_seed_dir() {
     # check_seed_dir(name, [required])
     # check the seed dir /var/lib/cloud/seed/<name> for 'required'

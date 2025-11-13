@@ -327,39 +327,7 @@ class TestActivatorsBringUpAll:
             assert call in expected_call_list
 
 
-IF_UP_DOWN_BRING_DOWN_CALL_LIST: list = [
-    ((["ifdown", "eth0"],), {}),
-    ((["ifdown", "eth1"],), {}),
-]
 
-NETWORK_MANAGER_BRING_DOWN_CALL_LIST: list = [
-    ((["nmcli", "device", "disconnect", "eth0"],), {}),
-    ((["nmcli", "device", "disconnect", "eth1"],), {}),
-]
-
-NETWORKD_BRING_DOWN_CALL_LIST: list = [
-    ((["ip", "link", "set", "dev", "eth0", "down"],), {}),
-    ((["ip", "link", "set", "dev", "eth1", "down"],), {}),
-]
-
-
-@pytest.mark.parametrize(
-    "activator, expected_call_list",
-    [
-        (IfUpDownActivator, IF_UP_DOWN_BRING_DOWN_CALL_LIST),
-        (NetplanActivator, NETPLAN_CALL_LIST),
-        (NetworkManagerActivator, NETWORK_MANAGER_BRING_DOWN_CALL_LIST),
-        (NetworkdActivator, NETWORKD_BRING_DOWN_CALL_LIST),
-    ],
-)
-class TestActivatorsBringDown:
-    @patch("cloudinit.subp.subp", return_value=("", ""))
-    def test_bring_down_interface(
-        self, m_subp, activator, expected_call_list, available_mocks
-    ):
-        activator.bring_down_interface("eth0")
-        assert len(m_subp.call_args_list) == 1
-        assert m_subp.call_args_list[0] == expected_call_list[0]
 
 
 class TestNetworkManagerActivatorBringUp:

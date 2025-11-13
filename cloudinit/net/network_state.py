@@ -233,7 +233,6 @@ class NetworkStateInterpreter:
         self._config = config
         self._network_state = copy.deepcopy(self.initial_network_state)
         self._network_state["config"] = config
-        self._parsed = False
         self._interface_dns_map: dict = {}
         self._renderer = renderer
         self.command_handlers = {
@@ -302,10 +301,8 @@ class NetworkStateInterpreter:
     def parse_config(self, skip_broken=True):
         if self._version == 1:
             self.parse_config_v1(skip_broken=skip_broken)
-            self._parsed = True
         elif self._version == 2:
             self.parse_config_v2(skip_broken=skip_broken)
-            self._parsed = True
 
     def parse_config_v1(self, skip_broken=True):
         for command in self._config:
