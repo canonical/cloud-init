@@ -28,7 +28,6 @@ except ImportError:
     has_apport = False
 
 
-
 def attach_cloud_init_logs(report, ui=None, include_sensitive=False):
     """Attach cloud-init logs and tarfile from 'cloud-init collect-logs'."""
     attach_root_command_outputs(  # pyright: ignore

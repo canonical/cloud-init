@@ -74,9 +74,6 @@ def query_system_uuid() -> str:
     return system_uuid
 
 
-
-
-
 class ChassisAssetTag(enum.Enum):
     AZURE_CLOUD = "7783-7084-3265-9085-8269-3286-77"
 

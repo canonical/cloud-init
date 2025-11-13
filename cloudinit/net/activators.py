@@ -58,8 +58,6 @@ class NetworkActivator(ABC):
         """
         raise NotImplementedError()
 
-
-
     @classmethod
     def bring_up_interfaces(cls, device_names: Iterable[str]) -> bool:
         """Bring up specified list of interfaces.
@@ -104,8 +102,6 @@ class IfUpDownActivator(NetworkActivator):
         return _alter_interface(cmd, device_name)
 
 
-
-
 class IfConfigActivator(NetworkActivator):
     @staticmethod
     def available() -> bool:
@@ -122,8 +118,6 @@ class IfConfigActivator(NetworkActivator):
         """
         cmd = ["ifconfig", device_name, "up"]
         return _alter_interface(cmd, device_name)
-
-
 
 
 class NetworkManagerActivator(NetworkActivator):
@@ -155,8 +149,6 @@ class NetworkManagerActivator(NetworkActivator):
             _alter_interface(["nmcli", "connection", "reload"], device_name)
             cmd = ["nmcli", "connection", "up", "ifname", device_name]
         return _alter_interface(cmd, device_name)
-
-
 
     @classmethod
     def bring_up_interfaces(cls, device_names: Iterable[str]) -> bool:
@@ -229,8 +221,6 @@ class NetplanActivator(NetworkActivator):
             NetplanActivator.NETPLAN_CMD, "all", warn_on_stderr=False
         )
 
-
-
     @staticmethod
     def wait_for_network() -> None:
         """On networkd systems, wait for systemd-networkd-wait-online"""
@@ -259,8 +249,6 @@ class NetworkdActivator(NetworkActivator):
         """Return True is successful, otherwise return False"""
         cmd = ["systemctl", "restart", "systemd-networkd", "systemd-resolved"]
         return _alter_interface(cmd, "all")
-
-
 
     @staticmethod
     def wait_for_network() -> None:

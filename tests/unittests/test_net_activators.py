@@ -327,9 +327,6 @@ class TestActivatorsBringUpAll:
             assert call in expected_call_list
 
 
-
-
-
 class TestNetworkManagerActivatorBringUp:
     @patch("cloudinit.subp.subp", return_value=("", ""))
     @patch(

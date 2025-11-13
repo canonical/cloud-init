@@ -14,7 +14,6 @@ import textwrap
 
 import pytest
 
-
 from cloudinit.sources.helpers.vmware.imc.config import Config
 from cloudinit.sources.helpers.vmware.imc.config_file import (
     ConfigFile as WrappedConfigFile,

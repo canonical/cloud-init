@@ -114,9 +114,6 @@ class TestQuerySystemUuid:
         assert exc_info.value.args[0] == "failed to read system-uuid"
 
 
-
-
-
 class TestChassisAssetTag:
     def test_true_azure_cloud(self, caplog, mock_read_dmi_data):
         mock_read_dmi_data.return_value = (

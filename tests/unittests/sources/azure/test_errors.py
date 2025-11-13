@@ -26,9 +26,6 @@ def fake_utcnow():
         yield timestamp
 
 
-
-
-
 def quote_csv_value(value: str) -> str:
     """Match quoting behavior, if needed for given string."""
     if any([x in value for x in ("\n", "\r", "'")]):

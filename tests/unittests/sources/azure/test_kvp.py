@@ -17,9 +17,6 @@ def fake_utcnow():
         yield timestamp
 
 
-
-
-
 @pytest.fixture
 def telemetry_reporter(tmp_path):
     kvp_file_path = tmp_path / "kvp_pool_file"
