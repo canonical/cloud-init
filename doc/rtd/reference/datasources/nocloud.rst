@@ -39,8 +39,8 @@ vendor-data
 -----------
 
 Vendor-data may be used to provide default cloud-specific configurations which
-may be overriden by user-data. This may be useful, for example, to configure an
-instance with a cloud provider's repository mirror for faster package
+may be overridden by user-data. This may be useful, for example, to configure
+an instance with a cloud provider's repository mirror for faster package
 installation.
 
 network config
@@ -87,7 +87,7 @@ configuration.
 .. note::
 
    If using kernel command line arguments with GRUB, note that an
-   unescaped semicolon is intepreted as the end of a statement.
+   unescaped semicolon is interpreted as the end of a statement.
    See: `GRUB quoting`_
 
 Method 2: System configuration
@@ -118,7 +118,7 @@ that downstream distributions often use them to set reasonable default
 behaviors for cloud-init. This includes things such as which distro to behave
 as and which networking backend to use.
 
-The default values in :file:`/etc/cloud/cloud.cfg` may be overriden by drop-in
+The default values in :file:`/etc/cloud/cloud.cfg` may be overridden by drop-in
 files which are stored in :file:`/etc/cloud/cloud.cfg.d`.
 
 Configuration sources

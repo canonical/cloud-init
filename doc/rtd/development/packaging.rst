@@ -40,15 +40,16 @@ Manual build procedure
 ----------------------
 
 Meson install directory locations may be set with
-``meson setup -D<option_name>=<option_value>``.
+``meson setup -D<option_name>=<option_value>``. See :file:`meson_options.txt`
+for available build options.
 
 Steps to validate ``cloud-init`` package builds in a development environment:
 
 .. code-block:: bash
 
-   meson setup builddir
+   meson setup builddir -Dsystemd -Ddownstream_version=X.Y.Z
    meson test -C builddir -v
-   meson install -C builddir --destdir=testinstall
+   meson install -C builddir
    # List installed files
    find builddir/testinstall/
 

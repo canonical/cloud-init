@@ -30,7 +30,7 @@ jobs:
         run: |
           # This stage is slow, and unnecessecary when no series exists, so
           # only run it if necessary to save some cycles.
-          # Github Actions doesn't appear to have a simple mechanism for
+          # GitHub Actions doesn't appear to have a simple mechanism for
           # early exit without failure
           if [ ! -f debian/patches/series ]; then
             echo "no patches, skipping"
@@ -41,7 +41,7 @@ jobs:
 
       - name: Setup - Configure quilt
         run: |
-          # Github Actions doesn't appear to have a simple mechanism for
+          # GitHub Actions doesn't appear to have a simple mechanism for
           # early exit without failure
           if [ ! -f debian/patches/series ]; then
             echo "no patches, skipping"
@@ -57,7 +57,7 @@ jobs:
 
       - name: Run test - apply patches and run unit tests
         run: |
-          # Github Actions doesn't appear to have a simple mechanism for
+          # GitHub Actions doesn't appear to have a simple mechanism for
           # early exit without failure
           if [ ! -f debian/patches/series ]; then
             echo "no patches, skipping"
@@ -68,7 +68,7 @@ jobs:
           quilt pop -a --refresh
       - name: Enforce sorted patches
         run: |
-          # Github Actions doesn't appear to have a simple mechanism for
+          # GitHub Actions doesn't appear to have a simple mechanism for
           # early exit without failure
           if [ ! -f debian/patches/series ]; then
             echo "no patches, skipping"

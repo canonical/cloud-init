@@ -1533,7 +1533,7 @@ class TestNetworkConfig:
         oracle_ds,
         caplog,
     ):
-        """If no intefaces by mac found, then _network_config not setted and
+        """If no interfaces by mac found, then _network_config not set and
         correct logs.
         """
         vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)

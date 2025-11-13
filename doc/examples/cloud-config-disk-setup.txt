@@ -206,7 +206,7 @@ fs_setup:
 #     of the ephemeral storage layer.
 #
 #     If you define the device as 'ephemeralX.Y' then Y will be interpetted
-#     as a partition value. However, ephermalX.0 is the _same_ as ephemeralX.
+#     as a partition value. However, ephemeralX.0 is the _same_ as ephemeralX.
 #
 #   <PART_VALUE>:
 #     Partition definitions are overwritten if you use the '<DEVICE>.Y' notation.

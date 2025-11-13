@@ -121,7 +121,7 @@ def test_invalid_userdata_schema(client: IntegrationInstance):
 
 @pytest.mark.user_data(FAILING_USER_DATA)
 def test_failing_userdata_modules_exit_codes(client: IntegrationInstance):
-    """Test failing in modules representd in exit status.
+    """Test failing in modules represented in exit status.
 
     To ensure we don't miss any errors or warnings if a service happens
     to be restarted, any further module invocations will exit with error

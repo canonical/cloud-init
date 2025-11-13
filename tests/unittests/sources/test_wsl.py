@@ -29,11 +29,7 @@ GOOD_MOUNTS = {
         "mountpoint": "/",
         "opts": "rw,relatime,...",
     },
-    "sysfs": {
-        "fstype": "sysfs",
-        "mountpoint": "/sys",
-        "opts": "rw,nosuid...",
-    },
+    "sysfs": {"fstype": "sysfs", "mountpoint": "/sys", "opts": "rw,nosuid..."},
     "C:\\": {
         "fstype": "9p",
         "mountpoint": "/mnt/c",
@@ -396,14 +392,12 @@ class TestWSLDataSource:
 
     def test_metadata_id_default(self, tmpdir, paths):
         """
-        Validates that instance-id is properly set, indepedent of the existence
-        of user-data.
+        Validates that instance-id is properly set, independent of the
+        existence of user-data.
         """
 
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
         ds.get_data()
 
@@ -411,22 +405,18 @@ class TestWSLDataSource:
 
     def test_metadata_id(self, tmpdir, paths):
         """
-        Validates that instance-id is properly set, indepedent of the existence
-        of user-data.
+        Validates that instance-id is properly set, independent of the
+        existence of user-data.
         """
         SAMPLE_ID = "Nice-ID"
         metadata_path = tmpdir.join(
             ".cloud-init", f"{INSTANCE_NAME}.meta-data"
         )
         metadata_path.dirpath().mkdir()
-        metadata_path.write(
-            f'{{"instance-id":"{SAMPLE_ID}"}}',
-        )
+        metadata_path.write(f'{{"instance-id":"{SAMPLE_ID}"}}')
 
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
         ds.get_data()
 
@@ -440,9 +430,7 @@ class TestWSLDataSource:
         data_path.write("#cloud-config\nwrite_files:\n- path: /etc/wsl.conf")
 
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
 
         assert ds.get_data() is True
@@ -463,9 +451,7 @@ class TestWSLDataSource:
         data_path.dirpath().mkdir()
         data_path.write(f"#!/bin/sh\n{COMMAND}\n")
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
 
         assert ds.get_data() is True
@@ -492,9 +478,7 @@ write_files:
         )
 
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
 
         assert ds.get_data() is True
@@ -528,9 +512,7 @@ write_files:
             agent_path.write(AGENT_SAMPLE)
 
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
 
         assert ds.get_data() is with_agent_data
@@ -577,9 +559,7 @@ write_files:
 
         # Run the datasource
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
 
         # Assert user data is properly loaded
@@ -628,15 +608,11 @@ ubuntu_pro:
         )
         SAMPLE_ID = "Nice-ID"
         agent_metadata_path = ubuntu_pro_tmp.join(f"{INSTANCE_NAME}.meta-data")
-        agent_metadata_path.write(
-            f'{{"instance-id":"{SAMPLE_ID}"}}',
-        )
+        agent_metadata_path.write(f'{{"instance-id":"{SAMPLE_ID}"}}')
 
         # Run the datasource
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
 
         # Assert agent combines with existing user data
@@ -657,7 +633,7 @@ ubuntu_pro:
 
     @mock.patch("cloudinit.util.get_linux_distro")
     def test_landscape_vs_local_user(self, m_get_linux_dist, tmpdir, paths):
-        """Validates the precendence of Landscape-provided over local data"""
+        """Validates the precedence of Landscape-provided over local data"""
 
         m_get_linux_dist.return_value = SAMPLE_LINUX_DISTRO
 
@@ -677,9 +653,7 @@ package_update: true"""
 
         # Run the datasource
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
 
         assert ds.get_data() is True
@@ -694,7 +668,7 @@ package_update: true"""
             and "landscapetest" in userdata
             and "ubuntu_pro" not in userdata
             and "package_update" not in userdata
-        ), "Landscape data should have overriden user provided data"
+        ), "Landscape data should have overridden user provided data"
 
     @mock.patch("cloudinit.util.get_linux_distro")
     def test_landscape_provided_data(self, m_get_linux_dist, tmpdir, paths):
@@ -733,9 +707,7 @@ package_update: true"""
 
         # Run the datasource
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
 
         # Assert Landscape and Agent combine, with Agent taking precedence
@@ -749,12 +721,12 @@ package_update: true"""
 
         assert "ubuntu_pro" in userdata, "Agent data should be present"
         assert "package_update" in userdata, (
-            "package_update entry should not be overriden by agent data"
+            "package_update entry should not be overridden by agent data"
             " nor ignored"
         )
         assert (
             "landscapetest" not in userdata and "agenttest" in userdata
-        ), "Landscape account name should have been overriden by agent data"
+        ), "Landscape account name should have been overridden by agent data"
         # Make sure we have tags from Landscape data, not agent's
         assert (
             "tag_aiml" in userdata and "tag_dev" in userdata
@@ -791,9 +763,7 @@ ubuntu_pro:
 
         # Run the datasource
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
 
         # Assert Landscape and Agent combine, with Agent taking precedence
@@ -840,9 +810,7 @@ ubuntu_pro:
 
         # Run the datasource
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
 
         # Assert Landscape and Agent combine, with Agent taking precedence
@@ -899,9 +867,7 @@ package_update: true"""
 
         # Run the datasource
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
 
         assert ds.get_data() is True
@@ -948,9 +914,7 @@ package_update: true"""
 
         # Run the datasource
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
 
         assert ds.get_data() is True
@@ -996,9 +960,7 @@ package_update: true"""
         )
         # Run the datasource
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
 
         assert ds.get_data() is True

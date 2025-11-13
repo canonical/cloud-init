@@ -215,6 +215,7 @@ class IntegrationInstance:
             '$(lsb_release -sc)-proposed main" >> '
             "/etc/apt/sources.list.d/proposed.list"
         ).ok
+        assert self.execute("apt-get update").ok
         assert self.execute(
             f"apt-get install -qy {pkg} -t=$(lsb_release -sc)-proposed"
         ).ok

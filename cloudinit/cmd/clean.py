@@ -72,8 +72,8 @@ def get_parser(parser=None):
         action="store_true",
         default=False,
         help=(
-            "Set /etc/machine-id to 'uninitialized\n' for golden image"
-            "creation. On next boot, systemd generates a new machine-id."
+            "Set /etc/machine-id to 'uninitialized\\n' for golden image"
+            " creation. On next boot, systemd generates a new machine-id."
             " Remove /etc/machine-id on non-systemd environments."
         ),
     )
