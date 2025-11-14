@@ -703,7 +703,7 @@ def convert_net_json(network_json=None, known_macs=None):
                     # cloudinit schema but 'bond_' in OpenStack
                     # network_data.json schema. Translate them to what
                     # is expected by cloudinit.
-                    translated_key = "bond-{}".format(k.split("bond_", 1)[-1])
+                    translated_key = k.replace("_", "-")
                     params.update({translated_key: v})
 
             # openstack does not provide a name for the bond.
