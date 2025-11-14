@@ -229,7 +229,6 @@ def paths(tmpdir) -> helpers.Paths:
     """
     dirs = {
         "cloud_dir": tmpdir.mkdir("cloud_dir").strpath,
-        "docs_dir": tmpdir.mkdir("docs_dir").strpath,
         "run_dir": tmpdir.mkdir("run_dir").strpath,
         "templates_dir": tmpdir.mkdir("templates_dir").strpath,
     }

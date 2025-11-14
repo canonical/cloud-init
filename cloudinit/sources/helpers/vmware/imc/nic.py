@@ -5,7 +5,6 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.sources.helpers.vmware.imc.boot_proto import BootProtoEnum
 from cloudinit.sources.helpers.vmware.imc.nic_base import (
     NicBase,
     StaticIpv4Base,
@@ -77,7 +76,7 @@ class Nic(NicBase):
         Checks the BOOTPROTO property and returns StaticIPv4Addr
         configuration object if STATIC configuration is set.
         """
-        if self.bootProto == BootProtoEnum.STATIC:
+        if self.bootProto == "static":
             return [StaticIpv4Addr(self)]
         else:
             return None

@@ -4,10 +4,3 @@
 # Author: Sankar Tanguturi <stanguturi@vmware.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
-
-
-class BootProtoEnum:
-    """Specifies the NIC Boot Settings."""
-
-    DHCP = "dhcp"
-    STATIC = "static"
