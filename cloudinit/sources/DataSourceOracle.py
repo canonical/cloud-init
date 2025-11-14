@@ -252,7 +252,7 @@ class DataSourceOracle(sources.DataSource):
             "name": data["displayName"],
         }
 
-        if "metadata" in data:
+        if "metadata" in data and data["metadata"] is not None:
             user_data = data["metadata"].get("user_data")
             if user_data:
                 self.userdata_raw = base64.b64decode(user_data)
