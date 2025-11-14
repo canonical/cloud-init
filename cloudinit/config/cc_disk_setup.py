@@ -1443,3 +1443,6 @@ def mkfs(fs_cfg):
         subp.subp(fs_cmd, shell=shell)
     except Exception as e:
         raise RuntimeError("Failed to exec of '%s':\n%s" % (fs_cmd, e)) from e
+
+    # make sure that /dev/disk/by-* symlinks are populated
+    util.udevadm_settle()
