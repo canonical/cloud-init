@@ -520,7 +520,7 @@ class TestOpenSSLManagerActions:
     @pytest.mark.allow_all_subp
     @pytest.mark.skipif(
         shutil.which("openssl") is None,
-        reason="OpenSSL command-line tool not installed"
+        reason="OpenSSL command-line tool not installed",
     )
     def test_pubkey_extract(self):
         cert = load_text_file(self._data_file("pubkey_extract_cert"))
@@ -536,7 +536,7 @@ class TestOpenSSLManagerActions:
     @pytest.mark.allow_all_subp
     @pytest.mark.skipif(
         shutil.which("openssl") is None,
-        reason="OpenSSL command-line tool not installed"
+        reason="OpenSSL command-line tool not installed",
     )
     @mock.patch.object(azure_helper.OpenSSLManager, "_decrypt_certs_from_xml")
     def test_parse_certificates(self, mock_decrypt_certs):
