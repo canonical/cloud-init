@@ -74,6 +74,12 @@ def query_system_uuid() -> str:
     return system_uuid
 
 
+def query_vm_id() -> str:
+    """Query VM ID from system."""
+    system_uuid = query_system_uuid()
+    return convert_system_uuid_to_vm_id(system_uuid)
+
+
 class ChassisAssetTag(enum.Enum):
     AZURE_CLOUD = "7783-7084-3265-9085-8269-3286-77"
 
