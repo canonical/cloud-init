@@ -10,8 +10,7 @@ from cloudinit import settings, util
 from cloudinit.sources import DataSourceHetzner
 from tests.unittests.helpers import mock
 
-METADATA = util.load_yaml(
-    """
+METADATA = b"""
 hostname: cloudinit-test
 instance-id: 123456
 local-ipv4: ''
@@ -45,11 +44,22 @@ public-keys:
   test-key@workstation
 vendor_data: "test"
 """
-)
 
 USERDATA = b"""#cloud-config
 runcmd:
 - [touch, /root/cloud-init-worked ]
+"""
+
+PRIVATE_NETWORKS = b"""
+- ip: 10.1.0.2
+  alias_ips: []
+  interface_num: 2
+  mac_address: 86:00:00:aa:5d:f8
+  network_id: 11352901
+  network_name: network-2
+  network: 10.1.0.0/16
+  subnet: 10.1.0.0/24
+  gateway: 10.1.0.1
 """
 
 
@@ -68,16 +78,14 @@ class TestDataSourceHetzner:
         return ds
 
     @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
-    @mock.patch("cloudinit.sources.DataSourceHetzner.EphemeralDHCPv4")
+    @mock.patch("cloudinit.sources.DataSourceHetzner.EphemeralIPNetwork")
     @mock.patch("cloudinit.net.find_fallback_nic")
-    @mock.patch("cloudinit.sources.helpers.hetzner.read_metadata")
-    @mock.patch("cloudinit.sources.helpers.hetzner.read_userdata")
+    @mock.patch("cloudinit.sources.helpers.hetzner.get_metadata")
     @mock.patch("cloudinit.sources.DataSourceHetzner.get_hcloud_data")
     def test_read_data(
         self,
         m_get_hcloud_data,
-        m_usermd,
-        m_readmd,
+        m_get_metadata,
         m_fallback_nic,
         m_net,
         m_dhcp,
@@ -85,10 +93,15 @@ class TestDataSourceHetzner:
     ):
         m_get_hcloud_data.return_value = (
             True,
-            str(METADATA.get("instance-id")),
+            str(util.load_yaml(METADATA).get("instance-id")),
         )
-        m_readmd.return_value = METADATA.copy()
-        m_usermd.return_value = USERDATA
+        # Use side_effect to return values for the three sequential calls to
+        # helpers.hetzner.get_metadata: metadata, private-networks, userdata
+        m_get_metadata.side_effect = [
+            ("metadata_url", METADATA),
+            ("privnets_url", PRIVATE_NETWORKS),
+            ("userdata_url", USERDATA),
+        ]
         m_fallback_nic.return_value = "eth0"
         m_dhcp.return_value = [
             {
@@ -104,29 +117,45 @@ class TestDataSourceHetzner:
 
         m_net.assert_called_once_with(
             ds.distro,
-            iface="eth0",
+            interface="eth0",
+            ipv4=True,
+            ipv6=True,
             connectivity_urls_data=[
                 {
+                    "url": "http://[fe80::a9fe:a9fe%25eth0]/hetzner/v1/metadata/instance-id"
+                },
+                {
                     "url": "http://169.254.169.254/hetzner/v1/metadata/instance-id"
-                }
+                },
             ],
         )
 
-        assert 0 != m_readmd.call_count
+        assert 0 != m_get_metadata.call_count
 
-        assert METADATA.get("hostname") == ds.get_hostname().hostname
+        assert (
+            util.load_yaml(METADATA).get("hostname")
+            == ds.get_hostname().hostname
+        )
 
-        assert METADATA.get("public-keys") == ds.get_public_ssh_keys()
+        assert (
+            util.load_yaml(METADATA).get("public-keys")
+            == ds.get_public_ssh_keys()
+        )
 
+        assert ds.metadata["private-networks"] == util.load_yaml(
+            PRIVATE_NETWORKS, allowed=(dict, list)
+        )
         assert isinstance(ds.get_public_ssh_keys(), list)
         assert ds.get_userdata_raw() == USERDATA
-        assert ds.get_vendordata_raw() == METADATA.get("vendor_data")
+        assert ds.get_vendordata_raw() == util.load_yaml(METADATA).get(
+            "vendor_data"
+        )
 
-    @mock.patch("cloudinit.sources.helpers.hetzner.read_metadata")
+    @mock.patch("cloudinit.sources.helpers.hetzner.get_metadata")
     @mock.patch("cloudinit.net.find_fallback_nic")
     @mock.patch("cloudinit.sources.DataSourceHetzner.get_hcloud_data")
     def test_not_on_hetzner_returns_false(
-        self, m_get_hcloud_data, m_find_fallback, m_read_md, ds
+        self, m_get_hcloud_data, m_find_fallback, m_get_metadata, ds
     ):
         """If helper 'get_hcloud_data' returns False,
         return False from get_data."""
@@ -136,4 +165,4 @@ class TestDataSourceHetzner:
         assert not ret
         # These are a white box attempt to ensure it did not search.
         assert 0 == m_find_fallback.call_count
-        assert 0 == m_read_md.call_count
+        assert 0 == m_get_metadata.call_count
