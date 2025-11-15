@@ -1,11 +1,11 @@
-cloud-init (25.3-0ubuntu1~25.04.1) UNRELEASED; urgency=medium
+cloud-init (25.3-0ubuntu1~25.04.1) plucky; urgency=medium
 
   * d/p/retain-setuptools.patch: avoid upstream switch to meson build backend.
   * Upstream snapshot based on 25.3. (LP: #2131604).
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/25.3/ChangeLog
 
- -- Chad Smith <chad.smith@canonical.com>  Sat, 15 Nov 2025 10:58:44 -0700
+ -- Chad Smith <chad.smith@canonical.com>  Sat, 15 Nov 2025 10:58:52 -0700
 
 cloud-init (25.2-0ubuntu1~25.04.1) plucky; urgency=medium
 
