@@ -705,11 +705,15 @@ def convert_net_json(network_json=None, known_macs=None):
                     # is expected by cloudinit.
                     translated_key = "bond-{}".format(k.split("bond_", 1)[-1])
                     params.update({translated_key: v})
+            cfg["params"] = params
 
             # openstack does not provide a name for the bond.
             # they do provide an 'id', but that is possibly non-sensical.
-            # so we just create our own name.
-            link_name = bond_name_fmt % bond_number
+            # so we just create our own name unless 'name' is set.
+            if cfg.get("name") is None:
+                link_name = bond_name_fmt % bond_number
+                cfg["name"] = link_name
+                curinfo["name"] = link_name
             bond_number += 1
 
             # bond_links reference links by their id, but we need to add
@@ -723,9 +727,6 @@ def convert_net_json(network_json=None, known_macs=None):
                     copy.deepcopy(link["bond_links"]),
                 )
             )
-            cfg.update({"params": params, "name": link_name})
-
-            curinfo["name"] = link_name
         elif link["type"] in ["vlan"]:
             name = "%s.%s" % (link["vlan_link"], link["vlan_id"])
             cfg.update(
