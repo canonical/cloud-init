@@ -420,28 +420,13 @@ class DataSourceAzure(sources.DataSource):
                 "Bringing up networking when already configured."
             )
 
-        if iface is None:
-            iface = find_primary_nic()
-
-        driver = None
-        mac = None
-        interfaces = net.get_interfaces()
-        for interface_name, interface_mac, interface_driver, _ in interfaces:
-            if interface_name == iface:
-                driver = interface_driver
-                mac = interface_mac
-                break
-
-        report_diagnostic_event(
-            "Bringing up ephemeral networking with "
-            "iface=%s mac=%s driver=%s: %r" % (iface, mac, driver, interfaces),
-            logger_func=LOG.debug,
-        )
         self._ephemeral_dhcp_ctx = EphemeralDHCPv4(
             self.distro,
             iface=iface,
             dhcp_log_func=dhcp_log_cb,
         )
+
+        update_primary_nic = iface is None
 
         lease: Optional[Dict[str, Any]] = None
         start_time = monotonic()
@@ -453,6 +438,17 @@ class DataSourceAzure(sources.DataSource):
         ):
             while lease is None:
                 try:
+                    if update_primary_nic:
+                        iface = find_primary_nic()
+                    driver, mac = get_interface_details(iface)
+
+                    report_diagnostic_event(
+                        "Bringing up ephemeral networking with "
+                        "iface=%s mac=%s driver=%s: %r" % (iface, mac, driver, net.get_interfaces()),
+                        logger_func=LOG.debug,
+                    )
+
+                    self._ephemeral_dhcp_ctx.iface = iface
                     lease = self._ephemeral_dhcp_ctx.obtain_lease()
                 except NoDHCPLeaseInterfaceError:
                     # Interface not found, continue after sleeping 1 second.
@@ -2227,3 +2223,13 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
+
+def get_interface_details(iface: str):
+    driver = None
+    mac = None
+    interfaces = net.get_interfaces()
+    for interface_name, interface_mac, interface_driver, _ in interfaces:
+        if interface_name == iface:
+            driver = interface_driver
+            mac = interface_mac
+            return driver, mac

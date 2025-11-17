@@ -120,6 +120,15 @@ def mock_find_primary_nic():
 
 
 @pytest.fixture(autouse=True)
+def mock_get_interface_details():
+    with mock.patch(
+        MOCKPATH + "get_interface_details",
+        return_value=(None, None),
+    ) as m:
+        yield m
+
+
+@pytest.fixture(autouse=True)
 def mock_netinfo(disable_netdev_info):
     pass
 
