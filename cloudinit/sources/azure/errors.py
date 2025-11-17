@@ -99,12 +99,14 @@ class ReportableErrorDhcpLease(ReportableError):
         duration: float,
         interface: Optional[str],
         mac_address: Optional[str],
+        driver: Optional[str],
     ) -> None:
         super().__init__("failure to obtain DHCP lease")
 
         self.supporting_data["duration"] = duration
         self.supporting_data["interface"] = interface
         self.supporting_data["mac_address"] = mac_address
+        self.supporting_data["driver"] = driver
 
 
 class ReportableErrorDhcpOnNonPrimaryInterface(ReportableError):

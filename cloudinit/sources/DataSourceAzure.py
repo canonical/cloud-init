@@ -440,11 +440,12 @@ class DataSourceAzure(sources.DataSource):
                 try:
                     if update_primary_nic:
                         iface = find_primary_nic()
-                    driver, mac = get_interface_details(iface)
+                    mac, driver = get_interface_details(iface)
 
                     report_diagnostic_event(
                         "Bringing up ephemeral networking with "
-                        "iface=%s mac=%s driver=%s: %r" % (iface, mac, driver, net.get_interfaces()),
+                        "iface=%s mac=%s driver=%s: %r"
+                        % (iface, mac, driver, net.get_interfaces()),
                         logger_func=LOG.debug,
                     )
 
@@ -471,8 +472,9 @@ class DataSourceAzure(sources.DataSource):
                 except NoDHCPLeaseError:
                     # Typical DHCP failure, continue after sleeping 1 second.
                     report_diagnostic_event(
-                        "Failed to obtain DHCP lease (iface=%s mac=%s)"
-                        % (iface, mac),
+                        "Failed to obtain DHCP lease "
+                        "(iface=%s mac=%s driver=%s)"
+                        % (iface, mac, driver),
                         logger_func=LOG.error,
                     )
                     self._report_failure(
@@ -480,6 +482,7 @@ class DataSourceAzure(sources.DataSource):
                             duration=monotonic() - start_time,
                             interface=iface,
                             mac_address=mac,
+                            driver=driver,
                         ),
                         host_only=True,
                     )
@@ -2224,12 +2227,13 @@ datasources = [
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
 
+
 def get_interface_details(iface: str):
-    driver = None
     mac = None
+    driver = None
     interfaces = net.get_interfaces()
     for interface_name, interface_mac, interface_driver, _ in interfaces:
         if interface_name == iface:
             driver = interface_driver
             mac = interface_mac
-            return driver, mac
+            return mac, driver

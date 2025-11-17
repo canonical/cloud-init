@@ -3556,9 +3556,14 @@ class TestEphemeralNetworking:
         azure_ds,
         mock_find_primary_nic,
         mock_ephemeral_dhcp_v4,
+        mock_get_interface_details,
         mock_report_diagnostic_event,
         mock_sleep,
     ):
+        mock_get_interface_details.return_value = (
+            "00:11:22:33:44:01",
+            "unknown",
+        )
         azure_ds._setup_ephemeral_networking()
 
         assert (
@@ -3580,10 +3585,18 @@ class TestEphemeralNetworking:
     def test_retry_process_error(
         self,
         azure_ds,
+        mock_find_primary_nic,
         mock_ephemeral_dhcp_v4,
+        mock_get_interface_details,
         mock_report_diagnostic_event,
         mock_sleep,
     ):
+        mock_find_primary_nic.return_value = "fakeEth0"
+        mock_get_interface_details.return_value = (
+            "00:11:22:33:44:00",
+            "fake_driver",
+        )
+
         lease = {
             "interface": "fakeEth0",
         }
@@ -3612,7 +3625,7 @@ class TestEphemeralNetworking:
         assert mock_report_diagnostic_event.mock_calls == [
             mock.call(
                 "Bringing up ephemeral networking with "
-                "iface=None mac=None driver=None: "
+                "iface=fakeEth0 mac=00:11:22:33:44:00 driver=fake_driver: "
                 "[('dummy0', '9e:65:d6:19:19:01', None, None), "
                 "('enP3', '00:11:22:33:44:02', 'unknown_accel', '0x3'), "
                 "('eth0', '00:11:22:33:44:00', 'hv_netvsc', '0x3'), "
@@ -3626,6 +3639,18 @@ class TestEphemeralNetworking:
                 "Command failed: cmd=['failed', 'cmd'] "
                 "stderr='test_stderr' stdout='test_stdout' exit_code=4",
                 logger_func=dsaz.LOG.error,
+            ),
+            mock.call(
+                "Bringing up ephemeral networking with "
+                "iface=fakeEth0 mac=00:11:22:33:44:00 driver=fake_driver: "
+                "[('dummy0', '9e:65:d6:19:19:01', None, None), "
+                "('enP3', '00:11:22:33:44:02', 'unknown_accel', '0x3'), "
+                "('eth0', '00:11:22:33:44:00', 'hv_netvsc', '0x3'), "
+                "('eth2', '00:11:22:33:44:01', 'unknown', '0x3'), "
+                "('eth3', '00:11:22:33:44:02', "
+                "'unknown_with_unknown_vf', '0x3'), "
+                "('lo', '00:00:00:00:00:00', None, None)]",
+                logger_func=dsaz.LOG.debug,
             ),
             mock.call(
                 "Obtained DHCP lease on interface 'fakeEth0' "
