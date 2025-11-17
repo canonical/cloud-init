@@ -21,17 +21,17 @@ def fake_utcnow():
 def fake_vm_id(mocker):
     vm_id = "foo"
     mocker.patch(
-        "cloudinit.sources.azure.identity.query_vm_id", return_value=vm_id
+        "cloudinit.reporting.handlers._query_vm_id", return_value=vm_id
     )
     yield vm_id
 
 
 @pytest.fixture
 def telemetry_reporter(tmp_path, mocker):
-    # Mock query_vm_id to avoid subp calls during
+    # Mock _query_vm_id to avoid subp calls during
     # HyperVKvpReportingHandler init
     mocker.patch(
-        "cloudinit.sources.azure.identity.query_vm_id",
+        "cloudinit.reporting.handlers._query_vm_id",
         return_value="00000000-0000-0000-0000-000000000000",
     )
     kvp_file_path = tmp_path / "kvp_pool_file"
@@ -92,7 +92,7 @@ class TestReportSuccessToHost:
 
     def test_report_skipped_without_telemetry(self, caplog, mocker):
         mocker.patch(
-            "cloudinit.sources.azure.identity.query_vm_id", return_value="foo"
+            "cloudinit.reporting.handlers._query_vm_id", return_value="foo"
         )
         assert kvp.report_success_to_host(vm_id="fake") is False
         assert "KVP handler not enabled, skipping host report." in caplog.text

@@ -5,6 +5,7 @@ import os
 import re
 import struct
 import time
+import uuid
 import zlib
 from unittest import mock
 
@@ -22,10 +23,10 @@ from cloudinit.sources.helpers import azure
 
 class TestKvpEncoding:
     def test_encode_decode(self, mocker):
-        # Mock query_vm_id to avoid subp calls during
+        # Mock _query_vm_id to avoid subp calls during
         # HyperVKvpReportingHandler init
         mocker.patch(
-            "cloudinit.sources.azure.identity.query_vm_id",
+            "cloudinit.reporting.handlers._query_vm_id",
             return_value="00000000-0000-0000-0000-000000000000",
         )
         kvp = {"key": "key1", "value": "value1"}
@@ -45,10 +46,10 @@ class TestKvpReporter:
 
     @pytest.fixture
     def reporter(self, kvp_file_path, mocker):
-        # Mock query_vm_id to avoid subp calls during
+        # Mock _query_vm_id to avoid subp calls during
         # HyperVKvpReportingHandler init
         mocker.patch(
-            "cloudinit.sources.azure.identity.query_vm_id",
+            "cloudinit.reporting.handlers._query_vm_id",
             return_value="00000000-0000-0000-0000-000000000000",
         )
         return HyperVKvpReportingHandler(kvp_file_path=kvp_file_path)
@@ -319,7 +320,25 @@ class TestKvpReporter:
     ):
         """Test zero-guid used when vm_id lookup fails or returns empty."""
         mocker.patch(
-            "cloudinit.sources.azure.identity.query_vm_id", **patch_kwargs
+            "cloudinit.reporting.handlers._query_vm_id", **patch_kwargs
         )
         reporter = HyperVKvpReportingHandler(kvp_file_path=kvp_file_path)
         assert reporter.vm_id == HyperVKvpReportingHandler.ZERO_GUID
+
+    def test_event_key_format(self, reporter):
+        """Event key must end with vm_id followed by a uuid."""
+        evt = events.ReportingEvent("type", "name", "description")
+        reporter.publish_event(evt)
+        reporter.q.join()
+
+        key_parts = list(reporter._iterate_kvps(0))[0]["key"].split("|")
+        assert len(key_parts) == 6
+
+        assert key_parts[0] == HyperVKvpReportingHandler.EVENT_PREFIX
+        assert key_parts[1] == str(reporter.incarnation_no)
+        assert key_parts[2] == evt.event_type
+        assert key_parts[3] == evt.name
+        assert key_parts[4] == reporter.vm_id
+        uuid_part = key_parts[5]
+        assert uuid.UUID(uuid_part)
+        assert uuid_part != reporter.vm_id
