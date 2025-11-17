@@ -46,15 +46,18 @@ def m_write_file():
 
 
 @pytest.fixture
-def handler_data():
-    return SimpleNamespace(
-        data="fake data",
-        ctype="fake ctype",
-        filename="fake filename",
-        payload="fake payload",
-        frequency=settings.PER_INSTANCE,
-        headers={"Content-Type": "fake ctype"},
-    )
+def handler_data_factory():
+    def _make_handler_data(frequency=settings.PER_INSTANCE):
+        return SimpleNamespace(
+            data="fake data",
+            ctype="fake ctype",
+            filename="fake filename",
+            payload="fake payload",
+            frequency=settings.PER_INSTANCE,
+            headers={"Content-Type": "fake ctype"},
+        )
+
+    return _make_handler_data
 
 
 class FakeModule(handlers.Handler):
@@ -126,11 +129,12 @@ class TestWalkerHandleHandler:
 
 
 class TestHandlerHandlePart:
-    def test_normal_version_1(self, handler_data):
+    def test_normal_version_1(self, handler_data_factory):
         """
         C{handle_part} is called without C{frequency} for
         C{handler_version} == 1.
         """
+        handler_data = handler_data_factory()
         mod_mock = mock.Mock(
             frequency=settings.PER_INSTANCE, handler_version=1
         )
@@ -151,11 +155,12 @@ class TestHandlerHandlePart:
             handler_data.payload,
         )
 
-    def test_normal_version_2(self, handler_data):
+    def test_normal_version_2(self, handler_data_factory):
         """
         C{handle_part} is called with C{frequency} for
         C{handler_version} == 2.
         """
+        handler_data = handler_data_factory()
         mod_mock = mock.Mock(
             frequency=settings.PER_INSTANCE, handler_version=2
         )
@@ -177,11 +182,11 @@ class TestHandlerHandlePart:
             settings.PER_INSTANCE,
         )
 
-    def test_modfreq_per_always(self, handler_data):
+    def test_modfreq_per_always(self, handler_data_factory):
         """
         C{handle_part} is called regardless of frequency if nofreq is always.
         """
-        handler_data.frequency = "once"
+        handler_data = handler_data_factory(frequency=settings.PER_ONCE)
         mod_mock = mock.Mock(frequency=settings.PER_ALWAYS, handler_version=1)
         handlers.run_part(
             mod_mock,
@@ -200,9 +205,9 @@ class TestHandlerHandlePart:
             handler_data.payload,
         )
 
-    def test_no_handle_when_modfreq_once(self, handler_data):
+    def test_no_handle_when_modfreq_once(self, handler_data_factory):
         """C{handle_part} is not called if frequency is once."""
-        handler_data.frequency = "once"
+        handler_data = handler_data_factory(frequency=settings.PER_ONCE)
         mod_mock = mock.Mock(frequency=settings.PER_ONCE)
         handlers.run_part(
             mod_mock,
@@ -214,8 +219,9 @@ class TestHandlerHandlePart:
         )
         assert 0 == mod_mock.handle_part.call_count
 
-    def test_exception_is_caught(self, handler_data):
+    def test_exception_is_caught(self, handler_data_factory):
         """Exceptions within C{handle_part} are caught and logged."""
+        handler_data = handler_data_factory()
         mod_mock = mock.Mock(
             frequency=settings.PER_INSTANCE, handler_version=1
         )
