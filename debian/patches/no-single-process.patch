@@ -30,7 +30,7 @@ Last-Update: 2024-08-02
      )
 --- a/cloudinit/config/schemas/schema-cloud-config-v1.json
 +++ b/cloudinit/config/schemas/schema-cloud-config-v1.json
-@@ -2073,12 +2073,12 @@
+@@ -2114,12 +2114,12 @@
          },
          "mount_default_fields": {
            "type": "array",
