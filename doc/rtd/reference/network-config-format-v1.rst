@@ -117,6 +117,8 @@ A device's name must be less than 15 characters. Names exceeding the maximum
 will be truncated. This is a limitation of the Linux kernel network-device
 structure.
 
+The following optional keys are supported:
+
 ``mac_address: <MAC Address>``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
