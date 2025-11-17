@@ -15,7 +15,7 @@ import xml.etree.ElementTree as ET  # nosec B405
 from enum import Enum
 from pathlib import Path
 from time import monotonic, sleep, time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 
@@ -473,8 +473,7 @@ class DataSourceAzure(sources.DataSource):
                     # Typical DHCP failure, continue after sleeping 1 second.
                     report_diagnostic_event(
                         "Failed to obtain DHCP lease "
-                        "(iface=%s mac=%s driver=%s)"
-                        % (iface, mac, driver),
+                        "(iface=%s mac=%s driver=%s)" % (iface, mac, driver),
                         logger_func=LOG.error,
                     )
                     self._report_failure(
@@ -508,7 +507,6 @@ class DataSourceAzure(sources.DataSource):
                 # Sleep before retrying, otherwise break if past deadline.
                 if lease is None and monotonic() + retry_sleep < deadline:
                     sleep(retry_sleep)
-                    self._ephemeral_dhcp_ctx.iface = find_primary_nic()
                 else:
                     break
 
@@ -2228,12 +2226,15 @@ def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
 
 
-def get_interface_details(iface: str):
-    mac = None
-    driver = None
+def get_interface_details(
+    iface: Optional[str],
+) -> Tuple[Optional[str], Optional[str]]:
+    if iface is None:
+        return None, None
+
     interfaces = net.get_interfaces()
     for interface_name, interface_mac, interface_driver, _ in interfaces:
         if interface_name == iface:
-            driver = interface_driver
-            mac = interface_mac
-            return mac, driver
+            return interface_mac, interface_driver
+
+    return None, None
