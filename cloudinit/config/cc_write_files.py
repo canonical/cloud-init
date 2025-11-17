@@ -112,6 +112,9 @@ def write_files(name, files, owner: str, ssl_details: Optional[dict] = None):
             path, contents, omode=omode, mode=perms, user=u, group=g
         )
         util.chownbyname(path, u, g)
+        if util.get_permissions(path) != perms:
+            # Original setuid bit permissions were cleared due to chown
+            util.chmod(path, perms)
 
 
 def decode_perms(perm, default):

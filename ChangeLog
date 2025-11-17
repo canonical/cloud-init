@@ -1,3 +1,93 @@
+25.3
+ - chore(cc_rh_subscription): deprecate hyphenated fields, remove self.log
+   (#6470) [Mostafa Abdelwahab] (GH: 6370)
+ - feat(eni): support "ip route" if available instead of "route" (#6460)
+   [dermotbradley]
+ - test(distros): Convert test_hosts.py from unittest to pytest (#6481)
+   [GautamThorani]
+ - fix: preserve special permission bits (#6467) [deepsghimire]
+ - test: Convert test_registry.py from unittest to pytest (#6479)
+   [GautamThorani]
+ - test: fix integration for PROPOSED to run apt update prior to install
+   (#6477)
+ - feat(schema): add support for the not keyword (#6469)
+   [Mostafa Abdelwahab] (GH: 6468)
+ - fix: correct netplan renderer target (#6465)
+ - feat(hetzner): enable hotplug support and prepare IPv6 integration
+   (#6445) [Philipp Bender]
+ - fix(net-convert): respect output directory with netplan
+ - fix(bddeb): require exec permissions on temporary folder
+ - fix: properly quote commands in `do_as` function (#6400)
+   [Amirhossein Shaerpour] (GH: 6171)
+ - Optionalize bash completion. (#6441) [3405691582]
+ - docs(nocloud): Fix file schema examples (#6455) (GH: 5843)
+ - fix(systemd): revert auditd.service dependency (#6448)
+ - fix: bddeb tool needs distro debian param for package dependency lookup
+ - fix(test): raises match against an empty string will always pass
+ - fix(test): marks applied to fixtures have no effect
+ - test: refactor test_reporting.py to use only pytest (#6449)
+   [Chijioke Ibekwe]
+ - Update wait_for_cloud_init.rst to be more consistent about systemd usage
+   (#6442) [ExplGamma]
+ - fix: add OpenRC support to Meson build (#6426) [dermotbradley]
+ - feat(rh_subscription): new release_version field (#6347)
+   [Mostafa Abdelwahab] (GH: 6030)
+ - chore: bump isort version (#6446)
+ - net_convert.py: make some import failures not generate an error (#6399)
+   [dermotbradley]
+ - test: fix lru_cache test wrapper (#6443) (GH: 5869)
+ - docs(cc_raspberry_pi): Fix example4 (#6439) [Paul]
+ - test: refactor test_data.py to use only pytest (#6440) [Chijioke Ibekwe]
+ - tests: convert util.pathprefix2dict tests from unittest to pytest
+   (#6433) [Aamir]
+ - chore: hand off responsibilities (#6432)
+ - feat: support nmap in socket protocol (#6339) (GH: 6136)
+ - feat(cc_raspberry_pi): remove remote_gpio interface (#6429) [Paul]
+ - fix(docs): Fix typo in `fDQn` (#6420) [Vladimir Levin]
+ - Refresh dev docs for tests (#6428)
+ - fix(raspberry-pi-os): Update ntp client  (#6425) [Paul]
+ - fixed defs types in cloud-init cmd devel make_mime (#6419) [abdulganiyy]
+ - test: remove CiTestCase fully (#6416)
+ - test: drop citestcase from test_reporting_hyperv.py (#6413)
+ - test: drop citestcase from net/test_init.py (#6410)
+ - test: drop citestcase from test_version.py (#6415)
+ - fix: read-dependencies syntax error on regex (#6326)
+ - doc: add testing links to doc/rtd Development headings (#6326)
+ - chore: update developer specfile and build for opensuse (#6326)
+ - chore: update developer specfile redhat/fedora and dependencies  (#6326)
+ - chore: drop yaml validation target, covered in unittests (#6326)
+ - chore: update debian developer packaging template (#6326)
+ - fix: add apt-get update before development pkg install (#6326)
+ - chore!: switch to meson.build due to PEP632 (#6326) (LP: #1978328)
+ - chore: render vlan, bond, bridge mac properly in network state (#6397)
+   [Shreenidhi Shedi]
+ - chore: replace all mailing-list references with GH Discussions
+ - chore: replace all IRC references with matrix
+ - fix: fixed defs types in cloud-init analyze show (#6353) [abdulganiyy]
+ - chore(tox): align check_format's pylint folder targets (#6414)
+ - test: drop citestcase from net/test_network_state.py (#6402)
+ - test: drop citestcase from net/test_dhcp.py (#6401)
+ - chore(ci): bump pylint version, fix test failures (#6408)
+ - chore(ci): fix cloud-init test failures from new pylint (#6407)
+ - chore(ci): bump versions for black, ruff, and mypy (#6406)
+ - doc: change `jammy` to `noble` (#6398) [Amirhossein Shaerpour]
+ - test: drop citestcase from t* tests (#6379)
+ - fix: add missing test mock (#6395)
+ - test: drop citestcase net_freebsd (#6374)
+ - test: drop citestcase from test_util.py (#6387)
+ - Add 'to: default' support in network state (#6391) [Shreenidhi Shedi]
+ - test: drop citestcase from s* tests (#6378)
+ - test: drop citestcase from r, s and u sources (#6373)
+ - test: drop citestcase from v sources (#6372)
+ - test: drop citestcase from n and o sources (#6363)
+ - fix: make tools/tox-venv with current versions of tox (#6365)
+   [Scott Moser]
+ - test: skip gpg dependency test on questing (#6388)
+ - feat(networkd): add support for rendering bridge devices (#6349)
+   [Shreenidhi Shedi]
+ - cloud-init-hotplugd: remove use of "exec" and unnecessary exit (#6357)
+   [dermotbradley] (GH: 6351)
+
 25.2
  - fix: Ensure 822 template renders correctly on Debian (#6381) (GH: 6380)
  - test: support systemctl try-reload-or-restart messaging alternatives
