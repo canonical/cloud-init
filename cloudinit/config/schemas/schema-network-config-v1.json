@@ -80,6 +80,10 @@
           "type": "integer",
           "description": "The MTU size in bytes. This ``mtu`` key represents a device's Maximum Transmission Unit, which is the largest size packet or frame, specified in octets (eight-bit bytes), that can be sent in a packet- or frame-based network. Specifying ``mtu`` is optional. Values too small or too large for a device may be ignored by that device."
         },
+        "accept-ra": {
+          "type": "boolean",
+          "description": "Whether to accept IPv6 Router Advertisements (RA) on this interface. If unset, it will not be rendered"
+        },
         "params": {
           "description": "The ``params`` key in a bond holds a dictionary of bonding parameters. This dictionary may be empty. For more details on what the various bonding parameters mean please read the [Linux Kernel Bonding.txt](https://www.kernel.org/doc/Documentation/networking/bonding.txt).",
           "additionalProperties": false,
@@ -272,6 +276,10 @@
             "type": "string"
           }
         },
+        "accept-ra": {
+          "type": "boolean",
+          "description": "Whether to accept IPv6 Router Advertisements (RA) on this interface. If unset, it will not be rendered"
+        },
         "params": {
           "type": "object",
           "additionalProperties": false,
@@ -392,6 +400,10 @@
         "mac_address": {
           "type": "string",
           "description": "When specifying MAC Address on a VLAN subinterface this value will be assigned to the vlan subinterface device and may be different than the MAC address of the physical interface. Specifying a MAC Address is optional. If ``mac_address`` is not present, then the VLAN subinterface will use the MAC Address values from one of the physical interface."
+        },
+        "accept-ra": {
+          "type": "boolean",
+          "description": "Whether to accept IPv6 Router Advertisements (RA) on this interface. If unset, it will not be rendered"
         }
       }
     },
