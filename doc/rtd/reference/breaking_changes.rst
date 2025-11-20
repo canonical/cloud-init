@@ -11,6 +11,12 @@ releases.
     many operating system vendors patch out breaking changes in
     cloud-init to ensure consistent behavior on their platform.
 
+25.4
+====
+
+Openstack bond names are no longer hard-coded to bond0, bond1, ....
+Instead they are set to whatever value is provided by network_data.json.
+
 25.3
 ====
 
