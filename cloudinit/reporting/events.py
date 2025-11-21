@@ -48,7 +48,7 @@ class ReportingEvent:
         description,
         origin=DEFAULT_EVENT_ORIGIN,
         timestamp=None,
-        duration=0,
+        duration: float = 0.0,
     ):
         self.event_type = event_type
         self.name = name
