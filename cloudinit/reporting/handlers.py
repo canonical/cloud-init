@@ -382,6 +382,8 @@ class HyperVKvpReportingHandler(ReportingHandler):
         }
         if hasattr(event, self.RESULT_KEY):
             meta_data[self.RESULT_KEY] = event.result
+        if hasattr(event, "duration"):
+            meta_data["duration"] = event.duration
         meta_data[self.MSG_KEY] = event.description
         value = json.dumps(meta_data, separators=self.JSON_SEPARATORS)
         # if it reaches the maximum length of kvp value,
