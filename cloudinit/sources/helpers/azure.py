@@ -6,7 +6,6 @@ import base64
 import json
 import logging
 import os
-import re
 import textwrap
 import zlib
 from contextlib import contextmanager
@@ -536,23 +535,27 @@ class OpenSSLManager:
         """Given the Certificates XML document, return a dictionary of
         fingerprints and associated SSH keys derived from the certs."""
         out = self._decrypt_certs_from_xml(certificates_xml)
-        current = []
         keys = {}
-        for line in out.splitlines():
-            current.append(line)
-            if re.match(r"[-]+END .*?KEY[-]+$", line):
-                # ignore private_keys
-                current = []
-            elif re.match(r"[-]+END .*?CERTIFICATE[-]+$", line):
-                certificate = "\n".join(current)
-                # Validate the certificate before processing
-                if certs.is_x509_certificate(certificate):
-                    ssh_key = self._get_ssh_key_from_cert(certificate)
-                    fingerprint = self._get_fingerprint_from_cert(certificate)
-                    keys[fingerprint] = ssh_key
-                else:
-                    LOG.debug("Skipping invalid certificate in bundle.")
-                current = []
+        remaining_data = out
+
+        while True:
+            certificate = certs.extract_x509_certificate(remaining_data)
+            if certificate is None:
+                break
+
+            ssh_key = self._get_ssh_key_from_cert(certificate)
+            fingerprint = self._get_fingerprint_from_cert(certificate)
+            keys[fingerprint] = ssh_key
+
+            cert_index = remaining_data.find(certificate)
+            if cert_index == -1:
+                LOG.debug(
+                    "Could not locate previously extracted certificate "
+                    "in data."
+                )
+                break
+            remaining_data = remaining_data[cert_index + len(certificate) :]
+
         return keys
 
 
