@@ -97,49 +97,41 @@ class DataSourceCloudStack(sources.DataSource):
         self.vr_addr = None
 
     def _get_domainname(self):
-        """
-        Try obtaining a "domain-name" DHCP lease parameter:
+        """Try obtaining a "domain-name" DHCP lease parameter:
         - From systemd-networkd lease (case-insensitive)
         - From ISC dhclient
         - From dhcpcd (ephemeral)
         - Return empty string if not found (non-fatal)
         """
+        from cloudinit.net.dhcp import NoDHCPLeaseError
+
         LOG.debug("Try obtaining domain name from networkd leases")
-        domainname = dhcp.networkd_get_option_from_leases("DOMAINNAME")
-        if not domainname:
-            domainname = dhcp.networkd_get_option_from_leases("Domain")
-        if not domainname:
-            domainname = dhcp.networkd_get_option_from_leases("domain-name")
-        if domainname:
-            return domainname
+        for key in ["DOMAINNAME", "Domain", "domain-name"]:
+            domainname = dhcp.networkd_get_option_from_leases(key)
+            if domainname:
+                return domainname.strip()
 
-        LOG.debug(
-            "Could not obtain FQDN from networkd leases. "
-            "Falling back to ISC dhclient"
-        )
-
+        LOG.debug("Could not obtain FQDN from networkd leases. Falling back to ISC dhclient")
         with suppress(dhcp.NoDHCPLeaseMissingDhclientError):
             domain_name = dhcp.IscDhclient().get_key_from_latest_lease(
                 self.distro, "domain-name"
             )
             if domain_name:
-                return domain_name
+                return domain_name.strip()
 
         LOG.debug(
-            "Could not obtain FQDN from ISC dhclient leases. "
-            "Falling back to %s",
+            "Could not obtain FQDN from ISC dhclient leases. Falling back to %s",
             self.distro.dhcp_client.client_name,
         )
-
-        with suppress(
-            Exception
-        ):  # Catch NoDHCPLeaseError, FileNotFoundError, etc.
+        try:
             latest_lease = self.distro.dhcp_client.get_newest_lease(
                 self.distro.fallback_interface
             )
             domain_name = latest_lease.get("domain-name")
             if domain_name:
-                return domain_name
+                return domain_name.strip()
+        except (NoDHCPLeaseError, FileNotFoundError, AttributeError):
+            pass
 
         LOG.debug("No domain name found in any DHCP lease; returning empty")
         return ""
