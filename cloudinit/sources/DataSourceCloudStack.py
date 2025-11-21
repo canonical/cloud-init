@@ -111,7 +111,9 @@ class DataSourceCloudStack(sources.DataSource):
             if domainname:
                 return domainname.strip()
 
-        LOG.debug("Could not obtain FQDN from networkd leases. Falling back to ISC dhclient")
+        LOG.debug(
+            "Could not obtain FQDN from networkd leases. Falling back to ISC dhclient"
+        )
         with suppress(dhcp.NoDHCPLeaseMissingDhclientError):
             domain_name = dhcp.IscDhclient().get_key_from_latest_lease(
                 self.distro, "domain-name"

@@ -229,14 +229,23 @@ class TestCloudStackHostname:
             ("domain-name", "example.com"),
         ],
     )
-    def test__get_domainname_supports_all_casing_variants(self, lease_key, expected_domain):
+    def test__get_domainname_supports_all_casing_variants(
+        self, lease_key, expected_domain
+    ):
         """Ensure _get_domainname works with DOMAINNAME, Domain and domain-name."""
         # Mock the helper to return the domain only when the exact key is asked
-        with patch("cloudinit.net.dhcp.networkd_get_option_from_leases") as m_get:
-            m_get.side_effect = lambda key, extra_keys=None: "example.com   " if key == lease_key else None
+        with patch(
+            "cloudinit.net.dhcp.networkd_get_option_from_leases"
+        ) as m_get:
+            m_get.side_effect = lambda key, extra_keys=None: (
+                "example.com   " if key == lease_key else None
+            )
 
-            ds = DataSourceCloudStack({}, distro=MockDistro(), paths=helpers.Paths({}))
+            ds = DataSourceCloudStack(
+                {}, distro=MockDistro(), paths=helpers.Paths({})
+            )
             assert ds._get_domainname() == expected_domain
+
 
 class TestGetDataServer:
     @pytest.mark.parametrize(
