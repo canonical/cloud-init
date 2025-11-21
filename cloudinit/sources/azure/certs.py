@@ -3,11 +3,17 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
+import re
 from typing import Optional
 
 from cloudinit import ssh_util, subp
 
 LOG = logging.getLogger(__name__)
+
+_CERTIFICATE_BLOCK_RE = re.compile(
+    r"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----",
+    re.DOTALL,
+)
 
 
 def is_openssh_formatted(key: str) -> bool:
@@ -83,30 +89,16 @@ def extract_x509_certificate(data: str) -> Optional[str]:
         The first valid x509 certificate as a string, or None if no valid
         certificate is found.
     """
-    import re
-
     if not data:
         LOG.debug("No data provided for certificate extraction.")
         return None
 
-    current = []
-    for line in data.splitlines():
-        current.append(line)
-        if re.match(r"[-]+END .*?KEY[-]+$", line):
-            # Skip private keys
-            current = []
-        elif re.match(r"[-]+END .*?CERTIFICATE[-]+$", line):
-            certificate = "\n".join(current)
-            if is_x509_certificate(certificate):
-                LOG.debug(
-                    "Successfully extracted x509 certificate from bundle."
-                )
-                return certificate
-            else:
-                LOG.debug(
-                    "Found certificate block but validation failed, skipping."
-                )
-                current = []
+    for match in _CERTIFICATE_BLOCK_RE.finditer(data):
+        certificate = match.group(0)
+        if is_x509_certificate(certificate):
+            LOG.debug("Successfully extracted x509 certificate from bundle.")
+            return certificate
+        LOG.debug("Found certificate block but validation failed, skipping.")
 
     LOG.debug("No valid x509 certificate found in data bundle.")
     return None

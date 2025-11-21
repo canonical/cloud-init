@@ -551,6 +551,76 @@ class TestOpenSSLManagerActions:
         for fp in fingerprints:
             assert fp in keys_by_fp
 
+    @pytest.mark.allow_subp_for("openssl", "ssh-keygen")
+    def test_parse_certificates_processes_all_certificates(self):
+        pem_bundle = (
+            "header\r\n"
+            "-----BEGIN CERTIFICATE-----\r\n"
+            "CERTDATA1\r\n"
+            "-----END CERTIFICATE-----\r\n"
+            "-----BEGIN PRIVATE KEY-----\r\n"
+            "KEYDATA\r\n"
+            "-----END PRIVATE KEY-----\r\n"
+            "-----BEGIN CERTIFICATE-----\r\n"
+            "CERTDATA2\r\n"
+            "-----END CERTIFICATE-----\r\n"
+        )
+        cert1 = (
+            "-----BEGIN CERTIFICATE-----\r\n"
+            "CERTDATA1\r\n"
+            "-----END CERTIFICATE-----"
+        )
+        cert2 = (
+            "-----BEGIN CERTIFICATE-----\r\n"
+            "CERTDATA2\r\n"
+            "-----END CERTIFICATE-----"
+        )
+        with mock.patch.object(
+            azure_helper.OpenSSLManager,
+            "_decrypt_certs_from_xml",
+            return_value=pem_bundle,
+        ) as m_decrypt, mock.patch.object(
+            azure_helper.OpenSSLManager,
+            "_get_ssh_key_from_cert",
+            side_effect=["ssh-cert-1", "ssh-cert-2"],
+        ) as m_get_key, mock.patch.object(
+            azure_helper.OpenSSLManager,
+            "_get_fingerprint_from_cert",
+            side_effect=["fp1", "fp2"],
+        ) as m_get_fp, mock.patch(
+            "cloudinit.sources.helpers.azure.certs.extract_x509_certificate",
+            side_effect=[cert1, cert2, None],
+        ):
+            sslmgr = azure_helper.OpenSSLManager()
+            result = sslmgr.parse_certificates("fake-xml")
+
+        assert result == {"fp1": "ssh-cert-1", "fp2": "ssh-cert-2"}
+        m_decrypt.assert_called_once_with("fake-xml")
+        assert m_get_key.call_args_list == [
+            mock.call(
+                "-----BEGIN CERTIFICATE-----\r\n"
+                "CERTDATA1\r\n"
+                "-----END CERTIFICATE-----"
+            ),
+            mock.call(
+                "-----BEGIN CERTIFICATE-----\r\n"
+                "CERTDATA2\r\n"
+                "-----END CERTIFICATE-----"
+            ),
+        ]
+        assert m_get_fp.call_args_list == [
+            mock.call(
+                "-----BEGIN CERTIFICATE-----\r\n"
+                "CERTDATA1\r\n"
+                "-----END CERTIFICATE-----"
+            ),
+            mock.call(
+                "-----BEGIN CERTIFICATE-----\r\n"
+                "CERTDATA2\r\n"
+                "-----END CERTIFICATE-----"
+            ),
+        ]
+
 
 class TestGoalStateHealthReporter:
     maxDiff = None
