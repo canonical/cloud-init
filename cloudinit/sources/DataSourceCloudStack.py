@@ -103,7 +103,6 @@ class DataSourceCloudStack(sources.DataSource):
         - From dhcpcd (ephemeral)
         - Return empty string if not found (non-fatal)
         """
-        from cloudinit.net.dhcp import NoDHCPLeaseError
 
         LOG.debug("Try obtaining domain name from networkd leases")
         for key in ["DOMAINNAME", "Domain", "domain-name"]:
@@ -112,7 +111,8 @@ class DataSourceCloudStack(sources.DataSource):
                 return domainname.strip()
 
         LOG.debug(
-            "Could not obtain FQDN from networkd leases. Falling back to ISC dhclient"
+            "Could not obtain FQDN from networkd leases. Falling back to "
+            "ISC dhclient"
         )
         with suppress(dhcp.NoDHCPLeaseMissingDhclientError):
             domain_name = dhcp.IscDhclient().get_key_from_latest_lease(
@@ -122,7 +122,8 @@ class DataSourceCloudStack(sources.DataSource):
                 return domain_name.strip()
 
         LOG.debug(
-            "Could not obtain FQDN from ISC dhclient leases. Falling back to %s",
+            "Could not obtain FQDN from ISC dhclient leases. Falling back to "
+            "%s",
             self.distro.dhcp_client.client_name,
         )
         try:

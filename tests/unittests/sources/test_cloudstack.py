@@ -2,6 +2,7 @@
 # pylint: disable=attribute-defined-outside-init
 from socket import gaierror
 from textwrap import dedent
+from unittest.mock import patch
 
 import pytest
 
@@ -16,7 +17,6 @@ from cloudinit.sources.DataSourceCloudStack import (
     get_vr_address,
 )
 from tests.unittests.helpers import mock
-from unittest.mock import patch
 from tests.unittests.util import MockDistro
 
 SOURCES_PATH = "cloudinit.sources"
@@ -232,7 +232,8 @@ class TestCloudStackHostname:
     def test__get_domainname_supports_all_casing_variants(
         self, lease_key, expected_domain
     ):
-        """Ensure _get_domainname works with DOMAINNAME, Domain and domain-name."""
+        """Ensure _get_domainname works with DOMAINNAME, Domain and
+        domain-name."""
         # Mock the helper to return the domain only when the exact key is asked
         with patch(
             "cloudinit.net.dhcp.networkd_get_option_from_leases"
