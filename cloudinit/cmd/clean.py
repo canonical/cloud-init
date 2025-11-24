@@ -10,6 +10,7 @@ import argparse
 import glob
 import logging
 import os
+import stat
 import sys
 
 from cloudinit import settings, sources
@@ -40,6 +41,38 @@ GEN_NET_CONFIG_FILES = [
 GEN_SSH_CONFIG_FILES = [
     "/etc/ssh/sshd_config.d/50-cloud-init.conf",
 ]
+
+
+def should_remove_log_file(log_file: str) -> bool:
+    """Check if a log file should be removed.
+
+    Remove the file only if it exists and is not a symlink or a device file
+    (block or character device). Named pipes (FIFOs) are allowed to be removed.
+
+    @param log_file: Path to the log file to check.
+    @returns: True if the file should be removed, False otherwise.
+    """
+    if not os.path.exists(log_file):
+        return False
+    if is_link(log_file):
+        log_util.multi_log(
+            f"Skipping removal of symlink log file: {log_file}\n",
+            log=LOG,
+            log_level=logging.INFO,
+        )
+        return False
+    try:
+        file_stat = os.stat(log_file)
+        if stat.S_ISBLK(file_stat.st_mode) or stat.S_ISCHR(file_stat.st_mode):
+            log_util.multi_log(
+                f"Skipping removal of device file: {log_file}\n",
+                log=LOG,
+                log_level=logging.INFO,
+            )
+            return False
+    except OSError:
+        return False
+    return True
 
 
 def get_parser(parser=None):
@@ -126,7 +159,7 @@ def remove_artifacts(init, remove_logs, remove_seed=False, remove_config=None):
     init.read_cfg()
     if remove_logs:
         for log_file in get_config_logfiles(init.cfg):
-            if os.path.isfile(log_file):
+            if should_remove_log_file(log_file):
                 del_file(log_file)
     if remove_config and set(remove_config).intersection(["all", "network"]):
         for path in GEN_NET_CONFIG_FILES:

@@ -2066,9 +2066,6 @@ def sym_link(source, link, force=False):
 
 
 def del_file(path):
-    if not os.path.isfile(path):
-        LOG.debug("Skipping removal. %s is not a file", path)
-        return
     LOG.debug("Attempting to remove %s", path)
     try:
         os.unlink(path)
