@@ -33,7 +33,7 @@ Format the change
 
 Changes that are inconsistent with the style and conventions of the existing
 code are undesireable. CI jobs run linters to enforce certain rules.
-Auto-formatting the code catches most issues: ::
+Auto-formatting the code prevents most linter failures: ::
 
     tox -e do_format
 
@@ -53,9 +53,9 @@ Unit tests
 ----------
 
 Unit tests should be added to verify discrete chunks of code.
-Unit tests and linters can be executed with `tox`_: ::
+Unit tests can be executed with `tox`_: ::
 
-    tox
+    tox -e py3
 
 Proposed changes should not reduce test coverage. Existing tests in ``tests/``
 may serve as a source of inspiration for new tests.
