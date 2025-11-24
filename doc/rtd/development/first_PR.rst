@@ -4,7 +4,7 @@ Contribution requirements
 *************************
 
 The following steps must be completed to contribute to cloud-init. A PR that
-fails to meet the contribution requirements is unlikely to be successful.
+fails to meet the contribution requirements is unlikely to be merged.
 
 Understand contribution expectations
 ====================================

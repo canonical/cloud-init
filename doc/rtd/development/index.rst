@@ -14,7 +14,7 @@ Thank you for your interest in improving cloud-init! There are a variety of
 ways you can contribute to this project, including no-code and low-code
 options. This documentation will help orient you to the project.
 
-Make sure to read the `first PR guide<first-PR>` before starting
+Make sure to read the `first PR guide<first_PR>` before starting
 to contribute for the best chance of being accepted.
 
 Cloud-init is hosted and managed on `GitHub`_. If you are not familiar with how
