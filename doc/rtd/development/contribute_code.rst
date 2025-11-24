@@ -26,8 +26,7 @@ contributing to the cloud-init codebase.
 Code style and design
 =====================
 
-Cloud-init adheres to `PEP 8`_, and this is enforced by our use of ``black``,
-``isort`` and ``ruff``.
+Cloud-init adheres to `PEP 8`_, and this is enforced by CI tests.
 
 Python support
 --------------

@@ -24,7 +24,7 @@ Make a change
 =============
 
 Modify the source: fix a bug or add a feature. Make sure to update comments
-and docs, limit unnecessary code changes, and remove any code that is no longer
+and docs, avoid unnecessary code changes, and remove any code that is no longer
 used. Functions, methods, and classes should include docstrings and type
 annotations.
 
@@ -79,7 +79,7 @@ Document the change
 ===================
 
 Changes that modify behavior of cloud-init must be documented. The docs can be
-build locally with: ::
+built locally with: ::
 
     tox -e doc
 
