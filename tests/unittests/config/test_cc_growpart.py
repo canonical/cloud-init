@@ -556,6 +556,9 @@ class TestEncrypted:
             "cloudinit.config.cc_growpart.subp.which",
             return_value="/usr/sbin/cryptsetup",
         )
+        mocker.patch(
+            "cloudinit.config.cc_growpart.is_lvm_device", return_value=False
+        )
         self.m_subp = mocker.patch(
             "cloudinit.config.cc_growpart.subp.subp",
             side_effect=self._subp_side_effect,
@@ -615,7 +618,7 @@ class TestEncrypted:
         )
 
         assert len(info) == 1
-        assert "skipped as it is not encrypted" in info[0][2]
+        assert "skipped as it is neither encrypted" in info[0][2]
         assert "cryptsetup not found" in caplog.text
         self.assert_no_resize_or_cleanup()
 
@@ -634,9 +637,7 @@ class TestEncrypted:
         assert len(info) == 1
         assert info[0][0] == "/fake_encrypted"
         assert info[0][1] == "FAILED"
-        assert (
-            "Resizing encrypted device (/dev/mapper/fake) failed" in info[0][2]
-        )
+        assert "Resizing device (/dev/mapper/fake) failed" in info[0][2]
         self.assert_no_resize_or_cleanup()
 
     def test_unparsable_dmsetup(self, common_mocks, mocker, caplog):
@@ -655,9 +656,7 @@ class TestEncrypted:
         assert len(info) == 1
         assert info[0][0] == "/fake_encrypted"
         assert info[0][1] == "FAILED"
-        assert (
-            "Resizing encrypted device (/dev/mapper/fake) failed" in info[0][2]
-        )
+        assert "Resizing device (/dev/mapper/fake) failed" in info[0][2]
         self.assert_no_resize_or_cleanup()
 
     def test_missing_keydata(self, common_mocks, mocker, caplog):
@@ -673,8 +672,7 @@ class TestEncrypted:
         assert info[1][0] == "/fake_encrypted"
         assert info[1][1] == "FAILED"
         assert (
-            info[1][2]
-            == "Resizing encrypted device (/dev/mapper/fake) failed: Could "
+            info[1][2] == "Resizing device (/dev/mapper/fake) failed: Could "
             "not load encryption key. This is expected if the volume has "
             "been previously resized."
         )
@@ -701,9 +699,7 @@ class TestEncrypted:
         assert info[0][2].startswith("no change necessary")
         assert info[1][0] == "/fake_encrypted"
         assert info[1][1] == "FAILED"
-        assert (
-            "Resizing encrypted device (/dev/mapper/fake) failed" in info[1][2]
-        )
+        assert "Resizing device (/dev/mapper/fake) failed" in info[1][2]
         # Assert we still cleanup
         all_subp_args = list(
             chain(*[args[0][0] for args in self.m_subp.call_args_list])
@@ -721,6 +717,207 @@ class TestEncrypted:
             "/fake_encrypted",
             "SKIPPED",
             "No encryption keyfile found",
+        )
+
+
+class TestLvmResize:
+    """Attempt end-to-end scenarios for lvm devices."""
+
+    def _device_part_info_side_effect(self, value):
+        return (1024, 1024)
+
+    def _devent2dev_side_effect(self, value):
+        if value == "/":
+            return "/dev/mapper/rootvg-rootlv", "xfs"
+        raise RuntimeError(f"unexpected value {value}")
+
+    def _realpath_side_effect(self, value):
+        return "/dev/dm-1" if value.startswith("/dev/mapper") else value
+
+    @pytest.fixture
+    def common_mocks(self, mocker):
+        """
+        Common mocks for cc_growpart.resize_devices,
+        expanded to support testing the new LVM resize logic.
+        """
+        self.distro = MockDistro
+        original_device_part_info = self.distro.device_part_info
+        self.distro.device_part_info = self._device_part_info_side_effect
+        mocker.patch("os.stat")
+        mocker.patch("stat.S_ISBLK", return_value=True)
+        mocker.patch("stat.S_ISCHR", return_value=False)
+        mocker.patch(
+            "cloudinit.config.cc_growpart.devent2dev",
+            side_effect=self._devent2dev_side_effect,
+        )
+        mocker.patch(
+            "os.path.realpath",
+            side_effect=self._realpath_side_effect,
+        )
+
+        # Mock is_lvm_device so tests can control LVM detection
+        self._is_lvm = False
+
+        def _is_lvm_device_side_effect(dev):
+            return self._is_lvm
+
+        mocker.patch(
+            "cloudinit.config.cc_growpart.is_lvm_device",
+            side_effect=_is_lvm_device_side_effect,
+        )
+
+        mocker.patch(
+            "cloudinit.config.cc_growpart.is_encrypted", return_value=False
+        )
+
+        # Mock commands used by resize_lvm()
+        class FakeSubpResult:
+            def __init__(self, stdout="", returncode=0):
+                self.stdout = stdout
+                self.returncode = returncode
+
+        def _fake_lvm_subp(cmd, *args, **kwargs):
+            cmdline = " ".join(cmd)
+            # Simulate get_underlying_partition
+            if "dmsetup" in cmdline:
+                return ("1 dependencies : (sda2)\n",)
+            # Simulate lvs, vgs introspection
+            if "lvs" in cmdline:
+                return FakeSubpResult(stdout="rootvg\n")
+            if "vgs" in cmdline:
+                return FakeSubpResult(stdout="/dev/sda2\n")
+
+            # Simulate pvresize
+            if "pvresize" in cmdline:
+                if getattr(self, "_fail_pvresize", False):
+                    raise RuntimeError("pvresize fail")
+                return (True, "")
+
+            # Simulate lvextend
+            if "lvextend" in cmdline:
+                if getattr(self, "_fail_lvextend", False):
+                    raise RuntimeError("lvextend fail")
+                return (True, "")
+
+            return ("", "")  # default fallback
+
+        self.m_subp = mocker.patch(
+            "cloudinit.config.cc_growpart.subp.subp",
+            side_effect=_fake_lvm_subp,
+        )
+
+        # Allow tests to flip failure modes
+        self._fail_pvresize = False
+        self._fail_lvextend = False
+
+        # Provide a mock resizer used by resize_devices()
+        self.resizer = mock.Mock()
+        self.resizer.resize = mock.Mock(return_value=(1024, 2048))
+        yield
+        # Cleanup
+        self.distro.device_part_info = original_device_part_info
+        del self._fail_pvresize
+        del self._fail_lvextend
+        del self._is_lvm
+
+    def test_lvm_resize_flow(self, mocker):
+        # Test that LVM resize runs lvs → vgs → pvresize → lvextend.
+        # Patch subp.subp to control command outputs
+        m_subp = mocker.patch("cloudinit.config.cc_growpart.subp.subp")
+
+        # Sequence of command outputs
+        # 1. lvs → returns VG name
+        # 2. vgs → returns PV list
+        # 3. pvresize pv1
+        # 4. pvresize pv2
+        # 5. lvextend
+        m_subp.side_effect = [
+            mocker.Mock(stdout="vg0\n", ok=True),  # lvs
+            mocker.Mock(stdout="/dev/xvda2 /dev/xvdb1\n", ok=True),  # vgs
+            mocker.Mock(stdout="", ok=True),  # pvresize pv1
+            mocker.Mock(stdout="", ok=True),  # pvresize pv2
+            mocker.Mock(stdout="", ok=True),  # lvextend
+        ]
+        cc_growpart.resize_lvm("/dev/mapper/vg0-root")
+
+        # Verify calls
+        calls = [
+            mocker.call(
+                [
+                    "lvs",
+                    "--noheadings",
+                    "-o",
+                    "vg_name",
+                    "/dev/mapper/vg0-root",
+                ]
+            ),
+            mocker.call(
+                [
+                    "vgs",
+                    "--noheadings",
+                    "-o",
+                    "pv_name",
+                    "--separator",
+                    " ",
+                    "vg0",
+                ]
+            ),
+            mocker.call(["pvresize", "/dev/xvda2"]),
+            mocker.call(["pvresize", "/dev/xvdb1"]),
+            mocker.call(
+                ["lvextend", "-l", "+100%FREE", "/dev/mapper/vg0-root"]
+            ),
+        ]
+
+        m_subp.assert_has_calls(calls)
+
+    def test_resize_devices_lvm_success(self, common_mocks, mocker, caplog):
+        """
+        LVM device:
+          - partition resize succeeds
+          - pvresize succeeds
+          - lvextend succeeds
+          - Successfully resized
+        """
+        self._is_lvm = True
+        info = cc_growpart.resize_devices(self.resizer, ["/"], self.distro)
+        # Partition resize result present
+        assert len(info) == 2
+        assert info[0][0] == "/"
+        assert info[0][1] == cc_growpart.RESIZE.CHANGED
+        assert info[0][2] == ("changed (/dev/sda2) from 1024 to 2048")
+        # LVM resize result present
+        assert info[1][0] == "/"
+        assert info[1][1] == cc_growpart.RESIZE.CHANGED
+        assert (
+            info[1][2]
+            == "Successfully resized LVM device '/dev/mapper/rootvg-rootlv'"
+        )
+        assert (
+            "/dev/mapper/rootvg-rootlv is a mapped device"
+            " pointing to /dev/dm-1" in caplog.text
+        )
+        assert "pvresize succeeded for /dev/sda2" in caplog.text
+        assert (
+            "lvextend +100%FREE succeeded for /dev/mapper/rootvg-rootlv"
+            in caplog.text
+        )
+
+    def test_resize_devices_lvm_lvextend_failure(
+        self, common_mocks, mocker, caplog
+    ):
+        """
+        LVM case:
+          - lvextend fails
+        """
+        self._is_lvm = True
+        self._fail_lvextend = True  # lvextend error
+
+        info = cc_growpart.resize_devices(self.resizer, ["/"], self.distro)
+        # LVM failure
+        assert any(
+            status == cc_growpart.RESIZE.FAILED and "lvextend fail" in msg
+            for _, status, msg in info
         )
 
 
