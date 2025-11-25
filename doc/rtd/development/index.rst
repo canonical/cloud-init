@@ -1,4 +1,4 @@
-.. _first-PR:
+.. _development:
 
 Development requirements
 ************************
@@ -23,8 +23,8 @@ by CI. For help with the CLA, email
 Clone the repository
 ====================
 
-One must understand `how to use Git and GitHub`_. Create a local clone of the 
-repository:
+One must understand `how to use Git and GitHub`_. Create a local clone of the
+repository: ::
 
     git clone git@github.com:canonical/cloud-init.git
 
@@ -66,7 +66,8 @@ Unit tests can be executed with `tox`_: ::
     tox -e py3
 
 Proposed changes should not reduce test coverage. Existing tests in ``tests/``
-may serve as a source of inspiration for new tests.
+may serve as a source of inspiration for new tests. Read more
+:ref:`here<testing>`.
 
 Integration tests
 -----------------
@@ -76,7 +77,7 @@ Integration tests may also be required, depending on the scope of the change.
 Linters
 -------
 
-If a linter is silenced, a code comment should document the justification for
+If a linter is silenced, a code comment must document the justification for
 this decision.
 
 Run linters with: ::
@@ -86,25 +87,29 @@ Run linters with: ::
 Document the change
 ===================
 
-Changes that modify behavior of cloud-init must be documented. The docs can be
-built locally with: ::
+Changes that modify behavior of cloud-init must be documented. Documentation
+can be built locally with: ::
 
     tox -e doc
 
-Contribute the change
-=====================
+Read more about contributing to documentation :ref:`here<docs>`.
+
+Propose the change
+==================
 
 Submit a PR against the ``main`` branch of the `canonical/cloud-init`_
 repository. Take special care when filling in the PR description template to
-include all requested information. A Github Issue must be linked to the PR that
-describes the issue or feature.
+include all requested information. Make sure to reference the issue in the PR
+description using the ``#<PR num>`` syntax and also include the PR number in
+the proposed commit message using ``Fixes GH-<PR num>`` at the end of the
+commit message.
 
-All CI jobs must pass. If a job failes that seems unrelated to your change, it
+All CI jobs must pass. If a job fails that seems unrelated to your change, it
 may be a temporary issue with Github. Push an empty commit if you need to
 re-run CI.
 
-PR lifecycle
-============
+Respond to feedback
+===================
 
 A PR may not be reviewed immediately, but the queue is actively monitored.
 Changes requested by core developers must be resolved before the PR can be
@@ -113,9 +118,22 @@ merged.
 A **stale** tag is added to the PR after 14 days of inactivity and it is
 automatically closed after 7 more.
 
-Any PR that does not meet the requirements might be assumed by core developers
-to be under development. If a PR has gone stale and you are certain that it
-meets the documented requirements, then you may ping a core developer.
+Any PR that does not meet the requirements might be assumed to be under
+development. If a PR has gone stale and you are certain that it meets the
+documented requirements, then you may ping a core developer.
 
+Read developer docs
+===================
+
+Make sure to read more
+
+.. toctree::
+   :maxdepth: 1
+
+   Develop code <contribute_code.rst>
+   Develop docs <contribute_docs.rst>
+   Read dev docs <dev_docs.rst>
+
+.. _how to use Git and GitHub: _https://docs.github.com/en/get-started/start-your-journey
 .. _canonical/cloud-init: https://github.com/canonical/cloud-init
 .. include:: ../links.txt

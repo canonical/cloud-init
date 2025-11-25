@@ -30,10 +30,8 @@ supported, please get in contact with that distribution and send them our way!
 ## Getting help
 
 The [documentation](https://docs.cloud-init.io/en/latest/) is the first place
-to look for help.
-
-If a thorough search of the documentation does not resolve your issue, consider
-the following:
+to look for help. If a thorough search of the documentation does not resolve
+your issue, consider the following:
 
 - Ask a question in the [``#cloud-init`` channel on Matrix](https://matrix.to/#/#cloud-init:ubuntu.com)
 - Look for announcements or engage in cloud-init discussions on [GitHub Discussions](https://github.com/canonical/cloud-init/discussions)
@@ -41,18 +39,5 @@ the following:
 
 ## To start developing cloud-init
 
-Check out the [contributing](https://docs.cloud-init.io/en/latest/development/index.html)
+See the [contributing](https://docs.cloud-init.io/en/latest/development/index.html)
 guide.
-
-## Daily package builds
-
-Daily package builds are useful to try the latest upstream code for the latest
-features or to verify bug fixes.
-
-For Ubuntu, see the [Daily PPAs](https://code.launchpad.net/~cloud-init-dev/+archive/ubuntu/daily)
-
-For CentOS, see the [COPR build repos](https://copr.fedorainfracloud.org/coprs/g/cloud-init/cloud-init-dev/)
-
-## Build / packaging
-
-To see reference build/packaging implementations, refer to [packages](packages).

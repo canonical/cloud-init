@@ -1,20 +1,28 @@
 .. _reporting_bugs:
 
-Reporting bugs
-**************
+Report bugs
+***********
 
-In this guide, we will show you how to:
+In this guide, you will learn how to:
 
-1) Collect logs to support your bug report.
-2) File bugs to the upstream ``cloud-init`` project via `GitHub Issues`_.
-3) Report issues for distro-specific packages.
+1) Search for existing issues
+2) Collect logs to support your bug report.
+3) File bugs to the upstream ``cloud-init`` project via `GitHub Issues`_.
+4) Report issues for distro-specific packages.
+
+Search for existing issues
+==========================
+
+Before filing a bug against cloud-init
 
 Collect logs
 ============
 
-To aid in debugging, please collect the necessary logs. To do so, run the
-:command:`collect-logs` subcommand to produce a tarfile that you can easily
-upload:
+To debug an issue, it is crucial to understand what happened both before and
+during the error condition. It may be tempting to file a bug with just a
+snippet or two of the logs, but this is not enough information to reliably
+debug the issue. To do so, run the following command to
+produce a tarfile that you can upload:
 
 .. code-block:: shell-session
 
@@ -46,17 +54,25 @@ bug:
 1. Collect the necessary debug logs as described above.
 2. `Report an upstream cloud-init bug`_ on GitHub.
 
-If debug logs are not provided, you will be asked for them before any
-further time is spent debugging. If you are unable to obtain the required
-logs please explain why in the bug.
+Bug reports that lack complete logs may be labeled ``incomplete`` until
+sufficient information is provided. To aid in debugging, please include the
+necessary logs in the bug report.
 
 If your bug is for a specific distro using ``cloud-init``, please first
 consider reporting it with the downstream distro or confirm that it still
 occurs with the latest upstream ``cloud-init`` code. See the following section
 for details on specific distro reporting.
 
-Distro-specific issues
-======================
+Report documentation bugs
+=========================
+
+For documentation issues, you can submit an issue in GitHub using the
+"Give feedback" button at the top of each documentation page. Make sure to
+include a detailed description of the issue that you are seeing. Please
+include screenshots if that helps to explain the problem.
+
+Report distro-specific issues
+=============================
 
 For issues specific to your distro please use one of the following
 distro-specific reporting mechanisms:

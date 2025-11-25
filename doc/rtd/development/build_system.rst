@@ -1,7 +1,7 @@
-.. _downstream_packaging:
+.. _build_system:
 
-Downstream packaging
-********************
+Build system
+************
 
 This page is intended to support operating system packagers of ``cloud-init``
 and is not intended for other audiences to generate their own custom cloud-init
@@ -52,8 +52,6 @@ Steps to validate ``cloud-init`` package builds in a development environment:
    meson install -C builddir
    # List installed files
    find builddir/testinstall/
-
-See :ref:`package_testing` for more information package testing.
 
 .. LINKS:
 .. _meson: https://mesonbuild.com/

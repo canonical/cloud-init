@@ -6,14 +6,11 @@ FAQ
 How do I get help?
 ==================
 
-Having trouble? We would like to help!
-
-- First go through this page with answers to common questions
+- First read this page with answers to common questions
 - Use the search bar at the upper left to search our documentation
 - Ask questions in the ``#cloud-init`` `Matrix room <Matrix_>`_
 - Join and ask questions on `GitHub Discussions`_
-- Find a bug? Check out the :ref:`reporting_bugs` topic to find out how to
-  report one
+- Find a bug? See :ref:`reporting_bugs`
 
 ``autoinstall``
 ===============

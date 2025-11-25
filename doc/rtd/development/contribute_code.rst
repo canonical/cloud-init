@@ -5,23 +5,11 @@ Contribute to the code
    :maxdepth: 1
    :hidden:
 
-   testing.rst
-   integration_tests.rst
-   module_creation.rst
-   datasource_creation.rst
-   dir_layout.rst
-   logging.rst
-   internal_files.rst
-   feature_flags.rst
-
-For a run-through of the entire process, the following pages will be your best
-starting point:
-
-* :doc:`Find issues to work on<find_issues>`
-* :doc:`Create your first pull request<first_PR>`
-
-On the rest of this page you'll find the key resources you'll need to start
-contributing to the cloud-init codebase.
+   About the tests <testing.rst>
+   Support a new cloud <datasource_creation.rst>
+   Run integration tests <integration_tests.rst>
+   Extend cloud-config <module_creation.rst>
+   Find bugs to fix <find_issues.rst>
 
 Code style and design
 =====================
