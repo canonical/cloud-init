@@ -97,8 +97,13 @@ def find_home() -> PurePath:
     # But we know that `/init` is the interpreter, so we can run it directly.
     # See /proc/sys/fs/binfmt_misc/WSLInterop[-late]
     # inside any WSL instance for more details.
-    home, _ = subp.subp(["/init", cmd.as_posix(), "/C", "echo %USERPROFILE%"])
-    home = home.rstrip()
+    # Invoking with "/U" makes it output UTF-16LE, which is more predictable
+    # than ANSI Code Pages for anything above the ASCII range.
+    home, _ = subp.subp(
+        ["/init", cmd.as_posix(), "/U", "/C", "echo.%USERPROFILE%"],
+        decode=False,
+    )
+    home = home.decode("utf-16-le").rstrip()
     if not home:
         raise subp.ProcessExecutionError(
             "No output from cmd.exe to show the user profile dir."
