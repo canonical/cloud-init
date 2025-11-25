@@ -22,31 +22,31 @@ access key and many other aspects of a system. Later on cloud-init will
 also parse and process any optional user or vendor data that was passed to the
 instance.
 
-## Getting help
-
-If you need support, start with the [user documentation](https://docs.cloud-init.io/en/latest/).
-
-If you need additional help consider reaching out with one of the following options:
-
-- Ask a question in the [``#cloud-init`` channel on Matrix](https://matrix.to/#/#cloud-init:ubuntu.com)
-- Follow announcements or ask a question on [GitHub Discussions](https://github.com/canonical/cloud-init/discussions)
-- Find a bug? [Report bugs on GitHub Issues](https://github.com/canonical/cloud-init/issues)
-
-## Distribution and cloud support
-
 The majority of [clouds](https://docs.cloud-init.io/en/latest/reference/datasources.html#datasources_supported)
 and [Linux / Unix OSes](https://docs.cloud-init.io/en/latest/reference/distros.html)
 are supported by and ship with cloud-init. If your distribution or cloud is not
 supported, please get in contact with that distribution and send them our way!
 
+## Getting help
+
+The [documentation](https://docs.cloud-init.io/en/latest/) is the first place
+to look for help.
+
+If a thorough search of the documentation does not resolve your issue, consider
+the following:
+
+- Ask a question in the [``#cloud-init`` channel on Matrix](https://matrix.to/#/#cloud-init:ubuntu.com)
+- Look for announcements or engage in cloud-init discussions on [GitHub Discussions](https://github.com/canonical/cloud-init/discussions)
+- Find a bug? [Report bugs on GitHub Issues](https://github.com/canonical/cloud-init/issues)
+
 ## To start developing cloud-init
 
 Check out the [contributing](https://docs.cloud-init.io/en/latest/development/index.html)
-guide that outlines the steps necessary to develop, test, and submit code.
+guide.
 
-## Daily builds
+## Daily package builds
 
-Daily builds are useful if you want to try the latest upstream code for the latest
+Daily package builds are useful to try the latest upstream code for the latest
 features or to verify bug fixes.
 
 For Ubuntu, see the [Daily PPAs](https://code.launchpad.net/~cloud-init-dev/+archive/ubuntu/daily)

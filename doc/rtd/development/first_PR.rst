@@ -1,9 +1,9 @@
 .. _first-PR:
 
-Contribution requirements
-*************************
+Development requirements
+************************
 
-The following steps must be completed to contribute to cloud-init. A PR that
+The following steps must be completed to develop cloud-init. A PR that
 fails to meet the contribution requirements is unlikely to be merged.
 
 Understand contribution expectations
@@ -19,6 +19,14 @@ The Canonical `contributor license agreement <CLA_>`_ (CLA) must be signed
 by CI. For help with the CLA, email
 `Chad Smith <mailto:chad.smith@canonical.com>`_ with the subject:
 "Cloud-init CLA".
+
+Clone the repository
+====================
+
+One must understand `how to use Git and GitHub`_. Create a local clone of the 
+repository:
+
+    git clone git@github.com:canonical/cloud-init.git
 
 Make a change
 =============
