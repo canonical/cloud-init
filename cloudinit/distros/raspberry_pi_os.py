@@ -86,7 +86,7 @@ class Distro(debian.Distro):
         LOG.debug("%s value is: %s", key, disable_fallback_netcfg)
 
         if not disable_fallback_netcfg:
-            return net.generate_fallback_config(self)
+            return net.generate_fallback_config()
 
         LOG.info(
             "Skipping generation of fallback network config as per "
