@@ -108,7 +108,7 @@ and applied to the system.
 .. note::
    PhotonOS and Raspberry Pi OS disable fallback networking configuration by
    default, leaving network unrendered when no other network config is
-   provided. If fallback config is still desired on PhotonOS, it can be
+   provided. If fallback config is still desired, it can be
    enabled by providing ``disable_fallback_netcfg: false`` in
    :file:`/etc/cloud/cloud.cfg:sys_config` settings.
 
