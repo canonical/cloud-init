@@ -39,6 +39,7 @@ DEFAULT_CONFIG = {
     "mode": "auto",
     "devices": ["/"],
     "ignore_growroot_disabled": False,
+    "resize_lv": True,
 }
 
 KEYDATA_PATH = Path("/cc_growpart_keydata")
@@ -363,6 +364,149 @@ def resize_encrypted(blockdev, partition) -> Tuple[str, str]:
     )
 
 
+def _get_vg_for_lv(lv_dev):
+    """
+    Return the VG name for a logical volume device,
+    e.g. /dev/mapper/vg-lv or /dev/vg/lv.
+    Uses `lvs --noheadings -o vg_name <lv_dev>`.
+    """
+    try:
+        out = subp.subp(
+            ["lvs", "--noheadings", "-o", "vg_name", lv_dev]
+        ).stdout
+        # lvs often prints whitespace padded output; take last token
+        vg = out.strip().split()[-1]
+        LOG.debug("lv %s belongs to vg %s", lv_dev, vg)
+        return vg
+    except Exception as e:
+        LOG.warning("failed to get VG for %s: %s", lv_dev, e)
+        raise
+
+
+def _get_pvs_for_vg(vg_name):
+    """
+    Return list of PV device paths for a volume group,
+    using `vgs -o pv_name --noheadings --separator ' ' <vg>`.
+    """
+    try:
+        out = subp.subp(
+            [
+                "vgs",
+                "--noheadings",
+                "-o",
+                "pv_name",
+                "--separator",
+                " ",
+                vg_name,
+            ]
+        ).stdout
+        # vgs returns space separated PV names (may include trailing spaces)
+        pvs = [p for p in out.split() if p]
+        LOG.debug("vg %s pvs: %s", vg_name, pvs)
+        return pvs
+    except Exception as e:
+        LOG.warning("failed to list PVs for VG %s: %s", vg_name, e)
+        raise
+
+
+def _pvresize(pv_dev):
+    """Run pvresize on each PV; idempotent: if it fails log and raise."""
+    try:
+        subp.subp(["pvresize", pv_dev])
+        LOG.info("pvresize succeeded for %s", pv_dev)
+        return True
+    except Exception as e:
+        LOG.warning("pvresize failed for %s: %s", pv_dev, e)
+        raise
+
+
+def _lvextend_to_free(lv_dev):
+    """Extend the LV to consume all free extents in its VG."""
+    try:
+        subp.subp(["lvextend", "-l", "+100%FREE", lv_dev])
+        LOG.info("lvextend +100%%FREE succeeded for %s", lv_dev)
+        return True
+    except Exception as e:
+        LOG.warning("lvextend failed for %s: %s", lv_dev, e)
+        raise
+
+
+def resize_lvm(
+    blockdev, resize_lv: bool = True, skip_pvresize: bool = False
+) -> Tuple[str, str]:
+    """
+    High-level procedure to resize LVM logical volume
+    after underlying PVs were expanded:
+      - find VG for lv (devpath)
+      - for each PV in VG: pvresize (unless skip_pvresize=True)
+      - optionally lvextend the lv to use free space (if resize_lv=True)
+
+    Args:
+        blockdev: The logical volume device path
+        resize_lv: If True, extend the LV to consume all free space in the VG.
+                   If False, only resize PVs, leaving LV size unchanged.
+                   Default: True (for backward compatibility).
+        skip_pvresize: If True, skip pvresize (e.g., when growpart already
+                       handled it). If False, run pvresize on all PVs in
+                       the VG. Default: False.
+    """
+    LOG.info("starting LVM resize flow for %s", blockdev)
+    vg = _get_vg_for_lv(blockdev)
+    pvs = _get_pvs_for_vg(vg)
+
+    # try pvresize for each PV (unless skipped, e.g., growpart already did it)
+    if not skip_pvresize:
+        for pv in pvs:
+            try:
+                _pvresize(pv)
+            except Exception:
+                LOG.warning(
+                    "pvresize failed for %s, continuing to next PV", pv
+                )
+    else:
+        LOG.debug(
+            "Skipping pvresize for %s (already handled by partition resizer)",
+            blockdev,
+        )
+
+    # extend the LV to use free space (if enabled)
+    if resize_lv:
+        _lvextend_to_free(blockdev)
+        pv_status = (
+            "PV already resized" if skip_pvresize else "PV and LV resized"
+        )
+        return (
+            RESIZE.CHANGED,
+            f"Successfully resized LVM device '{blockdev}' ({pv_status})",
+        )
+    else:
+        LOG.info(
+            "LV resize disabled for %s; %s. "
+            "Free space remains available in VG for other LVs.",
+            blockdev,
+            "PV already resized" if skip_pvresize else "PVs were resized",
+        )
+        pv_status = "PV already resized" if skip_pvresize else "PV resized"
+        return (
+            RESIZE.CHANGED,
+            f"Successfully resized LVM device '{blockdev}' "
+            f"({pv_status}, LV unchanged)",
+        )
+
+
+def is_lvm_device(blockdev) -> bool:
+    """
+    Checks if a given device path points to an LVM device.
+    """
+    try:
+        # Run lsblk to check if the device type is 'lvm'
+        out = subp.subp(["lsblk", "-n", "-o", "TYPE", blockdev]).stdout
+        return out.strip() == "lvm"
+    except Exception as e:
+        LOG.warning("Error checking if device is LVM: %s", e)
+        return False
+
+
 def _call_resizer(resizer, devent, disk, ptnum, blockdev, fs):
     info = []
     try:
@@ -409,7 +553,9 @@ def _call_resizer(resizer, devent, disk, ptnum, blockdev, fs):
     return info
 
 
-def resize_devices(resizer: Resizer, devices, distro: Distro):
+def resize_devices(
+    resizer: Resizer, devices, distro: Distro, resize_lv: bool = True
+):
     # returns a tuple of tuples containing (entry-in-devices, action, message)
     devices = copy.copy(devices)
     info = []
@@ -488,13 +634,80 @@ def resize_devices(resizer: Resizer, devices, distro: Distro):
                             message,
                         )
                     )
+                # If device is lvm
+                elif is_lvm_device(blockdev):
+                    # resize the partition firstly
+                    disk, ptnum = distro.device_part_info(partition)
+                    info += _call_resizer(
+                        resizer, devent, disk, ptnum, partition, fs
+                    )
+                    try:
+                        # Call the LVM resize procedure
+                        # Skip pvresize if using growpart AND VG has only
+                        # one PV
+                        # (growpart's maybe_lvm_resize only resizes the
+                        # specific partition's PV, so for multi-PV VGs we need
+                        # to resize all PVs)
+                        skip_pvresize = False
+                        if isinstance(resizer, ResizeGrowPart):
+                            try:
+                                vg = _get_vg_for_lv(blockdev)
+                                pvs = _get_pvs_for_vg(vg)
+                                # Only skip if single PV
+                                # (growpart already handled it)
+                                if len(pvs) == 1:
+                                    skip_pvresize = True
+                                    LOG.debug(
+                                        "VG %s has single PV, "
+                                        "skipping pvresize "
+                                        "(growpart already handled it)",
+                                        vg,
+                                    )
+                                else:
+                                    LOG.info(
+                                        "VG %s has %d PVs, resizing all PVs "
+                                        "(growpart only resized the "
+                                        "partition's PV)",
+                                        vg,
+                                        len(pvs),
+                                    )
+                            except Exception as e:
+                                LOG.warning(
+                                    "Failed to check VG PV count, will resize "
+                                    "all PVs: %s",
+                                    e,
+                                )
+                                # On error, don't skip (safer to resize all)
+                                skip_pvresize = False
+
+                        status, message = resize_lvm(
+                            blockdev,
+                            resize_lv=resize_lv,
+                            skip_pvresize=skip_pvresize,
+                        )
+                        info.append(
+                            (
+                                devent,
+                                status,
+                                message,
+                            )
+                        )
+                    except Exception as e:
+                        info.append(
+                            (
+                                devent,
+                                RESIZE.FAILED,
+                                f"Resizing LVM device ({blockdev}) failed: "
+                                f"{e}",
+                            )
+                        )
                 else:
                     info.append(
                         (
                             devent,
                             RESIZE.SKIPPED,
                             f"Resizing mapped device ({blockdev}) skipped "
-                            "as it is not encrypted.",
+                            f"as it is neither encrypted nor lvm.",
                         )
                     )
             except Exception as e:
@@ -502,7 +715,7 @@ def resize_devices(resizer: Resizer, devices, distro: Distro):
                     (
                         devent,
                         RESIZE.FAILED,
-                        f"Resizing encrypted device ({blockdev}) failed: {e}",
+                        f"Resizing device ({blockdev}) failed: {e}",
                     )
                 )
             # At this point, we WON'T resize a non-encrypted mapped device
@@ -559,6 +772,8 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         LOG.debug("growpart: empty device list")
         return
 
+    resize_lv = util.get_cfg_option_bool(mycfg, "resize_lv", True)
+
     try:
         resizer = resizer_factory(mode, distro=cloud.distro, devices=devices)
     except (ValueError, TypeError) as e:
@@ -568,7 +783,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         return
 
     with performance.Timed("Resizing devices"):
-        resized = resize_devices(resizer, devices, cloud.distro)
+        resized = resize_devices(
+            resizer, devices, cloud.distro, resize_lv=resize_lv
+        )
     for entry, action, msg in resized:
         if action == RESIZE.CHANGED:
             LOG.info("'%s' resized: %s", entry, msg)
