@@ -5,15 +5,18 @@ Report bugs
 
 In this guide, you will learn how to:
 
-1) Search for existing issues
-2) Collect logs to support your bug report.
-3) File bugs to the upstream ``cloud-init`` project via `GitHub Issues`_.
+1) Search for existing issues.
+2) Collect logs required for the bug report.
+3) File bugs with the upstream ``cloud-init`` project.
 4) Report issues for distro-specific packages.
 
 Search for existing issues
 ==========================
 
-Before filing a bug against cloud-init
+Before filing a bug against cloud-init, make sure to search the `open issues`_
+for bugs with similar symptoms and log messages. If you are uncertain whether
+an existing issue is identical, then mention the potentially related issue(s)
+in the bug report.
 
 Collect logs
 ============
@@ -21,8 +24,8 @@ Collect logs
 To debug an issue, it is crucial to understand what happened both before and
 during the error condition. It may be tempting to file a bug with just a
 snippet or two of the logs, but this is not enough information to reliably
-debug the issue. To do so, run the following command to
-produce a tarfile that you can upload:
+debug the issue. To do so, run the following command to produce a tarfile that
+you can upload:
 
 .. code-block:: shell-session
 
@@ -119,7 +122,7 @@ To file a bug against the Arch package of ``cloud-init`` please use the
 details.
 
 .. LINKS:
-.. _GitHub Issues: https://github.com/canonical/cloud-init/issues
+.. _ : https://github.com/canonical/cloud-init/issues
 .. _Report an upstream cloud-init bug: https://github.com/canonical/cloud-init/issues
 .. _Ubuntu bug tracker: https://bugs.launchpad.net/ubuntu/+source/cloud-init/+filebug
 .. _Debian bug tracker: https://bugs.debian.org/cgi-bin/pkgreport.cgi?pkg=cloud-init;dist=unstable
