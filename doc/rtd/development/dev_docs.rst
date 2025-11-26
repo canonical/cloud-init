@@ -14,4 +14,3 @@ change.
    build_distro_package_from_source.rst
    dir_layout.rst
    logging.rst
-   module_creation.rst

@@ -122,13 +122,9 @@ Any PR that does not meet the requirements might be assumed to be under
 development. If a PR has gone stale and you are certain that it meets the
 documented requirements, then you may ping a core developer.
 
-Read developer docs
-===================
-
-Make sure to read more
-
 .. toctree::
    :maxdepth: 1
+   :hidden:
 
    Develop code <contribute_code.rst>
    Develop docs <contribute_docs.rst>
