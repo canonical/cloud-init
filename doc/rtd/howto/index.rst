@@ -22,10 +22,10 @@ How do I...?
    Validate my user-data <debug_user_data.rst>
    Check the status of cloud-init <status.rst>
    Wait for cloud-init <wait_for_cloud_init.rst>
-   Identify my datasource <identify_datasource.rst>
    Debug cloud-init <debugging.rst>
    Report a bug <bugs.rst>
    Disable cloud-init <disable_cloud_init.rst>
    Re-run cloud-init <rerun_cloud_init.rst>
    Change how often a module runs <module_run_frequency.rst>
+   Identify my datasource <identify_datasource.rst>
    Test development packages <test_unreleased_packages.rst>

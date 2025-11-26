@@ -35,7 +35,7 @@ your issue, consider the following:
 
 - Ask a question in the [``#cloud-init`` channel on Matrix](https://matrix.to/#/#cloud-init:ubuntu.com)
 - Look for announcements or engage in cloud-init discussions on [GitHub Discussions](https://github.com/canonical/cloud-init/discussions)
-- Find a bug? [Report bugs on GitHub Issues](https://github.com/canonical/cloud-init/issues)
+- Find a bug? [Read how to report it](https://docs.cloud-init.io/en/latest/howto/bugs.html)
 
 ## To start developing cloud-init
 

@@ -122,7 +122,7 @@ To file a bug against the Arch package of ``cloud-init`` please use the
 details.
 
 .. LINKS:
-.. _ : https://github.com/canonical/cloud-init/issues
+.. _open issues: https://github.com/canonical/cloud-init/issues
 .. _Report an upstream cloud-init bug: https://github.com/canonical/cloud-init/issues
 .. _Ubuntu bug tracker: https://bugs.launchpad.net/ubuntu/+source/cloud-init/+filebug
 .. _Debian bug tracker: https://bugs.debian.org/cgi-bin/pkgreport.cgi?pkg=cloud-init;dist=unstable
