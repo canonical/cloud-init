@@ -32,7 +32,7 @@ Example output:
       --version, -v         Show program's version number and exit.
       --debug, -d           Show additional pre-action logging (default: False).
       --force               Force running even if no datasource is found (use at your own risk).
-      --all-stages          Run cloud-init's stages under a single process using a syncronization protocol. This is not intended for CLI usage.
+      --all-stages          Run cloud-init's stages under a single process using a synchronization protocol. This is not intended for CLI usage.
 
     Subcommands:
       {init,modules,single,query,features,analyze,devel,collect-logs,clean,status,schema}

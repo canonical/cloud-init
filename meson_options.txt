@@ -1,3 +1,5 @@
-option('init_system', type: 'string', value: 'systemd', description: 'Set target init system.')
+option('init_system', type: 'combo', value: 'systemd', choices: ['systemd', 'sysvinit_openrc', 'sysvinit_freebsd'], description: 'Set target init system.')
 option('distro_templates', type: 'array', value: [], description: 'Distro template files to install. WARNING: Templates may change in the future. If using this option, be sure to check new releases for template file changes.')
 option('disable_sshd_keygen', type: 'boolean', value: false, description: 'Provide systemd service to disable sshd-keygen if present to avoid races with cloud-init.')
+option('bash_completion', type: 'boolean', value: true, description: 'Bash completion for cloud-init.')
+option('downstream_version', type: 'string', value: '@DOWNSTREAM_VERSION@', description: 'Optional downstream package version if different than upstream release. Used by packagers')

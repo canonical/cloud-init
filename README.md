@@ -35,7 +35,7 @@ If you need additional help consider reaching out with one of the following opti
 ## Distribution and cloud support
 
 The majority of [clouds](https://docs.cloud-init.io/en/latest/reference/datasources.html#datasources_supported)
-and [Linux / Unix OSes](https://docs.cloud-init.io/en/latest/reference/distros.html)
+and [Linux / Unix OSes](https://docs.cloud-init.io/en/latest/reference/availability.html#distributions)
 are supported by and ship with cloud-init. If your distribution or cloud is not
 supported, please get in contact with that distribution and send them our way!
 

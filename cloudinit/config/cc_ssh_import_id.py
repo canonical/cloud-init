@@ -105,7 +105,7 @@ def import_ssh_ids(ids, user):
     except KeyError as exc:
         raise exc
 
-    # TODO: We have a use case that involes setting a proxy value earlier
+    # TODO: We have a use case that involves setting a proxy value earlier
     # in boot and the user wants this env used when using ssh-import-id.
     # E.g.,:
     # bootcmd:

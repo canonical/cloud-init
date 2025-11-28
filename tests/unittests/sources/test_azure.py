@@ -1725,7 +1725,7 @@ scbus-1 on xpt0 bus 0
         # default user should be updated username and should not be locked.
         assert defuser["name"] == "myuser"
         assert not defuser["lock_passwd"]
-        # passwd is crypt formated string $id$salt$encrypted
+        # passwd is crypt formatted string $id$salt$encrypted
         # encrypting plaintext with salt value of everything up to final '$'
         # should equal that after the '$'
         assert passlib.hash.sha512_crypt.verify(

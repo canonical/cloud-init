@@ -3,7 +3,7 @@
 
 import os
 import re
-import unittest
+import shutil
 from textwrap import dedent
 from unittest import mock
 from xml.etree import ElementTree as ET
@@ -517,7 +517,11 @@ class TestOpenSSLManagerActions:
         path = "tests/data/azure"
         return os.path.join(path, name)
 
-    @unittest.skip("todo move to cloud_test")
+    @pytest.mark.allow_all_subp
+    @pytest.mark.skipif(
+        shutil.which("openssl") is None,
+        reason="OpenSSL command-line tool not installed",
+    )
     def test_pubkey_extract(self):
         cert = load_text_file(self._data_file("pubkey_extract_cert"))
         good_key = load_text_file(self._data_file("pubkey_extract_ssh_key"))
@@ -529,7 +533,11 @@ class TestOpenSSLManagerActions:
         fingerprint = sslmgr._get_fingerprint_from_cert(cert)
         assert good_fingerprint == fingerprint
 
-    @unittest.skip("todo move to cloud_test")
+    @pytest.mark.allow_all_subp
+    @pytest.mark.skipif(
+        shutil.which("openssl") is None,
+        reason="OpenSSL command-line tool not installed",
+    )
     @mock.patch.object(azure_helper.OpenSSLManager, "_decrypt_certs_from_xml")
     def test_parse_certificates(self, mock_decrypt_certs):
         """Azure control plane puts private keys as well as certificates

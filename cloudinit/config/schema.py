@@ -258,7 +258,7 @@ def _add_deprecated_changed_or_new_msg(
         if annotate:
             return f" {msg}"
 
-        # italicised RST - no whitespace between astrisk and text
+        # italicised RST - no whitespace between asterisk and text
         return f"\n\n*{msg.strip()}*"
 
     # define print order
@@ -500,11 +500,12 @@ def get_jsonschema_validator():
 
         It does ignore instances of `SchemaDeprecationError`.
         """
+        validator = self if _schema is None else self.evolve(schema=_schema)
         errors = filter(
             lambda e: not isinstance(  # pylint: disable=W1116
                 e, SchemaDeprecationError
             ),
-            self.evolve(schema=_schema).iter_errors(instance),
+            validator.iter_errors(instance),
         )
         return next(errors, None) is None
 

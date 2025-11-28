@@ -8,7 +8,6 @@ import logging
 import os
 import re
 import sys
-import unittest
 from collections import namedtuple
 from copy import deepcopy
 from errno import EACCES
@@ -152,7 +151,7 @@ class TestVersionedSchemas:
             )
 
 
-class TestCheckSchema(unittest.TestCase):
+class TestCheckSchema:
     def test_schema_bools_have_dates(self):
         """ensure that new/changed/deprecated keys have an associated
         version key
@@ -523,6 +522,59 @@ class TestValidateCloudConfigSchema:
         assert "Cloud config schema errors: p1: '-1' is not a 'email'" == (
             str(context_mgr.value)
         )
+
+    @skipUnlessJsonSchema()
+    @pytest.mark.parametrize(
+        "schema,should_succeed_validating,expected_err_msg_of_either_schema_or_its_negation",
+        [
+            (
+                {"required": ["a", "b"]},
+                True,
+                "Cloud config schema errors: : ({'a': 5, 'b': 6} should not"
+                r" be valid under {'required': \['a', 'b'\]}|{'required': "
+                r"\['a', 'b'\]} is not allowed for {'a': 5, 'b': 6})",
+            ),
+            (
+                {"required": ["a", "c"]},
+                False,
+                "Cloud config schema errors: : 'c' is a required property",
+            ),
+            (
+                {"required": ["d", "c"]},
+                False,
+                "Cloud config schema errors: : 'c' is a required property, :"
+                " 'd' is a required property",
+            ),
+        ],
+    )
+    def test_validateconfig_with_not_keyword_in_schema(
+        self,
+        schema,
+        should_succeed_validating,
+        expected_err_msg_of_either_schema_or_its_negation,
+    ):
+        """
+        Test the behavior of the not keyword in a schema
+        """
+        cfg_to_test = {"a": 5, "b": 6}
+        not_schema = {"not": schema}
+        (schema_to_succeed, schema_to_fail) = (
+            (schema, not_schema)
+            if should_succeed_validating
+            else (not_schema, schema)
+        )
+
+        validate_cloudconfig_schema(
+            cfg_to_test, schema_to_succeed, strict=True
+        )
+
+        with pytest.raises(
+            SchemaValidationError,
+            match=expected_err_msg_of_either_schema_or_its_negation,
+        ):
+            validate_cloudconfig_schema(
+                cfg_to_test, schema_to_fail, strict=True
+            )
 
     @skipUnlessJsonSchema()
     def test_validateconfig_schema_honors_formats_strict_metaschema(self):

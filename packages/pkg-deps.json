@@ -88,6 +88,17 @@
          "hostname"
       ]
    },
+   "freebsd": {
+      "build-requires" : [
+         "bash-completion",
+         "meson",
+         "pkgconf"
+      ],
+      "requires" : [
+         "e2fsprogs",
+         "sudo"
+      ]
+   },
    "suse" : {
       "renames" : {
          "jinja2" : "python3-Jinja2",

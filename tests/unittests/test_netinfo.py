@@ -97,7 +97,7 @@ class TestNetInfo:
     @mock.patch("cloudinit.netinfo.subp.subp")
     def test_netdev_warn_on_missing_commands(self, m_subp, m_which, caplog):
         """netdev_pformat warns when missing both ip and 'netstat'."""
-        m_which.return_value = None  # Niether ip nor netstat found
+        m_which.return_value = None  # Neither ip nor netstat found
         content = netdev_pformat()
         assert "\n" == content
         log = caplog.records[0]
@@ -254,7 +254,7 @@ class TestNetInfo:
     @mock.patch("cloudinit.netinfo.subp.subp")
     def test_route_warn_on_missing_commands(self, m_subp, m_which, caplog):
         """route_pformat warns when missing both ip and 'netstat'."""
-        m_which.return_value = None  # Niether ip nor netstat found
+        m_which.return_value = None  # Neither ip nor netstat found
         content = route_pformat()
         assert "\n" == content
         log = caplog.records[0]

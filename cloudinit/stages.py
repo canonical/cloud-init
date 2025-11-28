@@ -956,7 +956,7 @@ class Init:
         Consume the userdata and run the part handlers
         """
 
-        # Ensure datasource fetched before activation (just incase)
+        # Ensure datasource fetched before activation (just in case)
         user_data_msg = self.datasource.get_userdata(True)
 
         # This keeps track of all the active handlers
