@@ -1,3 +1,9 @@
+cloud-init (25.3~3g009c0ec1-0ubuntu1) UNRELEASED; urgency=medium
+
+  * Upstream snapshot based on upstream/main at 009c0ec1.
+
+ -- Brett Holman <brett.holman@canonical.com>  Fri, 28 Nov 2025 19:51:28 +0000
+
 cloud-init (25.3~2g890873f5-0ubuntu3) questing; urgency=medium
 
   * d/cloud-init-base.config: update migrate_debconf_settings to
