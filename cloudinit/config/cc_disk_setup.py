@@ -1299,7 +1299,9 @@ def mkfs(fs_cfg):
                 device = f"{device}p"
             device = "%s%s" % (device, partition)
             if not Path(device).is_block_device():
-                LOG.warning("Path %s does not exist or is not a block device")
+                LOG.warning(
+                    "Path %s does not exist or is not a block device", device
+                )
                 return
             LOG.debug(
                 "Manual request of partition %s for %s", partition, device
