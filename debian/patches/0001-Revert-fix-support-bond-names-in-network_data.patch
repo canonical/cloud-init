@@ -1,0 +1,172 @@
+From 4a48e4be98afe754169f6a969a53e448952e0046 Mon Sep 17 00:00:00 2001
+From: Brett Holman <brett.holman@canonical.com>
+Date: Fri, 21 Nov 2025 21:49:29 +0000
+Subject: [PATCH] Revert "fix: support bond names in network_data.json (#6546)"
+
+This reverts commit 7c684160ecada299643573778de91d2a7f1a0024.
+Origin: upstream, https://github.com/canonical/cloud-init/pull/6546
+---
+ cloudinit/sources/helpers/openstack.py        |  11 +-
+ .../sources/helpers/test_openstack.py         | 121 ------------------
+ 2 files changed, 5 insertions(+), 127 deletions(-)
+
+--- a/cloudinit/sources/helpers/openstack.py
++++ b/cloudinit/sources/helpers/openstack.py
+@@ -705,15 +705,11 @@ def convert_net_json(network_json=None,
+                     # is expected by cloudinit.
+                     translated_key = "bond-{}".format(k.split("bond_", 1)[-1])
+                     params.update({translated_key: v})
+-            cfg["params"] = params
+ 
+             # openstack does not provide a name for the bond.
+             # they do provide an 'id', but that is possibly non-sensical.
+-            # so we just create our own name unless 'name' is set.
+-            if cfg.get("name") is None:
+-                link_name = bond_name_fmt % bond_number
+-                cfg["name"] = link_name
+-                curinfo["name"] = link_name
++            # so we just create our own name.
++            link_name = bond_name_fmt % bond_number
+             bond_number += 1
+ 
+             # bond_links reference links by their id, but we need to add
+@@ -727,6 +723,9 @@ def convert_net_json(network_json=None,
+                     copy.deepcopy(link["bond_links"]),
+                 )
+             )
++            cfg.update({"params": params, "name": link_name})
++
++            curinfo["name"] = link_name
+         elif link["type"] in ["vlan"]:
+             name = "%s.%s" % (link["vlan_link"], link["vlan_id"])
+             cfg.update(
+--- a/tests/unittests/sources/helpers/test_openstack.py
++++ b/tests/unittests/sources/helpers/test_openstack.py
+@@ -233,127 +233,6 @@ class TestConvertNetJson:
+             network_json=network_json, known_macs=macs
+         )
+ 
+-    def test_bond_name(self):
+-        """Verify the bond name is retained."""
+-        network_json = {
+-            "links": [
+-                {
+-                    "id": "ens1f0np0",
+-                    "name": "ens1f0np0",
+-                    "type": "phy",
+-                    "ethernet_mac_address": "xx:xx:xx:xx:xx:00",
+-                    "mtu": 9000,
+-                },
+-                {
+-                    "id": "ens1f1np1",
+-                    "name": "ens1f1np1",
+-                    "type": "phy",
+-                    "ethernet_mac_address": "xx:xx:xx:xx:xx:01",
+-                    "mtu": 9000,
+-                },
+-                {
+-                    "id": "bond0",
+-                    "name": "bond-wan",
+-                    "type": "bond",
+-                    "bond_links": ["ens1f0np0", "ens1f1np1"],
+-                    "mtu": 9000,
+-                    "ethernet_mac_address": "xx:xx:xx:xx:xx:00",
+-                    "bond_mode": "802.3ad",
+-                    "bond_xmit_hash_policy": "layer3+4",
+-                    "bond_miimon": 100,
+-                },
+-                {
+-                    "id": "bond0.123",
+-                    # The vlan name is ignored
+-                    "name": "bond0.123",
+-                    "type": "vlan",
+-                    "vlan_link": "bond0",
+-                    "vlan_id": 123,
+-                    "vlan_mac_address": "xx:xx:xx:xx:xx:00",
+-                },
+-            ],
+-            "networks": [
+-                {
+-                    "id": "publicnet-ipv4",
+-                    "type": "ipv4",
+-                    "link": "bond0.123",
+-                    "ip_address": "x.x.x.x",
+-                    "netmask": "255.255.255.0",
+-                    "routes": [
+-                        {
+-                            "network": "0.0.0.0",
+-                            "netmask": "0.0.0.0",
+-                            "gateway": "x.x.x.1",
+-                        }
+-                    ],
+-                    "network_id": "00000000-0000-0000-0000-000000000000",
+-                }
+-            ],
+-            "services": [{"type": "dns", "address": "1.1.1.1"}],
+-        }
+-        expected = {
+-            "config": [
+-                {
+-                    "mac_address": "xx:xx:xx:xx:xx:00",
+-                    "mtu": 9000,
+-                    "name": "ens1f0np0",
+-                    "subnets": [],
+-                    "type": "physical",
+-                },
+-                {
+-                    "mac_address": "xx:xx:xx:xx:xx:01",
+-                    "mtu": 9000,
+-                    "name": "ens1f1np1",
+-                    "subnets": [],
+-                    "type": "physical",
+-                },
+-                {
+-                    "bond_interfaces": ["ens1f0np0", "ens1f1np1"],
+-                    "mtu": 9000,
+-                    "name": "bond-wan",
+-                    "mac_address": "xx:xx:xx:xx:xx:00",
+-                    "params": {
+-                        "bond-miimon": 100,
+-                        "bond-mode": "802.3ad",
+-                        "bond-xmit_hash_policy": "layer3+4",
+-                    },
+-                    "subnets": [],
+-                    "type": "bond",
+-                },
+-                {
+-                    "name": "bond-wan.123",
+-                    "subnets": [
+-                        {
+-                            "address": "x.x.x.x",
+-                            "ipv4": True,
+-                            "netmask": "255.255.255.0",
+-                            "routes": [
+-                                {
+-                                    "gateway": "x.x.x.1",
+-                                    "netmask": "0.0.0.0",
+-                                    "network": "0.0.0.0",
+-                                }
+-                            ],
+-                            "type": "static",
+-                        }
+-                    ],
+-                    "type": "vlan",
+-                    "vlan_id": 123,
+-                    "vlan_link": "bond-wan",
+-                    "mac_address": "xx:xx:xx:xx:xx:00",
+-                },
+-                {"address": "1.1.1.1", "type": "nameserver"},
+-            ],
+-            "version": 1,
+-        }
+-        macs = {
+-            "xx:xx:xx:xx:xx:00": "ens1f0np0",
+-            "xx:xx:xx:xx:xx:01": "ens1f1np1",
+-        }
+-        assert expected == openstack.convert_net_json(
+-            network_json=network_json, known_macs=macs
+-        )
+-
+     def test_bond_ipv6_accept_ra_false(self):
+         """Verify accept-ra is set to False for static IPv6."""
+         network_json = {
