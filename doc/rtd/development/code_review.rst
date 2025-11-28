@@ -27,7 +27,7 @@ need advice on an open PR, these are the available avenues:
 
 * Open a PR, add "WIP:" to the title, and leave a comment on that PR
 * join the ``#cloud-init`` `channel on Matrix <Matrix_>`_
-* post on `Github Discussions`_
+* post on `GitHub Discussions`_
 
 These are listed in order of our preference, but please use whichever of them
 you are most comfortable with.

@@ -167,7 +167,7 @@ Where:
   as ``ephemeralX`` or there may be issues with mounting the ephemeral storage
   layer.
 
-  If you define the device as ``ephemeralX.Y`` then Y will be interpeted as a
+  If you define the device as ``ephemeralX.Y`` then Y will be interpreted as a
   partition value. However, ``ephemeralX.0`` is the **same** as ``ephemeralX``.
 
 - ``<PART_VALUE>``:

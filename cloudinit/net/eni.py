@@ -101,12 +101,66 @@ def _iface_add_subnet(iface: dict, subnet: dict, is_ipv6: bool) -> List[str]:
                             value,
                         )
                     )
+                    if value == []:
+                        continue
+                if key == "dns_search":
+                    if (
+                        isinstance(subnet.get("dns_nameservers"), list)
+                        and list(
+                            filter(
+                                functools.partial(
+                                    has_same_ip_version, is_ipv6=is_ipv6
+                                ),
+                                subnet.get("dns_nameservers", []),
+                            )
+                        )
+                        == []
+                    ) or (
+                        isinstance(subnet.get("dns_nameservers"), str)
+                        and (
+                            subnet.get("dns_nameservers") == ""
+                            or not has_same_ip_version(
+                                subnet.get("dns_nameservers", ""), is_ipv6
+                            )
+                        )
+                    ):
+                        # If no dns_nameserver(s) specified or not the
+                        # same type of IP address then dns_search
+                        # value makes no sense.
+                        continue
+
                 value = " ".join(value)
             else:
                 if key == "dns_nameservers" and not has_same_ip_version(
                     value, is_ipv6
                 ):
                     continue
+                if key == "dns_search":
+                    if (
+                        isinstance(subnet.get("dns_nameservers"), list)
+                        and list(
+                            filter(
+                                functools.partial(
+                                    has_same_ip_version, is_ipv6=is_ipv6
+                                ),
+                                subnet.get("dns_nameservers", []),
+                            )
+                        )
+                        == []
+                    ) or (
+                        isinstance(subnet.get("dns_nameservers"), str)
+                        and (
+                            subnet.get("dns_nameservers") == ""
+                            or not has_same_ip_version(
+                                subnet.get("dns_nameservers", ""), is_ipv6
+                            )
+                        )
+                    ):
+                        # If no dns_nameserver(s) specified or not the
+                        # same type of IP address then dns_search
+                        # value makes no sense.
+                        continue
+
             if "_" in key:
                 key = key.replace("_", "-")
             content.append("    {0} {1}".format(key, value))
@@ -424,19 +478,40 @@ class Renderer(renderer.Renderer):
                  how-to-set-static-routes-in-ubuntu-server
         """
         content = []
-        up = indent + "post-up route add"
-        down = indent + "pre-down route del"
+        if subp.which("ip"):
+            use_ip_cmd = True
+        else:
+            use_ip_cmd = False
+
+        if use_ip_cmd:
+            up = indent + "post-up ip"
+            down = indent + "pre-down ip"
+            mapping = {
+                "gateway": "via",
+                "metric": "metric",
+            }
+        else:
+            up = indent + "post-up route add"
+            down = indent + "pre-down route del"
+            mapping = {
+                "gateway": "gw",
+                "metric": "metric",
+            }
         or_true = " || true"
-        mapping = {
-            "gateway": "gw",
-            "metric": "metric",
-        }
 
         default_gw = ""
         if route["network"] == "0.0.0.0" and route["netmask"] == "0.0.0.0":
+            if use_ip_cmd:
+                up += " route add"
+                down += " route del"
             default_gw = " default"
         elif route["network"] == "::" and route["prefix"] == 0:
-            default_gw = " -A inet6 default"
+            if use_ip_cmd:
+                up += " -family inet6 route add"
+                down += " -family inet6 route del"
+                default_gw = " default"
+            else:
+                default_gw = " -A inet6 default"
 
         route_line = ""
         for k in ["network", "gateway", "metric"]:
@@ -446,12 +521,20 @@ class Renderer(renderer.Renderer):
                 route_line += "%s %s %s" % (default_gw, mapping[k], route[k])
             elif k in route:
                 if k == "network":
-                    if is_ipv6_address(route[k]):
-                        route_line += " -A inet6"
-                    elif route.get("prefix") == 32:
-                        route_line += " -host"
+                    if use_ip_cmd:
+                        if is_ipv6_address(route[k]):
+                            up += " -family inet6"
+                            down += " -family inet6"
+                        up += " route add"
+                        down += " route del"
                     else:
-                        route_line += " -net"
+                        if is_ipv6_address(route[k]):
+                            route_line += " -A inet6"
+                        elif route.get("prefix") == 32:
+                            route_line += " -host"
+                        else:
+                            route_line += " -net"
+
                     if "prefix" in route:
                         route_line += " %s/%s" % (route[k], route["prefix"])
                 else:

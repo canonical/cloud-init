@@ -1,6 +1,7 @@
 import datetime
 import glob
 import os
+import re
 import sys
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -11,11 +12,12 @@ sys.path.insert(0, os.path.abspath("../"))
 sys.path.insert(0, os.path.abspath("./"))
 sys.path.insert(0, os.path.abspath("."))
 
+
 # Readthedocs builds will pip install packages and not have PYTHONPATH set
 # So avoid cloudinit imports until we have updated our path first.
-from cloudinit import version
 from cloudinit.config.schema import get_schema
 from cloudinit.handlers.jinja_template import render_jinja_payload
+from cloudinit.subp import subp
 
 # Suppress warnings for docs that aren't used yet
 # unused_docs = [
@@ -64,7 +66,18 @@ master_doc = "index"
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
-version = version.version_string()
+
+
+def get_version():
+    subp(["meson", "setup", "../../builddir", "../.."])
+    with open("../../builddir/meson_versions.py") as stream:
+        match = re.search(r'UPSTREAM_VERSION = "([^"]+)"', stream.read())
+    if match:
+        return match.group(1)
+    return "@UNABLE_TO_BUILD_meson_versions_py@"
+
+
+version = get_version()
 release = version
 
 # Set the default Pygments syntax
@@ -337,7 +350,7 @@ def debug_module_docs(
 
     :param module_id: A specific 'cc_*' module name to print rendered RST for,
         or provide 'all' to print out all rendered module docs.
-    :param mod_docs: A dict represnting doc metadata for each config module.
+    :param mod_docs: A dict representing doc metadata for each config module.
         The dict is keyed on config module id (cc_*) and each value is a dict
         with values such as: title, name, examples, schema_doc.
     :param debug_file_path: A specific file to write the rendered RST content.

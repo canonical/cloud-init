@@ -29,7 +29,7 @@ class TestLandscape:
         assert mycloud.distro.install_packages.called is False
 
     def test_handler_error_on_invalid_landscape_type(self, m_subp):
-        """Raise an error when landscape configuraiton option is invalid."""
+        """Raise an error when landscape configuration option is invalid."""
         mycloud = get_cloud("ubuntu")
         cfg = {"landscape": "wrongtype"}
         with pytest.raises(RuntimeError) as exc:

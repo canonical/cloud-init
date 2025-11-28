@@ -65,7 +65,7 @@ Having trouble? We would like to help!
 - :ref:`Check out our tutorials<tutorial_index>` if you're new to
   ``cloud-init``
 - :ref:`Try the FAQ<faq>` for answers to some common questions
-- You can also check `Github Discussions`_
+- You can also check `GitHub Discussions`_
 - Find a bug? `Report bugs on GitHub Issues`_
 
 Project and community

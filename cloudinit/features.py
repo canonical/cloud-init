@@ -114,7 +114,7 @@ DEPRECATION_INFO_BOUNDARY is used by distros to configure at which upstream
 version to start logging deprecations at a level higher than INFO.
 
 The default value "devel" tells cloud-init to log all deprecations higher
-than INFO. This value may be overriden by downstreams in order to maintain
+than INFO. This value may be overridden by downstreams in order to maintain
 stable behavior across releases.
 
 Jsonschema key deprecations and inline logger deprecations include a

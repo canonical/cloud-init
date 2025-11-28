@@ -1062,7 +1062,7 @@ class TestDataSourceVMwareIMC:
             """
         )
         util.write_file(conf_file, conf_content)
-        # Prepare the custom sript
+        # Prepare the custom script
         customscript = os.path.join(tmpdir, "test-script")
         util.write_file(customscript, "This is the post cust script")
 

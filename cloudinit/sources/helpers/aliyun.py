@@ -181,10 +181,10 @@ def convert_ecs_metadata_network_config(
         nic_name_2_mac_map[nic_name] = mac
 
     # sorted by nic_name
-    orderd_nic_name_list = sorted(
+    ordered_nic_name_list = sorted(
         nic_name_2_mac_map.keys(), key=net.natural_sort_key
     )
-    for nic_idx, nic_name in enumerate(orderd_nic_name_list):
+    for nic_idx, nic_name in enumerate(ordered_nic_name_list):
         nic_mac = nic_name_2_mac_map[nic_name]
         nic_metadata = macs_metadata.get(nic_mac)
         dhcp_override = {"route-metric": (nic_idx + 1) * 100}

@@ -88,6 +88,7 @@ distros = [
     "fedora",
     "raspberry-pi-os",
     "rhel",
+    "rocky",
     "opensuse",
     "opensuse-microos",
     "opensuse-tumbleweed",

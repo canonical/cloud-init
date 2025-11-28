@@ -65,7 +65,7 @@ def set_redhat_keyfile_perms(keyfile: str) -> None:
      - 'ssh_keys' group is present and owns the private keys.
      - private keys have permission 0o640.
     For fedora 38, centos 10 stream and above:
-     - ssh version is atleast version 9.
+     - ssh version is at least version 9.
      - 'ssh_keys' group is absent. 'root' group owns the keys.
      - private keys have permission 0o600, same as upstream.
     Public keys in all cases have permission 0o644.
@@ -80,7 +80,7 @@ def set_redhat_keyfile_perms(keyfile: str) -> None:
         permissions_private = 0o640
     else:
         # fedora 38, centos 10 stream and above. sshd-keygen sets
-        # private key persmissions to 0o600.
+        # private key permissions to 0o600.
         permissions_private = 0o600
 
     gid = util.get_group_id("ssh_keys")

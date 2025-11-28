@@ -101,7 +101,7 @@ def read_ftps(url: str, timeout: float = 5.0, **kwargs: dict) -> "FtpResponse":
     when using strict mode (ftps://), raise exception in event of failure
     when not using strict mode (ftp://), fall back to using unencrypted ftp
 
-    url: string containing the desination to read a file from. The url is
+    url: string containing the destination to read a file from. The url is
         parsed with urllib.urlsplit to identify username, password, host,
         path, and port in the following format:
             ftps://[username:password@]host[:port]/[path]

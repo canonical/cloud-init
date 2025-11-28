@@ -18,7 +18,7 @@ To contribute to cloud-init, you must first sign the Canonical
 every pull request to ensure that the CLA has been signed.
 
 For any questions or help with the process, email
-`James Falcon <mailto:james.falcon@canonical.com>`_ with the subject:
+`Chad Smith <mailto:chad.smith@canonical.com>`_ with the subject:
 "Cloud-init CLA".
 
 Create a sandbox environment

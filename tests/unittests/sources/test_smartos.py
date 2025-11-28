@@ -31,7 +31,10 @@ import serial
 from cloudinit.atomic_helper import b64e
 from cloudinit.event import EventScope, EventType
 from cloudinit.sources import DataSourceSmartOS
-from cloudinit.sources.DataSourceSmartOS import SERIAL_DEVICE, SMARTOS_ENV_KVM
+from cloudinit.sources.DataSourceSmartOS import (
+    SERIAL_DEVICE,
+    SMARTOS_ENV_KVM,
+)
 from cloudinit.sources.DataSourceSmartOS import (
     convert_smartos_network_data as convert_net,
 )
@@ -41,7 +44,7 @@ from cloudinit.sources.DataSourceSmartOS import (
 )
 from cloudinit.subp import ProcessExecutionError, subp, which
 from cloudinit.util import write_file
-from tests.unittests.helpers import mock, skipIf
+from tests.unittests.helpers import mock
 
 DSMOS = "cloudinit.sources.DataSourceSmartOS"
 SDC_NICS = json.loads(
@@ -688,7 +691,7 @@ class TestSmartOSDataSource:
         assert isinstance(cfg["fs_setup"], list)
 
     def test_override_disk_aliases(self, paths):
-        # Test to make sure that the built-in DS is overriden
+        # Test to make sure that the built-in DS is overridden
         builtin = DataSourceSmartOS.BUILTIN_DS_CONFIG
 
         mydscfg = {"disk_aliases": {"FOO": "/dev/bar"}}
@@ -723,7 +726,9 @@ class TestIdentifyFile:
     """Test the 'identify_file' utility."""
 
     @pytest.mark.allow_subp_for("file")
-    @skipIf(not which("file"), "command 'file' not available.")
+    @pytest.mark.skipif(
+        not which("file"), reason="command 'file' not available."
+    )
     def test_file_happy_path(self, tmp_path):
         """Test file is available and functional on plain text."""
         fname = str(tmp_path / "myfile")
@@ -1427,7 +1432,6 @@ class TestNetworkConversion:
         assert expected == found
 
 
-@pytest.mark.allow_subp_for("mdata-get")
 @pytest.fixture
 def mdata_proc():
     mdata_proc = multiprocessing.Process(target=start_mdata_loop)

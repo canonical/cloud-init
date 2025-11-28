@@ -123,7 +123,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         else:
             real_submit_keys[k] = str(v)
 
-    # Incase the url is parameterized
+    # In case the url is parameterized
     url_params = {
         "INSTANCE_ID": all_keys["instance_id"],
     }

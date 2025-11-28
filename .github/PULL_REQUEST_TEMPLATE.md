@@ -13,7 +13,7 @@ To ease the process of reviewing your PR, do make sure to complete the following
 - [ ] I have updated the documentation with the changed behavior.
   - If the change doesn't change the user interface and is trivial, this step may be skipped.
   - Cloud-config documentation is generated from the jsonschema.
-  - Generate docs with ``tox -e docs``.
+  - Generate docs with ``tox -e doc``.
 -->
 
 

@@ -150,7 +150,7 @@ class AuthKeyLineParser:
             # return ketype, key, [comment]
             toks = ent.split(None, 2)
             if len(toks) < 2:
-                raise TypeError("To few fields: %s" % len(toks))
+                raise TypeError("Too few fields: %s" % len(toks))
             if toks[0] not in VALID_KEY_TYPES:
                 raise TypeError("Invalid keytype %s" % toks[0])
 

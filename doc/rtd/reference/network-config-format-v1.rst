@@ -117,6 +117,8 @@ A device's name must be less than 15 characters. Names exceeding the maximum
 will be truncated. This is a limitation of the Linux kernel network-device
 structure.
 
+The following optional keys are supported:
+
 ``mac_address: <MAC Address>``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -125,6 +127,13 @@ device and may be different than the MAC address of any of the underlying
 bond interfaces. Specifying a MAC Address is optional. If ``mac_address`` is
 not present, then the bond will use one of the MAC Address values from one of
 the bond interfaces.
+
+``accept-ra: <boolean>``
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+The ``accept-ra`` key is a boolean value that specifies whether or not to
+accept Router Advertisements (RA) for this interface. Specifying ``accept-ra``
+is optional.
 
 .. note::
    It is best practice to "quote" all MAC addresses, since an unquoted MAC
@@ -226,6 +235,15 @@ Valid keys are:
   - ``bridge_waitport``: Set amount of time in seconds to wait on specific
     ports to become available.
 
+The following optional keys are supported:
+
+``accept-ra: <boolean>``
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+The ``accept-ra`` key is a boolean value that specifies whether or not to
+accept Router Advertisements (RA) for this interface. Specifying ``accept-ra``
+is optional.
+
 Bridge example
 ^^^^^^^^^^^^^^
 
@@ -251,6 +269,13 @@ The following optional keys are supported:
 The MTU key represents a device's Maximum Transmission Unit, the largest size
 packet or frame, specified in octets (eight-bit bytes), that can be sent in a
 packet- or frame-based network.  Specifying ``mtu`` is optional.
+
+``accept-ra: <boolean>``
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+The ``accept-ra`` key is a boolean value that specifies whether or not to
+accept Router Advertisements (RA) for this interface. Specifying ``accept-ra``
+is optional.
 
 .. note::
    The possible supported values of a device's MTU are not available at

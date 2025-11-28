@@ -4,8 +4,15 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-__VERSION__ = "25.2"
-_PACKAGED_VERSION = "@@PACKAGED_VERSION@@"
+try:
+    from cloudinit import meson_versions  # type: ignore
+
+    __VERSION__ = meson_versions.UPSTREAM_VERSION
+    _DOWNSTREAM_VERSION = meson_versions.DOWNSTREAM_VERSION
+except ImportError:
+    __VERSION__ = "@MISSING_MESON_BUILD_ARTIFACT@"
+    _DOWNSTREAM_VERSION = "@DOWNSTREAM_VERSION@"  # Optional for packagers
+
 
 FEATURES = [
     # supports network config version 1
@@ -17,6 +24,6 @@ FEATURES = [
 
 def version_string():
     """Extract a version string from cloud-init."""
-    if not _PACKAGED_VERSION.startswith("@@"):
-        return _PACKAGED_VERSION
+    if _DOWNSTREAM_VERSION != "@DOWNSTREAM_VERSION@":
+        return _DOWNSTREAM_VERSION
     return __VERSION__

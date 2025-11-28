@@ -21,11 +21,15 @@ import sys
 
 DEFAULT_REQUIREMENTS = "requirements.txt"
 
+DEFAULT_PKG_PREFIX = "python3-"
+FREEBSD_PKG_PREFIX = f"py{sys.version_info.major}{sys.version_info.minor}-"
+
 # Map the appropriate package dir needed for each distro choice
 DISTRO_PKG_TYPE_MAP = {
     "centos": "redhat",
     "eurolinux": "redhat",
     "miraclelinux": "redhat",
+    "freebsd": "freebsd",
     "fedora": "fedora",
     "rocky": "redhat",
     "redhat": "redhat",
@@ -108,31 +112,36 @@ ZYPPER_INSTALL = [
 DRYRUN_DISTRO_INSTALL_PKG_CMD = {
     "redhat": ["yum", "install", "--assumeyes"],
     "fedora": ["yum", "install", "--assumeyes"],
+    "freebsd": ["pkg", "install", "--yes"],
 }
 
 DISTRO_INSTALL_PKG_CMD = {
     "redhat": MAYBE_RELIABLE_YUM_INSTALL,
     "fedora": MAYBE_RELIABLE_YUM_INSTALL,
+    "freebsd": ["pkg", "install", "--yes"],
     "debian": ["apt", "install", "-y"],
     "suse": ZYPPER_INSTALL,
 }
 
 DISTRO_UPDATE_PKG_CMD = {
     "redhat": ["yum", "update"],
+    "freebsd": ["pkg", "update"],
     "debian": ["apt", "update", "-q"],
     "suse": ["zypper", "update"],
 }
 
 # List of base system packages required to enable ci automation
 CI_SYSTEM_BASE_PKGS = {
-    "common": ["make", "sudo", "tar"],
+    "common": ["sudo"],
+    "linux_common": ["make", "tar"],
     "eurolinux": ["python3-tox"],
     "miraclelinux": ["python3-tox"],
     "fedora": ["python3-tox"],
+    "freebsd": [f"{FREEBSD_PKG_PREFIX}tox"],
     "redhat": ["python3-tox"],
     "centos": ["python3-tox"],
-    "ubuntu": ["devscripts", "python3-dev", "libssl-dev", "tox", "sbuild"],
-    "debian": ["devscripts", "python3-dev", "libssl-dev", "tox", "sbuild"],
+    "ubuntu": ["make", "devscripts", "python3-dev", "libssl-dev", "tox", "sbuild"],
+    "debian": ["make", "devscripts", "python3-dev", "libssl-dev", "tox", "sbuild"],
 }
 
 
@@ -252,14 +261,17 @@ def parse_pip_requirements(requirements_path):
     return dep_names
 
 
-def translate_pip_to_system_pkg(pip_requires, renames):
+def translate_pip_to_system_pkg(distro, pip_requires, renames):
     """Translate pip package names to distro-specific package names.
 
     @param pip_requires: List of versionless pip package names to translate.
     @param renames: Dict containing special case renames from pip name to
         system package name for the distro.
     """
-    prefix = "python3-"
+    if distro in ("freebsd",):
+        prefix = FREEBSD_PKG_PREFIX
+    else:
+        prefix = DEFAULT_PKG_PREFIX
     standard_pkg_name = "{0}{1}"
     translated_names = []
     for pip_name in pip_requires:
@@ -315,7 +327,9 @@ def main(distro):
         pip_pkg_names.update(set(parse_pip_requirements(req_path)))
     deps_from_json = get_package_deps_from_json(topd, args.distro)
     renames = deps_from_json.get("renames", {})
-    translated_pip_names = translate_pip_to_system_pkg(pip_pkg_names, renames)
+    translated_pip_names = translate_pip_to_system_pkg(
+        args.distro, pip_pkg_names, renames
+    )
     all_deps = []
     select_requires = [args.build_requires, args.runtime_requires]
     if args.distro:
@@ -348,6 +362,8 @@ def pkg_install(pkg_list, distro, test_distro=False, dry_run=False):
     """Install a list of packages using the DISTRO_INSTALL_PKG_CMD."""
     if test_distro:
         pkg_list = list(pkg_list) + CI_SYSTEM_BASE_PKGS["common"]
+        if distro not in ("freebsd",):
+           pkg_list += CI_SYSTEM_BASE_PKGS["linux_common"]
         distro_base_pkgs = CI_SYSTEM_BASE_PKGS.get(distro, [])
         pkg_list += distro_base_pkgs
     print(

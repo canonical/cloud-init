@@ -50,7 +50,7 @@ def test_no_cache_network_only(client: IntegrationInstance):
     - Metadata is fetched in network timeframe only
     - Because `check_instance_id` is not defined, no cached datasource
       is found in the init-local phase, but the cache is used in the
-      remaining phases due to existance of /run/cloud-init/.instance-id
+      remaining phases due to existence of /run/cloud-init/.instance-id
     - Because `check_if_fallback_is_allowed` is not defined, cloud-init
       does NOT fall back to the pickled datasource, and will
       instead delete the cache during the init-local phase

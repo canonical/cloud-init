@@ -886,7 +886,8 @@ class TestConvertNetworkData:
                     known_macs=macs,
                 )
 
-    def test_conversion_with_route(self, tmp_path):
+    @mock.patch("cloudinit.subp.which")
+    def test_conversion_with_route(self, m_which, tmp_path):
         ncfg = openstack.convert_net_json(
             NETWORK_DATA_2, known_macs=KNOWN_MACS
         )
@@ -901,6 +902,19 @@ class TestConvertNetworkData:
             "netmask": "0.0.0.0",
             "gateway": "2.2.2.9",
         } in routes
+
+        m_which.return_value = "/sbin/ip"
+        eni_renderer = eni.Renderer()
+        eni_renderer.render_network_state(
+            network_state.parse_net_config_data(ncfg), target=str(tmp_path)
+        )
+        with open(
+            os.path.join(tmp_path, "etc", "network", "interfaces"), "r"
+        ) as f:
+            eni_rendering = f.read()
+            assert "ip route add default via 2.2.2.9" in eni_rendering
+
+        m_which.return_value = None
         eni_renderer = eni.Renderer()
         eni_renderer.render_network_state(
             network_state.parse_net_config_data(ncfg), target=str(tmp_path)
@@ -950,7 +964,7 @@ class TestConvertNetworkData:
         )
 
         words = eni_rendering.split()
-        # 'eth0' and 'eth1' are the ids. because their mac adresses
+        # 'eth0' and 'eth1' are the ids. because their mac addresses
         # map to other names, we should not see them in the ENI
         assert "eth0" not in words
         assert "eth1" not in words

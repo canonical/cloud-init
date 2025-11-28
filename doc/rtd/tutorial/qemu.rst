@@ -23,7 +23,7 @@ Why QEMU?
 machines. QEMU is used at the core of a range of production operating system
 deployments and open source software projects (including libvirt, LXD,
 and vagrant). It is capable of running Windows, Linux, and Unix guest operating
-systems. While QEMU is flexibile and feature-rich, we are using it because it
+systems. While QEMU is flexible and feature-rich, we are using it because it
 is widely supported and able to run on \*nix-derived operating systems.
 
 If you do not already have QEMU installed, you can install it by running the

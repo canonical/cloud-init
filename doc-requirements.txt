@@ -2,6 +2,7 @@
 doc8
 furo
 meson
+ninja
 m2r2
 pyyaml
 sphinx==7.1.2

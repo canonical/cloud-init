@@ -48,7 +48,7 @@ end for
 {% endfor %}
 
 %build
-%meson -Dinit_system=systemd --libexecdir=/usr/lib -Ddistro_templates=chef_client.rb.tmpl,chrony.conf.opensuse.tmpl,hosts.suse.tmpl,ntp.conf.opensuse.tmpl,resolv.conf.tmpl,timesyncd.conf.tmpl
+%meson -Dinit_system=systemd --libexecdir=/usr/lib -Ddistro_templates=chef_client.rb.tmpl,chrony.conf.opensuse.tmpl,hosts.suse.tmpl,ntp.conf.opensuse.tmpl,resolv.conf.tmpl,timesyncd.conf.tmpl -Ddownstream_version=%{version}-%{release}
 %meson_build
 
 %install
@@ -68,13 +68,6 @@ done
 %endif
 
 mkdir -p %{buildroot}/var/lib/cloud
-
-# patch in the full version to version.py
-version_pys=$(cd "%{buildroot}" && find . -name version.py -type f)
-[ -n "$version_pys" ] ||
-   { echo "failed to find 'version.py' to patch with version." 1>&2; exit 1; }
-( cd "%{buildroot}" &&
-  sed -i "s,@@PACKAGED_VERSION@@,%{version}-%{release}," $version_pys )
 
 %postun
 %insserv_cleanup
