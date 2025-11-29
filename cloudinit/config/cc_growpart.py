@@ -363,6 +363,114 @@ def resize_encrypted(blockdev, partition) -> Tuple[str, str]:
     )
 
 
+def _get_vg_for_lv(lv_dev):
+    """
+    Return the VG name for a logical volume device,
+    e.g. /dev/mapper/vg-lv or /dev/vg/lv.
+    Uses `lvs --noheadings -o vg_name <lv_dev>`.
+    """
+    try:
+        out = subp.subp(
+            ["lvs", "--noheadings", "-o", "vg_name", lv_dev]
+        ).stdout
+        # lvs often prints whitespace padded output; take last token
+        vg = out.strip().split()[-1]
+        LOG.debug("lv %s belongs to vg %s", lv_dev, vg)
+        return vg
+    except Exception as e:
+        LOG.warning("failed to get VG for %s: %s", lv_dev, e)
+        raise
+
+
+def _get_pvs_for_vg(vg_name):
+    """
+    Return list of PV device paths for a volume group,
+    using `vgs -o pv_name --noheadings --separator ' ' <vg>`.
+    """
+    try:
+        out = subp.subp(
+            [
+                "vgs",
+                "--noheadings",
+                "-o",
+                "pv_name",
+                "--separator",
+                " ",
+                vg_name,
+            ]
+        ).stdout
+        # vgs returns space separated PV names (may include trailing spaces)
+        pvs = [p for p in out.split() if p]
+        LOG.debug("vg %s pvs: %s", vg_name, pvs)
+        return pvs
+    except Exception as e:
+        LOG.warning("failed to list PVs for VG %s: %s", vg_name, e)
+        raise
+
+
+def _pvresize(pv_dev):
+    """Run pvresize on each PV; idempotent: if it fails log and raise."""
+    try:
+        subp.subp(["pvresize", pv_dev])
+        LOG.info("pvresize succeeded for %s", pv_dev)
+        return True
+    except Exception as e:
+        LOG.warning("pvresize failed for %s: %s", pv_dev, e)
+        raise
+
+
+def _lvextend_to_free(lv_dev):
+    """Extend the LV to consume all free extents in its VG."""
+    try:
+        subp.subp(["lvextend", "-l", "+100%FREE", lv_dev])
+        LOG.info("lvextend +100%%FREE succeeded for %s", lv_dev)
+        return True
+    except Exception as e:
+        LOG.warning("lvextend failed for %s: %s", lv_dev, e)
+        raise
+
+
+def resize_lvm(blockdev) -> Tuple[str, str]:
+    """
+    High-level procedure to resize LVM logical volume
+    after underlying PVs were expanded:
+      - find VG for lv (devpath)
+      - for each PV in VG: pvresize
+      - lvextend the lv to use free space
+    """
+    LOG.info("starting LVM resize flow for %s", blockdev)
+    vg = _get_vg_for_lv(blockdev)
+    pvs = _get_pvs_for_vg(vg)
+
+    # try pvresize for each PV
+    for pv in pvs:
+        try:
+            _pvresize(pv)
+        except Exception:
+            LOG.warning("pvresize failed for %s, continuing to next PV", pv)
+
+    # extend the LV to use free space
+    _lvextend_to_free(blockdev)
+
+    return (
+        RESIZE.CHANGED,
+        f"Successfully resized LVM device '{blockdev}'",
+    )
+
+
+def is_lvm_device(blockdev) -> bool:
+    """
+    Checks if a given device path points to an LVM device.
+    """
+    try:
+        # Run lsblk to check if the device type is 'lvm'
+        out = subp.subp(["lsblk", "-n", "-o", "TYPE", blockdev]).stdout
+        return out.strip() == "lvm"
+    except Exception as e:
+        LOG.warning("Error checking if device is LVM: %s", e)
+        return False
+
+
 def _call_resizer(resizer, devent, disk, ptnum, blockdev, fs):
     info = []
     try:
@@ -488,13 +596,39 @@ def resize_devices(resizer: Resizer, devices, distro: Distro):
                             message,
                         )
                     )
+                # If device is lvm
+                elif is_lvm_device(blockdev):
+                    # resize the partition firstly
+                    disk, ptnum = distro.device_part_info(partition)
+                    info += _call_resizer(
+                        resizer, devent, disk, ptnum, partition, fs
+                    )
+                    try:
+                        # Call the LVM resize procedure
+                        status, message = resize_lvm(blockdev)
+                        info.append(
+                            (
+                                devent,
+                                status,
+                                message,
+                            )
+                        )
+                    except Exception as e:
+                        info.append(
+                            (
+                                devent,
+                                RESIZE.FAILED,
+                                f"Resizing LVM device ({blockdev}) failed: "
+                                f"{e}",
+                            )
+                        )
                 else:
                     info.append(
                         (
                             devent,
                             RESIZE.SKIPPED,
                             f"Resizing mapped device ({blockdev}) skipped "
-                            "as it is not encrypted.",
+                            f"as it is neither encrypted nor lvm.",
                         )
                     )
             except Exception as e:
@@ -502,7 +636,7 @@ def resize_devices(resizer: Resizer, devices, distro: Distro):
                     (
                         devent,
                         RESIZE.FAILED,
-                        f"Resizing encrypted device ({blockdev}) failed: {e}",
+                        f"Resizing device ({blockdev}) failed: {e}",
                     )
                 )
             # At this point, we WON'T resize a non-encrypted mapped device
