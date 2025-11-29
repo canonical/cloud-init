@@ -1,3 +1,7 @@
+:orphan:
+
+.. _summit:
+
 The cloud-init summit
 *********************
 
@@ -8,10 +12,6 @@ held in Seattle, Washington.
 At the summit, we enjoy meeting with our fellow contributors to cloud-init,
 demoing recent developments, collecting feedback, and holding workshops to
 discuss outstanding issues, bugs, and possible fixes.
-
-After an unfortunate hiatus of a couple of years due to "global travel
-difficulties", we are pleased to announced that the next summit will be held in
-August 2023! More details to follow...
 
 Previous summits
 ================
