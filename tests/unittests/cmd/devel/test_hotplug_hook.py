@@ -116,7 +116,6 @@ class TestHotplug:
             [EventType.HOTPLUG]
         )
         mocks.m_activator.bring_up_interface.assert_called_once_with("fake")
-        mocks.m_activator.bring_down_interface.assert_not_called()
         init._write_to_cache.assert_called_once_with()
 
     @mock.patch(
@@ -148,7 +147,6 @@ class TestHotplug:
         assert "hotplug not enabled for event of type" in caplog.text
         init.datasource.update_metadata_if_supported.assert_not_called()
         mocks.m_activator.bring_up_interface.assert_not_called()
-        mocks.m_activator.bring_down_interface.assert_not_called()
         init._write_to_cache.assert_not_called()
 
     def test_update_metadata_failed(self, mocks):

@@ -58,15 +58,6 @@ class NetworkActivator(ABC):
         """
         raise NotImplementedError()
 
-    @staticmethod
-    @abstractmethod
-    def bring_down_interface(device_name: str) -> bool:
-        """Bring down interface.
-
-        Return True is successful, otherwise return False
-        """
-        raise NotImplementedError()
-
     @classmethod
     def bring_up_interfaces(cls, device_names: Iterable[str]) -> bool:
         """Bring up specified list of interfaces.
@@ -110,15 +101,6 @@ class IfUpDownActivator(NetworkActivator):
         cmd = ["ifup", device_name]
         return _alter_interface(cmd, device_name)
 
-    @staticmethod
-    def bring_down_interface(device_name: str) -> bool:
-        """Bring up interface using ifup.
-
-        Return True is successful, otherwise return False
-        """
-        cmd = ["ifdown", device_name]
-        return _alter_interface(cmd, device_name)
-
 
 class IfConfigActivator(NetworkActivator):
     @staticmethod
@@ -135,15 +117,6 @@ class IfConfigActivator(NetworkActivator):
         Return True is successful, otherwise return False
         """
         cmd = ["ifconfig", device_name, "up"]
-        return _alter_interface(cmd, device_name)
-
-    @staticmethod
-    def bring_down_interface(device_name: str) -> bool:
-        """Bring up interface using ifconfig <dev> down.
-
-        Return True is successful, otherwise return False
-        """
-        cmd = ["ifconfig", device_name, "down"]
         return _alter_interface(cmd, device_name)
 
 
@@ -175,15 +148,6 @@ class NetworkManagerActivator(NetworkActivator):
         else:
             _alter_interface(["nmcli", "connection", "reload"], device_name)
             cmd = ["nmcli", "connection", "up", "ifname", device_name]
-        return _alter_interface(cmd, device_name)
-
-    @staticmethod
-    def bring_down_interface(device_name: str) -> bool:
-        """Bring down interface using nmcli.
-
-        Return True is successful, otherwise return False
-        """
-        cmd = ["nmcli", "device", "disconnect", device_name]
         return _alter_interface(cmd, device_name)
 
     @classmethod
@@ -258,20 +222,6 @@ class NetplanActivator(NetworkActivator):
         )
 
     @staticmethod
-    def bring_down_interface(device_name: str) -> bool:
-        """Apply netplan config.
-
-        Return True is successful, otherwise return False
-        """
-        LOG.debug(
-            "Calling 'netplan apply' rather than "
-            "altering individual interfaces"
-        )
-        return _alter_interface(
-            NetplanActivator.NETPLAN_CMD, "all", warn_on_stderr=False
-        )
-
-    @staticmethod
     def wait_for_network() -> None:
         """On networkd systems, wait for systemd-networkd-wait-online"""
         # At the moment, this is only supported using the networkd renderer.
@@ -299,13 +249,6 @@ class NetworkdActivator(NetworkActivator):
         """Return True is successful, otherwise return False"""
         cmd = ["systemctl", "restart", "systemd-networkd", "systemd-resolved"]
         return _alter_interface(cmd, "all")
-
-    @staticmethod
-    def bring_down_interface(device_name: str) -> bool:
-        """Return True is successful, otherwise return False"""
-        return _alter_interface_callable(
-            partial(Iproute2.link_down, device_name)
-        )
 
     @staticmethod
     def wait_for_network() -> None:

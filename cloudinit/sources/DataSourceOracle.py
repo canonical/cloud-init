@@ -427,12 +427,6 @@ class DataSourceOracleNet(DataSourceOracle):
     perform_dhcp_setup = False
 
 
-def _is_ipv4_metadata_url(metadata_address: str):
-    if not metadata_address:
-        return False
-    return metadata_address.startswith(IPV4_METADATA_ROOT.split("opc")[0])
-
-
 def _read_system_uuid() -> Optional[str]:
     sys_uuid = dmi.read_dmi_data("system-uuid")
     return None if sys_uuid is None else sys_uuid.lower()
