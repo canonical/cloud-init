@@ -3,6 +3,7 @@ import json
 import pytest
 import yaml
 
+from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU
@@ -20,14 +21,17 @@ def _customize_environment(client: IntegrationInstance):
 
     if client.settings.PLATFORM == "lxd_vm":
         # ds-identify runs at systemd generator time before /dev/lxd/sock.
-        # Assert we can expected artifact which indicates LXD is viable.
-        result = client.execute("cat /sys/class/dmi/id/board_name")
+        # Assert we can expected virtio-ports artifacts which indicates LXD is
+        # viable.
+        result = client.execute("cat /sys/class/virtio-ports/*/name")
         if not result.ok:
             raise AssertionError(
-                "Missing expected /sys/class/dmi/id/board_name"
+                "Missing expected /sys/class/virtio-ports/*/name"
             )
         if "LXD" != result.stdout:
-            raise AssertionError(f"DMI board_name is not LXD: {result.stdout}")
+            raise AssertionError(
+                f"virtio-ports not LXD serial devices: {result.stdout}"
+            )
 
     # Having multiple datasources prevents ds-identify from short-circuiting
     # detection logic with a log like:
@@ -53,7 +57,34 @@ def _customize_environment(client: IntegrationInstance):
     client.restart()
 
 
-@pytest.mark.skipif(not IS_UBUNTU, reason="Netplan usage")
+@pytest.mark.skipif(PLATFORM != "lxd_vm", reason="Test is LXD KVM specific")
+def test_lxd_kvm_datasource_discovery_without_lxd_socket(
+    session_cloud: IntegrationCloud,
+):
+    """Test DataSourceLXD is detected on KVM by virtio-ports."""
+    with session_cloud.launch(
+        wait=False,  # to prevent cloud-init status --wait
+        launch_kwargs={
+            # We detect the LXD datasource using a socket available to the
+            # container. This prevents the socket from being exposed in the
+            # container, so LXD will not be detected.
+            # This allows us to wait for detection in 'init' stage with
+            # DataSourceNoCloudNet.
+            "config_dict": {"security.devlxd": False},
+        },
+    ) as client:
+        _customize_environment(client)
+        # We know this will be an LXD instance due to our pytest mark
+        client.instance.execute_via_ssh = False  # pyright: ignore
+        result = wait_for_cloud_init(client, num_retries=60)
+        if not result.ok:
+            raise AssertionError("cloud-init failed:\n%s", result.stderr)
+        if "DataSourceLXD" not in result.stdout:
+            raise AssertionError(
+                "cloud-init did not discover DataSourceLXD", result.stdout
+            )
+
+
 @pytest.mark.skipif(
     PLATFORM not in ["lxd_container", "lxd_vm"],
     reason="Test is LXD specific",

@@ -960,15 +960,27 @@ dscheck_LXD() {
     if is_socket_file /dev/lxd/sock; then
         return ${DS_FOUND}
     fi
-    # On LXD KVM instances, /dev/lxd/sock is not yet setup by
-    # lxd-agent-loader's systemd lxd-agent.service.
-    # Rely on DMI product information that is present on all LXD images.
-    # Note "qemu" is returned on kvm instances launched from a host kernel
-    # kernels >=5.10, due to `hv_passthrough` option.
-    # systemd v. 251 should properly return "kvm" in this scenario
-    # https://github.com/systemd/systemd/issues/22709
-    if [ "${DI_VIRT}" = "kvm" -o "${DI_VIRT}" = "qemu" ]; then
-        [ "${DI_DMI_BOARD_NAME}" = "LXD" ] && return ${DS_FOUND}
+
+    # On LXD KVM instances (particularly s390x), /dev/lxd/sock may not
+    # be available during systemd generator timeframe until systemd
+    # lxd-agent.service runs. Check for LXD virtio serial device.
+    local virtio_ports_path="${PATH_ROOT}/sys/class/virtio-ports"
+    if [ -d "${virtio_ports_path}" ]; then
+        # Temporarily enable globbing to walk virtio_ports_path.
+        set +f; set -- "${virtio_ports_path}/"*; set -f;
+        for port_dir in "$@"; do
+            [ -d "${port_dir}" ] || continue
+            local name_file="${port_dir}/name"
+            if [ -f "${name_file}" ]; then
+                local port_name
+                port_name=$(cat "${name_file}" 2>/dev/null) || continue
+                # Check for both current and legacy LXD serial names
+                if [ "${port_name}" = "com.canonical.lxd" ] || \
+                   [ "${port_name}" = "org.linuxcontainers.lxd" ]; then
+                    return ${DS_FOUND}
+                fi
+            fi
+        done
     fi
     return ${DS_NOT_FOUND}
 }

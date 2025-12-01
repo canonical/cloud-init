@@ -196,13 +196,29 @@ class DataSourceLXD(sources.DataSource):
     @staticmethod
     def ds_detect() -> bool:
         """Check platform environment to report if this datasource may run."""
-        if not os.path.exists(LXD_SOCKET_PATH):
-            LOG.warning("%s does not exist.", LXD_SOCKET_PATH)
-            return False
-        elif not stat.S_ISSOCK(os.lstat(LXD_SOCKET_PATH).st_mode):
+        if os.path.exists(LXD_SOCKET_PATH):
+            if stat.S_ISSOCK(os.lstat(LXD_SOCKET_PATH).st_mode):
+                return True
             LOG.warning("%s is not a socket", LXD_SOCKET_PATH)
-            return False
-        return True
+
+        # On LXD KVM instances /dev/lxd/sock may not be available yet.
+        # Check for LXD virtio serial device presence in virtio-ports.
+        virtio_ports_path = "/sys/class/virtio-ports"
+        if os.path.isdir(virtio_ports_path):
+            try:
+                for port in os.listdir(virtio_ports_path):
+                    name_file = os.path.join(virtio_ports_path, port, "name")
+                    if os.path.isfile(name_file):
+                        # Check for both current and legacy LXD serial names
+                        if util.load_text_file(name_file).strip() in (
+                            "com.canonical.lxd",
+                            "org.linuxcontainers.lxd",
+                        ):
+                            return True
+            except (OSError, IOError) as e:
+                LOG.warning("Cannot check virtio-ports: %s", e)
+
+        return False
 
     def _get_data(self) -> bool:
         """Crawl LXD socket API instance data and return True on success"""
