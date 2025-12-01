@@ -2013,7 +2013,7 @@ def encrypt_pass(password):
 def find_primary_nic():
     candidate_nics = net.find_candidate_nics()
 
-    if candidate_nics is not None and len(candidate_nics) > 0:
+    if candidate_nics:
         return candidate_nics[0]
 
     return None
