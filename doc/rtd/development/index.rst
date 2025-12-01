@@ -3,8 +3,8 @@
 Development requirements
 ************************
 
-The following steps must be completed to develop cloud-init. A PR that
-fails to meet the contribution requirements is unlikely to be merged.
+The following steps must be completed to develop cloud-init. A pull request
+that fails to meet the contribution requirements is unlikely to merge.
 
 Understand contribution expectations
 ====================================
@@ -32,8 +32,8 @@ Make a change
 =============
 
 Modify the source: fix a bug or add a feature. Make sure to update comments
-and docs, avoid unnecessary code changes, and remove any code that is no longer
-used. Functions, methods, and classes should include docstrings and type
+and docs, avoid unnecessary code changes, and remove any code which is no
+longer used. Functions, methods, and classes should include docstrings and type
 annotations.
 
 Format the change
@@ -112,8 +112,7 @@ Respond to feedback
 ===================
 
 A PR may not be reviewed immediately, but the queue is actively monitored.
-Changes requested by core developers must be resolved before the PR can be
-merged.
+Changes requested by core developers must be resolved before the PR can merge.
 
 A **stale** tag is added to the PR after 14 days of inactivity and it is
 automatically closed after 7 more.
@@ -130,6 +129,6 @@ documented requirements, then you may ping a core developer.
    Develop docs <contribute_docs.rst>
    Read dev docs <dev_docs.rst>
 
-.. _how to use Git and GitHub: _https://docs.github.com/en/get-started/start-your-journey
+.. _how to use Git and GitHub: https://docs.github.com/en/get-started/start-your-journey
 .. _canonical/cloud-init: https://github.com/canonical/cloud-init
 .. include:: ../links.txt
