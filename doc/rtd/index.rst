@@ -21,8 +21,7 @@ management of a cloud instance. For cloud providers, it provides instance setup
 that can be integrated with your cloud.
 
 If you would like to read more about what cloud-init is, what it does and how
-it works, check out our :ref:`high-level introduction<introduction>`
-to the tool.
+it works, read our :ref:`high-level introduction<introduction>`.
 
 -----
 
@@ -62,11 +61,12 @@ to the tool.
 Having trouble? We would like to help!
 ======================================
 
-- :ref:`Check out our tutorials<tutorial_index>` if you're new to
+- :ref:`Work through the tutorials<tutorial_index>` if you're new to
   ``cloud-init``
-- :ref:`Try the FAQ<faq>` for answers to some common questions
-- You can also check `GitHub Discussions`_
-- Find a bug? `Report bugs on GitHub Issues`_
+- Use the search bar at the upper left to search the documentation
+- :ref:`Read the FAQ<faq>` for answers to some common questions
+- Join the conversation at `GitHub Discussions`_
+- Find a bug? See :ref:`reporting_bugs`
 
 Project and community
 =====================
@@ -74,13 +74,15 @@ Project and community
 ``Cloud-init`` is an open source project that warmly welcomes community
 projects, contributions, suggestions, fixes and constructive feedback.
 
-* Read our `Code of Conduct`_
+* Read the `Code of Conduct`_
 * Ask questions in the ``#cloud-init`` `room on Matrix <Matrix_>`_
 * Follow announcements or ask a question on `GitHub Discussions`_
-* :ref:`Contribute on GitHub<contributing>`
-* `Release schedule`_
+* :ref:`Contribute on GitHub<development>`
+* See the latest `release schedule`_
+* See past :ref:`events<summit>`
 
 .. toctree::
+   :caption: Documentation
    :hidden:
    :maxdepth: 2
 
@@ -95,14 +97,8 @@ projects, contributions, suggestions, fixes and constructive feedback.
    :hidden:
    :maxdepth: 1
 
-   Contributing overview <development/index.rst>
-   Contribute to code <development/contribute_code.rst>
-   Contribute to docs <development/contribute_docs.rst>
-   Contribute to testing <development/contribute_testing.rst>
-   Community <development/summit.rst>
-   Downstream packaging <development/packaging.rst>
+   Develop cloud-init <development/index.rst>
 
 .. LINKS
 .. include:: links.txt
-.. _Release schedule: https://discourse.ubuntu.com/t/2025-cloud-init-release-schedule/55534
-.. _Report bugs on GitHub Issues: https://github.com/canonical/cloud-init/issues
+.. _release schedule: https://discourse.ubuntu.com/t/2025-cloud-init-release-schedule/55534

@@ -9,6 +9,7 @@ Contribute to our docs
 
     Style guide <style_docs.rst>
     Directory layout <docs_layout.rst>
+    Find documentation issues <find_issues.rst>
 
 The documentation for cloud-init is hosted in the
 `cloud-init GitHub repository`_ and rendered on `Read the Docs`_. It is mostly
@@ -48,14 +49,6 @@ layout of the ``doc`` directory in the :doc:`docs_layout` article.
 
 We also have a :doc:`style_docs` that will help you if you need to edit or
 write any content.
-
-In your first PR
-=================
-
-If you need some help with your contribution, you can contact us on our
-`Matrix room <Matrix_>`_. If you have already submitted a
-work-in-progress PR, you can also ask for guidance from our technical author
-by `tagging s-makin`_ as a reviewer.
 
 .. LINKS
 .. include:: ../links.txt
