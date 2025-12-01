@@ -84,7 +84,10 @@ class CloudStackPasswordServerClient:
                 ]
             )
         else:
-            raise RuntimeError("Neither curl nor wget is installed; cannot fetch vm password from CloudStack.")
+            raise RuntimeError(
+                "Neither curl nor wget is installed; "
+                "cannot fetch VM password from CloudStack."
+            )
 
         return output.strip()
 
