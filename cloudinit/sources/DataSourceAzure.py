@@ -479,10 +479,10 @@ class DataSourceAzure(sources.DataSource):
                     )
                     self._report_failure(
                         errors.ReportableErrorDhcpLease(
+                            driver=driver,
                             duration=monotonic() - start_time,
                             interface=iface,
                             mac_address=mac,
-                            driver=driver,
                         ),
                         host_only=True,
                     )

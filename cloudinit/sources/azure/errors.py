@@ -96,10 +96,10 @@ class ReportableErrorDhcpInterfaceNotFound(ReportableError):
 class ReportableErrorDhcpLease(ReportableError):
     def __init__(
         self,
+        driver: Optional[str],
         duration: float,
         interface: Optional[str],
         mac_address: Optional[str],
-        driver: Optional[str],
     ) -> None:
         super().__init__("failure to obtain DHCP lease")
 
