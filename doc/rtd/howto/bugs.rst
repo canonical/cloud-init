@@ -55,7 +55,7 @@ Bugs for upstream ``cloud-init`` are tracked using GitHub Issues. To file a
 bug:
 
 1. Collect the necessary debug logs as described above.
-2. `Report an upstream cloud-init bug`_ on GitHub.
+2. `Report an upstream cloud-init bug<open issues>` on GitHub.
 
 Bug reports that lack complete logs may be labeled ``incomplete`` until
 sufficient information is provided. To aid in debugging, please include the
@@ -123,7 +123,6 @@ details.
 
 .. LINKS:
 .. _open issues: https://github.com/canonical/cloud-init/issues
-.. _Report an upstream cloud-init bug: https://github.com/canonical/cloud-init/issues
 .. _Ubuntu bug tracker: https://bugs.launchpad.net/ubuntu/+source/cloud-init/+filebug
 .. _Debian bug tracker: https://bugs.debian.org/cgi-bin/pkgreport.cgi?pkg=cloud-init;dist=unstable
 .. _Debian bug reporting wiki: https://www.debian.org/Bugs/Reporting
