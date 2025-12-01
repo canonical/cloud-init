@@ -3754,6 +3754,67 @@ class TestEphemeralNetworking:
         for call in mock_kvp_report_via_kvp.call_args_list:
             assert call[0][0].startswith(f"result=error|reason={error_reason}")
 
+    def test_update_primary_nic_changes_interface(
+        self,
+        azure_ds,
+        mock_ephemeral_dhcp_v4,
+        mock_find_primary_nic,
+        mock_get_interface_details,
+        mock_report_diagnostic_event,
+        mock_sleep,
+    ):
+        """Test that interface updates when update_primary_nic=True.
+
+        When iface=None (update_primary_nic=True), the interface should be
+        dynamically discovered via find_primary_nic() on each retry, allowing
+        it to change between attempts.
+        """
+        # Initially return eth0, then eth2
+        mock_find_primary_nic.side_effect = ["eth0", "eth2", "eth2"]
+
+        mock_get_interface_details.side_effect = [
+            ("00:11:22:33:44:00", "hv_netvsc"),  # eth0
+            ("00:11:22:33:44:01", "unknown"),  # eth2
+            ("00:11:22:33:44:01", "unknown"),  # eth2 (final success)
+        ]
+
+        lease = {
+            "interface": "eth2",
+        }
+        mock_ephemeral_dhcp_v4.return_value.obtain_lease.side_effect = [
+            dhcp.NoDHCPLeaseError(),
+            dhcp.NoDHCPLeaseError(),
+            lease,
+        ]
+
+        azure_ds._setup_ephemeral_networking(iface=None)
+
+        assert mock_find_primary_nic.call_count == 3
+
+        assert mock_get_interface_details.call_args_list == [
+            mock.call("eth0"),
+            mock.call("eth2"),
+            mock.call("eth2"),
+        ]
+
+        assert mock_ephemeral_dhcp_v4.return_value.iface == "eth2"
+        assert mock_ephemeral_dhcp_v4.return_value.obtain_lease.call_count == 3
+
+        diagnostic_calls = [
+            str(call) for call in mock_report_diagnostic_event.call_args_list
+        ]
+        assert any(
+            "Bringing up ephemeral networking with iface=eth0" in call
+            for call in diagnostic_calls
+        )
+        assert any(
+            "Bringing up ephemeral networking with iface=eth2" in call
+            for call in diagnostic_calls
+        )
+
+        # Final ephemeral dhcp context should have eth2
+        assert azure_ds._ephemeral_dhcp_ctx.iface == "eth2"
+
 
 class TestCheckIfPrimary:
     @pytest.mark.parametrize(

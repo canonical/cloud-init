@@ -440,6 +440,7 @@ class DataSourceAzure(sources.DataSource):
                 try:
                     if update_primary_nic:
                         iface = find_primary_nic()
+
                     mac, driver = get_interface_details(iface)
 
                     report_diagnostic_event(
@@ -2012,7 +2013,6 @@ def encrypt_pass(password):
 
 def find_primary_nic():
     candidate_nics = net.find_candidate_nics()
-
     if candidate_nics:
         return candidate_nics[0]
 
