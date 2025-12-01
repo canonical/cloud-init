@@ -3,18 +3,6 @@
 FAQ
 ***
 
-How do I get help?
-==================
-
-Having trouble? We would like to help!
-
-- First go through this page with answers to common questions
-- Use the search bar at the upper left to search our documentation
-- Ask questions in the ``#cloud-init`` `Matrix room <Matrix_>`_
-- Join and ask questions on `GitHub Discussions`_
-- Find a bug? Check out the :ref:`reporting_bugs` topic to find out how to
-  report one
-
 ``autoinstall``
 ===============
 
@@ -27,6 +15,7 @@ If you are an autoinstall user, please direct questions to their IRC channel
 
 Can I use cloud-init as a library?
 ==================================
+
 Please don't. Some projects `do`_. However, ``cloud-init`` does not
 currently make any API guarantees to either external consumers or out-of-tree
 datasources / modules. Current users of cloud-init as a library are
@@ -63,12 +52,6 @@ Blog Posts:
 - `Cloud-init Getting Started`_ [fedora, libvirt, cloud-init]
 - `Setup Neovim cloud-init Completion`_
   [neovim, yaml, Language Server Protocol, jsonschema, cloud-init]
-
-Events:
-
-- `cloud-init Summit 2019`_
-- `cloud-init Summit 2018`_
-- `cloud-init Summit 2017`_
 
 Whitepapers:
 
