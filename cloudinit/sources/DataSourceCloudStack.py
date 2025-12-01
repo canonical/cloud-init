@@ -14,6 +14,7 @@
 
 import logging
 import os
+import shutil
 import time
 from contextlib import suppress
 from socket import gaierror, getaddrinfo, inet_ntoa
@@ -51,21 +52,40 @@ class CloudStackPasswordServerClient:
         # The password server was in the past, a broken HTTP server, but is now
         # fixed.  wget handles this seamlessly, so it's easier to shell out to
         # that rather than write our own handling code.
-        output, _ = subp.subp(
-            [
-                "wget",
-                "--quiet",
-                "--tries",
-                "3",
-                "--timeout",
-                "20",
-                "--output-document",
-                "-",
-                "--header",
-                "DomU_Request: {0}".format(domu_request),
-                "{0}:8080".format(self.virtual_router_address),
-            ]
-        )
+
+        if shutil.which("curl"):
+            output, _ = subp.subp(
+                [
+                    "curl",
+                    "--silent",
+                    "--retry",
+                    "3",
+                    "--max-time",
+                    "20",
+                    "--header",
+                    "DomU_Request: {0}".format(domu_request),
+                    "{0}:8080".format(self.virtual_router_address),
+                ]
+            )
+        elif shutil.which("wget"):
+            output, _ = subp.subp(
+                [
+                    "wget",
+                    "--quiet",
+                    "--tries",
+                    "3",
+                    "--timeout",
+                    "20",
+                    "--output-document",
+                    "-",
+                    "--header",
+                    "DomU_Request: {0}".format(domu_request),
+                    "{0}:8080".format(self.virtual_router_address),
+                ]
+            )
+        else:
+            raise RuntimeError("Neither curl nor wget is installed; cannot fetch vm password from CloudStack.")
+
         return output.strip()
 
     @performance.timed("Getting password", log_mode="always")
