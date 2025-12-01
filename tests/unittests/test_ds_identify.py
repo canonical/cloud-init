@@ -226,7 +226,6 @@ RC_FOUND = 0
 RC_NOT_FOUND = 1
 DS_NONE = "None"
 
-P_BOARD_NAME = "sys/class/dmi/id/board_name"
 P_CHASSIS_ASSET_TAG = "sys/class/dmi/id/chassis_asset_tag"
 P_PRODUCT_NAME = "sys/class/dmi/id/product_name"
 P_PRODUCT_SERIAL = "sys/class/dmi/id/product_serial"
@@ -534,7 +533,9 @@ class TestDsIdentify(DsIdentifyBase):
             # should have stricter identifiers). Since the MAAS datasource is
             # at the beginning of the list, this is particularly troublesome
             # and more concerning than NoCloud false positives, for example.
+            pytest.param("LXD-kvm-not-MAAS-1", True, id="mass_not_detected_1"),
             pytest.param("LXD-kvm-not-MAAS-2", True, id="mass_not_detected_2"),
+            pytest.param("LXD-kvm-not-MAAS-3", True, id="mass_not_detected_3"),
             # Don't detect incorrect config when invalid datasource_list
             # provided
             #
@@ -892,6 +893,26 @@ class TestDsIdentify(DsIdentifyBase):
             pytest.param("Not-WSL", False, id="wsl_not_found_virt"),
             # Negative test by lack of host filesystem mount points.
             pytest.param("WSL-no-host-mounts", False, id="wsl_no_fs_mounts"),
+            # Test LXD virtio-ports discovery with legacy serial name
+            pytest.param(
+                "LXD-virtio-legacy", True, id="lxd_virtio_legacy_serial"
+            ),
+            # Test LXD virtio-ports discovery with canonical serial name
+            pytest.param(
+                "LXD-virtio-canonical", True, id="lxd_virtio_canonical_serial"
+            ),
+            # Test that wrong virtio serial name doesn't detect LXD
+            pytest.param(
+                "LXD-virtio-wrong-name", False, id="lxd_virtio_wrong_serial"
+            ),
+            # Test LXD detection with multiple virtio ports
+            pytest.param(
+                "LXD-virtio-multiple-ports",
+                True,
+                id="lxd_virtio_multiple_ports",
+            ),
+            # Test that empty virtio-ports directory doesn't detect LXD
+            pytest.param("LXD-virtio-empty", False, id="lxd_virtio_empty_dir"),
         ],
     )
     def test_ds_found_not_found(self, config, found, tmp_path):
@@ -1677,7 +1698,9 @@ VALID_CFG = {
     },
     "LXD-kvm": {
         "ds": "LXD",
-        "files": {P_BOARD_NAME: "LXD\n"},
+        "files": {
+            "sys/class/virtio-ports/vport0p1/name": "com.canonical.lxd\n",
+        },
         # /dev/lxd/sock does not exist and KVM virt-type
         "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
@@ -1685,33 +1708,29 @@ VALID_CFG = {
     "LXD-kvm-not-MAAS-1": {
         "ds": "LXD",
         "files": {
-            P_BOARD_NAME: "LXD\n",
             "etc/cloud/cloud.cfg.d/92-broken-maas.cfg": (
                 "datasource:\n MAAS:\n metadata_urls: [ 'blah.com' ]"
             ),
         },
-        # /dev/lxd/sock does not exist and KVM virt-type
-        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        # /dev/lxd/sock does exist
+        "mocks": [{"name": "is_socket_file", "ret": 0}],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
     },
     "LXD-kvm-not-MAAS-2": {
         "ds": "LXD",
         "files": {
-            P_BOARD_NAME: "LXD\n",
             "etc/cloud/cloud.cfg.d/92-broken-maas.cfg": ("#MAAS: None"),
         },
-        # /dev/lxd/sock does not exist and KVM virt-type
-        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        # /dev/lxd/sock does exist
+        "mocks": [{"name": "is_socket_file", "ret": 0}],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
     },
     "LXD-kvm-not-MAAS-3": {
         "ds": "LXD",
         "files": {
-            P_BOARD_NAME: "LXD\n",
             "etc/cloud/cloud.cfg.d/92-broken-maas.cfg": ("MAAS: None\n"),
+            "sys/class/virtio-ports/vport0p1/name": "com.canonical.lxd\n",
         },
-        # /dev/lxd/sock does not exist and KVM virt-type
-        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
     },
     "flow_sequence-control": {
@@ -1835,7 +1854,6 @@ VALID_CFG = {
     "LXD-kvm-not-azure": {
         "ds": "Azure",
         "files": {
-            P_BOARD_NAME: "LXD\n",
             "etc/cloud/cloud.cfg.d/92-broken-azure.cfg": (
                 "datasource_list:\n - Azure"
             ),
@@ -1844,26 +1862,28 @@ VALID_CFG = {
         "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
     },
-    "LXD-kvm-qemu-kernel-gt-5.10": {  # LXD host > 5.10 kvm launch virt==qemu
+    "LXD-kvm-qemu-kernel-gt-5.10": {  # LXD host > 5.10 kvm
         "ds": "LXD",
-        "files": {P_BOARD_NAME: "LXD\n"},
+        "files": {
+            "sys/class/virtio-ports/vport0p1/name": "com.canonical.lxd\n",
+        },
         # /dev/lxd/sock does not exist and KVM virt-type
-        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM_QEMU],
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
     },
     # LXD host > 5.10 kvm launch virt==qemu
     "LXD-kvm-qemu-kernel-gt-5.10-env": {
         "ds": "LXD",
         "files": {
-            P_BOARD_NAME: "LXD\n",
             # this test is systemd-specific, but may run on non-systemd systems
             # ensure that /run/systemd/ exists, such that this test will take
             # the systemd branch on those systems as well
             #
             # https://github.com/canonical/cloud-init/issues/5095
             "/run/systemd/somefile": "",
+            "sys/class/virtio-ports/vport0p1/name": "com.canonical.lxd\n",
         },
-        # /dev/lxd/sock does not exist and KVM virt-type
+        # /dev/lxd/sock does not exist
         "mocks": [{"name": "is_socket_file", "ret": 1}],
         "env_vars": IS_KVM_QEMU_ENV,
         "no_mocks": [
@@ -2869,5 +2889,53 @@ VALID_CFG = {
                 "os_release_no_version_id"
             ],
         },
+    },
+    # Test virtio-ports discovery with legacy serial name
+    "LXD-virtio-legacy": {
+        "ds": "LXD",
+        "files": {
+            "sys/class/virtio-ports/vprt0p1/name": "org.linuxcontainers.lxd\n",
+        },
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],
+    },
+    # Test virtio-ports discovery with canonical serial name
+    "LXD-virtio-canonical": {
+        "ds": "LXD",
+        "files": {
+            "sys/class/virtio-ports/vport0p1/name": "com.canonical.lxd\n",
+        },
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],
+    },
+    # Test virtio-ports with wrong serial name should not detect LXD
+    "LXD-virtio-wrong-name": {
+        "ds": "LXD",
+        "files": {
+            "sys/class/virtio-ports/vport0p1/name": "some.other.serial\n",
+        },
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],
+    },
+    # Test virtio-ports with multiple ports, only one is LXD
+    "LXD-virtio-multiple-ports": {
+        "ds": "LXD",
+        "files": {
+            "sys/class/virtio-ports/vport0p1/name": "some.other.serial\n",
+            "sys/class/virtio-ports/vport0p2/name": "com.canonical.lxd\n",
+            "sys/class/virtio-ports/vport0p3/name": "another.serial\n",
+        },
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],
+    },
+    # Test empty virtio-ports directory should not detect LXD
+    "LXD-virtio-empty": {
+        "ds": "LXD",
+        "files": {
+            # Create the directory but no ports
+            "sys/class/virtio-ports/.keep": "",
+        },
+        "mocks": [{"name": "is_socket_file", "ret": 1}],
+        "no_mocks": ["dscheck_LXD"],
     },
 }
