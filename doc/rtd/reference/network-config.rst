@@ -106,10 +106,10 @@ Finally, after selecting the "right" interface, a configuration is generated
 and applied to the system.
 
 .. note::
-   PhotonOS disables fallback networking configuration by default, leaving
-   network unrendered when no other network config is provided.
-   If fallback config is still desired on PhotonOS, it can be enabled by
-   providing ``disable_fallback_netcfg: false`` in
+   PhotonOS and Raspberry Pi OS disable fallback networking configuration by
+   default, leaving network unrendered when no other network config is
+   provided. If fallback config is still desired, it can be
+   enabled by providing ``disable_fallback_netcfg: false`` in
    :file:`/etc/cloud/cloud.cfg:sys_config` settings.
 
 Network configuration sources
