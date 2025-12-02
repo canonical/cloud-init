@@ -14,7 +14,6 @@
 
 import logging
 import os
-import shutil
 import time
 from contextlib import suppress
 from socket import gaierror, getaddrinfo, inet_ntoa
@@ -49,47 +48,22 @@ class CloudStackPasswordServerClient:
         self.virtual_router_address = virtual_router_address
 
     def _do_request(self, domu_request):
-        # The password server was in the past, a broken HTTP server, but is now
-        # fixed.  wget handles this seamlessly, so it's easier to shell out to
-        # that rather than write our own handling code.
+        url = f"http://{self.virtual_router_address}:8080"
+        headers = {"DomU_Request": domu_request}
 
-        if shutil.which("curl"):
-            output, _ = subp.subp(
-                [
-                    "curl",
-                    "--silent",
-                    "--retry",
-                    "3",
-                    "--max-time",
-                    "20",
-                    "--header",
-                    "DomU_Request: {0}".format(domu_request),
-                    "{0}:8080".format(self.virtual_router_address),
-                ]
-            )
-        elif shutil.which("wget"):
-            output, _ = subp.subp(
-                [
-                    "wget",
-                    "--quiet",
-                    "--tries",
-                    "3",
-                    "--timeout",
-                    "20",
-                    "--output-document",
-                    "-",
-                    "--header",
-                    "DomU_Request: {0}".format(domu_request),
-                    "{0}:8080".format(self.virtual_router_address),
-                ]
-            )
-        else:
+        resp = uhelp.readurl(
+            url,
+            headers=headers,
+            timeout=20,
+            retries=3
+        )
+
+        if not resp.ok():
             raise RuntimeError(
-                "Neither curl nor wget is installed; "
-                "cannot fetch VM password from CloudStack."
+                f"Failed to fetch VM password from CloudStack: HTTP {resp.code}"
             )
 
-        return output.strip()
+        return resp.contents.decode("utf-8").strip()
 
     @performance.timed("Getting password", log_mode="always")
     def get_password(self):
