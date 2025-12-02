@@ -67,7 +67,7 @@ except (ImportError, AttributeError):
             ImportError when ds_detect() returns false. In this case, crypt
             and passlib are not needed.
             """
-            raise errors.ReportableErrorImportError(exception=error)
+            raise errors.ReportableErrorImportError(error=error)
 
 
 LOG = logging.getLogger(__name__)

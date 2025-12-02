@@ -169,10 +169,10 @@ class ReportableErrorImdsMetadataParsingException(ReportableError):
 
 
 class ReportableErrorImportError(ReportableError):
-    def __init__(self, *, exception: ImportError) -> None:
+    def __init__(self, *, error: ImportError) -> None:
         super().__init__("error importing library")
 
-        self.supporting_data["exception"] = repr(exception)
+        self.supporting_data["error"] = repr(error)
 
 
 class ReportableErrorOsDiskPpsFailure(ReportableError):
