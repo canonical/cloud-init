@@ -115,6 +115,29 @@ class TestWriteFiles:
             mock.call(mock.ANY, USER, GROUP)
         ] == m_chownbyname.call_args_list
 
+    def test_special_permission_bits(self, m_chownbyname, tmp_path):
+        expected = "hello world\n"
+        filename = str(tmp_path / "special.file")
+        permissions = 0o4711
+        write_files(
+            "test_permission",
+            [
+                {
+                    "content": expected,
+                    "path": filename,
+                    "permissions": permissions,
+                }
+            ],
+            OWNER,
+        )
+        assert util.load_text_file(filename) == expected
+        assert [
+            mock.call(mock.ANY, USER, GROUP)
+        ] == m_chownbyname.call_args_list
+        assert util.get_permissions(filename) == decode_perms(
+            permissions, None
+        )
+
     def test_yaml_binary(self, m_chownbyname):
         data_wrong_paths = util.load_yaml(YAML_TEXT)
         data = []

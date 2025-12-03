@@ -500,11 +500,12 @@ def get_jsonschema_validator():
 
         It does ignore instances of `SchemaDeprecationError`.
         """
+        validator = self if _schema is None else self.evolve(schema=_schema)
         errors = filter(
             lambda e: not isinstance(  # pylint: disable=W1116
                 e, SchemaDeprecationError
             ),
-            self.evolve(schema=_schema).iter_errors(instance),
+            validator.iter_errors(instance),
         )
         return next(errors, None) is None
 
