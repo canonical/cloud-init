@@ -51,6 +51,34 @@ Last-Update: 2025-08-25
  ifeq (,$(findstring nocheck,$(DEB_BUILD_OPTIONS)))
  	http_proxy= make PYVER=python3 check
  else
+--- a/packages/pkg-deps.json
++++ b/packages/pkg-deps.json
+@@ -1,12 +1,8 @@
+ {
+    "debian" : {
+       "build-requires" : [
+-         "meson",
+-         "pkgconf",
+-         "bash-completion",
+          "debhelper",
+-         "systemd-dev",
+-         "python3",
++         "dh-python",
+          "python3-debconf"
+       ],
+       "renames" : {
+@@ -14,11 +10,6 @@
+          "pyserial" : "python3-serial"
+       },
+       "requires" : [
+-         "debconf",
+-         "dhcpcd-base",
+-         "iproute2",
+-         "netcat-openbsd",
+-         "netplan.io",
+          "procps"
+       ]
+    },
 --- a/pyproject.toml
 +++ b/pyproject.toml
 @@ -1,6 +1,6 @@
@@ -408,6 +436,69 @@ Last-Update: 2025-08-25
 +        ],
 +    },
 +)
+--- /dev/null
++++ b/setup_utils.py
+@@ -0,0 +1,60 @@
++import os
++import subprocess
++import sys
++from typing import List
++
++
++def is_f(p: str) -> bool:
++    return os.path.isfile(p)
++
++
++def is_generator(p: str) -> bool:
++    return "-generator" in p
++
++
++def pkg_config_read(library: str, var: str) -> str:
++    pkg_config = "pkg-config"
++
++    if os.getenv("PKG_CONFIG"):
++        pkg_config = os.getenv("PKG_CONFIG")
++
++    fallbacks = {
++        "systemd": {
++            "systemdsystemconfdir": "/etc/systemd/system",
++            "systemdsystemunitdir": "/usr/lib/systemd/system",
++            "systemdsystemgeneratordir": "/usr/lib/systemd/system-generators",
++        },
++        "udev": {
++            "udevdir": "/usr/lib/udev",
++        },
++    }
++    cmd = [pkg_config, f"--variable={var}", library]
++    try:
++        path = subprocess.check_output(cmd).decode("utf-8")  # nosec B603
++        path = path.strip()
++    except Exception:
++        path = fallbacks[library][var]
++    if path.startswith("/"):
++        path = path[1:]
++
++    return path
++
++
++def version_to_pep440(version: str) -> str:
++    # read-version can spit out something like 22.4-15-g7f97aee24
++    # which is invalid under PEP 440. If we replace the first - with a +
++    # that should give us a valid version.
++    return version.replace("-", "+", 1)
++
++
++def get_version() -> str:
++    cmd = [sys.executable, "tools/read-version"]
++    ver = subprocess.check_output(cmd)  # B603
++    version = ver.decode("utf-8").strip()
++    return version_to_pep440(version)
++
++
++def read_requires() -> List[str]:
++    cmd = [sys.executable, "tools/read-dependencies"]
++    deps = subprocess.check_output(cmd)  # nosec B603
++    return deps.decode("utf-8").splitlines()
 --- a/test-requirements.txt
 +++ b/test-requirements.txt
 @@ -11,9 +11,9 @@ pytest!=7.3.2
@@ -486,141 +577,3 @@ Last-Update: 2025-08-25
      responses==0.9.0
      passlib
      # required for this version of jinja2
---- a/packages/pkg-deps.json
-+++ b/packages/pkg-deps.json
-@@ -1,12 +1,8 @@
- {
-    "debian" : {
-       "build-requires" : [
--         "meson",
--         "pkgconf",
--         "bash-completion",
-          "debhelper",
--         "systemd-dev",
--         "python3",
-+         "dh-python",
-          "python3-debconf"
-       ],
-       "renames" : {
-@@ -14,11 +10,6 @@
-          "pyserial" : "python3-serial"
-       },
-       "requires" : [
--         "debconf",
--         "dhcpcd-base",
--         "iproute2",
--         "netcat-openbsd",
--         "netplan.io",
-          "procps"
-       ]
-    },
-@@ -52,30 +43,7 @@
-    },
-    "redhat" : {
-       "build-requires" : [
--         "bash-completion",
--         "meson",
--         "pkgconf",
--         "python3-devel",
--         "systemd-devel"
--      ],
--      "requires" : [
--         "e2fsprogs",
--         "iproute",
--         "net-tools",
--         "procps",
--         "rsyslog",
--         "shadow-utils",
--         "sudo",
--         "hostname"
--      ]
--   },
--   "fedora": {
--      "build-requires" : [
--         "bash-completion-devel",
--         "meson",
--         "pkgconf",
--         "python3-devel",
--         "systemd-devel"
-+         "python3-devel"
-       ],
-       "requires" : [
-          "e2fsprogs",
-@@ -94,12 +62,10 @@
-          "pyyaml" : "python3-PyYAML"
-       },
-       "build-requires" : [
--         "meson",
--         "pkgconf",
--         "bash-completion-devel",
-          "fdupes",
-          "filesystem",
--         "python3-devel"
-+         "python3-devel",
-+         "python3-setuptools"
-       ],
-       "requires" : [
-          "iproute2",
---- /dev/null
-+++ b/setup_utils.py
-@@ -0,0 +1,60 @@
-+import os
-+import subprocess
-+import sys
-+from typing import List
-+
-+
-+def is_f(p: str) -> bool:
-+    return os.path.isfile(p)
-+
-+
-+def is_generator(p: str) -> bool:
-+    return "-generator" in p
-+
-+
-+def pkg_config_read(library: str, var: str) -> str:
-+    pkg_config = "pkg-config"
-+
-+    if os.getenv("PKG_CONFIG"):
-+        pkg_config = os.getenv("PKG_CONFIG")
-+
-+    fallbacks = {
-+        "systemd": {
-+            "systemdsystemconfdir": "/etc/systemd/system",
-+            "systemdsystemunitdir": "/usr/lib/systemd/system",
-+            "systemdsystemgeneratordir": "/usr/lib/systemd/system-generators",
-+        },
-+        "udev": {
-+            "udevdir": "/usr/lib/udev",
-+        },
-+    }
-+    cmd = [pkg_config, f"--variable={var}", library]
-+    try:
-+        path = subprocess.check_output(cmd).decode("utf-8")  # nosec B603
-+        path = path.strip()
-+    except Exception:
-+        path = fallbacks[library][var]
-+    if path.startswith("/"):
-+        path = path[1:]
-+
-+    return path
-+
-+
-+def version_to_pep440(version: str) -> str:
-+    # read-version can spit out something like 22.4-15-g7f97aee24
-+    # which is invalid under PEP 440. If we replace the first - with a +
-+    # that should give us a valid version.
-+    return version.replace("-", "+", 1)
-+
-+
-+def get_version() -> str:
-+    cmd = [sys.executable, "tools/read-version"]
-+    ver = subprocess.check_output(cmd)  # B603
-+    version = ver.decode("utf-8").strip()
-+    return version_to_pep440(version)
-+
-+
-+def read_requires() -> List[str]:
-+    cmd = [sys.executable, "tools/read-dependencies"]
-+    deps = subprocess.check_output(cmd)  # nosec B603
-+    return deps.decode("utf-8").splitlines()
