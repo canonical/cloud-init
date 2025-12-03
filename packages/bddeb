@@ -306,7 +306,7 @@ def main():
         "release_suffix": get_release_suffix(args.release),
     }
 
-    with temp_utils.tempdir() as tdir:
+    with temp_utils.tempdir(needs_exe=True) as tdir:
 
         # output like 0.7.6-1022-g36e92d3
         ver_data = read_version()

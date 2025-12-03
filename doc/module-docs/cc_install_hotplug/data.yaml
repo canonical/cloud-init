@@ -14,7 +14,7 @@ cc_install_hotplug:
     around this limitation, one can wait until cloud-init has completed
     before hotplugging devices.
 
-    Currently supported datasources: Openstack, EC2
+    Currently supported datasources: Openstack, EC2, Hetzner
   examples:
   - comment: |
       Example 1: Enable hotplug of network devices
