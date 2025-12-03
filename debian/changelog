@@ -1,3 +1,12 @@
+cloud-init (25.4~1gcb12e00e-0ubuntu2) UNRELEASED; urgency=medium
+
+  * d/cloud-init-base.config and d/cloud-init-base.postinst:
+    - fix debconf value migration error resulting in invalid config created
+      by debian script (LP: #2131809)
+    - address shellcheck failures
+
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 03 Dec 2025 14:48:59 -0700
+
 cloud-init (25.4~1gcb12e00e-0ubuntu1) resolute; urgency=medium
 
   * d/cloud-init-base.config: update migrate_debconf_settings to
