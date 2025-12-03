@@ -19,7 +19,7 @@ from contextlib import suppress
 from socket import gaierror, getaddrinfo, inet_ntoa
 from struct import pack
 
-from cloudinit import dmi, net, performance, sources, subp
+from cloudinit import dmi, net, performance, sources
 from cloudinit import url_helper as uhelp
 from cloudinit import util
 from cloudinit.net import dhcp
@@ -51,17 +51,10 @@ class CloudStackPasswordServerClient:
         url = f"http://{self.virtual_router_address}:8080"
         headers = {"DomU_Request": domu_request}
 
-        resp = uhelp.readurl(
-            url,
-            headers=headers,
-            timeout=20,
-            retries=3
-        )
+        resp = uhelp.readurl(url, headers=headers, timeout=20, retries=3)
 
         if not resp.ok():
-            raise RuntimeError(
-                f"Failed to fetch VM password from CloudStack: HTTP {resp.code}"
-            )
+            raise RuntimeError("Failed to fetch VM password from CloudStack")
 
         return resp.contents.decode("utf-8").strip()
 
