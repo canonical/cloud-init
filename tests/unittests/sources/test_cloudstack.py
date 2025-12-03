@@ -2,6 +2,7 @@
 # pylint: disable=attribute-defined-outside-init
 from socket import gaierror
 from textwrap import dedent
+from unittest.mock import patch
 
 import pytest
 
@@ -219,6 +220,32 @@ class TestCloudStackHostname:
         with mocker.patch(MOD_PATH + ".util.load_text_file"):
             result = cloudstack_ds.get_hostname(fqdn=True)
             assert expected == result
+
+    @pytest.mark.parametrize(
+        "lease_key,expected_domain",
+        [
+            ("DOMAINNAME", "example.com"),
+            ("Domain", "example.com"),
+            ("domain-name", "example.com"),
+        ],
+    )
+    def test__get_domainname_supports_all_casing_variants(
+        self, lease_key, expected_domain
+    ):
+        """Ensure _get_domainname works with DOMAINNAME, Domain and
+        domain-name."""
+        # Mock the helper to return the domain only when the exact key is asked
+        with patch(
+            "cloudinit.net.dhcp.networkd_get_option_from_leases"
+        ) as m_get:
+            m_get.side_effect = lambda key, extra_keys=None: (
+                "example.com   " if key == lease_key else None
+            )
+
+            ds = DataSourceCloudStack(
+                {}, distro=MockDistro(), paths=helpers.Paths({})
+            )
+            assert ds._get_domainname() == expected_domain
 
 
 class TestGetDataServer:
