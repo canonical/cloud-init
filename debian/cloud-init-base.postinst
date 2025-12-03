@@ -55,8 +55,12 @@ handle_preseed_maas() {
    local cfg_file="/etc/cloud/cloud.cfg.d/90_dpkg_maas.cfg"
    local md_url="" creds_all="" c_key="" t_key="" t_sec="" c_sec="";
 
-   process_debconf_setting maas-metadata-url && md_url="$RET" || :
-   process_debconf_setting maas-metadata-credentials && creds_all="$RET" || :
+   if process_debconf_setting maas-metadata-url; then
+       md_url="$RET"
+   fi
+   if process_debconf_setting maas-metadata-credentials; then
+       creds_all="$RET"
+   fi
 
    # nothing to do
    [ -n "$md_url" -o -n "$creds_all" ] || return 0
@@ -109,9 +113,11 @@ handle_preseed_local_cloud_config() {
    local ccfg=""
    local cfg_file="/etc/cloud/cloud.cfg.d/90_dpkg_local_cloud_config.cfg"
    local header="# written by cloud-init-base debian package per preseed entry
-# $debconf_name"
+# cloud-init-base/local-cloud-config"
 
-   process_debconf_setting local-cloud-config && ccfg="$RET" || :
+   if process_debconf_setting local-cloud-config; then
+      ccfg="$RET"
+   fi
 
    if [ "$ccfg" = "_" ]; then
       rm -f "$cfg_file"
@@ -278,9 +284,13 @@ move_socket_fifo_to_share_dir() {
 # write /etc/cloud/cloud.cfg,d/95-cloudconfig-* files directly. When 3.3 is out
 # of support, cloud-init-base can drop support for handling any debconf values.
 process_debconf_setting() {
-    local old="cloud-init/$1" new="cloud-init-base/$1"
-    db_get "$old" && old_val="$RET" || old_val=
-    db_get "$new" && new_val="$RET" || new_val=
+    local old="cloud-init/$1" new="cloud-init-base/$1" old_val="" new_val=""
+    if db_get "$old" && [ -n "${RET}" ]; then
+       old_val="$RET"
+    fi
+    if db_get "$new" && [ -n "${RET}" ]; then
+       new_val="$RET"
+    fi
     if [ -n "$new_val" ]; then
         echo "Encountered debconf setting for $new."
         if [ -n "$old_val" ]; then
@@ -290,7 +300,7 @@ process_debconf_setting() {
         # now clear the database of the values, as they've been consumed
         db_unregister "$new" || :
         RET="$new_val"
-        return
+        return 0
     fi
     if [ -n "$old_val" ]; then
         echo "Encountered debconf setting for $old."
@@ -298,15 +308,16 @@ process_debconf_setting() {
         # debconf settings. Instead, set this value empty which is ignored.
         db_set "$old" "" || :
         RET="$old_val"
-        return
+        return 0
     fi
+    return 1
 }
 
 if [ "$1" = "configure" ]; then
-   process_debconf_setting datasources && datasources="$RET" || :
+   if process_debconf_setting datasources; then
+      datasources="$RET"
+   fi
    if [ -n "$datasources" ]; then
-      # if db had old MAAS spelling, fix it.
-      datasources=$(echo "$datasources" | sed 's,MaaS,MAAS,g')
       cat > /etc/cloud/cloud.cfg.d/90_dpkg.cfg <<EOF
 # to update this file, run dpkg-reconfigure cloud-init-base
 datasource_list: [ $datasources ]
