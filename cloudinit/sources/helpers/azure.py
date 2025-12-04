@@ -6,7 +6,6 @@ import base64
 import json
 import logging
 import os
-import re
 import textwrap
 import zlib
 from contextlib import contextmanager
@@ -18,7 +17,7 @@ from xml.sax.saxutils import escape  # nosec B406
 
 from cloudinit import distros, subp, temp_utils, url_helper, util, version
 from cloudinit.reporting import events
-from cloudinit.sources.azure import errors
+from cloudinit.sources.azure import certs, errors
 
 LOG = logging.getLogger(__name__)
 
@@ -490,10 +489,7 @@ class OpenSSLManager:
 
     @azure_ds_telemetry_reporter
     def _get_ssh_key_from_cert(self, certificate):
-        pub_key = self._run_x509_action("-pubkey", certificate)
-        keygen_cmd = ["ssh-keygen", "-i", "-m", "PKCS8", "-f", "/dev/stdin"]
-        ssh_key, _ = subp.subp(keygen_cmd, data=pub_key)
-        return ssh_key
+        return certs.convert_x509_to_openssh(certificate)
 
     @azure_ds_telemetry_reporter
     def _get_fingerprint_from_cert(self, certificate):
@@ -539,19 +535,27 @@ class OpenSSLManager:
         """Given the Certificates XML document, return a dictionary of
         fingerprints and associated SSH keys derived from the certs."""
         out = self._decrypt_certs_from_xml(certificates_xml)
-        current = []
         keys = {}
-        for line in out.splitlines():
-            current.append(line)
-            if re.match(r"[-]+END .*?KEY[-]+$", line):
-                # ignore private_keys
-                current = []
-            elif re.match(r"[-]+END .*?CERTIFICATE[-]+$", line):
-                certificate = "\n".join(current)
-                ssh_key = self._get_ssh_key_from_cert(certificate)
-                fingerprint = self._get_fingerprint_from_cert(certificate)
-                keys[fingerprint] = ssh_key
-                current = []
+        remaining_data = out
+
+        while True:
+            certificate = certs.extract_x509_certificate(remaining_data)
+            if certificate is None:
+                break
+
+            ssh_key = self._get_ssh_key_from_cert(certificate)
+            fingerprint = self._get_fingerprint_from_cert(certificate)
+            keys[fingerprint] = ssh_key
+
+            cert_index = remaining_data.find(certificate)
+            if cert_index == -1:
+                LOG.debug(
+                    "Could not locate previously extracted certificate "
+                    "in data."
+                )
+                break
+            remaining_data = remaining_data[cert_index + len(certificate) :]
+
         return keys
 
 
