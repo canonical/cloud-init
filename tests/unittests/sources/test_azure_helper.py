@@ -113,7 +113,7 @@ MOCKPATH = "cloudinit.sources.helpers.azure."
 def fake_vm_id(mocker):
     vm_id = "foo"
     mocker.patch(
-        "cloudinit.sources.azure.identity.query_vm_id", return_value=vm_id
+        "cloudinit.reporting.handlers._query_vm_id", return_value=vm_id
     )
     yield vm_id
 
