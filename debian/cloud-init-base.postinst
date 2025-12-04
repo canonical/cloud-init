@@ -2,6 +2,7 @@
 
 set -e
 
+# shellcheck source=/dev/null
 . /usr/share/debconf/confmodule
 
 set -f # disable pathname expansion
@@ -53,7 +54,7 @@ with open(fname, "w") as fp:
 
 handle_preseed_maas() {
    local cfg_file="/etc/cloud/cloud.cfg.d/90_dpkg_maas.cfg"
-   local md_url="" creds_all="" c_key="" t_key="" t_sec="" c_sec="";
+   local md_url="" creds_all="" c_key="" t_key="" t_sec="";
 
    if process_debconf_setting maas-metadata-url; then
        md_url="$RET"
@@ -63,10 +64,10 @@ handle_preseed_maas() {
    fi
 
    # nothing to do
-   [ -n "$md_url" -o -n "$creds_all" ] || return 0
+   [ -n "$md_url" ] || [ -n "$creds_all" ] || return 0
 
    # change a url query string format into : delimited
-   if [ -n "$creds_all" -a "${creds_all#*&}" != "${creds_all}" ]; then
+   if [ -n "$creds_all" ] && [ "${creds_all#*&}" != "${creds_all}" ]; then
       # the command here ends up looking like:
       # python3 -c '...' 'oauth_consumer_key=v1&oauth_token_key=v2...' \
       #   oauth_consumer_key oauth_token_key oauth_token_secret
@@ -80,12 +81,13 @@ for k in sys.argv[2:]:
    fi
 
    # now, if non-empty creds_all is: consumer_key:token_key:token_secret
+   # shellcheck disable=SC2086
    if [ -n "$creds_all" ]; then
       OIFS="$IFS"; IFS=:; set -- $creds_all; IFS="$OIFS"
       c_key=$1; t_key=$2; t_sec=$3
    fi
 
-   if [ "$md_url" = "_" -a "${c_key}:${t_key}:${t_sec}" = "_:_:_" ]; then
+   if [ "$md_url" = "_" ] && [ "${c_key}:${t_key}:${t_sec}" = "_:_:_" ]; then
       # if all these values were '_', the delete value, just delete the file.
       rm -f "$cfg_file"
    else
@@ -96,7 +98,7 @@ for k in sys.argv[2:]:
       for pair in "metadata_url:$md_url" "consumer_key:${c_key}" \
          "token_key:${t_key}" "token_secret:$t_sec"; do
          k=${pair%%:*}
-         v=${pair#${k}:}
+         v=${pair#"${k}":}
          [ -n "$v" ] && pload="${pload} $k: \"$v\","
       done
 
@@ -105,7 +107,7 @@ for k in sys.argv[2:]:
       umask 066
       : >> "$cfg_file" && chmod 600 "$cfg_file"
       update_cfg "$cfg_file" "$header" "datasource: { MAAS: { ${pload%,} } }" _
-      umask ${orig_umask}
+      umask "${orig_umask}"
    fi
 }
 
@@ -144,15 +146,16 @@ fix_1336855() {
   command -v grub-install > /dev/null || return 0
 
   # First, identify the kernel device for the parent.
+  # shellcheck disable=SC2013
   for parm in $(cat /proc/cmdline); do
-       dev=$(echo $parm | awk -F\= '{print$NF}')
+       dev=$(echo "$parm" | awk -F= '{print$NF}')
        case $parm in
            root=UUID*)  [ -d /dev/disk/by-uuid ] &&
-                            root_dev=$(readlink -f /dev/disk/by-uuid/$dev);;
+                            root_dev=$(readlink -f "/dev/disk/by-uuid/${dev}");;
            root=LABEL*) [ -d /dev/disk/by-label ] &&
-                            root_dev=$(readlink -f /dev/disk/by-label/$dev);;
+                            root_dev=$(readlink -f "/dev/disk/by-label/${dev}");;
            root=/dev*)  [ -d /dev ] &&
-                            root_dev=$(readlink -f $dev);;
+                            root_dev=$(readlink -f "${dev}");;
        esac
        [ -n "$root_dev" ] && break
   done
@@ -177,25 +180,25 @@ fix_1336855() {
   # Find out where grub thinks the root device is. Only continue if
   # grub postinst would install/reinstall grub
   db_get grub-pc/install_devices && grub_cfg_dev=${RET} || return 0
-  db_get grub-pc/install_devices_empty && grub_dev_empty=${RET} || return 0
+  db_get grub-pc/install_devices_empty || return 0
 
   # Find out the parent device for the root device.
   #     example output: sda/sda1
-  block_path=$(udevadm info -q path -n $root_dev | awk '-Fblock/' '{print$NF}') || return 0
+  block_path=$(udevadm info -q path -n "$root_dev" | awk '-Fblock/' '{print$NF}') || return 0
 
   # Extract the parent device name. This works where the device is a block device
   #     example output: /dev/sda
-  parent_dev=$(echo $block_path | awk '-F/' '$1 { if ( $1 ) {print"/dev/"$1}}')
+  parent_dev=$(echo "$block_path" | awk '-F/' '$1 { if ( $1 ) {print"/dev/"$1}}')
   [ -b "${parent_dev}" ] || return 0
 
   # Do nothing if the device that the grub postinst would install is already used
-  [ "$grub_cfg_dev" = "$parent_dev" -o "$grub_cfg_dev" = "$root_dev" ] && return 0
+  [ "$grub_cfg_dev" = "$parent_dev" ] || [ "$grub_cfg_dev" = "$root_dev" ] && return 0
 
   # If we get here, do the installation
   echo "Reconfiguring grub install device due to mismatch (LP: #1336855)"
   echo "   Grub should use $parent_dev but is configured for $grub_cfg_dev"
   db_set grub-pc/install_devices "$parent_dev"
-  grub-install $parent_dev &&
+  grub-install "$parent_dev" &&
      echo "Reinstalled grub" ||
      echo "WARNING! Unable to fix grub device mismatch. You may be broken."
 
