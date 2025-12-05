@@ -282,8 +282,9 @@ TEST_OPTIONS = (
 class TestAuthKeyLineParser:
     @pytest.mark.parametrize("with_options", [True, False])
     @pytest.mark.parametrize("with_comment", [True, False])
+    @pytest.mark.parametrize("options_parameter", [None, "", 'from="::1"'])
     @pytest.mark.parametrize("ktype", KEY_TYPES)
-    def test_parse(self, ktype, with_comment, with_options):
+    def test_parse(self, ktype, with_comment, with_options, options_parameter):
         content = VALID_CONTENT[ktype]
         comment = "user-%s@host" % ktype
         options = TEST_OPTIONS
@@ -301,14 +302,25 @@ class TestAuthKeyLineParser:
             line_args.append(comment)
         line = " ".join(line_args)
 
-        key = ssh_util.AuthKeyLineParser().parse(line)
+        key = ssh_util.AuthKeyLineParser().parse(
+            line, options=options_parameter
+        )
 
         assert key.base64 == content
         assert key.keytype == ktype
-        if with_options:
+        if options_parameter:
+            # When the options parameter is truthy, it overrides options from
+            # the key line
+            assert key.options == options_parameter
+        elif with_options:
+            # When the options parameter is falsy and the key line contains
+            # options, those are returned
             assert key.options == options
         else:
-            assert key.options is None
+            # When the options parameter is falsy and the key line has no
+            # options, the same falsy value is returned (e.g. None
+            # or "")
+            assert key.options == options_parameter
         if with_comment:
             assert key.comment == comment
         else:
