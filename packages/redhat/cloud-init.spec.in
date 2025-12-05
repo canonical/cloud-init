@@ -97,7 +97,6 @@ rm -rf $RPM_BUILD_ROOT
 %{_udevrulesdir}/66-azure-ephemeral.rules
 
 /usr/lib/systemd/system-generators/cloud-init-generator
-/usr/lib/systemd/system/sshd-keygen@.service.d/disable-sshd-keygen-if-cloud-init-active.conf
 %{_unitdir}/cloud-*
 
 # Program binaries
@@ -116,7 +115,7 @@ rm -rf $RPM_BUILD_ROOT
 %dir                    %{_sysconfdir}/cloud/templates
 %config(noreplace)      %{_sysconfdir}/cloud/templates/*
 %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
-%config(noreplace) /usr/lib/systemd/system/sshd-keygen@.service.d/disable-sshd-keygen-if-cloud-init-active.conf
+%config(noreplace) %{_unitdir}/sshd-keygen@.service.d/disable-sshd-keygen-if-cloud-init-active.conf
 
 # Bash completion script
 %dir %{_datadir}/bash-completion/completions
