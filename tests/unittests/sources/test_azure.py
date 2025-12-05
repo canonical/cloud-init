@@ -3769,7 +3769,7 @@ class TestEphemeralNetworking:
         dynamically discovered via find_primary_nic() on each retry, allowing
         it to change between attempts.
         """
-        # Initially return eth0, then eth2
+        # the primary NIC gets updated each loop iteration
         mock_find_primary_nic.side_effect = ["eth0", "eth1", "eth2"]
 
         mock_get_interface_details.side_effect = [
