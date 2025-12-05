@@ -69,3 +69,7 @@ The following is a list of documentation for each supported datasource:
    datasources/vultr.rst
    datasources/wsl.rst
    datasources/zstack.rst
+   datasources/bigstep.rst
+   datasources/hetzner.rst
+   datasources/ibmcloud.rst
+
