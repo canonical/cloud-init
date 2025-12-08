@@ -22,9 +22,8 @@ Python support
 Cloud-init upstream currently supports Python 3.9 and above.
 
 Cloud-init upstream will stay compatible with a particular Python version for 6
-years after release. After 6 years, we will stop testing upstream changes
+years after release. After that, upstream will stop testing upstream changes
 against the unsupported version of Python and may introduce breaking changes.
-This policy may change as needed.
 
 The following table lists the cloud-init versions in which the minimum Python
 version changed:
