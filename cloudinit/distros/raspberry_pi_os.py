@@ -6,7 +6,7 @@
 
 import logging
 
-from cloudinit import subp
+from cloudinit import net, subp
 from cloudinit.distros import debian
 
 LOG = logging.getLogger(__name__)
@@ -96,3 +96,19 @@ class Distro(debian.Distro):
             return False
 
         return True
+
+    def generate_fallback_config(self):
+        # Based on Photon OS implementation
+        key = "disable_fallback_netcfg"
+        disable_fallback_netcfg = self._cfg.get(key, True)
+        LOG.debug("%s value is: %s", key, disable_fallback_netcfg)
+
+        if not disable_fallback_netcfg:
+            return net.generate_fallback_config()
+
+        LOG.info(
+            "Skipping generation of fallback network config as per "
+            "configuration. Rely on Raspberry Pi OS's default "
+            "network configuration."
+        )
+        return None
