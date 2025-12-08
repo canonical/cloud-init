@@ -1299,9 +1299,7 @@ class TestGetLinuxDistro:
         assert ("cos", "93", "") == dist
 
     @mock.patch("platform.system")
-    def test_get_linux_distro_no_data(
-        self, m_platform_system, m_path_exists
-    ):
+    def test_get_linux_distro_no_data(self, m_platform_system, m_path_exists):
         """Verify we get no information if os-release does not exist"""
         m_platform_system.return_value = "Linux"
         m_path_exists.return_value = 0
