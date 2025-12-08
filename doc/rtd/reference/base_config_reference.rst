@@ -94,7 +94,6 @@ each datasource's respective :ref:`documentation<datasources>`. Example:
 
 .. code-block:: yaml
 
-    # Documentation on data sources configuration options
     datasource:
       # Ec2
       Ec2:
@@ -105,7 +104,7 @@ each datasource's respective :ref:`documentation<datasources>`. Example:
         #   len(resolvable_metadata_urls)*timeout
         max_wait: 240
 
-        #metadata_url: a list of URLs to check for metadata services
+        # metadata_url: a list of URLs to check for metadata services
         metadata_urls:
          - http://169.254.169.254:80
          - http://instance-data:8773
@@ -131,8 +130,7 @@ each datasource's respective :ref:`documentation<datasources>`. Example:
         # fs_label: the label on filesystems to be searched for NoCloud source
         fs_label: cidata
 
-        # these are optional, but allow you to basically provide a datasource
-        # right here
+        # these are optional, but allow you to provide configuration
         user-data: |
           # This is the user-data verbatim
         meta-data: |
