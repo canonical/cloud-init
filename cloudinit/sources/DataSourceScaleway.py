@@ -322,12 +322,12 @@ class DataSourceScaleway(sources.DataSource):
         if self._network_config != sources.UNSET:
             return self._network_config
 
-        if self.metadata["private_ip"] is None:
+        if not self.metadata.get("private_ip"):
             # New method of network configuration
 
             netcfg = {}
             ip_cfg = {}
-            for ip in self.metadata["public_ips"]:
+            for ip in self.metadata.get("public_ips", []):
                 # Use DHCP for primary address
                 if ip["address"] == self.ephemeral_fixed_address:
                     ip_cfg["dhcp4"] = True
@@ -365,18 +365,23 @@ class DataSourceScaleway(sources.DataSource):
                 "name": "%s" % self.distro.fallback_interface,
             }
             subnets = [{"type": "dhcp4"}]
-            if self.metadata["ipv6"]:
+            ipv6 = self.metadata.get("ipv6")
+            if (
+                isinstance(ipv6, dict)
+                and "address" in ipv6
+                and "netmask" in ipv6
+                and "gateway" in ipv6
+            ):
                 subnets += [
                     {
                         "type": "static",
-                        "address": "%s" % self.metadata["ipv6"]["address"],
-                        "netmask": "%s" % self.metadata["ipv6"]["netmask"],
+                        "address": ipv6.get("address"),
+                        "netmask": ipv6.get("netmask"),
                         "routes": [
                             {
                                 "network": "::",
                                 "prefix": "0",
-                                "gateway": "%s"
-                                % self.metadata["ipv6"]["gateway"],
+                                "gateway": ipv6.get("gateway"),
                             }
                         ],
                     }
@@ -391,10 +396,12 @@ class DataSourceScaleway(sources.DataSource):
         return None
 
     def get_instance_id(self):
-        return self.metadata["id"]
+        return self.metadata.get("id")
 
     def get_public_ssh_keys(self):
-        ssh_keys = [key["key"] for key in self.metadata["ssh_public_keys"]]
+        ssh_keys = [
+            key["key"] for key in self.metadata.get("ssh_public_keys", [])
+        ]
 
         akeypre = "AUTHORIZED_KEY="
         plen = len(akeypre)
@@ -406,7 +413,7 @@ class DataSourceScaleway(sources.DataSource):
         return ssh_keys
 
     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
-        return DataSourceHostname(self.metadata["hostname"], False)
+        return DataSourceHostname(self.metadata.get("hostname"), False)
 
     @property
     def availability_zone(self):
