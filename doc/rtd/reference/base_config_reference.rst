@@ -95,7 +95,6 @@ each datasource's respective :ref:`documentation<datasources>`. Example:
 .. code-block:: yaml
 
     datasource:
-      # Ec2
       Ec2:
         # timeout: the timeout value for a request at metadata service
         timeout: 50
