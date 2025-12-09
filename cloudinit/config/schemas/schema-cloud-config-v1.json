@@ -2818,12 +2818,12 @@
                       "properties": {
                         "console": {
                           "type": "boolean",
-                          "description": "Enable serial console. Default: ``false``.",
+                          "description": "Enable login shell to be accessible over serial. Default: ``false``.",
                           "default": false
                         },
                         "hardware": {
                           "type": "boolean",
-                          "description": "Enable UART hardware. Default: ``false``.",
+                          "description": "Enable serial port hardware. Default: ``false``.",
                           "default": false
                         }
                       }
@@ -2837,10 +2837,10 @@
                 }
               }
             },
-            "enable_rpi_connect": {
+            "enable_usb_gadget": {
               "type": "boolean",
               "default": false,
-              "description": "Install and enable Raspberry Pi Connect. Default: ``false``."
+              "description": "Enable Raspberry Pi USB Gadget mode. Default: ``false``."
             }
           }
         }

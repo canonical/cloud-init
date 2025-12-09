@@ -516,7 +516,7 @@ class TestCreateUser:
     def test_create_groups_with_whitespace_string(
         self, m_is_group, m_subp, dist, mocker
     ):
-        # groups supported as a comma delimeted string even with white space
+        # groups supported as a comma delimited string even with white space
         mocker.patch(
             "cloudinit.distros.util.system_is_snappy", return_value=False
         )
@@ -534,7 +534,7 @@ class TestCreateUser:
     def test_snappy_create_groups_with_whitespace_string(
         self, m_is_group, m_subp, dist, mocker
     ):
-        # groups supported as a comma delimeted string even with white space
+        # groups supported as a comma delimited string even with white space
         mocker.patch(
             "cloudinit.distros.util.system_is_snappy", return_value=True
         )

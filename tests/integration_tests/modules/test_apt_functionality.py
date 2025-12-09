@@ -624,7 +624,7 @@ def test_install_missing_deps(session_cloud: IntegrationCloud):
         # specify a ppa in our user data, and `apt update` can fail if no ppa
         # has been uploaded for the release being tested. This isn't uncommon
         # for the devel release and newer releases in general.
-        # Ignoring apt update errors seems preferrable to playing whack-a-mole
+        # Ignoring apt update errors seems preferable to playing whack-a-mole
         # with ppas that may or may not be available.
         verify_clean_boot(
             minimal_client,

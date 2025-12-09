@@ -1,7 +1,7 @@
-.. _downstream_packaging:
+.. _build_system:
 
-Downstream packaging
-********************
+Build system
+************
 
 This page is intended to support operating system packagers of ``cloud-init``
 and is not intended for other audiences to generate their own custom cloud-init
@@ -40,19 +40,18 @@ Manual build procedure
 ----------------------
 
 Meson install directory locations may be set with
-``meson setup -D<option_name>=<option_value>``.
+``meson setup -D<option_name>=<option_value>``. See :file:`meson_options.txt`
+for available build options.
 
 Steps to validate ``cloud-init`` package builds in a development environment:
 
 .. code-block:: bash
 
-   meson setup builddir
+   meson setup builddir -Dsystemd -Ddownstream_version=X.Y.Z
    meson test -C builddir -v
-   meson install -C builddir --destdir=testinstall
+   meson install -C builddir
    # List installed files
    find builddir/testinstall/
-
-See :ref:`package_testing` for more information package testing.
 
 .. LINKS:
 .. _meson: https://mesonbuild.com/

@@ -147,7 +147,7 @@ class DataSourceAliYun(sources.DataSource):
                 connect_synchronously=False,
             )
         except uhelp.UrlError:
-            # We use the raised exception to interupt the retry loop.
+            # We use the raised exception to interrupt the retry loop.
             # Nothing else to do here.
             pass
 
@@ -216,7 +216,7 @@ class DataSourceAliYun(sources.DataSource):
             except Exception:
                 util.logexc(
                     LOG,
-                    "Faild read json meta-data from %s "
+                    "Failed read json meta-data from %s "
                     "fall back directory tree style",
                     self.metadata_address,
                 )
