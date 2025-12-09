@@ -58,6 +58,13 @@ DISTRO_OVERRIDES = {
         "ca_cert_config": None,
         "ca_cert_update_cmd": ["rehash_ca_certificates.sh"],
     },
+    "amazon": {
+        "ca_cert_path": "/etc/pki/ca-trust/",
+        "ca_cert_local_path": "/usr/share/pki/ca-trust-source/",
+        "ca_cert_filename": "anchors/cloud-init-ca-cert-{cert_index}.crt",
+        "ca_cert_config": None,
+        "ca_cert_update_cmd": ["update-ca-trust"],
+    },
 }
 
 for distro in (
@@ -80,6 +87,7 @@ for distro in (
 
 distros = [
     "almalinux",
+    "amazon",
     "aosc",
     "centos",
     "cloudlinux",
