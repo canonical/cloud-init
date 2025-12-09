@@ -21,6 +21,7 @@ meta: MetaSchema = {
     "id": "cc_yum_add_repo",
     "distros": [
         "almalinux",
+        "amazon",
         "azurelinux",
         "centos",
         "cloudlinux",
