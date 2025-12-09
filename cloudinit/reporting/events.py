@@ -48,7 +48,6 @@ class ReportingEvent:
         description,
         origin=DEFAULT_EVENT_ORIGIN,
         timestamp=None,
-        duration: float = 0.0,
     ):
         self.event_type = event_type
         self.name = name
@@ -57,7 +56,6 @@ class ReportingEvent:
         if timestamp is None:
             timestamp = time.time()
         self.timestamp = timestamp
-        self.duration = duration
 
     def as_string(self):
         """The event represented as a string."""
@@ -73,7 +71,6 @@ class ReportingEvent:
             "event_type": self.event_type,
             "origin": self.origin,
             "timestamp": self.timestamp,
-            "duration": self.duration,
         }
 
 
