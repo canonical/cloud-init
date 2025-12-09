@@ -1,3 +1,9 @@
+cloud-init (25.4~2g78a74880-0ubuntu1) UNRELEASED; urgency=medium
+
+  * Upstream snapshot based on upstream/main at 78a74880.
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 09 Dec 2025 07:38:56 -0700
+
 cloud-init (25.4~1gcb12e00e-0ubuntu2) resolute; urgency=medium
 
   * d/cloud-init-base.config and d/cloud-init-base.postinst:
