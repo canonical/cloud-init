@@ -22,13 +22,7 @@ from cloudinit.sources.helpers import azure
 
 
 class TestKvpEncoding:
-    def test_encode_decode(self, mocker):
-        # Mock _query_vm_id to avoid subp calls during
-        # HyperVKvpReportingHandler init
-        mocker.patch(
-            "cloudinit.reporting.handlers._query_vm_id",
-            return_value="00000000-0000-0000-0000-000000000000",
-        )
+    def test_encode_decode(self):
         kvp = {"key": "key1", "value": "value1"}
         kvp_reporting = HyperVKvpReportingHandler()
         data = kvp_reporting._encode_kvp_item(kvp["key"], kvp["value"])
@@ -45,13 +39,7 @@ class TestKvpReporter:
         return str(file_path)
 
     @pytest.fixture
-    def reporter(self, kvp_file_path, mocker):
-        # Mock _query_vm_id to avoid subp calls during
-        # HyperVKvpReportingHandler init
-        mocker.patch(
-            "cloudinit.reporting.handlers._query_vm_id",
-            return_value="00000000-0000-0000-0000-000000000000",
-        )
+    def reporter(self, kvp_file_path):
         return HyperVKvpReportingHandler(kvp_file_path=kvp_file_path)
 
     def test_events_with_higher_incarnation_not_over_written(
@@ -308,20 +296,8 @@ class TestKvpReporter:
 
         assert len(list(reporter._iterate_kvps(0))[0]["value"]) == 1023
 
-    @pytest.mark.parametrize(
-        "patch_kwargs",
-        (
-            {"side_effect": Exception("Failed to query VM ID")},
-            {"return_value": ""},
-        ),
-    )
-    def test_vm_id_fallback_to_zero_guid(
-        self, kvp_file_path, mocker, patch_kwargs
-    ):
-        """Test zero-guid used when vm_id lookup fails or returns empty."""
-        mocker.patch(
-            "cloudinit.reporting.handlers._query_vm_id", **patch_kwargs
-        )
+    def test_vm_id_defaults_to_zero_guid(self, kvp_file_path):
+        """Test handler defaults to ZERO_GUID for vm_id."""
         reporter = HyperVKvpReportingHandler(kvp_file_path=kvp_file_path)
         assert reporter.vm_id == HyperVKvpReportingHandler.ZERO_GUID
 

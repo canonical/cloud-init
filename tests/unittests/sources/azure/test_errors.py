@@ -26,13 +26,9 @@ def fake_utcnow():
         yield timestamp
 
 
-@pytest.fixture(autouse=True)
-def fake_vm_id(mocker):
-    vm_id = "foo"
-    mocker.patch(
-        "cloudinit.reporting.handlers._query_vm_id", return_value=vm_id
-    )
-    yield vm_id
+@pytest.fixture
+def fake_vm_id():
+    yield "foo"
 
 
 def quote_csv_value(value: str) -> str:

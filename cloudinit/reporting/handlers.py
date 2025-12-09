@@ -14,75 +14,10 @@ from datetime import datetime, timezone
 from threading import Event
 from typing import Union
 
-from cloudinit import dmi, performance, url_helper, util
+from cloudinit import performance, url_helper, util
 from cloudinit.registry import DictRegistry
 
 LOG = logging.getLogger(__name__)
-
-
-def _byte_swap_system_uuid(system_uuid: str) -> str:
-    """Byte swap system uuid.
-
-    Azure always uses little-endian for the first three fields in the uuid.
-    This behavior was made strict in SMBIOS 2.6+, but Linux and dmidecode
-    follow RFC 4122 and assume big-endian for earlier SMBIOS versions.
-
-    Azure's gen1 VMs use SMBIOS 2.3 which requires byte swapping to match
-    compute.vmId presented by IMDS.
-
-    Azure's gen2 VMs use SMBIOS 3.1 which does not require byte swapping.
-
-    :raises ValueError: if UUID is invalid.
-    """
-    try:
-        original_uuid = uuid.UUID(system_uuid)
-    except ValueError:
-        LOG.error("Failed to parse system uuid: %r", system_uuid)
-        raise
-
-    return str(uuid.UUID(bytes=original_uuid.bytes_le))
-
-
-def _is_vm_gen1() -> bool:
-    """Determine if VM is gen1 or gen2.
-
-    Gen2 guests use UEFI while gen1 is legacy BIOS.
-    """
-    # Linux
-    if os.path.exists("/sys/firmware/efi"):
-        return False
-
-    # BSD
-    if os.path.exists("/dev/efi"):
-        return False
-
-    return True
-
-
-def _convert_system_uuid_to_vm_id(system_uuid: str) -> str:
-    """Determine VM ID from system uuid."""
-    if _is_vm_gen1():
-        return _byte_swap_system_uuid(system_uuid)
-
-    return system_uuid
-
-
-def _query_system_uuid() -> str:
-    """Query system uuid in lower-case."""
-    system_uuid = dmi.read_dmi_data("system-uuid")
-    if system_uuid is None:
-        raise RuntimeError("failed to read system-uuid")
-
-    # Kernels older than 4.15 will have upper-case system uuid.
-    system_uuid = system_uuid.lower()
-    LOG.debug("Read product uuid: %s", system_uuid)
-    return system_uuid
-
-
-def _query_vm_id() -> str:
-    """Query VM ID from system."""
-    system_uuid = _query_system_uuid()
-    return _convert_system_uuid_to_vm_id(system_uuid)
 
 
 class ReportException(Exception):
@@ -276,19 +211,7 @@ class HyperVKvpReportingHandler(ReportingHandler):
             self.EVENT_PREFIX, self.incarnation_no
         )
 
-        try:
-            vm_id = _query_vm_id()
-        except Exception as e:
-            LOG.warning("Failed to query VM ID: %s. Using zero-guid.", e)
-            vm_id = self.ZERO_GUID
-        else:
-            if not vm_id:
-                LOG.warning("Query for VM ID returned empty. Using zero-guid.")
-                vm_id = self.ZERO_GUID
-            else:
-                LOG.debug("Successfully queried VM ID: %s", vm_id)
-
-        self.vm_id = vm_id
+        self.vm_id = self.ZERO_GUID
 
         self.publish_thread = threading.Thread(
             target=self._publish_event_routine

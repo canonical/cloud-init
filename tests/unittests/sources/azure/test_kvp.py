@@ -21,19 +21,13 @@ def fake_utcnow():
 def fake_vm_id(mocker):
     vm_id = "foo"
     mocker.patch(
-        "cloudinit.reporting.handlers._query_vm_id", return_value=vm_id
+        "cloudinit.sources.azure.identity.query_vm_id", return_value=vm_id
     )
     yield vm_id
 
 
 @pytest.fixture
-def telemetry_reporter(tmp_path, mocker):
-    # Mock _query_vm_id to avoid subp calls during
-    # HyperVKvpReportingHandler init
-    mocker.patch(
-        "cloudinit.reporting.handlers._query_vm_id",
-        return_value="00000000-0000-0000-0000-000000000000",
-    )
+def telemetry_reporter(tmp_path):
     kvp_file_path = tmp_path / "kvp_pool_file"
     kvp_file_path.write_bytes(b"")
     reporter = kvp.handlers.HyperVKvpReportingHandler(
@@ -46,7 +40,7 @@ def telemetry_reporter(tmp_path, mocker):
 
 
 class TestReportFailureToHost:
-    def test_report_via_kvp(self, caplog, telemetry_reporter):
+    def test_report_via_kvp(self, caplog, fake_vm_id, telemetry_reporter):
         error = errors.ReportableError(reason="test")
         encoded_report = error.as_encoded_report(vm_id="fake-vm-id")
 
@@ -92,7 +86,34 @@ class TestReportSuccessToHost:
 
     def test_report_skipped_without_telemetry(self, caplog, mocker):
         mocker.patch(
-            "cloudinit.reporting.handlers._query_vm_id", return_value="foo"
+            "cloudinit.sources.azure.identity.query_vm_id", return_value="foo"
         )
         assert kvp.report_success_to_host(vm_id="fake") is False
         assert "KVP handler not enabled, skipping host report." in caplog.text
+
+
+class TestGetKvpHandler:
+    def test_injects_vm_id_once(self, telemetry_reporter, fake_vm_id):
+        original_vm_id = telemetry_reporter.vm_id
+
+        handler = kvp.get_kvp_handler()
+        assert handler is telemetry_reporter
+        assert handler.vm_id == fake_vm_id
+
+        with mock.patch(
+            "cloudinit.sources.azure.identity.query_vm_id",
+            side_effect=AssertionError("should not be called twice"),
+        ):
+            handler_again = kvp.get_kvp_handler()
+        assert handler_again.vm_id == fake_vm_id
+
+    def test_handles_vm_id_lookup_failure(self, telemetry_reporter, mocker):
+        original_vm_id = telemetry_reporter.vm_id
+        mocker.patch(
+            "cloudinit.sources.azure.identity.query_vm_id",
+            side_effect=RuntimeError("boom"),
+        )
+
+        handler = kvp.get_kvp_handler()
+        assert handler is telemetry_reporter
+        assert handler.vm_id == original_vm_id
