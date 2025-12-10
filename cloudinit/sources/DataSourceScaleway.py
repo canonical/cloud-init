@@ -342,15 +342,16 @@ class DataSourceScaleway(sources.DataSource):
                     else:
                         ip_cfg["routes"] = [route]
                 else:
+                    address_cidr = ip["address"]
+                    if ip.get("netmask"):
+                        address_cidr += f"/{ip['netmask']}"
+
                     if "addresses" in ip_cfg.keys():
-                        ip_cfg["addresses"] += (
-                            f'{ip["address"]}/{ip["netmask"]}',
-                        )
+                        ip_cfg["addresses"] += (address_cidr,)
                     else:
-                        ip_cfg["addresses"] = (
-                            f'{ip["address"]}/{ip["netmask"]}',
-                        )
-                    if ip["family"] == "inet6":
+                        ip_cfg["addresses"] = (address_cidr,)
+
+                    if ip["family"] == "inet6" and ip.get("gateway"):
                         route = {"via": ip["gateway"], "to": "::/0"}
                         if "routes" in ip_cfg.keys():
                             ip_cfg["routes"] += [route]
@@ -369,23 +370,22 @@ class DataSourceScaleway(sources.DataSource):
             if (
                 isinstance(ipv6, dict)
                 and "address" in ipv6
-                and "netmask" in ipv6
-                and "gateway" in ipv6
             ):
-                subnets += [
-                    {
-                        "type": "static",
-                        "address": ipv6.get("address"),
-                        "netmask": ipv6.get("netmask"),
-                        "routes": [
-                            {
-                                "network": "::",
-                                "prefix": "0",
-                                "gateway": ipv6.get("gateway"),
-                            }
-                        ],
-                    }
-                ]
+                subnet = {
+                    "type": "static",
+                    "address": ipv6.get("address"),
+                }
+                if ipv6.get("netmask"):
+                    subnet["netmask"] = ipv6.get("netmask")
+                if ipv6.get("gateway"):
+                    subnet["routes"] = [
+                        {
+                            "network": "::",
+                            "prefix": "0",
+                            "gateway": ipv6.get("gateway"),
+                        }
+                    ]
+                subnets.append(subnet)
             netcfg["subnets"] = subnets
             self._network_config = {"version": 1, "config": [netcfg]}
         LOG.debug("network_config : %s", self._network_config)

@@ -747,7 +747,7 @@ class TestDataSourceScaleway:
         self, m_get_cmdline, fallback_nic
     ):
         """
-        network_config will ignore IPv6 config if required keys are missing
+        network_config will include IPv6 config even if gateway is missing
         """
         m_get_cmdline.return_value = "scaleway"
         fallback_nic.return_value = "ens2"
@@ -765,7 +765,14 @@ class TestDataSourceScaleway:
                 {
                     "type": "physical",
                     "name": "ens2",
-                    "subnets": [{"type": "dhcp4"}],
+                    "subnets": [
+                        {"type": "dhcp4"},
+                        {
+                            "type": "static",
+                            "address": "2000:abc:4444:9876::42:999",
+                            "netmask": "127",
+                        },
+                    ],
                 }
             ],
         }
@@ -1118,6 +1125,38 @@ class TestDataSourceScaleway:
                         },
                     ],
                     "addresses": ("2001:aaa:aaaa:a:aaaa:aaaa:aaaa:1/64",),
+                },
+            },
+        }
+
+        assert netcfg == resp
+
+    @mock.patch("cloudinit.distros.net.find_fallback_nic")
+    @mock.patch("cloudinit.util.get_cmdline")
+    def test_ipmob_ipv6_missing_netmask_gateway(
+        self, m_get_cmdline, fallback_nic
+    ):
+        """
+        Generate network_config with IPv6 missing netmask and gateway
+        """
+        m_get_cmdline.return_value = "scaleway"
+        fallback_nic.return_value = "ens2"
+        self.datasource.metadata["private_ip"] = None
+        self.datasource.metadata["ipv6"] = None
+        self.datasource.ephemeral_fixed_address = "10.10.10.10"
+        self.datasource.metadata["public_ips"] = [
+            {
+                "address": "2001:aaa:aaaa:a:aaaa:aaaa:aaaa:1",
+                "family": "inet6",
+            },
+        ]
+
+        netcfg = self.datasource.network_config
+        resp = {
+            "version": 2,
+            "ethernets": {
+                fallback_nic.return_value: {
+                    "addresses": ("2001:aaa:aaaa:a:aaaa:aaaa:aaaa:1",),
                 },
             },
         }
