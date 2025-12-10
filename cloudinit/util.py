@@ -584,17 +584,11 @@ def get_linux_distro():
         distro_name = platform.system().lower()
         distro_version = platform.release()
     else:
-        dist = ("", "", "")
-        found = None
-        for entry in dist:
-            if entry:
-                found = 1
-        if not found:
-            LOG.warning(
-                "Unable to determine distribution, template "
-                "expansion may have unexpected results"
-            )
-        return dist
+        LOG.warning(
+            "Unable to determine distribution, template "
+            "expansion may have unexpected results"
+        )
+        return "", "", ""
 
     return (distro_name, distro_version, flavor)
 

@@ -11,4 +11,4 @@ pytest-xdist
 
 packaging
 passlib
-coverage==7.4.4
+coverage
