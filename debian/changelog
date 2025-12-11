@@ -1,11 +1,11 @@
-cloud-init (25.3-0ubuntu1~25.10.1) UNRELEASED; urgency=medium
+cloud-init (25.3-0ubuntu1~25.10.1) questing; urgency=medium
 
   * d/p/deprecation-version-boundary.patch: Pin deprecation version to 25.3
   * Upstream snapshot based on 25.3. (LP: #2131604).
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/25.3/ChangeLog
 
- -- Chad Smith <chad.smith@canonical.com>  Thu, 11 Dec 2025 11:36:23 -0700
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 11 Dec 2025 11:36:31 -0700
 
 cloud-init (25.3~2g890873f5-0ubuntu3) questing; urgency=medium
 
