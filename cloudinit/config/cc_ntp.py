@@ -213,8 +213,8 @@ DISTRO_CLIENT_CONFIG: Dict[str, Dict] = {
         },
     },
     "raspberry-pi-os": {
-        "chrony": {
-            "confpath": "/etc/chrony/chrony.conf",
+        "systemd-timesyncd": {
+            "check_exe": "/usr/lib/systemd/systemd-timesyncd",
         },
     },
     "rhel": {
