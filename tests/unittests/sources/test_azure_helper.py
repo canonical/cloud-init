@@ -519,7 +519,7 @@ class TestOpenSSLManagerActions:
 
     @pytest.mark.allow_all_subp
     @pytest.mark.skipif(
-        not all([shutil.which("openssl"), shutil.which('ssh-keygen')]),
+        not all([shutil.which("openssl"), shutil.which("ssh-keygen")]),
         reason="OpenSSL command-line tools not installed",
     )
     def test_pubkey_extract(self):
@@ -535,7 +535,7 @@ class TestOpenSSLManagerActions:
 
     @pytest.mark.allow_all_subp
     @pytest.mark.skipif(
-        not all([shutil.which("openssl"), shutil.which('ssh-keygen')]),
+        not all([shutil.which("openssl"), shutil.which("ssh-keygen")]),
         reason="OpenSSL command-line tools not installed",
     )
     @mock.patch.object(azure_helper.OpenSSLManager, "_decrypt_certs_from_xml")
