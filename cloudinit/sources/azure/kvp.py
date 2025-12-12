@@ -14,22 +14,19 @@ LOG = logging.getLogger(__name__)
 
 
 def get_kvp_handler() -> Optional[handlers.HyperVKvpReportingHandler]:
-    """Get instantiated KVP telemetry handler and tag it with vm_id."""
+    """Get instantiated KVP telemetry handler and configure vm_id provider."""
     kvp_handler = instantiated_handler_registry.registered_items.get(
         "telemetry"
     )
     if not isinstance(kvp_handler, handlers.HyperVKvpReportingHandler):
         return None
 
-    if not getattr(kvp_handler, "_azure_vm_id_set", False):
-        try:
-            vm_id = identity.query_vm_id()
-        except Exception as e:
-            LOG.warning("Failed to determine vm_id for KVP handler: %s", e)
-        else:
-            if vm_id:
-                kvp_handler.vm_id = vm_id
-        setattr(kvp_handler, "_azure_vm_id_set", True)
+    if not getattr(kvp_handler, "_azure_vm_id_provider_set", False):
+        # Set a provider that lazily resolves vm_id when events are encoded.
+        # This ensures vm_id is available for events queued before
+        # this function is called.
+        kvp_handler.set_vm_id_provider(identity.query_vm_id)
+        setattr(kvp_handler, "_azure_vm_id_provider_set", True)
 
     return kvp_handler
 

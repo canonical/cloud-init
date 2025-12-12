@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from threading import Event
 from typing import Union
 
-from cloudinit import performance, url_helper, util
+from cloudinit import dmi, performance, url_helper, util
 from cloudinit.registry import DictRegistry
 
 LOG = logging.getLogger(__name__)
@@ -211,7 +211,8 @@ class HyperVKvpReportingHandler(ReportingHandler):
             self.EVENT_PREFIX, self.incarnation_no
         )
 
-        self.vm_id = self.ZERO_GUID
+        self._vm_id = self.ZERO_GUID
+        self._vm_id_provider = None
 
         self.publish_thread = threading.Thread(
             target=self._publish_event_routine
@@ -255,6 +256,48 @@ class HyperVKvpReportingHandler(ReportingHandler):
         except ValueError:
             LOG.warning("uptime '%s' not in correct format.", uptime_str)
             return 0
+
+    @property
+    def vm_id(self):
+        """Get vm_id, lazily resolving when still ZERO_GUID.
+
+        Resolution order:
+        1. If a provider is configured (e.g. Azure installs one), call it.
+        2. Otherwise, best-effort fallback to DMI system-uuid to avoid
+           emitting an always-zero GUID in event keys.
+        """
+        if self._vm_id == self.ZERO_GUID:
+            if self._vm_id_provider is not None:
+                try:
+                    resolved_id = self._vm_id_provider()
+                    if resolved_id:
+                        self._vm_id = resolved_id
+                except Exception as e:
+                    LOG.warning("Failed to resolve vm_id via provider: %s", e)
+            else:
+                if self._kvp_file_path == self.KVP_POOL_FILE_GUEST:
+                    try:
+                        system_uuid = dmi.read_dmi_data("system-uuid")
+                    except Exception as e:
+                        LOG.debug(
+                            "Failed reading system-uuid for vm_id: %s", e
+                        )
+                    else:
+                        if system_uuid:
+                            self._vm_id = system_uuid.lower()
+        return self._vm_id
+
+    @vm_id.setter
+    def vm_id(self, value):
+        """Set vm_id directly."""
+        self._vm_id = value
+
+    def set_vm_id_provider(self, provider):
+        """Set a callable that returns the vm_id when called.
+        This allows the vm_id to be resolved at the time
+        events are encoded rather than at handler creation.
+        """
+        self._vm_id_provider = provider
 
     def _iterate_kvps(self, offset):
         """iterate the kvp file from the current offset."""

@@ -28,7 +28,7 @@ def fake_utcnow():
 
 @pytest.fixture
 def fake_vm_id():
-    yield "foo"
+    yield "00000000-0000-0000-0000-000000000000"
 
 
 def quote_csv_value(value: str) -> str:

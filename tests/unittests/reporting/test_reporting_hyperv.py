@@ -301,6 +301,33 @@ class TestKvpReporter:
         reporter = HyperVKvpReportingHandler(kvp_file_path=kvp_file_path)
         assert reporter.vm_id == HyperVKvpReportingHandler.ZERO_GUID
 
+    def test_vm_id_fallback_reads_system_uuid_on_default_pool_path(
+        self, kvp_file_path
+    ):
+        """When no provider is set, handler may fall back to DMI system-uuid."""
+        with mock.patch.object(
+            HyperVKvpReportingHandler, "KVP_POOL_FILE_GUEST", kvp_file_path
+        ), mock.patch(
+            "cloudinit.reporting.handlers.dmi.read_dmi_data",
+            return_value="AABBCCDD-EEFF-0011-2233-445566778899",
+        ) as m_read_dmi:
+            reporter = HyperVKvpReportingHandler(kvp_file_path=kvp_file_path)
+            assert reporter.vm_id == "aabbccdd-eeff-0011-2233-445566778899"
+            m_read_dmi.assert_called_once_with("system-uuid")
+
+    def test_vm_id_fallback_keeps_zero_guid_when_system_uuid_missing(
+        self, kvp_file_path
+    ):
+        """If DMI system-uuid isn't available, vm_id remains ZERO_GUID."""
+        with mock.patch.object(
+            HyperVKvpReportingHandler, "KVP_POOL_FILE_GUEST", kvp_file_path
+        ), mock.patch(
+            "cloudinit.reporting.handlers.dmi.read_dmi_data", return_value=None
+        ) as m_read_dmi:
+            reporter = HyperVKvpReportingHandler(kvp_file_path=kvp_file_path)
+            assert reporter.vm_id == HyperVKvpReportingHandler.ZERO_GUID
+            m_read_dmi.assert_called_once_with("system-uuid")
+
     def test_event_key_format(self, reporter):
         """Event key must end with vm_id followed by a uuid."""
         evt = events.ReportingEvent("type", "name", "description")
