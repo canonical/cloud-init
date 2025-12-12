@@ -1,6 +1,7 @@
 cloud-init (25.3-0ubuntu1~25.04.1) plucky; urgency=medium
 
-  * d/p/retain-setuptools.patch: avoid upstream switch to meson build backend.
+  * d/p/retain-setuptools.patch: Avoid upstream switch to meson build backend.
+  * d/p/deprecation-version-boundary.patch: Pin deprecation version to 25.1
   * Upstream snapshot based on 25.3. (LP: #2131604).
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/25.3/ChangeLog
