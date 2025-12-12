@@ -1,5 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 
