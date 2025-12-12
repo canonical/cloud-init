@@ -202,7 +202,8 @@ class DataSourceLXD(sources.DataSource):
             LOG.warning("%s is not a socket", LXD_SOCKET_PATH)
 
         # On LXD KVM instances /dev/lxd/sock may not be available yet.
-        # Check for LXD virtio serial device presence in virtio-ports.
+        # Check for LXD virtio serial device presence in virtio-ports which
+        # is supported on platforms without DMI data exposed.
         virtio_ports_path = "/sys/class/virtio-ports"
         if os.path.isdir(virtio_ports_path):
             try:
@@ -215,8 +216,8 @@ class DataSourceLXD(sources.DataSource):
                             "org.linuxcontainers.lxd",
                         ):
                             return True
-            except (OSError, IOError) as e:
-                LOG.warning("Cannot check virtio-ports: %s", e)
+            except OSError as e:
+                LOG.warning("Cannot check virtual serial device: %s", e)
 
         return False
 
