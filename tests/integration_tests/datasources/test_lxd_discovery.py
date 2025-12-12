@@ -11,6 +11,7 @@ from tests.integration_tests.util import (
     lxd_has_nocloud,
     verify_clean_boot,
     verify_clean_log,
+    wait_for_cloud_init,
 )
 
 
