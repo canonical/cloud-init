@@ -6,7 +6,7 @@ import yaml
 from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
-from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU
+from tests.integration_tests.releases import CURRENT_RELEASE
 from tests.integration_tests.util import (
     lxd_has_nocloud,
     verify_clean_boot,
