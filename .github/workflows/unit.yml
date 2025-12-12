@@ -14,14 +14,14 @@ jobs:
   unittests:
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
         toxenv: [py3]
         slug: [""]
         experimental: [false]
         check-latest: [false]
         continue-on-error: [false]
         include:
-          - python-version: "3.8"
+          - python-version: "3.9"
             toxenv: lowest-supported
             slug: (lowest-supported)
             continue-on-error: false
