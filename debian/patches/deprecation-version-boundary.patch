@@ -1,0 +1,20 @@
+Description: add deprecation boundary version
+This version makes any deprecations added after this version
+to be considered "new" deprecations and therefore get logged
+at an INFO log level and not cause exit 2.
+
+Author: Chad Smith <chad.smith@canonical.com>
+Last-Update: 2025-12-12
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/cloudinit/features.py
++++ b/cloudinit/features.py
+@@ -108,7 +108,7 @@ previously generated network configurati
+ (This flag can be removed when Noble is no longer supported.)
+ """
+ 
+-DEPRECATION_INFO_BOUNDARY = "devel"
++DEPRECATION_INFO_BOUNDARY = "25.1"
+ """
+ DEPRECATION_INFO_BOUNDARY is used by distros to configure at which upstream
+ version to start logging deprecations at a level higher than INFO.
