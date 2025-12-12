@@ -23,35 +23,49 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import TestCase, skipUnlessJsonSchema
+from tests.unittests.helpers import skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
 
-class TestLoadConfig(TestCase):
-    def setUp(self):
-        super(TestLoadConfig, self).setUp()
-        self.basecfg = {
-            "config_filename": "20-cloud-config.conf",
-            "config_dir": "/etc/rsyslog.d",
-            "service_reload_command": "auto",
-            "configs": [],
-            "remotes": {},
-            "check_exe": "rsyslogd",
-            "packages": ["rsyslog"],
-            "install_rsyslog": False,
-        }
-        self.bsdcfg = {
-            "config_filename": "20-cloud-config.conf",
-            "config_dir": "/usr/local/etc/rsyslog.d",
-            "service_reload_command": "auto",
-            "configs": [],
-            "remotes": {},
-            "check_exe": "rsyslogd",
-            "packages": ["rsyslog"],
-            "install_rsyslog": False,
-        }
+@pytest.fixture
+def basecfg():
+    return {
+        "config_filename": "20-cloud-config.conf",
+        "config_dir": "/etc/rsyslog.d",
+        "service_reload_command": "auto",
+        "configs": [],
+        "remotes": {},
+        "check_exe": "rsyslogd",
+        "packages": ["rsyslog"],
+        "install_rsyslog": False,
 
-    def test_legacy_full(self, distro=None):
+    }
+
+
+@pytest.fixture
+def bsdcfg():
+    return {
+        "config_filename": "20-cloud-config.conf",
+        "config_dir": "/usr/local/etc/rsyslog.d",
+        "service_reload_command": "auto",
+        "configs": [],
+        "remotes": {},
+        "check_exe": "rsyslogd",
+        "packages": ["rsyslog"],
+        "install_rsyslog": False,
+    }
+
+
+@pytest.fixture
+def temp_dir():
+    tmp = tempfile.mkdtemp()
+    yield tmp
+    shutil.rmtree(tmp)
+
+
+
+class TestLoadConfig:
+    def test_legacy_full(self, basecfg):
         cloud = get_cloud(distro="ubuntu", metadata={})
         found = load_config(
             {
@@ -61,7 +75,7 @@ class TestLoadConfig(TestCase):
             },
             distro=cloud.distro,
         )
-        self.basecfg.update(
+        basecfg.update(
             {
                 "configs": ["*.* @192.168.1.1"],
                 "config_dir": "mydir",
@@ -70,73 +84,70 @@ class TestLoadConfig(TestCase):
             }
         )
 
-        self.assertEqual(found, self.basecfg)
+        assert found == basecfg
 
-    def test_legacy_defaults(self):
+    def test_legacy_defaults(self, basecfg):
         cloud = get_cloud(distro="ubuntu", metadata={})
         found = load_config(
             {"rsyslog": ["*.* @192.168.1.1"]}, distro=cloud.distro
         )
-        self.basecfg.update({"configs": ["*.* @192.168.1.1"]})
-        self.assertEqual(found, self.basecfg)
+        basecfg.update({"configs": ["*.* @192.168.1.1"]})
+        assert found == basecfg
 
-    def test_new_defaults(self):
+    def test_new_defaults(self, basecfg):
         cloud = get_cloud(distro="ubuntu", metadata={})
-        self.assertEqual(load_config({}, distro=cloud.distro), self.basecfg)
+        assert load_config({}, distro=cloud.distro) == basecfg
 
-    def test_new_bsd_defaults(self):
+    def test_new_bsd_defaults(self, bsdcfg):
         # patch for ifconfig -a
         with mock.patch(
             "cloudinit.distros.networking.subp.subp", return_values=("", None)
         ):
             cloud = get_cloud(distro="freebsd", metadata={})
-        self.assertEqual(load_config({}, distro=cloud.distro), self.bsdcfg)
+        assert load_config({}, distro=cloud.distro) == bsdcfg
 
-    def test_new_configs(self):
+    def test_new_configs(self, basecfg):
         cfgs = ["*.* myhost", "*.* my2host"]
         cloud = get_cloud(distro="ubuntu", metadata={})
-        self.basecfg.update({"configs": cfgs})
-        self.assertEqual(
-            load_config({"rsyslog": {"configs": cfgs}}, distro=cloud.distro),
-            self.basecfg,
+        basecfg.update({"configs": cfgs})
+        assert(
+            load_config({"rsyslog": {"configs": cfgs}}, distro=cloud.distro)
+            == basecfg
         )
 
 
-class TestApplyChanges(TestCase):
-    def setUp(self):
-        self.tmp = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, self.tmp)
+class TestApplyChanges:
 
-    def test_simple(self):
+    def test_simple(self, temp_dir):
         cfgline = "*.* foohost"
         changed = apply_rsyslog_changes(
-            configs=[cfgline], def_fname="foo.cfg", cfg_dir=self.tmp
+            configs=[cfgline], def_fname="foo.cfg", cfg_dir=temp_dir
         )
 
-        fname = os.path.join(self.tmp, "foo.cfg")
-        self.assertEqual([fname], changed)
-        self.assertEqual(util.load_text_file(fname), cfgline + "\n")
+        fname = os.path.join(temp_dir, "foo.cfg")
+        assert changed == [fname]
+        assert util.load_text_file(fname) == cfgline + "\n"
 
-    def test_multiple_files(self):
+    def test_multiple_files(self, temp_dir):
         configs = [
             "*.* foohost",
             {"content": "abc", "filename": "my.cfg"},
             {
                 "content": "filefoo-content",
-                "filename": os.path.join(self.tmp, "mydir/mycfg"),
+                "filename": os.path.join(temp_dir, "mydir/mycfg"),
             },
         ]
 
         changed = apply_rsyslog_changes(
-            configs=configs, def_fname="default.cfg", cfg_dir=self.tmp
+            configs=configs, def_fname="default.cfg", cfg_dir=temp_dir
         )
 
         expected = [
-            (os.path.join(self.tmp, "default.cfg"), "*.* foohost\n"),
-            (os.path.join(self.tmp, "my.cfg"), "abc\n"),
-            (os.path.join(self.tmp, "mydir/mycfg"), "filefoo-content\n"),
+            (os.path.join(temp_dir, "default.cfg"), "*.* foohost\n"),
+            (os.path.join(temp_dir, "my.cfg"), "abc\n"),
+            (os.path.join(temp_dir, "mydir/mycfg"), "filefoo-content\n"),
         ]
-        self.assertEqual([f[0] for f in expected], changed)
+        assert [f[0] for f in expected] == changed
         actual = []
         for fname, _content in expected:
             util.load_text_file(fname)
@@ -146,72 +157,72 @@ class TestApplyChanges(TestCase):
                     util.load_text_file(fname),
                 )
             )
-        self.assertEqual(expected, actual)
+        assert expected == actual
 
-    def test_repeat_def(self):
+    def test_repeat_def(self, temp_dir):
         configs = ["*.* foohost", "*.warn otherhost"]
 
         changed = apply_rsyslog_changes(
-            configs=configs, def_fname="default.cfg", cfg_dir=self.tmp
+            configs=configs, def_fname="default.cfg", cfg_dir=temp_dir
         )
 
-        fname = os.path.join(self.tmp, "default.cfg")
-        self.assertEqual([fname], changed)
+        fname = os.path.join(temp_dir, "default.cfg")
+        assert changed == [fname]
 
         expected_content = "\n".join([c for c in configs]) + "\n"
         found_content = util.load_text_file(fname)
-        self.assertEqual(expected_content, found_content)
+        assert expected_content == found_content
 
-    def test_multiline_content(self):
+    def test_multiline_content(self, temp_dir):
         configs = ["line1", "line2\nline3\n"]
 
         apply_rsyslog_changes(
-            configs=configs, def_fname="default.cfg", cfg_dir=self.tmp
+            configs=configs, def_fname="default.cfg", cfg_dir=temp_dir
         )
 
-        fname = os.path.join(self.tmp, "default.cfg")
+        fname = os.path.join(temp_dir, "default.cfg")
         expected_content = "\n".join([c for c in configs])
         found_content = util.load_text_file(fname)
-        self.assertEqual(expected_content, found_content)
+        assert expected_content == found_content
 
 
-class TestParseRemotesLine(TestCase):
+class TestParseRemotesLine:
     def test_valid_port(self):
         r = parse_remotes_line("foo:9")
-        self.assertEqual(9, r.port)
+        assert r.port == 9
 
     def test_invalid_port(self):
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             parse_remotes_line("*.* foo:abc")
 
     def test_valid_ipv6(self):
         r = parse_remotes_line("*.* [::1]")
-        self.assertEqual("*.* @[::1]", str(r))
+        assert str(r) == "*.* @[::1]"
 
     def test_valid_ipv6_with_port(self):
         r = parse_remotes_line("*.* [::1]:100")
-        self.assertEqual(r.port, 100)
-        self.assertEqual(r.addr, "::1")
-        self.assertEqual("*.* @[::1]:100", str(r))
+        assert r.port == 100
+        assert r.addr == "::1"
+        assert str(r) == "*.* @[::1]:100"
 
     def test_invalid_multiple_colon(self):
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             parse_remotes_line("*.* ::1:100")
 
     def test_name_in_string(self):
         r = parse_remotes_line("syslog.host", name="foobar")
-        self.assertEqual("*.* @syslog.host # foobar", str(r))
+        assert str(r) == "*.* @syslog.host # foobar"
 
 
-class TestRemotesToSyslog(TestCase):
+class TestRemotesToSyslog:
     def test_simple(self):
         # str rendered line must appear in remotes_to_ryslog_cfg return
         mycfg = "*.* myhost"
         myline = str(parse_remotes_line(mycfg, name="myname"))
         r = remotes_to_rsyslog_cfg({"myname": mycfg})
         lines = r.splitlines()
-        self.assertEqual(1, len(lines))
-        self.assertTrue(myline in r.splitlines())
+        assert len(lines) == 1
+        assert myline in lines
 
     def test_header_footer(self):
         header = "#foo head"
@@ -220,8 +231,8 @@ class TestRemotesToSyslog(TestCase):
             {"myname": "*.* myhost"}, header=header, footer=footer
         )
         lines = r.splitlines()
-        self.assertTrue(header, lines[0])
-        self.assertTrue(footer, lines[-1])
+        assert lines[0] == header
+        assert lines[-1] == footer
 
     def test_with_empty_or_null(self):
         mycfg = "*.* myhost"
@@ -230,8 +241,8 @@ class TestRemotesToSyslog(TestCase):
             {"myname": mycfg, "removed": None, "removed2": ""}
         )
         lines = r.splitlines()
-        self.assertEqual(1, len(lines))
-        self.assertTrue(myline in r.splitlines())
+        assert len(lines) == 1
+        assert myline in lines
 
 
 class TestRsyslogSchema:
@@ -323,7 +334,7 @@ class TestInvalidKeyType:
                 callable_()
 
 
-class TestInstallRsyslog(TestCase):
+class TestInstallRsyslog:
     @mock.patch("cloudinit.config.cc_rsyslog.subp.which")
     def test_install_rsyslog_on_freebsd(self, m_which):
         config = {
