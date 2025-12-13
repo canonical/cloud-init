@@ -7,7 +7,6 @@ import os
 import re
 import shutil
 import stat
-import unittest
 from contextlib import ExitStack
 from itertools import chain
 from unittest import mock
@@ -24,7 +23,6 @@ from cloudinit.config.schema import (
 from cloudinit.distros.bsd import BSD
 from cloudinit.subp import SubpResult
 from tests.unittests.helpers import (
-    TestCase,
     does_not_raise,
     skipUnlessJsonSchema,
 )
@@ -101,29 +99,51 @@ class Scanner:
         pass
 
 
-class TestDisabled(unittest.TestCase):
+@pytest.fixture
+def disabled_context():
+    return {
+        "name": "growpart",
+        "cloud": None,
+        "args": [],
+        "handle": cc_growpart.handle,
+    }
+
+
+def test_mode_off(disabled_context):
+    # Test that nothing is done if mode is off.
+
+    # this really only verifies that resizer_factory isn't called
+    config = {"growpart": {"mode": "off"}}
+
+    with mock.patch.object(cc_growpart, "resizer_factory") as mockobj:
+        disabled_context["handle"](
+            disabled_context["name"],
+            config,
+            disabled_context["cloud"],
+            disabled_context["args"],
+        )
+        assert mockobj.call_count == 0
+
+
+@pytest.fixture
+def config_context(tmp_path):
+    name = "growpart"
+    distro = mock.Mock()
+    cloud_obj = cloud.Cloud(None, None, None, distro, None)
+    tmpfile = tmp_path / "cloudinit-test-file"
+    tmpfile.write_text("")
+
+    yield {
+        "name": name,
+        "distro": distro,
+        "cloud": cloud_obj,
+        "args": [],
+        "tmpfile": tmpfile,
+    }
+
+class TestConfig:
+    @pytest.fixture(autouse=True)
     def setUp(self):
-        super(TestDisabled, self).setUp()
-        self.name = "growpart"
-        self.cloud = None
-        self.args = []
-
-        self.handle = cc_growpart.handle
-
-    def test_mode_off(self):
-        # Test that nothing is done if mode is off.
-
-        # this really only verifies that resizer_factory isn't called
-        config = {"growpart": {"mode": "off"}}
-
-        with mock.patch.object(cc_growpart, "resizer_factory") as mockobj:
-            self.handle(self.name, config, self.cloud, self.args)
-            self.assertEqual(mockobj.call_count, 0)
-
-
-class TestConfig(TestCase):
-    def setUp(self):
-        super(TestConfig, self).setUp()
         self.name = "growpart"
         self.paths = None
         self.distro = mock.Mock()
@@ -136,10 +156,9 @@ class TestConfig(TestCase):
         self.tmpdir = os.scandir("/tmp")
         self.tmpfile = open(self.tmppath, "w")
 
-    def tearDown(self):
+        yield
         self.tmpfile.close()
         os.remove(self.tmppath)
-        super().tearDown()
 
     @mock.patch.object(os.path, "isfile", return_value=False)
     def test_no_resizers_auto_is_fine(self, m_isfile):
@@ -165,14 +184,8 @@ class TestConfig(TestCase):
             subp, "subp", return_value=SubpResult(HELP_GROWPART_NO_RESIZE, "")
         ) as mockobj:
             config = {"growpart": {"mode": "growpart"}}
-            self.assertRaises(
-                ValueError,
-                self.handle,
-                self.name,
-                config,
-                self.cloud,
-                self.args,
-            )
+            with pytest.raises(ValueError):
+                self.handle(self.name, config, self.cloud, self.args)
 
             mockobj.assert_called_once_with(
                 ["growpart", "--help"], update_env={"LANG": "C"}
@@ -185,7 +198,7 @@ class TestConfig(TestCase):
             ret = cc_growpart.resizer_factory(
                 mode="auto", distro=mock.Mock(), devices=["/"]
             )
-            self.assertIsInstance(ret, cc_growpart.ResizeGrowPart)
+            assert isinstance(ret, cc_growpart.ResizeGrowPart)
 
             mockobj.assert_called_once_with(
                 ["growpart", "--help"], update_env={"LANG": "C"}
@@ -211,7 +224,7 @@ class TestConfig(TestCase):
             ret = cc_growpart.resizer_factory(
                 mode="auto", distro=mock.Mock(), devices=["/"]
             )
-            self.assertIsInstance(ret, cc_growpart.ResizeGrowPart)
+            assert isinstance(ret, cc_growpart.ResizeGrowPart)
             diskdev = "/dev/sdb"
             partnum = 1
             partdev = "/dev/sdb"
@@ -237,7 +250,7 @@ class TestConfig(TestCase):
             ret = cc_growpart.resizer_factory(
                 mode="auto", distro=mock.Mock(), devices=["/"]
             )
-            self.assertIsInstance(ret, cc_growpart.ResizeGrowFS)
+            assert isinstance(ret, cc_growpart.ResizeGrowFS)
 
             mockobj.assert_has_calls(
                 [
@@ -254,7 +267,7 @@ class TestConfig(TestCase):
             ret = cc_growpart.resizer_factory(
                 mode="auto", distro=mock.Mock(), devices=["/", "/opt"]
             )
-            self.assertIsInstance(ret, cc_growpart.ResizeGpart)
+            assert isinstance(ret, cc_growpart.ResizeGpart)
 
             mockobj.assert_has_calls(
                 [
@@ -275,7 +288,7 @@ class TestConfig(TestCase):
             ret = cc_growpart.resizer_factory(
                 mode="auto", distro=mock.Mock(), devices=["/"]
             )
-            self.assertIsInstance(ret, cc_growpart.ResizeGrowFS)
+            assert isinstance(ret, cc_growpart.ResizeGrowFS)
 
             mockobj.assert_has_calls(
                 [
@@ -322,12 +335,13 @@ class TestConfig(TestCase):
             rsdevs.assert_called_once_with(myresizer, ["/"], self.distro)
 
 
-class TestResize(unittest.TestCase):
+class TestResize:
+    @pytest.fixture(autouse=True)
     def setUp(self):
-        super().setUp()
         self.name = "growpart"
         self.distro = MockDistro()
         self.log = logging.getLogger("TestResize")
+        yield
 
     def test_simple_devices(self):
         # test simple device list
@@ -381,13 +395,13 @@ class TestResize(unittest.TestCase):
                         return f
                 return None
 
-            self.assertEqual(
+            assert (
                 cc_growpart.RESIZE.NOCHANGE, find("/dev/XXda1", resized)[1]
             )
-            self.assertEqual(
+            assert (
                 cc_growpart.RESIZE.CHANGED, find("/dev/YYda2", resized)[1]
             )
-            self.assertEqual(
+            assert (
                 cc_growpart.RESIZE.SKIPPED, find(enoent[0], resized)[1]
             )
         finally:
@@ -429,6 +443,9 @@ class TestResizeZFS:
             "cloudinit.distros.networking.subp.subp", return_value=("", None)
         )
         self.distro = cls("freebsd", {}, None)
+        # The fixture must yield to guarantee fixture lifcycle semantics,
+        # and to ensure pytest reliably executes the fixture before each test.
+        yield
 
     @pytest.mark.parametrize(
         "dev, expected",
@@ -538,7 +555,11 @@ class TestEncrypted:
     def common_mocks(self, mocker):
         # These are all "happy path" mocks which will get overridden
         # when needed
-        self.distro = MockDistro
+
+        # Instantiated MockDistro, otherwise we would be assigning 
+        # the class not an instance when we pass self.distro 
+        # into resize_devices, which expects a distro instance
+        self.distro = MockDistro()
         original_device_part_info = self.distro.device_part_info
         self.distro.device_part_info = self._device_part_info_side_effect
         mocker.patch("os.stat")
@@ -726,9 +747,13 @@ class TestEncrypted:
 
 def simple_device_part_info(devpath):
     # simple stupid return (/dev/vda, 1) for /dev/vda
-    ret = re.search("([^0-9]*)([0-9]*)$", devpath)
-    x = (ret.group(1), ret.group(2))
-    return x
+    match = re.search("([^0-9]*)([0-9]*)$", devpath)
+
+    # just some validation to check if the regex doesn't match.
+    # prevents AttributeError from None.group()
+    if not match:
+        raise ValueError(f"Invalid device path: {devpath}")
+    return match.group(1), match.group(2)
 
 
 class Bunch:
@@ -753,7 +778,7 @@ class TestDevicePartInfo:
                 id="bsd_mbr_slice_and_partition",
             ),
             pytest.param(
-                "zroot/ROOТ/default",
+                "zroot/ROOT/default",
                 (),
                 pytest.raises(ValueError),
                 id="zfs_dataset",
