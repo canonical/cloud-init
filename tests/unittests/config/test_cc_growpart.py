@@ -125,21 +125,6 @@ def test_mode_off(disabled_context):
         assert mockobj.call_count == 0
 
 
-@pytest.fixture
-def config_context(tmp_path):
-    name = "growpart"
-    distro = mock.Mock()
-    cloud_obj = cloud.Cloud(None, None, None, distro, None)
-    tmpfile = tmp_path / "cloudinit-test-file"
-    tmpfile.write_text("")
-
-    yield {
-        "name": name,
-        "distro": distro,
-        "cloud": cloud_obj,
-        "args": [],
-        "tmpfile": tmpfile,
-    }
 
 class TestConfig:
     @pytest.fixture(autouse=True)
