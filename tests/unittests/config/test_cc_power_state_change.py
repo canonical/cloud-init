@@ -117,7 +117,7 @@ class TestLoadPowerState:
             assert ret[0][2] == str(value)
 
 
-class TestCheckCondition(t_help.TestCase):
+class TestCheckCondition:
     def cmd_with_exit(self, rc):
         return [sys.executable, "-c", "import sys; sys.exit(%s)" % rc]
 
