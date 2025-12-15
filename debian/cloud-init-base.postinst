@@ -52,6 +52,9 @@ with open(fname, "w") as fp:
     fp.write(yaml.dump(cfg))' "$@"
 }
 
+# MAAS 3.6 no longer provides debconf settings, but instead uses curtin to
+# write /etc/cloud/cloud.cfg,d/95-cloudconfig-* files directly. When 3.6 is out
+# of support, cloud-init-base can drop support for handling any debconf values.
 handle_preseed_maas() {
    local cfg_file="/etc/cloud/cloud.cfg.d/90_dpkg_maas.cfg"
    local md_url="" creds_all="" c_key="" t_key="" t_sec="";
@@ -128,164 +131,10 @@ handle_preseed_local_cloud_config() {
    fi
 }
 
-fix_1336855() {
-  ### Begin fix for LP: 1336855
-  # fix issue where cloud-init misidentifies the location of grub and
-  # where grub misidentifies the location of the device
-
-  # if cloud-init's grub module did not run, then it did not break anything.
-  [ -f /var/lib/cloud/instance/sem/config_grub_dpkg ] || return 0
-
-  # This bug only happened on /dev/xvda devices
-  [ -b /dev/xvda ] || return 0
-
-  # we can't fix the system without /proc/cmdline
-  [ -r /proc/cmdline ] || return 0
-
-  # Don't do anything unless we have grub
-  command -v grub-install > /dev/null || return 0
-
-  # First, identify the kernel device for the parent.
-  # shellcheck disable=SC2013
-  for parm in $(cat /proc/cmdline); do
-       dev=$(echo "$parm" | awk -F= '{print$NF}')
-       case $parm in
-           root=UUID*)  [ -d /dev/disk/by-uuid ] &&
-                            root_dev=$(readlink -f "/dev/disk/by-uuid/${dev}");;
-           root=LABEL*) [ -d /dev/disk/by-label ] &&
-                            root_dev=$(readlink -f "/dev/disk/by-label/${dev}");;
-           root=/dev*)  [ -d /dev ] &&
-                            root_dev=$(readlink -f "${dev}");;
-       esac
-       [ -n "$root_dev" ] && break
-  done
-
-  # Don't continue if we don't have a root directive
-  [ -z "$root_dev" ] && return 0
-
-  # Only deal with simple, cloud-based devices
-  case $root_dev in
-       /dev/vda*|/dev/xvda*|/dev/sda*) ;;
-       *) return 0;;
-  esac
-
-  # Make sure that we are not chrooted.
-  [ "$(stat -c %d:%i /)" != "$(stat -c %d:%i /proc/1/root/.)" ] && return 0
-
-  # Check if we are in a container, i.e. LXC
-  if systemd-detect-virt --quiet --container || lxc-is-container 2>/dev/null; then
-      return 0
-  fi
-
-  # Find out where grub thinks the root device is. Only continue if
-  # grub postinst would install/reinstall grub
-  db_get grub-pc/install_devices && grub_cfg_dev=${RET} || return 0
-  db_get grub-pc/install_devices_empty || return 0
-
-  # Find out the parent device for the root device.
-  #     example output: sda/sda1
-  block_path=$(udevadm info -q path -n "$root_dev" | awk '-Fblock/' '{print$NF}') || return 0
-
-  # Extract the parent device name. This works where the device is a block device
-  #     example output: /dev/sda
-  parent_dev=$(echo "$block_path" | awk '-F/' '$1 { if ( $1 ) {print"/dev/"$1}}')
-  [ -b "${parent_dev}" ] || return 0
-
-  # Do nothing if the device that the grub postinst would install is already used
-  [ "$grub_cfg_dev" = "$parent_dev" ] || [ "$grub_cfg_dev" = "$root_dev" ] && return 0
-
-  # If we get here, do the installation
-  echo "Reconfiguring grub install device due to mismatch (LP: #1336855)"
-  echo "   Grub should use $parent_dev but is configured for $grub_cfg_dev"
-  db_set grub-pc/install_devices "$parent_dev"
-  grub-install "$parent_dev" &&
-     echo "Reinstalled grub" ||
-     echo "WARNING! Unable to fix grub device mismatch. You may be broken."
-
-}
-
-fix_lp1889555() {
-    local oldver="$1" last_bad_ver="20.3-2-g371b392c-0ubuntu1"
-    dpkg --compare-versions "$oldver" le-nl "$last_bad_ver" || return 0
-
-    # if cloud-init's grub module did not run, then it did not break anything.
-    [ -f /var/lib/cloud/instance/sem/config_grub_dpkg ] || return 0
-
-    # Don't do anything unless we have grub
-    command -v grub-install > /dev/null || return 0
-
-    # Make sure that we are not chrooted.
-    [ "$(stat -c %d:%i /)" != "$(stat -c %d:%i /proc/1/root/.)" ] && return 0
-
-    # Check if we are in a container, i.e. LXC
-    if systemd-detect-virt --quiet --container || lxc-is-container 2>/dev/null; then
-        return 0
-    fi
-
-    # This bug only applies to NVMe devices
-    [ -e /dev/nvme0 ] || return 0
-
-    db_get grub-pc/install_devices && grub_cfg_dev=${RET} || return 0
-
-    # If the current setting is not the (potentially-incorrect) default we
-    # expect, this implies user intervention so leave things alone
-    [ "$grub_cfg_dev" = "/dev/sda" ] || return 0
-
-    correct_idev="$(python3 -c "import logging; from cloudinit.config.cc_grub_dpkg import fetch_idevs; print(fetch_idevs(logging.getLogger()))")" || return 0
-
-    # If correct_idev is the empty string, we failed to determine the correct
-    # install device; do nothing
-    [ -z "$correct_idev" ] && return 0
-
-    # If the correct_idev is already configured, do nothing
-    [ "$grub_cfg_dev" = "$correct_idev" ] && return 0
-
-    echo "Reconfiguring grub install device due to mismatch (LP: #1889555)"
-    echo "   grub should use $correct_idev but is configured for $grub_cfg_dev"
-    db_set grub-pc/install_devices "$correct_idev"
-    db_set grub-pc/install_devices_empty "false"
-}
-
-rename_hook_hotplug_udev_rule() {
-    # Avoids LP: #1946003 see commit: b519d861aff8b44a0610c176cb34adcbe28df144
-    if [ -f /etc/udev/rules.d/10-cloud-init-hook-hotplug.rules ]; then
-        mv -f /etc/udev/rules.d/10-cloud-init-hook-hotplug.rules \
-            /etc/udev/rules.d/90-cloud-init-hook-hotplug.rules
-    fi
-}
-
-move_socket_fifo_to_share_dir() {
-   # This change arrived in cloud-init 25.1.3
-   local old_fifo_dir="/run/cloud-init/"
-   local new_fifo_dir="/run/cloud-init/share/"
-
-    # Move the socket fifo to /run/cloud-init/share
-    # The old location was /run/cloud-init/hook-hotplug-cmd
-    if [ -p "${old_fifo_dir}hook-hotplug-cmd" ]; then
-        # Ensure the share directory exists
-        mkdir -p "${new_fifo_dir}"
-        chmod 700 "${new_fifo_dir}"
-
-        mv -f "${old_fifo_dir}hook-hotplug-cmd" "${new_fifo_dir}"
-        chmod 600 "${new_fifo_dir}hook-hotplug-cmd"
-
-        invoke-rc.d cloud-init-hotplugd.socket restart || true
-    fi
-}
-
-
-# Process cloud-init-base debconf values and cloud-init values, emptying or
-# unregistering after the value has been processed.
-#
-# Due to package rename from cloud-init to cloud-init-base failing
-# to unregister old cloud-init/* debconf values across package upgrade
-# we can no longer unregister cloud-init/* values. Also MAAS servers <= 3.3
-# only set cloud-init/* debconf seed values. We can drop the db_set "$old"
-# after MAAS 3.3 is out of support.
-#
-# MAAS 3.6 no longer provides debconf settings, but instead uses curtin to
-# write /etc/cloud/cloud.cfg,d/95-cloudconfig-* files directly. When 3.3 is out
-# of support, cloud-init-base can drop support for handling any debconf values.
+# This handles the upgrade path from cloud-init to cloud-init-base.
+# 24.04 is the last LTS series to be released with cloud-init, so this code
+# can be removed in 26.10, to ensure the upgrade path from 24.04->26.04 is
+# not broken. 
 process_debconf_setting() {
     local old="cloud-init/$1" new="cloud-init-base/$1" old_val="" new_val=""
     if db_get "$old" && [ -n "${RET}" ]; then
@@ -332,16 +181,6 @@ EOF
 
    # if there is generic cloud-config preseed, apply them
    handle_preseed_local_cloud_config
-
-   # fix issue where cloud-init misidentifies the location of grub
-   fix_1336855
-
-   fix_lp1889555 "$2"
-
-   rename_hook_hotplug_udev_rule
-
-   move_socket_fifo_to_share_dir
-
 fi
 
 #DEBHELPER#
