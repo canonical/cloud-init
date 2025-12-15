@@ -97,6 +97,8 @@
         "write_files",
         "write-files-deferred",
         "write_files_deferred",
+        "write-metadata",
+        "write_metadata",
         "yum-add-repo",
         "yum_add_repo",
         "zypper-add-repo",
@@ -3622,6 +3624,24 @@
         }
       }
     },
+    "cc_write_metadata": {
+      "type": "object",
+      "properties": {
+        "write_metadata": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Path of the file to which metadata value is written"
+              }
+            },
+            "required": ["path", "data"]
+          }
+        }
+      }
+    },
     "cc_write_files": {
       "type": "object",
       "properties": {
@@ -4174,6 +4194,9 @@
       "$ref": "#/$defs/cc_write_files"
     },
     {
+      "$ref": "#/$defs/cc_write_metadata"
+    },
+    {
       "$ref": "#/$defs/cc_yum_add_repo"
     },
     {
@@ -4283,6 +4306,7 @@
     "version": {},
     "wireguard": {},
     "write_files": {},
+    "write_metadata": {},
     "yum_repo_dir": {},
     "yum_repos": {},
     "zypper": {}

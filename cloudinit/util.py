@@ -3075,6 +3075,39 @@ def read_hotplug_enabled_file(paths: "Paths") -> dict:
     return content
 
 
+def dictpath(obj, path, separator='/'):
+    """
+    Returns the element at a given path in a nested dictionary/list
+    object.
+
+    If the object is a dictionary, the path element is a string key. If
+    the object is a list, the path element is an index.
+
+    For instance, given the following object:
+
+        {"hello": "world",
+         "days": ["Monday", "Wednesday", "Friday"]}
+
+    dictpath(obj, "days/-1") would return "Friday".
+
+    This function deliberately does not catch any exceptions.
+    """
+
+    for element in path.split(separator):
+        # handle empty elements (for instance, if the path starts with
+        # the separator)
+        if not element:
+            continue
+
+        if isinstance(obj, dict):
+            obj = obj[element]
+        elif isinstance(obj, (list, tuple)):
+            index = int(element)
+            obj = obj[index]
+
+    return obj
+
+
 @contextmanager
 def nullcontext() -> Generator[None, Any, None]:
     """Context manager that does nothing.

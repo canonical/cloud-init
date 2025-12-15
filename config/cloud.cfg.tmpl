@@ -119,6 +119,9 @@ cloud_init_modules:
 {% endif %}
   - bootcmd
   - write_files
+{% if variant == "amazon" %}
+  - write_metadata
+{% endif %}
 {% if variant not in ["netbsd", "openbsd", "raspberry-pi-os"] %}
   - growpart
   - resizefs

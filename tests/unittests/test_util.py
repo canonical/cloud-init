@@ -3248,6 +3248,54 @@ class TestReadHotplugEnabledFile:
         )
 
 
+class TestDictpath:
+    """Tests for util.dictpath() function."""
+
+    @pytest.mark.parametrize(
+        "obj,path,expected,separator",
+        [
+            ({"instance-id": "instance1"}, "instance-id", "instance1", "/"),
+            ({"placement": {"availability-zone": {"name": "zone1a"}}}, "placement/availability-zone/name", "zone1a", "/"),
+            ({"security-groups": ["group1", "group2", "group3"]}, "security-groups/2", "group3", "/"),
+            ({"security-groups": ["group1", "group2", "group3"]}, "security-groups/-1", "group3", "/"),
+            (
+                {"network": {"interfaces": [{"id": "interface1", "type": "ethernet"}, {"id": "interface2", "type": "wifi"}]}},
+                "network/interfaces/1/id",
+                "interface2",
+                "/",
+            ),
+            ({"placement": {"region": "region2"}}, "placement|region", "region2", "|"),
+            ({"placement": {"region": "region2"}}, "/placement/region", "region2", "/"),
+            ({"block-device-mapping": ("volume1", "volume2", "volume3")}, "block-device-mapping/1", "volume2", "/"),
+            (
+                {
+                    "instance-id": "instance1",
+                    "placement": {"availability-zone": "zone1a", "region": "region1"},
+                    "public-keys": {"0": {"openssh-key": "ssh-rsa keydata1"}},
+                },
+                "public-keys/0/openssh-key",
+                "ssh-rsa keydata1",
+                "/",
+            ),
+        ],
+    )
+    def test_dictpath_success(self, obj, path, expected, separator):
+        """Test successful navigation through various structures."""
+        assert expected == util.dictpath(obj, path, separator=separator)
+
+    @pytest.mark.parametrize(
+        "obj,path,exception",
+        [
+            ({"placement": {"region": "region1"}}, "placement/availability-zone", KeyError),
+            ({"security-groups": ["group1", "group2"]}, "security-groups/10", IndexError),
+        ],
+    )
+    def test_dictpath_exceptions(self, obj, path, exception):
+        """Test that appropriate exceptions are raised."""
+        with pytest.raises(exception):
+            util.dictpath(obj, path)
+
+
 class TestLogExc:
     def test_logexc(self, caplog):
         try:
