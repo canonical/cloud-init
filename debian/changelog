@@ -1,6 +1,10 @@
 cloud-init (25.4~2g78a74880-0ubuntu1) UNRELEASED; urgency=medium
 
   * d/tests: exercise cloud-init status
+  * d/cloud-init-base.config - Remove old unnecessary logic.
+  * d/cloud-init-base.postinst - Remove old unnecessary logic.
+  * d/cloud-init-base.preinst - Delete file, logic was obsolete.
+  * d/cloud-init-base.prerm - Delete file, logic was obsolete.
   * Upstream snapshot based on upstream/main at 78a74880.
 
  -- Chad Smith <chad.smith@canonical.com>  Tue, 09 Dec 2025 07:38:56 -0700
