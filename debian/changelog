@@ -1,7 +1,9 @@
 cloud-init (25.4~1gfcb98b03-0ubuntu1) UNRELEASED; urgency=medium
 
+  * d/rules: add meson_versions.py artifact and set DOWNSTREAM_VERSION
+    during package build.
   * refresh patches:
-    - d/p/retain-setuptools.patch: retaini read-version tool for build.
+    - d/p/retain-setuptools.patch: retain read-version tool for build.
       Drop unsupported doc-requirements.txt and developer packages changes.
   * Upstream snapshot based on upstream/main at fcb98b03.
 
