@@ -101,12 +101,66 @@ def _iface_add_subnet(iface: dict, subnet: dict, is_ipv6: bool) -> List[str]:
                             value,
                         )
                     )
+                    if value == []:
+                        continue
+                if key == "dns_search":
+                    if (
+                        isinstance(subnet.get("dns_nameservers"), list)
+                        and list(
+                            filter(
+                                functools.partial(
+                                    has_same_ip_version, is_ipv6=is_ipv6
+                                ),
+                                subnet.get("dns_nameservers", []),
+                            )
+                        )
+                        == []
+                    ) or (
+                        isinstance(subnet.get("dns_nameservers"), str)
+                        and (
+                            subnet.get("dns_nameservers") == ""
+                            or not has_same_ip_version(
+                                subnet.get("dns_nameservers", ""), is_ipv6
+                            )
+                        )
+                    ):
+                        # If no dns_nameserver(s) specified or not the
+                        # same type of IP address then dns_search
+                        # value makes no sense.
+                        continue
+
                 value = " ".join(value)
             else:
                 if key == "dns_nameservers" and not has_same_ip_version(
                     value, is_ipv6
                 ):
                     continue
+                if key == "dns_search":
+                    if (
+                        isinstance(subnet.get("dns_nameservers"), list)
+                        and list(
+                            filter(
+                                functools.partial(
+                                    has_same_ip_version, is_ipv6=is_ipv6
+                                ),
+                                subnet.get("dns_nameservers", []),
+                            )
+                        )
+                        == []
+                    ) or (
+                        isinstance(subnet.get("dns_nameservers"), str)
+                        and (
+                            subnet.get("dns_nameservers") == ""
+                            or not has_same_ip_version(
+                                subnet.get("dns_nameservers", ""), is_ipv6
+                            )
+                        )
+                    ):
+                        # If no dns_nameserver(s) specified or not the
+                        # same type of IP address then dns_search
+                        # value makes no sense.
+                        continue
+
             if "_" in key:
                 key = key.replace("_", "-")
             content.append("    {0} {1}".format(key, value))

@@ -15,13 +15,15 @@ class TestExportsFeatures:
 
 class TestVersionString:
     @mock.patch(
-        "cloudinit.version._PACKAGED_VERSION", "17.2-3-gb05b9972-0ubuntu1"
+        "cloudinit.version._DOWNSTREAM_VERSION", "17.2-3-gb05b9972-0ubuntu1"
     )
     def test_package_version_respected(self):
-        """If _PACKAGED_VERSION is filled in, then it should be returned."""
+        """If _DOWNSTREAM_VERSION is filled in, then it should be returned."""
         assert "17.2-3-gb05b9972-0ubuntu1" == version.version_string()
 
-    @mock.patch("cloudinit.version._PACKAGED_VERSION", "@@PACKAGED_VERSION@@")
+    @mock.patch(
+        "cloudinit.version._DOWNSTREAM_VERSION", "@DOWNSTREAM_VERSION@"
+    )
     @mock.patch("cloudinit.version.__VERSION__", "17.2")
     def test_package_version_skipped(self):
         """If _PACKAGED_VERSION is not modified, then return __VERSION__."""

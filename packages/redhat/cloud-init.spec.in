@@ -62,7 +62,7 @@ ssh keys and to let the user run various scripts.
 {% endfor %}
 
 %build
-%meson -Dinit_system=systemd -Ddistro_templates=chef_client.rb.tmpl,chrony.conf.rhel.tmpl,hosts.redhat.tmpl,ntp.conf.rhel.tmpl,resolv.conf.tmpl,timesyncd.conf.tmpl
+%meson -Dinit_system=systemd -Ddistro_templates=chef_client.rb.tmpl,chrony.conf.rhel.tmpl,hosts.redhat.tmpl,ntp.conf.rhel.tmpl,resolv.conf.tmpl,timesyncd.conf.tmpl -Ddisable_sshd_keygen=true -Ddownstream_version=%{version}-%{release}
 %meson_build
 
 %install
@@ -77,13 +77,6 @@ cp -p tools/21-cloudinit.conf \
 # Required dirs...
 mkdir -p $RPM_BUILD_ROOT/%{_sharedstatedir}/cloud
 mkdir -p $RPM_BUILD_ROOT/%{_libexecdir}/%{name}
-
-# patch in the full version to version.py
-version_pys=$(cd "$RPM_BUILD_ROOT" && find . -name version.py -type f)
-[ -n "$version_pys" ] ||
-   { echo "failed to find 'version.py' to patch with version." 1>&2; exit 1; }
-( cd "$RPM_BUILD_ROOT" &&
-  sed -i "s,@@PACKAGED_VERSION@@,%{version}-%{release}," $version_pys )
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -123,6 +116,7 @@ rm -rf $RPM_BUILD_ROOT
 %dir                    %{_sysconfdir}/cloud/templates
 %config(noreplace)      %{_sysconfdir}/cloud/templates/*
 %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
+%config(noreplace) /usr/lib/systemd/system/sshd-keygen@.service.d/disable-sshd-keygen-if-cloud-init-active.conf
 
 # Bash completion script
 %dir %{_datadir}/bash-completion/completions

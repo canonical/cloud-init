@@ -60,7 +60,7 @@ All possible configuration values are defined in
 `tests/integration_tests/integration_settings.py`_. Look in this file for
 the full list of variables that are available and for context on what each
 variable does and what the default values are.
-Defaults can be overriden by supplying values in
+Defaults can be overridden by supplying values in
 :file:`tests/integration_tests/user_settings.py` or by
 providing an environment variable of the same name prepended with
 ``CLOUD_INIT_``. For example, to set the ``PLATFORM`` setting:
@@ -116,7 +116,7 @@ variable to ``ON_ERROR``.
 Use in-place cloud-init source code
 -------------------------------------
 
-The simplest way to test an integraton test using your current cloud-init
+The simplest way to test an integration test using your current cloud-init
 changes is to set the ``CLOUD_INIT_SOURCE`` to ``IN_PLACE``. This works ONLY
 on LXD containers. This will mount the source code as-is directly into
 the container to override the pre-existing cloud-init code within the
@@ -188,7 +188,7 @@ by ``LOCAL_LOG_PATH``.
             INCLUDE_COVERAGE = True
 
 
-Addtionally, for profiling the integration tests, set the ``INCLUDE_PROFILE``
+Additionally, for profiling the integration tests, set the ``INCLUDE_PROFILE``
 variable to ``True``. This will generate a profile report for the integration
 test run, and the report will be stored in the directory specified by
 ``LOCAL_LOG_PATH``.

@@ -326,12 +326,13 @@ class TestCombined:
 
     def test_cloud_id_file_symlink(self, class_client: IntegrationInstance):
         cloud_id = class_client.execute("cloud-id").stdout
-        expected_link_output = (
-            "'/run/cloud-init/cloud-id' -> "
-            f"'/run/cloud-init/cloud-id-{cloud_id}'"
+        expected_link_regex = (
+            r"['\"]/run/cloud-init/cloud-id['\"] -> "
+            f"['\"]/run/cloud-init/cloud-id-{cloud_id}['\"]"
         )
-        assert expected_link_output == str(
-            class_client.execute("stat -c %N /run/cloud-init/cloud-id")
+        assert re.match(
+            expected_link_regex,
+            class_client.execute("stat -c %N /run/cloud-init/cloud-id"),
         )
 
     def test_run_frequency(self, class_client: IntegrationInstance):

@@ -141,7 +141,7 @@ class SystemctlReader:
 
         if parameter:
             self.args.append(parameter)
-        # --timestamp=utc is needed for native date strings. Othwerise,
+        # --timestamp=utc is needed for native date strings. Otherwise,
         # the datetime will be returned in the local timezone (which would be
         # a problem for strptime used later on in this method)
         # This option does not affect monotonic properties (values as
@@ -203,7 +203,7 @@ class SystemctlReader:
             # The format in this case is always "%a %Y-%m-%d %H:%M:%S %Z"
             # For example, UserspaceTimestamp=Wed 2025-07-30 05:14:32 UTC
 
-            # strptime returns a naive datetime so we need to explictly
+            # strptime returns a naive datetime so we need to explicitly
             # set the timezone of this datetime
             # at the timezone of the parsed string (utc)
             timestamp = (

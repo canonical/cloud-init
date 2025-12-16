@@ -7,8 +7,6 @@ or flaky infrastructure are tracked, retried and upon test session completion
 are reported to the end user as a test warning.
 """
 
-from __future__ import annotations  # required for Python 3.8
-
 import logging
 import queue
 import threading
@@ -41,7 +39,7 @@ class Reaper:
         self.exit_reaper: Final[threading.Event] = threading.Event()
 
         # List of instances which temporarily escaped death
-        # The primary porpose of the reaper is to coax these instance towards
+        # The primary purpose of the reaper is to coax these instance towards
         # eventual demise and report their insubordination on shutdown.
         self.undead_ledger: Final[List[IntegrationInstance]] = []
 

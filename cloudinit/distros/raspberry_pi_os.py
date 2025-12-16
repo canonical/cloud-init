@@ -6,7 +6,7 @@
 
 import logging
 
-from cloudinit import subp
+from cloudinit import net, subp
 from cloudinit.distros import debian
 
 LOG = logging.getLogger(__name__)
@@ -14,16 +14,34 @@ LOG = logging.getLogger(__name__)
 
 class Distro(debian.Distro):
     def set_keymap(self, layout: str, model: str, variant: str, options: str):
-        """Currently Raspberry Pi OS sys-mods only supports
-        setting the layout"""
+        super().set_keymap(layout, model, variant, options)
 
         subp.subp(
             [
-                "/usr/lib/raspberrypi-sys-mods/imager_custom",
-                "set_keymap",
-                layout,
-            ]
+                "/usr/bin/raspi-config",
+                "nonint",
+                "update_labwc_keyboard",
+            ],
         )
+        subp.subp(
+            [
+                "/usr/bin/raspi-config",
+                "nonint",
+                "update_squeekboard",
+                "restart",
+            ],
+        )
+        self.manage_service("restart", "keyboard-setup")
+
+        if subp.which("udevadm"):
+            subp.subp(
+                [
+                    "udevadm",
+                    "trigger",
+                    "--subsystem-match=input",
+                    "--action=change",
+                ],
+            )
 
     def apply_locale(self, locale, out_fn=None, keyname="LANG"):
         try:
@@ -47,7 +65,7 @@ class Distro(debian.Distro):
                     ]
                 )
             else:
-                LOG.error("Failed to set locale %s")
+                LOG.error("Failed to set locale %s", locale)
 
     def add_user(self, name, **kwargs) -> bool:
         """
@@ -78,3 +96,19 @@ class Distro(debian.Distro):
             return False
 
         return True
+
+    def generate_fallback_config(self):
+        # Based on Photon OS implementation
+        key = "disable_fallback_netcfg"
+        disable_fallback_netcfg = self._cfg.get(key, True)
+        LOG.debug("%s value is: %s", key, disable_fallback_netcfg)
+
+        if not disable_fallback_netcfg:
+            return net.generate_fallback_config()
+
+        LOG.info(
+            "Skipping generation of fallback network config as per "
+            "configuration. Rely on Raspberry Pi OS's default "
+            "network configuration."
+        )
+        return None
