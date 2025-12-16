@@ -13,11 +13,6 @@ import pytest
 
 from cloudinit.reporting import events, instantiated_handler_registry
 from cloudinit.reporting.handlers import HyperVKvpReportingHandler
-
-# TODO: Importing `errors` here is a hack to avoid a circular import.
-# Without it, we have a azure->errors->identity->azure import loop, but
-# long term we should restructure these modules to avoid the issue.
-from cloudinit.sources.azure import errors  # noqa: F401
 from cloudinit.sources.helpers import azure
 
 
@@ -32,6 +27,14 @@ class TestKvpEncoding:
 
 
 class TestKvpReporter:
+    @pytest.fixture(autouse=True)
+    def mock_dmi(self, mocker):
+        """Mock dmi.read_dmi_data to prevent subp calls from vm_id property."""
+        mocker.patch(
+            "cloudinit.reporting.handlers.dmi.read_dmi_data",
+            return_value=None,
+        )
+
     @pytest.fixture
     def kvp_file_path(self, tmp_path):
         file_path = tmp_path / "kvp_pool_file"
@@ -296,18 +299,18 @@ class TestKvpReporter:
 
         assert len(list(reporter._iterate_kvps(0))[0]["value"]) == 1023
 
-    def test_vm_id_defaults_to_zero_guid(self, kvp_file_path):
-        """Test handler defaults to ZERO_GUID for vm_id."""
-        reporter = HyperVKvpReportingHandler(kvp_file_path=kvp_file_path)
-        assert reporter.vm_id == HyperVKvpReportingHandler.ZERO_GUID
+    def test_vm_id_defaults_to_zero_guid_when_dmi_fails(self, kvp_file_path):
+        """Test handler defaults to ZERO_GUID when DMI query fails."""
+        with mock.patch(
+            "cloudinit.reporting.handlers.dmi.read_dmi_data",
+            side_effect=RuntimeError("not available"),
+        ):
+            reporter = HyperVKvpReportingHandler(kvp_file_path=kvp_file_path)
+            assert reporter.vm_id == HyperVKvpReportingHandler.ZERO_GUID
 
-    def test_vm_id_fallback_reads_system_uuid_on_default_pool_path(
-        self, kvp_file_path
-    ):
-        """When no provider is set, handler may fall back to DMI system-uuid."""
-        with mock.patch.object(
-            HyperVKvpReportingHandler, "KVP_POOL_FILE_GUEST", kvp_file_path
-        ), mock.patch(
+    def test_vm_id_fallback_reads_system_uuid(self, kvp_file_path):
+        """Handler falls back to DMI system-uuid when vm_id not set."""
+        with mock.patch(
             "cloudinit.reporting.handlers.dmi.read_dmi_data",
             return_value="AABBCCDD-EEFF-0011-2233-445566778899",
         ) as m_read_dmi:
@@ -315,13 +318,11 @@ class TestKvpReporter:
             assert reporter.vm_id == "aabbccdd-eeff-0011-2233-445566778899"
             m_read_dmi.assert_called_once_with("system-uuid")
 
-    def test_vm_id_fallback_keeps_zero_guid_when_system_uuid_missing(
+    def test_vm_id_keeps_zero_guid_when_system_uuid_missing(
         self, kvp_file_path
     ):
         """If DMI system-uuid isn't available, vm_id remains ZERO_GUID."""
-        with mock.patch.object(
-            HyperVKvpReportingHandler, "KVP_POOL_FILE_GUEST", kvp_file_path
-        ), mock.patch(
+        with mock.patch(
             "cloudinit.reporting.handlers.dmi.read_dmi_data", return_value=None
         ) as m_read_dmi:
             reporter = HyperVKvpReportingHandler(kvp_file_path=kvp_file_path)
