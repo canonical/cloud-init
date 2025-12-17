@@ -1,3 +1,9 @@
+cloud-init (25.3-0ubuntu1~25.10.2) UNRELEASED; urgency=medium
+
+  * Upstream snapshot based on upstream/main at aa179494.
+
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 17 Dec 2025 16:55:52 -0700
+
 cloud-init (25.3-0ubuntu1~25.10.1) questing; urgency=medium
 
   * d/p/deprecation-version-boundary.patch: Pin deprecation version to 25.3
