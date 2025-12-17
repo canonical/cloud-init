@@ -380,11 +380,11 @@ class DataSourceScaleway(sources.DataSource):
 
     @property
     def availability_zone(self):
-        return None
+        return self.metadata["zone"]
 
     @property
     def region(self):
-        return None
+        return self.metadata["zone"].rpartition("-")[0]
 
 
 datasources = [

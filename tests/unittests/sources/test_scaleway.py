@@ -67,6 +67,7 @@ class MetadataResponses:
                 "fingerprint": "2048 06:ff:...  login2 (RSA)",
             },
         ],
+        "zone": "fr-par-1",
     }
 
     @classmethod
@@ -300,8 +301,8 @@ class TestDataSourceScaleway:
             self.datasource.get_vendordata_raw()
             == DataResponses.FAKE_USER_DATA
         )
-        assert self.datasource.availability_zone is None
-        assert self.datasource.region is None
+        assert self.datasource.availability_zone == "fr-par-1"
+        assert self.datasource.region == "fr-par"
 
     @responses.activate
     @mock.patch(
@@ -381,8 +382,8 @@ class TestDataSourceScaleway:
             self.datasource.get_vendordata_raw()
             == DataResponses.FAKE_USER_DATA
         )
-        assert self.datasource.availability_zone is None
-        assert self.datasource.region is None
+        assert self.datasource.availability_zone == "fr-par-1"
+        assert self.datasource.region == "fr-par"
 
     @responses.activate
     @mock.patch(
