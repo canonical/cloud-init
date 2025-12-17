@@ -414,11 +414,12 @@ class TestIsPlatformViable:
     @mock.patch(DS_PATH + "os.lstat")
     @pytest.mark.usefixtures("fake_filesystem")
     def test_expected_viable(
-        self, m_lstat, exists, lstat_mode, virtio_ports, expected
+        self, m_lstat, exists, lstat_mode, virtio_ports, expected, mocker
     ):
         """Return True only when LXD_SOCKET_PATH exists and is a socket."""
         if virtio_ports:
             populate_dir("/sys/class/virtio-ports", virtio_ports)
+            mocker.patch(DS_PATH + "_get_virt_type", return_value="kvm")
         if exists:
             ensure_file(lxd.LXD_SOCKET_PATH)
         m_lstat.return_value = LStatResponse(lstat_mode)
@@ -428,13 +429,21 @@ class TestIsPlatformViable:
         else:
             assert 0 == m_lstat.call_count
 
+    @pytest.mark.parametrize("systemd_detect_virt", ("kvm\n", "qemu\n"))
     @pytest.mark.usefixtures("fake_filesystem")
+    @mock.patch(DS_PATH + "subp.subp")
+    @mock.patch(DS_PATH + "subp.which", return_value=True)
     @mock.patch(DS_PATH + "util.load_text_file", side_effect=OSError("Oh-no"))
-    def test_warn_on_oserror(self, m_load_text_file, caplog):
+    def test_warn_on_oserror(
+        self, m_load_text_file, m_which, m_subp, systemd_detect_virt, caplog
+    ):
+        m_subp.return_value = (systemd_detect_virt, "")
         populate_dir("/sys/class/virtio-ports", {"vport5p1/name": "something"})
         with caplog.at_level(logging.WARNING):
             assert False is lxd.DataSourceLXD.ds_detect()
-        assert "Cannot check virtio-ports: Oh-no" in caplog.messages
+        m_which.assert_called_once_with("systemd-detect-virt")
+        m_subp.assert_called_once_with(["systemd-detect-virt"])
+        assert "Cannot check virtual serial device: Oh-no" in caplog.messages
 
 
 class TestReadMetadata:
