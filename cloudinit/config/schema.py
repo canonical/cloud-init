@@ -258,7 +258,7 @@ def _add_deprecated_changed_or_new_msg(
         if annotate:
             return f" {msg}"
 
-        # italicised RST - no whitespace between astrisk and text
+        # italicised RST - no whitespace between asterisk and text
         return f"\n\n*{msg.strip()}*"
 
     # define print order

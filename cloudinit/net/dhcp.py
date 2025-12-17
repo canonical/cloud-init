@@ -747,7 +747,7 @@ class Dhcpcd(DhcpClient):
         @param number: Option number to return
         @return: the option (bytes) or None
         """
-        # DHCP is basically an extension to bootp. The relevent standards that
+        # DHCP is basically an extension to bootp. The relevant standards that
         # describe the packet format include:
         #
         # RFC 951 (Section 3)

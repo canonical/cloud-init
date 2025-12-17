@@ -1,5 +1,6 @@
 project(
   'cloud-init',
+  version: '25.3',
   meson_version: '>=0.63.0', # rockylinux/9
   license: 'GPL-3 OR Apache-2.0',
   default_options: [
@@ -14,6 +15,8 @@ init_system = get_option('init_system')
 lib_exec_dir = get_option('prefix') / get_option('libexecdir') / 'cloud-init'
 render_tmpl = './tools/render-template'
 
+is_readthedocs = run_command('bash', '-c', 'echo ${READTHEDOCS}', check: true).stdout().strip()
+
 pymod = import('python')
 python = pymod.find_installation('python3')
 
@@ -27,8 +30,22 @@ install_subdir(
   install_mode: 'rw-r--r--',
 )
 
+# Update packaged version strings
+downstream_version = get_option('downstream_version')
+configure_file(
+  input: 'meson_versions.py.in',
+  output: 'meson_versions.py',
+  configuration: {
+    'UPSTREAM_VERSION': meson.project_version(),
+    'DOWNSTREAM_VERSION': downstream_version,  # Optional for packagers
+  },
+  install_dir: python.get_install_dir()  / 'cloudinit',
+  install_tag: 'python-runtime',
+)
+
+
 # Binaries and script entrypoints
-if get_option('bash_completion')
+if get_option('bash_completion') and is_readthedocs != 'True'
   bash_completions_dir = dependency('bash-completion').get_variable(
     pkgconfig: 'completionsdir',
     default_value: get_option('datadir') / 'bash-completion' / 'completions',
@@ -86,7 +103,7 @@ install_data(
   install_tag: 'config',
 )
 
-if init_system == 'systemd'
+if init_system == 'systemd' and is_readthedocs != 'True'
   systemd = dependency('systemd')
   udev = dependency('udev')
   systemd_unit_dir = systemd.get_variable(pkgconfig: 'systemdsystemunitdir')
@@ -185,6 +202,25 @@ elif init_system == 'sysvinit_openrc'
     install_mode: 'rwxr-xr-x',
     install_tag: 'bin',
   )
+elif init_system == 'sysvinit_freebsd'
+  rcd_templates = run_command(find, 'sysvinit/freebsd', '-type', 'f', check: true)
+  foreach template : rcd_templates.stdout().strip().split('\n')
+    custom_target(
+      input: template,
+      output: '@BASENAME@',
+      command: [
+        render_tmpl,
+        '@INPUT@',
+        meson.current_build_dir() / '@OUTPUT@',
+      ],
+      install: true,
+      install_dir: sysconfdir / 'rc.d',
+      install_mode: 'r-xr-xr-x',
+      install_tag: 'sysvinit',
+    )
+  endforeach
+  # Enable cloud-init on reboot
+  meson.add_install_script('sh', '-c', '/usr/sbin/sysrc cloudinit_enable=YES')
 endif
 
 custom_target(
@@ -207,6 +243,16 @@ examples = run_command(find, 'doc/examples', '-name', '*.txt', '-o', '-name', '*
 install_data(
   examples.stdout().strip().split('\n'),
   install_dir: get_option('datadir') / 'doc' / 'cloud-init' / 'examples',
+  install_mode: 'rw-r--r--',
+  install_tag: 'doc',
+)
+install_data(
+  [
+    'doc/status.txt',
+    'doc/userdata.txt',
+    'doc/var-lib-cloud.txt',
+  ],
+  install_dir: get_option('datadir') / 'doc' / 'cloud-init',
   install_mode: 'rw-r--r--',
   install_tag: 'doc',
 )

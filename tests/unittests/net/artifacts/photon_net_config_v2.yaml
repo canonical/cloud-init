@@ -71,6 +71,10 @@ network:
         mii-monitor-interval: 100
         transmit-hash-policy: layer2+3
         lacp-rate: fast
+        all-slaves-active: true
+        arp-all-targets: ff
+        learn-packet-interval: 12
+        packets-per-slave: 42
       dhcp4: false
       dhcp6: false
       mtu: 333

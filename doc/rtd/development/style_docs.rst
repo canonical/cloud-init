@@ -74,7 +74,7 @@ To aid in documentation maintenance and keeping links up-to-date, links should
 be presented in a single block at the end of the page.
 
 Where possible, use contextual text in your links to aid users with screen
-readers and other accessibility tools. For example, "check out our
+readers and other accessibility tools. For example, "read our
 :ref:`documentation style guide<docs>`" is preferable to "click
 :ref:`here<docs>` for more".
 

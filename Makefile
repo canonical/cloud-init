@@ -16,7 +16,7 @@ BENCHMARK=./tools/benchmark.sh
 
 all: check
 
-check: check_version test
+check: test
 
 style-check: lint
 
@@ -119,7 +119,6 @@ fmt-tip:
 	tox -e do_format_tip && tox -e check_format_tip
 
 
-.PHONY: all check test lint clean rpm srpm deb deb-src
-.PHONY: check_version clean_pyc
+.PHONY: all check test lint clean rpm srpm deb deb-src clean_pyc
 .PHONY: unittest style-check render-template benchmark-generator
 .PHONY: clean_pytest clean_packaging clean_release doc

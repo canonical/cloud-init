@@ -1,7 +1,7 @@
 .. _testing:
 
-Testing
-*******
+Develop Test Code
+*****************
 
 ``Cloud-init`` has both unit tests and integration tests. Unit tests can
 be found at :file:`tests/unittests`. Integration tests can be found at
@@ -66,7 +66,7 @@ Cloud-init supports a range of versions for each of its test dependencies, as
 well as runtime dependencies. If you are unsure whether a specific feature is
 supported for a particular dependency, check the ``lowest-supported``
 environment in ``tox.ini``. This can be run using ``tox -e lowest-supported``.
-This runs as a Github Actions job when a pull request is submitted or updated.
+This runs as a GitHub Actions job when a pull request is submitted or updated.
 
 Mocking and assertions
 ----------------------
@@ -134,6 +134,7 @@ Test argument ordering
   * ``mock.patch``
 
 .. LINKS:
+.. include:: ../links.txt
 .. _pytest: https://docs.pytest.org/
 .. _pytest fixtures: https://docs.pytest.org/en/latest/fixture.html
 .. _TestGetPackageMirrorInfo: https://github.com/canonical/cloud-init/blob/42f69f410ab8850c02b1f53dd67c132aa8ef64f5/cloudinit/distros/tests/test_init.py\#L15

@@ -1769,7 +1769,7 @@ dscheck_WSL() {
         return "${DS_NOT_FOUND}"
     fi
 
-    # We know we are under WSL and have acess to the host filesystem,
+    # We know we are under WSL and have access to the host filesystem,
     # so let's find the user's home directory
     WSL_profile_dir "$mountpoints"
     profile_dir="${_RET}"

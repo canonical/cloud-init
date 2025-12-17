@@ -44,7 +44,7 @@ from cloudinit.sources.DataSourceSmartOS import (
 )
 from cloudinit.subp import ProcessExecutionError, subp, which
 from cloudinit.util import write_file
-from tests.unittests.helpers import mock, skipIf
+from tests.unittests.helpers import mock
 
 DSMOS = "cloudinit.sources.DataSourceSmartOS"
 SDC_NICS = json.loads(
@@ -691,7 +691,7 @@ class TestSmartOSDataSource:
         assert isinstance(cfg["fs_setup"], list)
 
     def test_override_disk_aliases(self, paths):
-        # Test to make sure that the built-in DS is overriden
+        # Test to make sure that the built-in DS is overridden
         builtin = DataSourceSmartOS.BUILTIN_DS_CONFIG
 
         mydscfg = {"disk_aliases": {"FOO": "/dev/bar"}}
@@ -726,7 +726,9 @@ class TestIdentifyFile:
     """Test the 'identify_file' utility."""
 
     @pytest.mark.allow_subp_for("file")
-    @skipIf(not which("file"), "command 'file' not available.")
+    @pytest.mark.skipif(
+        not which("file"), reason="command 'file' not available."
+    )
     def test_file_happy_path(self, tmp_path):
         """Test file is available and functional on plain text."""
         fname = str(tmp_path / "myfile")
