@@ -68,7 +68,6 @@ module = [
     "cloudinit.net.network_manager",
     "cloudinit.net.network_state",
     "cloudinit.net.networkd",
-    "cloudinit.net.sysconfig",
     "cloudinit.netinfo",
     "cloudinit.sources.DataSourceAzure",
     "cloudinit.sources.DataSourceBigstep",
