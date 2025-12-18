@@ -333,9 +333,13 @@ class TestCloudStackPasswordFetching:
         mocker.patch(MOD_PATH + ".get_data_server", get_data_server)
 
     def _set_password_server_response(self, response_string, mocker):
-        subp = mock.MagicMock(return_value=(response_string, ""))
-        mocker.patch("cloudinit.sources.DataSourceCloudStack.subp.subp", subp)
-        return subp
+        fake_resp = mock.MagicMock()
+        fake_resp.contents = response_string.encode("utf-8")
+        readurl_mock = mocker.patch(
+            "cloudinit.sources.DataSourceCloudStack.uhelp.readurl",
+            return_value=fake_resp,
+        )
+        return readurl_mock
 
     def test_empty_password_doesnt_create_config(
         self, _dmi, cloudstack_ds, mocker
@@ -367,13 +371,13 @@ class TestCloudStackPasswordFetching:
         self._set_password_server_response("bad_request", mocker)
         assert cloudstack_ds.get_data() is True
 
-    def assertRequestTypesSent(self, subp, expected_request_types):
+    def assertRequestTypesSent(self, readurl, expected_request_types):
         request_types = []
-        for call in subp.call_args_list:
-            args = call[0][0]
-            for arg in args:
-                if arg.startswith("DomU_Request"):
-                    request_types.append(arg.split()[1])
+        for call in readurl.call_args_list:
+            headers = call.kwargs.get("headers", {})
+            domu_req = headers.get("DomU_Request")
+            if domu_req:
+                request_types.append(domu_req)
         assert expected_request_types == request_types
 
     @mock.patch(DS_PATH + ".wait_for_metadata_service")
@@ -382,22 +386,22 @@ class TestCloudStackPasswordFetching:
     ):
         m_wait.return_value = True
         password = "SekritSquirrel"
-        subp = self._set_password_server_response(password, mocker)
+        readurl = self._set_password_server_response(password, mocker)
         cloudstack_ds.get_data()
         self.assertRequestTypesSent(
-            subp, ["send_my_password", "saved_password"]
+            readurl, ["send_my_password", "saved_password"]
         )
 
     def _check_password_not_saved_for(
         self, response_string, cloudstack_ds, mocker
     ):
-        subp = self._set_password_server_response(
+        readurl = self._set_password_server_response(
             response_string, mocker=mocker
         )
         with mock.patch(DS_PATH + ".wait_for_metadata_service") as m_wait:
             m_wait.return_value = True
             cloudstack_ds.get_data()
-        self.assertRequestTypesSent(subp, ["send_my_password"])
+        self.assertRequestTypesSent(readurl, ["send_my_password"])
 
     def test_password_not_saved_if_empty(self, _dmi, cloudstack_ds, mocker):
         self._check_password_not_saved_for("", cloudstack_ds, mocker)

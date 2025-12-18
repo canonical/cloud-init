@@ -135,7 +135,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
         if missing_required == len(req_fields):
             LOG.warning(
-                "Repository %s should contain atleast one of the"
+                "Repository %s should contain at least one of the"
                 " following configuration entries: %s, skipping!",
                 repo_id,
                 ", ".join(req_fields),

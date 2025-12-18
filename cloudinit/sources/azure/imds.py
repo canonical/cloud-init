@@ -222,11 +222,6 @@ def fetch_reprovision_data() -> bytes:
     handler = ReadUrlRetryHandler(
         logging_backoff=2.0,
         max_connection_errors=1,
-        retry_codes=(
-            404,
-            410,
-            429,
-        ),
         retry_deadline=None,
     )
     response = readurl(

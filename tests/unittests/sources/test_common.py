@@ -35,7 +35,6 @@ from cloudinit.sources import DataSourceUpCloud as UpCloud
 from cloudinit.sources import DataSourceVMware as VMware
 from cloudinit.sources import DataSourceVultr as Vultr
 from cloudinit.sources import DataSourceWSL as WSL
-from tests.unittests import helpers as test_helpers
 
 DEFAULT_LOCAL = [
     AliYun.DataSourceAliYunLocal,
@@ -87,7 +86,7 @@ DEFAULT_NETWORK = [
 ]
 
 
-class ExpectedDataSources(test_helpers.TestCase):
+class TestExpectedDataSources:
     builtin_list = settings.CFG_BUILTIN["datasource_list"]
     deps_local = [sources.DEP_FILESYSTEM]
     deps_network = [sources.DEP_FILESYSTEM, sources.DEP_NETWORK]
@@ -104,7 +103,7 @@ class ExpectedDataSources(test_helpers.TestCase):
             self.deps_local,
             self.pkg_list,
         )
-        self.assertEqual(set(DEFAULT_LOCAL), set(found))
+        assert set(DEFAULT_LOCAL) == set(found)
 
     @patch.object(
         importer,
@@ -117,7 +116,7 @@ class ExpectedDataSources(test_helpers.TestCase):
             self.deps_network,
             self.pkg_list,
         )
-        self.assertEqual(set(DEFAULT_NETWORK), set(found))
+        assert set(DEFAULT_NETWORK) == set(found)
 
     @patch.object(
         importer,
@@ -130,10 +129,10 @@ class ExpectedDataSources(test_helpers.TestCase):
             self.deps_network,
             self.pkg_list,
         )
-        self.assertEqual(set([AliYun.DataSourceAliYun]), set(found))
+        assert set([AliYun.DataSourceAliYun]) == set(found)
 
 
-class TestDataSourceInvariants(test_helpers.TestCase):
+class TestDataSourceInvariants:
     def test_data_sources_have_valid_network_config_sources(self):
         for ds in DEFAULT_LOCAL + DEFAULT_NETWORK:
             for cfg_src in ds.network_config_sources:
@@ -141,9 +140,9 @@ class TestDataSourceInvariants(test_helpers.TestCase):
                     "{} has an invalid network_config_sources entry:"
                     " {}".format(str(ds), cfg_src)
                 )
-                self.assertTrue(
-                    isinstance(cfg_src, sources.NetworkConfigSource), fail_msg
-                )
+                assert isinstance(
+                    cfg_src, sources.NetworkConfigSource
+                ), fail_msg
 
     def test_expected_dsname_defined(self):
         for ds in DEFAULT_LOCAL + DEFAULT_NETWORK:
@@ -152,5 +151,5 @@ class TestDataSourceInvariants(test_helpers.TestCase):
                     str(ds), str(ds.dsname)
                 )
             )
-            self.assertNotEqual(ds.dsname, DataSource.dsname, fail_msg)
-            self.assertIsNotNone(ds.dsname)
+            assert ds.dsname != DataSource.dsname, fail_msg
+            assert ds.dsname is not None

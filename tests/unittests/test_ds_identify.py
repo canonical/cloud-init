@@ -377,10 +377,7 @@ class DsIdentifyBase:
                 "ret": 1,
                 "err": "No dmidecode program. ERROR.",
             },
-            {
-                "name": "is_disabled",
-                "ret": 1,
-            },
+            {"name": "is_disabled", "ret": 1},
             {
                 "name": "get_kenv_field",
                 "ret": 1,
@@ -535,8 +532,8 @@ class TestDsIdentify(DsIdentifyBase):
             # maas datasource uses check_config() and the existence of a "MAAS"
             # key to identify itself (which is a very poor identifier - clouds
             # should have stricter identifiers). Since the MAAS datasource is
-            # at the begining of the list, this is particularly troublesome and
-            # more concerning than NoCloud false positives, for example.
+            # at the beginning of the list, this is particularly troublesome
+            # and more concerning than NoCloud false positives, for example.
             pytest.param("LXD-kvm-not-MAAS-2", True, id="mass_not_detected_2"),
             # Don't detect incorrect config when invalid datasource_list
             # provided
@@ -1268,11 +1265,7 @@ class TestDsIdentify(DsIdentifyBase):
             'PATH="/mycust/path"; main; r=$?; echo ' + pre + "$PATH; exit $r;"
         )
         ret = self._check_via_dict(
-            cust,
-            rootd,
-            RC_FOUND,
-            func=".",
-            args=[os.path.join(rootd, mpp)],
+            cust, rootd, RC_FOUND, func=".", args=[os.path.join(rootd, mpp)]
         )
         match = [
             line for line in ret.stdout.splitlines() if line.startswith(pre)
@@ -1424,13 +1417,7 @@ class TestWSL(DsIdentifyBase):
         variable.
         """
         data = copy.deepcopy(VALID_CFG["WSL-supported"])
-        data["mocks"].append(
-            {
-                "name": "WSL_run_cmd",
-                "ret": 0,
-                "RET": "\r\n",
-            },
-        )
+        data["mocks"].append({"name": "WSL_run_cmd", "ret": 0, "RET": "\r\n"})
         self._check_via_dict(data, str(tmp_path), RC_NOT_FOUND)
 
     def test_no_cloudinitdir_in_userprofile(self, tmp_path):
@@ -1438,11 +1425,7 @@ class TestWSL(DsIdentifyBase):
         data = copy.deepcopy(VALID_CFG["WSL-supported"])
         userprofile = str(tmp_path)
         data["mocks"].append(
-            {
-                "name": "WSL_profile_dir",
-                "ret": 0,
-                "RET": userprofile,
-            },
+            {"name": "WSL_profile_dir", "ret": 0, "RET": userprofile}
         )
         self._check_via_dict(data, str(tmp_path), RC_NOT_FOUND)
 
@@ -1451,11 +1434,7 @@ class TestWSL(DsIdentifyBase):
         data = copy.deepcopy(VALID_CFG["WSL-supported"])
         userprofile = str(tmp_path)
         data["mocks"].append(
-            {
-                "name": "WSL_profile_dir",
-                "ret": 0,
-                "RET": userprofile,
-            },
+            {"name": "WSL_profile_dir", "ret": 0, "RET": userprofile}
         )
         cloudinitdir = os.path.join(userprofile, ".cloud-init")
         os.mkdir(cloudinitdir)
@@ -1468,15 +1447,11 @@ class TestWSL(DsIdentifyBase):
         data = copy.deepcopy(VALID_CFG["WSL-supported-debian"])
         userprofile = str(tmp_path)
         data["mocks"].append(
-            {
-                "name": "WSL_profile_dir",
-                "ret": 0,
-                "RET": userprofile,
-            },
+            {"name": "WSL_profile_dir", "ret": 0, "RET": userprofile}
         )
 
         # Forcing WSL_linux2win_path to return a path we'll fail to parse
-        # (missing one / in the begining of the path).
+        # (missing one / in the beginning of the path).
         for i, m in enumerate(data["mocks"]):
             if m["name"] == "WSL_linux2win_path":
                 data["mocks"][i]["RET"] = "/wsl.localhost/cant-findme"
@@ -1493,11 +1468,7 @@ class TestWSL(DsIdentifyBase):
         data = copy.deepcopy(VALID_CFG["WSL-supported-debian"])
         userprofile = str(tmp_path)
         data["mocks"].append(
-            {
-                "name": "WSL_profile_dir",
-                "ret": 0,
-                "RET": userprofile,
-            },
+            {"name": "WSL_profile_dir", "ret": 0, "RET": userprofile}
         )
         cloudinitdir = os.path.join(userprofile, ".cloud-init")
         os.mkdir(cloudinitdir)
@@ -1515,11 +1486,7 @@ class TestWSL(DsIdentifyBase):
         data = copy.deepcopy(VALID_CFG["WSL-supported"])
         userprofile = str(tmp_path)
         data["mocks"].append(
-            {
-                "name": "WSL_profile_dir",
-                "ret": 0,
-                "RET": userprofile,
-            },
+            {"name": "WSL_profile_dir", "ret": 0, "RET": userprofile}
         )
         cloudinitdir = os.path.join(userprofile, ".cloud-init")
         os.mkdir(cloudinitdir)
@@ -1637,9 +1604,7 @@ VALID_CFG = {
     },
     "Azure-dmi-detection": {
         "ds": "Azure",
-        "files": {
-            P_CHASSIS_ASSET_TAG: "7783-7084-3265-9085-8269-3286-77\n",
-        },
+        "files": {P_CHASSIS_ASSET_TAG: "7783-7084-3265-9085-8269-3286-77\n"},
     },
     "Azure-seed-detection": {
         "ds": "Azure",
@@ -1648,10 +1613,7 @@ VALID_CFG = {
             os.path.join(P_SEED_DIR, "azure", "ovf-env.xml"): "present\n",
         },
     },
-    "CloudCIX": {
-        "ds": "CloudCIX",
-        "files": {P_PRODUCT_NAME: "CloudCIX\n"},
-    },
+    "CloudCIX": {"ds": "CloudCIX", "files": {P_PRODUCT_NAME: "CloudCIX\n"}},
     "Azure-parse-invalid": {
         "ds": "Azure",
         "files": {
@@ -1672,9 +1634,7 @@ VALID_CFG = {
     "Ec2-hvm-swap-endianness": {
         "ds": "Ec2",
         "mocks": [{"name": "detect_virt", "RET": "kvm", "ret": 0}],
-        "files": {
-            P_PRODUCT_UUID: "AB232AEC-54BE-4843-8D24-8C819F88453E\n",
-        },
+        "files": {P_PRODUCT_UUID: "AB232AEC-54BE-4843-8D24-8C819F88453E\n"},
     },
     "Ec2-hvm-env": {
         "ds": "Ec2",
@@ -1904,9 +1864,7 @@ VALID_CFG = {
             "/run/systemd/somefile": "",
         },
         # /dev/lxd/sock does not exist and KVM virt-type
-        "mocks": [
-            {"name": "is_socket_file", "ret": 1},
-        ],
+        "mocks": [{"name": "is_socket_file", "ret": 1}],
         "env_vars": IS_KVM_QEMU_ENV,
         "no_mocks": [
             "dscheck_LXD",
@@ -1938,9 +1896,7 @@ VALID_CFG = {
                 ),
             },
         ],
-        "files": {
-            "dev/vdb": "pretend iso content for cidata\n",
-        },
+        "files": {"dev/vdb": "pretend iso content for cidata\n"},
     },
     "NoCloud-cfg": {
         "ds": "NoCloud",
@@ -1975,9 +1931,7 @@ VALID_CFG = {
                 ),
             },
         ],
-        "files": {
-            "/dev/vtdb": "pretend iso content for cidata\n",
-        },
+        "files": {"/dev/vtdb": "pretend iso content for cidata\n"},
     },
     "NoCloudUpper": {
         "ds": "NoCloud",
@@ -1998,9 +1952,7 @@ VALID_CFG = {
                 ),
             },
         ],
-        "files": {
-            "dev/vdb": "pretend iso content for cidata\n",
-        },
+        "files": {"dev/vdb": "pretend iso content for cidata\n"},
     },
     "NoCloud-fatboot": {
         "ds": "NoCloud",
@@ -2023,9 +1975,7 @@ VALID_CFG = {
                 ),
             },
         ],
-        "files": {
-            "dev/vdb": "pretend iso content for cidata\n",
-        },
+        "files": {"dev/vdb": "pretend iso content for cidata\n"},
     },
     "NoCloud-seed": {
         "ds": "NoCloud",
@@ -2132,9 +2082,7 @@ VALID_CFG = {
     },
     "OVF-seed": {
         "ds": "OVF",
-        "files": {
-            os.path.join(P_SEED_DIR, "ovf", "ovf-env.xml"): "present\n",
-        },
+        "files": {os.path.join(P_SEED_DIR, "ovf", "ovf-env.xml"): "present\n"},
     },
     "OVF": {
         "ds": "OVF",
@@ -2202,7 +2150,7 @@ VALID_CFG = {
                         },
                     ]
                 ),
-            },
+            }
         ],
     },
     "ConfigDriveUpper": {
@@ -2231,7 +2179,7 @@ VALID_CFG = {
                         },
                     ]
                 ),
-            },
+            }
         ],
     },
     "ConfigDrive-seed": {
@@ -2268,7 +2216,7 @@ VALID_CFG = {
                         {"DEVNAME": "vdb", "TYPE": "vfat", "LABEL": "CLOUDMD"},
                     ]
                 ),
-            },
+            }
         ],
     },
     "RbxCloudLower": {
@@ -2293,13 +2241,10 @@ VALID_CFG = {
                         {"DEVNAME": "vdb", "TYPE": "vfat", "LABEL": "cloudmd"},
                     ]
                 ),
-            },
+            }
         ],
     },
-    "Hetzner": {
-        "ds": "Hetzner",
-        "files": {P_SYS_VENDOR: "Hetzner\n"},
-    },
+    "Hetzner": {"ds": "Hetzner", "files": {P_SYS_VENDOR: "Hetzner\n"}},
     "Hetzner-kenv": {
         "ds": "Hetzner",
         "mocks": [
@@ -2318,10 +2263,7 @@ VALID_CFG = {
         "ds": "Hetzner",
         "mocks": [{"name": "dmi_decode", "ret": 0, "RET": "Hetzner"}],
     },
-    "NWCS": {
-        "ds": "NWCS",
-        "files": {P_SYS_VENDOR: "NWCS\n"},
-    },
+    "NWCS": {"ds": "NWCS", "files": {P_SYS_VENDOR: "NWCS\n"}},
     "NWCS-kenv": {
         "ds": "NWCS",
         "mocks": [
@@ -2427,9 +2369,7 @@ VALID_CFG = {
     },
     "Oracle": {
         "ds": "Oracle",
-        "files": {
-            P_CHASSIS_ASSET_TAG: ds_oracle.CHASSIS_ASSET_TAG + "\n",
-        },
+        "files": {P_CHASSIS_ASSET_TAG: ds_oracle.CHASSIS_ASSET_TAG + "\n"},
     },
     "SmartOS-bhyve": {
         "ds": "SmartOS",
@@ -2488,19 +2428,14 @@ VALID_CFG = {
         "ds": "Ec2",
         "files": {P_CHASSIS_ASSET_TAG: "123456.zstack.io\n"},
     },
-    "Ec2-E24Cloud": {
-        "ds": "Ec2",
-        "files": {P_SYS_VENDOR: "e24cloud\n"},
-    },
+    "Ec2-E24Cloud": {"ds": "Ec2", "files": {P_SYS_VENDOR: "e24cloud\n"}},
     "Ec2-E24Cloud-negative": {
         "ds": "Ec2",
         "files": {P_SYS_VENDOR: "e24cloudyday\n"},
     },
     "VMware-NoValidTransports": {
         "ds": "VMware",
-        "mocks": [
-            MOCK_VIRT_IS_VMWARE,
-        ],
+        "mocks": [MOCK_VIRT_IS_VMWARE],
     },
     "VMware-vmware-customization": {
         "ds": "VMware",
@@ -2612,109 +2547,49 @@ VALID_CFG = {
     "VMware-EnvVar-NoData": {
         "ds": "VMware",
         "mocks": [
-            {
-                "name": "vmware_has_envvar_vmx_guestinfo",
-                "ret": 0,
-            },
-            {
-                "name": "vmware_has_envvar_vmx_guestinfo_metadata",
-                "ret": 1,
-            },
-            {
-                "name": "vmware_has_envvar_vmx_guestinfo_userdata",
-                "ret": 1,
-            },
-            {
-                "name": "vmware_has_envvar_vmx_guestinfo_vendordata",
-                "ret": 1,
-            },
+            {"name": "vmware_has_envvar_vmx_guestinfo", "ret": 0},
+            {"name": "vmware_has_envvar_vmx_guestinfo_metadata", "ret": 1},
+            {"name": "vmware_has_envvar_vmx_guestinfo_userdata", "ret": 1},
+            {"name": "vmware_has_envvar_vmx_guestinfo_vendordata", "ret": 1},
             MOCK_VIRT_IS_VMWARE,
         ],
     },
     "VMware-EnvVar-NoVirtID": {
         "ds": "VMware",
         "mocks": [
-            {
-                "name": "vmware_has_envvar_vmx_guestinfo",
-                "ret": 0,
-            },
-            {
-                "name": "vmware_has_envvar_vmx_guestinfo_metadata",
-                "ret": 0,
-            },
-            {
-                "name": "vmware_has_envvar_vmx_guestinfo_userdata",
-                "ret": 1,
-            },
-            {
-                "name": "vmware_has_envvar_vmx_guestinfo_vendordata",
-                "ret": 1,
-            },
+            {"name": "vmware_has_envvar_vmx_guestinfo", "ret": 0},
+            {"name": "vmware_has_envvar_vmx_guestinfo_metadata", "ret": 0},
+            {"name": "vmware_has_envvar_vmx_guestinfo_userdata", "ret": 1},
+            {"name": "vmware_has_envvar_vmx_guestinfo_vendordata", "ret": 1},
         ],
     },
     "VMware-EnvVar-Metadata": {
         "ds": "VMware",
         "mocks": [
-            {
-                "name": "vmware_has_envvar_vmx_guestinfo",
-                "ret": 0,
-            },
-            {
-                "name": "vmware_has_envvar_vmx_guestinfo_metadata",
-                "ret": 0,
-            },
-            {
-                "name": "vmware_has_envvar_vmx_guestinfo_userdata",
-                "ret": 1,
-            },
-            {
-                "name": "vmware_has_envvar_vmx_guestinfo_vendordata",
-                "ret": 1,
-            },
+            {"name": "vmware_has_envvar_vmx_guestinfo", "ret": 0},
+            {"name": "vmware_has_envvar_vmx_guestinfo_metadata", "ret": 0},
+            {"name": "vmware_has_envvar_vmx_guestinfo_userdata", "ret": 1},
+            {"name": "vmware_has_envvar_vmx_guestinfo_vendordata", "ret": 1},
             MOCK_VIRT_IS_VMWARE,
         ],
     },
     "VMware-EnvVar-Userdata": {
         "ds": "VMware",
         "mocks": [
-            {
-                "name": "vmware_has_envvar_vmx_guestinfo",
-                "ret": 0,
-            },
-            {
-                "name": "vmware_has_envvar_vmx_guestinfo_metadata",
-                "ret": 1,
-            },
-            {
-                "name": "vmware_has_envvar_vmx_guestinfo_userdata",
-                "ret": 0,
-            },
-            {
-                "name": "vmware_has_envvar_vmx_guestinfo_vendordata",
-                "ret": 1,
-            },
+            {"name": "vmware_has_envvar_vmx_guestinfo", "ret": 0},
+            {"name": "vmware_has_envvar_vmx_guestinfo_metadata", "ret": 1},
+            {"name": "vmware_has_envvar_vmx_guestinfo_userdata", "ret": 0},
+            {"name": "vmware_has_envvar_vmx_guestinfo_vendordata", "ret": 1},
             MOCK_VIRT_IS_VMWARE,
         ],
     },
     "VMware-EnvVar-Vendordata": {
         "ds": "VMware",
         "mocks": [
-            {
-                "name": "vmware_has_envvar_vmx_guestinfo",
-                "ret": 0,
-            },
-            {
-                "name": "vmware_has_envvar_vmx_guestinfo_metadata",
-                "ret": 1,
-            },
-            {
-                "name": "vmware_has_envvar_vmx_guestinfo_userdata",
-                "ret": 1,
-            },
-            {
-                "name": "vmware_has_envvar_vmx_guestinfo_vendordata",
-                "ret": 0,
-            },
+            {"name": "vmware_has_envvar_vmx_guestinfo", "ret": 0},
+            {"name": "vmware_has_envvar_vmx_guestinfo_metadata", "ret": 1},
+            {"name": "vmware_has_envvar_vmx_guestinfo_userdata", "ret": 1},
+            {"name": "vmware_has_envvar_vmx_guestinfo_vendordata", "ret": 0},
             MOCK_VIRT_IS_VMWARE,
         ],
     },
@@ -2731,18 +2606,9 @@ VALID_CFG = {
                 "ret": 1,
                 "out": "/usr/bin/vmtoolsd",
             },
-            {
-                "name": "vmware_guestinfo_metadata",
-                "ret": 1,
-            },
-            {
-                "name": "vmware_guestinfo_userdata",
-                "ret": 1,
-            },
-            {
-                "name": "vmware_guestinfo_vendordata",
-                "ret": 1,
-            },
+            {"name": "vmware_guestinfo_metadata", "ret": 1},
+            {"name": "vmware_guestinfo_userdata", "ret": 1},
+            {"name": "vmware_guestinfo_vendordata", "ret": 1},
             MOCK_VIRT_IS_VMWARE,
         ],
     },
@@ -2760,18 +2626,9 @@ VALID_CFG = {
                 "ret": 0,
                 "out": "/usr/bin/vmtoolsd",
             },
-            {
-                "name": "vmware_guestinfo_metadata",
-                "ret": 1,
-            },
-            {
-                "name": "vmware_guestinfo_userdata",
-                "ret": 1,
-            },
-            {
-                "name": "vmware_guestinfo_vendordata",
-                "ret": 1,
-            },
+            {"name": "vmware_guestinfo_metadata", "ret": 1},
+            {"name": "vmware_guestinfo_userdata", "ret": 1},
+            {"name": "vmware_guestinfo_vendordata", "ret": 1},
             MOCK_VIRT_IS_VMWARE,
         ],
     },
@@ -2783,19 +2640,9 @@ VALID_CFG = {
                 "ret": 0,
                 "out": "/usr/bin/vmware-rpctool",
             },
-            {
-                "name": "vmware_guestinfo_metadata",
-                "ret": 0,
-                "out": "---",
-            },
-            {
-                "name": "vmware_guestinfo_userdata",
-                "ret": 1,
-            },
-            {
-                "name": "vmware_guestinfo_vendordata",
-                "ret": 1,
-            },
+            {"name": "vmware_guestinfo_metadata", "ret": 0, "out": "---"},
+            {"name": "vmware_guestinfo_userdata", "ret": 1},
+            {"name": "vmware_guestinfo_vendordata", "ret": 1},
         ],
     },
     "VMware-GuestInfo-Metadata": {
@@ -2811,19 +2658,9 @@ VALID_CFG = {
                 "ret": 0,
                 "out": "/usr/bin/vmtoolsd",
             },
-            {
-                "name": "vmware_guestinfo_metadata",
-                "ret": 0,
-                "out": "---",
-            },
-            {
-                "name": "vmware_guestinfo_userdata",
-                "ret": 1,
-            },
-            {
-                "name": "vmware_guestinfo_vendordata",
-                "ret": 1,
-            },
+            {"name": "vmware_guestinfo_metadata", "ret": 0, "out": "---"},
+            {"name": "vmware_guestinfo_userdata", "ret": 1},
+            {"name": "vmware_guestinfo_vendordata", "ret": 1},
             MOCK_VIRT_IS_VMWARE,
         ],
     },
@@ -2840,19 +2677,9 @@ VALID_CFG = {
                 "ret": 1,
                 "out": "/usr/bin/vmtoolsd",
             },
-            {
-                "name": "vmware_guestinfo_metadata",
-                "ret": 1,
-            },
-            {
-                "name": "vmware_guestinfo_userdata",
-                "ret": 0,
-                "out": "---",
-            },
-            {
-                "name": "vmware_guestinfo_vendordata",
-                "ret": 1,
-            },
+            {"name": "vmware_guestinfo_metadata", "ret": 1},
+            {"name": "vmware_guestinfo_userdata", "ret": 0, "out": "---"},
+            {"name": "vmware_guestinfo_vendordata", "ret": 1},
             MOCK_VIRT_IS_VMWARE,
         ],
     },
@@ -2869,19 +2696,9 @@ VALID_CFG = {
                 "ret": 0,
                 "out": "/usr/bin/vmtoolsd",
             },
-            {
-                "name": "vmware_guestinfo_metadata",
-                "ret": 1,
-            },
-            {
-                "name": "vmware_guestinfo_userdata",
-                "ret": 1,
-            },
-            {
-                "name": "vmware_guestinfo_vendordata",
-                "ret": 0,
-                "out": "---",
-            },
+            {"name": "vmware_guestinfo_metadata", "ret": 1},
+            {"name": "vmware_guestinfo_userdata", "ret": 1},
+            {"name": "vmware_guestinfo_vendordata", "ret": 0, "out": "---"},
             MOCK_VIRT_IS_VMWARE,
         ],
     },
@@ -2899,19 +2716,9 @@ VALID_CFG = {
                 "ret": 0,
                 "out": "/usr/bin/vmtoolsd",
             },
-            {
-                "name": "vmware_guestinfo_metadata",
-                "ret": 0,
-                "out": "---",
-            },
-            {
-                "name": "vmware_guestinfo_userdata",
-                "ret": 1,
-            },
-            {
-                "name": "vmware_guestinfo_vendordata",
-                "ret": 1,
-            },
+            {"name": "vmware_guestinfo_metadata", "ret": 0, "out": "---"},
+            {"name": "vmware_guestinfo_userdata", "ret": 1},
+            {"name": "vmware_guestinfo_vendordata", "ret": 1},
             {
                 "name": "blkid",
                 "ret": 0,
@@ -2952,19 +2759,9 @@ VALID_CFG = {
                 "ret": 0,
                 "out": "/usr/bin/vmtoolsd",
             },
-            {
-                "name": "vmware_guestinfo_metadata",
-                "ret": 0,
-                "out": "---",
-            },
-            {
-                "name": "vmware_guestinfo_userdata",
-                "ret": 1,
-            },
-            {
-                "name": "vmware_guestinfo_vendordata",
-                "ret": 1,
-            },
+            {"name": "vmware_guestinfo_metadata", "ret": 0, "out": "---"},
+            {"name": "vmware_guestinfo_userdata", "ret": 1},
+            {"name": "vmware_guestinfo_vendordata", "ret": 1},
             {
                 "name": "blkid",
                 "ret": 0,
@@ -3012,25 +2809,17 @@ VALID_CFG = {
             P_SYS_VENDOR: "3DS Outscale\n",
         },
     },
-    "Not-WSL": {
-        "ds": "WSL",
-        "mocks": [
-            MOCK_VIRT_IS_KVM,
-        ],
-    },
+    "Not-WSL": {"ds": "WSL", "mocks": [MOCK_VIRT_IS_KVM]},
     "WSL-no-host-mounts": {
         "ds": "WSL",
-        "mocks": [
-            MOCK_VIRT_IS_WSL,
-            MOCK_UNAME_IS_WSL,
-        ],
+        "mocks": [MOCK_VIRT_IS_WSL, MOCK_UNAME_IS_WSL],
         "files": {
             "proc/mounts": (
                 "/dev/sdd / ext4 rw,errors=remount-ro,data=ordered 0 0\n"
                 "cgroup2 /sys/fs/cgroup cgroup2 rw,nosuid,nodev,noexec0 0\n"
                 "snapfuse /snap/core22/1033 fuse.snapfuse ro,nodev,user_id=0,"
                 "group_id=0,allow_other 0 0"
-            ),
+            )
         },
     },
     "WSL-supported": {
