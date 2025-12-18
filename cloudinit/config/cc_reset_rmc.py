@@ -103,7 +103,7 @@ def get_node_id():
 
 def add_path(orig_path):
     # Adding the RSCT_PATH to env standard path
-    # So thet cloud init automatically find and
+    # So that cloud init automatically find and
     # run RECFGCT to create new node_id.
     suff = ":" + orig_path if orig_path else ""
     os.environ["PATH"] = RSCT_PATH + suff

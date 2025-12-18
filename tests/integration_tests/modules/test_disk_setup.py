@@ -267,6 +267,6 @@ def test_required_mounts(create_disk, client: IntegrationInstance):
     deps = client.execute(
         f"systemctl list-dependencies --all {service}".split()
     )
-    assert "var.mount" in deps, "Exepected 'var.mount' to be a dependency"
+    assert "var.mount" in deps, "Expected 'var.mount' to be a dependency"
 
     verify_clean_boot(client)

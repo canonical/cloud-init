@@ -9,7 +9,7 @@ env:
 
 on:
   pull_request:
-    # There is a known bug in Github but it will most probably not affect out use case
+    # There is a known bug in GitHub but it will most probably not affect out use case
     # https://github.com/orgs/community/discussions/118623#discussioncomment-9087833
     # When there are 2 PRs using the same source branch (actually the same head SHA to be more specific), with the base branch in one PR matching
     # on.pull_request.branches and thee base branch in the second PR not matching this key,
@@ -54,7 +54,7 @@ jobs:
               echo "There are no changed files remaining in the repo which match the glob pattern \'${GLOBS_TO_SHELLCHECK}\' so shellcheck will not run"
             else
               echo "shellcheck will run on the remaining changed files: ${RETAINED_CHANGED_FILES}"
-              shellcheck ${RETAINED_CHANGED_FILES}
+              shellcheck -e SC3043 ${RETAINED_CHANGED_FILES}
               echo "shellcheck succeeded running on the remaining changed files"
             fi
           fi

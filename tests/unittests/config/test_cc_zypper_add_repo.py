@@ -118,7 +118,7 @@ class TestConfig:
         for item in contents.split("\n"):
             if item not in expected:
                 assert item is None
-        # Not finding teh right path for mocking :(
+        # Not finding the right path for mocking :(
         # assert mock_logging.warning.called
 
     def test_empty_config_section_no_new_data(self, tmp_path):

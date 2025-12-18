@@ -13,6 +13,7 @@ from unittest import mock
 from unittest.util import strclass
 from urllib.parse import urlsplit, urlunsplit
 
+import pytest
 import responses
 
 from cloudinit import distros, helpers, settings, util
@@ -20,10 +21,6 @@ from cloudinit.helpers import Paths
 from cloudinit.templater import JINJA_AVAILABLE
 from tests.helpers import cloud_init_project_dir
 from tests.hypothesis_jsonschema import HAS_HYPOTHESIS_JSONSCHEMA
-
-# Used for skipping tests
-skipIf = unittest.skipIf
-
 
 try:
     import apt_pkg  # type: ignore # noqa: F401
@@ -304,9 +301,8 @@ def readResource(name, mode="r"):
 
 
 def skipIfAptPkg():
-    return skipIf(
-        HAS_APT_PKG,
-        "No python-apt dependency present.",
+    return pytest.mark.skipif(
+        HAS_APT_PKG, reason="No python-apt dependency present."
     )
 
 
@@ -329,7 +325,7 @@ except ImportError:
 
 
 def skipUnlessJsonSchemaVersionGreaterThan(version=(0, 0, 0)):
-    return skipIf(
+    return pytest.mark.skipif(
         _jsonschema_version <= version,
         reason=(
             f"python3-jsonschema {_jsonschema_version} not greater than"
@@ -339,33 +335,38 @@ def skipUnlessJsonSchemaVersionGreaterThan(version=(0, 0, 0)):
 
 
 def skipUnlessJsonSchema():
-    return skipIf(
-        _missing_jsonschema_dep, "No python-jsonschema dependency present."
+    return pytest.mark.skipif(
+        _missing_jsonschema_dep,
+        reason="No python-jsonschema dependency present.",
     )
 
 
 def skipUnlessJinja():
-    return skipIf(not JINJA_AVAILABLE, "No jinja dependency present.")
+    return pytest.mark.skipif(
+        not JINJA_AVAILABLE, reason="No jinja dependency present."
+    )
 
 
 @skipUnlessJinja()
 def skipUnlessJinjaVersionGreaterThan(version=(0, 0, 0)):
     import jinja2
 
-    return skipIf(
-        condition=tuple(map(int, jinja2.__version__.split("."))) < version,
+    return pytest.mark.skipif(
+        tuple(map(int, jinja2.__version__.split("."))) < version,
         reason=f"jinj2 version is less than {version}",
     )
 
 
 def skipIfJinja():
-    return skipIf(JINJA_AVAILABLE, "Jinja dependency present.")
+    return pytest.mark.skipif(
+        JINJA_AVAILABLE, reason="Jinja dependency present."
+    )
 
 
 def skipUnlessHypothesisJsonSchema():
-    return skipIf(
+    return pytest.mark.skipif(
         not HAS_HYPOTHESIS_JSONSCHEMA,
-        "No python-hypothesis-jsonschema dependency present.",
+        reason="No python-hypothesis-jsonschema dependency present.",
     )
 
 

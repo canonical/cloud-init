@@ -142,7 +142,7 @@ class TestTemplates:
         self, caplog, tmp_path
     ):
         """Test jinja render_from_file will fallback to basic renderer."""
-        tmpl_fn = tmp_path("j-render-from-file.template")
+        tmpl_fn = str(tmp_path / "j-render-from-file.template")
         write_file(
             tmpl_fn,
             omode="wb",

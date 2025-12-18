@@ -66,17 +66,25 @@ class TestKvpReporter:
     def test_finish_event_result_is_logged(self, reporter):
         reporter.publish_event(
             events.FinishReportingEvent(
-                "name2", "description1", result=events.status.FAIL
+                "name2",
+                "description1",
+                duration=2.5,
+                result=events.status.FAIL,
             )
         )
         reporter.q.join()
-        assert "FAIL" in list(reporter._iterate_kvps(0))[0]["value"]
+        kvp_value = json.loads(list(reporter._iterate_kvps(0))[0]["value"])
+        assert kvp_value["result"] == events.status.FAIL
+        assert kvp_value["duration"] == 2.5
 
     def test_file_operation_issue(self, kvp_file_path, reporter):
         os.remove(kvp_file_path)
         reporter.publish_event(
             events.FinishReportingEvent(
-                "name2", "description1", result=events.status.FAIL
+                "name2",
+                "description1",
+                duration=1.0,
+                result=events.status.FAIL,
             )
         )
         reporter.q.join()
@@ -84,7 +92,10 @@ class TestKvpReporter:
     def test_event_very_long(self, reporter):
         description = "ab" * reporter.HV_KVP_AZURE_MAX_VALUE_SIZE
         long_event = events.FinishReportingEvent(
-            "event_name", description, result=events.status.FAIL
+            "event_name",
+            description,
+            duration=3.0,
+            result=events.status.FAIL,
         )
         reporter.publish_event(long_event)
         reporter.q.join()
@@ -96,6 +107,7 @@ class TestKvpReporter:
         for i in range(len(kvps)):
             msg_slice = json.loads(kvps[i]["value"])
             assert msg_slice["msg_i"] == i
+            assert msg_slice["duration"] == 3.0
             full_description += msg_slice["msg"]
         assert description == full_description
 
