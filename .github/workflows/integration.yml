@@ -35,6 +35,7 @@ jobs:
             ubuntu-dev-tools \
             tox \
             wireguard \
+            dh-python # Required until Noble is dropped. \
             $(\
               ./tools/read-dependencies                   \
                 --requirements-file requirements.txt      \
