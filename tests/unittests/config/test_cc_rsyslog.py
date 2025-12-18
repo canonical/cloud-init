@@ -1,9 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import copy
 import os
 import re
-import shutil
-import tempfile
 from functools import partial
 from typing import Optional
 from unittest import mock
@@ -27,9 +26,8 @@ from tests.unittests.helpers import skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
 
-@pytest.fixture
-def basecfg():
-    return {
+class TestLoadConfig:
+    BASECFG = {
         "config_filename": "20-cloud-config.conf",
         "config_dir": "/etc/rsyslog.d",
         "service_reload_command": "auto",
@@ -38,13 +36,9 @@ def basecfg():
         "check_exe": "rsyslogd",
         "packages": ["rsyslog"],
         "install_rsyslog": False,
-
     }
 
-
-@pytest.fixture
-def bsdcfg():
-    return {
+    BSDCFG = {
         "config_filename": "20-cloud-config.conf",
         "config_dir": "/usr/local/etc/rsyslog.d",
         "service_reload_command": "auto",
@@ -55,18 +49,10 @@ def bsdcfg():
         "install_rsyslog": False,
     }
 
-
-@pytest.fixture
-def temp_dir():
-    tmp = tempfile.mkdtemp()
-    yield tmp
-    shutil.rmtree(tmp)
-
-
-
-class TestLoadConfig:
-    def test_legacy_full(self, basecfg):
+    def test_legacy_full(self):
         cloud = get_cloud(distro="ubuntu", metadata={})
+        cfg = copy.deepcopy(self.BASECFG)
+
         found = load_config(
             {
                 "rsyslog": ["*.* @192.168.1.1"],
@@ -75,7 +61,7 @@ class TestLoadConfig:
             },
             distro=cloud.distro,
         )
-        basecfg.update(
+        cfg.update(
             {
                 "configs": ["*.* @192.168.1.1"],
                 "config_dir": "mydir",
@@ -84,68 +70,80 @@ class TestLoadConfig:
             }
         )
 
-        assert found == basecfg
+        assert found == cfg
 
-    def test_legacy_defaults(self, basecfg):
+    def test_legacy_defaults(self):
         cloud = get_cloud(distro="ubuntu", metadata={})
+        cfg = copy.deepcopy(self.BASECFG)
+
         found = load_config(
             {"rsyslog": ["*.* @192.168.1.1"]}, distro=cloud.distro
         )
-        basecfg.update({"configs": ["*.* @192.168.1.1"]})
-        assert found == basecfg
+        cfg.update({"configs": ["*.* @192.168.1.1"]})
+        assert found == cfg
 
-    def test_new_defaults(self, basecfg):
+    def test_new_defaults(self):
         cloud = get_cloud(distro="ubuntu", metadata={})
-        assert load_config({}, distro=cloud.distro) == basecfg
+        cfg = copy.deepcopy(self.BASECFG)
 
-    def test_new_bsd_defaults(self, bsdcfg):
+        assert load_config({}, distro=cloud.distro) == cfg
+
+    def test_new_bsd_defaults(self):
+        cfg = copy.deepcopy(self.BSDCFG)
+
         # patch for ifconfig -a
         with mock.patch(
             "cloudinit.distros.networking.subp.subp", return_values=("", None)
         ):
             cloud = get_cloud(distro="freebsd", metadata={})
-        assert load_config({}, distro=cloud.distro) == bsdcfg
+        assert load_config({}, distro=cloud.distro) == cfg
 
-    def test_new_configs(self, basecfg):
+    def test_new_configs(self):
+        cfg = copy.deepcopy(self.BASECFG)
+
         cfgs = ["*.* myhost", "*.* my2host"]
         cloud = get_cloud(distro="ubuntu", metadata={})
-        basecfg.update({"configs": cfgs})
-        assert(
+        cfg.update({"configs": cfgs})
+        assert (
             load_config({"rsyslog": {"configs": cfgs}}, distro=cloud.distro)
-            == basecfg
+            == cfg
         )
 
 
 class TestApplyChanges:
 
-    def test_simple(self, temp_dir):
+    def test_simple(self, tmpdir):
+        tmpdir = str(tmpdir)
+
         cfgline = "*.* foohost"
         changed = apply_rsyslog_changes(
-            configs=[cfgline], def_fname="foo.cfg", cfg_dir=temp_dir
+            configs=[cfgline], def_fname="foo.cfg", cfg_dir=tmpdir
         )
 
-        fname = os.path.join(temp_dir, "foo.cfg")
+        fname = os.path.join(tmpdir, "foo.cfg")
         assert changed == [fname]
         assert util.load_text_file(fname) == cfgline + "\n"
 
-    def test_multiple_files(self, temp_dir):
+    def test_multiple_files(self, tmpdir):
+        tmpdir = str(tmpdir)
+
         configs = [
             "*.* foohost",
             {"content": "abc", "filename": "my.cfg"},
             {
                 "content": "filefoo-content",
-                "filename": os.path.join(temp_dir, "mydir/mycfg"),
+                "filename": os.path.join(tmpdir, "mydir/mycfg"),
             },
         ]
 
         changed = apply_rsyslog_changes(
-            configs=configs, def_fname="default.cfg", cfg_dir=temp_dir
+            configs=configs, def_fname="default.cfg", cfg_dir=tmpdir
         )
 
         expected = [
-            (os.path.join(temp_dir, "default.cfg"), "*.* foohost\n"),
-            (os.path.join(temp_dir, "my.cfg"), "abc\n"),
-            (os.path.join(temp_dir, "mydir/mycfg"), "filefoo-content\n"),
+            (os.path.join(tmpdir, "default.cfg"), "*.* foohost\n"),
+            (os.path.join(tmpdir, "my.cfg"), "abc\n"),
+            (os.path.join(tmpdir, "mydir/mycfg"), "filefoo-content\n"),
         ]
         assert [f[0] for f in expected] == changed
         actual = []
@@ -159,28 +157,30 @@ class TestApplyChanges:
             )
         assert expected == actual
 
-    def test_repeat_def(self, temp_dir):
+    def test_repeat_def(self, tmpdir):
+        tmpdir = str(tmpdir)
         configs = ["*.* foohost", "*.warn otherhost"]
 
         changed = apply_rsyslog_changes(
-            configs=configs, def_fname="default.cfg", cfg_dir=temp_dir
+            configs=configs, def_fname="default.cfg", cfg_dir=tmpdir
         )
 
-        fname = os.path.join(temp_dir, "default.cfg")
+        fname = os.path.join(tmpdir, "default.cfg")
         assert changed == [fname]
 
         expected_content = "\n".join([c for c in configs]) + "\n"
         found_content = util.load_text_file(fname)
         assert expected_content == found_content
 
-    def test_multiline_content(self, temp_dir):
+    def test_multiline_content(self, tmpdir):
+        tmpdir = str(tmpdir)
         configs = ["line1", "line2\nline3\n"]
 
         apply_rsyslog_changes(
-            configs=configs, def_fname="default.cfg", cfg_dir=temp_dir
+            configs=configs, def_fname="default.cfg", cfg_dir=tmpdir
         )
 
-        fname = os.path.join(temp_dir, "default.cfg")
+        fname = os.path.join(tmpdir, "default.cfg")
         expected_content = "\n".join([c for c in configs])
         found_content = util.load_text_file(fname)
         assert expected_content == found_content
