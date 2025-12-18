@@ -175,26 +175,26 @@ Last-Update: 2024-08-02
 -WantedBy=cloud-init.target
 --- a/systemd/cloud-init-network.service.tmpl
 +++ /dev/null
-@@ -1,67 +0,0 @@
+@@ -1,64 +0,0 @@
 -## template:jinja
 -[Unit]
 -# https://docs.cloud-init.io/en/latest/explanation/boot.html
 -Description=Cloud-init: Network Stage
--{% if variant not in ["almalinux", "cloudlinux", "photon", "raspberry-pi-os", "rhel"] %}
+-{% if variant not in ["almalinux", "cloudlinux", "photon", "rhel"] %}
 -DefaultDependencies=no
 -{% endif %}
 -Wants=cloud-init-local.service
 -Wants=sshd-keygen.service
 -Wants=sshd.service
 -After=cloud-init-local.service
--{% if variant not in ["ubuntu"] %}
+-{% if variant not in ["ubuntu", "raspberry-pi-os"] %}
 -After=systemd-networkd-wait-online.service
 -{% endif %}
 -{% if variant in ["ubuntu", "unknown", "debian", "raspberry-pi-os"] %}
 -After=networking.service
 -{% endif %}
 -{% if variant in ["almalinux", "centos", "cloudlinux", "eurolinux", "fedora",
--                  "miraclelinux", "openeuler", "OpenCloudOS", "openmandriva", "raspberry-pi-os", 
+-                  "miraclelinux", "openeuler", "OpenCloudOS", "openmandriva",
 -                  "rhel", "rocky", "suse", "TencentOS", "virtuozzo"] %}
 -After=NetworkManager.service
 -After=NetworkManager-wait-online.service
@@ -206,13 +206,10 @@ Last-Update: 2024-08-02
 -After=dbus.service
 -{% endif %}
 -Before=network-online.target
--{% if variant == "raspberry-pi-os" %}
--Before=avahi-daemon.service
--{% endif %}
 -Before=sshd-keygen.service
 -Before=sshd.service
 -Before=systemd-user-sessions.service
--{% if variant in ["ubuntu", "unknown", "debian"] %}
+-{% if variant in ["ubuntu", "unknown", "debian", "raspberry-pi-os"] %}
 -Before=sysinit.target
 -Before=shutdown.target
 -Conflicts=shutdown.target

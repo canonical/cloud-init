@@ -5,19 +5,6 @@ Description: Retain setuptools build backend on stable series.
 Author: Chad Smith <chad.smith@canonical.com>
 Origin: backport
 Last-Update: 2025-08-25
---- a/doc-requirements.txt
-+++ b/doc-requirements.txt
-@@ -1,9 +1,9 @@
- -r requirements.txt
- doc8
- furo
--meson
- m2r2
- pyyaml
-+setuptools
- sphinx==7.1.2
- sphinx-design
- sphinx-copybutton
 --- a/packages/bddeb
 +++ b/packages/bddeb
 @@ -19,7 +19,7 @@ def find_root():
@@ -29,28 +16,6 @@ Last-Update: 2025-08-25
          return os.path.abspath(top_dir)
      raise OSError(
          (
---- a/packages/debian/rules
-+++ b/packages/debian/rules
-@@ -2,16 +2,13 @@
- 
- include /usr/share/dpkg/pkg-info.mk
- 
--export PYTHONDONTWRITEBYTECODE=1
-+INIT_SYSTEM ?= systemd
-+export PYBUILD_INSTALL_ARGS=--init-system=$(INIT_SYSTEM)
- 
- %:
--	dh $@ --buildsystem meson
--
--override_dh_auto_configure:
--	dh_auto_configure -- -Dinit_system=systemd -Dlibexecdir=lib -Ddistro_templates=chef_client.rb.tmpl,chrony.conf.ubuntu.tmpl,hosts.debian.tmpl,ntp.conf.ubuntu.tmpl,sources.list.ubuntu.deb822.tmpl,sources.list.ubuntu.deb822.tmpl,timesyncd.conf.tmpl
-+	dh $@ --with python3 --buildsystem pybuild
- 
- override_dh_auto_test:
--
- ifeq (,$(findstring nocheck,$(DEB_BUILD_OPTIONS)))
- 	http_proxy= make PYVER=python3 check
- else
 --- a/packages/pkg-deps.json
 +++ b/packages/pkg-deps.json
 @@ -1,12 +1,8 @@
@@ -501,7 +466,7 @@ Last-Update: 2025-08-25
 +    return deps.decode("utf-8").splitlines()
 --- a/test-requirements.txt
 +++ b/test-requirements.txt
-@@ -11,9 +11,9 @@ pytest!=7.3.2
+@@ -11,9 +11,9 @@ pytest
  pytest-cov
  pytest-mock
  pytest-xdist
@@ -512,53 +477,6 @@ Last-Update: 2025-08-25
  passlib
  
  # This one is currently used only by the CloudSigma and SmartOS datasources.
---- a/tools/test_tools.py
-+++ b/tools/test_tools.py
-@@ -1,10 +1,23 @@
- import pathlib
--from packaging.version import Version, InvalidVersion
- from importlib.machinery import SourceFileLoader
- from importlib.util import module_from_spec, spec_from_loader
- from unittest import mock
- 
- import pytest
-+import setuptools
-+
-+
-+from setup_utils import version_to_pep440  # pylint: disable=import-error
-+
-+try:
-+    validate_version = setuptools.dist.Distribution._validate_version  # type: ignore  # noqa: E501
-+    setuptools.sic  # pylint: disable=no-member,pointless-statement
-+except AttributeError:
-+    pytest.skip(
-+        "Unable to import necessary setuptools utilities. "
-+        "Version is likely too old.",
-+        allow_module_level=True,
-+    )
- 
- # Since read-version has a '-' and no .py extension, we have to do this
- # to import it
-@@ -23,17 +36,9 @@ if not spec.loader:
- spec.loader.exec_module(read_version)
- 
- 
--def version_to_pep440(version: str) -> str:
--    # read-version can spit out something like 22.4-15-g7f97aee24
--    # which is invalid under PEP 440. If we replace the first - with a +
--    # that should give us a valid version.
--    return version.replace("-", "+", 1)
--
--
- def assert_valid_version(version):
--    try:
--        Version(version)
--    except InvalidVersion:
-+    response = validate_version(version)
-+    if isinstance(response, setuptools.sic):  # pylint: disable=no-member
-         pytest.fail(f"{version} is not PEP 440 compliant")
- 
- 
 --- a/tox.ini
 +++ b/tox.ini
 @@ -33,6 +33,7 @@ deps =
@@ -569,11 +487,3 @@ Last-Update: 2025-08-25
      typing-extensions
  
  [pinned_versions]
-@@ -185,6 +186,7 @@ deps =
-     pytest==4.6.9
-     pytest-cov==2.8.1
-     pytest-mock==1.10.4
-+    setuptools==45.2.0
-     responses==0.9.0
-     passlib
-     # required for this version of jinja2
