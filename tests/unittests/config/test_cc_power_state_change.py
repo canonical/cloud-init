@@ -11,7 +11,6 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests import helpers as t_help
 from tests.unittests.helpers import mock, skipUnlessJsonSchema
 
 
