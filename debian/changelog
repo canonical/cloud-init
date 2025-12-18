@@ -1,8 +1,9 @@
 cloud-init (25.4-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
 
   * d/p/0001-Revert-fix-support-bond-names-in-network_data.patch revert bond name change
+  * Upstream snapshot based on upstream/main at 5efa2c63.
 
- -- Brett Holman <brett.holman@canonical.com>  Mon, 15 Dec 2025 19:26:01 +0000
+ -- Brett Holman <brett.holman@canonical.com>  Thu, 18 Dec 2025 22:41:27 +0000
 
 cloud-init (25.3-0ubuntu1~22.04.1) jammy; urgency=medium
 
