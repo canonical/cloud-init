@@ -4,11 +4,6 @@
 #
 pycloudlib>=1!10.0.2,<1!11
 
-# Avoid breaking change in `testpaths` treatment forced
-# test/unittests/conftest.py to be loaded by our integration-tests tox env
-# resulting in an unmet dependency issue:
-# https://github.com/pytest-dev/pytest/issues/11104
-pytest!=7.3.2
 pytest-timeout
 
 # Even when xdist is not actively used, we have fixtures that require it
@@ -16,4 +11,4 @@ pytest-xdist
 
 packaging
 passlib
-coverage==7.2.7  # Last version supported in Python 3.7
+coverage
