@@ -215,6 +215,7 @@ OVF_MATCH_STRING = "http://schemas.dmtf.org/ovf/environment/1"
 SHELL_MOCK_TMPL = """\
 %(name)s() {
    local out='%(out)s' err='%(err)s' r='%(ret)s' RET='%(RET)s'
+   %(DI_VARS)s
    [ "$out" = "_unset" ] || echo "$out"
    [ "$err" = "_unset" ] || echo "$err" 2>&1
    [ "$RET" = "_unset" ] || _RET="$RET"
@@ -354,7 +355,16 @@ class DsIdentifyBase:
         ]
 
         def write_mock(data):
-            ddata = {"out": None, "err": None, "ret": 0, "RET": None}
+            ddata = {
+                "out": None,
+                "err": None,
+                "ret": 0,
+                "RET": None,
+                "DI_VARS": "",
+            }
+            for k in data.keys():
+                if k.startswith("DI_"):  # set any injected DI_* env vars
+                    ddata["DI_VARS"] += f"{k}={data[k]}\n"
             ddata.update(data)
             for k in ddata.keys():
                 if ddata[k] is None:
@@ -623,6 +633,10 @@ class TestDsIdentify(DsIdentifyBase):
             ),
             # LXD containers will have /dev/lxd/socket at generator time.
             pytest.param("LXD", True, id="lxd_containers"),
+            # MAAS detected despite /dev/lxd/socket existing
+            pytest.param(
+                "MAAS-not-LXD", True, id="maas_detected_kernel_cmdline_not_lxd"
+            ),
             # ConfigDrive datasource has a disk with LABEL=config-2.
             pytest.param("ConfigDrive", True, id="config_drive"),
             # Rbx datasource has a disk with LABEL=CLOUDMD.
@@ -1712,6 +1726,20 @@ VALID_CFG = {
         },
         # /dev/lxd/sock does not exist and KVM virt-type
         "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+    },
+    "MAAS-not-LXD": {
+        "ds": "MAAS",
+        # /dev/lxd/sock does exist and KVM virt-type
+        "mocks": [
+            {"name": "is_socket_file", "ret": 0},
+            {
+                "name": "read_kernel_cmdline",
+                "DI_KERNEL_CMDLINE": "ds=MAAS",
+                "ret": 0,
+            },
+            MOCK_VIRT_IS_KVM,
+        ],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
     },
     "flow_sequence-control": {
