@@ -88,14 +88,13 @@ class TestLoadConfig:
         assert load_config({}, distro=cloud.distro) == cfg
 
     def test_new_bsd_defaults(self):
-        cfg = copy.deepcopy(self.BSDCFG)
 
         # patch for ifconfig -a
         with mock.patch(
             "cloudinit.distros.networking.subp.subp", return_values=("", None)
         ):
             cloud = get_cloud(distro="freebsd", metadata={})
-        assert load_config({}, distro=cloud.distro) == cfg
+        assert load_config({}, distro=cloud.distro) == self.BSDCFG
 
     def test_new_configs(self):
         cfg = copy.deepcopy(self.BASECFG)
@@ -117,9 +116,9 @@ class TestApplyChanges:
             configs=[cfgline], def_fname="foo.cfg", cfg_dir=str(tmpdir)
         )
 
-        fname = tmpdir.join("foo.cfg")
-        assert changed == [str(fname)]
-        assert util.load_text_file(str(fname)) == cfgline + "\n"
+        fname = str(tmpdir.join("foo.cfg"))
+        assert changed == [fname]
+        assert util.load_text_file(fname) == cfgline + "\n"
 
     def test_multiple_files(self, tmpdir):
         configs = [
