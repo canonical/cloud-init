@@ -139,7 +139,7 @@ def freebsd_cloud(mocker):
 class TestConfig:
     name = "growpart"
     log = logging.getLogger("TestConfig")
-    args = []
+    args: list[str] = []
 
     def test_no_resizers_auto_is_fine(self, freebsd_cloud, mocker):
         mocker.patch.object(os.path, "isfile", return_value=False)
