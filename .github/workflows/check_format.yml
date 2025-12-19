@@ -70,7 +70,7 @@ jobs:
         run: |
           git fetch --unshallow
           git remote add upstream https://git.launchpad.net/cloud-init
-      - name: "Install Python 3.10"
+      - name: "Install Python 3.11.9"
         uses: actions/setup-python@v5
         with:
           python-version: '3.11.9'

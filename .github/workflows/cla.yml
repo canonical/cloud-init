@@ -1,6 +1,9 @@
 name: CLA Check
 
-on: [pull_request]
+on:
+  pull_request:
+    branches-ignore:
+      - 'ubuntu/**'
 
 jobs:
   cla-check:

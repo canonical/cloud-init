@@ -7,8 +7,6 @@ or flaky infrastructure are tracked, retried and upon test session completion
 are reported to the end user as a test warning.
 """
 
-from __future__ import annotations  # required for Python 3.8
-
 import logging
 import queue
 import threading

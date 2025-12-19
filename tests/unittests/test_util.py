@@ -1299,41 +1299,12 @@ class TestGetLinuxDistro:
         assert ("cos", "93", "") == dist
 
     @mock.patch("platform.system")
-    @mock.patch("platform.dist", create=True)
-    def test_get_linux_distro_no_data(
-        self, m_platform_dist, m_platform_system, m_path_exists
-    ):
+    def test_get_linux_distro_no_data(self, m_platform_system, m_path_exists):
         """Verify we get no information if os-release does not exist"""
-        m_platform_dist.return_value = ("", "", "")
         m_platform_system.return_value = "Linux"
         m_path_exists.return_value = 0
         dist = util.get_linux_distro()
         assert ("", "", "") == dist
-
-    @mock.patch("platform.system")
-    @mock.patch("platform.dist", create=True)
-    def test_get_linux_distro_no_impl(
-        self, m_platform_dist, m_platform_system, m_path_exists
-    ):
-        """Verify we get an empty tuple when no information exists and
-        Exceptions are not propagated"""
-        m_platform_dist.side_effect = Exception()
-        m_platform_system.return_value = "Linux"
-        m_path_exists.return_value = 0
-        dist = util.get_linux_distro()
-        assert ("", "", "") == dist
-
-    @mock.patch("platform.system")
-    @mock.patch("platform.dist", create=True)
-    def test_get_linux_distro_plat_data(
-        self, m_platform_dist, m_platform_system, m_path_exists
-    ):
-        """Verify we get the correct platform information"""
-        m_platform_dist.return_value = ("foo", "1.1", "aarch64")
-        m_platform_system.return_value = "Linux"
-        m_path_exists.return_value = 0
-        dist = util.get_linux_distro()
-        assert ("foo", "1.1", "aarch64") == dist
 
 
 class TestGetVariant:

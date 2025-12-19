@@ -584,23 +584,11 @@ def get_linux_distro():
         distro_name = platform.system().lower()
         distro_version = platform.release()
     else:
-        dist = ("", "", "")
-        try:
-            # Was removed in 3.8
-            dist = platform.dist()  # type: ignore  # pylint: disable=W1505,E1101
-        except Exception:
-            pass
-        finally:
-            found = None
-            for entry in dist:
-                if entry:
-                    found = 1
-            if not found:
-                LOG.warning(
-                    "Unable to determine distribution, template "
-                    "expansion may have unexpected results"
-                )
-        return dist
+        LOG.warning(
+            "Unable to determine distribution, template "
+            "expansion may have unexpected results"
+        )
+        return "", "", ""
 
     return (distro_name, distro_version, flavor)
 
