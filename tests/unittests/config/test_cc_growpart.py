@@ -99,59 +99,57 @@ class Scanner:
         pass
 
 
-@pytest.fixture
-def disabled_context():
-    return {
-        "name": "growpart",
-        "cloud": None,
-        "args": [],
-        "handle": cc_growpart.handle,
-    }
 
 
-def test_mode_off(disabled_context):
+def test_mode_off(mocker):
     # Test that nothing is done if mode is off.
 
     # this really only verifies that resizer_factory isn't called
     config = {"growpart": {"mode": "off"}}
 
-    with mock.patch.object(cc_growpart, "resizer_factory") as mockobj:
-        disabled_context["handle"](
-            disabled_context["name"],
-            config,
-            disabled_context["cloud"],
-            disabled_context["args"],
-        )
-        assert mockobj.call_count == 0
+    mock_resizer = mocker.patch.object(cc_growpart, "resizer_factory")
+
+    cc_growpart.handle(
+        name="growpart",
+        cfg=config,
+        cloud=None,
+        args=[],
+    )
+    mock_resizer.assert_not_called()
 
 
+@pytest.fixture
+def freebsd_cloud(mocker):
+    # Patch networking call during distro init
+    mocker.patch(
+        "cloudinit.distros.networking.subp.subp",
+        return_value=("", None),
+    )
+    cls = distros.fetch("freebsd")
+    distro = cls("freebsd", {}, None)
+
+    cloud_obj = cloud.Cloud(
+        None,
+        None,
+        {},
+        distro,
+        None,
+    )
+    return cloud_obj
 
 class TestConfig:
-    @pytest.fixture(autouse=True)
-    def setUp(self):
-        self.name = "growpart"
-        self.paths = None
-        self.distro = mock.Mock()
-        self.cloud = cloud.Cloud(None, self.paths, None, self.distro, None)
-        self.log = logging.getLogger("TestConfig")
-        self.args = []
+    name = "growpart"
+    log = logging.getLogger("TestConfig")
+    args = []
 
-        self.handle = cc_growpart.handle
-        self.tmppath = "/tmp/cloudinit-test-file"
-        self.tmpdir = os.scandir("/tmp")
-        self.tmpfile = open(self.tmppath, "w")
+    def test_no_resizers_auto_is_fine(self, freebsd_cloud, mocker):
+        mocker.patch.object(os.path, "isfile", return_value=False)
 
-        yield
-        self.tmpfile.close()
-        os.remove(self.tmppath)
-
-    @mock.patch.object(os.path, "isfile", return_value=False)
-    def test_no_resizers_auto_is_fine(self, m_isfile):
         with mock.patch.object(
             subp, "subp", return_value=SubpResult(HELP_GROWPART_NO_RESIZE, "")
         ) as mockobj:
             config = {"growpart": {"mode": "auto"}}
-            self.handle(self.name, config, self.cloud, self.args)
+            cc_growpart.handle(self.name, config, freebsd_cloud, self.args)
 
             mockobj.assert_has_calls(
                 [
@@ -164,13 +162,13 @@ class TestConfig:
                 ]
             )
 
-    def test_no_resizers_mode_growpart_is_exception(self):
+    def test_no_resizers_mode_growpart_is_exception(self, freebsd_cloud):
         with mock.patch.object(
             subp, "subp", return_value=SubpResult(HELP_GROWPART_NO_RESIZE, "")
         ) as mockobj:
             config = {"growpart": {"mode": "growpart"}}
             with pytest.raises(ValueError):
-                self.handle(self.name, config, self.cloud, self.args)
+                cc_growpart.handle(self.name, config, freebsd_cloud, self.args)
 
             mockobj.assert_called_once_with(
                 ["growpart", "--help"], update_env={"LANG": "C"}
@@ -193,7 +191,6 @@ class TestConfig:
     @mock.patch.object(stat, "S_ISDIR", return_value=False)
     @mock.patch.object(os.path, "samestat", return_value=True)
     @mock.patch.object(os.path, "join", return_value="/tmp")
-    @mock.patch.object(os, "scandir", return_value=Scanner())
     @mock.patch.object(os, "mkdir")
     @mock.patch.object(os, "unlink")
     @mock.patch.object(os, "rmdir")
@@ -227,23 +224,24 @@ class TestConfig:
             ]
         )
 
-    @mock.patch.object(os.path, "isfile", return_value=True)
-    def test_mode_use_growfs_on_root(self, m_isfile):
-        with mock.patch.object(
-            subp, "subp", return_value=SubpResult("File not found", "")
-        ) as mockobj:
-            ret = cc_growpart.resizer_factory(
-                mode="auto", distro=mock.Mock(), devices=["/"]
-            )
-            assert isinstance(ret, cc_growpart.ResizeGrowFS)
+    
+    def test_mode_use_growfs_on_root(self):
+        with mock.patch.object(os.path, "isfile", return_value=True):
+            with mock.patch.object(
+                subp, "subp", return_value=SubpResult("File not found", "")
+            ) as mockobj:
+                ret = cc_growpart.resizer_factory(
+                    mode="auto", distro=mock.Mock(), devices=["/"]
+                )
+                assert isinstance(ret, cc_growpart.ResizeGrowFS)
 
-            mockobj.assert_has_calls(
-                [
-                    mock.call(
-                        ["growpart", "--help"], update_env={"LANG": "C"}
-                    ),
-                ]
-            )
+                mockobj.assert_has_calls(
+                    [
+                        mock.call(
+                            ["growpart", "--help"], update_env={"LANG": "C"}
+                        ),
+                    ]
+                )
 
     def test_mode_auto_falls_back_to_gpart(self):
         with mock.patch.object(
@@ -265,25 +263,25 @@ class TestConfig:
                 ]
             )
 
-    @mock.patch.object(os.path, "isfile", return_value=True)
-    def test_mode_auto_falls_back_to_growfs(self, m_isfile):
-        with mock.patch.object(
-            subp, "subp", return_value=SubpResult("", HELP_GPART)
-        ) as mockobj:
-            ret = cc_growpart.resizer_factory(
-                mode="auto", distro=mock.Mock(), devices=["/"]
-            )
-            assert isinstance(ret, cc_growpart.ResizeGrowFS)
+    def test_mode_auto_falls_back_to_growfs(self):
+        with mock.patch.object(os.path, "isfile", return_value=True):
+            with mock.patch.object(
+                subp, "subp", return_value=SubpResult("", HELP_GPART)
+            ) as mockobj:
+                ret = cc_growpart.resizer_factory(
+                    mode="auto", distro=mock.Mock(), devices=["/"]
+                )
+                assert isinstance(ret, cc_growpart.ResizeGrowFS)
 
-            mockobj.assert_has_calls(
-                [
-                    mock.call(
-                        ["growpart", "--help"], update_env={"LANG": "C"}
-                    ),
-                ]
-            )
+                mockobj.assert_has_calls(
+                    [
+                        mock.call(
+                            ["growpart", "--help"], update_env={"LANG": "C"}
+                        ),
+                    ]
+                )
 
-    def test_handle_with_no_growpart_entry(self):
+    def test_handle_with_no_growpart_entry(self, freebsd_cloud):
         # if no 'growpart' entry in config, then mode=auto should be used
 
         myresizer = object()
@@ -312,12 +310,12 @@ class TestConfig:
                 )
             )
 
-            self.handle(self.name, {}, self.cloud, self.args)
+            cc_growpart.handle(self.name, {}, freebsd_cloud, self.args)
 
             factory.assert_called_once_with(
-                "auto", distro=self.distro, devices=["/"]
+                "auto", distro=freebsd_cloud.distro, devices=["/"]
             )
-            rsdevs.assert_called_once_with(myresizer, ["/"], self.distro)
+            rsdevs.assert_called_once_with(myresizer, ["/"], freebsd_cloud.distro)
 
 
 class TestResize:
