@@ -965,26 +965,28 @@ dscheck_LXD() {
     # generator timeframe until systemd lxd-agent.service runs.
     # Check for LXD virtio serial device which is supported on platforms
     # without DMI data exposed.
-    if [ "${DI_VIRT}" = "kvm" -o "${DI_VIRT}" = "qemu" ]; then
-        local virtio_ports_path="${PATH_ROOT}/sys/class/virtio-ports"
-        if [ -d "${virtio_ports_path}" ]; then
-            # Temporarily enable globbing to walk virtio_ports_path.
-            set +f; set -- "${virtio_ports_path}/"*; set -f;
-            for port_dir in "$@"; do
-                [ -d "${port_dir}" ] || continue
-                local name_file="${port_dir}/name"
-                if [ -f "${name_file}" ]; then
-                    local port_name
-                    read port_name < "${name_file}" || continue
-                    # Check for both current and legacy LXD serial names
-                    if [ "${port_name}" = "com.canonical.lxd" ] || \
-                       [ "${port_name}" = "org.linuxcontainers.lxd" ]; then
-                        return ${DS_FOUND}
-                    fi
-                fi
-            done
-        fi
+    if [ "${DI_VIRT}" != "kvm" -a "${DI_VIRT}" != "qemu" ]; then
+        return ${DS_NOT_FOUND}
     fi
+    local virtio_ports_path="${PATH_ROOT}/sys/class/virtio-ports"
+    if [ ! -d "${virtio_ports_path}" ]; then
+        return ${DS_NOT_FOUND}
+    fi
+    # Temporarily enable globbing to walk virtio_ports_path.
+    set +f; set -- "${virtio_ports_path}/"*; set -f;
+    for port_dir in "$@"; do
+        local name_file="${port_dir}/name"
+        if [ -f "${name_file}" ]; then
+            local port_name
+            read port_name < "${name_file}" || \
+		warn "unable to read file: $name_file"
+            # Check for both current and legacy LXD serial names
+            if [ "${port_name}" = "com.canonical.lxd" ] || \
+               [ "${port_name}" = "org.linuxcontainers.lxd" ]; then
+                return ${DS_FOUND}
+            fi
+        fi
+    done
     return ${DS_NOT_FOUND}
 }
 

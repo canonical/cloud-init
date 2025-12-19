@@ -203,24 +203,25 @@ class DataSourceLXD(sources.DataSource):
         # On LXD KVM instances /dev/lxd/sock may not be available yet.
         # Check for LXD virtio serial device presence in virtio-ports which
         # is supported on platforms without DMI data exposed.
-        if _get_virt_type() in ("kvm", "qemu"):
-            virtio_ports_path = "/sys/class/virtio-ports"
-            if os.path.isdir(virtio_ports_path):
-                try:
-                    for port in os.listdir(virtio_ports_path):
-                        name_file = os.path.join(
-                            virtio_ports_path, port, "name"
-                        )
-                        if os.path.isfile(name_file):
-                            # Check for both current and legacy LXD serial names
-                            if util.load_text_file(name_file).strip() in (
-                                "com.canonical.lxd",
-                                "org.linuxcontainers.lxd",
-                            ):
-                                return True
-                except OSError as e:
-                    LOG.warning("Cannot check virtual serial device: %s", e)
+        if _get_virt_type() not in ("kvm", "qemu"):
+            return False
 
+        virtio_ports_path = "/sys/class/virtio-ports"
+        if not os.path.isdir(virtio_ports_path):
+            return False
+
+        try:
+            for port in os.listdir(virtio_ports_path):
+                name_file = os.path.join(virtio_ports_path, port, "name")
+                if os.path.isfile(name_file):
+                    # Check both current and legacy LXD serial names
+                    if util.load_text_file(name_file).strip() in (
+                        "com.canonical.lxd",
+                        "org.linuxcontainers.lxd",
+                    ):
+                        return True
+        except OSError as e:
+            LOG.warning("Cannot check virtual serial device: %s", e)
         return False
 
     def _get_data(self) -> bool:

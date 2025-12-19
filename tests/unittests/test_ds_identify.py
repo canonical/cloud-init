@@ -1848,7 +1848,7 @@ VALID_CFG = {
     "flow_sequence-9": {
         "ds": "None",
         # /dev/lxd/sock does not exist and KVM virt-type
-        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM_QEMU],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
         "files": {"etc/cloud/cloud.cfg": dedent("datasource_list: [None]")},
     },
