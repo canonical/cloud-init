@@ -378,12 +378,9 @@ class TestResize:
                         return f
                 return None
 
-            assert (
-                cc_growpart.RESIZE.NOCHANGE,
-                find("/dev/XXda1", resized)[1],
-            )
-            assert (cc_growpart.RESIZE.CHANGED, find("/dev/YYda2", resized)[1])
-            assert (cc_growpart.RESIZE.SKIPPED, find(enoent[0], resized)[1])
+            assert cc_growpart.RESIZE.NOCHANGE, find("/dev/XXda1", resized)[1]
+            assert cc_growpart.RESIZE.CHANGED, find("/dev/YYda2", resized)[1]
+            assert cc_growpart.RESIZE.SKIPPED, find(enoent[0], resized)[1]
         finally:
             self.distro.device_part_info = opinfo
             os.stat = real_stat
