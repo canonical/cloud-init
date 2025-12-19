@@ -1,7 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
-import os
 import re
 from functools import partial
 from typing import Optional
@@ -113,76 +112,70 @@ class TestLoadConfig:
 class TestApplyChanges:
 
     def test_simple(self, tmpdir):
-        tmpdir = str(tmpdir)
-
         cfgline = "*.* foohost"
         changed = apply_rsyslog_changes(
-            configs=[cfgline], def_fname="foo.cfg", cfg_dir=tmpdir
+            configs=[cfgline], def_fname="foo.cfg", cfg_dir=str(tmpdir)
         )
 
-        fname = os.path.join(tmpdir, "foo.cfg")
-        assert changed == [fname]
-        assert util.load_text_file(fname) == cfgline + "\n"
+        fname = tmpdir.join("foo.cfg")
+        assert changed == [str(fname)]
+        assert util.load_text_file(str(fname)) == cfgline + "\n"
 
     def test_multiple_files(self, tmpdir):
-        tmpdir = str(tmpdir)
-
         configs = [
             "*.* foohost",
             {"content": "abc", "filename": "my.cfg"},
             {
                 "content": "filefoo-content",
-                "filename": os.path.join(tmpdir, "mydir/mycfg"),
+                "filename": str(tmpdir.join("mydir/mycfg")),
             },
         ]
 
         changed = apply_rsyslog_changes(
-            configs=configs, def_fname="default.cfg", cfg_dir=tmpdir
+            configs=configs, def_fname="default.cfg", cfg_dir=str(tmpdir)
         )
 
         expected = [
-            (os.path.join(tmpdir, "default.cfg"), "*.* foohost\n"),
-            (os.path.join(tmpdir, "my.cfg"), "abc\n"),
-            (os.path.join(tmpdir, "mydir/mycfg"), "filefoo-content\n"),
+            (tmpdir.join("default.cfg"), "*.* foohost\n"),
+            (tmpdir.join("my.cfg"), "abc\n"),
+            (tmpdir.join("mydir/mycfg"), "filefoo-content\n"),
         ]
-        assert [f[0] for f in expected] == changed
+        assert [str(f[0]) for f in expected] == changed
         actual = []
         for fname, _content in expected:
             util.load_text_file(fname)
             actual.append(
                 (
                     fname,
-                    util.load_text_file(fname),
+                    util.load_text_file(str(fname)),
                 )
             )
         assert expected == actual
 
     def test_repeat_def(self, tmpdir):
-        tmpdir = str(tmpdir)
         configs = ["*.* foohost", "*.warn otherhost"]
 
         changed = apply_rsyslog_changes(
-            configs=configs, def_fname="default.cfg", cfg_dir=tmpdir
+            configs=configs, def_fname="default.cfg", cfg_dir=str(tmpdir)
         )
 
-        fname = os.path.join(tmpdir, "default.cfg")
-        assert changed == [fname]
+        fname = tmpdir.join("default.cfg")
+        assert changed == [str(fname)]
 
         expected_content = "\n".join([c for c in configs]) + "\n"
-        found_content = util.load_text_file(fname)
+        found_content = util.load_text_file(str(fname))
         assert expected_content == found_content
 
     def test_multiline_content(self, tmpdir):
-        tmpdir = str(tmpdir)
         configs = ["line1", "line2\nline3\n"]
 
         apply_rsyslog_changes(
-            configs=configs, def_fname="default.cfg", cfg_dir=tmpdir
+            configs=configs, def_fname="default.cfg", cfg_dir=str(tmpdir)
         )
 
-        fname = os.path.join(tmpdir, "default.cfg")
+        fname = tmpdir.join("default.cfg")
         expected_content = "\n".join([c for c in configs])
-        found_content = util.load_text_file(fname)
+        found_content = util.load_text_file(str(fname))
         assert expected_content == found_content
 
 
