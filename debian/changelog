@@ -1,13 +1,14 @@
-cloud-init (25.4~2g78a74880-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (25.4~2gb117d244-0ubuntu1) UNRELEASED; urgency=medium
 
   * d/tests: exercise cloud-init status
   * d/cloud-init-base.config - Remove old unnecessary logic.
   * d/cloud-init-base.postinst - Remove old unnecessary logic.
   * d/cloud-init-base.preinst - Delete file, logic was obsolete.
   * d/cloud-init-base.prerm - Delete file, logic was obsolete.
-  * Upstream snapshot based on upstream/main at 78a74880.
+  * Upstream snapshot based on upstream/main at b117d244.
+    - Bugs fixed in this snapshot: (LP: #2136198)
 
- -- Chad Smith <chad.smith@canonical.com>  Tue, 09 Dec 2025 07:38:56 -0700
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 18 Dec 2025 17:06:43 -0700
 
 cloud-init (25.4~1gcb12e00e-0ubuntu2) resolute; urgency=medium
 
