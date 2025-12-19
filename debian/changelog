@@ -4,6 +4,8 @@ cloud-init (25.4-0ubuntu1~24.04.1) UNRELEASED; urgency=medium
     - d/p/no-nocloud-network.patch
     - d/p/no-single-process.patch
     - d/p/grub-dpkg-support.patch
+    - d/p/retain-setuptools.patch. Include read-version, drop unsupported dev
+      build tools and tests.
   * d/p/0001-Revert-fix-support-bond-names-in-network_data.patch revert bond name change
   * Upstream snapshot based on upstream/main at 5efa2c63.
 
