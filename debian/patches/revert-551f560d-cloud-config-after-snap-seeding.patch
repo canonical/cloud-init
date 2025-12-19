@@ -120,18 +120,19 @@ Last-Update: 2024-02-14
      config = client.read_from_file("/etc/cloud/cloud.cfg")
 --- a/tests/unittests/config/test_cc_lxd.py
 +++ b/tests/unittests/config/test_cc_lxd.py
-@@ -12,8 +12,6 @@ from cloudinit.config.schema import (
+@@ -11,9 +11,7 @@ from cloudinit.config.schema import (
      get_schema,
      validate_cloudconfig_schema,
  )
 -from cloudinit.helpers import Paths
+ from cloudinit.subp import ProcessExecutionError
 -from cloudinit.util import del_file
  from tests.unittests import helpers as t_help
  from tests.unittests.util import get_cloud
  
-@@ -46,8 +44,7 @@ class TestLxd:
-         self, maybe_clean, which, subp, exists, system_info, tmpdir
-     ):
+@@ -55,8 +53,7 @@ class TestLxd:
+ 
+         subp.side_effect = my_subp
          system_info.return_value = {"uname": [0, 1, "mykernel"]}
 -        sem_file = f"{tmpdir}/sem/snap_seeded.once"
 -        cc = get_cloud(mocked_distro=True, paths=Paths({"cloud_dir": tmpdir}))
@@ -139,7 +140,7 @@ Last-Update: 2024-02-14
          install = cc.distro.install_packages
  
          for backend, cmd, package in BACKEND_DEF:
-@@ -78,8 +75,8 @@ class TestLxd:
+@@ -88,8 +85,8 @@ class TestLxd:
                  ),
              ] == subp.call_args_list
  
@@ -150,7 +151,7 @@ Last-Update: 2024-02-14
  
      @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
      @mock.patch("cloudinit.config.cc_lxd.subp")
-@@ -87,7 +84,7 @@ class TestLxd:
+@@ -97,7 +94,7 @@ class TestLxd:
      def test_lxd_install(
          self, m_which, mock_subp, m_maybe_clean, tmpdir, caplog
      ):
@@ -159,7 +160,7 @@ Last-Update: 2024-02-14
          cc.distro = mock.MagicMock()
          mock_subp.which.return_value = None
          cc_lxd.handle("cc_lxd", LXD_INIT_CFG, cc, [])
-@@ -101,7 +98,7 @@ class TestLxd:
+@@ -111,7 +108,7 @@ class TestLxd:
      @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
      @mock.patch("cloudinit.config.cc_lxd.subp")
      def test_no_init_does_nothing(self, mock_subp, m_maybe_clean, tmpdir):
@@ -168,7 +169,7 @@ Last-Update: 2024-02-14
          cc.distro = mock.MagicMock()
          cc_lxd.handle("cc_lxd", {"lxd": {}}, cc, [])
          assert not cc.distro.install_packages.called
-@@ -111,17 +108,16 @@ class TestLxd:
+@@ -121,17 +118,16 @@ class TestLxd:
      @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
      @mock.patch("cloudinit.config.cc_lxd.subp")
      def test_no_lxd_does_nothing(self, mock_subp, m_maybe_clean, tmpdir):
@@ -189,7 +190,7 @@ Last-Update: 2024-02-14
          cc.distro = mock.MagicMock()
          cc_lxd.handle(
              "cc_lxd",
-@@ -133,7 +129,6 @@ class TestLxd:
+@@ -144,7 +140,6 @@ class TestLxd:
              mock.call(["lxd", "waitready", "--timeout=300"]),
              mock.call(["lxd", "init", "--preseed"], data='{"chad": True}'),
          ] == mock_subp.subp.call_args_list
