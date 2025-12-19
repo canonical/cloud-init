@@ -99,8 +99,6 @@ class Scanner:
         pass
 
 
-
-
 def test_mode_off(mocker):
     # Test that nothing is done if mode is off.
 
@@ -136,6 +134,7 @@ def freebsd_cloud(mocker):
         None,
     )
     return cloud_obj
+
 
 class TestConfig:
     name = "growpart"
@@ -224,7 +223,6 @@ class TestConfig:
             ]
         )
 
-    
     def test_mode_use_growfs_on_root(self):
         with mock.patch.object(os.path, "isfile", return_value=True):
             with mock.patch.object(
@@ -315,7 +313,9 @@ class TestConfig:
             factory.assert_called_once_with(
                 "auto", distro=freebsd_cloud.distro, devices=["/"]
             )
-            rsdevs.assert_called_once_with(myresizer, ["/"], freebsd_cloud.distro)
+            rsdevs.assert_called_once_with(
+                myresizer, ["/"], freebsd_cloud.distro
+            )
 
 
 class TestResize:
@@ -379,14 +379,11 @@ class TestResize:
                 return None
 
             assert (
-                cc_growpart.RESIZE.NOCHANGE, find("/dev/XXda1", resized)[1]
+                cc_growpart.RESIZE.NOCHANGE,
+                find("/dev/XXda1", resized)[1],
             )
-            assert (
-                cc_growpart.RESIZE.CHANGED, find("/dev/YYda2", resized)[1]
-            )
-            assert (
-                cc_growpart.RESIZE.SKIPPED, find(enoent[0], resized)[1]
-            )
+            assert (cc_growpart.RESIZE.CHANGED, find("/dev/YYda2", resized)[1])
+            assert (cc_growpart.RESIZE.SKIPPED, find(enoent[0], resized)[1])
         finally:
             self.distro.device_part_info = opinfo
             os.stat = real_stat
@@ -539,8 +536,8 @@ class TestEncrypted:
         # These are all "happy path" mocks which will get overridden
         # when needed
 
-        # Instantiated MockDistro, otherwise we would be assigning 
-        # the class not an instance when we pass self.distro 
+        # Instantiated MockDistro, otherwise we would be assigning
+        # the class not an instance when we pass self.distro
         # into resize_devices, which expects a distro instance
         self.distro = MockDistro()
         original_device_part_info = self.distro.device_part_info
