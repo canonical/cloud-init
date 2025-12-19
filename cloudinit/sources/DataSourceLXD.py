@@ -44,28 +44,29 @@ CONFIG_KEY_ALIASES = {
 }
 
 
-def _get_virt_type() -> Optional[str]:
+def _get_fallback_interface_name() -> str:
+    default_name = "eth0"
     if subp.which("systemd-detect-virt"):
         try:
             virt_type, _ = subp.subp(["systemd-detect-virt"])
-            return virt_type.strip()
         except subp.ProcessExecutionError as err:
-            LOG.warning("Unable to run systemd-detect-virt: %s.", err)
-    return None
-
-
-def _get_fallback_interface_name() -> str:
-    default_name = "eth0"
-    virt_type = _get_virt_type()
-    if virt_type in ("kvm", "qemu"):  # instance.type VIRTUAL-MACHINE
-        arch = util.system_info()["uname"][4]
-        if arch == "ppc64le":
-            return "enp0s5"
-        elif arch == "s390x":
-            return "enc9"
-        else:
-            return "enp5s0"
-    LOG.debug("Rendering default network config.")
+            LOG.warning(
+                "Unable to run systemd-detect-virt: %s."
+                " Rendering default network config.",
+                err,
+            )
+            return default_name
+        if virt_type.strip() in (
+            "kvm",
+            "qemu",
+        ):  # instance.type VIRTUAL-MACHINE
+            arch = util.system_info()["uname"][4]
+            if arch == "ppc64le":
+                return "enp0s5"
+            elif arch == "s390x":
+                return "enc9"
+            else:
+                return "enp5s0"
     return default_name
 
 
@@ -195,34 +196,13 @@ class DataSourceLXD(sources.DataSource):
     @staticmethod
     def ds_detect() -> bool:
         """Check platform environment to report if this datasource may run."""
-        if os.path.exists(LXD_SOCKET_PATH):
-            if stat.S_ISSOCK(os.lstat(LXD_SOCKET_PATH).st_mode):
-                return True
+        if not os.path.exists(LXD_SOCKET_PATH):
+            LOG.warning("%s does not exist.", LXD_SOCKET_PATH)
+            return False
+        elif not stat.S_ISSOCK(os.lstat(LXD_SOCKET_PATH).st_mode):
             LOG.warning("%s is not a socket", LXD_SOCKET_PATH)
-
-        # On LXD KVM instances /dev/lxd/sock may not be available yet.
-        # Check for LXD virtio serial device presence in virtio-ports which
-        # is supported on platforms without DMI data exposed.
-        if _get_virt_type() not in ("kvm", "qemu"):
             return False
-
-        virtio_ports_path = "/sys/class/virtio-ports"
-        if not os.path.isdir(virtio_ports_path):
-            return False
-
-        try:
-            for port in os.listdir(virtio_ports_path):
-                name_file = os.path.join(virtio_ports_path, port, "name")
-                if os.path.isfile(name_file):
-                    # Check both current and legacy LXD serial names
-                    if util.load_text_file(name_file).strip() in (
-                        "com.canonical.lxd",
-                        "org.linuxcontainers.lxd",
-                    ):
-                        return True
-        except OSError as e:
-            LOG.warning("Cannot check virtual serial device: %s", e)
-        return False
+        return True
 
     def _get_data(self) -> bool:
         """Crawl LXD socket API instance data and return True on success"""

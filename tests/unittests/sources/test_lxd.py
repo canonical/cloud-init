@@ -2,7 +2,6 @@
 
 import copy
 import json
-import logging
 import re
 import stat
 from collections import namedtuple
@@ -16,8 +15,6 @@ from cloudinit.sources import UNSET
 from cloudinit.sources import DataSourceLXD as lxd
 from cloudinit.sources import InvalidMetaDataException
 from cloudinit.sources.DataSourceLXD import MetaDataKeys
-from cloudinit.util import ensure_file
-from tests.unittests.helpers import populate_dir
 
 DS_PATH = "cloudinit.sources.DataSourceLXD."
 
@@ -359,91 +356,27 @@ class TestDataSourceLXD:
 
 class TestIsPlatformViable:
     @pytest.mark.parametrize(
-        "exists,lstat_mode,virtio_ports,expected",
+        "exists,lstat_mode,expected",
         (
-            pytest.param(
-                False,
-                None,
-                {},
-                False,
-                id="not_viable_no_lxd_sock_path_no_virtio",
-            ),
-            pytest.param(
-                True,
-                stat.S_IFREG,
-                {},
-                False,
-                id="not_viable_lxd_sock_path_regular_file_no_virtio",
-            ),
-            pytest.param(
-                True,
-                stat.S_IFSOCK,
-                {},
-                True,
-                id="viable_when_lxd_sock_is_socket_file_no_virtio",
-            ),
-            pytest.param(
-                False,
-                None,
-                {"vport5p1/name": "com.redhat.spice.0"},
-                False,
-                id="not_viable_no_lxd_sock_with_non_lxd_virtio",
-            ),
-            pytest.param(
-                False,
-                None,
-                {
-                    "vport5p1/name": "com.redhat.spice.0",
-                    "vport5p2/name": "org.linuxcontainers.lxd",
-                },
-                True,
-                id="viable_no_lxd_sock_with_legacy_lxd_virtio",
-            ),
-            pytest.param(
-                False,
-                None,
-                {
-                    "vport5p1/name": "com.redhat.spice.0",
-                    "vport5p2/name": "com.canonical.lxd",
-                },
-                True,
-                id="viable_no_lxd_sock_with_canonical_lxd_virtio",
-            ),
+            (False, None, False),
+            (True, stat.S_IFREG, False),
+            (True, stat.S_IFSOCK, True),
         ),
     )
     @mock.patch(DS_PATH + "os.lstat")
-    @pytest.mark.usefixtures("fake_filesystem")
+    @mock.patch(DS_PATH + "os.path.exists")
     def test_expected_viable(
-        self, m_lstat, exists, lstat_mode, virtio_ports, expected, mocker
+        self, m_exists, m_lstat, exists, lstat_mode, expected
     ):
         """Return True only when LXD_SOCKET_PATH exists and is a socket."""
-        if virtio_ports:
-            populate_dir("/sys/class/virtio-ports", virtio_ports)
-            mocker.patch(DS_PATH + "_get_virt_type", return_value="kvm")
-        if exists:
-            ensure_file(lxd.LXD_SOCKET_PATH)
+        m_exists.return_value = exists
         m_lstat.return_value = LStatResponse(lstat_mode)
         assert expected is lxd.DataSourceLXD.ds_detect()
+        m_exists.assert_has_calls([mock.call(lxd.LXD_SOCKET_PATH)])
         if exists:
             m_lstat.assert_has_calls([mock.call(lxd.LXD_SOCKET_PATH)])
         else:
             assert 0 == m_lstat.call_count
-
-    @pytest.mark.parametrize("systemd_detect_virt", ("kvm\n", "qemu\n"))
-    @pytest.mark.usefixtures("fake_filesystem")
-    @mock.patch(DS_PATH + "subp.subp")
-    @mock.patch(DS_PATH + "subp.which", return_value=True)
-    @mock.patch(DS_PATH + "util.load_text_file", side_effect=OSError("Oh-no"))
-    def test_warn_on_oserror(
-        self, m_load_text_file, m_which, m_subp, systemd_detect_virt, caplog
-    ):
-        m_subp.return_value = (systemd_detect_virt, "")
-        populate_dir("/sys/class/virtio-ports", {"vport5p1/name": "something"})
-        with caplog.at_level(logging.WARNING):
-            assert False is lxd.DataSourceLXD.ds_detect()
-        m_which.assert_called_once_with("systemd-detect-virt")
-        m_subp.assert_called_once_with(["systemd-detect-virt"])
-        assert "Cannot check virtual serial device: Oh-no" in caplog.messages
 
 
 class TestReadMetadata:
