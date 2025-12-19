@@ -6,9 +6,9 @@ cloud-init (25.4-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
     - d/p/no-single-process.patch
     - d/p/retain-setuptools.patch
     - d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
-  * Upstream snapshot based on upstream/main at 5efa2c63.
+  * Upstream snapshot based on upstream/main at 0400ac62.
 
- -- Brett Holman <brett.holman@canonical.com>  Thu, 18 Dec 2025 22:41:27 +0000
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 18 Dec 2025 22:09:42 -0700
 
 cloud-init (25.3-0ubuntu1~22.04.1) jammy; urgency=medium
 
