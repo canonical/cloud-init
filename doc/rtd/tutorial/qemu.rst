@@ -56,11 +56,11 @@ run on first boot. We don't need to worry about installing cloud-init
 for now, since we are not manually creating our own image in this tutorial.
 
 In our case, we want to select the latest `Ubuntu LTS`_. Let's download the
-server image using :command:`wget`:
+server image using :command:`wcurl`:
 
 .. code-block:: bash
 
-    $ wget https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
+    $ wcurl https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
 
 .. note::
    This example uses emulated CPU instructions on non-x86 hosts, so it may be
