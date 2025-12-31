@@ -9,6 +9,7 @@
 import functools
 import json
 import logging
+from typing import Any, Dict, Optional
 
 from cloudinit import url_helper, util
 
@@ -231,7 +232,9 @@ def _get_instance_metadata(
         return {}
 
 
-def get_primary_mac_from_metadata(metadata: dict):
+def get_primary_mac_from_metadata(
+    metadata: Optional[Dict[str, Any]],
+) -> Optional[str]:
     """
     Determine the primary NIC MAC address from EC2 metadata.
 
@@ -246,19 +249,32 @@ def get_primary_mac_from_metadata(metadata: dict):
         str: MAC address of the primary NIC if found
         None: if no primary NIC can be determined
     """
-    try:
-        macs_metadata = metadata["network"]["interfaces"]["macs"]
-    except (TypeError, KeyError):
+    if not isinstance(metadata, dict):
         LOG.debug(
             "EC2 metadata missing or malformed; cannot determine primary MAC"
         )
         return None
 
+    network = metadata.get("network")
+    if not isinstance(network, dict):
+        LOG.debug(
+            "EC2 metadata missing or malformed; cannot determine primary MAC"
+        )
+        return None
+
+    interfaces = network.get("interfaces")
+    if not isinstance(interfaces, dict):
+        LOG.debug(
+            "EC2 metadata missing or malformed; cannot determine primary MAC"
+        )
+        return None
+
+    macs_metadata = interfaces.get("macs")
     if not isinstance(macs_metadata, dict) or not macs_metadata:
         LOG.debug("No NIC metadata found in EC2 metadata")
         return None
 
-    primary_candidates = []
+    primary_candidates: list[str] = []
 
     for mac, nic_md in macs_metadata.items():
         if not isinstance(nic_md, dict):
