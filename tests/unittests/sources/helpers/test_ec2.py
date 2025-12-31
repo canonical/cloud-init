@@ -1,9 +1,109 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import responses
+import copy
 
 from cloudinit import url_helper as uh
 from cloudinit.sources.helpers import ec2
+from cloudinit.sources.helpers.ec2 import get_primary_mac_from_metadata
+
+
+class TestGetPrimaryMacFromMetadata:
+    def test_no_metadata(self):
+        assert get_primary_mac_from_metadata(None) is None
+
+    def test_empty_metadata(self):
+        assert get_primary_mac_from_metadata({}) is None
+
+    def test_no_network_section(self):
+        md = {"foo": "bar"}
+        assert get_primary_mac_from_metadata(md) is None
+
+    def test_single_primary_nic(self):
+        md = {
+            "network": {
+                "interfaces": {
+                    "macs": {
+                        "aa:bb:cc:dd:ee:ff": {
+                            "network-card": "0",
+                            "device-number": "0",
+                        },
+                        "11:22:33:44:55:66": {
+                            "network-card": "1",
+                            "device-number": "0",
+                        },
+                    }
+                }
+            }
+        }
+
+        assert (
+            get_primary_mac_from_metadata(md)
+            == "aa:bb:cc:dd:ee:ff"
+        )
+
+    def test_primary_not_first_in_dict(self):
+        md = {
+            "network": {
+                "interfaces": {
+                    "macs": {
+                        "11:22:33:44:55:66": {
+                            "network-card": "1",
+                            "device-number": "0",
+                        },
+                        "aa:bb:cc:dd:ee:ff": {
+                            "network-card": "0",
+                            "device-number": "0",
+                        },
+                    }
+                }
+            }
+        }
+
+        assert (
+            get_primary_mac_from_metadata(md)
+            == "aa:bb:cc:dd:ee:ff"
+        )
+
+    def test_multiple_primary_candidates(self):
+        md = {
+            "network": {
+                "interfaces": {
+                    "macs": {
+                        "bb:bb:bb:bb:bb:bb": {
+                            "network-card": "0",
+                            "device-number": "0",
+                        },
+                        "aa:aa:aa:aa:aa:aa": {
+                            "network-card": "0",
+                            "device-number": "0",
+                        },
+                    }
+                }
+            }
+        }
+
+        # Deterministic: lowest lexicographically
+        assert (
+            get_primary_mac_from_metadata(md)
+            == "aa:aa:aa:aa:aa:aa"
+        )
+
+    def test_invalid_values_are_ignored(self):
+        md = {
+            "network": {
+                "interfaces": {
+                    "macs": {
+                        "aa:bb": {
+                            "network-card": "foo",
+                            "device-number": "bar",
+                        }
+                    }
+                }
+            }
+        }
+
+        assert get_primary_mac_from_metadata(md) is None
 
 
 class TestEc2Util:
