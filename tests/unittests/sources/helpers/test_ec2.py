@@ -1,7 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import responses
-import copy
 
 from cloudinit import url_helper as uh
 from cloudinit.sources.helpers import ec2
@@ -37,10 +36,7 @@ class TestGetPrimaryMacFromMetadata:
             }
         }
 
-        assert (
-            get_primary_mac_from_metadata(md)
-            == "aa:bb:cc:dd:ee:ff"
-        )
+        assert get_primary_mac_from_metadata(md) == "aa:bb:cc:dd:ee:ff"
 
     def test_primary_not_first_in_dict(self):
         md = {
@@ -60,10 +56,7 @@ class TestGetPrimaryMacFromMetadata:
             }
         }
 
-        assert (
-            get_primary_mac_from_metadata(md)
-            == "aa:bb:cc:dd:ee:ff"
-        )
+        assert get_primary_mac_from_metadata(md) == "aa:bb:cc:dd:ee:ff"
 
     def test_multiple_primary_candidates(self):
         md = {
@@ -84,10 +77,7 @@ class TestGetPrimaryMacFromMetadata:
         }
 
         # Deterministic: lowest lexicographically
-        assert (
-            get_primary_mac_from_metadata(md)
-            == "aa:aa:aa:aa:aa:aa"
-        )
+        assert get_primary_mac_from_metadata(md) == "aa:aa:aa:aa:aa:aa"
 
     def test_invalid_values_are_ignored(self):
         md = {
