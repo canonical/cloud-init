@@ -233,35 +233,41 @@ def _get_instance_metadata(
 def get_primary_mac_from_metadata(metadata: dict):
     """
     Determine the primary NIC MAC address from EC2 metadata.
-    The primary NIC is defined as the interface with:
-    - network-card == 0
-    - device-number == 0
-    Returns MAC address (str) if found, otherwise None.
 
+    The primary NIC is defined as the interface with:
+      - network-card == 0
+      - device-number == 0
+
+    Metadata is expected to be materialized EC2 metadata as returned by
+    get_instance_metadata().
+
+    Returns:
+        str: MAC address of the primary NIC if found
+        None: if no primary NIC can be determined
     """
     try:
         macs_metadata = (
-            metadata.get("network", {})
-            .get("interfaces", {})
-            .get("macs", {})
+            metadata["network"]["interfaces"]["macs"]
         )
-    except AttributeError:
-        LOG.debug("EC2 metadata missing or malformed; cannot determine primary MAC")
+    except (TypeError, KeyError):
+        LOG.debug(
+            "EC2 metadata missing or malformed; cannot determine primary MAC"
+        )
         return None
 
-    if not macs_metadata:
+    if not isinstance(macs_metadata, dict) or not macs_metadata:
         LOG.debug("No NIC metadata found in EC2 metadata")
         return None
 
     primary_candidates = []
 
     for mac, nic_md in macs_metadata.items():
-        if not isinstance(nice_md, dict):
-            continue 
+        if not isinstance(nic_md, dict):
+            continue
 
         try:
-            network_card = int(nic_md.get("network_card", -1))
-            device_number = int(nic_md.get("device_number", -1))
+            network_card = int(nic_md.get("network-card", -1))
+            device_number = int(nic_md.get("device-number", -1))
         except (TypeError, ValueError):
             continue
 
@@ -270,8 +276,9 @@ def get_primary_mac_from_metadata(metadata: dict):
 
     if len(primary_candidates) == 1:
         return primary_candidates[0]
+
     if len(primary_candidates) > 1:
-        #Deterministic fallback: lowest MAC lexicographically
+        # Deterministic fallback: lowest MAC lexicographically
         chosen = sorted(primary_candidates)[0]
         LOG.debug(
             "Multiple primary NIC candidates found %s; selected %s",
