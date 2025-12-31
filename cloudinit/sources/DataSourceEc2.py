@@ -512,7 +512,7 @@ class DataSourceEc2(sources.DataSource):
             )
 
     @property
-    def network_config(self):  # pylint: disable=no-member
+    def network_config(self):
         """Return a network config dict for rendering ENI or netplan files."""
         if self._network_config != sources.UNSET:
             return self._network_config
