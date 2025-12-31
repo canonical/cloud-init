@@ -230,6 +230,7 @@ def _get_instance_metadata(
         util.logexc(LOG, "Failed fetching %s from url %s", tree, md_url)
         return {}
 
+
 def get_primary_mac_from_metadata(metadata: dict):
     """
     Determine the primary NIC MAC address from EC2 metadata.
@@ -246,9 +247,7 @@ def get_primary_mac_from_metadata(metadata: dict):
         None: if no primary NIC can be determined
     """
     try:
-        macs_metadata = (
-            metadata["network"]["interfaces"]["macs"]
-        )
+        macs_metadata = metadata["network"]["interfaces"]["macs"]
     except (TypeError, KeyError):
         LOG.debug(
             "EC2 metadata missing or malformed; cannot determine primary MAC"
@@ -289,6 +288,7 @@ def get_primary_mac_from_metadata(metadata: dict):
 
     LOG.debug("No primary NIC identified via EC2 metadata")
     return None
+
 
 def get_instance_metadata(
     api_version="latest",
