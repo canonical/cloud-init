@@ -336,11 +336,11 @@ def get_vr_address(distro):
         if latest_address:
             LOG.debug("Found SERVER_ADDRESS '%s' via dhclient", latest_address)
             return latest_address
-        
-    # Try ephemeral dhcp lease last
     # get_newest_lease() expects a network interface string
     with suppress(FileNotFoundError):
-        latest_lease = distro.dhcp_client.get_newest_lease(distro.fallback_interface)
+        latest_lease = distro.dhcp_client.get_newest_lease(
+            distro.fallback_interface
+        )
         if latest_lease:
             LOG.debug(
                 "Found SERVER_ADDRESS '%s' via ephemeral %s lease ",
