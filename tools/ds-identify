@@ -961,10 +961,10 @@ dscheck_LXD() {
         return ${DS_FOUND}
     fi
 
-    # On LXD KVM instances, /dev/lxd/sock may not be available during systemd
+    # On LXD KVM instances, /dev/lxd/sock will not be available during systemd
     # generator timeframe until systemd lxd-agent.service runs.
     # Check for LXD virtio serial device which is supported on platforms
-    # without DMI data exposed.
+    # without DMI data.
     if [ "${DI_VIRT}" != "kvm" -a "${DI_VIRT}" != "qemu" ]; then
         return ${DS_NOT_FOUND}
     fi

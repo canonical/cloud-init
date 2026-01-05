@@ -893,9 +893,11 @@ class TestDsIdentify(DsIdentifyBase):
             pytest.param("Not-WSL", False, id="wsl_not_found_virt"),
             # Negative test by lack of host filesystem mount points.
             pytest.param("WSL-no-host-mounts", False, id="wsl_no_fs_mounts"),
-            # Test LXD virtio-ports discovery with legacy serial name
+            # Test LXD virtio-ports discovery with linuxcontainers serial name
             pytest.param(
-                "LXD-virtio-legacy", True, id="lxd_virtio_legacy_serial"
+                "LXD-virtio-linuxcontainers",
+                True,
+                id="lxd_virtio_linuxcontainers_serial",
             ),
             # Test LXD virtio-ports discovery with canonical serial name
             pytest.param(
@@ -1699,7 +1701,7 @@ VALID_CFG = {
     "LXD-kvm": {
         "ds": "LXD",
         "files": {
-            "sys/class/virtio-ports/vport0p1/name": "com.canonical.lxd\n",
+            "sys/class/virtio-ports/vport0p1/name": "com.canonical.lxd",
         },
         # /dev/lxd/sock does not exist and KVM virt-type
         "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
@@ -1712,8 +1714,8 @@ VALID_CFG = {
                 "datasource:\n MAAS:\n metadata_urls: [ 'blah.com' ]"
             ),
         },
-        # /dev/lxd/sock does exist
-        "mocks": [{"name": "is_socket_file", "ret": 0}],
+        # /dev/lxd/sock does exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 0}, MOCK_VIRT_IS_KVM],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
     },
     "LXD-kvm-not-MAAS-2": {
@@ -1721,15 +1723,15 @@ VALID_CFG = {
         "files": {
             "etc/cloud/cloud.cfg.d/92-broken-maas.cfg": ("#MAAS: None"),
         },
-        # /dev/lxd/sock does exist
-        "mocks": [{"name": "is_socket_file", "ret": 0}],
+        # /dev/lxd/sock does exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 0}, MOCK_VIRT_IS_KVM],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
     },
     "LXD-kvm-not-MAAS-3": {
         "ds": "LXD",
         "files": {
             "etc/cloud/cloud.cfg.d/92-broken-maas.cfg": ("MAAS: None\n"),
-            "sys/class/virtio-ports/vport0p1/name": "com.canonical.lxd\n",
+            "sys/class/virtio-ports/vport0p1/name": "com.canonical.lxd",
         },
         "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM_QEMU],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
@@ -1847,7 +1849,7 @@ VALID_CFG = {
     # no quotes, no whitespace
     "flow_sequence-9": {
         "ds": "None",
-        # /dev/lxd/sock does not exist and KVM virt-type
+        # /dev/lxd/sock does not exist and QEMU virt-type
         "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM_QEMU],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
         "files": {"etc/cloud/cloud.cfg": dedent("datasource_list: [None]")},
@@ -1866,10 +1868,10 @@ VALID_CFG = {
     "LXD-kvm-qemu-kernel-gt-5.10": {  # LXD host > 5.10 kvm
         "ds": "LXD",
         "files": {
-            "sys/class/virtio-ports/vport0p1/name": "com.canonical.lxd\n",
+            "sys/class/virtio-ports/vport0p1/name": "com.canonical.lxd",
         },
-        # /dev/lxd/sock does not exist and KVM virt-type
-        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        # /dev/lxd/sock does not exist and QEMU virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM_QEMU],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
     },
     # LXD host > 5.10 kvm launch virt==qemu
@@ -1882,9 +1884,9 @@ VALID_CFG = {
             #
             # https://github.com/canonical/cloud-init/issues/5095
             "/run/systemd/somefile": "",
-            "sys/class/virtio-ports/vport0p1/name": "com.canonical.lxd\n",
+            "sys/class/virtio-ports/vport0p1/name": "com.canonical.lxd",
         },
-        # /dev/lxd/sock does not exist
+        # /dev/lxd/sock does not exist and QEMU env virt-type
         "mocks": [{"name": "is_socket_file", "ret": 1}],
         "env_vars": IS_KVM_QEMU_ENV,
         "no_mocks": [
@@ -2891,20 +2893,20 @@ VALID_CFG = {
             ],
         },
     },
-    # Test virtio-ports discovery with legacy serial name
-    "LXD-virtio-legacy": {
+    # Test virtio-ports discovery with linuxcontainers serial name
+    "LXD-virtio-linuxcontainers": {
         "ds": "LXD",
         "files": {
-            "sys/class/virtio-ports/vprt0p1/name": "org.linuxcontainers.lxd\n",
+            "sys/class/virtio-ports/vprt0p1/name": "org.linuxcontainers.lxd",
         },
-        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM_QEMU],
         "no_mocks": ["dscheck_LXD"],
     },
     # Test virtio-ports discovery with canonical serial name
     "LXD-virtio-canonical": {
         "ds": "LXD",
         "files": {
-            "sys/class/virtio-ports/vport0p1/name": "com.canonical.lxd\n",
+            "sys/class/virtio-ports/vport0p1/name": "com.canonical.lxd",
         },
         "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
         "no_mocks": ["dscheck_LXD"],
@@ -2913,7 +2915,7 @@ VALID_CFG = {
     "LXD-virtio-wrong-name": {
         "ds": "LXD",
         "files": {
-            "sys/class/virtio-ports/vport0p1/name": "some.other.serial\n",
+            "sys/class/virtio-ports/vport0p1/name": "some.other.serial",
         },
         "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
         "no_mocks": ["dscheck_LXD"],
@@ -2922,9 +2924,9 @@ VALID_CFG = {
     "LXD-virtio-multiple-ports": {
         "ds": "LXD",
         "files": {
-            "sys/class/virtio-ports/vport0p1/name": "some.other.serial\n",
-            "sys/class/virtio-ports/vport0p2/name": "com.canonical.lxd\n",
-            "sys/class/virtio-ports/vport0p3/name": "another.serial\n",
+            "sys/class/virtio-ports/vport0p1/name": "some.other.serial",
+            "sys/class/virtio-ports/vport0p2/name": "com.canonical.lxd",
+            "sys/class/virtio-ports/vport0p3/name": "another.serial",
         },
         "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
         "no_mocks": ["dscheck_LXD"],

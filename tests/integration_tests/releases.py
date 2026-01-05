@@ -66,6 +66,7 @@ class Release:
             raise ValueError(f"{self.os} cannot be compared to {other.os}!")
         return version.parse(self.version) < version.parse(other.version)
 
+
     @classmethod
     def from_os_image(
         cls,
