@@ -17,7 +17,7 @@ from cloudinit.net import dhcp
 from cloudinit.sources.azure import errors
 from cloudinit.sources.helpers import azure as azure_helper
 from cloudinit.sources.helpers.azure import WALinuxAgentShim as wa_shim
-from cloudinit.util import load_text_file
+from cloudinit.util import is_Linux, load_text_file
 from tests.unittests.sources.test_azure import construct_ovf_env
 from tests.unittests.util import MockDistro
 
@@ -521,8 +521,10 @@ class TestOpenSSLManagerActions:
 
     @pytest.mark.allow_all_subp
     @pytest.mark.skipif(
-        not all([shutil.which("openssl"), shutil.which("ssh-keygen")]),
-        reason="OpenSSL command-line tools not installed",
+        not all(
+            [shutil.which("openssl"), shutil.which("ssh-keygen"), is_Linux()]
+        ),
+        reason="OpenSSL command-line tools not available",
     )
     def test_pubkey_extract(self):
         cert = load_text_file(self._data_file("pubkey_extract_cert"))
@@ -537,8 +539,10 @@ class TestOpenSSLManagerActions:
 
     @pytest.mark.allow_all_subp
     @pytest.mark.skipif(
-        not all([shutil.which("openssl"), shutil.which("ssh-keygen")]),
-        reason="OpenSSL command-line tools not installed",
+        not all(
+            [shutil.which("openssl"), shutil.which("ssh-keygen"), is_Linux()]
+        ),
+        reason="OpenSSL command-line tools not available",
     )
     @mock.patch.object(azure_helper.OpenSSLManager, "_decrypt_certs_from_xml")
     def test_parse_certificates(self, mock_decrypt_certs):
