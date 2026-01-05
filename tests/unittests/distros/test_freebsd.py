@@ -22,7 +22,7 @@ class TestFreeBSD:
                     "me2",
                     "-u",
                     "1234",
-                    "-d/usr/home/me2",
+                    "-d/home/me2",
                     "-m",
                 ],
                 logstring=[
@@ -30,7 +30,7 @@ class TestFreeBSD:
                     "useradd",
                     "-n",
                     "me2",
-                    "-d/usr/home/me2",
+                    "-d/home/me2",
                     "-m",
                 ],
             )

@@ -9,7 +9,7 @@ mkdir "$TEMP_DIR" && cd "$TEMP_DIR" || {
         exit 1
 }
 
-wget "$IMAGE_URL"
+wcurl "$IMAGE_URL"
 
 # Create user-data, vendor-data, meta-data
 cat << EOF > user-data

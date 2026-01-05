@@ -45,7 +45,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        env: [tip-ruff, tip-mypy, tip-pylint, tip-black, tip-isort]
+        env: [tip-ruff, tip-mypy, tip-pylint, tip-black, tip-isort, py3-fast]
     name: format-tip
     runs-on: ubuntu-latest
     steps:
