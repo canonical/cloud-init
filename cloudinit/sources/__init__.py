@@ -16,7 +16,7 @@ import os
 import pickle
 import re
 from enum import Enum, unique
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
+from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union, cast
 
 from cloudinit import (
     atomic_helper,
@@ -530,7 +530,15 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         if self._crawled_metadata is not None:
             # Any datasource with _crawled_metadata will best represent
             # most recent, 'raw' metadata
-            crawled_metadata = copy.deepcopy(self._crawled_metadata)
+            # 
+            # TODO: This type is known internally, so it is possible
+            # to narrow the type (this cast shouldn't be necessary).
+            # However that would require rewriting code across various
+            # datasource modules, so for now just assume that the type is
+            # correct and let the code throw an exception when it isn't.
+            # This allows us to enable type checking on this module even 
+            # if it doesn't benefit this piece of code.
+            crawled_metadata = cast(dict, copy.deepcopy(self._crawled_metadata))
             crawled_metadata.pop("user-data", None)
             crawled_metadata.pop("vendor-data", None)
             instance_data = {"ds": crawled_metadata}
@@ -1031,10 +1039,9 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
 
 def normalize_pubkey_data(pubkey_data):
-    keys = []
 
     if not pubkey_data:
-        return keys
+        return []
 
     if isinstance(pubkey_data, str):
         return pubkey_data.splitlines()
@@ -1043,6 +1050,7 @@ def normalize_pubkey_data(pubkey_data):
         return list(pubkey_data)
 
     if isinstance(pubkey_data, (dict)):
+        keys = []
         for _keyname, klist in pubkey_data.items():
             # lp:506332 uec metadata service responds with
             # data that makes boto populate a string for 'klist' rather
@@ -1055,8 +1063,8 @@ def normalize_pubkey_data(pubkey_data):
                     # the end of the keylist, trim it
                     if pkey:
                         keys.append(pkey)
-
-    return keys
+        return keys
+    return []
 
 
 def find_source(
@@ -1108,10 +1116,12 @@ def list_sources(cfg_list, depends, pkg_list):
     )
 
     for ds in cfg_list:
+        m_locs = []
         ds_name = importer.match_case_insensitive_module_name(ds)
-        m_locs, _looked_locs = importer.find_module(
-            ds_name, pkg_list, ["get_datasource_list"]
-        )
+        if ds_name:
+            m_locs, _looked_locs = importer.find_module(
+                ds_name, pkg_list, ["get_datasource_list"]
+            )
         if not m_locs:
             LOG.error(
                 "Could not import %s. Does the DataSource exist and "
