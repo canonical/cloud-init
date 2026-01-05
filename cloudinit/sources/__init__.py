@@ -530,15 +530,17 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         if self._crawled_metadata is not None:
             # Any datasource with _crawled_metadata will best represent
             # most recent, 'raw' metadata
-            # 
+            #
             # TODO: This type is known internally, so it is possible
             # to narrow the type (this cast shouldn't be necessary).
             # However that would require rewriting code across various
             # datasource modules, so for now just assume that the type is
             # correct and let the code throw an exception when it isn't.
-            # This allows us to enable type checking on this module even 
+            # This allows us to enable type checking on this module even
             # if it doesn't benefit this piece of code.
-            crawled_metadata = cast(dict, copy.deepcopy(self._crawled_metadata))
+            crawled_metadata = cast(
+                dict, copy.deepcopy(self._crawled_metadata)
+            )
             crawled_metadata.pop("user-data", None)
             crawled_metadata.pop("vendor-data", None)
             instance_data = {"ds": crawled_metadata}
