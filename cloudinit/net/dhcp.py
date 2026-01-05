@@ -18,8 +18,6 @@ from io import StringIO
 from subprocess import TimeoutExpired
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
-from typing_extensions import override
-
 import configobj
 
 from cloudinit import subp, temp_utils, util
@@ -275,7 +273,6 @@ class IscDhclient(DhcpClient):
             packed_bytes = unescaped_value.encode("utf-8")
         return socket.inet_ntoa(packed_bytes)
 
-    @override
     def get_newest_lease(self, interface: str) -> Dict[str, Any]:
         """Get the most recent lease from the ephemeral phase as a dict.
 
@@ -296,7 +293,6 @@ class IscDhclient(DhcpClient):
                     return dhcp_leases[-1]
         return {}
 
-    @override
     def dhcp_discovery(
         self,
         interface: str,
@@ -433,7 +429,6 @@ class IscDhclient(DhcpClient):
         raise InvalidDHCPLeaseFileError()
 
     @staticmethod
-    @override
     def parse_static_routes(routes: str) -> List[Tuple[str, str]]:
         """
         parse rfc3442 format and return a list containing tuple of strings.
@@ -620,7 +615,6 @@ class Dhcpcd(DhcpClient):
     client_name = "dhcpcd"
     timeout = 300
 
-    @override
     def dhcp_discovery(
         self,
         interface: str,
@@ -857,7 +851,6 @@ class Dhcpcd(DhcpClient):
             lease["unknown-245"] = socket.inet_ntoa(opt_245)
         return lease
 
-    @override
     def get_newest_lease(self, interface: str) -> Dict[str, Any]:
         """Return a dict of dhcp options.
 
@@ -887,7 +880,6 @@ class Dhcpcd(DhcpClient):
             )
             raise NoDHCPLeaseError from error
 
-    @override
     @staticmethod
     def parse_static_routes(routes: str) -> List[Tuple[str, str]]:
         """
@@ -926,7 +918,6 @@ class Udhcpc(DhcpClient):
         super().__init__()
         self.lease_file = ""
 
-    @override
     def dhcp_discovery(
         self,
         interface: str,
@@ -999,7 +990,6 @@ class Udhcpc(DhcpClient):
 
         return self.get_newest_lease(interface)
 
-    @override
     def get_newest_lease(self, interface: str) -> Dict[str, Any]:
         """Get the most recent lease from the ephemeral phase as a dict.
 
@@ -1014,7 +1004,6 @@ class Udhcpc(DhcpClient):
         """
         return util.load_json(util.load_text_file(self.lease_file))
 
-    @override
     @staticmethod
     def parse_static_routes(routes: str) -> List[Tuple[str, str]]:
         static_routes = routes.split()
