@@ -105,6 +105,7 @@ class TestGetKvpHandler:
             side_effect=AssertionError("should not be called twice"),
         ):
             handler_again = kvp.get_kvp_handler()
+            assert handler_again is not None
             assert handler_again.vm_id == fake_vm_id
 
     def test_handles_vm_id_lookup_failure(self, telemetry_reporter, mocker):
