@@ -1339,6 +1339,14 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return args
 
     @classmethod
+    def reload_init(cls, rcs=None):
+        """
+        Reload systemd startup daemon.
+        May raise ProcessExecutionError
+        """
+        return None
+
+    @classmethod
     def manage_service(
         cls, action: str, service: str, *extra_args: str, rcs=None
     ):
