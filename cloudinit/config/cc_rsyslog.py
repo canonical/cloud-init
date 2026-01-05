@@ -318,8 +318,6 @@ def disable_and_stop_bsd_base_syslog(cloud: Cloud) -> None:
     except subp.ProcessExecutionError:
         return
     cloud.distro.manage_service("disable", "syslogd")
-    cloud.distro.reload_init()
-
     with contextlib.suppress(subp.ProcessExecutionError):
         # for some inexplicable reason we're running after syslogd,
         # try to stop it, ignoring failures, only log the fact that

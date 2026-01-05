@@ -50,7 +50,6 @@ module = [
     "cloudinit.config.cc_growpart",
     "cloudinit.config.cc_ntp",
     "cloudinit.config.modules",
-    "cloudinit.distros",
     "cloudinit.distros.alpine",
     "cloudinit.distros.azurelinux",
     "cloudinit.distros.bsd",
