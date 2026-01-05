@@ -427,7 +427,6 @@ class DataSourceAzure(sources.DataSource):
         )
 
         update_primary_nic = iface is None
-
         lease: Optional[Dict[str, Any]] = None
         start_time = monotonic()
         deadline = start_time + timeout_minutes * 60
