@@ -1849,8 +1849,8 @@ VALID_CFG = {
     # no quotes, no whitespace
     "flow_sequence-9": {
         "ds": "None",
-        # /dev/lxd/sock does not exist and QEMU virt-type
-        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM_QEMU],
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
         "files": {"etc/cloud/cloud.cfg": dedent("datasource_list: [None]")},
     },
@@ -1862,7 +1862,7 @@ VALID_CFG = {
             ),
         },
         # /dev/lxd/sock does not exist and KVM virt-type
-        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
+        "mocks": [{"name": "is_socket_file", "ret": 0}, MOCK_VIRT_IS_KVM],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
     },
     "LXD-kvm-qemu-kernel-gt-5.10": {  # LXD host > 5.10 kvm

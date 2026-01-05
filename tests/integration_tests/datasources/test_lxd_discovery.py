@@ -99,6 +99,7 @@ def test_lxd_kvm_datasource_discovery_without_lxd_socket(
         assert "datasource_list: [ LXD, NoCloud, None ]" == ds_config
 
 
+@pytest.mark.skipif(not IS_UBUNTU, reason="Netplan usage")
 @pytest.mark.skipif(
     PLATFORM not in ["lxd_container", "lxd_vm"],
     reason="Test is LXD specific",
