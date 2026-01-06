@@ -1861,7 +1861,7 @@ VALID_CFG = {
                 "datasource_list:\n - Azure"
             ),
         },
-        # /dev/lxd/sock does not exist and KVM virt-type
+        # /dev/lxd/sock does exist and KVM virt-type
         "mocks": [{"name": "is_socket_file", "ret": 0}, MOCK_VIRT_IS_KVM],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
     },

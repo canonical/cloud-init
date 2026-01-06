@@ -73,9 +73,9 @@ def test_lxd_kvm_datasource_discovery_without_lxd_socket(
     with session_cloud.launch(
         wait=False,  # to prevent cloud-init status --wait
         launch_kwargs={
-            # We detect the LXD datasource using a socket available to the
-            # container. This prevents the socket from being exposed in the
-            # container, so LXD will not be detected by python DataSourceLXD.
+            # Setting security.devlxd to False prevents /dev/lxd/sock
+            # from being exposed in the VM, so DataSourceLXD will not be
+            # identified by the python DataSourceLXD.ds_detect.
             "config_dict": {"security.devlxd": False},
         },
     ) as client:
@@ -85,8 +85,9 @@ def test_lxd_kvm_datasource_discovery_without_lxd_socket(
         # Expect warnings and exit 2 concerning missing /dev/lxd/sock
         if not result.ok and result.return_code != 2:
             raise AssertionError("cloud-init failed:\n%s", result.stderr)
-        # Expect fallback to NoCloud because python DataSourceLXD cannot
-        # get any information from /dev/lxd/sock due to security.devlxd above.
+        # Expect NoCloud because python DataSourceLXD cannot read metadata from
+        # /dev/lxd/sock due to security.devlxd above and falls back to
+        # the nocloud seed files written by _customize_environment.
         cloud_id = client.execute("cloud-id").stdout
         if "nocloud" != cloud_id:
             raise AssertionError(
@@ -96,7 +97,9 @@ def test_lxd_kvm_datasource_discovery_without_lxd_socket(
         # Assert ds-idetify detected both LXD and NoCloud as viable during
         # systemd generator time.
         ds_config = client.execute("cat /run/cloud-init/cloud.cfg").stdout
-        assert "datasource_list: [ LXD, NoCloud, None ]" == ds_config
+        assert {
+            "datasource_list": ["LXD", "NoCloud", "None"]
+        } == yaml.safe_load(ds_config)
 
 
 @pytest.mark.skipif(not IS_UBUNTU, reason="Netplan usage")
