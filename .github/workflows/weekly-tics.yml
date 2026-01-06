@@ -1,0 +1,49 @@
+name: Weekly: Static analysis Tiobe TICS
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 5 * * 6'  # Run at 5:17a (arbitrary) on Saturday
+
+concurrency:
+  group: cloudinit-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  TICS:
+    runs-on: [self-hosted, linux, amd64, tiobe, noble]
+    steps:
+      - name: Checkout the project
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Dependencies
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -y install \
+            ubuntu-dev-tools \
+            tox \
+            wireguard \
+            $(\
+              ./tools/read-dependencies                   \
+                --requirements-file requirements.txt      \
+                --requirements-file test-requirements.txt \
+                --distro ubuntu                           \
+                --system-pkg-names 2> /dev/null           \
+                | tr '\n' ' '                             \
+            )
+
+      - name: Coverage
+        run: |
+          make coverage
+
+      - name: Run TICS analysis with github-action
+        uses: tiobe/tics-github-action@768de18bedf164ee461bc9ef5e2f2fa1a20b122a  # v3.7
+        with:
+          mode: qserver
+          project: cloud-init
+          branchdir: .
+          viewerUrl: https://canonical.tiobe.com/tiobeweb/TICS/api/cfg?name=default
+          ticsAuthToken: ${{ secrets.TICSAUTHTOKEN }}
+          installTics: true
