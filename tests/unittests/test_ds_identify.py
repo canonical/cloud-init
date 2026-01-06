@@ -215,7 +215,6 @@ OVF_MATCH_STRING = "http://schemas.dmtf.org/ovf/environment/1"
 SHELL_MOCK_TMPL = """\
 %(name)s() {
    local out='%(out)s' err='%(err)s' r='%(ret)s' RET='%(RET)s'
-   %(DI_VARS)s
    [ "$out" = "_unset" ] || echo "$out"
    [ "$err" = "_unset" ] || echo "$err" 2>&1
    [ "$RET" = "_unset" ] || _RET="$RET"
@@ -347,6 +346,7 @@ class DsIdentifyBase:
             "DEBUG_LEVEL=2",
             "DI_LOG=stderr",
             "PATH_ROOT='%s'" % rootd,
+            "PATH_DI_ENV='%s/ds-identify-env'" % rootd,
             ". " + self.dsid_path,
             'DI_DEFAULT_POLICY="%s"' % policy_dmi,
             'DI_DEFAULT_POLICY_NO_DMI="%s"' % policy_no_dmi,
@@ -355,16 +355,7 @@ class DsIdentifyBase:
         ]
 
         def write_mock(data):
-            ddata = {
-                "out": None,
-                "err": None,
-                "ret": 0,
-                "RET": None,
-                "DI_VARS": "",
-            }
-            for k in data.keys():
-                if k.startswith("DI_"):  # set any injected DI_* env vars
-                    ddata["DI_VARS"] += f"{k}={data[k]}\n"
+            ddata = {"out": None, "err": None, "ret": 0, "RET": None}
             ddata.update(data)
             for k in ddata.keys():
                 if ddata[k] is None:
@@ -1733,14 +1724,12 @@ VALID_CFG = {
         # /dev/lxd/sock does exist and KVM virt-type
         "mocks": [
             {"name": "is_socket_file", "ret": 0},
-            {
-                "name": "read_kernel_cmdline",
-                "DI_KERNEL_CMDLINE": "ds=MAAS",
-                "ret": 0,
-            },
             MOCK_VIRT_IS_KVM,
         ],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+        "files": {
+            "ds-identify-env": 'DI_KERNEL_CMDLINE="ds=MAAS"',
+        },
     },
     "flow_sequence-control": {
         "ds": "None",
