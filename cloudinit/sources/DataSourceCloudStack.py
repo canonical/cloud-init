@@ -338,7 +338,9 @@ def get_vr_address(distro):
             return latest_address
 
     with suppress(FileNotFoundError):
-        latest_lease = distro.dhcp_client.get_newest_lease(distro)
+        latest_lease = distro.dhcp_client.get_newest_lease(
+            distro.fallback_interface
+        )
         if latest_lease:
             LOG.debug(
                 "Found SERVER_ADDRESS '%s' via ephemeral %s lease ",
