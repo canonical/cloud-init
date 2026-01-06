@@ -1118,12 +1118,10 @@ def list_sources(cfg_list, depends, pkg_list):
     )
 
     for ds in cfg_list:
-        m_locs = []
         ds_name = importer.match_case_insensitive_module_name(ds)
-        if ds_name:
-            m_locs, _looked_locs = importer.find_module(
-                ds_name, pkg_list, ["get_datasource_list"]
-            )
+        m_locs, _looked_locs = importer.find_module(
+            ds_name, pkg_list, ["get_datasource_list"]
+        )
         if not m_locs:
             LOG.error(
                 "Could not import %s. Does the DataSource exist and "
