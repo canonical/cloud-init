@@ -68,4 +68,4 @@ jobs:
         run: lxc exec alpine -- ifdown -a
 
       - name: Run unittests
-        run: lxc exec alpine --cwd /root/cloud-init-rw -- sh -c 'tox -e py3 -- --color=yes'
+        run: lxc exec alpine --cwd /root/cloud-init-rw -- sh -c 'TMPDIR=. tox -e py3 -- --color=yes'
