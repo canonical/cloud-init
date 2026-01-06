@@ -1,5 +1,6 @@
 from cloudinit.net.network_state import NetworkStateInterpreter
 
+
 def test_interface_with_default_route_is_preferred():
     config = {
         "version": 2,
@@ -11,9 +12,7 @@ def test_interface_with_default_route_is_preferred():
             "eth1": {
                 "match": {"macaddress": "aa:bb:cc:dd:ee:02"},
                 "addresses": ["10.0.0.2/24"],
-                "routes": [
-                    {"to": "0.0.0.0/0", "via": "10.0.0.1"}
-                ],
+                "routes": [{"to": "0.0.0.0/0", "via": "10.0.0.1"}],
             },
         },
     }
@@ -27,7 +26,6 @@ def test_interface_with_default_route_is_preferred():
 
     # eth1 must be selected because it has default route
     assert iface["name"] == "eth1"
-
 
 
 def test_single_interface_resolution_unchanged():
@@ -45,7 +43,6 @@ def test_single_interface_resolution_unchanged():
     state = nsi.network_state
 
     assert "eth0" in state._network_state["interfaces"]
-
 
 
 def test_deterministic_fallback_without_routes():

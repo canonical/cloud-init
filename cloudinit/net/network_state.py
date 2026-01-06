@@ -391,6 +391,38 @@ class NetworkStateInterpreter:
             'accept-ra': 'true'
         }
         """
+
+        def _resolve_interface_name(candidates, network_state):
+            """
+            Resolve the most suitable interface name from candidates using
+            runtime network characteristics.
+            """
+            if not candidates:
+                return None
+
+            interfaces = network_state.get("interfaces", {})
+
+            def score(name):
+                iface = interfaces.get(name, {})
+                score = 0
+
+                # Prefer interface with default route
+                for subnet in iface.get("subnets", []):
+                    for route in subnet.get("routes", []):
+                        if route.get("prefix") == 0:
+                            score += 50
+
+                # Prefer DHCP interfaces
+                for subnet in iface.get("subnets", []):
+                    if subnet.get("type", "").startswith("dhcp"):
+                        score += 10
+
+                # Prefer lower lexicographic name as deterministic fallback
+                score -= len(name)
+                return score
+
+            return max(candidates, key=score)
+
         name_candidates = command.pop("_name_candidates", None)
         if name_candidates:
             resolved = _resolve_interface_name(
@@ -446,38 +478,6 @@ class NetworkStateInterpreter:
 
         if iface["mac_address"]:
             iface["mac_address"] = iface["mac_address"].lower()
-
-
-        def _resolve_interface_name(candidates, network_state):
-            """
-            Resolve the most suitable interface name from candidates using
-            runtime network characteristics.
-            """
-            if not candidates:
-                return None
-
-            interfaces = network_state.get("interfaces", {})
-
-            def score(name):
-                iface = interfaces.get(name, {})
-                score = 0
-
-                # Prefer interface with default route
-                for subnet in iface.get("subnets", []):
-                    for route in subnet.get("routes", []):
-                        if route.get("prefix") == 0:
-                            score +=50
-
-                # Prefer DHCP interfaces
-                for subnet in iface.get("subnets", []):
-                    if subnet.get("type", "").startswith("dhcp"):
-                        score += 10
-
-                # Prefer lower lexicographic name as deterministic fallback
-                score -= len(name)
-                return score
-            return max(candidates, key=score)
-            
 
         iface_key = command.get("config_id", command.get("name"))
         self._network_state["interfaces"].update({iface_key: iface})
@@ -784,7 +784,7 @@ class NetworkStateInterpreter:
 
             # Determine interface name candidates (do not bind yet)
             name_candidates = []
-            
+
             set_name = cfg.get("set-name")
             if set_name:
                 name_candidates.append(set_name)
