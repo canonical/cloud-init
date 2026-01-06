@@ -52,7 +52,7 @@ def match_case_insensitive_module_name(mod_name: str) -> str:
         for module in modules.values():
             if module.lower() == mod_name.lower():
                 return module
-    return mod_name
+    return ""
 
 
 def find_module(
