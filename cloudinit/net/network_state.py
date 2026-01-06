@@ -391,6 +391,13 @@ class NetworkStateInterpreter:
             'accept-ra': 'true'
         }
         """
+        name_candidates = command.pop("_name_candidates", None)
+        if name_candidates:
+            resolved = _resolve_interface_name(
+                name_candidates, self._network_state
+            )
+            if resolved:
+                command["name"] = resolved
 
         interfaces = self._network_state.get("interfaces", {})
         iface = interfaces.get(command["name"], {})
@@ -439,6 +446,38 @@ class NetworkStateInterpreter:
 
         if iface["mac_address"]:
             iface["mac_address"] = iface["mac_address"].lower()
+
+
+        def _resolve_interface_name(candidates, network_state):
+            """
+            Resolve the most suitable interface name from candidates using
+            runtime network characteristics.
+            """
+            if not candidates:
+                return None
+
+            interfaces = network_state.get("interfaces", {})
+
+            def score(name):
+                iface = interfaces.get(name, {})
+                score = 0
+
+                # Prefer interface with default route
+                for subnet in iface.get("subnets", []):
+                    for route in subnet.get("routes", []):
+                        if route.get("prefix") == 0:
+                            score +=50
+
+                # Prefer DHCP interfaces
+                for subnet in iface.get("subnets", []):
+                    if subnet.get("type", "").startswith("dhcp"):
+                        score += 10
+
+                # Prefer lower lexicographic name as deterministic fallback
+                score -= len(name)
+                return score
+            return max(candidates, key=score)
+            
 
         iface_key = command.get("config_id", command.get("name"))
         self._network_state["interfaces"].update({iface_key: iface})
@@ -743,21 +782,23 @@ class NetworkStateInterpreter:
                 )
             phy_cmd["mac_address"] = mac_address
 
-            # Determine the name of the interface by using one of the
-            # following in the order they are listed:
-            #   * set-name
-            #   * interface name looked up by mac
-            #   * value of "eth" key from this loop
-            name = eth
+            # Determine interface name candidates (do not bind yet)
+            name_candidates = []
+            
             set_name = cfg.get("set-name")
             if set_name:
-                name = set_name
+                name_candidates.append(set_name)
+
             elif mac_address and ifaces_by_mac:
                 lcase_mac_address = mac_address.lower()
                 mac = find_interface_name_from_mac(lcase_mac_address)
                 if mac:
-                    name = mac
-            phy_cmd["name"] = name
+                    name_candidates.append(mac)
+
+            # Always include config key as fallback
+            name_candidates.append(eth)
+
+            phy_cmd["_name_candidates"] = name_candidates
 
             driver = match.get("driver", None)
             if driver:
