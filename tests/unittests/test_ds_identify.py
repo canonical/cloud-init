@@ -1733,7 +1733,8 @@ VALID_CFG = {
             "etc/cloud/cloud.cfg.d/92-broken-maas.cfg": ("MAAS: None\n"),
             "sys/class/virtio-ports/vport0p1/name": "com.canonical.lxd",
         },
-        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM_QEMU],
+        # /dev/lxd/sock does not exist and KVM virt-type
+        "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
     },
     "flow_sequence-control": {
