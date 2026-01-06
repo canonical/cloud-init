@@ -1861,6 +1861,17 @@ class TestIdentifyPlatform:
 
 
 class TestPreferElasticNics:
+    """Tests to ensure we are sorting NICs with Amazon drivers ahead of other
+    candidate NICs.
+
+    If a NIC is present with an Amazon driver, it is more likely to be the
+    interface which can reach the metadata server. Sorting it first speeds
+    up boot due to minimizing wait time in DataSourceEc2.wait_for_metadata.
+
+    See Also
+    =========
+    cloudinit.sources.DataSourceEc2._prefer_elastic_drivers
+    """
 
     @pytest.fixture
     def nics(self):

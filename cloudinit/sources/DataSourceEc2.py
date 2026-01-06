@@ -888,22 +888,18 @@ def _collect_platform_data():
     }
 
 
-def _is_elastic_driver(nic: str) -> bool:
-    """Check if the NIC is using the Elastic Network Adapter (ENA)
-    or Elastic Fabric Adapter (EFA) drivers
-    """
-    return device_driver(nic) in ELASTIC_DRIVERS
-
-
 def _prefer_elastic_drivers(nic: str) -> int:
-    """Sorts the NICs so that amazon drivers are first.
+    """Sorts the NICs so that Amazon drivers are first.
 
-    This helps speed up finding the metadata server since it
-    should only be attached to one of these.
+    This helps speed up finding the metadata server since it will generally
+    be reachable via the first ENA/EFA NIC if one is present. Each incorrect
+    NIC that we are able to skip shortens boot by approximately
+    DataSourceEc2.url_max_wait seconds.
     """
-    # sorted is guaranteed to be stable, so we only need to sort
+    # The python builtin `sorted` is guaranteed to be stable,
+    # so we only need to sort
     # based on whether the NIC is an elastic driver or not
-    if _is_elastic_driver(nic):
+    if device_driver(nic) in ELASTIC_DRIVERS:
         return 0
     return 1
 
