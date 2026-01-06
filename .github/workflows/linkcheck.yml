@@ -1,4 +1,4 @@
-name: scheduled-linkcheck
+name: "Daily: Link Check"
 on:
   schedule:
     - cron: '3 14 * * *'

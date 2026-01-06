@@ -1,14 +1,13 @@
-name: scheduled-daily
+name: "Daily: Unit & Lint"
 on:
   schedule:
     - cron: '3 14 * * *'
 concurrency:
   group: 'ci-${{ github.workflow }}-${{ github.ref }}'
   cancel-in-progress: false
-
 jobs:
   hypothesis:
-    name: unittest / hypothesis-slow
+    name: "Fuzz: jsonschema"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -25,12 +24,12 @@ jobs:
           HYPOTHESIS_PROFILE: ci
         run: tox -e hypothesis-slow
   devel_tests:
-    name: unittest / 3.14-dev
+    name: "Tip: Python"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Install Python 3.14-dev
+      - name: Install Latest Python
         uses: actions/setup-python@v5
         with:
           # select latest version here:
@@ -46,7 +45,7 @@ jobs:
       fail-fast: false
       matrix:
         env: [tip-ruff, tip-mypy, tip-pylint, tip-black, tip-isort, py3-fast]
-    name: format-tip
+    name: "Tip: Lint"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

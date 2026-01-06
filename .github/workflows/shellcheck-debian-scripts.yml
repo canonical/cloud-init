@@ -1,4 +1,4 @@
-name: ShellCheck Debian package scripts
+name: "Packaging: Lint"
 
 env:
   # This is a space separated string for multiple globs

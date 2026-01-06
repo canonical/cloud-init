@@ -1,4 +1,4 @@
-name: CLA Check
+name: "GH: CLA"
 
 on:
   pull_request:
