@@ -35,7 +35,7 @@ jobs:
         with:
           # select latest version here:
           # https://github.com/actions/python-versions/blob/main/versions-manifest.json
-          python-version: 3.14-dev
+          python-version: 3.15.0-alpha.3
           check-latest: true
       - name: Install tox
         run: pip install tox
