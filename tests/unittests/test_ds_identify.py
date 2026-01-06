@@ -346,6 +346,7 @@ class DsIdentifyBase:
             "DEBUG_LEVEL=2",
             "DI_LOG=stderr",
             "PATH_ROOT='%s'" % rootd,
+            "PATH_DI_ENV='%s/ds-identify-env'" % rootd,
             ". " + self.dsid_path,
             'DI_DEFAULT_POLICY="%s"' % policy_dmi,
             'DI_DEFAULT_POLICY_NO_DMI="%s"' % policy_no_dmi,
@@ -623,6 +624,10 @@ class TestDsIdentify(DsIdentifyBase):
             ),
             # LXD containers will have /dev/lxd/socket at generator time.
             pytest.param("LXD", True, id="lxd_containers"),
+            # MAAS detected despite /dev/lxd/socket existing
+            pytest.param(
+                "MAAS-not-LXD", True, id="maas_detected_kernel_cmdline_not_lxd"
+            ),
             # ConfigDrive datasource has a disk with LABEL=config-2.
             pytest.param("ConfigDrive", True, id="config_drive"),
             # Rbx datasource has a disk with LABEL=CLOUDMD.
@@ -1713,6 +1718,18 @@ VALID_CFG = {
         # /dev/lxd/sock does not exist and KVM virt-type
         "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+    },
+    "MAAS-not-LXD": {
+        "ds": "MAAS",
+        # /dev/lxd/sock does exist and KVM virt-type
+        "mocks": [
+            {"name": "is_socket_file", "ret": 0},
+            MOCK_VIRT_IS_KVM,
+        ],
+        "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
+        "files": {
+            "ds-identify-env": 'DI_KERNEL_CMDLINE="ds=MAAS"',
+        },
     },
     "flow_sequence-control": {
         "ds": "None",
