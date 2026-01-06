@@ -1,5 +1,4 @@
-
-name: Alpine Unittests
+name: "Unit: Alternate Distros"
 
 on:
   pull_request:
@@ -28,7 +27,7 @@ jobs:
           # Fetch all tags for tools/read-version
           fetch-depth: 0
 
-      - name: Setup LXD
+      - name: Set up LXD
         uses: canonical/setup-lxd@v0.1.2
 
       - name: Create alpine container
