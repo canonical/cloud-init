@@ -2,7 +2,7 @@
 # patches apply and unit tests pass.
 #
 # TODO: add full build-package / sbuild test
-name: "Packaging (downstream branch) - patches apply cleanly unit tests pass"
+name: "Packaging: Check patches (downstream)"
 
 on:
   pull_request:
@@ -23,10 +23,10 @@ jobs:
     name: Check patches apply cleanly and unit tests pass
     steps:
 
-      - name: Setup - checkout branch
+      - name: Checkout branch
         uses: actions/checkout@v4
 
-      - name: Setup - install dependencies
+      - name: Install dependencies
         run: |
           # This stage is slow, and unnecessecary when no series exists, so
           # only run it if necessary to save some cycles.
@@ -39,7 +39,7 @@ jobs:
           sudo DEBIAN_FRONTEND=noninteractive apt-get update
           sudo DEBIAN_FRONTEND=noninteractive apt-get -y install tox quilt
 
-      - name: Setup - Configure quilt
+      - name: Configure quilt
         run: |
           # GitHub Actions doesn't appear to have a simple mechanism for
           # early exit without failure
@@ -55,7 +55,7 @@ jobs:
           # quilt defaults to QUILT_PATCHES=patches, but debian uses debian/patches
           sudo sed -i 's|.*QUILT_PATCHES=.*$|QUILT_PATCHES=debian/patches|g' /etc/quilt.quiltrc
 
-      - name: Run test - apply patches and run unit tests
+      - name: Apply patches and run unit tests
         run: |
           # GitHub Actions doesn't appear to have a simple mechanism for
           # early exit without failure
