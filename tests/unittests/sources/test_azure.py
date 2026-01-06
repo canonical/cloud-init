@@ -110,6 +110,24 @@ def mock_device_driver():
         yield m
 
 
+@pytest.fixture
+def mock_find_primary_nic():
+    with mock.patch(
+        MOCKPATH + "find_primary_nic",
+        return_value="eth2",
+    ) as m:
+        yield m
+
+
+@pytest.fixture(autouse=True)
+def mock_get_interface_details():
+    with mock.patch(
+        MOCKPATH + "get_interface_details",
+        return_value=(None, None),
+    ) as m:
+        yield m
+
+
 @pytest.fixture(autouse=True)
 def mock_netinfo(disable_netdev_info):
     pass
@@ -3533,13 +3551,52 @@ class TestEphemeralNetworking:
                 "result=error|reason=failure to find DHCP interface"
             )
 
-    def test_retry_process_error(
+    def test_logging_found_iface_mac_driver(
         self,
         azure_ds,
+        mock_find_primary_nic,
         mock_ephemeral_dhcp_v4,
+        mock_get_interface_details,
         mock_report_diagnostic_event,
         mock_sleep,
     ):
+        mock_get_interface_details.return_value = (
+            "00:11:22:33:44:01",
+            "unknown",
+        )
+        azure_ds._setup_ephemeral_networking()
+
+        assert (
+            mock.call(
+                "Bringing up ephemeral networking with "
+                "iface=eth2 mac=00:11:22:33:44:01 driver=unknown: "
+                "[('dummy0', '9e:65:d6:19:19:01', None, None), "
+                "('enP3', '00:11:22:33:44:02', 'unknown_accel', '0x3'), "
+                "('eth0', '00:11:22:33:44:00', 'hv_netvsc', '0x3'), "
+                "('eth2', '00:11:22:33:44:01', 'unknown', '0x3'), "
+                "('eth3', '00:11:22:33:44:02', "
+                "'unknown_with_unknown_vf', '0x3'), "
+                "('lo', '00:00:00:00:00:00', None, None)]",
+                logger_func=dsaz.LOG.debug,
+            )
+            in mock_report_diagnostic_event.mock_calls
+        )
+
+    def test_retry_process_error(
+        self,
+        azure_ds,
+        mock_find_primary_nic,
+        mock_ephemeral_dhcp_v4,
+        mock_get_interface_details,
+        mock_report_diagnostic_event,
+        mock_sleep,
+    ):
+        mock_find_primary_nic.return_value = "fakeEth0"
+        mock_get_interface_details.return_value = (
+            "00:11:22:33:44:00",
+            "fake_driver",
+        )
+
         lease = {
             "interface": "fakeEth0",
         }
@@ -3567,7 +3624,8 @@ class TestEphemeralNetworking:
         assert mock_sleep.mock_calls == [mock.call(1)]
         assert mock_report_diagnostic_event.mock_calls == [
             mock.call(
-                "Bringing up ephemeral networking with iface=None: "
+                "Bringing up ephemeral networking with "
+                "iface=fakeEth0 mac=00:11:22:33:44:00 driver=fake_driver: "
                 "[('dummy0', '9e:65:d6:19:19:01', None, None), "
                 "('enP3', '00:11:22:33:44:02', 'unknown_accel', '0x3'), "
                 "('eth0', '00:11:22:33:44:00', 'hv_netvsc', '0x3'), "
@@ -3581,6 +3639,18 @@ class TestEphemeralNetworking:
                 "Command failed: cmd=['failed', 'cmd'] "
                 "stderr='test_stderr' stdout='test_stdout' exit_code=4",
                 logger_func=dsaz.LOG.error,
+            ),
+            mock.call(
+                "Bringing up ephemeral networking with "
+                "iface=fakeEth0 mac=00:11:22:33:44:00 driver=fake_driver: "
+                "[('dummy0', '9e:65:d6:19:19:01', None, None), "
+                "('enP3', '00:11:22:33:44:02', 'unknown_accel', '0x3'), "
+                "('eth0', '00:11:22:33:44:00', 'hv_netvsc', '0x3'), "
+                "('eth2', '00:11:22:33:44:01', 'unknown', '0x3'), "
+                "('eth3', '00:11:22:33:44:02', "
+                "'unknown_with_unknown_vf', '0x3'), "
+                "('lo', '00:00:00:00:00:00', None, None)]",
+                logger_func=dsaz.LOG.debug,
             ),
             mock.call(
                 "Obtained DHCP lease on interface 'fakeEth0' "
@@ -3683,6 +3753,127 @@ class TestEphemeralNetworking:
         assert len(mock_kvp_report_via_kvp.call_args_list) == 3
         for call in mock_kvp_report_via_kvp.call_args_list:
             assert call[0][0].startswith(f"result=error|reason={error_reason}")
+
+    def test_update_primary_nic_changes_interface(
+        self,
+        azure_ds,
+        mock_ephemeral_dhcp_v4,
+        mock_find_primary_nic,
+        mock_get_interface_details,
+        mock_report_diagnostic_event,
+        mock_sleep,
+    ):
+        """Test that interface updates when update_primary_nic=True.
+
+        When iface=None (update_primary_nic=True), the interface should be
+        dynamically discovered via find_primary_nic() on each retry, allowing
+        it to change between attempts.
+        """
+        # the primary NIC gets updated each loop iteration
+        mock_find_primary_nic.side_effect = ["eth0", "eth1", "eth2"]
+
+        mock_get_interface_details.side_effect = [
+            ("00:11:22:33:44:00", "hv_netvsc"),  # eth0
+            ("00:11:22:33:44:01", "unknown1"),  # eth1
+            ("00:11:22:33:44:02", "unknown2"),  # eth2 (final success)
+        ]
+
+        lease = {
+            "interface": "eth2",
+        }
+        mock_ephemeral_dhcp_v4.return_value.obtain_lease.side_effect = [
+            dhcp.NoDHCPLeaseError(),
+            dhcp.NoDHCPLeaseError(),
+            lease,
+        ]
+
+        azure_ds._setup_ephemeral_networking(iface=None)
+
+        assert mock_find_primary_nic.call_count == 3
+
+        assert mock_get_interface_details.mock_calls == [
+            mock.call("eth0"),
+            mock.call("eth1"),
+            mock.call("eth2"),
+        ]
+
+        assert mock_ephemeral_dhcp_v4.return_value.iface == "eth2"
+        assert mock_ephemeral_dhcp_v4.return_value.obtain_lease.call_count == 3
+
+        # Verify the diagnostic messages in order, ignoring dynamic values
+        expected = [
+            (
+                "Bringing up ephemeral networking with "
+                "iface=eth0 mac=00:11:22:33:44:00 driver=hv_netvsc",
+                dsaz.LOG.debug,
+            ),
+            (
+                "Failed to obtain DHCP lease "
+                "(iface=eth0 mac=00:11:22:33:44:00 driver=hv_netvsc)",
+                dsaz.LOG.error,
+            ),
+            (
+                [
+                    "Azure datasource failure occurred",
+                    "driver=hv_netvsc",
+                    "interface=eth0",
+                    "mac_address=00:11:22:33:44:00",
+                ],
+                dsaz.LOG.error,
+            ),
+            (
+                "Bringing up ephemeral networking with iface=eth1 "
+                "mac=00:11:22:33:44:01 driver=unknown1",
+                dsaz.LOG.debug,
+            ),
+            (
+                "Failed to obtain DHCP lease "
+                "(iface=eth1 mac=00:11:22:33:44:01 driver=unknown1)",
+                dsaz.LOG.error,
+            ),
+            (
+                [
+                    "Azure datasource failure occurred",
+                    "driver=unknown1",
+                    "interface=eth1",
+                    "mac_address=00:11:22:33:44:01",
+                ],
+                dsaz.LOG.error,
+            ),
+            (
+                "Bringing up ephemeral networking with "
+                "iface=eth2 mac=00:11:22:33:44:02 driver=unknown2",
+                dsaz.LOG.debug,
+            ),
+            (
+                [
+                    "Obtained DHCP lease on interface 'eth2'",
+                    "driver='fake_driver'",
+                    "primary=True",
+                ],
+                dsaz.LOG.debug,
+            ),
+        ]
+
+        assert mock_report_diagnostic_event.call_count == 8
+        calls = mock_report_diagnostic_event.call_args_list
+        for i, (expected_msg, expected_logger) in enumerate(expected):
+            actual_msg = calls[i][0][0]
+            if isinstance(expected_msg, list):
+                for fragment in expected_msg:
+                    assert (
+                        fragment in actual_msg
+                    ), f"Call {i}: expected '{fragment}' in message"
+            else:
+                assert (
+                    expected_msg in actual_msg
+                ), f"Call {i}: expected message to contain '{expected_msg}'"
+            assert (
+                calls[i][1]["logger_func"] == expected_logger
+            ), f"Call {i}: wrong logger level"
+
+        # Final ephemeral dhcp context should have eth2
+        assert azure_ds._ephemeral_dhcp_ctx.iface == "eth2"
 
 
 class TestCheckIfPrimary:
