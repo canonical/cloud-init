@@ -11,6 +11,8 @@ concurrency:
 
 jobs:
   TICS:
+    # Best practices per https://library.canonical.com/corporate-policies/
+    #        information-security-policies/ssdlc/ssdlc---static-code-analysis
     runs-on: [self-hosted, linux, amd64, tiobe, noble]
     steps:
       - name: Checkout the project
@@ -34,9 +36,10 @@ jobs:
                 | tr '\n' ' '                             \
             )
 
-      - name: Coverage
+      - name: Generate TICS artifacts
         run: |
-          make coverage
+          mkdir .cover
+          python3 -m pytest --cov=cloudinit --cov-report=xml:.cover/coverage.xml || true
 
       - name: Run TICS analysis with github-action
         uses: tiobe/tics-github-action@768de18bedf164ee461bc9ef5e2f2fa1a20b122a  # v3.7
