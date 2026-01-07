@@ -64,7 +64,7 @@ GOTO="cloudinit_end"
 
 # Drivers that indicate a NIC is being provided by EC2
 # as an Elastic Network Adaptor or Elastic Fabric Adapter
-#  https://github.com/amzn/amzn-drivers/tree/46e50d6265ef6669877610549205973955748039/kernel/linux
+# https://github.com/amzn/amzn-drivers/
 ELASTIC_DRIVERS = ["ena", "efa"]
 
 
