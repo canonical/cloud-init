@@ -741,6 +741,7 @@ class TestDsIdentify(DsIdentifyBase):
             pytest.param(
                 "SmartOS-lxbrand-env", True, id="smartos_lxbrand-env"
             ),
+            pytest.param("Ec2-Tilaa", True, id="tilaa_is_ec2"),
             # EC2: chassis asset tag ends with 'zstack.io'
             pytest.param("Ec2-ZStack", True, id="zstack_is_ec2"),
             # EC2: e24cloud identified by sys_vendor
@@ -2441,6 +2442,7 @@ VALID_CFG = {
         "env_vars": IS_CONTAINER_OTHER_ENV,
         "files": {ds_smartos.METADATA_SOCKFILE: "would be a socket\n"},
     },
+    "Ec2-Tilaa": {"ds": "Ec2", "files": {P_SYS_VENDOR: "Tilaa\n"}},
     "Ec2-ZStack": {
         "ds": "Ec2",
         "files": {P_CHASSIS_ASSET_TAG: "123456.zstack.io\n"},
