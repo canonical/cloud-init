@@ -1318,8 +1318,8 @@ ec2_identify_platform() {
     local vendor="${DI_DMI_SYS_VENDOR}"
     case "$vendor" in
         e24cloud) _RET="E24cloud"; return 0;;
+        Tilaa) _RET="Tilaa"; return 0;;
     esac
-
 
     local product_name="${DI_DMI_PRODUCT_NAME}"
     if [ "${product_name}" = "3DS Outscale VM" ]  && \
