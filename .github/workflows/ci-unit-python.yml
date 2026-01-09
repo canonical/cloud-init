@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-24.04
     continue-on-error: ${{ matrix.experimental }}
     steps:
-      - name: "Checkout"
+      - name: Checkout
         uses: actions/checkout@v4
       - name: Install Python ${{matrix.python-version}}
         uses: actions/setup-python@v5

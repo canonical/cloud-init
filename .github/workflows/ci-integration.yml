@@ -23,7 +23,7 @@ jobs:
   build-package-and-run-tests:
     runs-on: ubuntu-24.04
     steps:
-      - name: "Checkout"
+      - name: Checkout
         uses: actions/checkout@v4
       - name: Prepare dependencies
         run: |
