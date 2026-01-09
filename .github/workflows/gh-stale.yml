@@ -1,4 +1,5 @@
-name: GH: Manage stale PRs  # WIP introduce invalid YAML for testing
+name: "GH: Manage stale PRs"
+
 on:
   schedule:
   - cron: "0 0 * * *"  # Daily @ 00:00
