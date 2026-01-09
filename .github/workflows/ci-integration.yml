@@ -64,5 +64,7 @@ jobs:
           ssh-keygen -P "" -q -f ~/.ssh/id_rsa
           echo "[lxd]" > /home/$USER/.config/pycloudlib.toml
       - name: Run integration Tests
+        env:
+          FORCE_COLOR: 1
         run: |
-          CLOUD_INIT_CLOUD_INIT_SOURCE="$(ls ${{ runner.temp }}/cloud-init*.deb)" CLOUD_INIT_OS_IMAGE=${{ env.RELEASE }} tox -e integration-tests-ci -- --color=yes tests/integration_tests/
+          CLOUD_INIT_CLOUD_INIT_SOURCE="$(ls ${{ runner.temp }}/cloud-init*.deb)" CLOUD_INIT_OS_IMAGE=${{ env.RELEASE }} tox -e integration-tests-ci -- tests/integration_tests/

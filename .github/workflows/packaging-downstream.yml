@@ -21,6 +21,8 @@ jobs:
   patch-conflicts-upstream:
     runs-on: ubuntu-24.04
     name: Check patches apply cleanly and unit tests pass
+    env:
+      FORCE_COLOR: 1
     steps:
 
       - name: Checkout branch
