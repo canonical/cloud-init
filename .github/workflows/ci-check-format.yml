@@ -105,3 +105,4 @@ jobs:
       - uses: reviewdog/action-actionlint@83e4ed25b168066ad8f62f5afbb29ebd8641d982 # v1.69.1
         with:
           github_token: ${{ github.token }}
+          fail_level: any
