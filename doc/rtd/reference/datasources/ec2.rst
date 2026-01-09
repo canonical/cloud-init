@@ -4,7 +4,11 @@ Amazon EC2
 **********
 
 The EC2 datasource is the oldest and most widely used datasource that
-``cloud-init`` supports. This datasource interacts with a *magic* IP provided
+``cloud-init`` supports. Various clouds have been designed to emulate
+EC2. Many of these clouds use the same datasource including Brightbox,
+E24Cloud, Outscale, Tilaa, and Zscale.
+
+This datasource interacts with a *magic* IP provided
 to the instance by the cloud provider (typically this IP is
 ``169.254.169.254``). At this IP a http server is provided to the
 instance so that the instance can make calls to get instance user-data and

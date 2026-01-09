@@ -1795,6 +1795,18 @@ class TestIdentifyPlatform:
         )
         assert ec2.CloudNames.AWS == ec2.identify_platform()
 
+    @pytest.mark.parametrize(
+        "vendor, expected",
+        (("Tilaa", ec2.CloudNames.TILAA), ("NOTilaa", ec2.CloudNames.UNKNOWN)),
+    )
+    def test_identify_tilaa(self, vendor, expected, mocker):
+        """positively identify Tilaa"""
+        mocker.patch(
+            "cloudinit.sources.DataSourceEc2._collect_platform_data",
+            return_value=self.collmock(vendor=vendor),
+        )
+        assert expected == ec2.identify_platform()
+
     @mock.patch("cloudinit.sources.DataSourceEc2._collect_platform_data")
     def test_identify_aws_endian(self, m_collect):
         """aws should be identified if uuid starts with ec2"""
