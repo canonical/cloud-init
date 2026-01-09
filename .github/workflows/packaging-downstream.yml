@@ -64,7 +64,7 @@ jobs:
             exit 0
           fi
           quilt push -a
-          tox -e py3
+          tox -e py3 -- --color=yes
           quilt pop -a --refresh
       - name: Enforce sorted patches
         run: |

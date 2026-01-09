@@ -20,14 +20,11 @@ jobs:
         env: [ruff, mypy, pylint, black, isort]
     name: Check ${{ matrix.env }}
     runs-on: ubuntu-latest
+    env:
+      FORCE_COLOR: 1
     steps:
-      - name: "Checkout #1"
+      - name: Checkout
         uses: actions/checkout@v4
-
-      - name: "Checkout #2 (for tools/read-version)"
-        run: |
-          git fetch --unshallow
-          git remote add upstream https://git.launchpad.net/cloud-init
 
       - name: Dependencies
         run: |
@@ -48,10 +45,10 @@ jobs:
     name: Check json format
     runs-on: ubuntu-24.04
     steps:
-      - name: "Checkout #1"
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: "Test format"
+      - name: Test format
         run: |
           tools/check_json_format.sh cloudinit/config/schemas/schema-cloud-config-v1.json
           tools/check_json_format.sh cloudinit/config/schemas/schema-network-config-v1.json
@@ -63,27 +60,22 @@ jobs:
     name: Check docs
     runs-on: ubuntu-24.04
     steps:
-      - name: "Checkout #1"
+      - name: Checkout
         uses: actions/checkout@v4
-
-      - name: "Checkout #2 (for tools/read-version)"
-        run: |
-          git fetch --unshallow
-          git remote add upstream https://git.launchpad.net/cloud-init
-      - name: "Install Python 3.11.9"
+      - name: Install RTD Python Version
         uses: actions/setup-python@v5
         with:
           python-version: '3.11.9'
-      - name: "Install dependencies"
+      - name: Install dependencies
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get -qy update
           sudo DEBIAN_FRONTEND=noninteractive apt-get -qy install tox
-      - name: "Spellcheck"
+      - name: Spellcheck
         run: |
           tox
         env:
           TOXENV: doc-spelling
-      - name: "Build docs"
+      - name: Build docs
         env:
           TOXENV: doc
         run: |
@@ -103,4 +95,4 @@ jobs:
 
       - name: Run ShellCheck
         run: |
-          shellcheck ./tools/ds-identify
+          shellcheck --color=always ./tools/ds-identify

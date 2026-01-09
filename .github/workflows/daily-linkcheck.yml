@@ -10,7 +10,6 @@ jobs:
   linkcheck:
     runs-on: ubuntu-24.04
     continue-on-error: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.failOnError == 'true') }}
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
