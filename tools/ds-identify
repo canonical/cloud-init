@@ -975,16 +975,14 @@ dscheck_LXD() {
     # Temporarily enable globbing to walk virtio_ports_path.
     set +f; set -- "${virtio_ports_path}/"*; set -f;
     for port_dir in "$@"; do
-        local name_file="${port_dir}/name"
-        if [ -f "${name_file}" ]; then
-            local port_name
-            read port_name < "${name_file}" || \
-		warn "unable to read file: $name_file"
-            # Check for both current and legacy LXD serial names
-            if [ "${port_name}" = "com.canonical.lxd" ] || \
-               [ "${port_name}" = "org.linuxcontainers.lxd" ]; then
-                return ${DS_FOUND}
-            fi
+        local name_file="${port_dir}/name" port_name
+        [ ! -f "${name_file}" ] && continue
+        read port_name < "${name_file}" || \
+	warn "unable to read file: $name_file"
+        # Check for both current and legacy LXD serial names
+        if [ "${port_name}" = "com.canonical.lxd" ] || \
+           [ "${port_name}" = "org.linuxcontainers.lxd" ]; then
+            return ${DS_FOUND}
         fi
     done
     return ${DS_NOT_FOUND}

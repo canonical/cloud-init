@@ -7,21 +7,13 @@ The LXD datasource allows the user to provide custom user-data,
 vendor-data, meta-data and network-config to the instance without running
 a network service (or even without having a network at all). This datasource
 performs HTTP GETs against the `LXD socket device`_ which is provided to each
-running LXD container and VM as :file:`/dev/lxd/sock` and represents all
-instance-meta-data as versioned HTTP routes such as:
-
-  - 1.0/meta-data
-  - 1.0/config/cloud-init.vendor-data
-  - 1.0/config/cloud-init.user-data
-  - 1.0/config/user.<any-custom-key>
+running LXD container and VM as :file:`/dev/lxd/sock`
 
 The LXD socket device :file:`/dev/lxd/sock` is only present on containers and
 VMs when the instance configuration has ``security.devlxd=true`` (default).
 Disabling the ``security.devlxd`` configuration setting at initial launch will
-ensure that ``cloud-init`` uses the :ref:`datasource_nocloud` datasource.
-Disabling ``security.devlxd`` over the life of the container will result in
-warnings from ``cloud-init``, and ``cloud-init`` will keep the
-originally-detected LXD datasource.
+result in warnings from ``cloud-init``, and ``cloud-init`` will be unable to use
+the LXD datasource
 
 The LXD datasource is detected as viable by ``ds-identify`` during the
 :ref:`detect stage<boot-Detect>` when either :file:`/dev/lxd/sock` exists
