@@ -21,13 +21,8 @@ jobs:
     name: Check ${{ matrix.env }}
     runs-on: ubuntu-latest
     steps:
-      - name: "Checkout #1"
+      - name: "Checkout"
         uses: actions/checkout@v4
-
-      - name: "Checkout #2 (for tools/read-version)"
-        run: |
-          git fetch --unshallow
-          git remote add upstream https://git.launchpad.net/cloud-init
 
       - name: Dependencies
         run: |
@@ -63,14 +58,9 @@ jobs:
     name: Check docs
     runs-on: ubuntu-24.04
     steps:
-      - name: "Checkout #1"
+      - name: "Checkout"
         uses: actions/checkout@v4
-
-      - name: "Checkout #2 (for tools/read-version)"
-        run: |
-          git fetch --unshallow
-          git remote add upstream https://git.launchpad.net/cloud-init
-      - name: "Install Python 3.11.9"
+      - name: "Install RTD Python Version"
         uses: actions/setup-python@v5
         with:
           python-version: '3.11.9'
