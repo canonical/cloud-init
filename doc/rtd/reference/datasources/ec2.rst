@@ -157,4 +157,4 @@ Notes
    at first boot only but it can be configured to be applied on every boot
    and when NICs are hotplugged, see :ref:`events`.
 
-.. _EC2 tags user guide: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#work-with-tags-in-IMDS
+.. _EC2 tags user guide: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html
