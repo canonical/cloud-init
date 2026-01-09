@@ -33,9 +33,6 @@ jobs:
     steps:
       - name: "Checkout"
         uses: actions/checkout@v4
-        with:
-          # Fetch all tags for tools/read-version
-          fetch-depth: 0
       - name: Install Python ${{matrix.python-version}}
         uses: actions/setup-python@v5
         with:
@@ -44,4 +41,7 @@ jobs:
       - name: Install tox
         run: pip install tox
       - name: Run unittest
-        run: tox -e ${{ matrix.toxenv }} -- --color=yes
+        env: 
+          TMPDIR: '/tmp/'
+          FORCE_COLOR: 1
+        run: tox -e ${{ matrix.toxenv }}

@@ -3219,11 +3219,10 @@ class MockPath:
         return self.target_file
 
 
-@pytest.mark.usefixtures("fake_filesystem")
 class TestReadHotplugEnabledFile:
     def test_file_not_found(self, caplog):
         assert {"scopes": []} == util.read_hotplug_enabled_file(MockPath())
-        assert "enabled because it is not decodable" not in caplog.text
+        assert "not decodable" not in caplog.text
 
     def test_json_decode_error(self, caplog, tmpdir):
         target_file = (

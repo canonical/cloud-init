@@ -19,6 +19,8 @@ jobs:
   patch-conflicts-ubuntu:
     runs-on: ubuntu-24.04
     name: Patches apply cleanly and unit tests pass
+    env:
+      FORCE_COLOR=1
     steps:
 
       - name: Setup - checkout branches
