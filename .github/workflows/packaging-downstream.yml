@@ -21,8 +21,6 @@ jobs:
   patch-conflicts-upstream:
     runs-on: ubuntu-24.04
     name: Check patches apply cleanly and unit tests pass
-    env:
-      FORCE_COLOR: 1
     steps:
 
       - name: Checkout branch
@@ -66,7 +64,7 @@ jobs:
             exit 0
           fi
           quilt push -a
-          tox -e py3
+          tox -e py3 -- --color=yes
           quilt pop -a --refresh
       - name: Enforce sorted patches
         run: |

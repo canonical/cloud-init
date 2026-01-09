@@ -14,8 +14,6 @@ concurrency:
 jobs:
   TICS:
     runs-on: [self-hosted, linux, amd64, tiobe, noble]
-    env:
-      FORCE_COLOR: 1
     steps:
       - name: Checkout the project
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
@@ -31,7 +29,7 @@ jobs:
 
       - name: Generate coverage report
         run: |
-          tox -e py3 -- tests/unittests/ --cov-report=xml:.cover/coverage.xml
+          tox -e py3 -- tests/unittests/ --cov-report=xml:.cover/coverage.xml --color=yes
 
       - name: Run TICS analysis with github-action
         uses: tiobe/tics-github-action@768de18bedf164ee461bc9ef5e2f2fa1a20b122a  # v3.7

@@ -6,11 +6,11 @@ concurrency:
   group: 'ci-${{ github.workflow }}-${{ github.ref }}'
   cancel-in-progress: false
 jobs:
-  env:
-    FORCE_COLOR: 1
   hypothesis:
     name: "Fuzz: jsonschema"
     runs-on: ubuntu-latest
+    env:
+      FORCE_COLOR: 1
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -41,8 +41,10 @@ jobs:
       - name: Install tox
         run: pip install tox
       - name: Run unittest
-        run: tox -e py3
+        run: tox -e py3 -- --color=yes
   format_tip:
+    env:
+      FORCE_COLOR: 1
     strategy:
       fail-fast: false
       matrix:
