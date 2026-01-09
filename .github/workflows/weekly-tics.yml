@@ -22,8 +22,6 @@ jobs:
 
       - name: Dependencies
         run: |
-         - name: Dependencies
-        run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get -qy update
           sudo DEBIAN_FRONTEND=noninteractive apt-get -qy install tox
 
