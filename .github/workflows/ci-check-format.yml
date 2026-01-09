@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: "Checkout #1"
-        uses: actions/checkout@v4
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
 
       - name: "Checkout #2 (for tools/read-version)"
         run: |
@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: "Checkout #1"
-        uses: actions/checkout@v4
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
 
       - name: "Test format"
         run: |
@@ -64,7 +64,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: "Checkout #1"
-        uses: actions/checkout@v4
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
 
       - name: "Checkout #2 (for tools/read-version)"
         run: |
@@ -94,7 +94,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
 
       - name: Install ShellCheck
         run: |
@@ -104,3 +104,12 @@ jobs:
       - name: Run ShellCheck
         run: |
           shellcheck ./tools/ds-identify
+
+  workflow-lint:
+    name: GitHub Action and Workflow Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+      - uses: reviewdog/action-actionlint@83e4ed25b168066ad8f62f5afbb29ebd8641d982 # v1.69.1
+        with:
+          fail_level: any
