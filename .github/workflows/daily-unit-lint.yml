@@ -9,6 +9,8 @@ jobs:
   hypothesis:
     name: "Fuzz: jsonschema"
     runs-on: ubuntu-latest
+    env:
+      FORCE_COLOR: 1
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,8 +41,10 @@ jobs:
       - name: Install tox
         run: pip install tox
       - name: Run unittest
-        run: tox -e py3
+        run: tox -e py3 -- --color=yes
   format_tip:
+    env:
+      FORCE_COLOR: 1
     strategy:
       fail-fast: false
       matrix:
@@ -58,3 +62,29 @@ jobs:
         env:
           TOXENV: ${{ matrix.env }}
         run: tox
+  macos:
+    name: Python ${{matrix.python-version}} ${{ matrix.slug }}
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        python-version: ["3.13"]
+        toxenv: [py3]
+        slug: [""]
+        experimental: [false]
+        check-latest: [false]
+        continue-on-error: [false]
+    continue-on-error: ${{ matrix.experimental }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Python ${{matrix.python-version}}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{matrix.python-version}}
+          check-latest: ${{matrix.check-latest}}
+      - name: Install tox
+        run: pip install tox
+      - name: Run unittest
+        env: 
+          TMPDIR: '/tmp/'
+        run: tox -e ${{ matrix.toxenv }} -- --color=yes

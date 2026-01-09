@@ -27,7 +27,7 @@ jobs:
 
       - name: Generate coverage report
         run: |
-          tox -e py3 -- tests/unittests/ --cov-report=xml:.cover/coverage.xml
+          tox -e py3 -- tests/unittests/ --cov-report=xml:.cover/coverage.xml --color=yes
 
       - name: Run TICS analysis with github-action
         uses: tiobe/tics-github-action@768de18bedf164ee461bc9ef5e2f2fa1a20b122a  # v3.7
