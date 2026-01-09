@@ -4,7 +4,7 @@ Amazon EC2
 **********
 
 The EC2 datasource is the oldest and most widely used datasource that
-``cloud-init`` supports. Various clouds have been designed to emulate 
+``cloud-init`` supports. Various clouds have been designed to emulate
 EC2. Many of these clouds use the same datasource including Brightbox,
 E24Cloud, Outscale, Tilaa, and Zscale.
 
