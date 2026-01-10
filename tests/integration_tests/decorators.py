@@ -2,7 +2,7 @@ import functools
 import time
 
 
-def retry(*, tries: int = 30, delay: int = 1):
+def retry(*, tries: int = 30, delay: float = 1.0):
     """Decorator for retries.
 
     Retry a function until code no longer raises an exception or

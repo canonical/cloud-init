@@ -3,6 +3,8 @@ import json
 import pytest
 import yaml
 
+from tests.integration_tests.clouds import IntegrationCloud
+from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU
@@ -10,24 +12,37 @@ from tests.integration_tests.util import (
     lxd_has_nocloud,
     verify_clean_boot,
     verify_clean_log,
+    wait_for_cloud_init,
 )
+
+
+@retry(tries=30, delay=0.5)
+def _retry_get_ds_identify_log(client: IntegrationInstance):
+    """LXD VM agent will not be up immediately, so retry the initial cat."""
+    return client.execute("cat /run/cloud-init/ds-identify.log")
 
 
 def _customize_environment(client: IntegrationInstance):
     # Assert our platform can detect LXD during systemd generator timeframe.
-    ds_id_log = client.execute("cat /run/cloud-init/ds-identify.log").stdout
+    ds_id_log = _retry_get_ds_identify_log(client)
     assert "check for 'LXD' returned found" in ds_id_log
 
     if client.settings.PLATFORM == "lxd_vm":
         # ds-identify runs at systemd generator time before /dev/lxd/sock.
-        # Assert we can expected artifact which indicates LXD is viable.
-        result = client.execute("cat /sys/class/dmi/id/board_name")
+        # Assert we can expect virtio-ports artifacts which indicates LXD is
+        # viable.
+        result = client.execute("cat /sys/class/virtio-ports/*/name")
         if not result.ok:
             raise AssertionError(
-                "Missing expected /sys/class/dmi/id/board_name"
+                "Missing expected /sys/class/virtio-ports/*/name"
             )
-        if "LXD" != result.stdout:
-            raise AssertionError(f"DMI board_name is not LXD: {result.stdout}")
+        if (
+            "com.canonical.lxd" not in result.stdout
+            and "org.linuxcontainers.lxd" not in result.stdout
+        ):
+            raise AssertionError(
+                f"virtio-ports not LXD serial devices: {result.stdout}"
+            )
 
     # Having multiple datasources prevents ds-identify from short-circuiting
     # detection logic with a log like:
@@ -40,17 +55,51 @@ def _customize_environment(client: IntegrationInstance):
         "/etc/cloud/cloud.cfg.d/99-detect-lxd-first.cfg",
         "datasource_list: [LXD, NoCloud]\n",
     )
-    # This is also to ensure that NoCloud can be detected
-    if CURRENT_RELEASE.series == "jammy":
-        # Add nocloud-net seed files because Jammy no longer delivers NoCloud
-        # (LP: #1958460).
-        client.execute("mkdir -p /var/lib/cloud/seed/nocloud-net")
-        client.write_to_file("/var/lib/cloud/seed/nocloud-net/meta-data", "")
-        client.write_to_file(
-            "/var/lib/cloud/seed/nocloud-net/user-data", "#cloud-config\n{}"
-        )
-    client.execute("cloud-init clean --logs")
+    # Ensure a valid NoCloud datasource will be detected if LXD fails.
+    client.execute("mkdir -p /var/lib/cloud/seed/nocloud-net")
+    client.write_to_file("/var/lib/cloud/seed/nocloud-net/meta-data", "")
+    client.write_to_file(
+        "/var/lib/cloud/seed/nocloud-net/user-data", "#cloud-config\n{}"
+    )
+    client.execute("cloud-init clean --logs --machine-id -c all")
     client.restart()
+
+
+@pytest.mark.skipif(PLATFORM != "lxd_vm", reason="Test is LXD KVM specific")
+def test_lxd_kvm_datasource_discovery_without_lxd_socket(
+    session_cloud: IntegrationCloud,
+):
+    """Test DataSourceLXD on KVM detected by ds-identify using virtio-ports."""
+    with session_cloud.launch(
+        wait=False,  # to prevent cloud-init status --wait
+        launch_kwargs={
+            # Setting security.devlxd to False prevents /dev/lxd/sock
+            # from being exposed in the VM, so DataSourceLXD will not be
+            # identified by the python DataSourceLXD.ds_detect.
+            "config_dict": {"security.devlxd": False},
+        },
+    ) as client:
+        _customize_environment(client)
+        client.instance.execute_via_ssh = False  # pyright: ignore
+        result = wait_for_cloud_init(client, num_retries=60)
+        # Expect warnings and exit 2 concerning missing /dev/lxd/sock
+        if not result.ok and result.return_code != 2:
+            raise AssertionError("cloud-init failed:\n%s", result.stderr)
+        # Expect NoCloud because python DataSourceLXD cannot read metadata from
+        # /dev/lxd/sock due to security.devlxd above and falls back to
+        # the nocloud seed files written by _customize_environment.
+        cloud_id = client.execute("cloud-id").stdout
+        if "nocloud" != cloud_id:
+            raise AssertionError(
+                "cloud-init did not discover 'nocloud' datasource."
+                f" Found '{cloud_id}'"
+            )
+        # Assert ds-idetify detected both LXD and NoCloud as viable during
+        # systemd generator time.
+        ds_config = client.execute("cat /run/cloud-init/cloud.cfg").stdout
+        assert {
+            "datasource_list": ["LXD", "NoCloud", "None"]
+        } == yaml.safe_load(ds_config)
 
 
 @pytest.mark.skipif(not IS_UBUNTU, reason="Netplan usage")
