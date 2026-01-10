@@ -495,4 +495,4 @@ Customizing the launch arguments before launching an instance manually:
 .. _Pytest marks: https://github.com/canonical/cloud-init/blob/af7eb1deab12c7208853c5d18b55228e0ba29c4d/tests/integration_tests/conftest.py#L220-L224
 .. _IntegrationCloud: https://github.com/canonical/cloud-init/blob/af7eb1deab12c7208853c5d18b55228e0ba29c4d/tests/integration_tests/clouds.py#L102
 .. _pycloudlib configuration documentation: https://pycloudlib.readthedocs.io/en/latest/configuration.html
-.. _pycloudlib's ImageType enum: https://github.com/canonical/pycloudlib/blob/1!10.0.0/pycloudlib/cloud.py#L28
+.. _pycloudlib's ImageType enum: https://github.com/canonical/pycloudlib/blob/1!10.0.0/pycloudlib/cloud.py

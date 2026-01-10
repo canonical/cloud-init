@@ -147,5 +147,5 @@ Example VM's context section
 .. _OpenNebula: http://opennebula.org/
 .. _contextualization overview: http://opennebula.org/documentation:documentation:context_overview
 .. _contextualizing VMs: http://opennebula.org/documentation:documentation:cong
-.. _network configuration: http://opennebula.org/documentation:documentation:cong#network_configuration
+.. _network configuration: https://docs.opennebula.io/
 .. _iso9660: https://en.wikipedia.org/wiki/ISO_9660
