@@ -10,7 +10,6 @@ import stat
 from contextlib import ExitStack
 from itertools import chain
 from unittest import mock
-from unittest.mock import call
 
 import pytest
 
@@ -153,8 +152,10 @@ class TestConfig:
 
         mock_subp.assert_has_calls(
             [
-                call(["growpart", "--help"], update_env={"LANG": "C"}),
-                call(["gpart", "help"], update_env={"LANG": "C"}, rcs=[0, 1]),
+                mocker.call(["growpart", "--help"], update_env={"LANG": "C"}),
+                mocker.call(
+                    ["gpart", "help"], update_env={"LANG": "C"}, rcs=[0, 1]
+                ),
             ]
         )
 
@@ -232,7 +233,7 @@ class TestConfig:
 
         mock_subp.assert_has_calls(
             [
-                call(["growpart", "--help"], update_env={"LANG": "C"}),
+                mocker.call(["growpart", "--help"], update_env={"LANG": "C"}),
             ]
         )
 
@@ -247,8 +248,10 @@ class TestConfig:
 
         mock_subp.assert_has_calls(
             [
-                call(["growpart", "--help"], update_env={"LANG": "C"}),
-                call(["gpart", "help"], update_env={"LANG": "C"}, rcs=[0, 1]),
+                mocker.call(["growpart", "--help"], update_env={"LANG": "C"}),
+                mocker.call(
+                    ["gpart", "help"], update_env={"LANG": "C"}, rcs=[0, 1]
+                ),
             ]
         )
 
@@ -264,7 +267,7 @@ class TestConfig:
 
         mock_subp.assert_has_calls(
             [
-                call(["growpart", "--help"], update_env={"LANG": "C"}),
+                mocker.call(["growpart", "--help"], update_env={"LANG": "C"}),
             ]
         )
 
