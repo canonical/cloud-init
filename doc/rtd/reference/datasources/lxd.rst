@@ -9,11 +9,9 @@ a network service (or even without having a network at all). This datasource
 performs HTTP GETs against the `LXD socket device`_ which is provided to each
 running LXD container and VM as :file:`/dev/lxd/sock`
 
-The LXD socket device :file:`/dev/lxd/sock` is only present on containers and
-VMs when the instance configuration has ``security.devlxd=true`` (default).
-Disabling the ``security.devlxd`` configuration setting at initial launch will
-result in warnings from ``cloud-init``, and ``cloud-init`` will be unable to use
-the LXD datasource
+The LXD socket device :file:`/dev/lxd/sock` is required to use the LXD
+datasource. This file is present in containers and VMs when the instance
+configuration sets ``security.devlxd=true``.
 
 The LXD datasource is detected as viable by ``ds-identify`` during the
 :ref:`detect stage<boot-Detect>` when either :file:`/dev/lxd/sock` exists
