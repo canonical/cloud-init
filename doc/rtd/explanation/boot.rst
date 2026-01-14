@@ -13,16 +13,19 @@ and system accessibility:
 
   graph TB
 
-    D["<a href='#detect'>Detect</a>"] ---> L
+    D["<a href='#detect'>Detect</a>"] --> L
 
     L --> NU([Network up])
-    L & NU --> N
+    L --> N
+    NU --> N
+
     subgraph L["<a href='#local'>Local</a>"]
         FI[Fetch IMDS]
     end
 
     N --> NO([Network online])
-    N & NO --> C
+    N --> C
+    NO --> C
     N --> S([SSH])
     N --> Login([Login])
 
