@@ -332,9 +332,7 @@ class Init:
                 omode="w",
                 content="",
             )
-        return sources.pkl_store(
-            self.ds, self.paths.get_ipath_cur("obj_pkl")
-        )
+        return sources.pkl_store(self.ds, self.paths.get_ipath_cur("obj_pkl"))
 
     def _get_datasources(self):
         # Any config provided???
@@ -586,7 +584,9 @@ class Init:
         self._store_processeddata(self.ds.get_userdata(), "userdata")
         self._store_raw_vendordata(self.ds.get_vendordata_raw(), "vendordata")
         self._store_processeddata(self.ds.get_vendordata(), "vendordata")
-        self._store_raw_vendordata(self.ds.get_vendordata2_raw(), "vendordata2")
+        self._store_raw_vendordata(
+            self.ds.get_vendordata2_raw(), "vendordata2"
+        )
         self._store_processeddata(self.ds.get_vendordata2(), "vendordata2")
 
     def setup_datasource(self):
@@ -995,9 +995,7 @@ class Init:
         }
 
         if hasattr(self.ds, "network_config"):
-            available_cfgs[NetworkConfigSource.DS] = (
-                self.ds.network_config
-            )
+            available_cfgs[NetworkConfigSource.DS] = self.ds.network_config
 
         order = self.ds.network_config_sources
         for cfg_source in order:
@@ -1092,10 +1090,8 @@ class Init:
 
         # refresh netcfg after update
         netcfg, src = self._find_networking_config()
-        if netcfg is not None:
-            self._write_network_config_json(netcfg)
-
         if netcfg:
+            self._write_network_config_json(netcfg)
             validate_cloudconfig_schema(
                 config=netcfg,
                 schema_type=SchemaType.NETWORK_CONFIG,
