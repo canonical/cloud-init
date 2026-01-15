@@ -647,8 +647,12 @@ class Init:
             shell_script_by_frequency.ShellScriptByFreqPartHandler(
                 PER_ALWAYS, **opts
             ),
-            shell_script_by_frequency.ShellScriptByFreqPartHandler(PER_INSTANCE, **opts),
-            shell_script_by_frequency.ShellScriptByFreqPartHandler(PER_ONCE, **opts),
+            shell_script_by_frequency.ShellScriptByFreqPartHandler(
+                PER_INSTANCE, **opts
+            ),
+            shell_script_by_frequency.ShellScriptByFreqPartHandler(
+                PER_ONCE, **opts
+            ),
             boothook_handler,
             jinja_template.JinjaTemplatePartHandler(
                 **opts,

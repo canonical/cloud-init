@@ -13,33 +13,41 @@ from copy import deepcopy
 from enum import Enum
 from errno import EACCES
 from functools import partial
-from jsonschema import Draft4Validator, ValidationError, exceptions, FormatChecker, validators
-
-
 from typing import (
     TYPE_CHECKING,
     DefaultDict,
     List,
     NamedTuple,
     Optional,
-    TypedDict,
     Tuple,
     Type,
+    TypedDict,
     Union,
 )
 
 import yaml
+from jsonschema import (
+    Draft4Validator,
+    FormatChecker,
+    ValidationError,
+    exceptions,
+    validators,
+)
 
 from cloudinit import features, lifecycle, performance, safeyaml
 from cloudinit.cmd.devel import read_cfg_paths
-from cloudinit.handlers import INCLUSION_TYPES_MAP, type_from_starts_with, jinja_template, cloud_config
+from cloudinit.handlers import (
+    INCLUSION_TYPES_MAP,
+    cloud_config,
+    jinja_template,
+    type_from_starts_with,
+)
 from cloudinit.helpers import Paths
 from cloudinit.log.log_util import error
 from cloudinit.net.netplan import available as netplan_available
 from cloudinit.sources import DataSourceNotFoundException
 from cloudinit.temp_utils import mkdtemp
 from cloudinit.util import load_text_file, write_file
-
 
 try:
     from netplan import NetplanParserException, Parser  # type: ignore
@@ -461,7 +469,9 @@ def get_jsonschema_validator():
 
     # Add deprecation handling
     custom_validators = dict(Draft4Validator.VALIDATORS)
-    custom_validators[DEPRECATED_KEY] = partial(_validator, filter_key="deprecated")
+    custom_validators[DEPRECATED_KEY] = partial(
+        _validator, filter_key="deprecated"
+    )
     custom_validators["changed"] = partial(_validator, filter_key="changed")
     custom_validators["oneOf"] = _oneOf
     custom_validators["anyOf"] = _anyOf
