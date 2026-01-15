@@ -21,25 +21,26 @@ import logging
 import yaml
 from typing import Optional, Tuple, Callable, Union
 
-from cloudinit import features, netinfo
-from cloudinit import signal_handler
-from cloudinit import sources
-from cloudinit import socket
-from cloudinit import stages
-from cloudinit import url_helper
-from cloudinit import util
-from cloudinit import performance
-from cloudinit import version
-from cloudinit import warnings
-from cloudinit import reporting
-from cloudinit import atomic_helper
-from cloudinit import lifecycle
-from cloudinit import handlers
+from cloudinit import (
+    features,
+    netinfo,
+    signal_handler,
+    sources,
+    stages,
+    socket,
+    url_helper,
+    util,
+    performance,
+    version,
+    warnings,
+    reporting,
+    atomic_helper,
+    lifecycle,
+    handlers,
+)
 from cloudinit.log import log_util, loggers
 from cloudinit.cmd.devel import read_cfg_paths
-from cloudinit.config import cc_set_hostname
-from cloudinit.config.modules import Modules
-from cloudinit.config.schema import validate_cloudconfig_schema
+from cloudinit.config import cc_set_hostname, modules, schema
 from cloudinit.lifecycle import log_with_downgradable_level
 from cloudinit.reporting import events
 from cloudinit.settings import (
@@ -171,7 +172,7 @@ def extract_fns(args):
     return fn_cfgs
 
 
-def run_module_section(mods: Modules, action_name, section):
+def run_module_section(mods: modules.Modules, action_name, section):
     full_section_name = MOD_SECTION_TPL % (section)
     (which_ran, failures) = mods.run_section(full_section_name)
     total_attempted = len(which_ran) + len(failures)
@@ -658,7 +659,7 @@ def main_init(name, args):
     # Validate user-data adheres to schema definition
     cloud_cfg_path = init.paths.get_ipath_cur("cloud_config")
     if os.path.exists(cloud_cfg_path) and os.stat(cloud_cfg_path).st_size != 0:
-        validate_cloudconfig_schema(
+        schema.validate_cloudconfig_schema(
             config=yaml.safe_load(util.load_text_file(cloud_cfg_path)),
             strict=False,
             log_details=False,
@@ -670,7 +671,7 @@ def main_init(name, args):
     apply_reporting_cfg(init.cfg)
 
     # Stage 8 - re-read and apply relevant cloud-config to include user-data
-    mods = Modules(init, extract_fns(args), reporter=args.reporter)
+    mods = modules.Modules(init, extract_fns(args), reporter=args.reporter)
     # Stage 9
     try:
         outfmt_orig = outfmt
@@ -774,7 +775,7 @@ def main_modules(action_name, args):
             return [msg]
     _maybe_persist_instance_data(init)
     # Stage 3
-    mods = Modules(init, extract_fns(args), reporter=args.reporter)
+    mods = modules.Modules(init, extract_fns(args), reporter=args.reporter)
     # Stage 4
     try:
         if not args.skip_log_setup:
@@ -838,7 +839,7 @@ def main_single(name, args):
             return 1
     _maybe_persist_instance_data(init)
     # Stage 3
-    mods = Modules(init, extract_fns(args), reporter=args.reporter)
+    mods = modules.Modules(init, extract_fns(args), reporter=args.reporter)
     mod_args = args.module_args
     if mod_args:
         LOG.debug("Using passed in arguments %s", mod_args)
