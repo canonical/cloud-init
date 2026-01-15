@@ -32,13 +32,7 @@ from cloudinit.config import Netv1, Netv2
 from cloudinit.event import EventScope, EventType, userdata_to_events
 
 # Default handlers (used if not overridden)
-from cloudinit.handlers.boot_hook import BootHookPartHandler
-from cloudinit.handlers.cloud_config import CloudConfigPartHandler
-from cloudinit.handlers.jinja_template import JinjaTemplatePartHandler
-from cloudinit.handlers.shell_script import ShellScriptPartHandler
-from cloudinit.handlers.shell_script_by_frequency import (
-    ShellScriptByFreqPartHandler,
-)
+from cloudinit.handlers import boot_hook, cloud_config, jinja_template, shell_script, shell_script_by_frequency
 from cloudinit.net import cmdline
 from cloudinit.reporting import events
 from cloudinit.settings import (
@@ -638,17 +632,17 @@ class Init:
             }
         )
         # TODO(harlowja) Hmmm, should we dynamically import these??
-        cloudconfig_handler = CloudConfigPartHandler(**opts)
-        shellscript_handler = ShellScriptPartHandler(**opts)
-        boothook_handler = BootHookPartHandler(**opts)
+        cloudconfig_handler = cloud_config.CloudConfigPartHandler(**opts)
+        shellscript_handler = shell_script.ShellScriptPartHandler(**opts)
+        boothook_handler = boot_hook.BootHookPartHandler(**opts)
         def_handlers = [
             cloudconfig_handler,
             shellscript_handler,
-            ShellScriptByFreqPartHandler(PER_ALWAYS, **opts),
+            shell_script_by_frequency.ShellScriptByFreqPartHandler(PER_ALWAYS, **opts),
             ShellScriptByFreqPartHandler(PER_INSTANCE, **opts),
             ShellScriptByFreqPartHandler(PER_ONCE, **opts),
             boothook_handler,
-            JinjaTemplatePartHandler(
+            jinja_template.JinjaTemplatePartHandler(
                 **opts,
                 sub_handlers=[
                     cloudconfig_handler,
