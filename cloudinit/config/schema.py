@@ -13,12 +13,16 @@ from copy import deepcopy
 from enum import Enum
 from errno import EACCES
 from functools import partial
+from jsonschema import Draft4Validator, ValidationError, exceptions, FormatChecker, validators
+
+
 from typing import (
     TYPE_CHECKING,
     DefaultDict,
     List,
     NamedTuple,
     Optional,
+    TypedDict,
     Tuple,
     Type,
     Union,
@@ -28,17 +32,14 @@ import yaml
 
 from cloudinit import features, lifecycle, performance, safeyaml
 from cloudinit.cmd.devel import read_cfg_paths
-from cloudinit.handlers import INCLUSION_TYPES_MAP, type_from_starts_with
+from cloudinit.handlers import INCLUSION_TYPES_MAP, type_from_starts_with, jinja_template, cloud_config
 from cloudinit.helpers import Paths
 from cloudinit.log.log_util import error
+from cloudinit.net.netplan import available as netplan_available
 from cloudinit.sources import DataSourceNotFoundException
 from cloudinit.temp_utils import mkdtemp
 from cloudinit.util import load_text_file, write_file
 
-try:
-    from jsonschema import ValidationError
-except ImportError:
-    ValidationError = Exception  # type: ignore
 
 try:
     from netplan import NetplanParserException, Parser  # type: ignore
@@ -74,13 +75,12 @@ USERDATA_VALID_HEADERS = sorted(
 # type-annotate only if type-checking.
 # Consider to add `type_extensions` as a dependency when Bionic is EOL.
 if TYPE_CHECKING:
-    import typing
-
-    from typing_extensions import NotRequired, TypedDict
+    # required until only 3.11 is supported
+    from typing_extensions import NotRequired
 
     class MetaSchema(TypedDict):
         id: str
-        distros: typing.List[str]
+        distros: List[str]
         frequency: str
         activate_by_schema_keys: NotRequired[List[str]]
 
@@ -228,10 +228,6 @@ def is_schema_byte_string(checker, instance):
 
     For jsonschema v. 3.0.0+
     """
-    try:
-        from jsonschema import Draft4Validator
-    except ImportError:
-        return False
     return Draft4Validator.TYPE_CHECKER.is_type(
         instance, "string"
     ) or isinstance(instance, (bytes,))
@@ -355,8 +351,6 @@ def _anyOf(
     format anyOf_type_XXX, raise those schema errors instead of calling
     best_match.
     """
-    from jsonschema.exceptions import best_match
-
     all_errors = []
     all_deprecations = []
     skip_best_match = False
@@ -384,7 +378,7 @@ def _anyOf(
         all_errors.extend(errs)
     else:
         if not skip_best_match:
-            yield best_match(all_errors)
+            yield exceptions.best_match(all_errors)
         yield ValidationError(
             "%r is not valid under any of the given schemas" % (instance,),
             context=all_errors,
@@ -442,9 +436,6 @@ def get_jsonschema_validator():
     @returns: Tuple: (jsonschema.Validator, FormatChecker)
     @raises: ImportError when jsonschema is not present
     """
-    from jsonschema import Draft4Validator, FormatChecker
-    from jsonschema.validators import create
-
     # Allow for bytes to be presented as an acceptable valid value for string
     # type jsonschema attributes in cloud-init's schema.
     # This allows #cloud-config to provide valid yaml "content: !!binary | ..."
@@ -469,15 +460,15 @@ def get_jsonschema_validator():
     }
 
     # Add deprecation handling
-    validators = dict(Draft4Validator.VALIDATORS)
-    validators[DEPRECATED_KEY] = partial(_validator, filter_key="deprecated")
-    validators["changed"] = partial(_validator, filter_key="changed")
-    validators["oneOf"] = _oneOf
-    validators["anyOf"] = _anyOf
+    custom_validators = dict(Draft4Validator.VALIDATORS)
+    custom_validators[DEPRECATED_KEY] = partial(_validator, filter_key="deprecated")
+    custom_validators["changed"] = partial(_validator, filter_key="changed")
+    custom_validators["oneOf"] = _oneOf
+    custom_validators["anyOf"] = _anyOf
 
-    cloudinitValidator = create(
+    cloudinitValidator = validators.create(
         meta_schema=meta_schema,
-        validators=validators,
+        validators=custom_validators,
         version="draft4",
         **validator_kwargs,
     )
@@ -533,12 +524,9 @@ def validate_cloudconfig_metaschema(validator, schema: dict, throw=True):
     @raises: ImportError when jsonschema is not present
     @raises: SchemaValidationError when the schema is invalid
     """
-
-    from jsonschema.exceptions import SchemaError
-
     try:
         validator.check_schema(schema)
-    except SchemaError as err:
+    except exceptions.SchemaError as err:
         # Raise SchemaValidationError to avoid jsonschema imports at call
         # sites
         if throw:
@@ -694,7 +682,6 @@ def validate_cloudconfig_schema(
     @raises: ValueError on invalid schema_type not in CLOUD_CONFIG or
         NETWORK_CONFIG_V1 or NETWORK_CONFIG_V2
     """
-    from cloudinit.net.netplan import available as netplan_available
 
     if schema_type == SchemaType.NETWORK_CONFIG:
         network_version = network_schema_version(config)
@@ -941,18 +928,17 @@ def process_merged_cloud_config_part_problems(
     in the final merged config for every invalid part file which begin with
     MERGED_CONFIG_SCHEMA_ERROR_PREFIX to aid in triage.
     """
-    from cloudinit.handlers.cloud_config import MERGED_PART_SCHEMA_ERROR_PREFIX
 
-    if MERGED_PART_SCHEMA_ERROR_PREFIX not in content:
+    if cloud_config.MERGED_PART_SCHEMA_ERROR_PREFIX not in content:
         return []
     errors: List[SchemaProblem] = []
     for line_num, line in enumerate(content.splitlines(), 1):
-        if line.startswith(MERGED_PART_SCHEMA_ERROR_PREFIX):
+        if line.startswith(cloud_config.MERGED_PART_SCHEMA_ERROR_PREFIX):
             errors.append(
                 SchemaProblem(
                     f"format-l{line_num}.c1",
                     line.replace(
-                        MERGED_PART_SCHEMA_ERROR_PREFIX,
+                        cloud_config.MERGED_PART_SCHEMA_ERROR_PREFIX,
                         "Ignored invalid user-data: ",
                     ),
                 )
@@ -976,21 +962,15 @@ def _get_config_type_and_rendered_userdata(
     :raises JinjaSyntaxParsingException when jinja syntax error found.
     :raises JinjaLoadError when jinja template fails to load.
     """
-    from cloudinit.handlers.jinja_template import (
-        JinjaLoadError,
-        JinjaSyntaxParsingException,
-        NotJinjaError,
-        render_jinja_payload_from_file,
-    )
 
     user_data_type = type_from_starts_with(content)
     schema_position = "format-l1.c1"
     if user_data_type == "text/jinja2":
         try:
-            content = render_jinja_payload_from_file(
+            content = jinja_template.render_jinja_payload_from_file(
                 content, config_path, instance_data_path
             )
-        except NotJinjaError as e:
+        except jinja_template.NotJinjaError as e:
             raise SchemaValidationError(
                 [
                     SchemaProblem(
@@ -1000,12 +980,12 @@ def _get_config_type_and_rendered_userdata(
                     )
                 ]
             ) from e
-        except JinjaSyntaxParsingException as e:
+        except jinja_template.JinjaSyntaxParsingException as e:
             error(
                 "Failed to render templated user-data. " + str(e),
                 sys_exit=True,
             )
-        except JinjaLoadError as e:
+        except jinja_template.JinjaLoadError as e:
             error(str(e), sys_exit=True)
         schema_position = "format-l2.c1"
         user_data_type = type_from_starts_with(content)
@@ -1051,7 +1031,6 @@ def validate_cloudconfig_file(
     :raises SchemaValidationError containing any of schema_errors encountered.
     :raises RuntimeError when config_path does not exist.
     """
-    from cloudinit.net.netplan import available as netplan_available
 
     decoded_content = load_text_file(config_path)
     if not decoded_content:
