@@ -9,7 +9,6 @@ import json
 import logging
 import os
 import sys
-from collections import namedtuple
 from contextlib import suppress
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
