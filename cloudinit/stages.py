@@ -32,7 +32,13 @@ from cloudinit.config import Netv1, Netv2
 from cloudinit.event import EventScope, EventType, userdata_to_events
 
 # Default handlers (used if not overridden)
-from cloudinit.handlers import boot_hook, cloud_config, jinja_template, shell_script, shell_script_by_frequency
+from cloudinit.handlers import (
+    boot_hook,
+    cloud_config,
+    jinja_template,
+    shell_script,
+    shell_script_by_frequency,
+)
 from cloudinit.net import cmdline
 from cloudinit.reporting import events
 from cloudinit.settings import (
@@ -638,7 +644,9 @@ class Init:
         def_handlers = [
             cloudconfig_handler,
             shellscript_handler,
-            shell_script_by_frequency.ShellScriptByFreqPartHandler(PER_ALWAYS, **opts),
+            shell_script_by_frequency.ShellScriptByFreqPartHandler(
+                PER_ALWAYS, **opts
+            ),
             ShellScriptByFreqPartHandler(PER_INSTANCE, **opts),
             ShellScriptByFreqPartHandler(PER_ONCE, **opts),
             boothook_handler,
