@@ -11,16 +11,8 @@ is sent to the reporter.
 
 ## cloud-init-security
 
-The cloud-init-security Launchpad team is a private, invite-only team used to
-discuss and coordinate security issues with the project.
-
-Any issues disclosed to the cloud-init-security mailing list are considered
-embargoed and should only be discussed with other members of the
-cloud-init-security mailing list before the coordinated release date, unless
-specific exception is granted by the administrators of the mailing list. This
-includes disclosure of any details related to the vulnerability or the
-presence of a vulnerability itself. Violation of this policy may result in
-removal from the list for the company or individual involved.
+To report a security issue, file a [Private Security Report](https://github.com/canonical/cloud-init/security/advisories/new) with a description of the issue, the steps you took to create the issue, affected versions, and, if known, mitigations for the issue.
+The [Ubuntu Security disclosure and embargo policy](https://ubuntu.com/security/disclosure-policy) contains more information about what you can expect when you contact us and what we expect from you.
 
 ## Evaluation
 
@@ -30,13 +22,6 @@ the Canonical Security Team as CVE Numbering Authority (CNA).
 If it is deemed a regular, non-security issue, the reporter will be asked to
 follow typical bug reporting procedures.
 
-In addition to the disclosure timeline, the core Canonical cloud-init team
-will enlist the expertise of the Ubuntu Security team for guidance on
-industry-standard disclosure practices as necessary.
-
-If an issue specifically involves another distro or cloud vendor, additional
-individuals will be informed of the issue to help in evaluation.
-
 ## Disclosure
 
 Disclosure of security issues will be made with a public statement. Once the
@@ -45,17 +30,3 @@ determined time for disclosure has arrived the following will occur:
 * A public bug is filed/made public with vulnerability details, CVE,
   mitigations and where to obtain the fix
 * An announcement is made to [GitHub Discussions](https://github.com/canonical/cloud-init/discussions)
-
-The disclosure timeframe is coordinated with the reporter and members of the
-cloud-init-security list. This depends on a number of factors:
-
-* The reporter might have their own disclosure timeline (e.g. Google Project
-  Zero and many others use a 90-days after initial report OR when a fix
-  becomes public)
-* It might take time to decide upon and develop an appropriate fix
-* A distros might want extra time to backport any possible fixes before
-  the fix becomes public
-* A cloud may need additional time to prepare to help customers or implement
-  a fix
-* The issue might be deemed low priority
-* May wish to align with an upcoming planned release
