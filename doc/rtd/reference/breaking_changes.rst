@@ -24,8 +24,8 @@ Systemd unit file changes
 -------------------------
 
 The socket protocol was changed for better compatibility with alternatives
-to openbsd-netcat, including nmap's ``ncat -U``. Downstreams that provide
-a custom systemd ``ExecStart=`` statement will need to update.
+to ``openbsd-netcat``, including ``nmap``'s ``ncat -U``. Downstreams that
+provide a custom systemd ``ExecStart=`` statement will need to update.
 
 New build system: meson
 -----------------------
