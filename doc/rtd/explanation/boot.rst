@@ -13,35 +13,29 @@ and system accessibility:
 
   graph TB
 
-    D["<a href='#detect'>Detect</a>"] --> L
+    D[Detect]
+    L[Local]
+    N[Network]
+    C[Config]
+    F[Final]
+
+    click L "#local"
+    click N "#network"
+    click D "#detect"
+    click C "#config"
+    click F "#final"
 
     L --> NU([Network up])
-    L --> N
-    NU --> N
-
-    subgraph L["<a href='#local'>Local</a>"]
-        FI[Fetch IMDS]
-    end
-
     N --> NO([Network online])
-    N --> C
-    NO --> C
     N --> S([SSH])
     N --> Login([Login])
 
-    subgraph N["<a href='#network'>Network</a>"]
-        cloud_init_modules
-    end
-    %% cloud_config_modules
-
-    subgraph C["<a href='#config'>Config</a>"]
-        cloud_config_modules
-    end
-
+    D --> L
+    L --> N
+    NU --> N
+    NO --> C
+    N --> C
     C --> F
-    subgraph F["<a href='#final'>Final</a>"]
-        cloud_final_modules
-    end
 
 .. _boot-Detect:
 
