@@ -1295,12 +1295,12 @@ def is_resolvable(url) -> bool:
     global _DNS_REDIRECT_IP
     parsed_url = parse.urlparse(url)
     name = parsed_url.hostname
-    
+
     # Early return for IP addresses - no DNS resolution needed
     with suppress(ValueError):
         if net.is_ip_address(parsed_url.netloc.strip("[]")):
             return True
-            
+
     if _DNS_REDIRECT_IP is None:
         badips = set()
         badnames = (
