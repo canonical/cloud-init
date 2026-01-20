@@ -87,46 +87,47 @@ class DataSourceCloudStack(sources.DataSource):
         self.vr_addr = None
 
     def _get_domainname(self):
+        """Try obtaining a "domain-name" DHCP lease parameter:
+        - From systemd-networkd lease (case-insensitive)
+        - From ISC dhclient
+        - From dhcpcd (ephemeral)
+        - Return empty string if not found (non-fatal)
         """
-        Try obtaining a "domain-name" DHCP lease parameter:
-        - From systemd-networkd lease
-        - From dhclient lease
-        """
-        LOG.debug("Try obtaining domain name from networkd leases")
-        domainname = dhcp.networkd_get_option_from_leases("DOMAINNAME")
-        if domainname:
-            return domainname
-        LOG.debug(
-            "Could not obtain FQDN from networkd leases. "
-            "Falling back to ISC dhclient"
-        )
 
-        # some distros might use isc-dhclient for network setup via their
-        # network manager. If this happens, the lease is more recent than the
-        # ephemeral lease, so use it first.
+        LOG.debug("Try obtaining domain name from networkd leases")
+        for key in ["DOMAINNAME", "Domain", "domain-name"]:
+            domainname = dhcp.networkd_get_option_from_leases(key)
+            if domainname:
+                return domainname.strip()
+
+        LOG.debug(
+            "Could not obtain FQDN from networkd leases. Falling back to "
+            "ISC dhclient"
+        )
         with suppress(dhcp.NoDHCPLeaseMissingDhclientError):
             domain_name = dhcp.IscDhclient().get_key_from_latest_lease(
                 self.distro, "domain-name"
             )
             if domain_name:
-                return domain_name
+                return domain_name.strip()
 
         LOG.debug(
-            "Could not obtain FQDN from ISC dhclient leases. "
-            "Falling back to %s",
+            "Could not obtain FQDN from ISC dhclient leases. Falling back to "
+            "%s",
             self.distro.dhcp_client.client_name,
         )
-
-        # If no distro leases were found, check the ephemeral lease that
-        # cloud-init set up.
-        with suppress(FileNotFoundError):
+        try:
             latest_lease = self.distro.dhcp_client.get_newest_lease(
                 self.distro.fallback_interface
             )
-            domain_name = latest_lease.get("domain-name") or None
-            return domain_name
-        LOG.debug("No dhcp leases found")
-        return None
+            domain_name = latest_lease.get("domain-name")
+            if domain_name:
+                return domain_name.strip()
+        except (NoDHCPLeaseError, FileNotFoundError, AttributeError):
+            pass
+
+        LOG.debug("No domain name found in any DHCP lease; returning empty")
+        return ""
 
     def get_hostname(
         self,
