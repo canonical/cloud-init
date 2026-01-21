@@ -577,36 +577,10 @@ class TestClean:
             clean_paths.log.exists() is False
         ), f"Unexpected log {clean_paths.log}"
 
-    def test_remove_artifacts_preserves_symlink_logs(
-        self, clean_paths, init_class, capsys
-    ):
-        """remove_artifacts does not remove log files that are symlinks."""
-        target_log = clean_paths.tmpdir.join("actual-log.log")
-        target_log.write("cloud-init-log")
-        sym_link(target_log.strpath, clean_paths.log.strpath)
-        clean_paths.output_log.write("cloud-init-output-log")
-
-        retcode = clean.remove_artifacts(
-            init=init_class,
-            remove_logs=True,
-        )
-        assert 0 == retcode
-        assert (
-            clean_paths.log.exists() is True
-        ), f"Symlink log {clean_paths.log} should not be removed"
-        assert (
-            target_log.exists() is True
-        ), f"Target log {target_log} should not be removed"
-        assert (
-            clean_paths.output_log.exists() is False
-        ), f"Regular log {clean_paths.output_log} should be removed"
-        _, err = capsys.readouterr()
-        assert "Skipping removal of symlink log file" in err
-
     @pytest.mark.parametrize("device_type", (stat.S_IFCHR, stat.S_IFBLK))
     @pytest.mark.usefixtures("fake_filesystem")
     def test_remove_artifacts_preserves_device_logs(
-        self, device_type, clean_paths, init_class, capsys
+        self, device_type, clean_paths, init_class
     ):
         """remove_artifacts does not remove log files that are device files."""
         original_stat = os.stat
@@ -633,23 +607,3 @@ class TestClean:
             assert (
                 clean_paths.output_log.exists() is False
             ), f"Regular log {clean_paths.output_log} should be removed"
-        _, err = capsys.readouterr()
-        assert "Skipping removal of device file" in err
-
-    @pytest.mark.usefixtures("fake_filesystem")
-    def test_remove_artifacts_removes_fifo_logs(self, clean_paths, init_class):
-        """remove_artifacts removes log files that are named pipes (FIFOs)."""
-        os.mkfifo(clean_paths.log.strpath)
-        clean_paths.output_log.write("cloud-init-output-log")
-
-        retcode = clean.remove_artifacts(
-            init=init_class,
-            remove_logs=True,
-        )
-        assert 0 == retcode
-        assert (
-            clean_paths.log.exists() is False
-        ), f"FIFO log {clean_paths.log} should be removed"
-        assert (
-            clean_paths.output_log.exists() is False
-        ), f"Regular log {clean_paths.output_log} should be removed"

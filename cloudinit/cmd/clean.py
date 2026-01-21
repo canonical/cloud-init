@@ -46,29 +46,14 @@ GEN_SSH_CONFIG_FILES = [
 def should_remove_log_file(log_file: str) -> bool:
     """Check if a log file should be removed.
 
-    Remove the file only if it exists and is not a symlink or a device file
-    (block or character device). Named pipes (FIFOs) are allowed to be removed.
+    Avoid tracebacks from attempting to remove device files.
 
     @param log_file: Path to the log file to check.
     @returns: True if the file should be removed, False otherwise.
     """
-    if not os.path.exists(log_file):
-        return False
-    if is_link(log_file):
-        log_util.multi_log(
-            f"Skipping removal of symlink log file: {log_file}\n",
-            log=LOG,
-            log_level=logging.INFO,
-        )
-        return False
     try:
         file_stat = os.stat(log_file)
         if stat.S_ISBLK(file_stat.st_mode) or stat.S_ISCHR(file_stat.st_mode):
-            log_util.multi_log(
-                f"Skipping removal of device file: {log_file}\n",
-                log=LOG,
-                log_level=logging.INFO,
-            )
             return False
     except OSError:
         return False
