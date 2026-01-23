@@ -1033,7 +1033,7 @@ class Init:
         except Exception as e:
             LOG.warning("Failed to rename devices: %s", e)
 
-    def _get_per_boot_network_semaphore(self):
+    def _get_per_boot_network_semaphore(self) -> _Semaphore:
         return _Semaphore(
             helpers.FileSemaphores(self.paths.get_runpath("sem")),
             ("apply_network_config", PER_ONCE),
