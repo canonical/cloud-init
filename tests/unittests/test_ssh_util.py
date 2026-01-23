@@ -314,6 +314,56 @@ class TestAuthKeyLineParser:
         else:
             assert key.comment == ""
 
+    @pytest.mark.parametrize("with_options", [True, False])
+    @pytest.mark.parametrize("with_comment", [True, False])
+    @pytest.mark.parametrize("options_parameter", [None, "", 'from="::1"'])
+    @pytest.mark.parametrize("ktype", ["rsa", "ed25519"])
+    def test_parse_with_options_parameter(
+        self, ktype, with_comment, with_options, options_parameter
+    ):
+        """Test options parameter behavior with different values.
+
+        This test specifically validates that the options parameter passed to
+        parse() correctly overrides or is overridden by options in the key
+        line.
+        It is very similar to test_parse() but only runs for 2 key types to
+        avoid having too many parameterized tests.
+        """
+        content = VALID_CONTENT[ktype]
+        comment = "user-%s@host" % ktype
+
+        line_args = []
+        if with_options:
+            line_args.append(TEST_OPTIONS)
+        line_args.extend(
+            [
+                ktype,
+                content,
+            ]
+        )
+        if with_comment:
+            line_args.append(comment)
+        line = " ".join(line_args)
+
+        key = ssh_util.AuthKeyLineParser().parse(
+            line, options=options_parameter
+        )
+
+        assert key.base64 == content
+        assert key.keytype == ktype
+        if options_parameter:
+            # When the options parameter is truthy, override options from line
+            assert key.options == options_parameter
+        elif with_options:
+            # When the options parameter is falsy and line has options,
+            # those are returned
+            assert key.options == TEST_OPTIONS
+        else:
+            # When the options parameter is falsy and the line has no options,
+            # the same falsy value is returned (e.g. None or "")
+            assert key.options == options_parameter
+        assert key.comment == (comment if with_comment else "")
+
     def test_parse_with_options_passed_in(self):
         # test key line with key type and base64 only
         parser = ssh_util.AuthKeyLineParser()
