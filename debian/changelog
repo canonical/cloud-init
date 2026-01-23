@@ -1,8 +1,8 @@
-cloud-init (25.4~3g78f6f15e-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (25.4~3g78f6f15e-0ubuntu1) resolute; urgency=medium
 
   * Upstream snapshot based on upstream/main at 78f6f15e.
 
- -- Chad Smith <chad.smith@canonical.com>  Fri, 23 Jan 2026 15:41:15 -0700
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 23 Jan 2026 15:41:19 -0700
 
 cloud-init (25.4~2gb117d244-0ubuntu1) resolute; urgency=medium
 
