@@ -197,11 +197,10 @@ class TestParseCILogLine:
         )
         # Generate the expected value using `datetime`, so that TZ
         # determination is consistent with the code under test.
-        timestamp_dt = (
-            datetime.strptime("Apr 30 19:39:11", "%b %d %H:%M:%S")
-            .replace(year=datetime.now().year)
-            .replace(tzinfo=timezone.utc)
-        )
+        year = datetime.now().year
+        timestamp_dt = datetime.strptime(
+            "Apr 30 19:39:11 %d" % year, "%b %d %H:%M:%S %Y"
+        ).replace(tzinfo=timezone.utc)
         expected = {
             "description": "attempting to read from cache [check]",
             "event_type": "start",
