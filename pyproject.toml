@@ -93,7 +93,6 @@ module = [
     "cloudinit.sources.helpers.vmware.imc.config_nic",
     "cloudinit.sources.helpers.vultr",
     "cloudinit.ssh_util",
-    "cloudinit.stages",
     "cloudinit.temp_utils",
     "cloudinit.templater",
     "cloudinit.user_data",
