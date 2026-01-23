@@ -15,6 +15,8 @@ USER = "foo_user"
 @pytest.fixture(autouse=True)
 def common_mocks(mocker):
     mocker.patch("cloudinit.distros.util.system_is_snappy", return_value=False)
+    mocker.patch("cloudinit.distros.sec_log_user_created")
+    mocker.patch("cloudinit.distros.sec_log_password_changed")
 
 
 def _chpasswdmock(name: str, password: str, hashed: bool = False):
@@ -429,10 +431,12 @@ class TestCreateUser:
             ),
         ],
     )
+    @mock.patch("cloudinit.distros.sec_log_password_changed")
     @mock.patch("cloudinit.distros.util.is_user", return_value=True)
     def test_create_passwd_existing_user(
         self,
         m_is_user,
+        m_sec_log_password_changed,
         m_subp,
         create_kwargs,
         expected,
@@ -447,6 +451,10 @@ class TestCreateUser:
         for log in expected_logs:
             assert log in caplog.text
         assert m_subp.call_args_list == expected
+        if "passwd" in create_kwargs:
+            m_sec_log_password_changed.assert_not_called()
+        else:
+            m_sec_log_password_changed.assert_called_once_with(userid=USER)
 
     @mock.patch("cloudinit.distros.util.is_group")
     def test_group_added(self, m_is_group, m_subp, dist, mocker):
@@ -502,6 +510,8 @@ class TestCreateUser:
         ex_groups = ["existing_group"]
         groups = ["group1", ex_groups[0]]
         m_is_group.side_effect = lambda m: m in ex_groups
+        m_sec_log = mocker.patch("cloudinit.distros.sec_log_user_created")
+
         dist.create_user(USER, groups=groups)
         expected = [
             mock.call(["groupadd", "group1", "--extrausers"]),
@@ -511,6 +521,11 @@ class TestCreateUser:
             mock.call(["passwd", "-l", USER]),
         ]
         assert m_subp.call_args_list == expected
+        m_sec_log.assert_called_once_with(
+            userid="cloud-init",
+            new_userid=USER,
+            attributes={"groups": ",".join(groups)},
+        )
 
     @mock.patch("cloudinit.distros.util.is_group")
     def test_create_groups_with_whitespace_string(
@@ -625,6 +640,7 @@ class TestCreateUser:
         mocker.patch(
             "cloudinit.distros.util.system_is_snappy", return_value=False
         )
+        m_sec_log = mocker.patch("cloudinit.distros.sec_log_user_created")
         dist.create_user(USER, sudo=False)
         assert m_subp.call_args_list == [
             _useradd2call([USER, "-m"]),
@@ -644,6 +660,11 @@ class TestCreateUser:
             "config is deprecated in 22.2 and scheduled to be removed"
             " in 27.2. Use 'null' instead."
         ) in caplog.text
+        m_sec_log.assert_called_once_with(
+            userid="cloud-init",
+            new_userid=USER,
+            attributes=None,
+        )
 
     def test_explicit_sudo_none(self, m_subp, dist, caplog, mocker):
         mocker.patch(
