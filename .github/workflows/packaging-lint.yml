@@ -1,4 +1,4 @@
-name: ShellCheck Debian package scripts
+name: "Packaging: Lint"
 
 env:
   # This is a space separated string for multiple globs
@@ -54,7 +54,7 @@ jobs:
               echo "There are no changed files remaining in the repo which match the glob pattern \'${GLOBS_TO_SHELLCHECK}\' so shellcheck will not run"
             else
               echo "shellcheck will run on the remaining changed files: ${RETAINED_CHANGED_FILES}"
-              shellcheck -e SC3043 ${RETAINED_CHANGED_FILES}
+              shellcheck --color=always -e SC3043 ${RETAINED_CHANGED_FILES}
               echo "shellcheck succeeded running on the remaining changed files"
             fi
           fi

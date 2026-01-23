@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from threading import Event
 from typing import Union
 
-from cloudinit import performance, url_helper, util
+from cloudinit import dmi, performance, url_helper, util
 from cloudinit.registry import DictRegistry
 
 LOG = logging.getLogger(__name__)
@@ -189,6 +189,7 @@ class HyperVKvpReportingHandler(ReportingHandler):
         HV_KVP_EXCHANGE_MAX_KEY_SIZE + HV_KVP_EXCHANGE_MAX_VALUE_SIZE
     )
     EVENT_PREFIX = "CLOUD_INIT"
+    ZERO_GUID = str(uuid.UUID(int=0))
     MSG_KEY = "msg"
     RESULT_KEY = "result"
     DESC_IDX_KEY = "msg_i"
@@ -209,6 +210,10 @@ class HyperVKvpReportingHandler(ReportingHandler):
         self.event_key_prefix = "{0}|{1}".format(
             self.EVENT_PREFIX, self.incarnation_no
         )
+
+        self._vm_id = self.ZERO_GUID
+        self._vm_id_lock = threading.Lock()
+
         self.publish_thread = threading.Thread(
             target=self._publish_event_routine
         )
@@ -252,6 +257,29 @@ class HyperVKvpReportingHandler(ReportingHandler):
             LOG.warning("uptime '%s' not in correct format.", uptime_str)
             return 0
 
+    @property
+    def vm_id(self):
+        """Get vm_id, with DMI system-uuid fallback.
+
+        If vm_id hasn't been set explicitly, falls back to reading
+        the system-uuid from DMI data.
+        """
+        with self._vm_id_lock:
+            if self._vm_id == self.ZERO_GUID:
+                try:
+                    system_uuid = dmi.read_dmi_data("system-uuid")
+                    if system_uuid:
+                        self._vm_id = system_uuid.lower()
+                except Exception as e:
+                    LOG.debug("Failed reading system-uuid for vm_id: %s", e)
+            return self._vm_id
+
+    @vm_id.setter
+    def vm_id(self, value):
+        """Set vm_id directly."""
+        with self._vm_id_lock:
+            self._vm_id = value
+
     def _iterate_kvps(self, offset):
         """iterate the kvp file from the current offset."""
         with open(self._kvp_file_path, "rb") as f:
@@ -267,11 +295,15 @@ class HyperVKvpReportingHandler(ReportingHandler):
     def _event_key(self, event):
         """
         the event key format is:
-        CLOUD_INIT|<incarnation number>|<event_type>|<event_name>|<uuid>
-        [|subevent_index]
+        CLOUD_INIT|<incarnation number>|<event_type>|<event_name>|<vm_id>
+        |<uuid>[|subevent_index]
         """
-        return "{0}|{1}|{2}|{3}".format(
-            self.event_key_prefix, event.event_type, event.name, uuid.uuid4()
+        return "{0}|{1}|{2}|{3}|{4}".format(
+            self.event_key_prefix,
+            event.event_type,
+            event.name,
+            self.vm_id,
+            uuid.uuid4(),
         )
 
     def _encode_kvp_item(self, key, value):

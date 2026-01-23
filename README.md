@@ -33,7 +33,7 @@ The [documentation](https://docs.cloud-init.io/en/latest/) is the first place
 to look for help. If a thorough search of the documentation does not resolve
 your issue, consider the following:
 
-- Ask a question in the [``#cloud-init`` channel on Matrix](https://matrix.to/#/#cloud-init:ubuntu.com)
+- Ask a question in the [``#cloud-init`` channel on Matrix](https://matrix.to/#/%23cloud-init:ubuntu.com)
 - Look for announcements or engage in cloud-init discussions on [GitHub Discussions](https://github.com/canonical/cloud-init/discussions)
 - Find a bug? [Read how to report it](https://docs.cloud-init.io/en/latest/howto/bugs.html)
 

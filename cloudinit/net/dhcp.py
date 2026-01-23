@@ -16,7 +16,7 @@ import time
 from contextlib import suppress
 from io import StringIO
 from subprocess import TimeoutExpired
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
 import configobj
 
@@ -1013,4 +1013,4 @@ class Udhcpc(DhcpClient):
         return []
 
 
-ALL_DHCP_CLIENTS = [Dhcpcd, IscDhclient, Udhcpc]
+ALL_DHCP_CLIENTS: List[Type[DhcpClient]] = [Dhcpcd, IscDhclient, Udhcpc]

@@ -1,15 +1,16 @@
-name: scheduled-daily
+name: "Daily: Unit & Lint"
 on:
   schedule:
     - cron: '3 14 * * *'
 concurrency:
   group: 'ci-${{ github.workflow }}-${{ github.ref }}'
   cancel-in-progress: false
-
 jobs:
   hypothesis:
-    name: unittest / hypothesis-slow
+    name: "Fuzz: jsonschema"
     runs-on: ubuntu-latest
+    env:
+      FORCE_COLOR: 1
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,28 +26,30 @@ jobs:
           HYPOTHESIS_PROFILE: ci
         run: tox -e hypothesis-slow
   devel_tests:
-    name: unittest / 3.14-dev
+    name: "Tip: Python"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Install Python 3.14-dev
+      - name: Install Latest Python
         uses: actions/setup-python@v5
         with:
           # select latest version here:
           # https://github.com/actions/python-versions/blob/main/versions-manifest.json
-          python-version: 3.14-dev
+          python-version: 3.15.0-alpha.3
           check-latest: true
       - name: Install tox
         run: pip install tox
       - name: Run unittest
-        run: tox -e py3
+        run: tox -e py3 -- --color=yes
   format_tip:
+    env:
+      FORCE_COLOR: 1
     strategy:
       fail-fast: false
       matrix:
-        env: [tip-ruff, tip-mypy, tip-pylint, tip-black, tip-isort]
-    name: format-tip
+        env: [tip-ruff, tip-mypy, tip-pylint, tip-black, tip-isort, py3-fast]
+    name: "Tip: Lint"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -59,3 +62,29 @@ jobs:
         env:
           TOXENV: ${{ matrix.env }}
         run: tox
+  macos:
+    name: Python ${{matrix.python-version}} ${{ matrix.slug }}
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        python-version: ["3.13"]
+        toxenv: [py3]
+        slug: [""]
+        experimental: [false]
+        check-latest: [false]
+        continue-on-error: [false]
+    continue-on-error: ${{ matrix.experimental }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Python ${{matrix.python-version}}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{matrix.python-version}}
+          check-latest: ${{matrix.check-latest}}
+      - name: Install tox
+        run: pip install tox
+      - name: Run unittest
+        env: 
+          TMPDIR: '/tmp/'
+        run: tox -e ${{ matrix.toxenv }} -- --color=yes
