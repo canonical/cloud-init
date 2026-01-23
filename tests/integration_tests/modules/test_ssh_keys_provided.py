@@ -8,6 +8,7 @@ system.
 ``tests/cloud_tests/testcases/modules/ssh_keys_provided.yaml''``.)"""
 
 import pytest
+import yaml
 
 from tests.integration_tests.releases import CURRENT_RELEASE
 
@@ -16,7 +17,7 @@ USER_DATA = """\
 disable_root: false
 ssh_authorized_keys:
   - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDXW9Gg5H7ehjdSc6qDzwNtgCy94XYHhEYlXZMO2+FJrH3wfHGiMfCwOHxcOMt2QiXItULthdeQWS9QjBSSjVRXf6731igFrqPFyS9qBlOQ5D29C4HBXFnQggGVpBNJ82IRJv7szbbe/vpgLBP4kttUza9Dr4e1YM1ln4PRnjfXea6T0m+m1ixNb5432pTXlqYOnNOxSIm1gHgMLxPuDrJvQERDKrSiKSjIdyC9Jd8t2e1tkNLY0stmckVRbhShmcJvlyofHWbc2Ca1mmtP7MlS1VQnfLkvU1IrFwkmaQmaggX6WR6coRJ6XFXdWcq/AI2K6GjSnl1dnnCxE8VCEXBlXgFzad+PMSG4yiL5j8Oo1ZVpkTdgBnw4okGqTYCXyZg6X00As9IBNQfZMFlQXlIo4FiWgj3CO5QHQOyOX6FuEumaU13GnERrSSdp9tCs1Qm3/DG2RSCQBWTfcgMcStIvKqvJ3IjFn0vGLvI3Ampnq9q1SHwmmzAPSdzcMA76HyMUA5VWaBvWHlUxzIM6unxZASnwvuCzpywSEB5J2OF+p6H+cStJwQ32XwmOG8pLp1srlVWpqZI58Du/lzrkPqONphoZx0LDV86w7RUz1ksDzAdcm0tvmNRFMN1a0frDs506oA3aWK0oDk4Nmvk8sXGTYYw3iQSkOvDUUlIsqdaO+w==
-   - no-port-forwarding,no-agent-forwarding,no-X11-forwarding ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA1J77+CrJ8p6/vWCEzuylqJNMHUP/XmeYyGVWb8lnDd root@test-with-options
+  - no-port-forwarding,no-agent-forwarding,no-X11-forwarding ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA1J77+CrJ8p6/vWCEzuylqJNMHUP/XmeYyGVWb8lnDd root@test-with-options
 ssh_keys:
   rsa_private: |
     -----BEGIN RSA PRIVATE KEY-----
@@ -130,12 +131,12 @@ class TestSshKeysProvided:
 
     def test_authorized_keys_with_options(self, class_client):
         """Test that SSH authorized key with options is properly persisted."""
-        authorized_keys = class_client.read_from_file(
-            "/root/.ssh/authorized_keys"
-        ).strip()
-
-        # Check that the key with SSH options is present
-        assert (
-            "no-port-forwarding,no-agent-forwarding,no-X11-forwarding"
-            in authorized_keys
+        authorized_keys = (
+            class_client.read_from_file("/root/.ssh/authorized_keys")
+            .strip()
+            .splitlines()
         )
+
+        # Check that the keys with SSH options are present and enabled
+        for userdata_key in yaml.safe_load(USER_DATA)["ssh_authorized_keys"]:
+            assert userdata_key in authorized_keys
