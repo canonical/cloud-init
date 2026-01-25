@@ -1,3 +1,9 @@
+cloud-init (25.4~3g78f6f15e-0ubuntu2) UNRELEASED; urgency=medium
+
+  * d/rules: set meson downstream_version option to DEB_VERSION
+
+ -- Chad Smith <chad.smith@canonical.com>  Sat, 24 Jan 2026 22:02:35 -0700
+
 cloud-init (25.4~3g78f6f15e-0ubuntu1) resolute; urgency=medium
 
   * Upstream snapshot based on upstream/main at 78f6f15e.
