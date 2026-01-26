@@ -1,10 +1,11 @@
-cloud-init (25.3-0ubuntu1~25.10.2) UNRELEASED; urgency=medium
+cloud-init (25.3-0ubuntu1~25.10.2ubuntu1) UNRELEASED; urgency=medium
 
   * d/patches/patches - 0001-Revert-fix-support-bond-names-in-network_data.patch
     revert breaking change in upstream commit 4a48e4be.
   * Upstream snapshot based on upstream/main at aa179494.
+  * d/rules: use meson flag -Ddownstream_version to set packaged version
 
- -- Chad Smith <chad.smith@canonical.com>  Wed, 17 Dec 2025 16:55:52 -0700
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 26 Jan 2026 15:22:21 -0700
 
 cloud-init (25.3-0ubuntu1~25.10.1) questing; urgency=medium
 
