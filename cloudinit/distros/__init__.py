@@ -52,7 +52,7 @@ from cloudinit.distros.package_management.utils import known_package_managers
 from cloudinit.distros.parsers import hosts
 from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
 from cloudinit.lifecycle import log_with_downgradable_level
-from cloudinit.net import activators, dhcp, renderers
+from cloudinit.net import activators, dhcp, get_networking_adapter, renderers
 from cloudinit.net.netops import NetOps
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.net.renderer import Renderer
@@ -452,6 +452,21 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         Returns True if any devices failed to come up, otherwise False.
         """
+        datasource = getattr(self, "_datasource", None)
+
+        adapter = get_networking_adapter(datasource)
+        if adapter:
+            LOG.debug(
+                "Using networking adapter %s",
+                adapter.__class__.__name__,
+            )
+
+            netconfig = adapter.render(
+                netconfig,
+                datasource=datasource,
+                distro=self,
+            )
+
         renderer = self.network_renderer
         network_state = parse_net_config_data(netconfig, renderer=renderer)
         self._write_network_state(network_state, renderer)
