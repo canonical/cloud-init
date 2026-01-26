@@ -1,8 +1,12 @@
+from unittest.mock import Mock
+
 from cloudinit.net.adapters_maas import MAASNetworkingAdapter
 
 
 def test_maas_ovs_interface_preserved():
     adapter = MAASNetworkingAdapter()
+    distro = Mock()
+    distro._datasource = "MAAS"
 
     cfg = {
         "version": 2,
@@ -14,6 +18,6 @@ def test_maas_ovs_interface_preserved():
         },
     }
 
-    rendered = adapter.render(cfg, datasource=None, distro=None)
+    rendered = adapter.render(cfg, datasource=None, distro=distro)
 
     assert rendered["ethernets"]["eno1"]["mtu"] == 1500
