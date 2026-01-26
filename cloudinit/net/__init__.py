@@ -376,7 +376,8 @@ def device_devid(devname):
 
 def get_devicelist():
     if util.is_FreeBSD() or util.is_DragonFlyBSD():
-        return list(get_interfaces_by_mac().values())
+        stdout, _stderr = subp.subp(["ifconfig", "-l"])
+        return stdout.split()
 
     try:
         devs = os.listdir(get_sys_class_path())
@@ -449,6 +450,10 @@ def find_candidate_nics_on_freebsd() -> List[str]:
     stdout, _stderr = subp.subp(["ifconfig", "-l", "-u", "ether"])
     values = stdout.split()
     if values:
+        values = sorted(values, key=natural_sort_key)
+        if "hn0" in values:
+            values.remove("hn0")
+            values.insert(0, "hn0")
         return values
 
     # On FreeBSD <= 10, 'ifconfig -l' ignores the interfaces with DOWN
@@ -929,7 +934,17 @@ def get_interfaces_by_mac_on_freebsd() -> dict:
             if m:
                 yield (m.group("mac"), m.group("ifname"))
 
-    results = {mac: ifname for mac, ifname in find_mac(flatten(out))}
+    results: dict[str, str] = {}
+    for mac, ifname in find_mac(flatten(out)):
+        if mac in results:
+            LOG.debug(
+                "Duplicate MAC %s found on %s and %s; keeping first",
+                mac,
+                results[mac],
+                ifname,
+            )
+            continue
+        results[mac] = ifname
     return results
 
 
@@ -1117,6 +1132,24 @@ def filter_hyperv_vf_with_synthetic_interface(
     on these names. Note that this will not affect mlx4/5 instances outside
     of Hyper-V, as it only affects environments where hv_netvsc is present.
     """
+    if util.is_FreeBSD():
+        hn_macs = {i[1]: i[0] for i in interfaces if i[0].startswith("hn")}
+        interfaces_to_remove = [
+            i for i in interfaces if i[1] in hn_macs and i[0].startswith("mce")
+        ]
+
+        for interface in interfaces_to_remove:
+            name, mac, driver, _ = interface
+            filtered_logger(
+                "Ignoring %r VF interface due to synthetic hn interface %r "
+                "with mac address %r.",
+                name,
+                hn_macs[mac],
+                mac,
+            )
+            interfaces.remove(interface)
+        return
+
     hv_netvsc_mac_to_name = {
         i[1]: i[0] for i in interfaces if i[2] == "hv_netvsc"
     }
