@@ -14,6 +14,7 @@ import re
 from typing import Callable, Dict, List, Optional, Tuple
 
 from cloudinit import subp, util
+from cloudinit.net.adapters_maas import MAASNetworkingAdapter
 from cloudinit.net.netops.iproute2 import Iproute2
 
 LOG = logging.getLogger(__name__)
@@ -38,6 +39,28 @@ OVS_INTERNAL_INTERFACE_LOOKUP_CMD = [
     "interface",
     "type=internal",
 ]
+_ADAPTERS = {
+    "maas": MAASNetworkingAdapter,
+}
+
+
+def get_networking_adapter(datasource):
+    """
+    Return a networking adapter for the given datasource, or None
+    if no adapter is registered.
+    """
+    if not datasource:
+        return None
+
+    dsname = getattr(datasource, "name", None)
+    if not dsname:
+        return None
+
+    adapter_cls = _ADAPTERS.get(dsname.lower())
+    if not adapter_cls:
+        return None
+
+    return adapter_cls()
 
 
 def natural_sort_key(s, _nsre=re.compile("([0-9]+)")):
