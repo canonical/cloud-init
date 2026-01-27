@@ -1,0 +1,15 @@
+name: "Daily: Integration Matrix Noble/Questing lxd_container"
+
+on:
+  workflow_dispatch:
+
+jobs:
+  integration-matrix:
+    strategy:
+      matrix:
+        release: [noble, questing]
+        platform: [lxd_container]
+    uses: ./.github/workflows/_integration_common.yml
+    with:
+      release: ${{ matrix.release }}
+      platform: ${{ matrix.platform }}
