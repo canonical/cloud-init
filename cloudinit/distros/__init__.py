@@ -52,6 +52,11 @@ from cloudinit.distros.package_management.utils import known_package_managers
 from cloudinit.distros.parsers import hosts
 from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
 from cloudinit.lifecycle import log_with_downgradable_level
+from cloudinit.log.security_event_log import (
+    sec_log_password_changed,
+    sec_log_system_shutdown,
+    sec_log_user_created,
+)
 from cloudinit.net import activators, dhcp, renderers
 from cloudinit.net.netops import NetOps
 from cloudinit.net.network_state import parse_net_config_data
@@ -777,6 +782,19 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             util.logexc(LOG, "Failed to create user %s", name)
             raise e
 
+        user_attributes = {}
+        for k, v in kwargs.items():
+            if k == "groups":
+                user_attributes["groups"] = ",".join(groups)
+            elif k in ("sudo", "doas") and v:
+                user_attributes[k] = True
+
+        sec_log_user_created(
+            userid="cloud-init",
+            new_userid=name,
+            attributes=user_attributes if user_attributes else None,
+        )
+
         # Indicate that a new user was created
         return True
 
@@ -804,6 +822,11 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             LOG.debug("snap create-user returned: %s:%s", out, err)
             jobj = util.load_json(out)
             username = jobj.get("username", None)
+            sec_log_user_created(
+                userid="cloud-init",
+                new_userid=name,
+                attributes={"snapuser": True, "sudo": True},
+            )
         except Exception as e:
             util.logexc(LOG, "Failed to create snap user %s", name)
             raise e
@@ -1111,6 +1134,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             util.logexc(LOG, "Failed to set password for %s", user)
             raise e
 
+        # Log security event for password change
+        sec_log_password_changed(userid=user)
         return True
 
     def chpasswd(self, plist_in: list, hashed: bool):
@@ -1125,6 +1150,10 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # chpasswd don't know about long names.
         cmd = ["chpasswd"] + (["-e"] if hashed else [])
         subp.subp(cmd, data=payload)
+
+        # Log security event for each password change
+        for name, _ in plist_in:
+            sec_log_password_changed(userid=name)
 
     def is_doas_rule_valid(self, user, rule):
         rule_pattern = (
@@ -1336,6 +1365,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         args = command + [delay]
         if message:
             args.append(message)
+
+        sec_log_system_shutdown(mode=mode, delay=str(delay))
+
         return args
 
     @classmethod
