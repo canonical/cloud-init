@@ -166,7 +166,9 @@ class AuthKeyLineParser:
             (keytype, base64, comment) = parse_ssh_key(ent)
         except TypeError:
             (keyopts, remain) = self._extract_options(ent)
-            if options is None:
+            # If the options parameter is falsy, use options from the key line
+            # (no override)
+            if not options:
                 options = keyopts
 
             try:

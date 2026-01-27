@@ -68,7 +68,7 @@ NTP_CLIENT_CONFIG = {
     "ntp": {
         "check_exe": "ntpd",
         "confpath": NTP_CONF,
-        "packages": ["ntp"],
+        "packages": ["ntpsec"],
         "service_name": "ntp",
         "template_name": "ntp.conf.{distro}",
         "template": None,
@@ -347,8 +347,6 @@ def install_ntp_client(install_func, packages=None, check_exe="ntpd"):
     """
     if subp.which(check_exe):
         return
-    if packages is None:
-        packages = ["ntp"]
 
     install_func(packages)
 
