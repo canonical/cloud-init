@@ -1,10 +1,9 @@
 .. _user_files:
 
-Log and configuration files
-*********************************
+Log files
+*********
 
-Cloud-init uses the filesystem to read inputs and write outputs. These files
-are configuration and log files, respectively. If other methods of
+Cloud-init writes logs to the filesystem. If other methods of
 :ref:`debugging cloud-init<how_to_debug>` fail, then digging into log files is
 your next step in debugging.
 
@@ -48,21 +47,3 @@ enablement / disablement logic.
   Contains logs about platform / datasource detection. These logs are most
   useful if cloud-init did not identify the correct datasource (cloud) to run
   on.
-
-
-
-.. _configuration_files:
-
-Configuration files
-===================
-
-``Cloud-init`` configuration files are provided in two places:
-
-- :file:`/etc/cloud/cloud.cfg`
-- :file:`/etc/cloud/cloud.cfg.d/*.cfg`
-
-These files can define the modules that run during instance initialization,
-the datasources to evaluate on boot, as well as other settings.
-
-See the :ref:`configuration sources explanation<configuration>` and
-:ref:`configuration reference<base_config_reference>` pages for more details.

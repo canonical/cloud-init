@@ -148,11 +148,8 @@ configuration or testing changes to the network conversion logic itself.
 :command:`render`
 -----------------
 
-Use ``cloud-init``'s jinja template render to process **#cloud-config** or
-**custom-scripts**, injecting any variables from
-:file:`/run/cloud-init/instance-data.json`. It accepts a user-data file
-containing the jinja template header ``## template: jinja`` and renders that
-content with any :file:`instance-data.json` variables present.
+Render user-data and inject :ref:`instance-data <instance-data>`. It accepts
+a user-data file containing the jinja template header ``## template: jinja``.
 
 :command:`hotplug-hook`
 -----------------------

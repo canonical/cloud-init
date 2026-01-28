@@ -11,9 +11,9 @@ higher priority source overwrites the lower priority source.
 Base configuration
 ==================
 
-The base configuration format uses `YAML version 1.1`_, but may be
-declared as jinja templates which cloud-init will render at runtime with
-:ref:`instance-data <instancedata-Using>` variables.
+.. note::
+
+  The base configuration format uses `YAML version 1.1`_.
 
 From lowest priority to highest, configuration sources are:
 
@@ -22,10 +22,8 @@ From lowest priority to highest, configuration sources are:
 - **Configuration directory**: Anything defined in :file:`/etc/cloud/cloud.cfg`
   and :file:`/etc/cloud/cloud.cfg.d/*.cfg`.
 - **Runtime config**: Anything defined in :file:`/run/cloud-init/cloud.cfg`.
-- **Kernel command line**: On the kernel command line, anything found between
-  ``cc:`` and ``end_cc`` will be interpreted as cloud-config user-data.
 
-These four sources make up the base configuration. The contents of this
+These sources make up the base configuration. The contents of this
 configuration are defined in the
 :ref:`base configuration reference page<base_config_reference>`.
 

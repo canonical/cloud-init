@@ -1,7 +1,7 @@
 .. _failure_states:
 
-Failure states
-==============
+Failure modes
+=============
 
 Cloud-init has multiple modes of failure. This page describes these
 modes and how to gather information about failures.
