@@ -661,6 +661,7 @@ class Dhcpcd(DhcpClient):
                 "--waitip",  # wait for ipv4 to be configured
                 "--persistent",  # don't deconfigure when dhcpcd exits
                 "--noarp",  # don't be slow
+                "--debug",  # verbose logging for debugging
                 "--script=/bin/true",  # disable hooks
                 *infiniband_argument,
                 interface,
