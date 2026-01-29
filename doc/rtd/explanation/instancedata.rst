@@ -1,14 +1,6 @@
+:orphan:
+
 .. _instance-data:
-
-
-Instance-data
-*************
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   kernel-command-line.rst
 
 What is ``instance-data?``
 ==========================
@@ -50,10 +42,9 @@ provided to this instance. Non-root users referencing ``userdata`` or
 ``vendordata`` keys will see only redacted values.
 
 .. note::
-   To save time designing a user data template for a specific cloud's
-   :file:`instance-data.json`, use the :command:`render` command on an
-   instance booted on your favorite cloud. See :ref:`cli_devel` for more
-   information.
+
+    The :command:`render` command may be used on a booted instance to help develop
+    templates. See :ref:`cli_devel` for more information.
 
 .. _instancedata-Using:
 
@@ -153,18 +144,6 @@ Example: CLI discovery of ``instance-data``
 Reference
 =========
 
-Storage locations
------------------
-
-* :file:`/run/cloud-init/instance-data.json`: world-readable JSON containing
-  standardized keys, sensitive keys redacted.
-* :file:`/run/cloud-init/instance-data-sensitive.json`: root-readable
-  unredacted JSON blob.
-* :file:`/run/cloud-init/combined-cloud-config.json`: root-readable
-  unredacted JSON blob. Any meta-data, vendor-data and user-data overrides
-  are applied to the :file:`/run/cloud-init/combined-cloud-config.json` config
-  values.
-
 .. _instance-data-keys:
 
 :file:`instance-data.json` top level keys
@@ -207,9 +186,7 @@ included in the ``sensitive-keys`` list which is only readable by root.
 .. note::
    ``merged_system_cfg`` represents only the merged config from the underlying
    filesystem. These values can be overridden by meta-data, vendor-data or
-   user-data. The fully merged cloud-config provided to a machine
-   which accounts for any supplemental overrides is the file
-   :file:`/run/cloud-init/combined-cloud-config.json`.
+   user-data.
 
 ``ds``
 ^^^^^^
@@ -420,8 +397,7 @@ Example output:
 Example Output
 --------------
 
-Below is an example of ``/run/cloud-init/instance-data-sensitive.json`` on an
-EC2 instance:
+Below is an example of sensitive instance data on an EC2 instance:
 
 .. sourcecode:: json
 
