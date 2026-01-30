@@ -54,6 +54,32 @@ class TestUpdateEventEnabled:
         )
 
 
+class TestNetworkConfigWithoutDS:
+    @pytest.fixture(autouse=True)
+    def setup(self, tmpdir):
+        self.tmpdir = tmpdir
+        self.init = stages.Init()
+        self.init._cfg = {
+            "system_info": {
+                "distro": "ubuntu",
+                "paths": {"cloud_dir": self.tmpdir, "run_dir": self.tmpdir},
+            }
+        }
+        tmpdir.mkdir("instance-uuid")
+        sym_link(tmpdir.join("instance-uuid"), tmpdir.join("instance"))
+
+    @mock.patch(
+        M_PATH + "cmdline.read_initramfs_config",
+        return_value={"config": "disabled"},
+    )
+    @mock.patch(
+        M_PATH + "cmdline.read_kernel_cmdline_config",
+        return_value={"config": "disabled"},
+    )
+    def test_network_config(self, m_cmdline, m_initramfs):
+        self.init.apply_network_config(False)
+
+
 class TestInit:
     @pytest.fixture(autouse=True)
     def setup(self, tmpdir):

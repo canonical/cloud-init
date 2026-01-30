@@ -993,10 +993,13 @@ class Init:
             NetworkConfigSource.SYSTEM_CFG: self.cfg.get("network"),
         }
 
-        if hasattr(self.ds, "network_config"):
-            available_cfgs[NetworkConfigSource.DS] = self.ds.network_config
+        if self.datasource:
+            order = self.ds.network_config_sources
+            if hasattr(self.ds, "network_config"):
+                available_cfgs[NetworkConfigSource.DS] = self.ds.network_config
+        else:
+            order = sources.DataSource.network_config_sources
 
-        order = self.ds.network_config_sources
         for cfg_source in order:
             if not isinstance(cfg_source, NetworkConfigSource):
                 # This won't happen in the cloud-init codebase, but out-of-tree
