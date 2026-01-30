@@ -175,6 +175,11 @@ class DataSourceEc2(sources.DataSource):
             if not candidate_nics:
                 LOG.error("The instance must have at least one eligible NIC")
                 return False
+            LOG.debug(
+                "Eligible NICs found after %ss: %s",
+                elapsed,
+                candidate_nics,
+            )
             for candidate_nic in sorted(
                 candidate_nics, key=_prefer_elastic_drivers
             ):
