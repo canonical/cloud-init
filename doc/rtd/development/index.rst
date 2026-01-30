@@ -15,8 +15,9 @@ Sign the CLA
 ============
 
 The Canonical `contributor license agreement <CLA_>`_ (CLA) must be signed
-- as either an individual or on behalf of an organization. This is enforced
-by CI. For help with the CLA, email
+- as either an individual or on behalf of an organization. The email address
+used in your PR commits must match the email address in your commits. This is
+enforced by CI. For help with the CLA, email
 `Chad Smith <mailto:chad.smith@canonical.com>`_ with the subject:
 "Cloud-init CLA".
 
