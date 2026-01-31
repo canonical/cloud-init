@@ -76,7 +76,7 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get -qy update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get -qy install tox
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -qy install tox distro-info-data
       - name: Run integration Tests
         run: |
           tox -e integration-tests -- --junitxml="${{ github.workspace }}/reports/junit-report-${{ inputs.platform }}-${{ inputs.release }}.xml" --color=yes ${{ inputs.filter_tests || 'tests/integration_tests' }}
