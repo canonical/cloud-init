@@ -162,9 +162,24 @@ class DataSourceEc2(sources.DataSource):
                 return False
             candidate_nics = net.find_candidate_nics()
             LOG.debug("Looking for the primary NIC in: %s", candidate_nics)
-            if len(candidate_nics) < 1:
+            # Try to find a NIC that can reach the metadata service
+            # Inline retry loop (wait up to 60s for NICs to appear)
+            timeout = 60
+            sleep_interval = 1
+            elapsed = 0
+            while not candidate_nics and elapsed < timeout:
+                LOG.debug("No NICs yet, waiting for udev/network...")
+                time.sleep(sleep_interval)
+                elapsed += sleep_interval
+                candidate_nics = net.find_candidate_nics()
+            if not candidate_nics:
                 LOG.error("The instance must have at least one eligible NIC")
                 return False
+            LOG.debug(
+                "Eligible NICs found after %ss: %s",
+                elapsed,
+                candidate_nics,
+            )
             for candidate_nic in sorted(
                 candidate_nics, key=_prefer_elastic_drivers
             ):
