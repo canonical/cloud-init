@@ -1,4 +1,4 @@
-cloud-init (25.3-0ubuntu1~25.10.2ubuntu1) UNRELEASED; urgency=medium
+cloud-init (25.3-0ubuntu1~25.10.2) UNRELEASED; urgency=medium
 
   * d/patches/patches - 0001-Revert-fix-support-bond-names-in-network_data.patch
     revert breaking change in upstream commit 4a48e4be.
