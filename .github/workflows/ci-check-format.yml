@@ -1,4 +1,4 @@
-name: Lint Tests
+name: Lint
 on:
   pull_request:
   push:
@@ -20,14 +20,11 @@ jobs:
         env: [ruff, mypy, pylint, black, isort]
     name: Check ${{ matrix.env }}
     runs-on: ubuntu-latest
+    env:
+      FORCE_COLOR: 1
     steps:
-      - name: "Checkout #1"
-        uses: actions/checkout@v4
-
-      - name: "Checkout #2 (for tools/read-version)"
-        run: |
-          git fetch --unshallow
-          git remote add upstream https://git.launchpad.net/cloud-init
+      - name: Checkout
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
 
       - name: Dependencies
         run: |
@@ -48,10 +45,10 @@ jobs:
     name: Check json format
     runs-on: ubuntu-24.04
     steps:
-      - name: "Checkout #1"
-        uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
 
-      - name: "Test format"
+      - name: Test format
         run: |
           tools/check_json_format.sh cloudinit/config/schemas/schema-cloud-config-v1.json
           tools/check_json_format.sh cloudinit/config/schemas/schema-network-config-v1.json
@@ -63,27 +60,22 @@ jobs:
     name: Check docs
     runs-on: ubuntu-24.04
     steps:
-      - name: "Checkout #1"
-        uses: actions/checkout@v4
-
-      - name: "Checkout #2 (for tools/read-version)"
-        run: |
-          git fetch --unshallow
-          git remote add upstream https://git.launchpad.net/cloud-init
-      - name: "Install Python 3.11.9"
+      - name: Checkout
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+      - name: Install RTD Python Version
         uses: actions/setup-python@v5
         with:
           python-version: '3.11.9'
-      - name: "Install dependencies"
+      - name: Install dependencies
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get -qy update
           sudo DEBIAN_FRONTEND=noninteractive apt-get -qy install tox
-      - name: "Spellcheck"
+      - name: Spellcheck
         run: |
           tox
         env:
           TOXENV: doc-spelling
-      - name: "Build docs"
+      - name: Build docs
         env:
           TOXENV: doc
         run: |
@@ -94,7 +86,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
 
       - name: Install ShellCheck
         run: |
@@ -103,4 +95,13 @@ jobs:
 
       - name: Run ShellCheck
         run: |
-          shellcheck ./tools/ds-identify
+          shellcheck --color=always ./tools/ds-identify
+
+  workflow-lint:
+    name: GitHub Action and Workflow Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+      - uses: reviewdog/action-actionlint@83e4ed25b168066ad8f62f5afbb29ebd8641d982 # v1.69.1
+        with:
+          fail_level: any

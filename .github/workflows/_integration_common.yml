@@ -1,0 +1,118 @@
+name: "Daily: Integration (reusable/manual)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        required: true
+        type: choice
+        options:
+        - questing
+        - jammy
+        - noble
+        - resolute
+      platform:
+        required: true
+        type: choice
+        options:
+        - lxd_container
+        - lxd_vm
+      image_type:
+        type: choice
+        options:
+        - generic
+        - minimal
+        required: false
+      install_source:
+        required: false
+        type: string
+      filter_tests:
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      release:
+        required: true
+        type: string
+      platform:
+        required: true
+        type: string
+      image_type:
+        required: false
+        type: string
+      install_source:
+        required: false
+        type: string
+      filter_tests:
+        required: false
+        type: string
+
+jobs:
+  lxc:
+    runs-on: ubuntu-latest
+
+    env:
+      CLOUD_INIT_PLATFORM: ${{ inputs.platform || 'lxd_container' }}
+      CLOUD_INIT_OS_IMAGE: ${{ inputs.release || 'questing' }}
+      CLOUD_INIT_OS_IMAGE_TYPE: ${{ inputs.image_type || 'generic' }}
+      CLOUD_INIT_CLOUD_INIT_SOURCE: ${{ inputs.install_source || 'ppa:cloud-init-dev/daily' }}
+      CLOUD_INIT_LOCAL_LOG_PATH: ${{ github.workspace }}/cloud_init_test_logs
+
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+      - name: Setup LXD
+        uses: canonical/setup-lxd@8c6a87bfb56aa48f3fb9b830baa18562d8bfd4ee # v0.1.2
+        with:
+          channel: 6/stable
+      - name: Clean workspace
+        run: |
+          rm -rf ${{ github.workspace }}/cloud_init_test_logs/
+      - name: Setup pycloudlib
+        run: |
+          ssh-keygen -P "" -q -f ~/.ssh/id_rsa
+          echo "[lxd]" > /home/$USER/.config/pycloudlib.toml
+      - name: Install Dependencies
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -qy update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -qy install tox distro-info-data
+      - name: Run integration Tests
+        run: |
+          tox -e integration-tests -- --junitxml="${{ github.workspace }}/reports/junit-report-${{ inputs.platform }}-${{ inputs.release }}.xml" --color=yes ${{ inputs.filter_tests || 'tests/integration_tests' }}
+      - name: Publish Test Report with Insights
+        if: always()
+        uses: ctrf-io/github-test-reporter@024bc4b64d997ca9da86833c6b9548c55c620e40 # v1.0.26
+        with:
+          report-path: '${{ github.workspace }}/reports/junit-report-${{ inputs.platform}}-${{ inputs.release }}.xml'
+          integrations-config: |
+            {
+              "junit-to-ctrf": {
+                "enabled": true,
+                "action": "convert",
+                "options": {
+                  "output": "./reports/ctrf-report-${{ inputs.platform }}-${{ inputs.release }}-${{ inputs.image_type }}.json",
+                  "toolname": "junit-to-ctrf",
+                  "useSuiteName": false,
+                  "env": {
+                    "appName": "my-app"
+                  }
+                }
+              }
+            }
+          summary-delta-report: true
+          insights-report: true
+          flaky-rate-report: true
+          slowest-report: true
+          upload-artifact: true
+          github-report: true
+          artifact-name: ctrf-report-${{ inputs.platform }}-${{inputs.release}}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: failure-${{ github.job }}
+          path: ${{ github.workspace }}/cloud_init_test_logs/
+          retention-days: 2

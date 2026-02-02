@@ -1,4 +1,4 @@
-name: Mark and close stale pull requests
+name: "GH: Manage stale PRs"
 
 on:
   schedule:

@@ -1,7 +1,9 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import os
+import stat
 from collections import namedtuple
+from unittest import mock
 
 import pytest
 
@@ -12,7 +14,7 @@ from cloudinit.distros import Distro
 from cloudinit.sources import DataSource
 from cloudinit.stages import Init
 from cloudinit.util import del_file, ensure_dir, sym_link, write_file
-from tests.unittests.helpers import mock, wrap_and_call
+from tests.unittests.helpers import wrap_and_call
 
 MyPaths = namedtuple("MyPaths", "cloud_dir")
 CleanPaths = namedtuple(
@@ -574,3 +576,34 @@ class TestClean:
         assert (
             clean_paths.log.exists() is False
         ), f"Unexpected log {clean_paths.log}"
+
+    @pytest.mark.parametrize("device_type", (stat.S_IFCHR, stat.S_IFBLK))
+    @pytest.mark.usefixtures("fake_filesystem")
+    def test_remove_artifacts_preserves_device_logs(
+        self, device_type, clean_paths, init_class
+    ):
+        """remove_artifacts does not remove log files that are device files."""
+        original_stat = os.stat
+
+        def mock_stat(path):
+            if path == clean_paths.log.strpath:
+                st_result = mock.Mock()
+                st_result.st_mode = device_type | 0o666
+                return st_result
+            return original_stat(path)
+
+        # Create a regular file and mock its stat
+        clean_paths.log.write("device-file")
+        clean_paths.output_log.write("cloud-init-output-log")
+        with mock.patch("cloudinit.cmd.clean.os.stat", side_effect=mock_stat):
+            retcode = clean.remove_artifacts(
+                init=init_class,
+                remove_logs=True,
+            )
+            assert 0 == retcode
+            assert (
+                clean_paths.log.exists() is True
+            ), f"Device file {clean_paths.log} should not be removed"
+            assert (
+                clean_paths.output_log.exists() is False
+            ), f"Regular log {clean_paths.output_log} should be removed"

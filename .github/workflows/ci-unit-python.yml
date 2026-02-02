@@ -1,4 +1,4 @@
-name: Unit Tests
+name: "Unit: Python Versions"
 on:
   pull_request:
   push:
@@ -14,7 +14,7 @@ jobs:
   unittests:
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
         toxenv: [py3]
         slug: [""]
         experimental: [false]
@@ -31,11 +31,8 @@ jobs:
     runs-on: ubuntu-24.04
     continue-on-error: ${{ matrix.experimental }}
     steps:
-      - name: "Checkout"
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          # Fetch all tags for tools/read-version
-          fetch-depth: 0
       - name: Install Python ${{matrix.python-version}}
         uses: actions/setup-python@v5
         with:
