@@ -12,12 +12,14 @@
 
 # noqa: E402
 
+import base64
 import collections
 import logging
 import re
 import sys
 from typing import Any
 
+import gnupg
 from jinja2 import TemplateSyntaxError
 
 from cloudinit import performance
@@ -143,6 +145,26 @@ def basic_render(content, params):
     )
 
 
+def gpgdecrypt(cipher, default=None):
+    # Initialize the GPG instance
+    gpg = gnupg.GPG()
+
+    LOG.debug("Decrypting: %s", cipher)
+
+    # Decrypt the ciphertext
+    decrypted_data = gpg.decrypt(base64.b64decode(cipher))
+
+    if not decrypted_data.ok:
+        LOG.warning("Decryption failed: %s", decrypted_data.status)
+    else:
+        return decrypted_data.data.decode()
+
+    if default is not None:
+        return default
+
+    return "cloudinit: missing GPG key"
+
+
 def detect_template(text):
     def jinja_render(content, params):
         # keep_trailing_newline is in jinja2 2.7+, not 2.6
@@ -155,7 +177,7 @@ def detect_template(text):
                         undefined=UndefinedJinjaVariable,
                         trim_blocks=True,
                         extensions=["jinja2.ext.do"],
-                    ).render(**params)
+                    ).render(gpgdecrypt=gpgdecrypt, **params)
                     + add
                 )
         except TemplateSyntaxError as template_syntax_error:

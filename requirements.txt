@@ -24,3 +24,6 @@ jsonpatch
 
 # For validating cloud-config sections per schema definitions
 jsonschema
+
+# For encrypting sensitive values in userdata
+python-gnupg
