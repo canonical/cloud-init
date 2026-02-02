@@ -5,6 +5,7 @@ import os
 import re
 import struct
 import time
+import uuid
 import zlib
 from unittest import mock
 
@@ -12,11 +13,6 @@ import pytest
 
 from cloudinit.reporting import events, instantiated_handler_registry
 from cloudinit.reporting.handlers import HyperVKvpReportingHandler
-
-# TODO: Importing `errors` here is a hack to avoid a circular import.
-# Without it, we have a azure->errors->identity->azure import loop, but
-# long term we should restructure these modules to avoid the issue.
-from cloudinit.sources.azure import errors  # noqa: F401
 from cloudinit.sources.helpers import azure
 
 
@@ -31,6 +27,14 @@ class TestKvpEncoding:
 
 
 class TestKvpReporter:
+    @pytest.fixture(autouse=True)
+    def mock_dmi(self, mocker):
+        """Mock dmi.read_dmi_data to prevent subp calls from vm_id property."""
+        mocker.patch(
+            "cloudinit.reporting.handlers.dmi.read_dmi_data",
+            return_value=None,
+        )
+
     @pytest.fixture
     def kvp_file_path(self, tmp_path):
         file_path = tmp_path / "kvp_pool_file"
@@ -66,17 +70,25 @@ class TestKvpReporter:
     def test_finish_event_result_is_logged(self, reporter):
         reporter.publish_event(
             events.FinishReportingEvent(
-                "name2", "description1", result=events.status.FAIL
+                "name2",
+                "description1",
+                duration=2.5,
+                result=events.status.FAIL,
             )
         )
         reporter.q.join()
-        assert "FAIL" in list(reporter._iterate_kvps(0))[0]["value"]
+        kvp_value = json.loads(list(reporter._iterate_kvps(0))[0]["value"])
+        assert kvp_value["result"] == events.status.FAIL
+        assert kvp_value["duration"] == 2.5
 
     def test_file_operation_issue(self, kvp_file_path, reporter):
         os.remove(kvp_file_path)
         reporter.publish_event(
             events.FinishReportingEvent(
-                "name2", "description1", result=events.status.FAIL
+                "name2",
+                "description1",
+                duration=1.0,
+                result=events.status.FAIL,
             )
         )
         reporter.q.join()
@@ -84,7 +96,10 @@ class TestKvpReporter:
     def test_event_very_long(self, reporter):
         description = "ab" * reporter.HV_KVP_AZURE_MAX_VALUE_SIZE
         long_event = events.FinishReportingEvent(
-            "event_name", description, result=events.status.FAIL
+            "event_name",
+            description,
+            duration=3.0,
+            result=events.status.FAIL,
         )
         reporter.publish_event(long_event)
         reporter.q.join()
@@ -96,6 +111,7 @@ class TestKvpReporter:
         for i in range(len(kvps)):
             msg_slice = json.loads(kvps[i]["value"])
             assert msg_slice["msg_i"] == i
+            assert msg_slice["duration"] == 3.0
             full_description += msg_slice["msg"]
         assert description == full_description
 
@@ -294,3 +310,51 @@ class TestKvpReporter:
         reporter.write_key("test-key", value)
 
         assert len(list(reporter._iterate_kvps(0))[0]["value"]) == 1023
+
+    def test_vm_id_defaults_to_zero_guid_when_dmi_fails(self, kvp_file_path):
+        """Test handler defaults to ZERO_GUID when DMI query fails."""
+        with mock.patch(
+            "cloudinit.reporting.handlers.dmi.read_dmi_data",
+            side_effect=RuntimeError("not available"),
+        ):
+            reporter = HyperVKvpReportingHandler(kvp_file_path=kvp_file_path)
+            assert reporter.vm_id == HyperVKvpReportingHandler.ZERO_GUID
+
+    def test_vm_id_fallback_reads_system_uuid(self, kvp_file_path):
+        """Handler falls back to DMI system-uuid when vm_id not set."""
+        with mock.patch(
+            "cloudinit.reporting.handlers.dmi.read_dmi_data",
+            return_value="AABBCCDD-EEFF-0011-2233-445566778899",
+        ) as m_read_dmi:
+            reporter = HyperVKvpReportingHandler(kvp_file_path=kvp_file_path)
+            assert reporter.vm_id == "aabbccdd-eeff-0011-2233-445566778899"
+            m_read_dmi.assert_called_once_with("system-uuid")
+
+    def test_vm_id_keeps_zero_guid_when_system_uuid_missing(
+        self, kvp_file_path
+    ):
+        """If DMI system-uuid isn't available, vm_id remains ZERO_GUID."""
+        with mock.patch(
+            "cloudinit.reporting.handlers.dmi.read_dmi_data", return_value=None
+        ) as m_read_dmi:
+            reporter = HyperVKvpReportingHandler(kvp_file_path=kvp_file_path)
+            assert reporter.vm_id == HyperVKvpReportingHandler.ZERO_GUID
+            m_read_dmi.assert_called_once_with("system-uuid")
+
+    def test_event_key_format(self, reporter):
+        """Event key must end with vm_id followed by a uuid."""
+        evt = events.ReportingEvent("type", "name", "description")
+        reporter.publish_event(evt)
+        reporter.q.join()
+
+        key_parts = list(reporter._iterate_kvps(0))[0]["key"].split("|")
+        assert len(key_parts) == 6
+
+        assert key_parts[0] == HyperVKvpReportingHandler.EVENT_PREFIX
+        assert key_parts[1] == str(reporter.incarnation_no)
+        assert key_parts[2] == evt.event_type
+        assert key_parts[3] == evt.name
+        assert key_parts[4] == reporter.vm_id
+        uuid_part = key_parts[5]
+        assert uuid.UUID(uuid_part)
+        assert uuid_part != reporter.vm_id

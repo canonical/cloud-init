@@ -1992,7 +1992,8 @@ def mount_cb(
                 mtypes[index] = "msdos"
     else:
         # we cannot do a smart "auto", so just call 'mount' once with no -t
-        mtypes = [""]
+        if mtypes is None:
+            mtypes = [""]
 
     mounted = mounts()
     with temp_utils.tempdir() as tmpd:
