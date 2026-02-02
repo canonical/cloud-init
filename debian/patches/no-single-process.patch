@@ -6,7 +6,7 @@ Last-Update: 2024-08-02
 
 --- a/cloudinit/cmd/status.py
 +++ b/cloudinit/cmd/status.py
-@@ -318,9 +318,8 @@ def systemd_failed(wait: bool) -> bool:
+@@ -319,9 +319,8 @@ def systemd_failed(wait: bool) -> bool:
      for service in [
          "cloud-final.service",
          "cloud-config.service",
