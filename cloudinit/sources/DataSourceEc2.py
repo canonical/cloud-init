@@ -77,7 +77,6 @@ class DataSourceEc2(sources.DataSource):
     metadata_urls = [
         "http://169.254.169.254",
         "http://[fd00:ec2::254]",
-        "http://instance-data.:8773",
     ]
 
     # The minimum supported metadata_version from the ec2 metadata apis
