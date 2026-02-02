@@ -25,4 +25,4 @@ override_dh_auto_install:
 	install -D ./tools/Z99-cloudinit-warnings.sh debian/cloud-init/etc/profile.d/Z99-cloudinit-warnings.sh
 	install -m 0644 -D debian/apport-general-hook.py debian/cloud-init/usr/share/apport/general-hooks/cloud-init.py
 	install -m 0644 -D debian/apport-launcher.py debian/cloud-init/usr/share/apport/package-hooks/cloud-init.py
-	flist=$$(find $(CURDIR)/debian/ -type f -name version.py) && sed -i 's,@@PACKAGED_VERSION@@,$(DEB_VERSION),' $${flist:-did-not-find-version-py-for-replacement}
+	flist=$$(find $(CURDIR)/debian/ -type f -name version.py) && sed -i 's,@DOWNSTREAM_VERSION@,$(DEB_VERSION),' $${flist:-did-not-find-version-py-for-replacement}
