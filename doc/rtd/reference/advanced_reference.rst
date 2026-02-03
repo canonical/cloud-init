@@ -17,3 +17,4 @@ result in a system that may be unreachable or may no longer boot.
    Network configuration <network-config.rst>
    Change how often a module runs <module_run_frequency.rst>
    Custom modules <custom_modules.rst>
+   Part handlers <part_handlers.rst>

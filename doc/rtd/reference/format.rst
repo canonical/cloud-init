@@ -1,13 +1,17 @@
 .. _user_data_formats:
 
+.. toctree::
+   :hidden:
+
+   Cloud-config <cloud-config.rst>
+
 User-data formats
 *****************
 
 User-data is configuration data provided by a user of a cloud platform to an
-instance at launch. User-data can be passed to cloud-init in any of many
+instance at launch. User-data can be passed to cloud-init in any of the
 formats documented here. User-data is combined with the other
-:ref:`configuration sources<configuration>` to create a combined configuration
-which modifies an instance.
+:ref:`configuration sources<configuration>` to create a combined configuration.
 
 Configuration types
 ===================
@@ -28,7 +32,6 @@ Formats that deal with other user-data formats:
 - `Jinja template`_
 - `MIME multi-part archive`_
 - `Cloud config archive`_
-- `Part handler`_
 - `Gzip compressed content`_
 
 .. _user_data_formats-cloud_config:
@@ -326,31 +329,6 @@ Optional fields:
 
 All other fields will be interpreted as a MIME part header.
 
-.. _user_data_formats-part_handler:
-
-Part handler
-============
-
-Example
--------
-
-.. literalinclude:: ../../examples/part-handler.txt
-   :language: python
-   :linenos:
-
-
-Explanation
------------
-
-A part handler contains custom code for either supporting new
-mime-types in multi-part user-data or for overriding the existing handlers for
-supported mime-types.
-
-See the :ref:`custom part handler<custom_part_handler>` reference documentation
-for details on writing custom handlers along with an annotated example.
-
-`This blog post`_ offers another example for more advanced usage.
-
 Gzip compressed content
 =======================
 
@@ -402,4 +380,3 @@ information about other sources of configuration for cloud-init.
 
 .. _make-mime: https://github.com/canonical/cloud-init/blob/main/cloudinit/cmd/devel/make_mime.py
 .. _YAML: https://yaml.org/spec/1.1/current.html
-.. _This blog post: http://foss-boss.blogspot.com/2011/01/advanced-cloud-init-custom-handlers.html

@@ -9,8 +9,7 @@ The following guides explain how ``cloud-init`` works.
    :maxdepth: 1
 
    Introduction <introduction.rst>
-   Configuration formats <format.rst>
-   Configuration sources <configuration.rst>
+   Configuration <configuration.rst>
    Boot stages <boot.rst>
    Log files <user_files.rst>
    Failure modes <failure_states.rst>
