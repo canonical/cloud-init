@@ -146,13 +146,13 @@ Reference
 
 .. _instance-data-keys:
 
-:file:`instance-data.json` top level keys
+:file:`instance-data` top level keys
 -----------------------------------------
 
 ``base64_encoded_keys``
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-A list of forward-slash delimited key paths into the :file:`instance-data.json`
+A list of forward-slash delimited key paths into the ``instance-data`` JSON
 object whose value is base64encoded for JSON compatibility. Values at these
 paths should be decoded to get the original value.
 
@@ -166,9 +166,9 @@ the feature is enabled.
 ``sensitive_keys``
 ^^^^^^^^^^^^^^^^^^
 
-A list of forward-slash delimited key paths into the :file:`instance-data.json`
+A list of forward-slash delimited key paths into the ``instance-data`` JSON
 object whose value is considered by the datasource as 'security sensitive'.
-Only the keys listed here will be redacted from :file:`instance-data.json` for
+Only the keys listed here will be redacted from ``instance-data`` JSON for
 non-root users.
 
 ``merged_cfg``
@@ -225,7 +225,7 @@ top-level key aliases for any standardized ``v#`` keys present. The preceding
 ``v1`` is not required of ``v1.var_name`` These aliases will represent the
 value of the highest versioned standard key. For example, ``cloud_name``
 value will be ``v2.cloud_name`` if both ``v1`` and ``v2`` keys are present in
-:file:`instance-data.json`.
+``instance-data``.
 
 ``Cloud-init`` also provides jinja-safe key aliases for any ``instance-data``
 keys which contain jinja operator characters such as ``+``, ``-``, ``.``,
@@ -234,8 +234,8 @@ jinja-safe key alias. This allows for ``cloud-init`` templates to use aliased
 variable references which allow for jinja's dot-notation reference such as
 ``{{ ds.v1_0.my_safe_key }}`` instead of ``{{ ds["v1.0"]["my/safe-key"] }}``.
 
-Standardized :file:`instance-data.json` v1 keys
------------------------------------------------
+Standardized :file:`instance-data` v1 keys
+------------------------------------------
 
 ``v1._beta_keys``
 ^^^^^^^^^^^^^^^^^

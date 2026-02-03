@@ -95,38 +95,6 @@ Logs collected include:
    Ubuntu users can file bugs using :command:`ubuntu-bug cloud-init` to
    automatically attach these logs to a bug report.
 
-.. _cli_devel:
-
-:command:`devel`
-----------------
-
-Collection of development tools under active development. These tools will
-likely be promoted to top-level subcommands when stable.
-
-Do **NOT** rely on the output of these commands as they can and will change.
-
-Current subcommands:
-
-:command:`net-convert`
-----------------------
-
-Manually use ``cloud-init``'s network format conversion. Useful for testing
-configuration or testing changes to the network conversion logic itself.
-
-:command:`render`
------------------
-
-Render user-data and inject :ref:`instance-data <instance-data>`. It accepts
-a user-data file containing the jinja template header ``## template: jinja``.
-
-:command:`hotplug-hook`
------------------------
-
-Hotplug related subcommands. This command is intended to be
-called via a ``systemd`` service and is not considered user-accessible except
-for debugging purposes.
-
-
 :command:`query`
 ----------------
 
@@ -151,21 +119,16 @@ datasource.
 :command:`query`
 ----------------
 
-Query standardized instance-data crawled by ``cloud-init`` and
-stored in :file:`/run/cloud-init/instance-data.json`. This is a convenience
-command-line interface to reference any cached configuration meta-data that
-``cloud-init`` crawls when booting the instance. See :ref:`instance-data`
-for more info.
+Query standardized instance-data crawled by ``cloud-init``. See
+:ref:`instance-data` for more info.
 
 * :command:`--all`: Dump all available instance-data as JSON which can be
   queried.
-* :command:`--instance-data`: Optional path to a different
-  :file:`instance-data.json` file to source for queries.
 * :command:`--list-keys`: List available query keys from cached instance-data.
 * :command:`--format`: A string that will use jinja-template syntax to render a
   string replacing.
 * :command:`<varname>`: A dot-delimited variable path into the
-  :file:`instance-data.json` object.
+  instance-data object.
 
 Below demonstrates how to list all top-level query keys that are standardized
 aliases:
