@@ -43,8 +43,8 @@ provided to this instance. Non-root users referencing ``userdata`` or
 
 .. note::
 
-    The :command:`render` command may be used on a booted instance to help develop
-    templates. See :ref:`cli_devel` for more information.
+    The :command:`cloud-init devel render` command run from an instance
+    to debug template rendering issues.
 
 .. _instancedata-Using:
 
