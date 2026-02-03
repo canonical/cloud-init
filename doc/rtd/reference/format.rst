@@ -1,10 +1,5 @@
 .. _user_data_formats:
 
-.. toctree::
-   :hidden:
-
-   Cloud-config <cloud-config.rst>
-
 User-data formats
 *****************
 
@@ -377,6 +372,12 @@ Continued reading
 
 See the :ref:`configuration sources<configuration>` documentation for
 information about other sources of configuration for cloud-init.
+
+.. toctree::
+   :hidden:
+
+   Cloud-config <cloud-config.rst>
+
 
 .. _make-mime: https://github.com/canonical/cloud-init/blob/main/cloudinit/cmd/devel/make_mime.py
 .. _YAML: https://yaml.org/spec/1.1/current.html
