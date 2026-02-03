@@ -12,5 +12,6 @@ support matrices and so on.
 
    Cloud-config <cloud-config.rst>
    CLI <cli.rst>
+   Logs <user_files.rst>
    Datasources <datasources.rst>
    Advanced customization <advanced_reference.rst>
