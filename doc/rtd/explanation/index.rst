@@ -15,5 +15,6 @@ The following guides explain how ``cloud-init`` works.
    Log files <user_files.rst>
    Failure modes <failure_states.rst>
    Project status <project-status.rst>
+   Hardening <hardening.rst>
    FAQ <faq.rst>
    Advanced explanation <advanced_explanation.rst>
