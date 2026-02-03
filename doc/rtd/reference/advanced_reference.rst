@@ -1,5 +1,5 @@
-Advanced configuration
-**********************
+Advanced reference
+******************
 
 Settings that are documented in these pages are subject to change.
 
@@ -18,4 +18,3 @@ result in a system that may be unreachable or may no longer boot.
    Change cloud-config module run frequency <module_run_frequency.rst>
    Merge cloud-config <merging.rst>
    Custom cloud-config modules <custom_modules.rst>
-   Part handlers <part_handlers.rst>

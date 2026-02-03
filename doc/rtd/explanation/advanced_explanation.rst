@@ -13,3 +13,4 @@ implementation details which are subject to change.
    Events <events.rst>
    Serial network output <net-device-info.rst>
    Debug ds-identify <../howto/identify_datasource.rst>
+   Custom part handlers <part_handlers.rst>
