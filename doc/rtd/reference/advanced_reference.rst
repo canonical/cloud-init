@@ -3,10 +3,10 @@ Advanced reference
 
 Settings that are documented in these pages are subject to change.
 
-This documentation is intended for advanced users, such as custom image
-creators, distributions and cloud providers - end users. Modifying
-these configurations should not be necessary for most end users and can
-result in a system that may be unreachable or may no longer boot.
+This documentation is intended for custom image creators, distribution
+maintainers, and cloud providers. Modifying these configurations should not be
+necessary for most end users and can result in a system that may be unreachable
+or may no longer boot.
 
 -----
 
