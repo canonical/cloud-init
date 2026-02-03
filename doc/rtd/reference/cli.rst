@@ -17,38 +17,6 @@ For the latest list of subcommands and arguments use ``cloud-init``'s
 ``--help`` option. This can be used against ``cloud-init`` itself, or on any
 of its subcommands.
 
-.. code-block:: shell-session
-
-   $ cloud-init --help
-
-Example output:
-
-.. code-block::
-
-   usage: cloud-init [-h] [--version] [--debug] [--force] [--all-stages] {init,modules,single,query,features,analyze,devel,collect-logs,clean,status,schema} ...
-
-    options:
-      -h, --help            show this help message and exit
-      --version, -v         Show program's version number and exit.
-      --debug, -d           Show additional pre-action logging (default: False).
-      --force               Force running even if no datasource is found (use at your own risk).
-      --all-stages          Run cloud-init's stages under a single process using a synchronization protocol. This is not intended for CLI usage.
-
-    Subcommands:
-      {init,modules,single,query,features,analyze,devel,collect-logs,clean,status,schema}
-        init                DEPRECATED: Initialize cloud-init and perform initial modules.
-        modules             DEPRECATED: Activate modules using a given configuration key.
-        single              Manually run a single module. Useful for testing during development.
-        query               Query standardized instance-data from the command line.
-        features            List defined features.
-        analyze             Devel tool: Analyze cloud-init logs and data.
-        devel               Run development tools.
-        collect-logs        Collect and tar all cloud-init debug info.
-        clean               Remove logs and artifacts so cloud-init can re-run.
-        status              Report cloud-init status or wait on completion.
-        schema              Validate cloud-config files using jsonschema.
-
-
 The rest of this document will give an overview of each of the subcommands.
 
 .. _cli_analyze:
@@ -177,72 +145,6 @@ Enable hotplug for a given subsystem. This is a last resort command for
 administrators to enable hotplug in running instances. The recommended
 method is configuring :ref:`events`, if not enabled by default in the active
 datasource.
-
-.. _cli_features:
-
-:command:`features`
--------------------
-
-Print out each feature supported. If ``cloud-init`` does not have the
-:command:`features` subcommand, it also does not support any features
-described in this document.
-
-.. code-block:: shell-session
-
-   $ cloud-init features
-
-Example output:
-
-.. code-block::
-
-   NETWORK_CONFIG_V1
-   NETWORK_CONFIG_V2
-
-
-.. _cli_init:
-
-:command:`init` (deprecated)
-----------------------------
-
-Generally run by OS init systems to execute ``cloud-init``'s stages:
-*init* and *init-local*. See :ref:`boot_stages` for more info.
-Can be run on the command line, but is deprecated, because incomplete
-configuration can be applied when run later in boot. The boot stages are
-generally gated to run only once due to semaphores in
-:file:`/var/lib/cloud/instance/sem/` and :file:`/var/lib/cloud/sem`.
-
-* :command:`--local`: Run *init-local* stage instead of *init*.
-* :command:`--file` : Use additional yaml configuration files.
-
-.. _cli_modules:
-
-:command:`modules` (deprecated)
--------------------------------
-
-Generally run by OS init systems to execute ``modules:config`` and
-``modules:final`` boot stages. This executes cloud config :ref:`modules`
-configured to run in the Init, Config and Final stages. Can be run on the
-command line, but this is not recommended and will generate a warning because
-incomplete configuration can be applied when run later in boot.
-The modules are declared to run in various boot stages in the file
-:file:`/etc/cloud/cloud.cfg` under keys:
-
-* ``cloud_init_modules``
-* ``cloud_config_modules``
-* ``cloud_final_modules``
-
-Can be run on the command line, but is deprecated, because incomplete
-configuration can be applied when run later in boot. Each module is gated to
-run only once due to semaphores in :file:`/var/lib/cloud/`.
-
-* :command:`--mode [init|config|final]`: Run ``modules:init``,
-  ``modules:config`` or ``modules:final`` ``cloud-init`` stages.
-  See :ref:`boot_stages` for more info.
-* :command:`--file` : Use additional yaml configuration files.
-
-.. warning::
-   `--mode init` is deprecated in 24.1 and scheduled to be removed in 29.1.
-   Use :command:`cloud-init init` instead.
 
 .. _cli_query:
 
