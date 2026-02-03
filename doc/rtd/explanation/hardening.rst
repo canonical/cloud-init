@@ -1,5 +1,4 @@
 Security Hardening
-
 ******************
 
 Cloud-init's use case is automating cloud instance initialization, with support
@@ -66,6 +65,8 @@ Alternatives to user passwords
 We recommend using the :ref:`SSH module <mod_cc_ssh>` with ``ssh_import_id`` or
 ``ssh_authorized_keys`` to import public SSH keys.
 
+
+
 More info on `managing SSH-keys for openssh-server`_.
 
 SSH Host keys
@@ -77,6 +78,7 @@ which can be validated prior to any SSH client connection to the launched VM.
 It provides assurance that you are connecting to the virtual machine you
 intended to launch, and not being intercepted by a man-in-the-middle (MITM)
 attack.
+
 
 .. _Ubuntu security team guidelines: https://documentation.ubuntu.com/server/explanation/security/security_suggestions/#keep-your-system-up-to-date
 .. _managing SSH-keys for openssh-server: https://documentation.ubuntu.com/server/how-to/security/openssh-server/#ssh-keys
