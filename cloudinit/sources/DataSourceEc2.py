@@ -167,10 +167,9 @@ class DataSourceEc2(sources.DataSource):
             timeout = 60
             sleep_interval = 1
             start = time.monotonic()  # record start time
-            while not candidate_nics and elapsed < timeout:
+            while not candidate_nics and (time.monotonic() - start) < timeout:
                 LOG.debug("No NICs yet, waiting for udev/network...")
                 time.sleep(sleep_interval)
-                elapsed += sleep_interval
                 candidate_nics = net.find_candidate_nics()
             if not candidate_nics:
                 LOG.error("The instance must have at least one eligible NIC")
@@ -178,7 +177,7 @@ class DataSourceEc2(sources.DataSource):
             # compute elapsed once, log in milliseconds
             elapsed_ms = int((time.monotonic() - start) * 1000)
             LOG.debug(
-                "Eligible NICs found after %ss: %s",
+                "Eligible NICs found after %d ms: %s",
                 elapsed_ms,
                 candidate_nics,
             )
