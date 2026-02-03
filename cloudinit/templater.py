@@ -16,10 +16,11 @@ import base64
 import collections
 import logging
 import re
+import shutil
+import subprocess
 import sys
 from typing import Any
 
-import gnupg
 from jinja2 import TemplateSyntaxError
 
 from cloudinit import performance
@@ -146,23 +147,42 @@ def basic_render(content, params):
 
 
 def gpgdecrypt(cipher, default=None):
-    # Initialize the GPG instance
-    gpg = gnupg.GPG()
-
     LOG.debug("Decrypting: %s", cipher)
 
-    # Decrypt the ciphertext
-    decrypted_data = gpg.decrypt(base64.b64decode(cipher))
+    if not shutil.which("gpg"):
+        if default is not None:
+            return default
+        return "cloudinit: GPG executable cannot be found"
 
-    if not decrypted_data.ok:
-        LOG.warning("Decryption failed: %s", decrypted_data.status)
-    else:
-        return decrypted_data.data.decode()
+    p = subprocess.Popen(
+        ["gpg", "--decrypt"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    p.stdin.write(base64.b64decode(cipher))
+    p.stdin.close()
+    try:
+        return_code = p.wait(10)
+        if return_code == 0:
+            return p.stdout.read().decode()
+        LOG.warning(
+            "Decryption failed: gpg returned status code %d. Stderr: %s",
+            return_code,
+            p.stderr.read().decode(),
+        )
+
+    except subprocess.TimeoutExpired:
+        LOG.warning(
+            "Decryption failed: gpg didn't terminate in time. Aborting",
+            p.stderr.read().decode(),
+        )
+        p.terminate()
 
     if default is not None:
         return default
 
-    return "cloudinit: missing GPG key"
+    return "cloudinit: unable to decrypt GPG message"
 
 
 def detect_template(text):

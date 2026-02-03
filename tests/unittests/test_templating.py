@@ -246,7 +246,8 @@ class TestTemplates:
         expected_result = (
             "## template: jinja\n"
             "runcmd:\n"
-            ' - echo "cloudinit: missing GPG key" > /var/secrets/value'
+            ' - echo "cloudinit: unable to decrypt GPG message"'
+            " > /var/secrets/value"
         )
         jinja_template = (
             "## template: jinja\n"

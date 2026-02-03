@@ -83,6 +83,9 @@ sensitive value with GPG and decrypt them at runtime, using the
 "encrypt" usage prior, for example during the baking processing of the 
 VM image.
 
+Note that this requires to have the GPG binary available in the PATH that 
+cloudinit will use, as a ``gpg`` command.
+
 "gpgdecrypt" function takes one required argument and one optional. The 
 first argument is the base64-encoded encrypted data to decrypt, and the 
 second argument is the default value, to return in case the decryption 
