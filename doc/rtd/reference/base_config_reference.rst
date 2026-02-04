@@ -9,7 +9,7 @@ Base configuration
     and cloud providers, not end users. To learn how to configure an instance,
     :ref:`start here <user_data_formats>`.
 
-    Modifying the base configuration should not be necessary for end most users
+    Modifying the base configuration should not be necessary for most end users
     and can result in a system that may be unreachable or may no longer boot.
 
 ``Cloud-init`` base config is primarily defined in two places:
