@@ -4,17 +4,21 @@
 CR='
 '
 error() { echo "$@" 1>&2; }
-fail() { [ $# -eq 0 ] || error "$@"; exit 1; }
+fail() {
+    [ $# -eq 0 ] || error "$@"
+    exit 1
+}
 get_env_dirs() {
     # read 'tox --showconfig'. return list of
     #  envname:dir
     local key="" equal="" val="" curenv="" out=""
     while read key equal val; do
         case "$key" in
-           "[testenv:"*)
-                curenv=${key#*:};
-                curenv=${curenv%%"]"*};
-                continue;;
+            "[testenv:"*)
+                curenv=${key#*:}
+                curenv=${curenv%%"]"*}
+                continue
+                ;;
         esac
         if [ "${key#*=}" != "$key" ]; then
             # older tox shows key=value or key=   value
@@ -50,7 +54,7 @@ list_environments() {
         env=${d%%:*}
         dir=${d#*:}
         [ -f "$dir/bin/activate" ] && s="*" || s=""
-        echo "${prefix}$env$s";
+        echo "${prefix}$env$s"
     done
     IFS="$oifs"
 }
@@ -60,7 +64,7 @@ get_command() {
     shift 2
     out=$(
         sed -e ':x; /\\$/ { N; s/\\\n[ ]*//; tx };' "${tox_ini}" |
-        gawk '
+            gawk '
         $1 ~ /^\[testenv.*\]/ {
             name=$1;
             sub("\\[", "", name); sub(".*:", "", name);
@@ -76,7 +80,8 @@ get_command() {
             else replacement = inargs
             cmd = gensub(/{posargs:?([^}]*)}/, replacement, "global", cmd)
             print(cmd);
-            }' n="$env" toxinidir="$(dirname $tox_ini)" inargs="$*")
+            }' n="$env" toxinidir="$(dirname $tox_ini)" inargs="$*"
+    )
     if [ -z "$out" ]; then
         error "Failed to find command for $env in $tox_ini"
         return 1
@@ -105,7 +110,7 @@ get_env_dir() {
 
 Usage() {
     local tox_ini="$1"
-    cat <<EOF
+    cat << EOF
 Usage: ${0##*/} [--no-create] tox-environment [command [args]]
    run command with provided arguments in the provided tox environment
    command defaults to 'cmd' (see below).
@@ -134,8 +139,14 @@ else
     tox_ini="${0%/*}/../tox.ini"
 fi
 
-[ $# -eq 0 ] && { Usage "$tox_ini" 1>&2; exit 1; }
-[ "$1" = "-h" -o "$1" = "--help" ] && { Usage "$tox_ini"; exit 0; }
+[ $# -eq 0 ] && {
+    Usage "$tox_ini" 1>&2
+    exit 1
+}
+[ "$1" = "-h" -o "$1" = "--help" ] && {
+    Usage "$tox_ini"
+    exit 0
+}
 
 [ -f "$tox_ini" ] || fail "$tox_ini: did not find tox.ini"
 
@@ -175,9 +186,9 @@ fi
 
 [ $# -eq 0 ] && set -- cmd
 if [ "$1" = "cmd" -o "$1" = "-" ]; then
-   shift
-   out=$(get_command "$tox_ini" "$env" "$@") || exit
-   eval set -- "$out"
+    shift
+    out=$(get_command "$tox_ini" "$env" "$@") || exit
+    eval set -- "$out"
 fi
 echo "inside tox:$env running: $*" 1>&2
 debian_chroot="tox:$env" exec "$@"

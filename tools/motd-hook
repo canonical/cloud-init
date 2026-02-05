@@ -17,7 +17,7 @@ BUILD_FILE=/var/lib/cloud/data/available.build
 
 read suite build_name name serial other < "${BUILD_FILE}"
 
-cat <<EOF
+cat << EOF
 A newer build of the Ubuntu ${suite} ${build_name} image is available.
 It is named '${name}' and has build serial '${serial}'.
 EOF

@@ -4,5 +4,5 @@ BIN="$@"
 chmod +x "$BIN"
 
 time for _ in $(seq 1 $ITER); do
-	"$BIN";
+    "$BIN"
 done
