@@ -1,3 +1,5 @@
+:orphan:
+
 .. _exported_errors:
 
 Exported errors
