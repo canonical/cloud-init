@@ -2442,7 +2442,7 @@ class TestLoadAzureDsDir:
             reportable_error = errors.ReportableErrorImportError(error=error)
 
             assert (
-                reportable_error.reason == "error importing"
+                reportable_error.reason == "error importing "
                 "nonexistent_module_that_will_never_exist library"
             )
             assert reportable_error.supporting_data["error"] == repr(
