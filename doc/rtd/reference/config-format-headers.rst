@@ -5,7 +5,7 @@
 Headers and content types
 =========================
 
-A user-data header is required for clout-init to recognize the format. See the
+A user-data header is required for cloud-init to recognize the format. See the
 header and content types for each user-data format below:
 
 +--------------------+-----------------------------+-------------------------+
@@ -28,7 +28,7 @@ header and content types for each user-data format below:
 |Part handler        |#part-handler                |text/part-handler        |
 +--------------------+-----------------------------+-------------------------+
 
-.. note:
+.. note::
 
    The gzip format is not included above because it is binary data. It is
    identified by its magic bytes.

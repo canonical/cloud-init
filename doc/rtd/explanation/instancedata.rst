@@ -2,8 +2,8 @@
 
 .. _instance-data:
 
-What is ``instance-data?``
-==========================
+``Instance-data``
+*****************
 
 ``instance-data`` is a JSON object which contains instance-specific variables
 in a standardized format. These variables may be used in ``cloud-init``

@@ -5,7 +5,7 @@ All cloud config examples
 
 .. note::
 
-   :ref:`This page <examples_library>` organizes examples by category.
+   :ref:`The page <examples_library>` organizes examples by category.
 
 Including users and groups
 ==========================

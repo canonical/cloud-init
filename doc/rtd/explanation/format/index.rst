@@ -20,7 +20,7 @@ Formats that directly configure the instance:
 - :ref:`User-data script <user_data_script>`
 - :ref:`Boothook <user_data_formats-cloud_boothook>`
 
-Formats that deal with other user-data formats:
+Formats that embed other formats:
 
 - :ref:`Include <user_data_formats-include>`
 - :ref:`Jinja <user_data_formats-jinja>`

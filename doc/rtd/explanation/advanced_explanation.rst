@@ -1,5 +1,5 @@
-Advanced reference
-******************
+Advanced explanation
+********************
 
 The following guides are not suitable for most users because they document
 implementation details which are subject to change.

@@ -3,7 +3,7 @@
 Configuration priority
 **********************
 
-Configuration settings are prioritized by ther source. Settings from a higher
+Configuration settings are prioritized by their source. Settings from a higher
 priority source override settings from lower priority sources.  In decreasing
 priority:
 
@@ -36,7 +36,7 @@ Image configuration
 -------------------
 
 Image configurations are built into an image before it boots. Image
-configurations can define user-data :ref:`user-data<user_data_formats>`
+configurations can define :ref:`user-data<user_data_formats>`
 settings, as well as other :ref:`base configuration<base_config_reference>`
 settings.
 
