@@ -1,5 +1,6 @@
 cloud-init (25.3-0ubuntu1~22.04.2) UNRELEASED; urgency=medium
 
+  * d/p/0001-Revert-fix-DNS-resolution-performance-regression-dur.patch revert Ec2 URL change 
   * d/p/0001-Revert-fix-support-bond-names-in-network_data.patch revert bond name change
   * d/rules: update packaged DOWNSTREAM_VERSION string to DEB_VERSION value
   * refresh patches:
