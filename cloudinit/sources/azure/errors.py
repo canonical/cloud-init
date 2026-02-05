@@ -170,7 +170,7 @@ class ReportableErrorImdsMetadataParsingException(ReportableError):
 
 class ReportableErrorImportError(ReportableError):
     def __init__(self, *, error: ImportError) -> None:
-        super().__init__("error importing library")
+        super().__init__(f"error importing {error.name} library")
 
         self.supporting_data["error"] = repr(error)
 

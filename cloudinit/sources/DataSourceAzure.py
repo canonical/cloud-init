@@ -60,8 +60,8 @@ except (ImportError, AttributeError):
         import passlib.hash
 
         blowfish_hash = passlib.hash.sha512_crypt.hash
-    except ImportError as e:
-        _import_error = e
+    except ImportError as error:
+        _import_error = error
 
         def blowfish_hash(_):
             """Raise when called so that importing this module doesn't throw
