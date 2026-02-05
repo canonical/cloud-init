@@ -61,14 +61,13 @@ except (ImportError, AttributeError):
 
         blowfish_hash = passlib.hash.sha512_crypt.hash
     except ImportError as error:
-        _import_error = error
 
         def blowfish_hash(_):
             """Raise when called so that importing this module doesn't throw
             ImportError when ds_detect() returns false. In this case, crypt
             and passlib are not needed.
             """
-            raise errors.ReportableErrorImportError(error=_import_error)
+            raise errors.ReportableErrorImportError(error=error)
 
 
 LOG = logging.getLogger(__name__)
