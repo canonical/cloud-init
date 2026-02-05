@@ -322,68 +322,38 @@ class DataSourceScaleway(sources.DataSource):
         if self._network_config != sources.UNSET:
             return self._network_config
 
-        if self.metadata["private_ip"] is None:
-            # New method of network configuration
-
-            netcfg = {}
-            ip_cfg = {}
-            for ip in self.metadata["public_ips"]:
-                # Use DHCP for primary address
-                if ip["address"] == self.ephemeral_fixed_address:
-                    ip_cfg["dhcp4"] = True
-                    # Force addition of a route to the metadata API
-                    route = {
-                        "on-link": True,
-                        "to": "169.254.42.42/32",
-                        "via": "62.210.0.1",
-                    }
+        netcfg = {}
+        ip_cfg = {}
+        for ip in self.metadata["public_ips"]:
+            # Use DHCP for primary address
+            if ip["address"] == self.ephemeral_fixed_address:
+                ip_cfg["dhcp4"] = True
+                # Force addition of a route to the metadata API
+                route = {
+                    "on-link": True,
+                    "to": "169.254.42.42/32",
+                    "via": "62.210.0.1",
+                }
+                if "routes" in ip_cfg.keys():
+                    ip_cfg["routes"] += [route]
+                else:
+                    ip_cfg["routes"] = [route]
+            else:
+                if "addresses" in ip_cfg.keys():
+                    ip_cfg["addresses"] += (
+                        f'{ip["address"]}/{ip["netmask"]}',
+                    )
+                else:
+                    ip_cfg["addresses"] = (f'{ip["address"]}/{ip["netmask"]}',)
+                if ip["family"] == "inet6":
+                    route = {"via": ip["gateway"], "to": "::/0"}
                     if "routes" in ip_cfg.keys():
                         ip_cfg["routes"] += [route]
                     else:
                         ip_cfg["routes"] = [route]
-                else:
-                    if "addresses" in ip_cfg.keys():
-                        ip_cfg["addresses"] += (
-                            f'{ip["address"]}/{ip["netmask"]}',
-                        )
-                    else:
-                        ip_cfg["addresses"] = (
-                            f'{ip["address"]}/{ip["netmask"]}',
-                        )
-                    if ip["family"] == "inet6":
-                        route = {"via": ip["gateway"], "to": "::/0"}
-                        if "routes" in ip_cfg.keys():
-                            ip_cfg["routes"] += [route]
-                        else:
-                            ip_cfg["routes"] = [route]
-            netcfg[self.distro.fallback_interface] = ip_cfg
-            self._network_config = {"version": 2, "ethernets": netcfg}
-        else:
-            # Kept for backward compatibility
-            netcfg = {
-                "type": "physical",
-                "name": "%s" % self.distro.fallback_interface,
-            }
-            subnets = [{"type": "dhcp4"}]
-            if self.metadata["ipv6"]:
-                subnets += [
-                    {
-                        "type": "static",
-                        "address": "%s" % self.metadata["ipv6"]["address"],
-                        "netmask": "%s" % self.metadata["ipv6"]["netmask"],
-                        "routes": [
-                            {
-                                "network": "::",
-                                "prefix": "0",
-                                "gateway": "%s"
-                                % self.metadata["ipv6"]["gateway"],
-                            }
-                        ],
-                    }
-                ]
-            netcfg["subnets"] = subnets
-            self._network_config = {"version": 1, "config": [netcfg]}
-        LOG.debug("network_config : %s", self._network_config)
+        netcfg[self.distro.fallback_interface] = ip_cfg
+        self._network_config = {"version": 2, "ethernets": netcfg}
+
         return self._network_config
 
     @property
@@ -410,11 +380,11 @@ class DataSourceScaleway(sources.DataSource):
 
     @property
     def availability_zone(self):
-        return None
+        return self.metadata["zone"]
 
     @property
     def region(self):
-        return None
+        return self.metadata["zone"].rpartition("-")[0]
 
 
 datasources = [

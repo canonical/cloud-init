@@ -1,0 +1,51 @@
+name: "Weekly: Static analysis Tiobe TICS"
+
+# https://library.canonical.com/corporate-policies/information-security-policies/ssdlc/ssdlc---static-code-analysis
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 5 * * 6'  # Run at 5:17a (arbitrary) on Saturday UTC
+
+concurrency:
+  group: cloudinit-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  TICS:
+    runs-on: [self-hosted, linux, amd64, tiobe, noble]
+    steps:
+      - name: Checkout the project
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Dependencies
+        run: |
+          # TICS requires system packages insteed of virtualenvs to find
+          # pytest. Otherwise we get annotations errors about inability to
+          # find certain pylint dependencies.
+          # Attempts to use tox virtual environments result in TICS analysis
+          # failures: too long for column  VersionString.Name.
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -qy update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -qy install tox
+          ./tools/read-dependencies                             \
+          --requirements-file requirements.txt                  \
+          --requirements-file test-requirements.txt             \
+          --system-pkg-names --distro ubuntu 2> /dev/null       \
+          | xargs sudo DEBIAN_FRONTEND=noninteractive apt-get -qy install
+
+      - name: Generate coverage report and lint
+        run: |
+          mkdir .cover
+          pytest --cov=cloudinit --cov-report=xml:.cover/coverage.xml --color=yes
+
+      - name: Run TICS analysis with github-action
+        uses: tiobe/tics-github-action@768de18bedf164ee461bc9ef5e2f2fa1a20b122a  # v3.7
+        with:
+          mode: qserver
+          project: cloud-init
+          branchdir: .
+          viewerUrl: https://canonical.tiobe.com/tiobeweb/TICS/api/cfg?name=default
+          ticsAuthToken: ${{ secrets.TICSAUTHTOKEN }}
+          installTics: true

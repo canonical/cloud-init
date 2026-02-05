@@ -1,0 +1,13 @@
+name: "Daily: Integration Questing lxd_container"
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '2 22 * * *'
+
+jobs:
+  questing-lxd_container:
+    uses: ./.github/workflows/_integration_common.yml
+    with:
+      release: questing
+      platform: lxd_container

@@ -47,7 +47,7 @@ class Timeout:
         signal.alarm(0)
 
 
-def test_all_stages_times_out(tmp_path):
+def test_all_stages_times_out(tmp_path, socket_attrs):
     """Verify that no "start" makes the protocol block"""
     with mock.patch.object(
         ci_socket, "DEFAULT_RUN_DIR", tmp_path
@@ -70,7 +70,7 @@ def test_all_stages_times_out(tmp_path):
             raise AssertionError("Expected the thing to timeout!")
 
 
-def test_all_stages(tmp_path):
+def test_all_stages(tmp_path, socket_attrs):
     """Verify that a socket can store "start" messages
 
     After a socket has been been bound but before it has started listening
@@ -108,7 +108,7 @@ def test_all_stages(tmp_path):
         assert expected.format("third").encode() == third.receive()
 
 
-def test_all_stages_threaded(tmp_path):
+def test_all_stages_threaded(tmp_path, socket_attrs):
     """Verify that arbitrary "start" order works"""
 
     # in milliseconds
@@ -181,7 +181,7 @@ def test_all_stages_threaded(tmp_path):
         assert expected.format("fifth").encode() == sync_storage[5].receive()
 
 
-def test_all_stages_exception(tmp_path):
+def test_all_stages_exception(tmp_path, socket_attrs):
     """Verify that exceptions log messages produce a valid warning message"""
     with mock.patch.object(
         ci_socket, "DEFAULT_RUN_DIR", tmp_path

@@ -8,18 +8,25 @@ from typing import Optional
 
 from cloudinit import version
 from cloudinit.reporting import handlers, instantiated_handler_registry
-from cloudinit.sources.azure import errors
+from cloudinit.sources.azure import errors, identity
 
 LOG = logging.getLogger(__name__)
 
 
 def get_kvp_handler() -> Optional[handlers.HyperVKvpReportingHandler]:
-    """Get instantiated KVP telemetry handler."""
+    """Get instantiated KVP telemetry handler, setting vm_id if needed."""
     kvp_handler = instantiated_handler_registry.registered_items.get(
         "telemetry"
     )
     if not isinstance(kvp_handler, handlers.HyperVKvpReportingHandler):
         return None
+
+    # Set Azure vm_id on handler if not already set
+    if kvp_handler._vm_id == handlers.HyperVKvpReportingHandler.ZERO_GUID:
+        try:
+            kvp_handler.vm_id = identity.query_vm_id()
+        except Exception as e:
+            LOG.debug("Failed to query Azure vm_id: %s", e)
 
     return kvp_handler
 

@@ -21,7 +21,7 @@ from cloudinit import url_helper as uhelp
 from cloudinit import util, warnings
 from cloudinit.distros import Distro
 from cloudinit.event import EventScope, EventType
-from cloudinit.net import netplan
+from cloudinit.net import device_driver, netplan
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralIPNetwork
 from cloudinit.sources import HotplugRetrySettings, NicOrder
@@ -39,6 +39,7 @@ class CloudNames:
     ZSTACK = "zstack"
     E24CLOUD = "e24cloud"
     OUTSCALE = "outscale"
+    TILAA = "tilaa"
     # UNKNOWN indicates no positive id.  If strict_id is 'warn' or 'false',
     # then an attempt at the Ec2 Metadata service will be made.
     UNKNOWN = "unknown"
@@ -62,6 +63,11 @@ ENV{ID_NET_DRIVER}=="vif|ena|ixgbevf", GOTO="cloudinit_hook"
 GOTO="cloudinit_end"
 """
 
+# Drivers that indicate a NIC is being provided by EC2
+# as an Elastic Network Adaptor or Elastic Fabric Adapter
+# https://github.com/amzn/amzn-drivers/
+ELASTIC_DRIVERS = ["ena", "efa"]
+
 
 class DataSourceEc2(sources.DataSource):
     dsname = "Ec2"
@@ -71,7 +77,6 @@ class DataSourceEc2(sources.DataSource):
     metadata_urls = [
         "http://169.254.169.254",
         "http://[fd00:ec2::254]",
-        "http://instance-data.:8773",
     ]
 
     # The minimum supported metadata_version from the ec2 metadata apis
@@ -159,7 +164,9 @@ class DataSourceEc2(sources.DataSource):
             if len(candidate_nics) < 1:
                 LOG.error("The instance must have at least one eligible NIC")
                 return False
-            for candidate_nic in candidate_nics:
+            for candidate_nic in sorted(
+                candidate_nics, key=_prefer_elastic_drivers
+            ):
                 try:
                     with EphemeralIPNetwork(
                         self.distro,
@@ -814,6 +821,11 @@ def identify_zstack(data):
         return CloudNames.ZSTACK
 
 
+def identify_tilaa(data):
+    if data["vendor"] == "Tilaa":
+        return CloudNames.TILAA
+
+
 def identify_e24cloud(data):
     if data["vendor"] == "e24cloud":
         return CloudNames.E24CLOUD
@@ -836,6 +848,7 @@ def identify_platform():
         identify_zstack,
         identify_e24cloud,
         identify_outscale,
+        identify_tilaa,
         lambda x: CloudNames.UNKNOWN,
     )
     for checker in checks:
@@ -879,6 +892,22 @@ def _collect_platform_data():
         "vendor": vendor.lower(),
         "product_name": product_name.lower(),
     }
+
+
+def _prefer_elastic_drivers(nic: str) -> int:
+    """Sorts the NICs so that Amazon drivers are first.
+
+    This helps speed up finding the metadata server since it will generally
+    be reachable via the first ENA/EFA NIC if one is present. Each incorrect
+    NIC that we are able to skip shortens boot by approximately
+    DataSourceEc2.url_max_wait seconds.
+    """
+    # The python builtin `sorted` is guaranteed to be stable,
+    # so we only need to sort
+    # based on whether the NIC is an elastic driver or not
+    if device_driver(nic) in ELASTIC_DRIVERS:
+        return 0
+    return 1
 
 
 def _build_nic_order(

@@ -10,7 +10,7 @@ import requests
 import responses
 from requests.exceptions import ConnectionError, ConnectTimeout
 
-from cloudinit import settings, sources
+from cloudinit import settings
 from cloudinit.distros import ubuntu
 from cloudinit.sources import DataSourceScaleway
 from tests.unittests.helpers import mock, responses_assert_call_count
@@ -67,6 +67,7 @@ class MetadataResponses:
                 "fingerprint": "2048 06:ff:...  login2 (RSA)",
             },
         ],
+        "zone": "fr-par-1",
     }
 
     @classmethod
@@ -300,8 +301,8 @@ class TestDataSourceScaleway:
             self.datasource.get_vendordata_raw()
             == DataResponses.FAKE_USER_DATA
         )
-        assert self.datasource.availability_zone is None
-        assert self.datasource.region is None
+        assert self.datasource.availability_zone == "fr-par-1"
+        assert self.datasource.region == "fr-par"
 
     @responses.activate
     @mock.patch(
@@ -381,8 +382,8 @@ class TestDataSourceScaleway:
             self.datasource.get_vendordata_raw()
             == DataResponses.FAKE_USER_DATA
         )
-        assert self.datasource.availability_zone is None
-        assert self.datasource.region is None
+        assert self.datasource.availability_zone == "fr-par-1"
+        assert self.datasource.region == "fr-par"
 
     @responses.activate
     @mock.patch(
@@ -675,157 +676,13 @@ class TestDataSourceScaleway:
 
     @mock.patch("cloudinit.distros.net.find_fallback_nic")
     @mock.patch("cloudinit.util.get_cmdline")
-    def test_legacy_network_config_ok(self, m_get_cmdline, fallback_nic):
+    def test_primary_ipv4_config_ok(self, m_get_cmdline, fallback_nic):
         """
-        network_config will only generate IPv4 config if no ipv6 data is
+        network_config will only generate IPv4 config if no IPv6 is
         available in the metadata
         """
         m_get_cmdline.return_value = "scaleway"
         fallback_nic.return_value = "ens2"
-        self.datasource.metadata["private_ip"] = "10.10.10.10"
-        self.datasource.metadata["ipv6"] = None
-
-        netcfg = self.datasource.network_config
-        resp = {
-            "version": 1,
-            "config": [
-                {
-                    "type": "physical",
-                    "name": "ens2",
-                    "subnets": [{"type": "dhcp4"}],
-                }
-            ],
-        }
-        assert netcfg == resp
-
-    @mock.patch("cloudinit.distros.net.find_fallback_nic")
-    @mock.patch("cloudinit.util.get_cmdline")
-    def test_legacy_network_config_ipv6_ok(self, m_get_cmdline, fallback_nic):
-        """
-        network_config will only generate IPv4/v6 configs if ipv6 data is
-        available in the metadata
-        """
-        m_get_cmdline.return_value = "scaleway"
-        fallback_nic.return_value = "ens2"
-        self.datasource.metadata["private_ip"] = "10.10.10.10"
-        self.datasource.metadata["ipv6"] = {
-            "address": "2000:abc:4444:9876::42:999",
-            "gateway": "2000:abc:4444:9876::42:000",
-            "netmask": "127",
-        }
-
-        netcfg = self.datasource.network_config
-        resp = {
-            "version": 1,
-            "config": [
-                {
-                    "type": "physical",
-                    "name": "ens2",
-                    "subnets": [
-                        {"type": "dhcp4"},
-                        {
-                            "type": "static",
-                            "address": "2000:abc:4444:9876::42:999",
-                            "netmask": "127",
-                            "routes": [
-                                {
-                                    "gateway": "2000:abc:4444:9876::42:000",
-                                    "network": "::",
-                                    "prefix": "0",
-                                }
-                            ],
-                        },
-                    ],
-                }
-            ],
-        }
-        assert netcfg == resp
-
-    @mock.patch("cloudinit.distros.net.find_fallback_nic")
-    @mock.patch("cloudinit.util.get_cmdline")
-    def test_legacy_network_config_existing(self, m_get_cmdline, fallback_nic):
-        """
-        network_config() should return the same data if a network config
-        already exists
-        """
-        m_get_cmdline.return_value = "scaleway"
-        self.datasource._network_config = "0xdeadbeef"
-
-        netcfg = self.datasource.network_config
-        assert netcfg == "0xdeadbeef"
-
-    @mock.patch("cloudinit.distros.net.find_fallback_nic")
-    @mock.patch("cloudinit.util.get_cmdline")
-    def test_legacy_network_config_unset(self, m_get_cmdline, fallback_nic):
-        """
-        _network_config will be set to sources.UNSET after the first boot.
-        Make sure it behave correctly.
-        """
-        m_get_cmdline.return_value = "scaleway"
-        fallback_nic.return_value = "ens2"
-        self.datasource.metadata["ipv6"] = None
-        self.datasource.metadata["private_ip"] = "10.10.10.10"
-        self.datasource._network_config = sources.UNSET
-
-        resp = {
-            "version": 1,
-            "config": [
-                {
-                    "type": "physical",
-                    "name": "ens2",
-                    "subnets": [{"type": "dhcp4"}],
-                }
-            ],
-        }
-
-        netcfg = self.datasource.network_config
-        assert netcfg == resp
-
-    @mock.patch("cloudinit.sources.DataSourceScaleway.LOG.warning")
-    @mock.patch("cloudinit.distros.net.find_fallback_nic")
-    @mock.patch("cloudinit.util.get_cmdline")
-    def test_legacy_network_config_cached_none(
-        self, m_get_cmdline, fallback_nic, logwarning
-    ):
-        """
-        network_config() should return config data if cached data is None
-        rather than sources.UNSET
-        """
-        m_get_cmdline.return_value = "scaleway"
-        fallback_nic.return_value = "ens2"
-        self.datasource.metadata["ipv6"] = None
-        self.datasource.metadata["private_ip"] = "10.10.10.10"
-        self.datasource._network_config = None
-
-        resp = {
-            "version": 1,
-            "config": [
-                {
-                    "type": "physical",
-                    "name": "ens2",
-                    "subnets": [{"type": "dhcp4"}],
-                }
-            ],
-        }
-
-        netcfg = self.datasource.network_config
-        assert netcfg == resp
-        logwarning.assert_called_with(
-            "Found None as cached _network_config. Resetting to %s",
-            sources.UNSET,
-        )
-
-    @mock.patch("cloudinit.distros.net.find_fallback_nic")
-    @mock.patch("cloudinit.util.get_cmdline")
-    def test_ipmob_primary_ipv4_config_ok(self, m_get_cmdline, fallback_nic):
-        """
-        network_config will only generate IPv4 config if no ipv6 data is
-        available in the metadata
-        """
-        m_get_cmdline.return_value = "scaleway"
-        fallback_nic.return_value = "ens2"
-        self.datasource.metadata["private_ip"] = None
-        self.datasource.metadata["ipv6"] = None
         self.datasource.ephemeral_fixed_address = "10.10.10.10"
         self.datasource.metadata["public_ips"] = [{"address": "10.10.10.10"}]
 
@@ -850,17 +707,12 @@ class TestDataSourceScaleway:
 
     @mock.patch("cloudinit.distros.net.find_fallback_nic")
     @mock.patch("cloudinit.util.get_cmdline")
-    def test_ipmob_additional_ipv4_config_ok(
-        self, m_get_cmdline, fallback_nic
-    ):
+    def test_additional_ipv4_config_ok(self, m_get_cmdline, fallback_nic):
         """
-        network_config will only generate IPv4 config if no ipv6 data is
-        available in the metadata
+        network_config will generate IPv4 config with additional address
         """
         m_get_cmdline.return_value = "scaleway"
         fallback_nic.return_value = "ens2"
-        self.datasource.metadata["private_ip"] = None
-        self.datasource.metadata["ipv6"] = None
         self.datasource.ephemeral_fixed_address = "10.10.10.10"
         self.datasource.metadata["public_ips"] = [
             {
@@ -896,14 +748,12 @@ class TestDataSourceScaleway:
 
     @mock.patch("cloudinit.distros.net.find_fallback_nic")
     @mock.patch("cloudinit.util.get_cmdline")
-    def test_ipmob_primary_ipv6_config_ok(self, m_get_cmdline, fallback_nic):
+    def test_primary_ipv6_config_ok(self, m_get_cmdline, fallback_nic):
         """
         Generate network_config with only IPv6
         """
         m_get_cmdline.return_value = "scaleway"
         fallback_nic.return_value = "ens2"
-        self.datasource.metadata["private_ip"] = None
-        self.datasource.metadata["ipv6"] = None
         self.datasource.ephemeral_fixed_address = "10.10.10.10"
         self.datasource.metadata["public_ips"] = [
             {
@@ -934,16 +784,12 @@ class TestDataSourceScaleway:
 
     @mock.patch("cloudinit.distros.net.find_fallback_nic")
     @mock.patch("cloudinit.util.get_cmdline")
-    def test_ipmob_primary_ipv4_v6_config_ok(
-        self, m_get_cmdline, fallback_nic
-    ):
+    def test_primary_ipv4_v6_config_ok(self, m_get_cmdline, fallback_nic):
         """
         Generate network_config with IPv4+IPv6
         """
         m_get_cmdline.return_value = "scaleway"
         fallback_nic.return_value = "ens2"
-        self.datasource.metadata["private_ip"] = None
-        self.datasource.metadata["ipv6"] = None
         self.datasource.ephemeral_fixed_address = "10.10.10.10"
         self.datasource.metadata["public_ips"] = [
             {
@@ -985,16 +831,12 @@ class TestDataSourceScaleway:
 
     @mock.patch("cloudinit.distros.net.find_fallback_nic")
     @mock.patch("cloudinit.util.get_cmdline")
-    def test_ipmob_primary_ipv6_v4_config_ok(
-        self, m_get_cmdline, fallback_nic
-    ):
+    def test_primary_ipv6_v4_config_ok(self, m_get_cmdline, fallback_nic):
         """
         Generate network_config with IPv6+IPv4
         """
         m_get_cmdline.return_value = "scaleway"
         fallback_nic.return_value = "ens2"
-        self.datasource.metadata["private_ip"] = None
-        self.datasource.metadata["ipv6"] = None
         self.datasource.ephemeral_fixed_address = "10.10.10.10"
         self.datasource.metadata["public_ips"] = [
             {
