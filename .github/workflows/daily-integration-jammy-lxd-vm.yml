@@ -1,0 +1,13 @@
+name: "Daily: Integration Jammy lxd_vm"
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '2 23 * * *'
+
+jobs:
+  jammy-lxd_vm:
+    uses: ./.github/workflows/_integration_common.yml
+    with:
+      release: jammy
+      platform: lxd_vm
