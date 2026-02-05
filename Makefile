@@ -16,11 +16,6 @@ all: check
 
 check: test
 
-style-check: lint
-
-lint:
-	@$(CWD)/tools/run-lint
-
 unittest: clean_pyc
 	$(PYTHON) -m pytest -v tests/unittests cloudinit
 
@@ -103,6 +98,6 @@ deb-src:
 doc:
 	tox -e doc
 
-.PHONY: all check test lint clean rpm srpm deb deb-src clean_pyc
-.PHONY: unittest style-check render-template benchmark-generator
+.PHONY: all check test clean rpm srpm deb deb-src clean_pyc
+.PHONY: unittest render-template benchmark-generator
 .PHONY: clean_pytest clean_packaging clean_release doc
