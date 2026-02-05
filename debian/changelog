@@ -5,11 +5,14 @@ cloud-init (25.3-0ubuntu1~22.04.2) UNRELEASED; urgency=medium
   * refresh patches:
     - d/p/no-nocloud-network.patch
     - d/p/no-single-process.patch
+    - d/p/retain-ec2-default-net-update-events.patch
     - d/p/retain-setuptools.patch
     - d/p/revert-551f560d-cloud-config-after-snap-seeding.patch
-  * Upstream snapshot based on upstream/main at 0400ac62.
+    - d/p/status-do-not-remove-duplicated-data.patch
+    - d/p/status-retain-recoverable-error-exit-code.patch
+  * Upstream snapshot based on upstream/main at 72809f80.
 
- -- Chad Smith <chad.smith@canonical.com>  Thu, 18 Dec 2025 22:09:42 -0700
+ -- Brett Holman <brett.holman@canonical.com>  Thu, 05 Feb 2026 16:15:12 +0000
 
 cloud-init (25.3-0ubuntu1~22.04.1) jammy; urgency=medium
 
