@@ -1,7 +1,7 @@
 project(
   'cloud-init',
   version: '25.3',
-  meson_version: '>=0.63.0', # rockylinux/9
+  meson_version: '>=0.61.2', # Ubuntu 22.04 (Jammy)
   license: 'GPL-3 OR Apache-2.0',
   default_options: [
     # The default can yield broken results.
