@@ -10,6 +10,7 @@ import argparse
 import glob
 import logging
 import os
+import stat
 import sys
 
 from cloudinit import settings, sources
@@ -40,6 +41,23 @@ GEN_NET_CONFIG_FILES = [
 GEN_SSH_CONFIG_FILES = [
     "/etc/ssh/sshd_config.d/50-cloud-init.conf",
 ]
+
+
+def should_remove_log_file(log_file: str) -> bool:
+    """Check if a log file should be removed.
+
+    Avoid tracebacks from attempting to remove device files.
+
+    @param log_file: Path to the log file to check.
+    @returns: True if the file should be removed, False otherwise.
+    """
+    try:
+        file_stat = os.stat(log_file)
+        if stat.S_ISBLK(file_stat.st_mode) or stat.S_ISCHR(file_stat.st_mode):
+            return False
+    except OSError:
+        return False
+    return True
 
 
 def get_parser(parser=None):
@@ -126,7 +144,8 @@ def remove_artifacts(init, remove_logs, remove_seed=False, remove_config=None):
     init.read_cfg()
     if remove_logs:
         for log_file in get_config_logfiles(init.cfg):
-            del_file(log_file)
+            if should_remove_log_file(log_file):
+                del_file(log_file)
     if remove_config and set(remove_config).intersection(["all", "network"]):
         for path in GEN_NET_CONFIG_FILES:
             for conf in glob.glob(path):

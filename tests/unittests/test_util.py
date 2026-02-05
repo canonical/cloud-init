@@ -1748,7 +1748,7 @@ class FakeSelinux:
         self.restored = []
 
     def matchpathcon(self, path, mode):
-        if path == self.match_what:
+        if os.path.realpath(path) == os.path.realpath(self.match_what):
             return
         else:
             raise OSError("No match!")
@@ -2862,6 +2862,10 @@ class TestGetProcPpid:
         assert os.getpgid(0) == Distro.get_proc_pgid(os.getpid())
 
     @pytest.mark.allow_subp_for("ps")
+    @pytest.mark.skipif(
+        not util.is_Linux(),
+        reason="/proc/$pid/stat is not useful on not-Linux",
+    )
     def test_get_proc_ppid_ps(self):
         """get_proc_ppid returns correct parent pid value."""
         my_pid = os.getpid()
@@ -3215,11 +3219,10 @@ class MockPath:
         return self.target_file
 
 
-@pytest.mark.usefixtures("fake_filesystem")
 class TestReadHotplugEnabledFile:
     def test_file_not_found(self, caplog):
         assert {"scopes": []} == util.read_hotplug_enabled_file(MockPath())
-        assert "enabled because it is not decodable" not in caplog.text
+        assert "not decodable" not in caplog.text
 
     def test_json_decode_error(self, caplog, tmpdir):
         target_file = (

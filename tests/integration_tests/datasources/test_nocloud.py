@@ -360,10 +360,10 @@ class TestFTP:
                     "git clone https://github.com/FiloSottile/mkcert && "
                     "cd mkcert && "
                     "export latest_ver=$(git describe --tags --abbrev=0) && "
-                    'wget "https://github.com/FiloSottile/mkcert/releases/'
+                    'curl -JL "https://github.com/FiloSottile/mkcert/releases/'
                     "download/${latest_ver}/mkcert-"
                     '${latest_ver}-linux-amd64"'
-                    " -O mkcert && "
+                    " -o mkcert && "
                     "chmod 755 mkcert"
                 ).ok
 

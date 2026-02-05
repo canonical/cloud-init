@@ -5,7 +5,6 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import subp
 from cloudinit.config import cc_lxd
 from cloudinit.config.schema import (
     SchemaValidationError,
@@ -13,6 +12,7 @@ from cloudinit.config.schema import (
     validate_cloudconfig_schema,
 )
 from cloudinit.helpers import Paths
+from cloudinit.subp import ProcessExecutionError
 from cloudinit.util import del_file
 from tests.unittests import helpers as t_help
 from tests.unittests.util import get_cloud
@@ -37,7 +37,7 @@ LXD_INIT_CFG = {
 class TestLxd:
     @mock.patch("cloudinit.config.cc_lxd.util.system_info")
     @mock.patch("cloudinit.config.cc_lxd.os.path.exists", return_value=True)
-    @mock.patch("cloudinit.config.cc_lxd.subp.subp", return_value=True)
+    @mock.patch("cloudinit.config.cc_lxd.subp.subp")
     @mock.patch("cloudinit.config.cc_lxd.subp.which", return_value=False)
     @mock.patch(
         "cloudinit.config.cc_lxd.maybe_cleanup_default", return_value=None
@@ -45,6 +45,15 @@ class TestLxd:
     def test_lxd_init(
         self, maybe_clean, which, subp, exists, system_info, tmpdir
     ):
+        def my_subp(*args, **kwargs):
+            if args[0] == ["snap", "list", "lxd"]:
+                raise ProcessExecutionError(
+                    stderr="error: no matching snaps installed",
+                    exit_code=1,
+                )
+            return ("", "")
+
+        subp.side_effect = my_subp
         system_info.return_value = {"uname": [0, 1, "mykernel"]}
         sem_file = f"{tmpdir}/sem/snap_seeded.once"
         cc = get_cloud(mocked_distro=True, paths=Paths({"cloud_dir": tmpdir}))
@@ -64,6 +73,7 @@ class TestLxd:
             if package:
                 assert [mock.call([package])] == install.call_args_list
             assert [
+                mock.call(["snap", "list", "lxd"]),
                 mock.call(["snap", "install", "lxd"]),
                 mock.call(["lxd", "waitready", "--timeout=300"]),
                 mock.call(
@@ -130,6 +140,7 @@ class TestLxd:
             [],
         )
         assert [
+            mock.call(["snap", "list", "lxd"]),
             mock.call(["lxd", "waitready", "--timeout=300"]),
             mock.call(["lxd", "init", "--preseed"], data='{"chad": True}'),
         ] == mock_subp.subp.call_args_list
@@ -263,7 +274,7 @@ class TestLxd:
     def test_no_thinpool(self, mocker, caplog):
         def my_subp(*args, **kwargs):
             if args[0] == ["lxd", "init", "--auto", "--storage-backend=lvm"]:
-                raise subp.ProcessExecutionError(
+                raise ProcessExecutionError(
                     stderr='Error: Failed to create storage pool "default"',
                     exit_code=1,
                 )

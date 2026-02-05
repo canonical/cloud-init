@@ -7,7 +7,7 @@
 .. _GH repo: https://github.com/canonical/cloud-init
 .. _GitHub: https://github.com
 .. _Launchpad: https://launchpad.net
-.. _Matrix: https://matrix.to/#/#cloud-init:ubuntu.com
+.. _Matrix: https://matrix.to/#/%23cloud-init:ubuntu.com
 .. _the docs: https://docs.cloud-init.io/en/latest/
 .. _tox: https://tox.readthedocs.io/en/latest/
 .. _Discourse: https://discourse.ubuntu.com/c/server/cloud-init/54

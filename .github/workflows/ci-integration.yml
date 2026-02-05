@@ -1,4 +1,4 @@
-name: Integration Tests
+name: Integration
 
 on:
   pull_request:
@@ -23,11 +23,8 @@ jobs:
   build-package-and-run-tests:
     runs-on: ubuntu-24.04
     steps:
-      - name: "Checkout"
-        uses: actions/checkout@v4
-        with:
-          # Fetch all tags for tools/read-version
-          fetch-depth: 0
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       - name: Prepare dependencies
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get update
@@ -48,13 +45,13 @@ jobs:
           DEB_BUILD_OPTIONS=nocheck ./packages/bddeb -d --release ${{ env.RELEASE }}
           cp cloud-init_all.deb ${{ runner.temp }}
       - name: Archive debs as artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         with:
           name: 'cloud-init-${{ env.RELEASE }}-deb'
           path: '${{ runner.temp }}/cloud-init*.deb'
           retention-days: 3
       - name: Setup LXD
-        uses: canonical/setup-lxd@v0.1.2
+        uses: canonical/setup-lxd@8c6a87bfb56aa48f3fb9b830baa18562d8bfd4ee  # v1
         with:
           channel: 6/stable
       - name: Verify deb package

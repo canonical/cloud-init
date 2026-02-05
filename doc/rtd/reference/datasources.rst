@@ -48,7 +48,6 @@ The following is a list of documentation for each supported datasource:
    datasources/cloudstack.rst
    datasources/configdrive.rst
    datasources/digitalocean.rst
-   datasources/e24cloud.rst
    datasources/exoscale.rst
    datasources/fallback.rst
    datasources/gce.rst
@@ -68,4 +67,3 @@ The following is a list of documentation for each supported datasource:
    datasources/vmware.rst
    datasources/vultr.rst
    datasources/wsl.rst
-   datasources/zstack.rst

@@ -9,7 +9,6 @@ import uuid
 from typing import Optional
 
 from cloudinit import dmi
-from cloudinit.sources.helpers.azure import report_diagnostic_event
 
 LOG = logging.getLogger(__name__)
 
@@ -31,8 +30,7 @@ def byte_swap_system_uuid(system_uuid: str) -> str:
     try:
         original_uuid = uuid.UUID(system_uuid)
     except ValueError:
-        msg = f"Failed to parse system uuid: {system_uuid!r}"
-        report_diagnostic_event(msg, logger_func=LOG.error)
+        LOG.error("Failed to parse system uuid: %r", system_uuid)
         raise
 
     return str(uuid.UUID(bytes=original_uuid.bytes_le))
@@ -93,14 +91,8 @@ class ChassisAssetTag(enum.Enum):
         try:
             tag = cls(asset_tag)
         except ValueError:
-            report_diagnostic_event(
-                "Non-Azure chassis asset tag: %r" % asset_tag,
-                logger_func=LOG.debug,
-            )
+            LOG.debug("Non-Azure chassis asset tag: %r", asset_tag)
             return None
 
-        report_diagnostic_event(
-            "Azure chassis asset tag: %r (%s)" % (asset_tag, tag.name),
-            logger_func=LOG.debug,
-        )
+        LOG.debug("Azure chassis asset tag: %r (%s)", asset_tag, tag.name)
         return tag

@@ -138,7 +138,10 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     bridge_cfg = lxd_cfg.get("bridge", {})
     supplemental_schema_validation(init_cfg, bridge_cfg, preseed_str)
 
-    if not subp.which("lxd"):
+    try:
+        subp.subp(["snap", "list", "lxd"])
+    except subp.ProcessExecutionError:
+        # Non-zero exit means no LXD snap yet.
         try:
             subp.subp(["snap", "install", "lxd"])
         except subp.ProcessExecutionError as e:

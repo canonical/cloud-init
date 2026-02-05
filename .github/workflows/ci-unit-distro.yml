@@ -1,5 +1,4 @@
-
-name: Alpine Unittests
+name: "Unit: Alternate Distros"
 
 on:
   pull_request:
@@ -22,14 +21,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-      - name: "Checkout"
-        uses: actions/checkout@v4
-        with:
-          # Fetch all tags for tools/read-version
-          fetch-depth: 0
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
-      - name: Setup LXD
-        uses: canonical/setup-lxd@v0.1.2
+      - name: Set up LXD
+        uses: canonical/setup-lxd@8c6a87bfb56aa48f3fb9b830baa18562d8bfd4ee  # v1
 
       - name: Create alpine container
         # the current shell doesn't have lxd as one of the groups
@@ -69,4 +65,4 @@ jobs:
         run: lxc exec alpine -- ifdown -a
 
       - name: Run unittests
-        run: lxc exec alpine --cwd /root/cloud-init-rw -- sh -c 'tox -e py3 -- --color=yes'
+        run: lxc exec alpine --cwd /root/cloud-init-rw -- sh -c 'TMPDIR=. tox -e py3 -- --color=yes'

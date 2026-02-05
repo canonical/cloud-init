@@ -7,25 +7,15 @@ The LXD datasource allows the user to provide custom user-data,
 vendor-data, meta-data and network-config to the instance without running
 a network service (or even without having a network at all). This datasource
 performs HTTP GETs against the `LXD socket device`_ which is provided to each
-running LXD container and VM as ``/dev/lxd/sock`` and represents all
-instance-meta-data as versioned HTTP routes such as:
+running LXD container and VM as :file:`/dev/lxd/sock`
 
-  - 1.0/meta-data
-  - 1.0/config/cloud-init.vendor-data
-  - 1.0/config/cloud-init.user-data
-  - 1.0/config/user.<any-custom-key>
-
-The LXD socket device ``/dev/lxd/sock`` is only present on containers and VMs
-when the instance configuration has ``security.devlxd=true`` (default).
-Disabling the ``security.devlxd`` configuration setting at initial launch will
-ensure that ``cloud-init`` uses the :ref:`datasource_nocloud` datasource.
-Disabling ``security.devlxd`` over the life of the container will result in
-warnings from ``cloud-init``, and ``cloud-init`` will keep the
-originally-detected LXD datasource.
+The LXD socket device :file:`/dev/lxd/sock` is required to use the LXD
+datasource. This file is present in containers and VMs when the instance
+configuration sets ``security.devlxd=true``.
 
 The LXD datasource is detected as viable by ``ds-identify`` during the
-:ref:`detect stage<boot-Detect>` when either ``/dev/lxd/sock`` exists or
-``/sys/class/dmi/id/board_name`` matches "LXD".
+:ref:`detect stage<boot-Detect>` when either :file:`/dev/lxd/sock` exists
+or an LXD serial device is present in :file:`/sys/class/virtio-ports`.
 
 The LXD datasource provides ``cloud-init`` with the ability to react to
 meta-data, vendor-data, user-data and network-config changes, and to render the

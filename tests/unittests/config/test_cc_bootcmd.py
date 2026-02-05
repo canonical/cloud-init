@@ -63,7 +63,7 @@ class TestBootcmd:
         assert "Failed to shellify bootcmd" in caplog.text
 
         invalid_config = {
-            "bootcmd": ["ls /", 20, ["wget", "http://stuff/blah"], {"a": "n"}]
+            "bootcmd": ["ls /", 20, ["wcurl", "http://stuff/blah"], {"a": "n"}]
         }
         cc = get_cloud()
         with pytest.raises(
@@ -120,7 +120,7 @@ class TestBootCMDSchema:
                     "bootcmd": [
                         "ls /",
                         20,
-                        ["wget", "http://stuff/blah"],
+                        ["wcurl", "http://stuff/blah"],
                         {"a": "n"},
                     ]
                 },

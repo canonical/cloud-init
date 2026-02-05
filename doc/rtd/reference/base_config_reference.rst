@@ -296,24 +296,12 @@ Automatically includes ``cloudinit.sources``.
 ``datasource_list``
 ^^^^^^^^^^^^^^^^^^^
 
-This key contains a prioritized list of datasources that ``cloud-init``
-attempts to discover on boot. By default, this is defined in
-:file:`/etc/cloud/cloud.cfg.d`.
-
-There are a few reasons to modify the ``datasource_list``:
-
-1. Override default datasource discovery priority order
-2. Force cloud-init to use a specific datasource: A single entry in
-   the list (or a single entry and ``None``) will override datasource
-   discovery, which will force the specified datasource to run.
-3. Remove known invalid datasources: this might improve boot speed on distros
-   that do not use ``ds-identify`` to detect and select the datasource,
+This key contains a list of datasources that are checked on boot.
+``cloud-init`` skips checks if the list contains a single datasource.
 
 .. warning::
 
-   This key is unique in that it uses a subset of YAML syntax. It **requires**
-   that the key and its contents, a list, must share a single line - no
-   newlines.
+   This key and its values **must** be on a single line - no newlines.
 
 ``vendor_data``/``vendor_data2``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

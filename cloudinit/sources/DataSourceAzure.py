@@ -15,7 +15,7 @@ import xml.etree.ElementTree as ET  # nosec B405
 from enum import Enum
 from pathlib import Path
 from time import monotonic, sleep, time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 
@@ -420,17 +420,13 @@ class DataSourceAzure(sources.DataSource):
                 "Bringing up networking when already configured."
             )
 
-        report_diagnostic_event(
-            "Bringing up ephemeral networking with iface=%s: %r"
-            % (iface, net.get_interfaces()),
-            logger_func=LOG.debug,
-        )
         self._ephemeral_dhcp_ctx = EphemeralDHCPv4(
             self.distro,
             iface=iface,
             dhcp_log_func=dhcp_log_cb,
         )
 
+        update_primary_nic = iface is None
         lease: Optional[Dict[str, Any]] = None
         start_time = monotonic()
         deadline = start_time + timeout_minutes * 60
@@ -441,6 +437,19 @@ class DataSourceAzure(sources.DataSource):
         ):
             while lease is None:
                 try:
+                    if update_primary_nic:
+                        iface = find_primary_nic()
+
+                    mac, driver = get_interface_details(iface)
+
+                    report_diagnostic_event(
+                        "Bringing up ephemeral networking with "
+                        "iface=%s mac=%s driver=%s: %r"
+                        % (iface, mac, driver, net.get_interfaces()),
+                        logger_func=LOG.debug,
+                    )
+
+                    self._ephemeral_dhcp_ctx.iface = iface
                     lease = self._ephemeral_dhcp_ctx.obtain_lease()
                 except NoDHCPLeaseInterfaceError:
                     # Interface not found, continue after sleeping 1 second.
@@ -463,12 +472,16 @@ class DataSourceAzure(sources.DataSource):
                 except NoDHCPLeaseError:
                     # Typical DHCP failure, continue after sleeping 1 second.
                     report_diagnostic_event(
-                        "Failed to obtain DHCP lease (iface=%s)" % iface,
+                        "Failed to obtain DHCP lease "
+                        "(iface=%s mac=%s driver=%s)" % (iface, mac, driver),
                         logger_func=LOG.error,
                     )
                     self._report_failure(
                         errors.ReportableErrorDhcpLease(
-                            duration=monotonic() - start_time, interface=iface
+                            driver=driver,
+                            duration=monotonic() - start_time,
+                            interface=iface,
+                            mac_address=mac,
                         ),
                         host_only=True,
                     )
@@ -1997,6 +2010,14 @@ def encrypt_pass(password):
     return blowfish_hash(password)
 
 
+def find_primary_nic():
+    candidate_nics = net.find_candidate_nics()
+    if candidate_nics:
+        return candidate_nics[0]
+
+    return None
+
+
 @azure_ds_telemetry_reporter
 def _check_freebsd_cdrom(cdrom_dev):
     """Return boolean indicating path to cdrom device has content."""
@@ -2202,3 +2223,17 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
+
+
+def get_interface_details(
+    iface: Optional[str],
+) -> Tuple[Optional[str], Optional[str]]:
+    if iface is None:
+        return None, None
+
+    interfaces = net.get_interfaces()
+    for interface_name, interface_mac, interface_driver, _ in interfaces:
+        if interface_name == iface:
+            return interface_mac, interface_driver
+
+    return None, None

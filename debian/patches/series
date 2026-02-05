@@ -1,3 +1,4 @@
 retain-setuptools.patch
 deprecation-version-boundary.patch
 0001-Revert-fix-support-bond-names-in-network_data.patch
+0001-Revert-fix-DNS-resolution-performance-regression-dur.patch
