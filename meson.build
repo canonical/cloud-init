@@ -32,14 +32,22 @@ install_subdir(
 
 # Update packaged version strings
 downstream_version = get_option('downstream_version')
-configure_file(
+meson_versions_py = configure_file(
   input: 'meson_versions.py.in',
   output: 'meson_versions.py',
   configuration: {
     'UPSTREAM_VERSION': meson.project_version(),
     'DOWNSTREAM_VERSION': downstream_version,  # Optional for packagers
   },
-  install_dir: python.get_install_dir()  / 'cloudinit',
+)
+
+# Explicitly install the generated meson_versions.py file
+# Using install_data separately from configure_file for better compatibility
+# with older meson versions (fixes version detection on Ubuntu 22.04/Jammy)
+install_data(
+  meson_versions_py,
+  install_dir: python.get_install_dir() / 'cloudinit',
+  install_mode: 'rw-r--r--',
   install_tag: 'python-runtime',
 )
 
