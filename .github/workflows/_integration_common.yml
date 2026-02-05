@@ -48,10 +48,11 @@ on:
         type: string
 
 jobs:
-  lxc:
+  integration-test:
     runs-on: ubuntu-latest
 
     env:
+      REQUIRED_SECRET: ${{ secrets.PYCLOUDLIB_TOML }}
       CLOUD_INIT_PLATFORM: ${{ inputs.platform || 'lxd_container' }}
       CLOUD_INIT_OS_IMAGE: ${{ inputs.release || 'questing' }}
       CLOUD_INIT_OS_IMAGE_TYPE: ${{ inputs.image_type || 'generic' }}
@@ -60,9 +61,15 @@ jobs:
 
 
     steps:
+      - name: Assert repo secret.PYCLOUDLIB_TOML is set
+        run: |
+          test '${{ secrets.PYCLOUDLIB_TOML }}' != '' || echo "ERROR: Missing required repo secrets.PYCLOUDLIB_TOML non-empty value."
+          test '${{ secrets.PYCLOUDLIB_TOML }}' == '' && exit 1
       - name: Checkout
+        if: ${{ env.REQUIRED_SECRET != '' }}
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       - name: Setup LXD
+        if: ${{ env.REQUIRED_SECRET != '' }}
         uses: canonical/setup-lxd@8c6a87bfb56aa48f3fb9b830baa18562d8bfd4ee # v0.1.2
         with:
           channel: 6/stable
@@ -70,21 +77,28 @@ jobs:
         run: |
           rm -rf ${{ github.workspace }}/cloud_init_test_logs/
       - name: Setup pycloudlib
+        if: ${{ env.REQUIRED_SECRET != '' }}
         run: |
           ssh-keygen -P "" -q -f ~/.ssh/id_rsa
-          echo "[lxd]" > /home/$USER/.config/pycloudlib.toml
+          echo "${{ secrets.PYCLOUDLIB_TOML }}" > /home/$USER/.config/pycloudlib.toml
       - name: Install Dependencies
+        if: ${{ env.REQUIRED_SECRET != '' }}
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get -qy update
           sudo DEBIAN_FRONTEND=noninteractive apt-get -qy install tox distro-info-data
       - name: Run integration Tests
+        if: ${{ env.REQUIRED_SECRET != '' }}
         run: |
-          tox -e integration-tests -- --junitxml="${{ github.workspace }}/reports/junit-report-${{ inputs.platform }}-${{ inputs.release }}.xml" --color=yes ${{ inputs.filter_tests || 'tests/integration_tests' }}
+          tox -e integration-tests -- --junitxml="${{ github.workspace }}/reports/junit-report-${{ inputs.platform }}-${{ inputs.release }}.xml" --color=yes ${{ inputs.filter_tests || 'tests/integration_tests' }} | tee pytest-${{ inputs.platform }}-${{ inputs.release }}-${{ inputs.image_type }}.log
+          awk '/cloud-init version: /{printf DEB_VERSION=$NF; exit}' pytest-${{ inputs.platform }}-${{ inputs.release }}-${{ inputs.image_type }}.log
+          awk '/image-serial: /{printf IMAGE_SERIAL=$NF; exit}' pytest-${{ inputs.platform }}-${{ inputs.release }}-${{ inputs.image_type }}.log
+        shell: bash
       - name: Publish Test Report with Insights
-        if: always()
+        if: ${{ env.REQUIRED_SECRET != '' && always() }}
         uses: ctrf-io/github-test-reporter@024bc4b64d997ca9da86833c6b9548c55c620e40 # v1.0.26
         with:
           report-path: '${{ github.workspace }}/reports/junit-report-${{ inputs.platform}}-${{ inputs.release }}.xml'
+          title: '${{ inputs.platform }}-${{ inputs.release }}-${{ inputs.image_type }}:${{ inputs.install_source }}:v${{ env.DEB_VERSION }}'
           integrations-config: |
             {
               "junit-to-ctrf": {
@@ -110,7 +124,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload failure artifacts
-        if: failure()
+        if: ${{ env.REQUIRED_SECRET != '' && failure() }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: failure-${{ github.job }}
