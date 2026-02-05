@@ -1,0 +1,48 @@
+From f6a682b50958f7081422d02056db64798bdf97ed Mon Sep 17 00:00:00 2001
+From: Brett Holman <brett.holman@canonical.com>
+Date: Thu, 5 Feb 2026 16:17:35 +0000
+Subject: [PATCH] Revert "fix: DNS resolution performance regression during
+ local stage (#6707)"
+
+This reverts commit 72809f8046f7abb5157e864a903cc5cc3c70ecbb.
+---
+ cloudinit/sources/DataSourceEc2.py |  1 +
+ cloudinit/util.py                  | 10 ++++------
+ 2 files changed, 5 insertions(+), 6 deletions(-)
+
+--- a/cloudinit/sources/DataSourceEc2.py
++++ b/cloudinit/sources/DataSourceEc2.py
+@@ -77,6 +77,7 @@ class DataSourceEc2(sources.DataSource):
+     metadata_urls = [
+         "http://169.254.169.254",
+         "http://[fd00:ec2::254]",
++        "http://instance-data.:8773",
+     ]
+ 
+     # The minimum supported metadata_version from the ec2 metadata apis
+--- a/cloudinit/util.py
++++ b/cloudinit/util.py
+@@ -1284,12 +1284,6 @@ def is_resolvable(url) -> bool:
+     global _DNS_REDIRECT_IP
+     parsed_url = parse.urlparse(url)
+     name = parsed_url.hostname
+-
+-    # Early return for IP addresses - no DNS resolution needed
+-    with suppress(ValueError):
+-        if net.is_ip_address(parsed_url.netloc.strip("[]")):
+-            return True
+-
+     if _DNS_REDIRECT_IP is None:
+         badips = set()
+         badnames = (
+@@ -1314,6 +1308,10 @@ def is_resolvable(url) -> bool:
+             LOG.debug("detected dns redirection: %s", badresults)
+ 
+     try:
++        # ip addresses need no resolution
++        with suppress(ValueError):
++            if net.is_ip_address(parsed_url.netloc.strip("[]")):
++                return True
+         result = socket.getaddrinfo(name, None)
+         # check first result's sockaddr field
+         addr = result[0][4][0]
