@@ -12,11 +12,18 @@ WAIT_MAX=30
 LXC=${LXC:-lxc}
 
 error() { echo "$@" 1>&2; }
-fail() { [ $# -eq 0 ] || error "$@"; exit 1; }
-errorrc() { local r=$?; error "$@" "ret=$r"; return $r; }
+fail() {
+    [ $# -eq 0 ] || error "$@"
+    exit 1
+}
+errorrc() {
+    local r=$?
+    error "$@" "ret=$r"
+    return $r
+}
 
 Usage() {
-    cat <<EOF
+    cat << EOF
 Usage: ${0##*/} [ options ] [images:]image-ref
 
     This utility can makes it easier to run tests, build rpm and source rpm
@@ -48,7 +55,11 @@ Usage: ${0##*/} [ options ] [images:]image-ref
 EOF
 }
 
-bad_Usage() { Usage 1>&2; [ $# -eq 0 ] || error "$@"; return 1; }
+bad_Usage() {
+    Usage 1>&2
+    [ $# -eq 0 ] || error "$@"
+    return 1
+}
 cleanup() {
     if [ -n "$CONTAINER" ]; then
         if [ "$KEEP" = "true" ]; then
@@ -60,11 +71,11 @@ cleanup() {
 }
 
 debug() {
-    local level=${1}; shift;
+    local level=${1}
+    shift
     [ "${level}" -gt "${VERBOSITY}" ] && return
     error "${@}"
 }
-
 
 inside_as() {
     # inside_as(container_name, user, cmd[, args])
@@ -80,7 +91,7 @@ inside_as() {
     stuffed=${stuffed# -- }
     b64=$(printf "%s\n" "$stuffed" | base64 --wrap=0)
     inside "$name" su "$user" -c \
-        'cd; eval set -- "$(echo '"$b64"' | base64 --decode)" && exec "$@"';
+        'cd; eval set -- "$(echo '"$b64"' | base64 --decode)" && exec "$@"'
 }
 
 inside_as_cd() {
@@ -95,21 +106,22 @@ inside() {
     $LXC exec "$name" -- "$@"
 }
 
-inject_cloud_init(){
+inject_cloud_init() {
     # take current cloud-init git dir and put it inside $name at
     # ~$user/cloud-init.
     local name="$1" user="$2" dirty="$3"
     local dname="cloud-init" gitdir="" commitish=""
     gitdir=$(git rev-parse --git-dir) || {
-        errorrc "Failed to get git dir in $PWD";
+        errorrc "Failed to get git dir in $PWD"
         return
     }
     local t=${gitdir%/*}
     case "$t" in
-        */worktrees) 
+        */worktrees)
             if [ -f "${t%worktrees}/config" ]; then
                 gitdir="${t%worktrees}"
             fi
+            ;;
     esac
 
     # attempt to get branch name.
@@ -182,7 +194,10 @@ get_os_info_in() {
     # prep the container (install very basic dependencies)
     [ -n "${OS_VERSION:-}" -a -n "${OS_NAME:-}" ] && return 0
     data=$(run_self_inside "$name" os_info) ||
-        { errorrc "Failed to get os-info in container $name"; return; }
+        {
+            errorrc "Failed to get os-info in container $name"
+            return
+        }
     eval "$data" && [ -n "${OS_VERSION:-}" -a -n "${OS_NAME:-}" ] || return
     debug 1 "determined $name is $OS_NAME/$OS_VERSION"
 }
@@ -204,33 +219,42 @@ get_os_info() {
             local pname=""
             pname=$(sh -c '. /etc/os-release; echo $PRETTY_NAME')
             case "$pname" in
-                *buster*) OS_VERSION=10;;
-                *sid*) OS_VERSION="sid";;
+                *buster*) OS_VERSION=10 ;;
+                *sid*) OS_VERSION="sid" ;;
             esac
         fi
     elif [ -f /etc/centos-release ]; then
         local line=""
         read line < /etc/centos-release
         case "$line" in
-            CentOS\ *\ 6.*) OS_VERSION="6"; OS_NAME="centos";;
+            CentOS\ *\ 6.*)
+                OS_VERSION="6"
+                OS_NAME="centos"
+                ;;
         esac
     fi
     [ -n "${OS_NAME:-}" -a -n "${OS_VERSION:-}" ] ||
-        { error "Unable to determine OS_NAME/OS_VERSION"; return 1; }
+        {
+            error "Unable to determine OS_NAME/OS_VERSION"
+            return 1
+        }
 }
 
 yum_install() {
     local n=0 max=10 ret
     bcmd="yum install --downloadonly --assumeyes --setopt=keepcache=1"
-    while n=$((n+1)); do
-       error ":: running $bcmd $* [$n/$max]"
-       $bcmd "$@"
-       ret=$?
-       [ $ret -eq 0 ] && break
-       [ $n -ge $max ] && { error "gave up on $bcmd"; exit $ret; }
-       nap=$((n*5))
-       error ":: failed [$ret] ($n/$max). sleeping $nap."
-       sleep $nap
+    while n=$((n + 1)); do
+        error ":: running $bcmd $* [$n/$max]"
+        $bcmd "$@"
+        ret=$?
+        [ $ret -eq 0 ] && break
+        [ $n -ge $max ] && {
+            error "gave up on $bcmd"
+            exit $ret
+        }
+        nap=$((n * 5))
+        error ":: failed [$ret] ($n/$max). sleeping $nap."
+        sleep $nap
     done
     error ":: running yum install --cacheonly --assumeyes $*"
     yum install --cacheonly --assumeyes "$@"
@@ -251,11 +275,13 @@ apt_install() {
 install_packages() {
     get_os_info || return
     case "$OS_NAME" in
-        centos|rocky*|fedora) yum_install "$@";;
-        opensuse*) zypper_install "$@";;
-        debian|ubuntu) apt_install "$@" -y;;
-        *) error "Do not know how to install packages on ${OS_NAME}";
-           return 1;;
+        centos | rocky* | fedora) yum_install "$@" ;;
+        opensuse*) zypper_install "$@" ;;
+        debian | ubuntu) apt_install "$@" -y ;;
+        *)
+            error "Do not know how to install packages on ${OS_NAME}"
+            return 1
+            ;;
     esac
 }
 
@@ -270,7 +296,8 @@ prep() {
     local py3pkg="python3"
     case "$OS_NAME" in
         opensuse)
-            py3pkg="python3-base";;
+            py3pkg="python3-base"
+            ;;
     esac
 
     pairs="$pairs python3:$py3pkg"
@@ -278,7 +305,7 @@ prep() {
     for pair in $pairs; do
         pkg=${pair#*:}
         cmd=${pair%%:*}
-        command -v "$cmd" >/dev/null 2>&1 || needed="${needed} $pkg"
+        command -v "$cmd" > /dev/null 2>&1 || needed="${needed} $pkg"
     done
     needed=${needed# }
     if [ -z "$needed" ]; then
@@ -302,15 +329,16 @@ is_done_cloudinit() {
 
 is_done_systemd() {
     local s="" num="$1"
-    s=$(systemctl is-system-running 2>&1);
+    s=$(systemctl is-system-running 2>&1)
     _RET="$? $s"
     case "$s" in
-        initializing|starting) return 1;;
+        initializing | starting) return 1 ;;
         *[Ff]ailed*connect*bus*)
             # warn if not the first run.
             [ "$num" -lt 5 ] ||
-                error "Failed to connect to systemd bus [${_RET%% *}]";
-            return 1;;
+                error "Failed to connect to systemd bus [${_RET%% *}]"
+            return 1
+            ;;
     esac
     return 0
 }
@@ -323,20 +351,20 @@ is_done_other() {
 
 wait_inside() {
     local name="$1" max="${2:-${WAIT_MAX}}" debug=${3:-0}
-    local i=0 check="is_done_other";
+    local i=0 check="is_done_other"
     if [ -e /run/systemd ]; then
         check=is_done_systemd
     elif [ -x /usr/bin/cloud-init ]; then
         check=is_done_cloudinit
     fi
     [ "$debug" != "0" ] && debug 1 "check=$check"
-    while ! $check $i && i=$((i+1)); do
+    while ! $check $i && i=$((i + 1)); do
         [ "$i" -ge "$max" ] && exit 1
         [ "$debug" = "0" ] || echo -n .
         sleep 1
     done
     if [ "$debug" != "0" ]; then
-        read up _ </proc/uptime
+        read up _ < /proc/uptime
         debug 1 "[$name ${i:+done after $i }up=$up${_RET:+ ${_RET}}]"
     fi
 }
@@ -347,15 +375,21 @@ wait_for_boot() {
     local system_up=false
     for i in {0..30}; do
         [ "$i" -gt 1 ] && sleep 5
-        inside "$name" true 2>/dev/null && system_up=true && break
+        inside "$name" true 2> /dev/null && system_up=true && break
     done
-    [ $system_up == true ] || { errorrc "exec command inside $name failed."; return; }
+    [ $system_up == true ] || {
+        errorrc "exec command inside $name failed."
+        return
+    }
     get_os_info_in "$name"
     [ "$OS_NAME" = "debian" ] && wtime=300 &&
         debug 1 "on debian we wait for ${wtime}s"
     debug 1 "waiting for boot of $name"
     run_self_inside "$name" wait_inside "$name" "$wtime" "$VERBOSITY" ||
-        { errorrc "wait inside $name failed."; return; }
+        {
+            errorrc "wait inside $name failed."
+            return
+        }
 
     if [ -n "${http_proxy-}" ]; then
         if [ "$OS_NAME" = "centos" -o "$OS_NAME" = "fedora" ]; then
@@ -364,21 +398,21 @@ wait_for_boot() {
             inside "$name" sh -c "sed -i --regexp-extended '/^#baseurl=/s/#// ; /^(mirrorlist|metalink)=/s/^/#/' /etc/yum.repos.d/*.repo"
             inside "$name" sh -c "sed -i 's/download\.fedoraproject\.org/dl.fedoraproject.org/g' /etc/yum.repos.d/*.repo"
             inside "$name" sh -c "sed -i 's/download\.example/dl.fedoraproject.org/g' /etc/yum.repos.d/*.repo"
-	    if [ "$OS_NAME" = "centos" ]; then
-	        CENTOS_REPO="/etc/yum.repos.d/centos.repo"
-		inside "$name" sh -c "grep -q baseurl $CENTOS_REPO"
-		if [ $? -eq 1 ]; then
-		    # CentOS 9 does not provide baseurl definitions
-		    inside "$name" sh -c "sed -i '/\[baseos\]/a baseurl=https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os' ${CENTOS_REPO}"
-		    inside "$name" sh -c "sed -i '/\[appstream\]/a baseurl=https://mirror.stream.centos.org/9-stream/AppStream/x86_64/os' ${CENTOS_REPO}"
-		    inside "$name" sh -c "sed -i '/\[crb\]/a baseurl=https://mirror.stream.centos.org/9-stream/CRB/x86_64/os' ${CENTOS_REPO}"
+            if [ "$OS_NAME" = "centos" ]; then
+                CENTOS_REPO="/etc/yum.repos.d/centos.repo"
+                inside "$name" sh -c "grep -q baseurl $CENTOS_REPO"
+                if [ $? -eq 1 ]; then
+                    # CentOS 9 does not provide baseurl definitions
+                    inside "$name" sh -c "sed -i '/\[baseos\]/a baseurl=https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os' ${CENTOS_REPO}"
+                    inside "$name" sh -c "sed -i '/\[appstream\]/a baseurl=https://mirror.stream.centos.org/9-stream/AppStream/x86_64/os' ${CENTOS_REPO}"
+                    inside "$name" sh -c "sed -i '/\[crb\]/a baseurl=https://mirror.stream.centos.org/9-stream/CRB/x86_64/os' ${CENTOS_REPO}"
                     CENTOS_EXTRAS_REPO="/etc/yum.repos.d/centos-addons.repo"
-		    inside "$name" sh -c "sed -i '/\[extras-common\]/a baseurl=https://mirror.stream.centos.org/SIGs/9-stream/extras/x86_64/extras-common' ${CENTOS_EXTRAS_REPO}"
-		    inside "$name" sh -c "dnf install -y 'dnf-command(config-manager)'"
-	            inside "$name" sh -c "dnf config-manager --set-enabled crb"
-	            inside "$name" sh -c "dnf config-manager --set-disabled epel-cisco-openh264" || true
+                    inside "$name" sh -c "sed -i '/\[extras-common\]/a baseurl=https://mirror.stream.centos.org/SIGs/9-stream/extras/x86_64/extras-common' ${CENTOS_EXTRAS_REPO}"
+                    inside "$name" sh -c "dnf install -y 'dnf-command(config-manager)'"
+                    inside "$name" sh -c "dnf config-manager --set-enabled crb"
+                    inside "$name" sh -c "dnf config-manager --set-disabled epel-cisco-openh264" || true
                 fi
-	    fi
+            fi
         else
             debug 1 "do not know how to configure proxy on $OS_NAME"
         fi
@@ -391,7 +425,7 @@ start_instance() {
     launch_flags=()
     [ "$use_vm" == true ] && launch_flags+=(--vm)
     $LXC launch "$src" "$name" "${launch_flags[@]}" || {
-        errorrc "Failed to start container '$name' from '$src'";
+        errorrc "Failed to start container '$name' from '$src'"
         return
     }
     CONTAINER=$name
@@ -407,13 +441,13 @@ run_self_inside() {
     # run_self_inside(container, args)
     local name="$1"
     shift
-    inside "$name" bash -s "$@" <"$0"
+    inside "$name" bash -s "$@" < "$0"
 }
 
 run_self_inside_as_cd() {
     local name="$1" user="$2" dir="$3"
     shift 3
-    inside_as_cd "$name" "$user" "$dir" bash -s "$@" <"$0"
+    inside_as_cd "$name" "$user" "$dir" bash -s "$@" < "$0"
 }
 
 main() {
@@ -423,7 +457,10 @@ main() {
     getopt_out=$(getopt --name "${0##*/}" \
         --options "${short_opts}" --long "${long_opts}" -- "$@") &&
         eval set -- "${getopt_out}" ||
-        { bad_Usage; return; }
+        {
+            bad_Usage
+            return
+        }
 
     local cur="" next=""
     local package=false srcpackage=false unittest="" name=""
@@ -431,31 +468,50 @@ main() {
     local use_vm=false
 
     while [ $# -ne 0 ]; do
-        cur="${1:-}"; next="${2:-}";
+        cur="${1:-}"
+        next="${2:-}"
         case "$cur" in
-            -a|--artifacts) artifact_d="$next";;
-               --dirty) dirty=true;;
-            -h|--help) Usage ; exit 0;;
-            -k|--keep) KEEP=true;;
-            -n|--name) name="$next"; shift;;
-            -p|--package) package=true;;
-            -s|--source-package) srcpackage=true;;
-            -u|--unittest) unittest=1;;
-            -v|--verbose) VERBOSITY=$((VERBOSITY+1));;
-               --vm) use_vm=true;;
-               --wait-max) WAIT_MAX="$next"; shift;;
-               --commitish) COMMITISH="$next"; shift;;
-            --) shift; break;;
+            -a | --artifacts) artifact_d="$next" ;;
+            --dirty) dirty=true ;;
+            -h | --help)
+                Usage
+                exit 0
+                ;;
+            -k | --keep) KEEP=true ;;
+            -n | --name)
+                name="$next"
+                shift
+                ;;
+            -p | --package) package=true ;;
+            -s | --source-package) srcpackage=true ;;
+            -u | --unittest) unittest=1 ;;
+            -v | --verbose) VERBOSITY=$((VERBOSITY + 1)) ;;
+            --vm) use_vm=true ;;
+            --wait-max)
+                WAIT_MAX="$next"
+                shift
+                ;;
+            --commitish)
+                COMMITISH="$next"
+                shift
+                ;;
+            --)
+                shift
+                break
+                ;;
         esac
-        shift;
+        shift
     done
     COMMITISH=${COMMITISH:-HEAD}
 
-    [ $# -eq 1 ] || { bad_Usage "Expected 1 arg, got $# ($*)"; return; }
+    [ $# -eq 1 ] || {
+        bad_Usage "Expected 1 arg, got $# ($*)"
+        return
+    }
     local img_ref_in="$1"
     case "${img_ref_in}" in
-        *:*) img_ref="${img_ref_in}";;
-        *) img_ref="images:${img_ref_in}";;
+        *:*) img_ref="${img_ref_in}" ;;
+        *) img_ref="images:${img_ref_in}" ;;
     esac
 
     # program starts here
@@ -476,18 +532,30 @@ main() {
     trap cleanup EXIT
 
     start_instance "$img_ref" "$name" "$use_vm" ||
-        { errorrc "Failed to start container for $img_ref"; return; }
+        {
+            errorrc "Failed to start container for $img_ref"
+            return
+        }
 
     get_os_info_in "$name" ||
-        { errorrc "failed to get os_info in $name"; return; }
+        {
+            errorrc "failed to get os_info in $name"
+            return
+        }
 
     # prep the container (install very basic dependencies)
     run_self_inside "$name" prep ||
-        { errorrc "Failed to prep container $name"; return; }
+        {
+            errorrc "Failed to prep container $name"
+            return
+        }
 
     # add the user
     inside "$name" useradd "$user" --create-home "--home-dir=$home" ||
-        { errorrc "Failed to add user '$user' in '$name'"; return 1; }
+        {
+            errorrc "Failed to add user '$user' in '$name'"
+            return 1
+        }
 
     debug 1 "inserting cloud-init"
     inject_cloud_init "$name" "$user" "$dirty" || {
@@ -501,36 +569,38 @@ main() {
         return
     }
 
-    local errors=( )
+    local errors=()
     inside_as_cd "$name" "$user" "$cdir" git status || {
         errorrc "git checkout failed."
-        errors[${#errors[@]}]="git checkout";
+        errors[${#errors[@]}]="git checkout"
     }
 
     if [ -n "$unittest" ]; then
         debug 1 "running unit tests."
         run_self_inside_as_cd "$name" "$user" "$cdir" pytest \
             tests/unittests cloudinit/ || {
-                errorrc "pytest failed.";
-                errors[${#errors[@]}]="pytest"
-            }
+            errorrc "pytest failed."
+            errors[${#errors[@]}]="pytest"
+        }
     fi
 
     local build_pkg="" build_srcpkg="" pkg_ext="" distflag=""
     case "$OS_NAME" in
-        centos|rocky*|fedora) distflag="--distro=redhat";;
-        opensuse*) distflag="--distro=suse";;
+        centos | rocky* | fedora) distflag="--distro=redhat" ;;
+        opensuse*) distflag="--distro=suse" ;;
     esac
 
     case "$OS_NAME" in
-        debian|ubuntu)
-            build_pkg="./packages/bddeb -d" 
+        debian | ubuntu)
+            build_pkg="./packages/bddeb -d"
             build_srcpkg="./packages/bddeb -S -d"
-            pkg_ext=".deb";;
-        centos|opensuse*|rocky*|fedora)
+            pkg_ext=".deb"
+            ;;
+        centos | opensuse* | rocky* | fedora)
             build_pkg="./packages/brpm $distflag"
             build_srcpkg="./packages/brpm $distflag --srpm"
-            pkg_ext=".rpm";;
+            pkg_ext=".rpm"
+            ;;
     esac
     if [ "$srcpackage" = "true" ]; then
         [ -n "$build_srcpkg" ] || {
@@ -540,7 +610,7 @@ main() {
         debug 1 "building source package with $build_srcpkg."
         # shellcheck disable=SC2086
         inside_as_cd "$name" "$user" "$cdir" python3 $build_srcpkg || {
-            errorrc "failed: $build_srcpkg";
+            errorrc "failed: $build_srcpkg"
             errors[${#errors[@]}]="source package"
         }
     fi
@@ -553,7 +623,7 @@ main() {
         debug 1 "building binary package with $build_pkg."
         # shellcheck disable=SC2086
         inside_as_cd "$name" "$user" "$cdir" python3 $build_pkg || {
-            errorrc "failed: $build_pkg";
+            errorrc "failed: $build_pkg"
             errors[${#errors[@]}]="binary package"
         }
     fi
@@ -588,6 +658,10 @@ main() {
 }
 
 case "${1:-}" in
-    prep|os_info|wait_inside|pytest) _n=$1; shift; "$_n" "$@";;
-    *) main "$@";;
+    prep | os_info | wait_inside | pytest)
+        _n=$1
+        shift
+        "$_n" "$@"
+        ;;
+    *) main "$@" ;;
 esac
