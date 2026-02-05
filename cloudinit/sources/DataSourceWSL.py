@@ -90,6 +90,7 @@ def find_home() -> PurePath:
     raises: IOError when no mountpoint with cmd.exe is found
                ProcessExecutionError when either cmd.exe is unable to retrieve
                the user's home directory
+               UnicodeDecodeError when cmd.exe /U outputs invalid UTF16LE
     """
     cmd = cmd_executable()
 
@@ -448,7 +449,7 @@ class DataSourceWSL(sources.DataSource):
 
         try:
             user_home = find_home()
-        except IOError as e:
+        except (IOError, ValueError) as e:
             LOG.debug("Unable to detect WSL datasource: %s", e)
             return False
 
