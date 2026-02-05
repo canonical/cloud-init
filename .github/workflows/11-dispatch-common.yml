@@ -17,6 +17,7 @@ on:
         options:
         - lxd_container
         - lxd_vm
+        - ec2
       image_type:
         type: choice
         options:
