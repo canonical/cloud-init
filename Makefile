@@ -103,13 +103,6 @@ deb-src:
 doc:
 	tox -e doc
 
-fmt:
-	tox -e do_format && tox -e check_format
-
-fmt-tip:
-	tox -e do_format_tip && tox -e check_format_tip
-
-
 .PHONY: all check test lint clean rpm srpm deb deb-src clean_pyc
 .PHONY: unittest style-check render-template benchmark-generator
 .PHONY: clean_pytest clean_packaging clean_release doc
