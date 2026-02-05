@@ -1,0 +1,90 @@
+name: "Daily: Unit & Lint"
+on:
+  schedule:
+    - cron: '3 14 * * *'
+concurrency:
+  group: 'ci-${{ github.workflow }}-${{ github.ref }}'
+  cancel-in-progress: false
+jobs:
+  hypothesis:
+    name: "Fuzz: jsonschema"
+    runs-on: ubuntu-latest
+    env:
+      FORCE_COLOR: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - name: Install dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get -qy update
+          sudo apt-get -qy install tox
+      - name: Run fuzztest
+        env:
+          PYTEST_ADDOPTS: -v
+          HYPOTHESIS_PROFILE: ci
+        run: tox -e hypothesis-slow
+  devel_tests:
+    name: "Tip: Python"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - name: Install Latest Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          # select latest version here:
+          # https://github.com/actions/python-versions/blob/main/versions-manifest.json
+          python-version: 3.15.0-alpha.3
+          check-latest: true
+      - name: Install tox
+        run: pip install tox
+      - name: Run unittest
+        run: tox -e py3 -- --color=yes
+  format_tip:
+    env:
+      FORCE_COLOR: 1
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [tip-ruff, tip-mypy, tip-pylint, tip-black, tip-isort, py3-fast]
+    name: "Tip: Lint"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - name: Install dependencies
+        run: |
+          sudo apt-get -qy update
+          sudo apt-get -qy install tox
+      - name: Run Linters tip
+        env:
+          TOXENV: ${{ matrix.env }}
+        run: tox
+  macos:
+    name: Python ${{matrix.python-version}} ${{ matrix.slug }}
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        python-version: ["3.13"]
+        toxenv: [py3]
+        slug: [""]
+        experimental: [false]
+        check-latest: [false]
+        continue-on-error: [false]
+    continue-on-error: ${{ matrix.experimental }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - name: Install Python ${{matrix.python-version}}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: ${{matrix.python-version}}
+          check-latest: ${{matrix.check-latest}}
+      - name: Install tox
+        run: pip install tox
+      - name: Run unittest
+        env: 
+          TMPDIR: '/tmp/'
+        run: tox -e ${{ matrix.toxenv }} -- --color=yes

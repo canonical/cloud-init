@@ -1,0 +1,13 @@
+name: "Daily: Integration Resolute lxd_container"
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '2 22 * * *'
+
+jobs:
+  resolute-lxd_container:
+    uses: ./.github/workflows/_integration_common.yml
+    with:
+      release: resolute
+      platform: lxd_container

@@ -1,6 +1,6 @@
 # This test runs after merging PRs into upstream to notify maintainers when
 # a new PR has caused a patch to not apply against the merged branch.
-name: "Packaging (main branch) - patches apply cleanly and unit tests pass (after merging)"
+name: "Packaging: Post-merge (main)"
 
 on:
   push:
@@ -18,11 +18,11 @@ defaults:
 jobs:
   patch-conflicts-ubuntu:
     runs-on: ubuntu-24.04
-    name: Check patches
+    name: Patches apply cleanly and unit tests pass
     steps:
 
       - name: Setup - checkout branches
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           # Fetch all history for merging
           fetch-depth: 0
@@ -61,7 +61,7 @@ jobs:
             # did patches apply cleanly?
             quilt push -a
             # run unit tests
-            tox -e py3
+            tox -e py3 -- --color=yes
             # a patch didn't un-apply cleanly if this step fails
             quilt pop -a
             # undo merge - this step is not expected to fail

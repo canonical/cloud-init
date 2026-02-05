@@ -84,6 +84,6 @@ Then, launch the `vSphere`_ VM the ISO ``user-data.iso`` attached as a CD-ROM.
 It is also possible to launch a `vSphere`_ VM and pass optional user
 data to it using the Delta Cloud.
 
-.. _RHEVm: https://www.redhat.com/virtualization/rhev/desktop/rhevm/
-.. _vSphere: https://www.vmware.com/products/datacenter-virtualization/vsphere/overview.html
+.. _RHEVm: https://www.redhat.com/en/technologies/virtualization
+.. _vSphere: https://www.vmware.com/products/vsphere.html
 .. _Delta Cloud: http://deltacloud.apache.org

@@ -26,13 +26,9 @@ def fake_utcnow():
         yield timestamp
 
 
-@pytest.fixture(autouse=True)
-def fake_vm_id(mocker):
-    vm_id = "foo"
-    mocker.patch(
-        "cloudinit.sources.azure.identity.query_vm_id", return_value=vm_id
-    )
-    yield vm_id
+@pytest.fixture
+def fake_vm_id():
+    yield "00000000-0000-0000-0000-000000000000"
 
 
 def quote_csv_value(value: str) -> str:
@@ -124,11 +120,18 @@ def test_reportable_errors(
 
 
 def test_dhcp_lease(mocker):
-    error = errors.ReportableErrorDhcpLease(duration=5.6, interface="foo")
+    error = errors.ReportableErrorDhcpLease(
+        duration=5.6,
+        interface="foo",
+        mac_address="00:11:22:33:44:55",
+        driver="mock_driver",
+    )
 
     assert error.reason == "failure to obtain DHCP lease"
     assert error.supporting_data["duration"] == 5.6
     assert error.supporting_data["interface"] == "foo"
+    assert error.supporting_data["mac_address"] == "00:11:22:33:44:55"
+    assert error.supporting_data["driver"] == "mock_driver"
 
 
 def test_dhcp_interface_not_found(mocker):

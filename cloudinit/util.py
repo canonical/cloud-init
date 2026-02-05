@@ -1295,6 +1295,12 @@ def is_resolvable(url) -> bool:
     global _DNS_REDIRECT_IP
     parsed_url = parse.urlparse(url)
     name = parsed_url.hostname
+
+    # Early return for IP addresses - no DNS resolution needed
+    with suppress(ValueError):
+        if net.is_ip_address(parsed_url.netloc.strip("[]")):
+            return True
+
     if _DNS_REDIRECT_IP is None:
         badips = set()
         badnames = (
@@ -1319,10 +1325,6 @@ def is_resolvable(url) -> bool:
             LOG.debug("detected dns redirection: %s", badresults)
 
     try:
-        # ip addresses need no resolution
-        with suppress(ValueError):
-            if net.is_ip_address(parsed_url.netloc.strip("[]")):
-                return True
         result = socket.getaddrinfo(name, None)
         # check first result's sockaddr field
         addr = result[0][4][0]
@@ -1992,7 +1994,8 @@ def mount_cb(
                 mtypes[index] = "msdos"
     else:
         # we cannot do a smart "auto", so just call 'mount' once with no -t
-        mtypes = [""]
+        if mtypes is None:
+            mtypes = [""]
 
     mounted = mounts()
     with temp_utils.tempdir() as tmpd:
