@@ -6,3 +6,4 @@ no-remove-networkd-online.patch
 strip-invalid-mtu.patch
 retain-setuptools.patch
 0001-Revert-fix-support-bond-names-in-network_data.patch
+0001-Revert-fix-DNS-resolution-performance-regression-dur.patch
