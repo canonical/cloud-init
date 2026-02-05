@@ -3,10 +3,6 @@ project(
   version: '25.3',
   meson_version: '>=0.61.2', # Ubuntu 22.04 (Jammy)
   license: 'GPL-3 OR Apache-2.0',
-  default_options: [
-    # The default can yield broken results.
-    'python.install_env=auto',
-  ],
 )
 system = host_machine.system()
 sysconfdir = get_option('sysconfdir')
