@@ -7,7 +7,7 @@ Last-Update: 2023-10-31
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/cloudinit/cmd/status.py
 +++ b/cloudinit/cmd/status.py
-@@ -178,6 +178,9 @@ def print_status(args, details: StatusDe
+@@ -179,6 +179,9 @@ def print_status(args, details: StatusDe
          "last_update": details.last_update,
          **details.v1,
      }

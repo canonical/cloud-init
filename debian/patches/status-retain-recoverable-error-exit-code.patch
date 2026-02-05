@@ -6,7 +6,7 @@ Last-Update: 2024-01-08
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/cloudinit/cmd/status.py
 +++ b/cloudinit/cmd/status.py
-@@ -254,7 +254,7 @@ def handle_status_args(name, args) -> in
+@@ -255,7 +255,7 @@ def handle_status_args(name, args) -> in
          return 1
      # Recoverable error
      elif details.condition_status == ConditionStatus.DEGRADED:
