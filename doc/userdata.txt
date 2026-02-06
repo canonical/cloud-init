@@ -62,6 +62,46 @@ finds.  However, certain types of user-data are handled specially.
    mechanism provided for running only once.  The boothook must take
    care of this itself.
 
+=== Sentive values ===
+Sharing secret in plain text in userdata is generally considered unsafe 
+(example in AWS documentation[1]). This is because user-data can usally 
+be read back, often with a simple "read" permission, allowing a user with 
+limited access to discover potentially sensitive secrets on existing 
+deploying VM.
+
+A common pattern is to leverage managed secret services from cloud 
+providers, along with an instance profile. However, this often implies 
+multiple elements, such as cloud specific logic to provision and manage 
+the secrets, as well as fetching them inside the VM instance. In may also 
+induce costs and create a potential attack vector as the VM will be able 
+to operate on the cloud provider API, and for example, perform denial of 
+service attach by consuming operqtional quota.
+
+When using the jinja templating, it is possible to pass encrypted 
+sensitive value with GPG and decrypt them at runtime, using the 
+`gpgdecrypt`. This requires to install to install the GPG key with 
+"encrypt" usage prior, for example during the baking processing of the 
+VM image.
+
+Note that this requires to have the GPG binary available in the PATH that 
+cloudinit will use, as a ``gpg`` command.
+
+"gpgdecrypt" function takes one required argument and one optional. The 
+first argument is the base64-encoded encrypted data to decrypt, and the 
+second argument is the default value, to return in case the decryption 
+process fail.
+
+ [1] https://docs.aws.amazon.com/codeguru/detector-library/cloudformation/exposed-ec2-user-data-secret-cloudformation/
+
+Here is a complete example:
+
+```
+## template: jinja
+runcmd:
+- mkdir -p /var/run/secrets/example.com
+- echo "{{ gpgdecrypt("bG9yZW0gaXBzdW0K") }}" > /var/run/secrets/example.com/mykey.pem
+```
+
 === Examples ===
 There are examples in the examples subdirectory.
 Additionally, the 'tools' directory contains 'write-mime-multipart',
