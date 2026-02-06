@@ -481,6 +481,7 @@ Below is an example of sensitive ``instance-data`` on an EC2 instance:
      "all": "| tee -a /var/log/cloud-init-output.log"
     },
     "preserve_hostname": false,
+    "security_log_file": "/var/log/cloud-init-security.log",
     "syslog_fix_perms": [
      "syslog:adm",
      "root:adm",

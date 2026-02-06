@@ -1777,9 +1777,10 @@ def get_config_logfiles(cfg: Dict[str, Any]):
     rotated_logs = []
     if not cfg or not isinstance(cfg, dict):
         return logs
-    default_log = cfg.get("def_log_file")
-    if default_log:
-        logs.append(default_log)
+
+    for log_cfg_key in ("def_log_file", "security_log_file"):
+        if cfg.get(log_cfg_key):
+            logs.append(cfg[log_cfg_key])
     for fmt in get_output_cfg(cfg, None):
         if not fmt:
             continue
@@ -2150,8 +2151,10 @@ def uptime():
     return uptime_str
 
 
-def append_file(path, content):
-    write_file(path, content, omode="ab", mode=None)
+def append_file(path, content, disable_logging: bool = False):
+    write_file(
+        path, content, omode="ab", mode=None, disable_logging=disable_logging
+    )
 
 
 def ensure_file(
@@ -2248,6 +2251,7 @@ def write_file(
     ensure_dir_exists: bool = True,
     user=None,
     group=None,
+    disable_logging: bool = False,
 ):
     """
     Writes a file with the given content and sets the file mode as specified.
@@ -2264,6 +2268,7 @@ def write_file(
                               the file.
     @param user: The user to set on the file.
     @param group: The group to set on the file.
+    @param disable_logging: Whether to avoid logging this operation.
     """
 
     if preserve_mode:
@@ -2284,14 +2289,15 @@ def write_file(
         mode_r = "%o" % mode
     except TypeError:
         mode_r = "%r" % mode
-    LOG.debug(
-        "Writing to %s - %s: [%s] %s %s",
-        filename,
-        omode,
-        mode_r,
-        len(content),
-        write_type,
-    )
+    if not disable_logging:
+        LOG.debug(
+            "Writing to %s - %s: [%s] %s %s",
+            filename,
+            omode,
+            mode_r,
+            len(content),
+            write_type,
+        )
     with SeLinuxGuard(path=filename):
         with open(filename, omode) as fh:
             fh.write(content)
