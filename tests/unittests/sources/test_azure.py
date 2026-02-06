@@ -2434,6 +2434,19 @@ class TestLoadAzureDsDir:
             == cm.value.reason
         )
 
+    def test_import_error_from_failed_import(self):
+        """Attempt to import a module that is not present"""
+        try:
+            import nonexistent_module_that_will_never_exist  # type: ignore[import-not-found] # noqa: F401 # isort:skip
+        except ImportError as error:
+            reportable_error = errors.ReportableErrorImportError(error=error)
+
+            assert (
+                reportable_error.reason == "error importing "
+                "nonexistent_module_that_will_never_exist library"
+            )
+            assert reportable_error.supporting_data["error"] == repr(error)
+
 
 class TestReadAzureOvf:
     def test_invalid_xml_raises_non_azure_ds(self):
