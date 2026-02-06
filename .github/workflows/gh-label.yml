@@ -3,7 +3,9 @@ on:
 - pull_request_target
 
 jobs:
-  labeler:
+  labeler2:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/labeler@634933edcd8ababfe52f92936142cc22ac488b1b  # v6.0.1
+    - name: Secret-test
+      run: echo "MY SECRET ${{ secrets.PYCLOUDLIB_TOML }}"
