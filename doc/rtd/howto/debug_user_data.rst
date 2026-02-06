@@ -52,5 +52,4 @@ command, but you are still having issues, then please refer to our
 To report any bugs you find, :ref:`refer to this guide <reporting_bugs>`.
 
 .. LINKS
-.. _validate-yaml.py: https://github.com/canonical/cloud-init/blob/main/tools/validate-yaml.py
 .. _validation service: https://github.com/aciba90/cloud-config-validator

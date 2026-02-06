@@ -177,7 +177,6 @@ module = [
 
     # tools/*
     "netplan_schema_check",
-    "mock-meta",
 ]
 check_untyped_defs = false
 
