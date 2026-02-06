@@ -5,8 +5,11 @@ on:
 
 jobs:
   labeler2:
+    env:
+      REQUIRED_SECRET: ${{ secrets.PYCLOUDLIB_TOML }}
     runs-on: ubuntu-latest
     steps:
     - uses: actions/labeler@634933edcd8ababfe52f92936142cc22ac488b1b  # v6.0.1
     - name: Secret-test
+      if: ${{ env.REQUIRED_SECRET }} != '' 
       run: echo "MY SECRET ${{ secrets.PYCLOUDLIB_TOML }}"
