@@ -90,6 +90,7 @@ def find_home() -> PurePath:
     raises: IOError when no mountpoint with cmd.exe is found
                ProcessExecutionError when either cmd.exe is unable to retrieve
                the user's home directory
+               UnicodeDecodeError when cmd.exe /U outputs invalid UTF16LE
     """
     cmd = cmd_executable()
 
@@ -97,8 +98,13 @@ def find_home() -> PurePath:
     # But we know that `/init` is the interpreter, so we can run it directly.
     # See /proc/sys/fs/binfmt_misc/WSLInterop[-late]
     # inside any WSL instance for more details.
-    home, _ = subp.subp(["/init", cmd.as_posix(), "/C", "echo %USERPROFILE%"])
-    home = home.rstrip()
+    # Invoking with "/U" makes it output UTF-16LE, which is more predictable
+    # than ANSI Code Pages for anything above the ASCII range.
+    home, _ = subp.subp(
+        ["/init", cmd.as_posix(), "/U", "/C", "echo.%USERPROFILE%"],
+        decode=False,
+    )
+    home = home.decode("utf-16-le").rstrip()
     if not home:
         raise subp.ProcessExecutionError(
             "No output from cmd.exe to show the user profile dir."
@@ -443,7 +449,7 @@ class DataSourceWSL(sources.DataSource):
 
         try:
             user_home = find_home()
-        except IOError as e:
+        except (IOError, ValueError) as e:
             LOG.debug("Unable to detect WSL datasource: %s", e)
             return False
 

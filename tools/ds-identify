@@ -1708,7 +1708,9 @@ WSL_path() {
 WSL_run_cmd() {
     local val="" exepath="$1"
     shift
-    _RET=$(/init "$exepath" /c "$@" 2>/dev/null)
+    # Using the '/u' flag to enforce Unicode (UTF-16 LE), thus we need to decode it afterwards.
+    # It's more reliable than the default ANSI Code Pages for anything above the ASCII range.
+    _RET=$(/init "$exepath" /u /c "$@" 2>/dev/null | iconv -f UTF-16LE -t UTF-8)
 }
 
 WSL_profile_dir() {
@@ -1719,10 +1721,10 @@ WSL_profile_dir() {
     for m in $@; do
         cmdexe="$m/Windows/System32/cmd.exe"
         if command -v "$cmdexe" > /dev/null 2>&1; then
-            # Here WSL's proprietary `/init` is used to start the Windows cmd.exe
+            # Here WSL's `/init` is used to start the Windows cmd.exe
             # to output the Windows user profile directory path, which is
             # held by the environment variable %USERPROFILE%.
-            WSL_run_cmd "$cmdexe" "echo %USERPROFILE%"
+            WSL_run_cmd "$cmdexe" "echo.%USERPROFILE%"
             profiledir="${_RET%%[[:cntrl:]]}"
             if [ -n "$profiledir" ]; then
                 # wslpath is a program supplied by WSL itself that translates Windows and Linux paths,
