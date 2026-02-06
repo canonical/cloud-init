@@ -137,6 +137,25 @@ class TestCheckPartitionLayout:
             "gpt", "/dev/xvdb1", [(100, Linux_GUID)]
         )
 
+    @mock.patch(
+        "cloudinit.config.cc_disk_setup.subp.subp",
+        return_value=(
+            "",
+            "/dev/sdb: does not contain a recognized partition table",
+        ),
+    )
+    def test_empty_disk_no_partition_table(self, m_subp):
+        """Test that empty disk (no partition table) returns empty list."""
+        result = cc_disk_setup.check_partition_gpt_layout_sfdisk(
+            "/dev/sdb", []
+        )
+        assert result == []
+        m_subp.assert_called_once_with(
+            ["sfdisk", "-l", "-J", "/dev/sdb"],
+            update_env={"LANG": "C"},
+            rcs=[0, 1],
+        )
+
 
 class TestUpdateFsSetupDevices:
     def test_regression_1634678(self):
