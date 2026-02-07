@@ -1,12 +1,13 @@
+:orphan:
+
 .. _examples_library:
 
-Cloud config examples library
-*****************************
+Cloud config examples index
+***************************
 
 .. note::
    This page is an index to all the cloud config YAML examples, organized by
-   operation or process. If you prefer to use a single-page summary containing
-   every cloud config yaml example, refer to the
+   operation or process. Alternatively see the
    :ref:`all examples page <yaml_examples>`.
 
 .. include:: yaml_examples/index_boot.rst

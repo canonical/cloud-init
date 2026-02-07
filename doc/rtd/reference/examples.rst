@@ -4,9 +4,8 @@ All cloud config examples
 *************************
 
 .. note::
-   This page is a summary containing all the cloud config YAML examples
-   together. If you would like to explore examples by operation or process
-   instead, refer to the :ref:`examples library <examples_library>`.
+
+   :ref:`The page <examples_library>` organizes examples by category.
 
 Including users and groups
 ==========================
