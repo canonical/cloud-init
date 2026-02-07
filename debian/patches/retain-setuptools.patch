@@ -403,7 +403,7 @@ Last-Update: 2025-08-25
 +)
 --- /dev/null
 +++ b/setup_utils.py
-@@ -0,0 +1,60 @@
+@@ -0,0 +1,58 @@
 +import os
 +import subprocess
 +import sys
@@ -448,15 +448,13 @@ Last-Update: 2025-08-25
 +
 +def version_to_pep440(version: str) -> str:
 +    # read-version can spit out something like 22.4-15-g7f97aee24
-+    # which is invalid under PEP 440. If we replace the first - with a +
-+    # that should give us a valid version.
-+    return version.replace("-", "+", 1)
++    # which is invalid under PEP 440. Redact it to only major.minor.patch
++    return version.strip("_").split("-")[0]
 +
 +
 +def get_version() -> str:
-+    cmd = [sys.executable, "tools/read-version"]
-+    ver = subprocess.check_output(cmd)  # B603
-+    version = ver.decode("utf-8").strip()
++    ver = os.environ.get("PACKAGED_VERSION", "MISSING_ENVVAR_DEB_VERSION")
++    version = ver.strip()
 +    return version_to_pep440(version)
 +
 +
@@ -477,162 +475,6 @@ Last-Update: 2025-08-25
  passlib
  
  # This one is currently used only by the CloudSigma and SmartOS datasources.
---- /dev/null
-+++ b/tools/read-version
-@@ -0,0 +1,153 @@
-+#!/usr/bin/env python3
-+
-+# This script has tests. Run pytest on the tools directory if you make changes
-+
-+import json
-+import os
-+import re
-+import subprocess
-+import sys
-+from shutil import which
-+
-+repo_base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-+sys.path.insert(0, repo_base_dir)
-+
-+from cloudinit import version as ci_version  # noqa: E402
-+
-+
-+def tiny_p(cmd):
-+    stderr = subprocess.PIPE
-+    return subprocess.check_output(
-+        cmd, stderr=stderr, stdin=None, universal_newlines=True
-+    )
-+
-+
-+def is_gitdir(path):
-+    # Return boolean indicating if path is a git tree.
-+    git_meta = os.path.join(path, ".git")
-+    if os.path.isdir(git_meta):
-+        return True
-+    if os.path.exists(git_meta):
-+        # in a git worktree, .git is a file with 'gitdir: x'
-+        with open(git_meta, "rb") as fp:
-+            if b"gitdir:" in fp.read():
-+                return True
-+    return False
-+
-+
-+def get_version_details(version, version_long, is_release_branch_ci):
-+    release = None
-+    extra = None
-+    commit = None
-+    distance = None
-+
-+    # Should match upstream version number. E.g., 23.1 or 23.1.2
-+    short_regex = r"(\d+\.\d+\.?\d*)"
-+    # Should match version including upstream version, distance, and commit
-+    # E.g., 23.1.2-10-g12ab34cd
-+    long_regex = r"(\d+\.\d+\.?\d*){1}.*-(\d+)+-g([a-f0-9]{8}){1}.*"
-+
-+    short_match = re.search(short_regex, version)
-+    long_match = re.search(long_regex, version_long)
-+    if long_match:
-+        release, distance, commit = long_match.groups()
-+        extra = f"-{distance}-g{commit}"
-+    elif short_match:
-+        release = short_match.groups()[0]
-+
-+    return {
-+        "release": release,
-+        "version": version,
-+        "version_long": version_long,
-+        "extra": extra,
-+        "commit": commit,
-+        "distance": distance,
-+        "is_release_branch_ci": is_release_branch_ci,
-+    }
-+
-+
-+def get_version_from_git(
-+    src_version, major_minor_version, use_tags, is_release_branch_ci
-+):
-+    if is_gitdir(repo_base_dir) and which("git") and not is_release_branch_ci:
-+        branch_name = tiny_p(
-+            ["git", "rev-parse", "--abbrev-ref", "HEAD"]
-+        ).strip()
-+        if branch_name.startswith(f"upstream/{major_minor_version}"):
-+            version = src_version
-+            version_long = ""
-+        else:
-+            flags = ["--tags"] if use_tags else []
-+            cmd = [
-+                "git",
-+                "describe",
-+                branch_name,
-+                "--abbrev=8",
-+            ] + flags
-+
-+            try:
-+                version = tiny_p(cmd).strip()
-+                version_long = tiny_p(cmd + ["--long"]).strip()
-+            except subprocess.CalledProcessError as e:
-+                if not any(
-+                    [
-+                        "No tags can describe" in e.stderr,
-+                        "cannot describe anything" in e.stderr,
-+                    ]
-+                ):
-+                    raise
-+                version = src_version
-+                version_long = ""
-+    else:
-+        version = src_version
-+        version_long = ""
-+    return version, version_long
-+
-+
-+def main(use_tags: bool = False, output_json: bool = False):
-+    src_version = ci_version.version_string()
-+    # upstream/MM.NN.x tracks our patch level releases so ignore trailing '.x'
-+    major_minor_version = ".".join(src_version.split(".")[:2])
-+
-+    # If we're performing CI for a new release branch (which our tooling
-+    # creates with an "upstream/" prefix), then we don't want to enforce
-+    # strict version matching because we know it will fail.
-+    github_ci_release_br = bool(
-+        os.environ.get("GITHUB_HEAD_REF", "").startswith(
-+            f"upstream/{major_minor_version}"
-+        )
-+    )
-+    travis_ci_release_br = bool(
-+        os.environ.get("TRAVIS_PULL_REQUEST_BRANCH", "").startswith(
-+            "upstream/"
-+        )
-+    )
-+    is_release_branch_ci = github_ci_release_br or travis_ci_release_br
-+
-+    version, version_long = get_version_from_git(
-+        src_version=src_version,
-+        major_minor_version=major_minor_version,
-+        use_tags=use_tags,
-+        is_release_branch_ci=is_release_branch_ci,
-+    )
-+
-+    details = get_version_details(version, version_long, is_release_branch_ci)
-+
-+    if output_json:
-+        return json.dumps(details, indent=1)
-+
-+    output = ""
-+    if details["release"]:
-+        output += details["release"]
-+    if details["extra"]:
-+        output += details["extra"]
-+    if not output:
-+        output = src_version
-+    return output
-+
-+
-+if __name__ == "__main__":
-+    arg_use_tags = "--tags" in sys.argv or bool(os.environ.get("CI_RV_TAGS"))
-+    arg_output_json = "--json" in sys.argv
-+    output = main(arg_use_tags, arg_output_json)
-+    print(output)
 --- a/tox.ini
 +++ b/tox.ini
 @@ -33,6 +33,7 @@ deps =
