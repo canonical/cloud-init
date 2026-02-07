@@ -1,11 +1,13 @@
 # Copyright (C) 2012 Canonical Ltd.
 # Copyright (C) 2012, 2013 Hewlett-Packard Development Company, L.P.
 # Copyright (C) 2012 Yahoo! Inc.
+# Copyright (C) 2025 Raspberry Pi Ltd.
 #
 # Author: Scott Moser <scott.moser@canonical.com>
 # Author: Juerg Haefliger <juerg.haefliger@hp.com>
 # Author: Joshua Harlow <harlowja@yahoo-inc.com>
 # Author: Ben Howard <ben.howard@canonical.com>
+# Author: Paul Oberosler <paul.oberosler@raspberrypi.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
@@ -1368,6 +1370,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 "reload": ["reload-or-restart", service],
                 "try-reload": ["try-reload-or-restart", service],
                 "status": ["status", service],
+                "mask": ["mask", service],
+                "unmask": ["unmask", service],
             }
         else:
             cmds = {
@@ -1379,6 +1383,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 "reload": [service, "restart"],
                 "try-reload": [service, "restart"],
                 "status": [service, "status"],
+                "mask": [service, "stop"],
+                "unmask": [service, "stop"],
             }
         cmd = init_cmd + cmds[action] + list(extra_args)
         return subp.subp(cmd, capture=True, rcs=rcs)
