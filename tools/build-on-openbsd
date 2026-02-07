@@ -1,9 +1,12 @@
 #!/bin/sh
 
-fail() { echo "FAILED:" "$@" 1>&2; exit 1; }
+fail() {
+    echo "FAILED:" "$@" 1>&2
+    exit 1
+}
 
 PYTHON=${PYTHON:-python3}
-if ! command -v ${PYTHON} >/dev/null 2>&1; then
+if ! command -v ${PYTHON} > /dev/null 2>&1; then
     echo "Please install python first."
     exit 1
 fi
@@ -27,10 +30,10 @@ pkgs="
    wget
 "
 
-[ -f $depschecked ] || echo "Installing the following packages: $pkgs"; output=$(pkg_add -zI $pkgs 2>&1)
+[ -f $depschecked ] || echo "Installing the following packages: $pkgs"
+output=$(pkg_add -zI $pkgs 2>&1)
 
-
-if  echo "$output" | grep -q -e "Can't find" -e "Ambiguous"; then
+if echo "$output" | grep -q -e "Can't find" -e "Ambiguous"; then
     echo "Failed to find or install one or more packages"
     echo "Failed Package(s):"
     echo "$output"

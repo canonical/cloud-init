@@ -13,11 +13,11 @@ defaults:
     shell: sh -ex {0}
 
 jobs:
-  check_format:
+  check_linters:
     strategy:
       fail-fast: false
       matrix:
-        env: [ruff, mypy, pylint, black, isort]
+        env: [check_format]
     name: Check ${{ matrix.env }}
     runs-on: ubuntu-latest
     env:
@@ -30,6 +30,7 @@ jobs:
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get -qy update
           sudo DEBIAN_FRONTEND=noninteractive apt-get -qy install tox
+          sudo snap install shfmt
 
       - name: Print version
         run: python3 --version
@@ -39,20 +40,12 @@ jobs:
           # matrix env: not to be confused w/environment variables or testenv
           TOXENV: ${{ matrix.env }}
         run: tox
-  schema-format:
-    strategy:
-      fail-fast: false
-    name: Check json format
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
-      - name: Test format
+      - name: Formatting check failed
+        if: failure()
         run: |
-          tools/check_json_format.sh cloudinit/config/schemas/schema-cloud-config-v1.json
-          tools/check_json_format.sh cloudinit/config/schemas/schema-network-config-v1.json
-          tools/check_json_format.sh cloudinit/config/schemas/versions.schema.cloud-config.json
+          echo "[31mResolve formatting errors with `tox -e do_format` (requires shfmt to format shell).\e[0m"
+          echo "[31mFor mypy and pylint failures see the warnings above.\e[0m"
 
   doc:
     strategy:
