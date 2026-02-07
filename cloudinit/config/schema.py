@@ -1309,22 +1309,28 @@ def get_config_paths_from_args(
                     return raw_path
         return primary_datapath
 
-    try:
-        paths = read_cfg_paths(fetch_existing_datasource="trust")
-    except (IOError, OSError) as e:
-        if e.errno == EACCES:
-            LOG.debug(
-                "Using default instance-data/user-data paths for non-root user"
-            )
-            paths = read_cfg_paths()
-        else:
-            raise
-    except DataSourceNotFoundException:
+    # When --config-file is provided, we don't need the datasource
+    # because we're validating a user-provided file, not system instance data
+    if args.config_file:
         paths = read_cfg_paths()
-        LOG.warning(
-            "datasource not detected, using default"
-            " instance-data/user-data paths."
-        )
+    else:
+        try:
+            paths = read_cfg_paths(fetch_existing_datasource="trust")
+        except (IOError, OSError) as e:
+            if e.errno == EACCES:
+                LOG.debug(
+                    "Using default instance-data/user-data paths for "
+                    "non-root user"
+                )
+                paths = read_cfg_paths()
+            else:
+                raise
+        except DataSourceNotFoundException:
+            paths = read_cfg_paths()
+            LOG.warning(
+                "datasource not detected, using default"
+                " instance-data/user-data paths."
+            )
     if args.instance_data:
         instance_data_path = args.instance_data
     elif os.getuid() != 0:

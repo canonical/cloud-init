@@ -2020,33 +2020,21 @@ class TestHandleSchemaArgs:
         "Args", "config_file schema_type docs system annotate instance_data"
     )
 
-    @pytest.mark.parametrize(
-        "failure, expected_logs",
-        (
-            (
-                IOError("No permissions on /var/lib/cloud/instance"),
-                ["Using default instance-data/user-data paths for non-root"],
-            ),
-            (
-                DataSourceNotFoundException("No cached datasource found yet"),
-                ["datasource not detected"],
-            ),
-        ),
-    )
     @mock.patch(M_PATH + "read_cfg_paths")
-    def test_handle_schema_unable_to_read_cfg_paths(
+    def test_handle_schema_args_config_file_skips_datasource_load(
         self,
         read_cfg_paths,
-        failure,
-        expected_logs,
         paths,
         capsys,
         caplog,
         tmpdir,
     ):
-        if isinstance(failure, IOError):
-            failure.errno = EACCES
-        read_cfg_paths.side_effect = [failure, paths]
+        """When --config-file is provided, datasource loading is skipped.
+
+        This ensures non-root users don't see pickle permission warnings
+        when validating a user-provided config file.
+        """
+        read_cfg_paths.return_value = paths
         user_data_fn = tmpdir.join("user-data")
         with open(user_data_fn, "w") as f:
             f.write(
@@ -2067,6 +2055,62 @@ class TestHandleSchemaArgs:
         )
         handle_schema_args("unused", args)
         assert "Valid schema" in capsys.readouterr().out
+        # When config_file is provided, read_cfg_paths should be called
+        # once without fetch_existing_datasource
+        read_cfg_paths.assert_called_once_with()
+        # Ensure no warnings about pickle loading or datasource detection
+        assert "pickle" not in caplog.text.lower()
+        assert "datasource not detected" not in caplog.text
+
+    @pytest.mark.parametrize(
+        "failure, expected_logs",
+        (
+            (
+                IOError("No permissions on /var/lib/cloud/instance"),
+                ["Using default instance-data/user-data paths for non-root"],
+            ),
+            (
+                DataSourceNotFoundException("No cached datasource found yet"),
+                ["datasource not detected"],
+            ),
+        ),
+    )
+    @mock.patch(M_PATH + "os.getuid", return_value=0)
+    @mock.patch(M_PATH + "read_cfg_paths")
+    def test_handle_schema_system_falls_back_on_datasource_failure(
+        self,
+        read_cfg_paths,
+        m_getuid,
+        failure,
+        expected_logs,
+        paths,
+        capsys,
+        caplog,
+    ):
+        """When --system is used and datasource fails, fallback works."""
+        if isinstance(failure, IOError):
+            failure.errno = EACCES
+        paths.get_ipath = paths.get_ipath_cur
+        read_cfg_paths.side_effect = [failure, paths]
+        # Create the cloud_config file that --system reads
+        cloud_config_file = paths.get_ipath_cur("cloud_config")
+        write_file(cloud_config_file, b"#cloud-config\npackages: [sl]\n")
+        args = self.Args(
+            config_file=None,
+            schema_type=None,
+            annotate=False,
+            docs=None,
+            system=True,
+            instance_data=None,
+        )
+        handle_schema_args("unused", args)
+        # First call should be with fetch_existing_datasource="trust"
+        # Second call (fallback) should be without it
+        assert read_cfg_paths.call_count == 2
+        assert read_cfg_paths.call_args_list[0] == mock.call(
+            fetch_existing_datasource="trust"
+        )
+        assert read_cfg_paths.call_args_list[1] == mock.call()
         for expected_log in expected_logs:
             assert expected_log in caplog.text
 
@@ -2279,9 +2323,9 @@ apt_reboot_if_required: Deprecated in version 22.2. Use\
             expected_err.format(cfg_file=user_data_fn, id_path=id_path) == err
         )
         assert "deprec" not in caplog.text
-        assert read_cfg_paths.call_args_list == [
-            mock.call(fetch_existing_datasource="trust")
-        ]
+        # When config_file is provided, read_cfg_paths is called without
+        # fetch_existing_datasource to avoid unnecessary datasource loading
+        assert read_cfg_paths.call_args_list == [mock.call()]
 
     @pytest.mark.parametrize(
         "uid, annotate, expected_out, expected_err, expectation",
@@ -2359,9 +2403,9 @@ apt_reboot_if_required: Deprecated in version 22.2. Use\
             expected_err.format(cfg_file=user_data_fn, id_path=id_path) == err
         )
         assert "deprec" not in caplog.text
-        assert read_cfg_paths.call_args_list == [
-            mock.call(fetch_existing_datasource="trust")
-        ]
+        # When config_file is provided, read_cfg_paths is called without
+        # fetch_existing_datasource to avoid unnecessary datasource loading
+        assert read_cfg_paths.call_args_list == [mock.call()]
 
 
 class TestDeprecation:
