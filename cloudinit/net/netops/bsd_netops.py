@@ -10,7 +10,7 @@ class BsdNetOps(netops.NetOps):
         return subp.subp(["ifconfig", interface, "up"])
 
     @staticmethod
-    def link_down(interface: str) -> subp.SubpResult:
+    def link_down(interface: str, family=None) -> subp.SubpResult:
         return subp.subp(["ifconfig", interface, "down"])
 
     @staticmethod
