@@ -1,3 +1,5 @@
+:orphan:
+
 .. _return_codes:
 
 Why did `cloud-init status` start returning exit code 2?

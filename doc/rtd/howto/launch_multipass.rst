@@ -8,9 +8,8 @@ Windows, and macOS.
 
 When launching a Multipass VM, user-data can be passed by adding the
 ``--cloud-init`` flag and an appropriate YAML file containing the user-data.
-For more information about the file and how to construct it, see
-:ref:`our explanatory guide <about-cloud-config>` about the *user-data
-cloud-config* format.
+For more information about cloud-config, see
+:ref:`the explanatory guide <user_data_formats-cloud_config>`.
 
 Create your configuration
 -------------------------
