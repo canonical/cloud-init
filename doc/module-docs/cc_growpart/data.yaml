@@ -9,6 +9,24 @@ cc_growpart:
     on a disk with classic partitioning scheme (MBR, BSD, GPT). LVM, Btrfs and
     ZFS have no such restrictions.
 
+    For LVM devices, the module will resize physical volumes (PVs) after the
+    underlying partition is grown. When using the ``growpart`` utility (the
+    default), ``pvresize`` is automatically handled by ``growpart`` itself for
+    the specific partition's PV. However, if a Volume Group spans multiple
+    Physical Volumes, ``growpart`` only resizes the PV corresponding to the
+    resized partition. In this case, cloud-init will detect the multi-PV
+    configuration and resize all PVs in the Volume Group to ensure complete
+    coverage. For single-PV Volume Groups, cloud-init skips ``pvresize`` to
+    avoid duplication. For other resizers (e.g., ``gpart``), cloud-init will
+    always perform ``pvresize`` on all PVs in the Volume Group.
+
+    By default, the module will also extend the logical volume (LV) to consume
+    all free space in the volume group. This behavior can be controlled with
+    the ``resize_lv`` option. When multiple logical volumes exist in the same
+    volume group (e.g., separate LVs for ``/home``, ``/var/log``, etc.),
+    setting ``resize_lv: false`` will preserve free space in the volume group
+    for other LVs.
+
     The devices on which to run growpart are specified as a list under the
     ``devices`` key.
 
@@ -45,6 +63,7 @@ cc_growpart:
          mode: auto
          devices: [\"/\"]
          ignore_growroot_disabled: false
+         resize_lv: true
   examples:
   - comment: |
       Example 1:
