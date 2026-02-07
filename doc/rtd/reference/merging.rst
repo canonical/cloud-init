@@ -1,9 +1,9 @@
 .. _merging_user_data:
 
-Merging user-data sections
-**************************
+Merging cloud-config
+********************
 
-The ability to merge user-data sections allows a way to specify how
+The ability to merge cloud-config allows a way to specify how
 cloud-config YAML "dictionaries" provided as user-data are handled when there
 are multiple YAML files to be merged together (e.g., when performing an
 #include).
