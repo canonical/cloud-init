@@ -24,6 +24,6 @@ FEATURES = [
 
 def version_string():
     """Extract a version string from cloud-init."""
-    if _DOWNSTREAM_VERSION != "@DOWNSTREAM_VERSION@":
+    if "DOWNSTREAM_VERSION" not in _DOWNSTREAM_VERSION:
         return _DOWNSTREAM_VERSION
     return __VERSION__

@@ -9,8 +9,8 @@ unexpected cloud-init failures.
 
 .. _data_files:
 
-Data files
-==========
+/var/
+=====
 
 Inside the :file:`/var/lib/cloud/` directory there are two important
 subdirectories:
@@ -44,3 +44,18 @@ previous boot:
 * :file:`status.json`:
   JSON file showing the datasource used, a breakdown of all four stages,
   whether any errors occurred, and the start and stop times of the stages.
+
+
+/run/
+=====
+
+Cloud-init uses :file:`/run/cloud-init/` for the following files:
+
+* :file:`/run/cloud-init/instance-data.json`: world-readable JSON containing
+  standardized keys, sensitive keys redacted.
+* :file:`/run/cloud-init/instance-data-sensitive.json`: root-readable
+  unredacted JSON blob.
+* :file:`/run/cloud-init/combined-cloud-config.json`: root-readable
+  unredacted JSON blob. Any meta-data, vendor-data and user-data overrides
+  are applied to the :file:`/run/cloud-init/combined-cloud-config.json` config
+  values.
