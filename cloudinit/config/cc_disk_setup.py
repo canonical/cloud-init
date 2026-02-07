@@ -804,8 +804,14 @@ def check_partition_gpt_layout_sgdisk(device, layout):
 def check_partition_gpt_layout_sfdisk(device, layout):
     # Use sfdisk's JSON output for reliability
     prt_cmd = ["sfdisk", "-l", "-J", device]
+    _err = None
     try:
-        out, _err = subp.subp(prt_cmd, update_env=LANG_C_ENV)
+        out, _err = subp.subp(prt_cmd, update_env=LANG_C_ENV, rcs=[0, 1])
+        # Check if the error indicates no partition table exists
+        if _err and "does not contain a recognized partition table" in _err:
+            # Device has no partition table yet, return empty list
+            return []
+        # Try to parse JSON output
         ptable = json.loads(out)["partitiontable"]
         if "partitions" in ptable:
             partitions = ptable["partitions"]
