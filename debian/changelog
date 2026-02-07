@@ -10,8 +10,9 @@ cloud-init (25.3-0ubuntu1~24.04.2) UNRELEASED; urgency=medium
   * d/p/0001-Revert-fix-support-bond-names-in-network_data.patch revert bond name change
   * d/rules: replace DOWNSTREAM_VERSION with packaged DEB_VERSION value
   * Upstream snapshot based on upstream/main at 72809f80.
+  * Upstream snapshot based on upstream/main at 090026a3.
 
- -- Brett Holman <brett.holman@canonical.com>  Thu, 05 Feb 2026 16:23:52 +0000
+ -- Chad Smith <chad.smith@canonical.com>  Sat, 07 Feb 2026 15:43:23 -0700
 
 cloud-init (25.3-0ubuntu1~24.04.1) noble; urgency=medium
 
