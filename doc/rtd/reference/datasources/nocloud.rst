@@ -43,7 +43,7 @@ may be overridden by user-data. This may be useful, for example, to configure
 an instance with a cloud provider's repository mirror for faster package
 installation.
 
-network config
+network-config
 --------------
 
 Network configuration typically comes from the cloud provider to set
