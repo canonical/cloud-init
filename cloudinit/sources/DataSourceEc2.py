@@ -161,53 +161,79 @@ class DataSourceEc2(sources.DataSource):
                 return False
             candidate_nics = net.find_candidate_nics()
             LOG.debug("Looking for the primary NIC in: %s", candidate_nics)
-            # Try to find a NIC that can reach the metadata service
-            # Inline retry loop (wait up to 60s for NICs to appear)
-            timeout = 60
+            # Retry metadata discovery until either:
+            #  - metadata is successfully retrieved, or
+            #  - a bounded timeout is reached.
+            timeout = 5
             sleep_interval = 1
             start = time.monotonic()  # record start time
-            while not candidate_nics and (time.monotonic() - start) < timeout:
-                LOG.debug("No NICs yet, waiting for udev/network...")
-                time.sleep(sleep_interval)
+            while (time.monotonic() - start) < timeout:
                 candidate_nics = net.find_candidate_nics()
-            if not candidate_nics:
-                LOG.error("The instance must have at least one eligible NIC")
+
+                if not candidate_nics:
+                    LOG.debug("No NICs yet, waiting for udev/network...")
+                    time.sleep(sleep_interval)
+                    continue
+
+                elapsed_ms = int((time.monotonic() - start) * 1000)
+                LOG.debug(
+                    "Eligible NICs found after %d ms: %s",
+                    elapsed_ms,
+                    candidate_nics,
+                )
+                # NICs are present, but may not yet be routable.
+                # Attempt metadata discovery to determine actual
+                # usability rather than assuming presence implies
+                # readiness.
+                for candidate_nic in sorted(
+                    candidate_nics, key=_prefer_elastic_drivers
+                ):
+                    try:
+                        with EphemeralIPNetwork(
+                            self.distro,
+                            candidate_nic,
+                            ipv4=True,
+                            ipv6=True,
+                        ) as netw:
+                            self._crawled_metadata = self.crawl_metadata()
+                            if self._crawled_metadata:
+                                self.distro.fallback_interface = candidate_nic
+                                LOG.debug(
+                                    "Set fallback NIC: %s.", candidate_nic
+                                )
+                                LOG.debug(
+                                    "Crawled metadata service%s",
+                                    (
+                                        f" {netw.state_msg}"
+                                        if netw.state_msg
+                                        else ""
+                                    ),
+                                )
+                                break
+                    except NoDHCPLeaseError:
+                        # NIC exists but is not yet able to obtain a lease
+                        # retry until timeout
+                        LOG.debug(
+                            "Unable to obtain a DHCP lease for %s",
+                            candidate_nic,
+                        )
+                if self._crawled_metadata:
+                    break
+
+                # NICs are present but metadata is not yet reachable;
+                # retry until timeout to avoid premature fallback
+                # to DataSourceNone.
+                LOG.debug("Metadata not reachable yet, retrying...")
+                time.sleep(sleep_interval)
+
+            # If we exhausted the timeout without successfully
+            # crawling metadata, then we should fallback to DataSourceNone
+            if not self._crawled_metadata:
+                LOG.error("Unable to get metadata")
                 return False
-            # compute elapsed once, log in milliseconds
-            elapsed_ms = int((time.monotonic() - start) * 1000)
-            LOG.debug(
-                "Eligible NICs found after %d ms: %s",
-                elapsed_ms,
-                candidate_nics,
-            )
-            for candidate_nic in sorted(
-                candidate_nics, key=_prefer_elastic_drivers
-            ):
-                try:
-                    with EphemeralIPNetwork(
-                        self.distro,
-                        candidate_nic,
-                        ipv4=True,
-                        ipv6=True,
-                    ) as netw:
-                        self._crawled_metadata = self.crawl_metadata()
-                        if self._crawled_metadata:
-                            self.distro.fallback_interface = candidate_nic
-                            LOG.debug("Set fallback NIC: %s.", candidate_nic)
-                            LOG.debug(
-                                "Crawled metadata service%s",
-                                f" {netw.state_msg}" if netw.state_msg else "",
-                            )
-                            break
-                except NoDHCPLeaseError:
-                    LOG.debug(
-                        "Unable to obtain a DHCP lease for %s", candidate_nic
-                    )
         else:
             self._crawled_metadata = self.crawl_metadata()
-        if not self._crawled_metadata:
-            LOG.error("Unable to get metadata")
-            return False
+
         self.metadata = self._crawled_metadata.get("meta-data", None)
         self.userdata_raw = self._crawled_metadata.get("user-data", None)
         self.identity = (
