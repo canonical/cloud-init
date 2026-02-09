@@ -172,29 +172,8 @@ The above configuration causes the ``vmware-rpctool`` command to return a
 non-zero exit code with the error message ``Permission denied``. If this should
 occur, the datasource falls back to using ``vmtoolsd``.
 
-Instance data and lazy networks
--------------------------------
-
-One of the hallmarks of ``cloud-init`` is
-:ref:`its use of instance-data and JINJA queries <instancedata-Using>` -- the
-ability to write queries in user-data and vendor-data that reference runtime
-information present in :file:`/run/cloud-init/instance-data.json`. This works
-well when the meta-data provides all of the information up front, such as the
-network configuration. For systems that rely on DHCP, however, this
-information may not be available when the meta-data is persisted to disk.
-
-This datasource ensures that even if the instance is using DHCP to configure
-networking, the same details about the configured network are available in
-:file:`/run/cloud-init/instance-data.json` as if static networking was used.
-This information collected at runtime is easy to demonstrate by executing the
-datasource on the command line. From the root of this repository, run the
-following command:
-
-.. code-block:: bash
-
-   PYTHONPATH="$(pwd)" python3 cloudinit/sources/DataSourceVMware.py
-
-The above command will result in output similar to the below JSON:
+Example instance-data
+---------------------
 
 .. code-block:: json
 
@@ -308,12 +287,9 @@ IPv4 and IPv6 addresses for a host.
 Waiting on the network
 ----------------------
 
-Sometimes ``cloud-init`` may bring up the network, but it will not finish
-coming online before the datasource's ``setup`` function is called, resulting
-in a :file:`/var/run/cloud-init/instance-data.json` file that does not have the
-correct network information. It is possible to instruct the datasource to wait
-until an IPv4 or IPv6 address is available before writing the instance-data
-with the following meta-data properties:
+It is possible to instruct the datasource to wait until an IPv4 or IPv6 address
+is available before processing instance-data with the following meta-data
+properties:
 
 .. code-block:: yaml
 

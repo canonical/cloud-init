@@ -1,3 +1,5 @@
+:orphan:
+
 Kernel command line
 *******************
 
