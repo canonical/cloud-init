@@ -3,7 +3,6 @@ import re
 
 import pytest
 
-from cloudinit import features
 from cloudinit.util import is_true
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import (

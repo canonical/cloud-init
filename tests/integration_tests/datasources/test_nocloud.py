@@ -5,7 +5,7 @@ from textwrap import dedent
 import pytest
 from pycloudlib.lxd.instance import LXDInstance
 
-from cloudinit import features, lifecycle
+from cloudinit import lifecycle
 from cloudinit.subp import subp
 from cloudinit.util import is_true
 from tests.integration_tests.instances import IntegrationInstance
