@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 # pylint: disable=attribute-defined-outside-init
 
+import builtins
 import copy
 import datetime
 import json
@@ -5713,3 +5714,60 @@ class TestQueryVmId:
 
         mock_query_system_uuid.assert_called_once()
         mock_convert_uuid.assert_called_once_with("test-system-uuid")
+
+
+class TestHashPassword:
+    """Tests for the hash_password function."""
+
+    def test_crypt_working(self):
+        """Test that hash_password uses crypt when available."""
+        mock_crypt = mock.MagicMock()
+        mock_crypt.METHOD_SHA512 = "sha512"
+        mock_crypt.mksalt.return_value = "$6$saltvalue"
+        mock_crypt.crypt.return_value = "$6$saltvalue$hashedpassword"
+
+        with mock.patch.dict("sys.modules", {"crypt": mock_crypt}):
+            result = dsaz.hash_password("testpassword")
+
+        mock_crypt.mksalt.assert_called_once_with("sha512")
+        mock_crypt.crypt.assert_called_once_with(
+            "testpassword", "$6$saltvalue"
+        )
+        assert result == "$6$saltvalue$hashedpassword"
+
+    def test_crypt_not_installed_passlib_fallback(self):
+        """Test that hash_password falls back to passlib when missing crypt."""
+        real_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "crypt":
+                raise ImportError("No module named 'crypt'")
+            return real_import(name, *args, **kwargs)
+
+        with mock.patch.object(
+            builtins, "__import__", side_effect=mock_import
+        ):
+            result = dsaz.hash_password("testpassword")
+
+        # Verify we got a valid SHA-512 hash from passlib
+        assert result.startswith("$6$")
+        assert passlib.hash.sha512_crypt.verify("testpassword", result)
+
+    def test_crypt_and_passlib_unavailable_raises_error(self):
+        """Test that hash_password raises ReportableErrorImportError."""
+        real_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "crypt":
+                raise ImportError("No module named 'crypt'")
+            if name == "passlib.hash":
+                raise ImportError("No module named 'passlib'")
+            return real_import(name, *args, **kwargs)
+
+        with mock.patch.object(
+            builtins, "__import__", side_effect=mock_import
+        ):
+            with pytest.raises(errors.ReportableErrorImportError) as exc_info:
+                dsaz.hash_password("testpassword")
+
+            assert "passlib" in exc_info.value.reason
