@@ -5212,6 +5212,213 @@ class TestProvisioning:
         assert len(self.mock_kvp_report_via_kvp.mock_calls) == 1
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
+    @pytest.mark.parametrize("pps_type", ["None", "Running", "Savable"])
+    def test_skip_ready_report(self, pps_type):
+        """Verify ready report is skipped when experimental_skip_ready_report=True."""
+        self.azure_ds.ds_cfg["experimental_skip_ready_report"] = True
+
+        is_pps = pps_type in ("Running", "Savable")
+
+        imds_md_source = copy.deepcopy(self.imds_md)
+        imds_md_source["extended"]["compute"]["ppsType"] = pps_type
+
+        nl_sock = mock.MagicMock()
+        self.mock_netlink.create_bound_netlink_socket.return_value = nl_sock
+        if pps_type == "Savable":
+            self.mock_netlink.wait_for_nic_detach_event.return_value = "eth9"
+            self.mock_netlink.wait_for_nic_attach_event.return_value = (
+                "ethAttached1"
+            )
+
+        if is_pps:
+            self.mock_readurl.side_effect = [
+                mock.MagicMock(contents=json.dumps(imds_md_source).encode()),
+                mock.MagicMock(
+                    contents=construct_ovf_env(
+                        provision_guest_proxy_agent=False
+                    ).encode()
+                ),
+                mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
+            ]
+        else:
+            ovf = construct_ovf_env(provision_guest_proxy_agent=False)
+            md, ud, cfg = dsaz.read_azure_ovf(ovf)
+            self.mock_util_mount_cb.return_value = (md, ud, cfg, {})
+            self.mock_readurl.side_effect = [
+                mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
+            ]
+
+        self.mock_azure_get_metadata_from_fabric.return_value = []
+
+        self.azure_ds._check_and_get_data()
+
+        assert self.mock_subp_subp.mock_calls == []
+
+        # Verify IMDS calls.
+        if is_pps:
+            assert self.mock_readurl.mock_calls == [
+                mock.call(
+                    "http://169.254.169.254/metadata/instance?"
+                    "api-version=2021-08-01&extended=true",
+                    exception_cb=mock.ANY,
+                    headers_cb=imds.headers_cb,
+                    infinite=True,
+                    log_req_resp=True,
+                    timeout=30,
+                ),
+                mock.call(
+                    "http://169.254.169.254/metadata/reprovisiondata?"
+                    "api-version=2019-06-01",
+                    exception_cb=mock.ANY,
+                    headers_cb=imds.headers_cb,
+                    log_req_resp=False,
+                    infinite=True,
+                    timeout=30,
+                ),
+                mock.call(
+                    "http://169.254.169.254/metadata/instance?"
+                    "api-version=2021-08-01&extended=true",
+                    exception_cb=mock.ANY,
+                    headers_cb=imds.headers_cb,
+                    infinite=True,
+                    log_req_resp=True,
+                    timeout=30,
+                ),
+            ]
+        else:
+            assert self.mock_readurl.mock_calls == [
+                mock.call(
+                    "http://169.254.169.254/metadata/instance?"
+                    "api-version=2021-08-01&extended=true",
+                    timeout=30,
+                    headers_cb=imds.headers_cb,
+                    exception_cb=mock.ANY,
+                    infinite=True,
+                    log_req_resp=True,
+                ),
+            ]
+
+        # Verify DHCP setup.
+        if pps_type == "Running":
+            assert (
+                self.mock_wrapping_setup_ephemeral_networking.mock_calls
+                == [
+                    mock.call(timeout_minutes=20),
+                    mock.call(timeout_minutes=5),
+                ]
+            )
+            assert (
+                self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls
+                == [
+                    mock.call(self.azure_ds.distro, None, dsaz.dhcp_log_cb),
+                    mock.call(self.azure_ds.distro, None, dsaz.dhcp_log_cb),
+                ]
+            )
+        elif pps_type == "Savable":
+            assert (
+                self.mock_wrapping_setup_ephemeral_networking.mock_calls
+                == [
+                    mock.call(timeout_minutes=20),
+                    mock.call(
+                        iface="ethAttached1",
+                        timeout_minutes=20,
+                        report_failure_if_not_primary=False,
+                    ),
+                ]
+            )
+            assert (
+                self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls
+                == [
+                    mock.call(self.azure_ds.distro, None, dsaz.dhcp_log_cb),
+                    mock.call(
+                        self.azure_ds.distro,
+                        "ethAttached1",
+                        dsaz.dhcp_log_cb,
+                    ),
+                ]
+            )
+        else:
+            assert (
+                self.mock_wrapping_setup_ephemeral_networking.mock_calls
+                == [mock.call(timeout_minutes=20)]
+            )
+            assert (
+                self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls
+                == [
+                    mock.call(self.azure_ds.distro, None, dsaz.dhcp_log_cb),
+                ]
+            )
+
+        assert self.azure_ds._wireserver_endpoint == "10.11.12.13"
+        assert self.azure_ds._is_ephemeral_networking_up() is False
+
+        # Verify DMI usage.
+        assert self.mock_dmi_read_dmi_data.mock_calls == [
+            mock.call("chassis-asset-tag"),
+            mock.call("system-uuid"),
+        ]
+        assert (
+            self.azure_ds.metadata["instance-id"]
+            == "50109936-ef07-47fe-ac82-890c853f60d5"
+        )
+
+        # Verify IMDS metadata.
+        assert self.azure_ds.metadata["imds"] == self.imds_md
+
+        # PPS types still report ready once (source), no-PPS skips entirely.
+        if is_pps:
+            assert self.mock_azure_get_metadata_from_fabric.mock_calls == [
+                mock.call(
+                    endpoint="10.11.12.13",
+                    distro=self.azure_ds.distro,
+                    iso_dev="/dev/sr0",
+                    pubkey_info=None,
+                ),
+            ]
+        else:
+            assert self.mock_azure_get_metadata_from_fabric.mock_calls == []
+
+        # Verify netlink operations.
+        if pps_type == "Running":
+            assert self.mock_netlink.mock_calls == [
+                mock.call.create_bound_netlink_socket(),
+                mock.call.wait_for_media_disconnect_connect(
+                    mock.ANY, "ethBoot0"
+                ),
+                mock.call.create_bound_netlink_socket().close(),
+            ]
+        elif pps_type == "Savable":
+            assert self.mock_netlink.mock_calls == [
+                mock.call.create_bound_netlink_socket(),
+                mock.call.wait_for_nic_detach_event(nl_sock),
+                mock.call.wait_for_nic_attach_event(nl_sock, ["ethAttached1"]),
+                mock.call.create_bound_netlink_socket().close(),
+            ]
+        else:
+            assert self.mock_netlink.mock_calls == []
+
+        # Verify reported_ready marker cleaned up.
+        if is_pps:
+            assert self.wrapped_util_write_file.mock_calls[0] == mock.call(
+                self.patched_reported_ready_marker_path.as_posix(),
+                mock.ANY,
+            )
+        else:
+            assert self.wrapped_util_write_file.mock_calls == []
+        assert self.patched_reported_ready_marker_path.exists() is False
+
+        # Verify KVP reports.
+        assert not self.mock_kvp_report_via_kvp.mock_calls
+        assert not self.mock_azure_report_failure_to_fabric.mock_calls
+        expected_kvp_count = 1 if is_pps else 0
+        assert (
+            len(self.mock_kvp_report_success_to_host.mock_calls)
+            == expected_kvp_count
+        )
+        assert (
+            len(self.mock_report_dmesg_to_kvp.mock_calls) == expected_kvp_count
+        )
+
     def test_imds_failure_results_in_provisioning_failure(self):
         self.mock_readurl.side_effect = url_helper.UrlError(
             requests.ConnectionError(
