@@ -2,8 +2,8 @@ name: "GH: CLA"
 
 on:
   pull_request:
-    branches-ignore:
-      - 'ubuntu/**'
+    branches:
+      - main
 
 jobs:
   cla-check:
