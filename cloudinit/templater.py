@@ -12,9 +12,12 @@
 
 # noqa: E402
 
+import base64
 import collections
 import logging
 import re
+import shutil
+import subprocess
 import sys
 from typing import Any
 
@@ -143,6 +146,45 @@ def basic_render(content, params):
     )
 
 
+def gpgdecrypt(cipher, default=None):
+    LOG.debug("Decrypting: %s", cipher)
+
+    if not shutil.which("gpg"):
+        if default is not None:
+            return default
+        return "cloudinit: GPG executable cannot be found"
+
+    p = subprocess.Popen(
+        ["gpg", "--decrypt"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    p.stdin.write(base64.b64decode(cipher))
+    p.stdin.close()
+    try:
+        return_code = p.wait(10)
+        if return_code == 0:
+            return p.stdout.read().decode()
+        LOG.warning(
+            "Decryption failed: gpg returned status code %d. Stderr: %s",
+            return_code,
+            p.stderr.read().decode(),
+        )
+
+    except subprocess.TimeoutExpired:
+        LOG.warning(
+            "Decryption failed: gpg didn't terminate in time. Aborting",
+            p.stderr.read().decode(),
+        )
+        p.terminate()
+
+    if default is not None:
+        return default
+
+    return "cloudinit: unable to decrypt GPG message"
+
+
 def detect_template(text):
     def jinja_render(content, params):
         # keep_trailing_newline is in jinja2 2.7+, not 2.6
@@ -155,7 +197,7 @@ def detect_template(text):
                         undefined=UndefinedJinjaVariable,
                         trim_blocks=True,
                         extensions=["jinja2.ext.do"],
-                    ).render(**params)
+                    ).render(gpgdecrypt=gpgdecrypt, **params)
                     + add
                 )
         except TemplateSyntaxError as template_syntax_error:

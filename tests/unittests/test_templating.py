@@ -4,16 +4,29 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import base64
 import logging
+import os
+import tempfile
 import textwrap
 from unittest import mock
 
+import gnupg
 import pytest
 
 from cloudinit import templater
 from cloudinit.templater import JinjaSyntaxParsingException
 from cloudinit.util import load_binary_file, write_file
 from tests.unittests import helpers as test_helpers
+
+
+@pytest.fixture()
+def ready_gpg_keyring():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        os.environ["GNUPGHOME"] = temp_dir
+        gpg = gnupg.GPG(gnupghome=temp_dir)
+        yield gpg
+        del os.environ["GNUPGHOME"]
 
 
 class TestTemplates:
@@ -164,6 +177,126 @@ class TestTemplates:
             "{% set r = [] %} {% set input = [1,2,3] %} "
             "{% for i in input %} {% do r.append(i) %} {% endfor %} {{r}}"
         )
+        assert (
+            templater.render_string(
+                self.add_header("jinja", jinja_template), {}
+            ).strip()
+            == expected_result
+        )
+
+    def test_gpgdecrypt_with_valid_key(self, ready_gpg_keyring):
+        # Generate a new key
+        input_data = ready_gpg_keyring.gen_key_input(
+            name_email="cloudinit.test@local",
+            key_type="RSA",
+            key_length=2048,
+            key_usage="encrypt",
+            no_protection=True,
+        )
+        key = ready_gpg_keyring.gen_key(input_data)
+
+        encrypted_data = ready_gpg_keyring.encrypt(
+            b"Some sensitive data",
+            recipients=[key.fingerprint],
+            always_trust=True,
+        )
+
+        expected_result = (
+            "## template: jinja\n"
+            "runcmd:\n"
+            ' - echo "Some sensitive data" > /var/secrets/value'
+        )
+        jinja_template = (
+            "## template: jinja\n"
+            "runcmd:\n"
+            ' - echo "{{ gpgdecrypt("%s") }}" > /var/secrets/value\n'
+        ) % base64.b64encode(encrypted_data.data).decode()
+        assert (
+            templater.render_string(
+                self.add_header("jinja", jinja_template), {}
+            ).strip()
+            == expected_result
+        )
+
+    def test_gpgdecrypt_with_missing_key(self, ready_gpg_keyring):
+        # Generate a new key
+        input_data = ready_gpg_keyring.gen_key_input(
+            name_email="cloudinit.test@local",
+            key_type="RSA",
+            key_length=2048,
+            key_usage="encrypt",
+            no_protection=True,
+        )
+        key = ready_gpg_keyring.gen_key(input_data)
+
+        encrypted_data = ready_gpg_keyring.encrypt(
+            b"Some sensitive data",
+            recipients=[key.fingerprint],
+            always_trust=True,
+        )
+        assert (
+            str(
+                ready_gpg_keyring.delete_keys(
+                    key.fingerprint, secret=True, passphrase="unused"
+                )
+            )
+            == "ok"
+        )
+
+        expected_result = (
+            "## template: jinja\n"
+            "runcmd:\n"
+            ' - echo "cloudinit: unable to decrypt GPG message"'
+            " > /var/secrets/value"
+        )
+        jinja_template = (
+            "## template: jinja\n"
+            "runcmd:\n"
+            ' - echo "{{ gpgdecrypt("%s") }}" > /var/secrets/value\n'
+        ) % base64.b64encode(encrypted_data.data).decode()
+        assert (
+            templater.render_string(
+                self.add_header("jinja", jinja_template), {}
+            ).strip()
+            == expected_result
+        )
+
+    def test_gpgdecrypt_with_missing_key_and_default(self, ready_gpg_keyring):
+        # Generate a new key
+        input_data = ready_gpg_keyring.gen_key_input(
+            name_email="cloudinit.test@local",
+            key_type="RSA",
+            key_length=2048,
+            key_usage="encrypt",
+            no_protection=True,
+        )
+        key = ready_gpg_keyring.gen_key(input_data)
+
+        encrypted_data = ready_gpg_keyring.encrypt(
+            b"Some sensitive data",
+            recipients=[key.fingerprint],
+            always_trust=True,
+        )
+        assert (
+            str(
+                ready_gpg_keyring.delete_keys(
+                    key.fingerprint, secret=True, passphrase="unused"
+                )
+            )
+            == "ok"
+        )
+
+        expected_result = (
+            "## template: jinja\n"
+            "runcmd:\n"
+            ' - echo "adefaultvalue" > /var/secrets/value'
+        )
+        jinja_template = (
+            "## template: jinja\n"
+            "runcmd:\n"
+            ' - echo "{{ gpgdecrypt("%s", "adefaultvalue") }}" > '
+            "/var/secrets/value\n"
+        ) % base64.b64encode(encrypted_data.data).decode()
         assert (
             templater.render_string(
                 self.add_header("jinja", jinja_template), {}
