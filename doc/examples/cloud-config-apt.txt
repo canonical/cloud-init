@@ -117,7 +117,7 @@ apt:
       #
       # Additionally, if the repository requires a custom signing key, it can be
       # specified via the same fields as for custom sources:
-      #   'keyid': providing a key to import via longid or fingerprint
+      #   'keyid': providing a key to import via 16-bit ID or fingerprint
       #   'key': providing a raw PGP key
       #   'keyserver': specify an alternate keyserver to pull keys from that
       #                were specified by keyid
@@ -199,7 +199,7 @@ apt:
   #
   # The values inside the entries consist of the following optional entries:
   #   'source': a sources.list entry (some variable replacements apply)
-  #   'keyid': providing a key to import via longid or fingerprint
+  #   'keyid': providing a key to import via 16-bit ID or fingerprint
   #   'key': providing a raw PGP key
   #   'keyserver': specify an alternate keyserver to pull keys from that
   #                were specified by keyid
@@ -279,7 +279,7 @@ apt:
     ignored3:
       # 2.6 key id alternatives
       #
-      # Keyid's can also be specified via their long fingerprints
+      # Keyid's can also be specified via their fingerprints
       keyid: B59D 5F15 97A5 04B7 E230  6DCA 0620 BBCF 0368 3F77
 
     ignored4:
