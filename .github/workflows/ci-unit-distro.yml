@@ -2,8 +2,10 @@ name: "Unit: Alternate Distros"
 
 on:
   pull_request:
-    branches-ignore:
-      - 'ubuntu/**'
+    branches:
+      - main
+      - '[0-9][0-9].[0-9]'
+      - '[0-9][0-9].[0-9].?'
   push:
     branches:
       - main
