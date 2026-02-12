@@ -1738,7 +1738,7 @@ scbus-1 on xpt0 bus 0
         # this test isn't to verify the differences between crypt and passlib,
         # so hardcode passlib usage as crypt is deprecated.
         mocker.patch.object(
-            dsaz, "blowfish_hash", passlib.hash.sha512_crypt.hash
+            dsaz, "hash_password", passlib.hash.sha512_crypt.hash
         )
         data = {
             "ovfcontent": construct_ovf_env(
@@ -5649,7 +5649,7 @@ class TestDependencyFallback:
         """Ensure that crypt/passlib import failover gets exercised on all
         Python versions
         """
-        assert dsaz.encrypt_pass("`")
+        assert dsaz.hash_password("`")
 
 
 class TestQueryVmId:
@@ -5761,7 +5761,7 @@ class TestHashPassword:
             if name == "crypt":
                 raise ImportError("No module named 'crypt'")
             if name == "passlib.hash":
-                raise ImportError("No module named 'passlib'")
+                raise ImportError("No module named 'passlib'", name="passlib")
             return real_import(name, *args, **kwargs)
 
         with mock.patch.object(
