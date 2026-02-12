@@ -143,7 +143,7 @@ DI_EC2_STRICT_ID_DEFAULT="true"
 _IS_IBM_CLOUD=""
 
 error() {
-    set -- "ERROR:" "$@";
+    set -- "ERROR:" "$@"
     debug 0 "$@"
     stderr "$@"
 }
@@ -166,7 +166,7 @@ debug() {
     if [ "$_DI_LOGGED" != "$DI_LOG" ]; then
         # first time here, open file descriptor for append
         case "$DI_LOG" in
-            stderr) :;;
+            stderr) : ;;
             ?*/*)
                 if [ ! -d "${DI_LOG%/*}" ]; then
                     mkdir -p "${DI_LOG%/*}" || {
@@ -174,12 +174,13 @@ debug() {
                         DI_LOG="stderr"
                     }
                 fi
+                ;;
         esac
         if [ "$DI_LOG" = "stderr" ]; then
             exec 3>&2
         else
-            ( exec 3>>"$DI_LOG" ) && exec 3>>"$DI_LOG" || {
-                stderr "ERROR: failed writing to $DI_LOG. logging to stderr.";
+            (exec 3>> "$DI_LOG") && exec 3>> "$DI_LOG" || {
+                stderr "ERROR: failed writing to $DI_LOG. logging to stderr."
                 exec 3>&2
                 DI_LOG="stderr"
             }
@@ -191,71 +192,77 @@ debug() {
 
 get_kenv_field() {
     local sys_field="$1" kenv_field="" val=""
-    command -v kenv >/dev/null 2>&1 || {
+    command -v kenv > /dev/null 2>&1 || {
         warn "No kenv program. Cannot read $sys_field."
         return 1
     }
     case "$sys_field" in
-        board_asset_tag) kenv_field="smbios.planar.tag";;
-        board_vendor) kenv_field='smbios.planar.maker';;
-        board_name) kenv_field='smbios.planar.product';;
-        board_serial) kenv_field='smbios.planar.serial';;
-        board_version) kenv_field='smbios.planar.version';;
-        bios_date) kenv_field='smbios.bios.reldate';;
-        bios_vendor) kenv_field='smbios.bios.vendor';;
-        bios_version) kenv_field='smbios.bios.version';;
-        chassis_asset_tag) kenv_field='smbios.chassis.tag';;
-        chassis_vendor) kenv_field='smbios.chassis.maker';;
-        chassis_serial) kenv_field='smbios.chassis.serial';;
-        chassis_version) kenv_field='smbios.chassis.version';;
-        sys_vendor) kenv_field='smbios.system.maker';;
-        product_name) kenv_field='smbios.system.product';;
-        product_serial) kenv_field='smbios.system.serial';;
-        product_uuid) kenv_field='smbios.system.uuid';;
-        *) error "Unknown field $sys_field. Cannot call kenv."
-           return 1;;
+        board_asset_tag) kenv_field="smbios.planar.tag" ;;
+        board_vendor) kenv_field='smbios.planar.maker' ;;
+        board_name) kenv_field='smbios.planar.product' ;;
+        board_serial) kenv_field='smbios.planar.serial' ;;
+        board_version) kenv_field='smbios.planar.version' ;;
+        bios_date) kenv_field='smbios.bios.reldate' ;;
+        bios_vendor) kenv_field='smbios.bios.vendor' ;;
+        bios_version) kenv_field='smbios.bios.version' ;;
+        chassis_asset_tag) kenv_field='smbios.chassis.tag' ;;
+        chassis_vendor) kenv_field='smbios.chassis.maker' ;;
+        chassis_serial) kenv_field='smbios.chassis.serial' ;;
+        chassis_version) kenv_field='smbios.chassis.version' ;;
+        sys_vendor) kenv_field='smbios.system.maker' ;;
+        product_name) kenv_field='smbios.system.product' ;;
+        product_serial) kenv_field='smbios.system.serial' ;;
+        product_uuid) kenv_field='smbios.system.uuid' ;;
+        *)
+            error "Unknown field $sys_field. Cannot call kenv."
+            return 1
+            ;;
     esac
-    val=$(kenv -q "$kenv_field" 2>/dev/null) || return 1
+    val=$(kenv -q "$kenv_field" 2> /dev/null) || return 1
     _RET="$val"
 }
 
 get_sysctl_field() {
     local sys_field="$1" sysctl_field="" val=""
-    command -v sysctl >/dev/null 2>&1 || {
+    command -v sysctl > /dev/null 2>&1 || {
         warn "No sysctl program. Cannot read $sys_field."
         return 1
     }
     case "$sys_field" in
-        chassis_vendor) sysctl_field='hw.vendor';;
-        chassis_serial) sysctl_field='hw.type';;
-        chassis_version) sysctl_field='hw.uuid';;
-        sys_vendor) sysctl_field='hw.vendor';;
-        product_name) sysctl_field='hw.product';;
-        product_serial) sysctl_field='hw.uuid';;
-        product_uuid) sysctl_field='hw.uuid';;
-        *) error "Unknown field $sys_field. Cannot call sysctl."
-           return 1;;
+        chassis_vendor) sysctl_field='hw.vendor' ;;
+        chassis_serial) sysctl_field='hw.type' ;;
+        chassis_version) sysctl_field='hw.uuid' ;;
+        sys_vendor) sysctl_field='hw.vendor' ;;
+        product_name) sysctl_field='hw.product' ;;
+        product_serial) sysctl_field='hw.uuid' ;;
+        product_uuid) sysctl_field='hw.uuid' ;;
+        *)
+            error "Unknown field $sys_field. Cannot call sysctl."
+            return 1
+            ;;
     esac
-    val=$(sysctl -nq "$sysctl_field" 2>/dev/null) || return 1
+    val=$(sysctl -nq "$sysctl_field" 2> /dev/null) || return 1
     _RET="$val"
 }
 
 dmi_decode() {
     local sys_field="$1" dmi_field="" val=""
-    command -v dmidecode >/dev/null 2>&1 || {
+    command -v dmidecode > /dev/null 2>&1 || {
         warn "No dmidecode program. Cannot read $sys_field."
         return 1
     }
     case "$sys_field" in
-        sys_vendor) dmi_field="system-manufacturer";;
-        product_name) dmi_field="system-product-name";;
-        product_uuid) dmi_field="system-uuid";;
-        product_serial) dmi_field="system-serial-number";;
-        chassis_asset_tag) dmi_field="chassis-asset-tag";;
-        *) error "Unknown field $sys_field. Cannot call dmidecode."
-           return 1;;
+        sys_vendor) dmi_field="system-manufacturer" ;;
+        product_name) dmi_field="system-product-name" ;;
+        product_uuid) dmi_field="system-uuid" ;;
+        product_serial) dmi_field="system-serial-number" ;;
+        chassis_asset_tag) dmi_field="chassis-asset-tag" ;;
+        *)
+            error "Unknown field $sys_field. Cannot call dmidecode."
+            return 1
+            ;;
     esac
-    val=$(dmidecode --quiet "--string=$dmi_field" 2>/dev/null) || return 1
+    val=$(dmidecode --quiet "--string=$dmi_field" 2> /dev/null) || return 1
     _RET="$val"
 }
 
@@ -295,7 +302,7 @@ ensure_sane_path() {
     local t
     for t in /sbin /usr/sbin /bin /usr/bin; do
         case ":$PATH:" in
-            *:$t:*|*:$t/:*) continue;;
+            *:$t:* | *:$t/:*) continue ;;
         esac
         PATH="${PATH:+${PATH}:}$t"
     done
@@ -341,20 +348,28 @@ read_fs_info_linux() {
     # empty lines in "$@" below.
 
     # shellcheck disable=2086
-    { IFS="$CR"; set -- $DI_BLKID_EXPORT_OUT; IFS="$oifs"; }
+    {
+        IFS="$CR"
+        set -- $DI_BLKID_EXPORT_OUT
+        IFS="$oifs"
+    }
 
     for line in "$@"; do
         case "${line}" in
             DEVNAME=*)
                 [ -n "$dev" -a "$ftype" = "iso9660" ] &&
                     isodevs="${isodevs},${dev}=$label"
-                ftype=""; dev=""; label="";
-                dev=${line#DEVNAME=};;
-            LABEL=*|LABEL_FATBOOT=*)
-                label="${line#*=}";
-                labels="${labels}${label}${delim}";;
-            TYPE=*) ftype=${line#TYPE=};;
-            UUID=*) uuids="${uuids}${line#UUID=}$delim";;
+                ftype=""
+                dev=""
+                label=""
+                dev=${line#DEVNAME=}
+                ;;
+            LABEL=* | LABEL_FATBOOT=*)
+                label="${line#*=}"
+                labels="${labels}${label}${delim}"
+                ;;
+            TYPE=*) ftype=${line#TYPE=} ;;
+            UUID=*) uuids="${uuids}${line#UUID=}$delim" ;;
         esac
     done
     [ -n "$dev" -a "$ftype" = "iso9660" ] &&
@@ -395,7 +410,11 @@ read_fs_info_freebsd() {
     # iso9660/cidata N/A vtbd2
 
     # shellcheck disable=2086
-    { IFS="$CR"; set -- $DI_GEOM_LABEL_STATUS_OUT; IFS="$oifs"; }
+    {
+        IFS="$CR"
+        set -- $DI_GEOM_LABEL_STATUS_OUT
+        IFS="$oifs"
+    }
 
     for line in "$@"; do
         # shellcheck disable=2086
@@ -451,16 +470,16 @@ detect_virt() {
             fi
             debug 2 "detected $virt via ds-identify"
         fi
-    elif command -v virt-what >/dev/null 2>&1; then
+    elif command -v virt-what > /dev/null 2>&1; then
         # Map virt-what's names to those systemd-detect-virt that
         # don't match up.
         out=$(virt-what 2>&1 | head -n 1) && {
             case "$out" in
-                ibm_systemz-zvm)    virt="zvm" ;;
-                hyperv)             virt="microsoft" ;;
-                virtualbox)         virt="oracle" ;;
-                xen-domU)           virt="xen" ;;
-                *)                  virt="$out"
+                ibm_systemz-zvm) virt="zvm" ;;
+                hyperv) virt="microsoft" ;;
+                virtualbox) virt="oracle" ;;
+                xen-domU) virt="xen" ;;
+                *) virt="$out" ;;
             esac
         }
     elif [ "$DI_UNAME_KERNEL_NAME" = "FreeBSD" -o "$DI_UNAME_KERNEL_NAME" = "Dragonfly" ]; then
@@ -480,15 +499,15 @@ detect_virt() {
         #  parallels  | parallels
         #  bhyve      | bhyve
         #  vm-other   | generic
-        out=$(sysctl -qn kern.vm_guest 2>/dev/null) && {
+        out=$(sysctl -qn kern.vm_guest 2> /dev/null) && {
             case "$out" in
                 hv) virt="microsoft" ;;
                 vbox) virt="oracle" ;;
-                generic) virt="vm-other";;
-                *) virt="$out"
+                generic) virt="vm-other" ;;
+                *) virt="$out" ;;
             esac
         }
-        out=$(sysctl -qn security.jail.jailed 2>/dev/null) && {
+        out=$(sysctl -qn security.jail.jailed 2> /dev/null) && {
             if [ "$out" = "1" ]; then
                 virt="jail"
             fi
@@ -505,8 +524,8 @@ read_virt() {
 
 is_container() {
     case "${DI_VIRT}" in
-        container-other|lxc|lxc-libvirt|systemd-nspawn|docker|rkt|jail) return 0;;
-        *) return 1;;
+        container-other | lxc | lxc-libvirt | systemd-nspawn | docker | rkt | jail) return 0 ;;
+        *) return 1 ;;
     esac
 }
 
@@ -524,7 +543,7 @@ read_kernel_cmdline() {
             cmdline=$x
         fi
     elif [ -f "$fpath" ]; then
-        read cmdline <"$fpath"
+        read cmdline < "$fpath"
     else
         cmdline="${UNAVAILABLE}:no-cmdline"
     fi
@@ -609,7 +628,11 @@ parse_yaml_array() {
     val=${val#"["}
     val=${val%"]"}
     # shellcheck disable=2086
-    { IFS=","; set -- $val; IFS="$oifs"; }
+    {
+        IFS=","
+        set -- $val
+        IFS="$oifs"
+    }
     for tok in "$@"; do
         trim "$tok"
         unquote "$_RET"
@@ -655,9 +678,13 @@ read_pid1_product_name() {
     local oifs="$IFS" out="" tok="" key="" val="" product_name="${UNAVAILABLE}"
     cached "${DI_PID_1_PRODUCT_NAME}" && return
     [ -r "${PATH_PROC_1_ENVIRON}" ] || return
-    out=$(tr '\0' '\n' <"${PATH_PROC_1_ENVIRON}")
+    out=$(tr '\0' '\n' < "${PATH_PROC_1_ENVIRON}")
     # shellcheck disable=2086
-    { IFS="$CR"; set -- $out; IFS="$oifs"; }
+    {
+        IFS="$CR"
+        set -- $out
+        IFS="$oifs"
+    }
     for tok in "$@"; do
         key=${tok%%=*}
         [ "$key" != "$tok" ] || continue
@@ -671,7 +698,7 @@ dmi_chassis_asset_tag_matches() {
     is_container && return 1
     # shellcheck disable=2254
     case "${DI_DMI_CHASSIS_ASSET_TAG}" in
-        $1) return 0;;
+        $1) return 0 ;;
     esac
     return 1
 }
@@ -680,7 +707,7 @@ dmi_product_name_matches() {
     is_container && return 1
     # shellcheck disable=2254
     case "${DI_DMI_PRODUCT_NAME}" in
-        $1) return 0;;
+        $1) return 0 ;;
     esac
     return 1
 }
@@ -689,7 +716,7 @@ dmi_product_serial_matches() {
     is_container && return 1
     # shellcheck disable=2254
     case "${DI_DMI_PRODUCT_SERIAL}" in
-        $1) return 0;;
+        $1) return 0 ;;
     esac
     return 1
 }
@@ -701,7 +728,7 @@ dmi_sys_vendor_is() {
 
 has_fs_with_uuid() {
     case ",${DI_FS_UUIDS}," in
-        *,$1,*) return 0;;
+        *,$1,*) return 0 ;;
     esac
     return 1
 }
@@ -712,7 +739,7 @@ has_fs_with_label() {
     local label=""
     for label in "$@"; do
         case ",${DI_FS_LABELS}," in
-            *,$label,*) return 0;;
+            *,$label,*) return 0 ;;
         esac
     done
     return 1
@@ -768,16 +795,25 @@ probe_floppy() {
     local fpath=/dev/floppy
 
     [ -b "$fpath" ] ||
-        { STATE_FLOPPY_PROBED=1; return 1; }
+        {
+            STATE_FLOPPY_PROBED=1
+            return 1
+        }
 
     # Use "-b" option as Busybox modprobe doesn't support long-option
-    modprobe -b floppy >/dev/null 2>&1 ||
-        { STATE_FLOPPY_PROBED=1; return 1; }
+    modprobe -b floppy > /dev/null 2>&1 ||
+        {
+            STATE_FLOPPY_PROBED=1
+            return 1
+        }
 
     # Some Linux distros/non-Linux OSes may not have udev
     if command -v udevadm; then
         udevadm settle "--exit-if-exists=$fpath" ||
-            { STATE_FLOPPY_PROBED=1; return 1; }
+            {
+                STATE_FLOPPY_PROBED=1
+                return 1
+            }
     fi
 
     [ -b "$fpath" ]
@@ -827,7 +863,11 @@ check_config() {
         files="$*"
     fi
     # shellcheck disable=2086
-    { set +f; set -- $files; set -f; }
+    {
+        set +f
+        set -- $files
+        set -f
+    }
     if [ "$1" = "$files" -a ! -f "$1" ]; then
         return 1
     fi
@@ -846,11 +886,11 @@ check_config() {
     # key: [ some_value ]
     # key : [ "some value" ]
     # key\t:\t[\tsome_value\t]\t
-    # 
+    #
     # The syntax warned about is not valid posix shell, and we are not
     # attempting to access an index of arrays. Silence it.
     # shellcheck disable=1087
-    out=$(grep "$key[\"\']*[[:space:]]*:" "$@" 2>/dev/null)
+    out=$(grep "$key[\"\']*[[:space:]]*:" "$@" 2> /dev/null)
     IFS=${CR}
     for line in $out; do
         # drop '# comment'
@@ -869,8 +909,8 @@ check_config() {
                 continue
             fi
         fi
-        ret=${line#*: };
-        found=$((found+1))
+        ret=${line#*: }
+        found=$((found + 1))
     done
     IFS="$oifs"
     if [ $found -ne 0 ]; then
@@ -959,15 +999,17 @@ dscheck_LXD() {
         return ${DS_NOT_FOUND}
     fi
     # Temporarily enable globbing to walk virtio_ports_path.
-    set +f; set -- "${virtio_ports_path}/"*; set -f;
+    set +f
+    set -- "${virtio_ports_path}/"*
+    set -f
     for port_dir in "$@"; do
         local name_file="${port_dir}/name" port_name
         [ ! -f "${name_file}" ] && continue
-        read port_name < "${name_file}" || \
-        warn "unable to read file: $name_file"
+        read port_name < "${name_file}" ||
+            warn "unable to read file: $name_file"
         # Check for both current and legacy LXD serial names
-        if [ "${port_name}" = "com.canonical.lxd" ] || \
-           [ "${port_name}" = "org.linuxcontainers.lxd" ]; then
+        if [ "${port_name}" = "com.canonical.lxd" ] ||
+            [ "${port_name}" = "org.linuxcontainers.lxd" ]; then
             return ${DS_FOUND}
         fi
     done
@@ -977,7 +1019,7 @@ dscheck_LXD() {
 dscheck_NoCloud() {
     local fslabel="cidata CIDATA" d=""
     case " ${DI_DMI_PRODUCT_SERIAL} " in
-        *\ ds=nocloud*) return ${DS_FOUND};;
+        *\ ds=nocloud*) return ${DS_FOUND} ;;
     esac
 
     for d in nocloud nocloud-net; do
@@ -1012,7 +1054,9 @@ check_configdrive_v2() {
     local d=""
     local vlc_config_drive_path="${PATH_VAR_LIB_CLOUD}/seed/config_drive"
     for d in /config-drive $vlc_config_drive_path; do
-        set +f; set -- "$d/openstack/"2???-??-??/meta_data.json; set -f;
+        set +f
+        set -- "$d/openstack/"2???-??-??/meta_data.json
+        set -f
         [ -f "$1" ] && return ${DS_FOUND}
     done
     # at least one cloud (softlayer) seeds config drive with only 'latest'.
@@ -1081,13 +1125,15 @@ vmware_guest_customization() {
     local ppath="plugins/vmsvc/libdeployPkgPlugin.so"
     for pkg in vmware-tools open-vm-tools; do
         if [ -f "$pre/$pkg/$ppath" -o -f "${pre}64/$pkg/$ppath" ]; then
-            found="$pkg"; break;
+            found="$pkg"
+            break
         fi
         # search in multiarch dir
-        if [ -f "$pre/$x86/$pkg/$ppath" ] || \
-           [ -f "$pre/$aarch/$pkg/$ppath" ] || \
-           [ -f "$pre/$i386/$pkg/$ppath" ]; then
-            found="$pkg"; break;
+        if [ -f "$pre/$x86/$pkg/$ppath" ] ||
+            [ -f "$pre/$aarch/$pkg/$ppath" ] ||
+            [ -f "$pre/$i386/$pkg/$ppath" ]; then
+            found="$pkg"
+            break
         fi
     done
     [ -n "$found" ] || return 1
@@ -1098,8 +1144,8 @@ vmware_guest_customization() {
     if check_config "$key" && get_value "$key" "$_RET"; then
         debug 2 "${_RET_fname} set $key to $_RET"
         case "$_RET" in
-            0|false|False) return 0;;
-            *) return 1;;
+            0 | false | False) return 0 ;;
+            *) return 1 ;;
         esac
     fi
 
@@ -1107,11 +1153,11 @@ vmware_guest_customization() {
 }
 
 vmware_has_rpctool() {
-    command -v vmware-rpctool >/dev/null 2>&1
+    command -v vmware-rpctool > /dev/null 2>&1
 }
 
 vmware_rpctool_guestinfo() {
-    vmware-rpctool "info-get guestinfo.${1}" 2>/dev/null | grep "[[:alnum:]]"
+    vmware-rpctool "info-get guestinfo.${1}" 2> /dev/null | grep "[[:alnum:]]"
 }
 
 vmware_rpctool_guestinfo_err() {
@@ -1119,11 +1165,11 @@ vmware_rpctool_guestinfo_err() {
 }
 
 vmware_has_vmtoolsd() {
-    command -v vmtoolsd >/dev/null 2>&1
+    command -v vmtoolsd > /dev/null 2>&1
 }
 
 vmware_vmtoolsd_guestinfo() {
-    vmtoolsd --cmd "info-get guestinfo.${1}" 2>/dev/null | grep "[[:alnum:]]"
+    vmtoolsd --cmd "info-get guestinfo.${1}" 2> /dev/null | grep "[[:alnum:]]"
 }
 
 vmware_vmtoolsd_guestinfo_err() {
@@ -1167,9 +1213,11 @@ ovf_vmware_transport_guestinfo() {
         return 1
     fi
     case "$out" in
-        "<?xml"*|"<?XML"*) :;;
-        *) debug 1 "guestinfo.ovfEnv had non-xml content: $out";
-           return 1;;
+        "<?xml"* | "<?XML"*) : ;;
+        *)
+            debug 1 "guestinfo.ovfEnv had non-xml content: $out"
+            return 1
+            ;;
     esac
     debug 1 "Found guestinfo transport."
     return 0
@@ -1179,29 +1227,34 @@ is_cdrom_ovf() {
     local dev="$1" label="$2"
     # skip devices that don't look like cdrom paths.
     case "$dev" in
-        /dev/sr[0-9]|/dev/hd[a-z]) :;;
-        *) debug 1 "skipping iso dev $dev"
-           return 1;;
+        /dev/sr[0-9] | /dev/hd[a-z]) : ;;
+        *)
+            debug 1 "skipping iso dev $dev"
+            return 1
+            ;;
     esac
 
     debug 1 "got label=$label"
     # fast path known 'OVF' labels
     case "$label" in
-        OVF-TRANSPORT|ovf-transport|OVFENV|ovfenv|OVF\ ENV|ovf\ env) return 0;;
+        OVF-TRANSPORT | ovf-transport | OVFENV | ovfenv | OVF\ ENV | ovf\ env) return 0 ;;
     esac
 
     # explicitly skip known labels of other types. rd_rdfe is azure.
     case "$label" in
-        config-2|CONFIG-2|rd_rdfe_stable*|cidata|CIDATA) return 1;;
+        config-2 | CONFIG-2 | rd_rdfe_stable* | cidata | CIDATA) return 1 ;;
     esac
 
     # skip device which size is 10MB or larger
     local size="" sfile="${PATH_SYS_CLASS_BLOCK}/${dev##*/}/size"
     [ -f "$sfile" ] || return 1
-    read size <"$sfile" || { warn "failed reading from $sfile"; return 1; }
+    read size < "$sfile" || {
+        warn "failed reading from $sfile"
+        return 1
+    }
     # size is in 512 byte units. so convert to MB (integer division)
-    if [ $((size/2048)) -ge 10 ]; then
-        debug 2 "$dev: size $((size/2048))MB is considered too large for OVF"
+    if [ $((size / 2048)) -ge 10 ]; then
+        debug 2 "$dev: size $((size / 2048))MB is considered too large for OVF"
         return 1
     fi
 
@@ -1216,7 +1269,11 @@ has_ovf_cdrom() {
     if [ "${DI_ISO9660_DEVS#"${UNAVAILABLE}":}" = "${DI_ISO9660_DEVS}" ]; then
         local oifs="$IFS"
         # shellcheck disable=2086
-        { IFS=","; set -- ${DI_ISO9660_DEVS}; IFS="$oifs"; }
+        {
+            IFS=","
+            set -- ${DI_ISO9660_DEVS}
+            IFS="$oifs"
+        }
         for tok in "$@"; do
             is_cdrom_ovf "${tok%%=*}" "${tok#*=}" && return 0
         done
@@ -1234,9 +1291,10 @@ is_disabled() {
         return 0
     fi
     case "$DI_KERNEL_CMDLINE" in
-       *cloud-init=disabled*)
+        *cloud-init=disabled*)
             debug 1 "disabled by kernel command line cloud-init=disabled"
             return 0
+            ;;
     esac
     return 1
 }
@@ -1290,9 +1348,10 @@ ec2_read_strict_setting() {
     case " ${DI_KERNEL_CMDLINE} " in
         *\ $key=*\ )
             val=${DI_KERNEL_CMDLINE##*"${key}"=}
-            val=${val%% *};
+            val=${val%% *}
             _RET=${val:-$default}
             return 0
+            ;;
     esac
 
     # 3. look for the key 'strict_id' (datasource/Ec2/strict_id)
@@ -1322,24 +1381,37 @@ ec2_identify_platform() {
     local serial="${DI_DMI_PRODUCT_SERIAL}"
 
     case "$serial" in
-        *.brightbox.com) _RET="Brightbox"; return 0;;
+        *.brightbox.com)
+            _RET="Brightbox"
+            return 0
+            ;;
     esac
 
     local asset_tag="${DI_DMI_CHASSIS_ASSET_TAG}"
     case "$asset_tag" in
-        *.zstack.io) _RET="ZStack"; return 0;;
+        *.zstack.io)
+            _RET="ZStack"
+            return 0
+            ;;
     esac
 
     local vendor="${DI_DMI_SYS_VENDOR}"
     case "$vendor" in
-        e24cloud) _RET="E24cloud"; return 0;;
-        Tilaa) _RET="Tilaa"; return 0;;
+        e24cloud)
+            _RET="E24cloud"
+            return 0
+            ;;
+        Tilaa)
+            _RET="Tilaa"
+            return 0
+            ;;
     esac
 
     local product_name="${DI_DMI_PRODUCT_NAME}"
-    if [ "${product_name}" = "3DS Outscale VM" ]  && \
-       [ "${vendor}" = "3DS Outscale" ]; then
-        _RET="Outscale"; return 0
+    if [ "${product_name}" = "3DS Outscale VM" ] &&
+        [ "${vendor}" = "3DS Outscale" ]; then
+        _RET="Outscale"
+        return 0
     fi
 
     # AWS http://docs.aws.amazon.com/AWSEC2/
@@ -1369,7 +1441,7 @@ ec2_identify_platform() {
             _RET="$default"
             ;;
     esac
-    return 0;
+    return 0
 }
 
 dscheck_Ec2() {
@@ -1399,10 +1471,11 @@ dscheck_Ec2() {
 
     local key="datasource/Ec2/strict_id"
     case "$strict" in
-        true|false|warn|warn,[0-9]*) :;;
+        true | false | warn | warn,[0-9]*) : ;;
         *)
             warn "$key was set to invalid '$strict'. using '$default'"
-            strict="$default";;
+            strict="$default"
+            ;;
     esac
 
     _RET_excfg="datasource: {Ec2: {strict_id: \"$strict\"}}"
@@ -1472,8 +1545,8 @@ dscheck_OpenStack() {
 
     # LP: #1715241 : arch other than intel are not identified properly.
     case "$DI_UNAME_MACHINE" in
-        i?86|x86_64) :;;
-        *) return ${DS_MAYBE};;
+        i?86 | x86_64) : ;;
+        *) return ${DS_MAYBE} ;;
     esac
 
     return ${DS_NOT_FOUND}
@@ -1514,7 +1587,7 @@ dscheck_AltCloud() {
             block_dev_with_label CDROM || return ${DS_NOT_FOUND}
             dev="$_RET"
             ;;
-        *) return ${DS_NOT_FOUND};;
+        *) return ${DS_NOT_FOUND} ;;
     esac
 
     # FIXME: need to check $dev for user-data.txt or deltacloud-user-data.txt
@@ -1547,7 +1620,7 @@ dscheck_Scaleway() {
     fi
 
     case " ${DI_KERNEL_CMDLINE} " in
-        *\ scaleway\ *) return ${DS_FOUND};;
+        *\ scaleway\ *) return ${DS_FOUND} ;;
     esac
 
     if [ -f "${PATH_ROOT}/var/run/scaleway" ]; then
@@ -1626,7 +1699,7 @@ dscheck_Vultr() {
     dmi_sys_vendor_is Vultr && return $DS_FOUND
 
     case " $DI_KERNEL_CMDLINE " in
-    *\ vultr\ *) return $DS_FOUND ;;
+        *\ vultr\ *) return $DS_FOUND ;;
     esac
 
     if [ -f "${PATH_ROOT}/etc/vultr" ]; then
@@ -1667,8 +1740,8 @@ dscheck_VMware() {
     # Check to see if running in a container and the VMware
     # datasource is configured via environment variables.
     if vmware_has_envvar_vmx_guestinfo; then
-        if vmware_has_envvar_vmx_guestinfo_metadata || \
-            vmware_has_envvar_vmx_guestinfo_userdata || \
+        if vmware_has_envvar_vmx_guestinfo_metadata ||
+            vmware_has_envvar_vmx_guestinfo_userdata ||
             vmware_has_envvar_vmx_guestinfo_vendordata; then
             return "${DS_FOUND}"
         fi
@@ -1686,9 +1759,9 @@ dscheck_VMware() {
 
     # Activate the VMware datasource only if any of the fields used
     # by the datasource are present in the guestinfo table.
-    if { vmware_guestinfo_metadata || \
-         vmware_guestinfo_userdata || \
-         vmware_guestinfo_vendordata; } >/dev/null 2>&1; then
+    if { vmware_guestinfo_metadata ||
+        vmware_guestinfo_userdata ||
+        vmware_guestinfo_vendordata; } > /dev/null 2>&1; then
         return "${DS_FOUND}"
     fi
 
@@ -1708,7 +1781,7 @@ WSL_path() {
 WSL_run_cmd() {
     local val="" exepath="$1"
     shift
-    _RET=$(/init "$exepath" /c "$@" 2>/dev/null)
+    _RET=$(/init "$exepath" /c "$@" 2> /dev/null)
 }
 
 WSL_profile_dir() {
@@ -1863,7 +1936,7 @@ write_result() {
             pre="  "
         fi
         for line in "$@"; do
-            echo "${pre}$line";
+            echo "${pre}$line"
         done
     } > "$runcfg"
     ret=$?
@@ -1905,8 +1978,8 @@ found() {
     fi
     # if None is not already in the list, then add it last.
     case " $list " in
-        *\ None,\ *|*\ None\ ) :;;
-        *) list=${list:+${list}, None};;
+        *\ None,\ * | *\ None\ ) : ;;
+        *) list=${list:+${list}, None} ;;
     esac
     write_result "datasource_list: [ $list ]" "$@"
     return
@@ -1915,8 +1988,14 @@ found() {
 trim() {
     # trim all whitespace from the string, assign output to _RET
     local tmp="" cur="$*"
-    until tmp="${cur#[[:space:]]}"; [ "$tmp" = "$cur" ]; do cur="$tmp"; done
-    until tmp="${cur%[[:space:]]}"; [ "$tmp" = "$cur" ]; do cur="$tmp"; done
+    until
+        tmp="${cur#[[:space:]]}"
+        [ "$tmp" = "$cur" ]
+    do cur="$tmp"; done
+    until
+        tmp="${cur%[[:space:]]}"
+        [ "$tmp" = "$cur" ]
+    do cur="$tmp"; done
     _RET="$tmp"
 }
 
@@ -1925,8 +2004,10 @@ unquote() {
     local quote='"' tick="'"
     local val="$1"
     case "$val" in
-        ${quote}*${quote}|${tick}*${tick})
-            val=${val#?}; val=${val%?};;
+        ${quote}*${quote} | ${tick}*${tick})
+            val=${val#?}
+            val=${val%?}
+            ;;
     esac
     _RET="$val"
 }
@@ -1960,8 +2041,8 @@ _read_config() {
         fi
 
         case "$key" in
-            datasource) _rc_dsname="$val";;
-            policy) _rc_policy="$val";;
+            datasource) _rc_dsname="$val" ;;
+            policy) _rc_policy="$val" ;;
         esac
     done
     if [ "$keyname" = "_unset" ]; then
@@ -1999,10 +2080,10 @@ parse_policy() {
     local def=""
     case "$DI_UNAME_MACHINE" in
         # these have dmi data
-        i?86|x86_64) def=${DI_DEFAULT_POLICY};;
+        i?86 | x86_64) def=${DI_DEFAULT_POLICY} ;;
         # aarch64 has dmi, but not currently used (LP: #1663304)
-        aarch64) def=${DI_DEFAULT_POLICY_NO_DMI};;
-        *) def=${DI_DEFAULT_POLICY_NO_DMI};;
+        aarch64) def=${DI_DEFAULT_POLICY_NO_DMI} ;;
+        *) def=${DI_DEFAULT_POLICY_NO_DMI} ;;
     esac
     local policy="$1"
     local _def_mode="" _def_report="" _def_found="" _def_maybe=""
@@ -2015,23 +2096,30 @@ parse_policy() {
     local mode="" report="" found="" maybe="" notfound=""
     local oifs="$IFS" tok="" val=""
     # shellcheck disable=2086
-    { IFS=","; set -- $policy; IFS="$oifs"; }
+    {
+        IFS=","
+        set -- $policy
+        IFS="$oifs"
+    }
     for tok in "$@"; do
         val=${tok#*=}
         case "$tok" in
-            "${DI_ENABLED}"|"${DI_DISABLED}"|search|report) mode=$tok;;
-            found=all|found=first) found=$val;;
-            maybe=all|maybe=none) maybe=$val;;
-            notfound="${DI_ENABLED}"|notfound="${DI_DISABLED}") notfound=$val;;
+            "${DI_ENABLED}" | "${DI_DISABLED}" | search | report) mode=$tok ;;
+            found=all | found=first) found=$val ;;
+            maybe=all | maybe=none) maybe=$val ;;
+            notfound="${DI_ENABLED}" | notfound="${DI_DISABLED}") notfound=$val ;;
             found=*)
-               parse_warn found "$val" "${_def_found}"
-               found=${_def_found};;
+                parse_warn found "$val" "${_def_found}"
+                found=${_def_found}
+                ;;
             maybe=*)
-               parse_warn maybe "$val" "${_def_maybe}"
-               maybe=${_def_maybe};;
+                parse_warn maybe "$val" "${_def_maybe}"
+                maybe=${_def_maybe}
+                ;;
             notfound=*)
-               parse_warn notfound "$val" "${_def_notfound}"
-               notfound=${_def_notfound};;
+                parse_warn notfound "$val" "${_def_notfound}"
+                notfound=${_def_notfound}
+                ;;
         esac
     done
     report=${report:-${_def_report:-false}}
@@ -2060,17 +2148,17 @@ read_config() {
         # discard anything after the first delimiter
         val=${val%%;*}
         case "$key" in
-            ds) _rc_dsname="$val";;
-            ci.ds) _rc_dsname="$val";;
-            ci.datasource) _rc_dsname="$val";;
-            ci.di.policy) _rc_policy="$val";;
+            ds) _rc_dsname="$val" ;;
+            ci.ds) _rc_dsname="$val" ;;
+            ci.datasource) _rc_dsname="$val" ;;
+            ci.di.policy) _rc_policy="$val" ;;
         esac
     done
 
     local _rc_mode _rc_report _rc_found _rc_maybe _rc_notfound
     parse_policy "${_rc_policy}"
     debug 1 "policy loaded: mode=${_rc_mode} report=${_rc_report}" \
-            "found=${_rc_found} maybe=${_rc_maybe} notfound=${_rc_notfound}"
+        "found=${_rc_found} maybe=${_rc_maybe} notfound=${_rc_notfound}"
     DI_MODE=${_rc_mode}
     DI_ON_FOUND=${_rc_found}
     DI_ON_MAYBE=${_rc_maybe}
@@ -2079,7 +2167,6 @@ read_config() {
     DI_DSNAME="${_rc_dsname}"
     return $ret
 }
-
 
 manual_clean_and_existing() {
     [ -f "${PATH_VAR_LIB_CLOUD}/instance/manual-clean" ]
@@ -2111,7 +2198,7 @@ set_run_path() {
 # testing only - NOT use for production code, it is NOT supported
 get_environment() {
     if [ -f "$PATH_DI_ENV" ]; then
-        debug 0 "WARN: loading environment file [${PATH_DI_ENV}]";
+        debug 0 "WARN: loading environment file [${PATH_DI_ENV}]"
         # shellcheck source=/dev/null
         . "$PATH_DI_ENV"
     fi
@@ -2142,8 +2229,9 @@ _main() {
             ;;
         "${DI_ENABLED}")
             debug 1 "mode=$DI_ENABLED. returning $ret_en"
-            return $ret_en;;
-        search|report) :;;
+            return $ret_en
+            ;;
+        search | report) : ;;
     esac
 
     if [ -n "${DI_DSNAME}" ]; then
@@ -2161,7 +2249,7 @@ _main() {
     # shellcheck disable=2086
     set -- $DI_DSLIST
     # if there is only a single entry in $DI_DSLIST
-    if [ $# -eq 1 ] || [ $# -eq 2 -a "$2" = "None" ] ; then
+    if [ $# -eq 1 ] || [ $# -eq 2 -a "$2" = "None" ]; then
         debug 1 "single entry in datasource_list ($DI_DSLIST) use that."
         if [ $# -eq 1 ]; then
             write_result "datasource_list: [ $1 ]"
@@ -2176,7 +2264,7 @@ _main() {
     for ds in ${DI_DSLIST}; do
         dscheck_fn="dscheck_${ds}"
         debug 2 "Checking for datasource '$ds' via '$dscheck_fn'"
-        if ! type "$dscheck_fn" >/dev/null 2>&1; then
+        if ! type "$dscheck_fn" > /dev/null 2>&1; then
             warn "No check method '$dscheck_fn' for datasource '$ds'"
             continue
         fi
@@ -2185,14 +2273,16 @@ _main() {
         ret="$?"
         case "$ret" in
             "${DS_FOUND}")
-                debug 1 "check for '$ds' returned found";
+                debug 1 "check for '$ds' returned found"
                 exfound_cfg="${exfound_cfg:+${exfound_cfg}${CR}}${_RET_excfg}"
-                found="${found} $ds";;
+                found="${found} $ds"
+                ;;
             "${DS_MAYBE}")
-                debug 1 "check for '$ds' returned maybe";
+                debug 1 "check for '$ds' returned maybe"
                 exmaybe_cfg="${exmaybe_cfg:+${exmaybe_cfg}${CR}}${_RET_excfg}"
-                maybe="${maybe} $ds";;
-            *) debug 2 "check for '$ds' returned not-found[$ret]";;
+                maybe="${maybe} $ds"
+                ;;
+            *) debug 2 "check for '$ds' returned not-found[$ret]" ;;
         esac
     done
 
@@ -2229,17 +2319,21 @@ _main() {
     case "$DI_MODE:$DI_ON_NOTFOUND" in
         report:"${DI_DISABLED}")
             msg="$basemsg Would disable cloud-init [$ret_dis]"
-            ret=$ret_en;;
+            ret=$ret_en
+            ;;
         report:"${DI_ENABLED}")
             msg="$basemsg Would enable cloud-init [$ret_en]"
-            ret=$ret_en;;
+            ret=$ret_en
+            ;;
         search:"${DI_DISABLED}")
             msg="$basemsg Disabled cloud-init [$ret_dis]"
-            ret=$ret_dis;;
+            ret=$ret_dis
+            ;;
         search:"${DI_ENABLED}")
             msg="$basemsg Enabled cloud-init [$ret_en]"
-            ret=$ret_en;;
-        *) error "Unexpected result";;
+            ret=$ret_en
+            ;;
+        *) error "Unexpected result" ;;
     esac
     debug 1 "$msg"
     return "$ret"
@@ -2258,7 +2352,7 @@ main() {
         if read ret < "$PATH_RUN_DI_RESULT"; then
             if [ "$ret" = "0" ] || [ "$ret" = "1" ] || [ "$ret" = "2" ]; then
                 debug 2 "used cached result $ret. pass --force to re-run."
-                return "$ret";
+                return "$ret"
             fi
             debug 1 "previous run returned unexpected '$ret'. Re-running."
         else
@@ -2280,11 +2374,12 @@ noop() {
 get_environment
 case "${DI_MAIN}" in
     # builtin DI_MAIN implementations
-    main|print_info|noop) "${DI_MAIN}" "$@";;
+    main | print_info | noop) "${DI_MAIN}" "$@" ;;
 
     # side-load an alternate implementation
     # testing only - NOT use for production code, it is NOT supported
     *)
-        debug 0 "WARN: side-loading alternate implementation: [${DI_MAIN}]";
-        exec "${DI_MAIN}" "$@";;
+        debug 0 "WARN: side-loading alternate implementation: [${DI_MAIN}]"
+        exec "${DI_MAIN}" "$@"
+        ;;
 esac

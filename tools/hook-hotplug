@@ -25,7 +25,7 @@ if ! should_run; then
 fi
 
 # open cloud-init's hotplug-hook fifo rw
-exec 3<>$fifo
+exec 3<> $fifo
 env_params=" --subsystem=${SUBSYSTEM} handle --devpath=${DEVPATH} --udevaction=${ACTION}"
 # write params to cloud-init's hotplug-hook fifo
 echo "${env_params}" >&3

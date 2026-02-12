@@ -1,7 +1,6 @@
 #!/bin/sh
 # This file is part of cloud-init. See LICENSE file for license information.
 
-
 do_syslog() {
     log_message=$1
 
@@ -16,7 +15,6 @@ do_syslog() {
     # shellcheck disable=SC2086  # logger give error if $logger_opts quoted
     logger $logger_opts "$log_message"
 }
-
 
 # Redirect stderr to stdout
 exec 2>&1
