@@ -9,8 +9,9 @@ There are five stages to boot which are run seqentially: ``Detect``, ``Local``,
 Visual representation of cloud-init boot stages with respect to network config
 and system accessibility:
 
-.. mermaid::
+.. raw:: html
 
+  <div class="mermaid">
   graph TB
 
     D["<a href='#detect'>Detect</a>"] ---> L
@@ -39,6 +40,7 @@ and system accessibility:
     subgraph F["<a href='#final'>Final</a>"]
         cloud_final_modules
     end
+  </div>
 
 .. _boot-Detect:
 

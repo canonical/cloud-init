@@ -1,4 +1,7 @@
+:orphan:
+
 .. _analyze:
+
 
 Performance
 ***********

@@ -1,3 +1,5 @@
+:orphan:
+
 .. _vendor-data:
 
 Vendor-data
