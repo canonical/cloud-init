@@ -35,6 +35,7 @@ syslog_fix_perms: root:wheel
 syslog_fix_perms: root:root
 {% endif %}
 
+{% if variant != "raspberry-pi-os" %}
 # A set of users which may be applied and/or used by various modules
 # when a 'default' entry is found it will reference the 'default_user'
 # from the distro configuration specified below
@@ -46,6 +47,7 @@ users:
   - default
 {% endif %}
 
+{% endif %}
 {% if variant == "photon" %}
 # VMware guest customization.
 disable_vmware_customization: true
