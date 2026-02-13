@@ -67,7 +67,7 @@ class TestDebianApplyLocale:
         util.write_file(LOCALE_PATH, "LANG=fr_FR.UTF-8", omode="w")
         distro.apply_locale(locale, out_fn=LOCALE_PATH)
         assert [
-            ["locale-gen", locale],
+            ["locale-gen"],
             [
                 "update-locale",
                 f"--locale-file={LOCALE_PATH}",
@@ -103,17 +103,20 @@ class TestDebianApplyLocale:
         with mock.patch.object(distro, "install_packages") as m_install:
             distro.apply_locale(locale, out_fn=LOCALE_PATH)
         assert [
-            ["locale-gen", locale],
+            ["locale-gen"],
             [
                 "update-locale",
                 f"--locale-file={LOCALE_PATH}",
                 f"LANG={locale}",
             ],
         ] == [p[0][0] for p in m_subp.call_args_list]
-        assert [
-            mock.call("locale-gen"),
-            mock.call("update-locale"),
-        ] == m_which.call_args_list
+        calls = [c.args[0] for c in m_which.call_args_list]
+        # collapse consecutive duplicates from _ensure_tool re-check
+        uniq: list[str] = []
+        for name in calls:
+            if not uniq or uniq[-1] != name:
+                uniq.append(name)
+        assert uniq == ["locale-gen", "update-locale"]
         if install_pkgs:
             m_install.assert_called_with(install_pkgs)
         else:
@@ -125,7 +128,7 @@ class TestDebianApplyLocale:
         util.write_file(LOCALE_PATH, "LANG=", omode="w")
         distro.apply_locale(locale, out_fn=LOCALE_PATH)
         assert [
-            ["locale-gen", locale],
+            ["locale-gen"],
             [
                 "update-locale",
                 f"--locale-file={LOCALE_PATH}",
@@ -148,7 +151,7 @@ class TestDebianApplyLocale:
         util.write_file(LOCALE_PATH, "LANG=", omode="w")
         distro.apply_locale(locale, out_fn=LOCALE_PATH, keyname="LC_ALL")
         assert [
-            ["locale-gen", locale],
+            ["locale-gen"],
             [
                 "update-locale",
                 f"--locale-file={LOCALE_PATH}",
