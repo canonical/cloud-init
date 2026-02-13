@@ -277,6 +277,12 @@ Only used in conjunction with ``syslog_fix_perms``.
 Specifies the filename to be used for setting permissions. Defaults
 to :file:`/var/log/cloud-init.log`.
 
+``security_log_file``
+^^^^^^^^^^^^^^^^^^^^^
+
+Specifies the filename to be used for emitting OSWAP security logs. Defaults
+to :file:`/var/log/cloud-init-security.log`.
+
 Other keys
 ----------
 
