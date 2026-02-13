@@ -398,6 +398,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """Wrapper to report whether this distro uses systemd or sysvinit."""
         return uses_systemd()
 
+    def append_kernel_cmdline(self, parameter):
+        raise NotImplementedError()
+
     @abc.abstractmethod
     def package_command(self, command, args=None, pkgs=None):
         # Long-term, this method should be removed and callers refactored.

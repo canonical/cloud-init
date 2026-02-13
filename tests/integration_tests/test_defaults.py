@@ -33,6 +33,7 @@ class TestDefaults:
             "disable_ec2_metadata",
             "disk_setup",
             "fan",
+            "fips",
             "keyboard",
             "landscape",
             "lxd",

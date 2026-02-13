@@ -42,6 +42,8 @@ Modules
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_fan/data.yaml
    :template: modules.tmpl
+.. datatemplate:yaml:: ../../module-docs/cc_fips/data.yaml
+   :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_final_message/data.yaml
    :template: modules.tmpl
 .. datatemplate:yaml:: ../../module-docs/cc_growpart/data.yaml

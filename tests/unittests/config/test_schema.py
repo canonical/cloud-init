@@ -236,6 +236,7 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_disable_ec2_metadata"},
             {"$ref": "#/$defs/cc_disk_setup"},
             {"$ref": "#/$defs/cc_fan"},
+            {"$ref": "#/$defs/cc_fips"},
             {"$ref": "#/$defs/cc_final_message"},
             {"$ref": "#/$defs/cc_growpart"},
             {"$ref": "#/$defs/cc_grub_dpkg"},

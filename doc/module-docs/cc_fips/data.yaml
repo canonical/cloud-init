@@ -1,0 +1,30 @@
+cc_fips:
+  description: |
+    Configure the system to enable kernel FIPS (Federal Information Processing
+    Standards) mode at the next boot. When ``fips`` is set to ``true``,
+    cloud-init enables FIPS on supported distributions (Fedora, CentOS, RHEL
+    only). Other distros are skipped.
+
+    FIPS mode takes effect only after a reboot. Use the ``power_state``
+    module to schedule a reboot after cloud-init completes. If FIPS is
+    already enabled (e.g. the system was imaged from an already-FIPS instance),
+    this module does nothing.
+
+    **Supported distros:** Fedora, CentOS, RHEL.
+
+    **Non-UKI systems:** The module tries ``fips-mode-setup --enable`` first;
+    if that is not available, it uses ``grubby`` to add ``fips=1`` to the
+    kernel command line, or falls back to editing ``/etc/default/grub`` and
+    running ``grub2-mkconfig``. It also installs ``dracut-fips`` and runs
+    ``dracut -f``.
+
+    **UKI (Unified Kernel Image) systems:** The distro looks for a FIPS addon
+    under ``/lib/modules/$(uname -r)/vmlinuz-virt.efi.extra.d/`` and copies it
+    into the UKI addon destination
+    ``/boot/efi/EFI/Linux/*-$(uname -r).efi.extra.d``. If the addon or
+    destination is not found, a warning is logged.
+  examples:
+  - comment: Enable FIPS and reboot
+    file: cc_fips/example1.yaml
+  name: FIPS
+  title: Enable FIPS mode at first boot

@@ -7,8 +7,10 @@
 # Author: Joshua Harlow <harlowja@yahoo-inc.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
+import glob
 import logging
 import os
+import re
 
 from cloudinit import distros, helpers, subp, util
 from cloudinit.distros import PackageList, rhel_util
@@ -28,6 +30,7 @@ class Distro(distros.Distro):
     systemd_hostname_conf_fn = "/etc/hostname"
     tz_local_fn = "/etc/localtime"
     usr_lib_exec = "/usr/libexec"
+    grub_default = "/etc/default/grub"
     # RHEL and derivatives use NetworkManager DHCP client by default.
     # But if NM is configured with using dhclient ("dhcp=dhclient" statement)
     # then the following location is used:
@@ -215,3 +218,77 @@ class Distro(distros.Distro):
             ["makecache"],
             freq=PER_ALWAYS if force else PER_INSTANCE,
         )
+
+    def _get_uki_addon_path(self, kver: str, parameter: str):
+        base = f"/lib/modules/{kver}/vmlinuz-virt.efi.extra.d"
+        if not os.path.isdir(base):
+            return None
+        for addon_file in os.listdir(base):
+            try:
+                with open(os.path.join(base, addon_file), "rb") as f:
+                    if parameter.encode() in f.read():
+                        return os.path.join(base, addon_file)
+            except Exception:
+                continue
+        return None
+
+    def _append_cmdline_grub(self, parameter: str) -> None:
+        if not os.path.exists(self.grub_default):
+            LOG.warning("GRUB_DEFAULT not found, skipping")
+            return
+        content = util.load_text_file(self.grub_default)
+        out = []
+        modified = False
+        targets = ("GRUB_CMDLINE_LINUX", "GRUB_CMDLINE_LINUX_DEFAULT")
+
+        for line in content.splitlines():
+            matched_target = next(
+                (t for t in targets if line.startswith(f"{t}=")), None
+            )
+            if matched_target and parameter not in line:
+                # Handle quotes flexibly (matches "val", 'val', or val)
+                m = re.match(
+                    r"^" + matched_target + r'=(["\']?)(.*?)(\1)\s*$', line
+                )
+                if m:
+                    quote, current_val, _ = m.groups()
+                    new_val = f"{current_val.strip()} {parameter}".strip()
+                    out.append(f"{matched_target}={quote}{new_val}{quote}")
+                    modified = True
+                    continue
+            out.append(line)
+
+        if modified:
+            util.write_file(self.grub_default, "\n".join(out) + "\n")
+            efi_pattern = "/boot/efi/EFI/*/grub.cfg"
+            cfg_path = next(
+                iter(sorted(glob.glob(efi_pattern))), "/boot/grub2/grub.cfg"
+            )
+            subp.subp(["grub2-mkconfig", "-o", cfg_path])
+
+    def append_kernel_cmdline(self, parameter: str):
+        if util.is_uki_system():
+            kver = os.uname().release
+            addon = self._get_uki_addon_path(kver, parameter)
+            try:
+                util.copy(
+                    addon,
+                    glob.glob(f"/boot/efi/EFI/Linux/*-{kver}.efi.extra.d")[0],
+                )
+            except Exception:
+                LOG.warning(
+                    "Failed to find UKI addon or destination: %s", parameter
+                )
+        else:
+            try:
+                subp.subp(
+                    ["grubby", "--update-kernel=ALL", f"--args={parameter}"]
+                )
+            except (subp.ProcessExecutionError, FileNotFoundError):
+                LOG.debug(
+                    "Failed to append kernel cmdline using grubby: %s, "
+                    "continuing with grub2-mkconfig",
+                    parameter,
+                )
+                self._append_cmdline_grub(parameter)
+        return

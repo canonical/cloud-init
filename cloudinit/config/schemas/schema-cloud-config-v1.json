@@ -22,6 +22,7 @@
         "fan",
         "final-message",
         "final_message",
+        "fips",
         "growpart",
         "grub-dpkg",
         "grub_dpkg",
@@ -1728,6 +1729,15 @@
           "deprecated": true,
           "deprecated_version": "22.2",
           "deprecated_description": "Use **grub_dpkg** instead."
+        }
+      }
+    },
+    "cc_fips": {
+      "type": "object",
+      "properties": {
+        "fips": {
+          "type": "boolean",
+          "description": "When ``true``, configure the system to enable kernel FIPS mode at next boot. A reboot is required for FIPS to take effect."
         }
       }
     },
@@ -4054,6 +4064,9 @@
       "$ref": "#/$defs/cc_fan"
     },
     {
+      "$ref": "#/$defs/cc_fips"
+    },
+    {
       "$ref": "#/$defs/cc_final_message"
     },
     {
@@ -4217,6 +4230,7 @@
     "final_message": {},
     "fqdn": {},
     "fs_setup": {},
+    "fips": {},
     "groups": {},
     "growpart": {},
     "grub-dpkg": {},

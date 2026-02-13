@@ -3078,6 +3078,10 @@ def read_hotplug_enabled_file(paths: "Paths") -> dict:
     return content
 
 
+def is_uki_system() -> bool:
+    return len(glob.glob("/sys/firmware/efi/efivars/StubInfo-*")) > 0
+
+
 @contextmanager
 def nullcontext() -> Generator[None, Any, None]:
     """Context manager that does nothing.
