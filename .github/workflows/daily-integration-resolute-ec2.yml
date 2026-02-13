@@ -1,0 +1,14 @@
+name: "Daily: Integration Resolute EC2"
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Run Mon & Thurs under reduced frequency for high-cost test runs
+    - cron: '2 22 * * 1,4'
+
+jobs:
+  resolute-ec2:
+    uses: ./.github/workflows/_integration_common.yml
+    with:
+      release: resolute
+      platform: ec2
