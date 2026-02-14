@@ -743,21 +743,21 @@ class NetworkStateInterpreter:
                 )
             phy_cmd["mac_address"] = mac_address
 
-            # Determine the name of the interface by using one of the
-            # following in the order they are listed:
-            #   * set-name
-            #   * interface name looked up by mac
-            #   * value of "eth" key from this loop
-            name = eth
+            # Determine and bind interface name here
+            # (must be resolved before handle_physical)
+            resolved_name = None
             set_name = cfg.get("set-name")
             if set_name:
-                name = set_name
+                resolved_name = set_name
+
             elif mac_address and ifaces_by_mac:
                 lcase_mac_address = mac_address.lower()
                 mac = find_interface_name_from_mac(lcase_mac_address)
                 if mac:
-                    name = mac
-            phy_cmd["name"] = name
+                    resolved_name = mac
+
+            # Always fall back to config key
+            phy_cmd["name"] = resolved_name or eth
 
             driver = match.get("driver", None)
             if driver:

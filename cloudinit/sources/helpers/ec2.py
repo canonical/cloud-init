@@ -9,6 +9,7 @@
 import functools
 import json
 import logging
+from typing import Any, Dict, Optional
 
 from cloudinit import url_helper, util
 
@@ -229,6 +230,80 @@ def _get_instance_metadata(
     except Exception:
         util.logexc(LOG, "Failed fetching %s from url %s", tree, md_url)
         return {}
+
+
+def get_primary_mac_from_metadata(
+    metadata: Optional[Dict[str, Any]],
+) -> Optional[str]:
+    """
+    Determine the primary NIC MAC address from EC2 metadata.
+
+    The primary NIC is defined as the interface with:
+      - network-card == 0
+      - device-number == 0
+
+    Metadata is expected to be materialized EC2 metadata as returned by
+    get_instance_metadata().
+
+    Returns:
+        str: MAC address of the primary NIC if found
+        None: if no primary NIC can be determined
+    """
+    if not isinstance(metadata, dict):
+        LOG.debug(
+            "EC2 metadata missing or malformed; cannot determine primary MAC"
+        )
+        return None
+
+    network = metadata.get("network")
+    if not isinstance(network, dict):
+        LOG.debug(
+            "EC2 metadata missing or malformed; cannot determine primary MAC"
+        )
+        return None
+
+    interfaces = network.get("interfaces")
+    if not isinstance(interfaces, dict):
+        LOG.debug(
+            "EC2 metadata missing or malformed; cannot determine primary MAC"
+        )
+        return None
+
+    macs_metadata = interfaces.get("macs")
+    if not isinstance(macs_metadata, dict) or not macs_metadata:
+        LOG.debug("No NIC metadata found in EC2 metadata")
+        return None
+
+    primary_candidates: list[str] = []
+
+    for mac, nic_md in macs_metadata.items():
+        if not isinstance(nic_md, dict):
+            continue
+
+        try:
+            network_card = int(nic_md.get("network-card", -1))
+            device_number = int(nic_md.get("device-number", -1))
+        except (TypeError, ValueError):
+            continue
+
+        if network_card == 0 and device_number == 0:
+            primary_candidates.append(mac)
+
+    if len(primary_candidates) == 1:
+        return primary_candidates[0]
+
+    if len(primary_candidates) > 1:
+        # Deterministic fallback: lowest MAC lexicographically
+        chosen = sorted(primary_candidates)[0]
+        LOG.debug(
+            "Multiple primary NIC candidates found %s; selected %s",
+            primary_candidates,
+            chosen,
+        )
+        return chosen
+
+    LOG.debug("No primary NIC identified via EC2 metadata")
+    return None
 
 
 def get_instance_metadata(

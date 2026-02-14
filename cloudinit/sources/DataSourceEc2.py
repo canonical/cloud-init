@@ -530,6 +530,15 @@ class DataSourceEc2(sources.DataSource):
             # SRU_BLOCKER: xenial, bionic and eoan should default
             # apply_full_imds_network_config to False to retain original
             # behavior on those releases.
+            primary_mac = ec2.get_primary_mac_from_metadata(self.metadata)
+            if primary_mac:
+                LOG.debug(
+                    "Identified primary NIC via EC2 metadata: %s",
+                    primary_mac,
+                )
+            else:
+                LOG.debug("No primary NIC identified via EC2 metadata")
+
             result = convert_ec2_metadata_network_config(
                 net_md,
                 self.distro,
