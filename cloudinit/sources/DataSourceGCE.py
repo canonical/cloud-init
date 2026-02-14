@@ -5,6 +5,7 @@
 import datetime
 import json
 import logging
+import time
 from base64 import b64decode
 
 from cloudinit import dmi, net, sources, url_helper, util
@@ -94,9 +95,25 @@ class DataSourceGCE(sources.DataSource):
                 candidate_nics.remove(DEFAULT_PRIMARY_INTERFACE)
                 candidate_nics.insert(0, DEFAULT_PRIMARY_INTERFACE)
             LOG.debug("Looking for the primary NIC in: %s", candidate_nics)
-            assert (
-                len(candidate_nics) >= 1
-            ), "The instance has to have at least one candidate NIC"
+            # Try to find a NIC that can reach the metadata service
+            # Inline retry loop (wait up to 5s for NICs to appear)
+            timeout = 5
+            sleep_interval = 1
+            start = time.monotonic()  # record start time
+            while not candidate_nics and (time.monotonic() - start) < timeout:
+                LOG.debug("No NICs yet, waiting for udev/network...")
+                time.sleep(sleep_interval)
+                candidate_nics = net.find_candidate_nics()
+            if not candidate_nics:
+                LOG.error("The instance must have at least one eligible NIC")
+                return False
+            # compute elapsed once, log in milliseconds
+            elapsed_ms = int((time.monotonic() - start) * 1000)
+            LOG.debug(
+                "Eligible NICs found after %d ms: %s",
+                elapsed_ms,
+                candidate_nics,
+            )
             for candidate_nic in candidate_nics:
                 network_context = EphemeralDHCPv4(
                     self.distro,
