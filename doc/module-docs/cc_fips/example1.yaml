@@ -1,0 +1,7 @@
+#cloud-config
+# Enable FIPS and reboot so the system comes up in FIPS mode.
+fips: true
+power_state:
+  mode: reboot
+  delay: now
+  message: Rebooting to enable FIPS mode
