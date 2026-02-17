@@ -21,7 +21,7 @@ apt:
   #
   # On one hand there is the global configuration for the apt feature.
   #
-  # On one hand (down in this file) there is the source dictionary which allows
+  # On the other hand (down in this file) there is the source dictionary which allows
   # to define various entries to be considered by apt.
 
   ##############################################################################
