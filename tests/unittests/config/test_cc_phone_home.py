@@ -1,5 +1,6 @@
 from functools import partial
 from itertools import count
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -24,7 +25,7 @@ def common_mocks(mocker):
 @mock.patch("cloudinit.url_helper.readurl")
 class TestPhoneHome:
     def test_default_call(self, m_readurl):
-        cfg = {"phone_home": {"url": "myurl"}}
+        cfg: dict[str, Any] = {"phone_home": {"url": "myurl"}}
         phone_home(cfg=cfg)
         assert m_readurl.call_args == mock.call(
             "myurl",
@@ -42,7 +43,7 @@ class TestPhoneHome:
         )
 
     def test_no_url(self, m_readurl, caplog):
-        cfg = {"phone_home": {}}
+        cfg: dict[str, Any] = {"phone_home": {}}
         phone_home(cfg=cfg)
         assert "Skipping module named" in caplog.text
         assert m_readurl.call_count == 0

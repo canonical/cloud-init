@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import re
 import tempfile
+from typing import Any
 
 import pytest
 
@@ -43,7 +44,7 @@ class TestBootcmd:
 
     def test_handler_skip_if_no_bootcmd(self, caplog):
         """When the provided config doesn't contain bootcmd, skip it."""
-        cfg = {}
+        cfg: dict = {}
         mycloud = get_cloud()
         handle("notimportant", cfg, mycloud, None)
         assert (
@@ -53,7 +54,7 @@ class TestBootcmd:
 
     def test_handler_invalid_command_set(self, caplog):
         """Commands which can't be converted to shell will raise errors."""
-        invalid_config = {"bootcmd": 1}
+        invalid_config: dict[str, Any] = {"bootcmd": 1}
         cc = get_cloud()
         with pytest.raises(
             TypeError,

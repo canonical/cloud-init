@@ -9,6 +9,7 @@
 """Disable EC2 Metadata: Disable AWS EC2 metadata."""
 
 import logging
+from typing import Optional
 
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
@@ -30,7 +31,9 @@ meta: MetaSchema = {
 }
 
 
-def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
+def handle(
+    name: str, cfg: Config, cloud: Optional[Cloud], args: Optional[list]
+) -> None:
     disabled = util.get_cfg_option_bool(cfg, "disable_ec2_metadata", False)
     if disabled:
         reject_cmd = None

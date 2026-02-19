@@ -9,6 +9,7 @@
 """Phone Home: Post data to url"""
 
 import logging
+from typing import Any, List, Optional
 
 from cloudinit import templater, url_helper, util
 from cloudinit.cloud import Cloud
@@ -46,7 +47,9 @@ LOG = logging.getLogger(__name__)
 #
 
 
-def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
+def handle(
+    name: str, cfg: Config, cloud: Cloud, args: Optional[List[Any]]
+) -> None:
     if args:
         ph_cfg = util.read_conf(args[0])
     else:
