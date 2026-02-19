@@ -1724,6 +1724,8 @@ WSL_profile_dir() {
             # Here WSL's `/init` is used to start the Windows cmd.exe
             # to output the Windows user profile directory path, which is
             # held by the environment variable %USERPROFILE%.
+	    # See https://wsl.dev/technical-documentation/interop/ for more information on how /init
+	    # is used to launch Windows binaries.
             WSL_run_cmd "$cmdexe" "echo.%USERPROFILE%"
             profiledir="${_RET%%[[:cntrl:]]}"
             if [ -n "$profiledir" ]; then
