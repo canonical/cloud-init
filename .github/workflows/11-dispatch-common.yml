@@ -1,4 +1,4 @@
-name: "Daily: Integration (reusable/manual)"
+name: "Dispatch: Integration"
 
 on:
   workflow_dispatch:
@@ -50,6 +50,7 @@ on:
 jobs:
   lxc:
     runs-on: ubuntu-latest
+    if: github.repository == 'canonical/cloud-init'
 
     env:
       CLOUD_INIT_PLATFORM: ${{ inputs.platform || 'lxd_container' }}

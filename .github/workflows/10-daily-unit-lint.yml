@@ -8,6 +8,7 @@ concurrency:
 jobs:
   hypothesis:
     name: "Fuzz: jsonschema"
+    if: github.repository == 'canonical/cloud-init'
     runs-on: ubuntu-latest
     env:
       FORCE_COLOR: 1
@@ -85,6 +86,6 @@ jobs:
       - name: Install tox
         run: pip install tox
       - name: Run unittest
-        env: 
+        env:
           TMPDIR: '/tmp/'
         run: tox -e ${{ matrix.toxenv }} -- --color=yes

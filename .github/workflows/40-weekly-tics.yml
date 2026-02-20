@@ -13,6 +13,7 @@ concurrency:
 
 jobs:
   TICS:
+    if: github.repository == 'canonical/cloud-init'
     runs-on: [self-hosted, linux, amd64, tiobe, noble]
     steps:
       - name: Checkout the project

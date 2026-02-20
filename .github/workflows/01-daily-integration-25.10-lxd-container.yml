@@ -1,4 +1,4 @@
-name: "Daily: Integration Questing lxd_container"
+name: "Daily(25.10): lxd_container"
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   questing-lxd_container:
-    uses: ./.github/workflows/_integration_common.yml
+    uses: ./.github/workflows/11-dispatch-common.yml
     with:
       release: questing
       platform: lxd_container
