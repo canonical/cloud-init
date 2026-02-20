@@ -1710,7 +1710,7 @@ WSL_run_cmd() {
     shift
     # Using the '/u' flag to enforce Unicode (UTF-16 LE), thus we need to decode it afterwards.
     # It's more reliable than the default ANSI Code Pages for anything above the ASCII range.
-    _RET=$(/init "$exepath" /u /c "$@" 2>/dev/null | iconv -f UTF-16LE -t UTF-8)
+    _RET=$(/init "$exepath" /u /c "$@" 2>/dev/null | iconv --from-code UTF-16LE --to-code UTF-8)
 }
 
 WSL_profile_dir() {
