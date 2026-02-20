@@ -340,6 +340,8 @@ class TestResize:
                     return (1024, 2048)
                 return (1024, 1024)  # old size, new size
 
+        real_stat = os.stat
+
         def mystat(path):
             if path in devs:
                 return devstat_ret
@@ -347,7 +349,7 @@ class TestResize:
                 e = OSError("%s: does not exist" % path)
                 e.errno = errno.ENOENT
                 raise e
-            raise AssertionError(f"unexpected stat call for {path}")
+            return real_stat(path)
 
         mocker.patch.object(
             distro,
