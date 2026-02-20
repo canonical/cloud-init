@@ -53,16 +53,16 @@ class TestBootcmd:
 
     def test_handler_invalid_command_set(self, caplog):
         """Commands which can't be converted to shell will raise errors."""
-        invalid_config_int = {"bootcmd": 1}
+        invalid_config_value = {"bootcmd": 1}
         cc = get_cloud()
         with pytest.raises(
             TypeError,
             match="Input to shellify was type 'int'. Expected list or tuple.",
         ):
-            handle("cc_bootcmd", invalid_config_int, cc, [])
+            handle("cc_bootcmd", invalid_config_value, cc, [])
         assert "Failed to shellify bootcmd" in caplog.text
 
-        invalid_config_list = {
+        invalid_config_items = {
             "bootcmd": ["ls /", 20, ["wcurl", "http://stuff/blah"], {"a": "n"}]
         }
         cc = get_cloud()
@@ -71,7 +71,7 @@ class TestBootcmd:
             match="Unable to shellify type 'int'. Expected list, string, "
             "tuple. Got: 20",
         ):
-            handle("cc_bootcmd", invalid_config_list, cc, [])
+            handle("cc_bootcmd", invalid_config_items, cc, [])
         assert "Failed to shellify" in caplog.text
 
     @pytest.mark.allow_subp_for("/bin/sh")
