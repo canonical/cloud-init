@@ -1,4 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+import json
 from unittest import mock
 
 import pytest
@@ -266,9 +267,8 @@ class TestUGNormalize:
         assert {"default": False} == users["joe"]
         assert {"default": False} == users["bob"]
 
-    @mock.patch("cloudinit.distros.sec_log_user_created")
     @mock.patch("cloudinit.subp.subp")
-    def test_create_snap_user(self, mock_subp, m_sec_log_user_created):
+    def test_create_snap_user(self, mock_subp, caplog):
         mock_subp.side_effect = [
             ('{"username": "joe", "ssh-key-count": 1}\n', "")
         ]
@@ -286,15 +286,11 @@ class TestUGNormalize:
         snapcmd = ["snap", "create-user", "--sudoer", "--json", "joe@joe.com"]
         mock_subp.assert_called_with(snapcmd, capture=True, logstring=snapcmd)
         assert username == "joe"
-        m_sec_log_user_created.assert_called_once_with(
-            userid="cloud-init",
-            new_userid="joe",
-            attributes={"snapuser": True, "sudo": True},
-        )
+        event = json.loads(caplog.records[-1].msg)
+        assert "user_created:cloud-init,joe" == event["event"]
 
-    @mock.patch("cloudinit.distros.sec_log_user_created")
     @mock.patch("cloudinit.subp.subp")
-    def test_create_snap_user_known(self, mock_subp, m_sec_log_user_created):
+    def test_create_snap_user_known(self, mock_subp, caplog):
         mock_subp.side_effect = [
             ('{"username": "joe", "ssh-key-count": 1}\n', "")
         ]
@@ -319,11 +315,8 @@ class TestUGNormalize:
         ]
         mock_subp.assert_called_with(snapcmd, capture=True, logstring=snapcmd)
         assert username == "joe"
-        m_sec_log_user_created.assert_called_once_with(
-            userid="cloud-init",
-            new_userid="joe",
-            attributes={"snapuser": True, "sudo": True},
-        )
+        event = json.loads(caplog.records[-1].msg)
+        assert "user_created:cloud-init,joe" == event["event"]
 
     @mock.patch("cloudinit.util.system_is_snappy")
     @mock.patch("cloudinit.util.is_group")

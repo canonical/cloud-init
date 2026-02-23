@@ -3,27 +3,18 @@
 """Tests for cloudinit.log.security_event_log"""
 
 import json
-import os
 
 import pytest
 
-from cloudinit.log import security_event_log
+from cloudinit.log import loggers, security_event_log
 from cloudinit.log.security_event_log import (
-    APP_ID,
     OWASPEventLevel,
     OWASPEventType,
     sec_log_password_changed,
     sec_log_system_shutdown,
     sec_log_user_created,
-    sec_log_user_updated,
 )
-from cloudinit.settings import DEFAULT_SECURITY_LOG
-
-
-@pytest.fixture
-def security_log_file(tmp_path):
-    """Provide a temporary security log file path."""
-    return tmp_path / "cloud-init-security-events.log"
+from cloudinit.util import get_hostname
 
 
 class TestBuildEventString:
@@ -122,186 +113,155 @@ class TestBuildSecurityEvent:
 class TestLogSecurityEvent:
     """Tests for _log_security_event function."""
 
-    def test_writes_json_to_file(self, security_log_file):
+    def test_writes_json_to_file(self, caplog):
         """Test that event is written to log file as JSON."""
-        security_event_log._log_security_event(
-            event_type=OWASPEventType.USER_CREATED,
-            level=OWASPEventLevel.INFO,
-            description="User created successfully",
-            event_params=["cloud-init", "testuser"],
-            log_file=security_log_file,
-        )
-        event = json.loads(security_log_file.read_text())
+        with caplog.at_level(loggers.SECURITY):
+            security_event_log._log_security_event(
+                event_type=OWASPEventType.USER_CREATED,
+                level=OWASPEventLevel.INFO,
+                description="User created successfully",
+                event_params=["cloud-init", "testuser"],
+            )
+        event = json.loads(caplog.records[0].msg)
 
         assert event["event"] == "user_created:cloud-init,testuser"
         assert event["level"] == "INFO"
         assert event["appid"] == "canonical.cloud_init"
 
-    def test_appends_multiple_events(self, security_log_file):
+    def test_appends_multiple_events(self, caplog):
         """Test that multiple events are appended to the log file."""
-        security_event_log._log_security_event(
-            event_type=OWASPEventType.USER_CREATED,
-            level=OWASPEventLevel.INFO,
-            description="First user",
-            event_params=["cloud-init", "user1"],
-            log_file=security_log_file,
-        )
+        with caplog.at_level(loggers.SECURITY):
+            security_event_log._log_security_event(
+                event_type=OWASPEventType.USER_CREATED,
+                level=OWASPEventLevel.INFO,
+                description="First user",
+                event_params=["cloud-init", "user1"],
+            )
 
-        security_event_log._log_security_event(
-            event_type=OWASPEventType.USER_CREATED,
-            level=OWASPEventLevel.INFO,
-            description="Second user",
-            event_params=["cloud-init", "user2"],
-            log_file=security_log_file,
-        )
+            security_event_log._log_security_event(
+                event_type=OWASPEventType.USER_CREATED,
+                level=OWASPEventLevel.INFO,
+                description="Second user",
+                event_params=["cloud-init", "user2"],
+            )
 
-        lines = security_log_file.read_text().splitlines()
-
-        assert len(lines) == 2
-        event1 = json.loads(lines[0])
-        event2 = json.loads(lines[1])
+        assert len(caplog.records) == 2
+        event1 = json.loads(caplog.records[0].msg)
+        event2 = json.loads(caplog.records[1].msg)
         assert "user1" in event1["event"]
         assert "user2" in event2["event"]
-
-    def test_uses_default_log_file_when_not_specified(
-        self, security_log_file, mocker
-    ):
-        """Test that default log file path is used when not specified."""
-        mocker.patch(
-            "cloudinit.settings.DEFAULT_SECURITY_LOG", security_log_file
-        )
-
-        security_event_log._log_security_event(
-            event_type=OWASPEventType.USER_CREATED,
-            level=OWASPEventLevel.INFO,
-            description="Test event",
-            log_file=security_log_file,
-        )
-        assert security_log_file.exists(), f"File missing {security_log_file}"
-
-    def test_log_file_has_restricted_permissions(self, security_log_file):
-        """Test that log file is created with restricted permissions."""
-        security_event_log._log_security_event(
-            event_type=OWASPEventType.USER_CREATED,
-            level=OWASPEventLevel.INFO,
-            description="Test event",
-            log_file=security_log_file,
-        )
-
-        file_mode = os.stat(security_log_file).st_mode & 0o777
-        assert file_mode == 0o600
 
 
 class TestUserCreatedEvent:
     """Tests for sec_log_user_created function."""
 
-    def test_logs_user_created_event(self, security_log_file):
+    @pytest.mark.parametrize("user_created", (True, False))
+    def test_logs_user_created_event(self, user_created, caplog):
         """Test logging a user creation event."""
-        sec_log_user_created(
-            userid="cloud-init",
-            new_userid="testuser",
-            attributes={"groups": "wheel", "shell": "/bin/bash"},
-            log_file=security_log_file,
-        )
 
-        event = json.loads(security_log_file.read_text())
+        @sec_log_user_created
+        def user_created_test(name, **kwargs):
+            # Distro.create_user returns False when no new user is created.
+            return user_created
 
-        assert "user_created" in event["event"]
-        assert "cloud-init" in event["event"]
-        assert "testuser" in event["event"]
-        assert event["level"] == "WARN"
-        assert "testuser" in event["description"]
+        with caplog.at_level(loggers.SECURITY):
+            user_created_test(
+                name="testuser",
+            )
 
-    def test_user_created_includes_attributes(self, security_log_file):
-        """Test that attributes are included in event."""
-        sec_log_user_created(
-            userid="cloud-init",
-            new_userid="testuser",
-            attributes={"groups": "wheel,docker", "uid": 1001},
-            log_file=security_log_file,
-        )
+        if not user_created:
+            assert 0 == len(caplog.records)
+            return
 
-        event = json.loads(security_log_file.read_text())
+        # Create user security event happens only when user is created
+        event = json.loads(caplog.records[0].msg)
 
-        assert event["groups"] == "wheel,docker"
-        assert event["uid"] == 1001
-
-
-class TestUserUpdatedEvent:
-    """Tests for sec_log_user_updated function."""
-
-    def test_logs_user_updated_event(self, security_log_file):
-        """Test logging a user update event."""
-        sec_log_user_updated(
-            userid="cloud-init",
-            on_userid="existinguser",
-            attributes={"ssh_keys_added": True},
-            log_file=security_log_file,
-        )
-
-        event = json.loads(security_log_file.read_text())
-
-        assert "user_updated" in event["event"]
-        assert "existinguser" in event["event"]
-        assert event["level"] == "WARN"
+        assert event.pop("datetime")
+        assert {
+            "appid": "canonical.cloud_init",
+            "event": "user_created:cloud-init,testuser",
+            "description": "User 'testuser' was created",
+            "hostname": get_hostname(),
+            "level": "WARN",
+        } == event
 
 
 class TestPasswordChangedEvent:
     """Tests for sec_log_password_changed function."""
 
-    def test_logs_password_changed_event(self, security_log_file):
+    def test_logs_password_changed_event(self, caplog):
         """Test logging a password change event."""
-        sec_log_password_changed(
-            userid="testuser",
-            log_file=security_log_file,
-        )
 
-        event = json.loads(security_log_file.read_text())
+        @sec_log_password_changed
+        def set_passwd_test(user):
+            pass
 
-        assert event["event"] == "authn_password_change:testuser"
-        assert event["level"] == "INFO"
-        assert "testuser" in event["description"]
+        with caplog.at_level(loggers.SECURITY):
+            set_passwd_test(user="testuser")
+            set_passwd_test("testuser")  # Test with positional params
+
+        expected_value = {
+            "appid": "canonical.cloud_init",
+            "event": "authn_password_change:cloud-init,testuser",
+            "description": "Password changed for user 'testuser'",
+            "hostname": get_hostname(),
+            "level": "INFO",
+        }
+
+        for record in caplog.records:
+            event = json.loads(record.msg)
+            assert event.pop("datetime")
+            assert expected_value == event
 
 
 class TestSystemShutdownEvent:
     """Tests for sec_log_system_shutdown function."""
 
-    def test_logs_system_shutdown_event(self, security_log_file):
+    @pytest.mark.parametrize(
+        "mode,delay,expected_event,expected_descr",
+        (
+            (
+                "poweroff",
+                "+5",
+                "sys_shutdown:cloud-init",
+                "System shutdown initiated (mode=poweroff)",
+            ),
+            (
+                "reboot",
+                "now",
+                "sys_restart:cloud-init",
+                "System restart initiated",
+            ),
+        ),
+    )
+    def test_logs_system_shutdown_event(
+        self, mode, delay, expected_event, expected_descr, caplog
+    ):
         """Test logging a system shutdown event."""
-        sec_log_system_shutdown(
-            userid="cloud-init",
-            mode="poweroff",
-            delay="+5",
-            log_file=security_log_file,
-        )
 
-        event = json.loads(security_log_file.read_text())
+        @sec_log_system_shutdown
+        def shutdown_test(mode, delay):
+            pass
 
-        assert event["event"] == "sys_shutdown:cloud-init"
-        assert event["level"] == "INFO"
-        assert event["mode"] == "poweroff"
-        assert event["delay"] == "+5"
+        with caplog.at_level(loggers.SECURITY):
+            shutdown_test(
+                mode=mode,
+                delay=delay,
+            )
 
-
-class TestSystemRestartEvent:
-    """Tests for sec_log_system_shutdown with reboot mode."""
-
-    def test_logs_system_restart_event(self, security_log_file):
-        """Test logging a system restart event."""
-        sec_log_system_shutdown(
-            userid="cloud-init",
-            mode="reboot",
-            delay="now",
-            log_file=security_log_file,
-        )
-
-        event = json.loads(security_log_file.read_text())
-
-        # Note: Currently the implementation has a bug where it always logs sys_shutdown
-        # even for reboots, but let's test what it should be doing
-        assert event["event"] == "sys_shutdown:cloud-init"
-        assert event["level"] == "INFO"
-        assert event["delay"] == "now"
+        event = json.loads(caplog.records[0].msg)
+        assert event.pop("datetime")
+        expected = {
+            "appid": "canonical.cloud_init",
+            "delay": delay,
+            "description": expected_descr,
+            "event": expected_event,
+            "hostname": get_hostname(),
+            "level": "INFO",
+        }
+        if mode != "reboot":
+            expected["mode"] = mode
+        assert expected == event
 
 
 class TestEventTypeEnums:
@@ -314,35 +274,14 @@ class TestEventTypeEnums:
             (OWASPEventType.SYS_SHUTDOWN, "sys_shutdown"),
             (OWASPEventType.SYS_RESTART, "sys_restart"),
             (OWASPEventType.USER_CREATED, "user_created"),
-            (OWASPEventType.USER_UPDATED, "user_updated"),
         ],
         ids=[
             "authn_password_change",
             "sys_shutdown",
             "sys_restart",
             "user_created",
-            "user_updated",
         ],
     )
     def test_event_type_values(self, event_type, expected_value):
         """Test event type enum values."""
         assert event_type.value == expected_value
-
-
-class TestErrorHandling:
-    """Tests for error handling in security event logging."""
-
-    def test_handles_write_permission_error(self, mocker, caplog):
-        """Test graceful handling of permission errors."""
-        mocker.patch("builtins.open", side_effect=PermissionError("denied"))
-        mocker.patch("os.path.exists", return_value=True)
-
-        # Should not raise, just log warning
-        security_event_log._log_security_event(
-            event_type=OWASPEventType.USER_CREATED,
-            level=OWASPEventLevel.INFO,
-            description="Test event",
-            log_file="/unwritable/path.log",
-        )
-
-        assert "Failed to write security event" in caplog.text

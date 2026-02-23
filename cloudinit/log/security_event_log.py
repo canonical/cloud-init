@@ -16,15 +16,14 @@ Security events are logged in JSON Lines format with standardized fields:
 """
 
 import datetime
+import functools
 import json
 import logging
-import os
-import socket
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from cloudinit import util
-from cloudinit.settings import DEFAULT_SECURITY_LOG
+from cloudinit.log import loggers
 
 LOG = logging.getLogger(__name__)
 
@@ -120,17 +119,15 @@ def _log_security_event(
     description: str,
     event_params: Optional[List[str]] = None,
     additional_data: Optional[Dict[str, Any]] = None,
-    log_file: Optional[str] = DEFAULT_SECURITY_LOG,
 ) -> None:
     """
     Log a security event in OWASP format.
 
     :param event_type: Type of security event.
-    :param level: Log level (INFO, WARN, CRITICAL).
+    :param level: OWASP Log level (INFO, WARN, CRITICAL).
     :param description: Human-readable description of the event.
     :param event_params: Parameters to include in the event string.
     :param additional_data: Additional context-specific data.
-    :param log_file: Path to which to write the JSON lines.
     """
     event = _build_security_event(
         event_type=event_type,
@@ -139,138 +136,86 @@ def _log_security_event(
         event_params=event_params,
         additional_data=additional_data,
     )
-
-    try:
-        json_line = json.dumps(event, separators=(",", ":")) + "\n"
-
-        # Create file with restricted permissions if it doesn't exist
-        if not os.path.exists(log_file):
-            util.ensure_file(log_file, mode=0o600, preserve_mode=False)
-
-        util.append_file(log_file, json_line, disable_logging=True)
-
-    except Exception as e:
-        LOG.warning(
-            "Failed to write security event to %s: %s",
-            log_file,
-            str(e),
-        )
+    LOG.log(loggers.SECURITY, json.dumps(event, separators=(",", ":")))
 
 
-def sec_log_user_created(
-    userid: str,
-    new_userid: str,
-    attributes: Optional[Dict[str, Any]] = None,
-    log_file: Optional[str] = DEFAULT_SECURITY_LOG,
-) -> None:
+def sec_log_user_created(func):
     """
-    Log a user creation event providing any admin-related attributes granted.
+    A decorator to log a user creation event and priviledged attributes.
 
     :param userid: The user/process that initiated the action.
     :param new_userid: The username of the newly created user.
     :param attributes: Additional user attributes (groups, shell, etc.).
-    :param log_file: Override the default log file path.
     """
-    params = [userid, new_userid]
-    if attributes:
-        # Add a summary of attributes
-        attr_summary = ";".join(
-            f"{k}={v}" for k, v in attributes.items() if v is not None
+
+    @functools.wraps(func)
+    def decorator(*args, **kwargs):
+        new_userid = args[-1] if args else kwargs.get("name")
+        if not new_userid:
+            raise RuntimeError(
+                "sec_log_user_created requires positional param name or kwarg"
+            )
+        params = ["cloud-init", new_userid]
+
+        response = func(*args, **kwargs)
+        if response:
+            _log_security_event(
+                event_type=OWASPEventType.USER_CREATED,
+                level=OWASPEventLevel.WARN,
+                description=f"User '{new_userid}' was created",
+                event_params=params,
+            )
+        return response
+
+    return decorator
+
+
+def sec_log_password_changed(func):
+    """A decorator logging a password change event."""
+
+    @functools.wraps(func)
+    def decorator(*args, **kwargs):
+        response = func(*args, **kwargs)
+        userid = kwargs.get("user")
+        if not userid:
+            userid = args[-1]
+        _log_security_event(
+            event_type=OWASPEventType.AUTHN_PASSWORD_CHANGE,
+            level=OWASPEventLevel.INFO,
+            description=f"Password changed for user '{userid}'",
+            event_params=["cloud-init", userid],
         )
-        if attr_summary:
-            params.append(attr_summary)
+        return response
 
-    _log_security_event(
-        event_type=OWASPEventType.USER_CREATED,
-        level=OWASPEventLevel.WARN,
-        description=f"User '{new_userid}' was created",
-        event_params=params,
-        additional_data=attributes,
-        log_file=log_file,
-    )
+    return decorator
 
 
-def sec_log_user_updated(
-    userid: str,
-    on_userid: str,
-    attributes: Optional[Dict[str, Any]] = None,
-    log_file: Optional[str] = DEFAULT_SECURITY_LOG,
-) -> None:
-    """
-    Log a user update event.
+def sec_log_system_shutdown(func):
+    """A decorator logging a system shutdown event."""
 
-    :param userid: The user/process that initiated the action.
-    :param on_userid: The username being updated.
-    :param attributes: Attributes being updated.
-    :param log_file: Override the default log file path.
-    """
-    params = [userid, on_userid]
-    if attributes:
-        attr_summary = ";".join(
-            f"{k}={v}" for k, v in attributes.items() if v is not None
+    @functools.wraps(func)
+    def decorator(*args, **kwargs):
+        mode = kwargs["mode"]
+        delay = kwargs["delay"]
+
+        additional = {}
+        if mode == "reboot":
+            event_type = OWASPEventType.SYS_RESTART
+            description = "System restart initiated"
+        else:
+            event_type = OWASPEventType.SYS_SHUTDOWN
+            description = f"System shutdown initiated (mode={mode})"
+            additional["mode"] = mode
+        if delay:
+            additional["delay"] = delay
+
+        _log_security_event(
+            event_type=event_type,
+            level=OWASPEventLevel.INFO,
+            description=description,
+            event_params=["cloud-init"],
+            additional_data=additional if additional else None,
         )
-        if attr_summary:
-            params.append(attr_summary)
+        return func(*args, **kwargs)
 
-    _log_security_event(
-        event_type=OWASPEventType.USER_UPDATED,
-        level=OWASPEventLevel.WARN,
-        description=f"User '{on_userid}' was updated",
-        event_params=params,
-        additional_data=attributes,
-        log_file=log_file,
-    )
-
-
-def sec_log_password_changed(
-    userid: str,
-    log_file: Optional[str] = DEFAULT_SECURITY_LOG,
-) -> None:
-    """
-    Log a password change event.
-
-    :param userid: The user whose password was changed.
-    :param log_file: Override the default log file path.
-    """
-    _log_security_event(
-        event_type=OWASPEventType.AUTHN_PASSWORD_CHANGE,
-        level=OWASPEventLevel.INFO,
-        description=f"Password changed for user '{userid}'",
-        event_params=[userid],
-        log_file=log_file,
-    )
-
-
-def sec_log_system_shutdown(
-    userid: Optional[str] = None,
-    mode: Optional[str] = None,
-    delay: Optional[str] = None,
-    log_file: Optional[str] = DEFAULT_SECURITY_LOG,
-) -> None:
-    """
-    Log a system shutdown event.
-
-    :param userid: The user/process that initiated the shutdown.
-    :param mode: Shutdown mode (halt, poweroff, reboot).
-    :param delay: Delay before shutdown.
-    :param log_file: Override the default log file path.
-    """
-    additional = {}
-    if mode == "reboot":
-        event_type = OWASPEventType.SYS_RESTART
-        description = "System restart initiated"
-    else:
-        event_type = OWASPEventType.SYS_SHUTDOWN
-        description = f"System shutdown initiated (mode={mode})"
-        additional["mode"] = mode
-    if delay:
-        additional["delay"] = delay
-
-    _log_security_event(
-        event_type=OWASPEventType.SYS_SHUTDOWN,
-        level=OWASPEventLevel.INFO,
-        description=f"System shutdown initiated (mode={mode})",
-        event_params=["cloud-init"],
-        additional_data=additional if additional else None,
-        log_file=log_file,
-    )
+    return decorator

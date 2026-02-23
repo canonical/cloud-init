@@ -18,8 +18,6 @@ CLEAN_RUNPARTS_DIR = "/etc/cloud/clean.d"
 
 DEFAULT_RUN_DIR = "/run/cloud-init"
 
-DEFAULT_SECURITY_LOG = "/var/log/cloud-init-security.log"
-
 # What u get if no config is provided
 CFG_BUILTIN = {
     "datasource_list": [
@@ -57,7 +55,6 @@ CFG_BUILTIN = {
         "None",
     ],
     "def_log_file": "/var/log/cloud-init.log",
-    "security_log_file": DEFAULT_SECURITY_LOG,
     "log_cfgs": [],
     "syslog_fix_perms": ["syslog:adm", "root:adm", "root:wheel", "root:root"],
     "system_info": {

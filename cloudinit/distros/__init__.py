@@ -789,12 +789,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             elif k in ("sudo", "doas") and v:
                 user_attributes[k] = True
 
-        sec_log_user_created(
-            userid="cloud-init",
-            new_userid=name,
-            attributes=user_attributes if user_attributes else None,
-        )
-
         # Indicate that a new user was created
         return True
 
@@ -822,11 +816,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             LOG.debug("snap create-user returned: %s:%s", out, err)
             jobj = util.load_json(out)
             username = jobj.get("username", None)
-            sec_log_user_created(
-                userid="cloud-init",
-                new_userid=name,
-                attributes={"snapuser": True, "sudo": True},
-            )
         except Exception as e:
             util.logexc(LOG, "Failed to create snap user %s", name)
             raise e
@@ -867,6 +856,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 return True
         return False
 
+    @sec_log_user_created
     def create_user(self, name, **kwargs):
         """
         Creates or partially updates the ``name`` user in the system.
@@ -1116,6 +1106,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             util.logexc(LOG, "Failed to set 'expire' for %s", user)
             raise e
 
+    @sec_log_password_changed
     def set_passwd(self, user, passwd, hashed=False):
         pass_string = "%s:%s" % (user, passwd)
         cmd = ["chpasswd"]
@@ -1134,8 +1125,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             util.logexc(LOG, "Failed to set password for %s", user)
             raise e
 
-        # Log security event for password change
-        sec_log_password_changed(userid=user)
         return True
 
     def chpasswd(self, plist_in: list, hashed: bool):
@@ -1150,10 +1139,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # chpasswd don't know about long names.
         cmd = ["chpasswd"] + (["-e"] if hashed else [])
         subp.subp(cmd, data=payload)
-
-        # Log security event for each password change
-        for name, _ in plist_in:
-            sec_log_password_changed(userid=name)
 
     def is_doas_rule_valid(self, user, rule):
         rule_pattern = (
@@ -1351,8 +1336,13 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 LOG.info("Added user '%s' to group '%s'", member, name)
 
     @classmethod
+    @sec_log_system_shutdown
     def shutdown_command(cls, *, mode, delay, message):
-        # called from cc_power_state_change.load_power_state
+        # called from cc_power_state_change.load_power_state and clean
+        if hasattr(cls, "_shutdown_command"):  # Overridden in alpine.Distro
+            return cls._shutdown_command(
+                mode=mode, delay=delay, message=message
+            )
         command = ["shutdown", cls.shutdown_options_map[mode]]
         try:
             if delay != "now":
@@ -1365,8 +1355,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         args = command + [delay]
         if message:
             args.append(message)
-
-        sec_log_system_shutdown(mode=mode, delay=str(delay))
 
         return args
 

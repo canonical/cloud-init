@@ -22,6 +22,8 @@ from contextlib import suppress
 from typing import DefaultDict
 
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(filename)s[%(levelname)s]: %(message)s"
+SECURITY_LOG_FORMAT = "%(message)s"
+SECURITY = 36
 DEPRECATED = 35
 TRACE = logging.DEBUG - 5
 
@@ -41,9 +43,21 @@ class CustomLoggerType(logging.Logger):
     def deprecated(self, *args, **kwargs):
         pass
 
+    def security(self, *args, **kwargs):
+        pass
+
+
+class LevelBasedFormatter(logging.Formatter):
+    def format(self, record):
+        if record.levelno == SECURITY:
+            self._style._fmt = SECURITY_LOG_FORMAT
+        else:
+            self._style._fmt = DEFAULT_LOG_FORMAT
+        return super().format(record)
+
 
 def setup_basic_logging(level=logging.DEBUG, formatter=None):
-    formatter = formatter or logging.Formatter(DEFAULT_LOG_FORMAT)
+    formatter = formatter or LevelBasedFormatter()
     root = logging.getLogger()
     console = logging.StreamHandler(sys.stderr)
     console.setFormatter(formatter)
@@ -63,7 +77,7 @@ def flush_loggers(root):
 
 
 def define_extra_loggers() -> None:
-    """Add DEPRECATED and TRACE log levels to the logging module."""
+    """Add SECURITY, DEPRECATED and TRACE log levels to the logging module."""
 
     def new_logger(level):
         def log_at_level(self, message, *args, **kwargs):
@@ -72,8 +86,10 @@ def define_extra_loggers() -> None:
 
         return log_at_level
 
+    logging.addLevelName(SECURITY, "SECURITY")
     logging.addLevelName(DEPRECATED, "DEPRECATED")
     logging.addLevelName(TRACE, "TRACE")
+    setattr(logging.Logger, "security", new_logger(SECURITY))
     setattr(logging.Logger, "deprecated", new_logger(DEPRECATED))
     setattr(logging.Logger, "trace", new_logger(TRACE))
 
