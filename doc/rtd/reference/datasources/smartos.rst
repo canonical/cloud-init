@@ -44,7 +44,7 @@ the flexible channels of SmartOS.
 
    - This is executed each boot.
    - A link is created to :file:`/var/db/user-script`.
-   - Previous versions of ``user-script`` is written to
+   - Previous versions of ``user-script`` are written to
      :file:`/var/lib/cloud/scripts/per-boot.backup/99_user_script.<timestamp>.`
    - <timestamp> is the epoch time when ``cloud-init`` ran.
    - When the ``user-script`` meta-data key goes missing, ``user-script`` is
@@ -55,12 +55,12 @@ the flexible channels of SmartOS.
 
 3. ``Cloud-init`` user-data is treated like on other Clouds.
 
-   - This channel is used for delivering ``_all_ cloud-init`` instructions.
+   - This channel is used for delivering all ``cloud-init`` instructions.
    - Scripts delivered over this channel must be well formed (i.e., they must
      have a shebang).
 
-``Cloud-init`` supports reading the traditional meta-data fields supported by
-the SmartOS tools. These are:
+``Cloud-init`` supports reading the traditional ``meta-data`` fields supported
+by the SmartOS tools. These are:
 
 * ``root_authorized_keys``
 * ``hostname``
@@ -147,7 +147,7 @@ or not to Base64 decode something:
   text.
 * ``base64_keys``: A comma-delimited list of which keys are Base64 encoded.
 * ``b64-<key>``: For any key, if an entry exists in the meta-data for
-  ``'b64-<key>'``, then ``'b64-<key>'`` is expected to be a plain-text boolean
+  ``'b64-<key>'``, then ``'b64-<key>'`` is expected to be a plaintext boolean
   indicating whether or not its value is encoded.
 * ``no_base64_decode``: This is a configuration setting
   (i.e., :file:`/etc/cloud/cloud.cfg.d`) that sets which values should not
@@ -157,7 +157,7 @@ or not to Base64 decode something:
 ===================================
 
 By default, SmartOS only supports a single ephemeral disk. That disk is
-completely empty (un-partitioned, with no filesystem).
+completely empty (unpartitioned, with no filesystem).
 
 The SmartOS datasource has built-in cloud-config which instructs the
 ``disk_setup`` module to partition and format the ephemeral disk.

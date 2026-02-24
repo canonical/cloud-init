@@ -112,7 +112,7 @@ should be passed as user-data when starting the instance.
 The default is to install from packages.
 
 The key used in this example is from
-http://apt.opscode.com/packages@opscode.com.gpg.key.
+https://packages.chef.io/chef.asc
 
 .. code-block:: yaml
 

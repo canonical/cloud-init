@@ -401,7 +401,7 @@ class TestEc2:
         mocker,
         tmpdir,
         md_version=None,
-        distro=None
+        distro=None,
     ):
         self.uris = []
         distro = distro or mock.MagicMock()
@@ -1795,6 +1795,18 @@ class TestIdentifyPlatform:
         )
         assert ec2.CloudNames.AWS == ec2.identify_platform()
 
+    @pytest.mark.parametrize(
+        "vendor, expected",
+        (("Tilaa", ec2.CloudNames.TILAA), ("NOTilaa", ec2.CloudNames.UNKNOWN)),
+    )
+    def test_identify_tilaa(self, vendor, expected, mocker):
+        """positively identify Tilaa"""
+        mocker.patch(
+            "cloudinit.sources.DataSourceEc2._collect_platform_data",
+            return_value=self.collmock(vendor=vendor),
+        )
+        assert expected == ec2.identify_platform()
+
     @mock.patch("cloudinit.sources.DataSourceEc2._collect_platform_data")
     def test_identify_aws_endian(self, m_collect):
         """aws should be identified if uuid starts with ec2"""
@@ -1858,3 +1870,56 @@ class TestIdentifyPlatform:
             product_name="Not 3DS Outscale VM".lower(),
         )
         assert ec2.CloudNames.UNKNOWN == ec2.identify_platform()
+
+
+class TestPreferElasticNics:
+    """Tests to ensure we are sorting NICs with Amazon drivers ahead of other
+    candidate NICs.
+
+    If a NIC is present with an Amazon driver, it is more likely to be the
+    interface which can reach the metadata server. Sorting it first speeds
+    up boot due to minimizing wait time in DataSourceEc2.wait_for_metadata.
+
+    See Also
+    =========
+    cloudinit.sources.DataSourceEc2._prefer_elastic_drivers
+    """
+
+    @pytest.fixture
+    def nics(self):
+        return ["eth0", "eth1", "eth2"]
+
+    @mock.patch(
+        "cloudinit.sources.DataSourceEc2.device_driver",
+        mock.MagicMock(return_value="device"),
+    )
+    def test_is_stable_when_no_elastic(self, nics):
+        assert nics == sorted(nics, key=ec2._prefer_elastic_drivers)
+
+    @mock.patch(
+        "cloudinit.sources.DataSourceEc2.device_driver",
+        mock.MagicMock(return_value="ena"),
+    )
+    def test_is_stable_when_all_elastic(self, nics):
+        assert nics == sorted(nics, key=ec2._prefer_elastic_drivers)
+
+    def test_prefers_elastic_interfaces(self):
+        non_elastic_nics = ["eth0", "eth1", "eth2"]
+        elastic_nics = ["eth3", "eth4", "eth5"]
+
+        def mock_driver_fn(nic):
+            if nic in non_elastic_nics:
+                return "driver"
+            elif nic in elastic_nics:
+                return "ena"
+            else:
+                raise ValueError(f"Unknown NIC: {nic}")
+
+        with mock.patch(
+            "cloudinit.sources.DataSourceEc2.device_driver",
+            wraps=mock_driver_fn,
+        ):
+            assert elastic_nics + non_elastic_nics == sorted(
+                non_elastic_nics + elastic_nics,
+                key=ec2._prefer_elastic_drivers,
+            )

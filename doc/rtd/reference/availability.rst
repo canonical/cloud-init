@@ -56,7 +56,7 @@ NetBSD, OpenBSD and DragonFlyBSD:
 Clouds
 ======
 
-``Cloud-init`` provides support across a wide ranging list of execution
+``Cloud-init`` provides support across a wide-ranging list of execution
 environments in the public cloud:
 
 - Amazon Web Services

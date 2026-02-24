@@ -87,7 +87,7 @@ class TestRunCmdSchema:
                     "runcmd": [
                         "ls /",
                         20,
-                        ["wget", "http://stuff/blah"],
+                        ["wcurl", "http://stuff/blah"],
                         {"a": "n"},
                     ]
                 },

@@ -32,7 +32,7 @@ Before you can begin, you will need to:
 
 We use Matrix and have a dedicated `#cloud-init` channel where you can contact
 us for help and guidance. This link will take you directly to our
-[Matrix room](https://matrix.to/#/#cloud-init:ubuntu.com).
+[Matrix room](https://matrix.to/#/%23cloud-init:ubuntu.com).
 Please don't be afraid to reach out if you need help constructing your pull
 request.
 

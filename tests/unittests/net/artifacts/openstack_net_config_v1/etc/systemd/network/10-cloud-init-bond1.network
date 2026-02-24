@@ -1,0 +1,17 @@
+[Address]
+Address=10.20.30.2/24
+
+[Link]
+MACAddress=01:00:00:00:00:02
+MTUBytes=1500
+
+[Match]
+Name=bond1
+
+[Network]
+DHCP=no
+DNS=8.8.8.8 4.4.4.4
+
+[Route]
+Destination=0.0.0.0/0
+Gateway=10.20.30.1

@@ -940,36 +940,37 @@ get_single_line_flow_sequence() {
     return 1
 }
 
-dscheck_MAAS() {
-    is_container && return "${DS_NOT_FOUND}"
-    # heuristic check for ephemeral boot environment
-    # for maas that do not set 'ci.dsname=' in the ephemeral environment
-    # these have iscsi root and cloud-config-url on the cmdline.
-    local maasiqn="iqn.2004-05.com.ubuntu:maas"
-    case "${DI_KERNEL_CMDLINE}" in
-        *cloud-config-url=*${maasiqn}*|*${maasiqn}*cloud-config-url=*)
-            return ${DS_FOUND}
-            ;;
-    esac
-    return ${DS_NOT_FOUND}
-}
-
 # LXD datasource requires active /dev/lxd/sock
 # https://documentation.ubuntu.com/lxd/en/latest/dev-lxd/
 dscheck_LXD() {
     if is_socket_file /dev/lxd/sock; then
         return ${DS_FOUND}
     fi
-    # On LXD KVM instances, /dev/lxd/sock is not yet setup by
-    # lxd-agent-loader's systemd lxd-agent.service.
-    # Rely on DMI product information that is present on all LXD images.
-    # Note "qemu" is returned on kvm instances launched from a host kernel
-    # kernels >=5.10, due to `hv_passthrough` option.
-    # systemd v. 251 should properly return "kvm" in this scenario
-    # https://github.com/systemd/systemd/issues/22709
-    if [ "${DI_VIRT}" = "kvm" -o "${DI_VIRT}" = "qemu" ]; then
-        [ "${DI_DMI_BOARD_NAME}" = "LXD" ] && return ${DS_FOUND}
+
+    # On LXD KVM instances, /dev/lxd/sock will not be available during systemd
+    # generator timeframe until systemd lxd-agent.service runs.
+    # Check for LXD virtio serial device which is supported on platforms
+    # without DMI data.
+    if [ "${DI_VIRT}" != "kvm" -a "${DI_VIRT}" != "qemu" ]; then
+        return ${DS_NOT_FOUND}
     fi
+    local virtio_ports_path="${PATH_ROOT}/sys/class/virtio-ports"
+    if [ ! -d "${virtio_ports_path}" ]; then
+        return ${DS_NOT_FOUND}
+    fi
+    # Temporarily enable globbing to walk virtio_ports_path.
+    set +f; set -- "${virtio_ports_path}/"*; set -f;
+    for port_dir in "$@"; do
+        local name_file="${port_dir}/name" port_name
+        [ ! -f "${name_file}" ] && continue
+        read port_name < "${name_file}" || \
+        warn "unable to read file: $name_file"
+        # Check for both current and legacy LXD serial names
+        if [ "${port_name}" = "com.canonical.lxd" ] || \
+           [ "${port_name}" = "org.linuxcontainers.lxd" ]; then
+            return ${DS_FOUND}
+        fi
+    done
     return ${DS_NOT_FOUND}
 }
 
@@ -1332,8 +1333,8 @@ ec2_identify_platform() {
     local vendor="${DI_DMI_SYS_VENDOR}"
     case "$vendor" in
         e24cloud) _RET="E24cloud"; return 0;;
+        Tilaa) _RET="Tilaa"; return 0;;
     esac
-
 
     local product_name="${DI_DMI_PRODUCT_NAME}"
     if [ "${product_name}" = "3DS Outscale VM" ]  && \

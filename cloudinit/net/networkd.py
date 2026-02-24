@@ -388,27 +388,21 @@ class Renderer(renderer.Renderer):
 
     def _render_content(self, ns: NetworkState):
         ret_dict = {}
-        vlan_link = {}
-        bond_link = {}
-        bridge_link = {}
 
-        if "vlans" in ns.config:
-            vlan_dict = self.render_vlans(ns)
-            vlan_netdev = vlan_dict["vlan_netdev"]
-            vlan_link = vlan_dict["vlan_link"]
-            ret_dict["vlan_netdev"] = vlan_netdev
+        vlan_dict = self.render_vlans(ns)
+        vlan_netdev = vlan_dict["vlan_netdev"]
+        vlan_link = vlan_dict["vlan_link"]
+        ret_dict["vlan_netdev"] = vlan_netdev
 
-        if "bonds" in ns.config:
-            bond_dict = self.render_bonds(ns)
-            bond_netdev = bond_dict["bond_netdev"]
-            bond_link = bond_dict["bond_link"]
-            ret_dict["bond_netdev"] = bond_netdev
+        bond_dict = self.render_bonds(ns)
+        bond_netdev = bond_dict["bond_netdev"]
+        bond_link = bond_dict["bond_link"]
+        ret_dict["bond_netdev"] = bond_netdev
 
-        if "bridges" in ns.config:
-            bridge_dict = self.render_bridges(ns)
-            bridge_netdev = bridge_dict["bridge_netdev"]
-            bridge_link = bridge_dict["bridge_link"]
-            ret_dict["bridge_netdev"] = bridge_netdev
+        bridge_dict = self.render_bridges(ns)
+        bridge_netdev = bridge_dict["bridge_netdev"]
+        bridge_link = bridge_dict["bridge_link"]
+        ret_dict["bridge_netdev"] = bridge_netdev
 
         routingPolicies = self.extractRoutingPolicies(ns.config)
 
@@ -507,34 +501,35 @@ class Renderer(renderer.Renderer):
         vlan_link_info = defaultdict(list)
         vlan_ndev_configs = {}
 
-        vlans = ns.config.get("vlans", {})
-        for vlan_name, vlan_cfg in vlans.items():
-            vlan_id = vlan_cfg.get("id")
-            parent = vlan_cfg.get("link")
+        vlan_filter = renderer.filter_by_type("vlan")
+        for iface in ns.iter_interfaces(vlan_filter):
+            iface_name = iface["name"]
+            vlan_id = iface.get("vlan_id")
+            parent = iface.get("vlan-raw-device")
 
             if vlan_id is None or parent is None:
                 LOG.warning(
-                    "Skipping VLAN %s - missing 'id' or 'link'", vlan_name
+                    "Skipping VLAN %s - missing 'id' or 'link'", iface_name
                 )
                 continue
 
-            vlan_link_info[parent].append(vlan_name)
+            vlan_link_info[parent].append(iface_name)
 
             # -------- .netdev for VLAN --------
             cfg = CfgParser()
-            cfg.update_section("NetDev", "Name", vlan_name)
+            cfg.update_section("NetDev", "Name", iface_name)
             cfg.update_section("NetDev", "Kind", "vlan")
 
-            val = vlan_cfg.get("mtu")
+            val = iface.get("mtu")
             if val:
                 cfg.update_section("NetDev", "MTUBytes", val)
 
-            val = vlan_cfg.get("macaddress")
+            val = iface.get("mac_address")
             if val:
                 cfg.update_section("NetDev", "MACAddress", val.lower())
 
             cfg.update_section("VLAN", "Id", vlan_id)
-            vlan_ndev_configs[vlan_name] = cfg.get_final_conf()
+            vlan_ndev_configs[iface_name] = cfg.get_final_conf()
 
         return {
             "vlan_netdev": vlan_ndev_configs,
@@ -546,69 +541,73 @@ class Renderer(renderer.Renderer):
         bond_ndev_configs = {}
         section = "Bond"
 
-        bonds = ns.config.get("bonds", {})
-        for bond_name, bond_cfg in bonds.items():
-            interfaces = bond_cfg.get("interfaces")
-            if not interfaces:
+        bond_filter = renderer.filter_by_type("bond")
+        slave_filter = renderer.filter_by_attr("bond-master")
+        for iface in ns.iter_interfaces(bond_filter):
+            iface_name = iface["name"]
+            bond_slaves = [
+                slave_iface["name"]
+                for slave_iface in ns.iter_interfaces(slave_filter)
+                if slave_iface["bond-master"] == iface_name
+            ]
+            if not bond_slaves:
                 LOG.warning(
-                    "Skipping bond %s - missing 'interfaces'", bond_name
+                    "Skipping bond %s - missing 'interfaces'", iface_name
                 )
                 continue
 
-            bond_link_info.update({iface: bond_name for iface in interfaces})
+            bond_link_info.update({iface: iface_name for iface in bond_slaves})
 
             # -------- .netdev for Bond --------
             cfg = CfgParser()
-            cfg.update_section("NetDev", "Name", bond_name)
+            cfg.update_section("NetDev", "Name", iface_name)
             cfg.update_section("NetDev", "Kind", "bond")
 
-            val = bond_cfg.get("mtu")
+            val = iface.get("mtu")
             if val:
                 cfg.update_section("NetDev", "MTUBytes", val)
 
-            val = bond_cfg.get("macaddress")
+            val = iface.get("mac_address")
             if val:
                 cfg.update_section("NetDev", "MACAddress", val.lower())
 
             # Optional bond parameters
-            params = bond_cfg.get("parameters", {})
-
             ParamMapType = Dict[str, Tuple[str, Callable[[object], str]]]
 
             param_map: ParamMapType = {
-                "ad-select": ("AdSelect", str),
-                "all-slaves-active": (
+                "bond-ad-select": ("AdSelect", str),
+                "bond-arp-interval": ("ARPIntervalSec", lambda v: f"{v}ms"),
+                "bond-arp-validate": ("ARPValidate", str),
+                "bond-downdelay": ("DownDelaySec", lambda v: f"{v}ms"),
+                "bond-fail-over-mac": ("FailOverMACPolicy", str),
+                "bond-lacp-rate": ("LACPTransmitRate", str),
+                "bond-miimon": ("MIIMonitorSec", lambda v: f"{v}ms"),
+                "bond-min-links": ("MinLinks", str),
+                "bond-mode": ("Mode", str),
+                "bond-num-grat-arp": ("GratuitousARP", str),
+                "bond-primary-reselect": ("PrimaryReselectPolicy", str),
+                "bond-updelay": ("UpDelaySec", lambda v: f"{v}ms"),
+                "bond-xmit-hash-policy": ("TransmitHashPolicy", str),
+                "bond-all-slaves-active": (
                     "AllSlavesActive",
                     lambda v: str(v).lower(),
                 ),
-                "arp-all-targets": ("ARPAllTargets", str),
-                "arp-interval": ("ARPIntervalSec", lambda v: f"{v}ms"),
-                "arp-validate": ("ARPValidate", str),
-                "down-delay": ("DownDelaySec", lambda v: f"{v}ms"),
-                "fail-over-mac-policy": ("FailOverMACPolicy", str),
-                "gratuitous-arp": ("GratuitousARP", str),
-                "lacp-rate": ("LACPTransmitRate", str),
-                "learn-packet-interval": ("LearnPacketIntervalSec", str),
-                "mii-monitor-interval": ("MIIMonitorSec", lambda v: f"{v}ms"),
-                "min-links": ("MinLinks", str),
-                "mode": ("Mode", str),
-                "packets-per-slave": ("PacketsPerSlave", str),
-                "primary-reselect-policy": ("PrimaryReselectPolicy", str),
-                "transmit-hash-policy": ("TransmitHashPolicy", str),
-                "up-delay": ("UpDelaySec", lambda v: f"{v}ms"),
+                "bond-arp-all-targets": ("ARPAllTargets", str),
+                "bond-learn-packet-interval": ("LearnPacketIntervalSec", str),
+                "bond-packets-per-slave": ("PacketsPerSlave", str),
             }
 
             for key, (option, formatter) in param_map.items():
-                if key in params:
-                    cfg.update_section(section, option, formatter(params[key]))
+                if key in iface:
+                    cfg.update_section(section, option, formatter(iface[key]))
 
-            if "arp-ip-targets" in params:
-                targets = params["arp-ip-targets"]
+            if "arp-ip-targets" in iface:
+                targets = iface["arp-ip-targets"]
                 if isinstance(targets, str):
                     targets = [targets]
                 cfg.update_section(section, "ARPIPTargets", " ".join(targets))
 
-            bond_ndev_configs[bond_name] = cfg.get_final_conf()
+            bond_ndev_configs[iface_name] = cfg.get_final_conf()
 
         return {
             "bond_netdev": bond_ndev_configs,
@@ -624,58 +623,58 @@ class Renderer(renderer.Renderer):
 
         bridge_ndev_configs = {}
 
-        bridges = ns.config.get("bridges", {})
-        for bridge_name, bridge_cfg in bridges.items():
-            interfaces = bridge_cfg.get("interfaces", [])
-            if not interfaces:
+        bridge_filter = renderer.filter_by_type("bridge")
+        for iface in ns.iter_interfaces(bridge_filter):
+            iface_name = iface["name"]
+            bridge_ports = iface.get("bridge_ports", [])
+            if not bridge_ports:
                 LOG.warning(
-                    "Skipping bridge %s - missing 'interfaces'", bridge_name
+                    "Skipping bridge %s - missing 'interfaces'", iface_name
                 )
                 continue
 
             # Map each interface to its bridge
-            for iface in interfaces:
-                bridge_link_info[iface] = bridge_name
+            for bridge_port in bridge_ports:
+                bridge_link_info[bridge_port] = iface_name
 
             # ---- .netdev config for the bridge ----
             cfg = CfgParser()
-            cfg.update_section("NetDev", "Name", bridge_name)
+            cfg.update_section("NetDev", "Name", iface_name)
             cfg.update_section("NetDev", "Kind", "bridge")
 
-            val = bridge_cfg.get("mtu")
+            val = iface.get("mtu")
             if val:
                 cfg.update_section("NetDev", "MTUBytes", val)
 
-            val = bridge_cfg.get("macaddress")
+            val = iface.get("mac_address")
             if val:
                 cfg.update_section("NetDev", "MACAddress", val.lower())
 
             # Bridge parameters
-            params = bridge_cfg.get("parameters", {})
             param_map = {
-                "ageing-time": "AgeingTimeSec",
-                "forward-delay": "ForwardDelaySec",
-                "hello-time": "HelloTimeSec",
-                "max-age": "MaxAgeSec",
-                "priority": "Priority",
-                "stp": "STP",
+                "bridge_ageing": "AgeingTimeSec",
+                "bridge_bridgeprio": "Priority",
+                "bridge_fd": "ForwardDelaySec",
+                "bridge_hello": "HelloTimeSec",
+                "bridge_maxage": "MaxAgeSec",
+                "bridge_stp": "STP",
             }
             for key, sysd_key in param_map.items():
-                val = params.get(key)
+                val = iface.get(key)
                 if val:
                     if isinstance(val, bool):
                         val = "yes" if val else "no"
                     cfg.update_section("Bridge", sysd_key, val)
 
-            val = params.get("path-cost")
+            val = iface.get("bridge_pathcost")
             if val:
-                bridge_link_info["path-cost"][bridge_name] = val
+                bridge_link_info["path-cost"][iface_name] = val
 
-            val = params.get("port-priority")
+            val = iface.get("bridge_portprio")
             if val:
-                bridge_link_info["port-priority"][bridge_name] = val
+                bridge_link_info["port-priority"][iface_name] = val
 
-            bridge_ndev_configs[bridge_name] = cfg.get_final_conf()
+            bridge_ndev_configs[iface_name] = cfg.get_final_conf()
 
         return {
             "bridge_netdev": bridge_ndev_configs,

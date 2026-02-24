@@ -16,12 +16,6 @@ precedence; each item overriding the previous.
 - **Kernel command line**: ``ip=`` or
   ``network-config=<Base64 encoded YAML config string>``
 
-Cloud-init will write out the following files representing the network-config
-processed:
-
-- :file:`/run/cloud-init/network-config.json`: world-readable JSON containing
-  the selected source network-config JSON used by cloud-init network renderers.
-
 User-data cannot change an instance's network configuration. In the absence
 of network configuration in any of the above sources, ``cloud-init`` will
 write out a network configuration that will issue a DHCP request on a "first"
@@ -39,7 +33,7 @@ Disabling network configuration
 Users may disable ``cloud-init``'s network configuration capability and rely
 on other methods, such as embedded configuration or other customisations.
 
-``cloud-init`` supports the following methods for disabling ``cloud-init``.
+``cloud-init`` supports the following methods for disabling networking.
 
 Kernel command line
 -------------------
@@ -106,10 +100,10 @@ Finally, after selecting the "right" interface, a configuration is generated
 and applied to the system.
 
 .. note::
-   PhotonOS disables fallback networking configuration by default, leaving
-   network unrendered when no other network config is provided.
-   If fallback config is still desired on PhotonOS, it can be enabled by
-   providing ``disable_fallback_netcfg: false`` in
+   PhotonOS and Raspberry Pi OS disable fallback networking configuration by
+   default, leaving network unrendered when no other network config is
+   provided. If fallback config is still desired, it can be
+   enabled by providing ``disable_fallback_netcfg: false`` in
    :file:`/etc/cloud/cloud.cfg:sys_config` settings.
 
 Network configuration sources
@@ -322,7 +316,7 @@ Example output:
 .. _Netplan: https://netplan.io/
 .. _DigitalOcean JSON meta-data: https://developers.digitalocean.com/documentation/metadata/
 .. _OpenStack Instance Metadata Service Network: https://specs.openstack.org/openstack/nova-specs/specs/liberty/implemented/metadata-service-network-info.html
-.. _SmartOS JSON Instance Metadata: https://eng.joyent.com/mdata/datadict.html
+.. _SmartOS JSON Instance Metadata: https://web.archive.org/web/20210101000000/https://eng.joyent.com/mdata/datadict.html
 .. _UpCloud JSON meta-data: https://developers.upcloud.com/1.3/8-servers/#metadata-service
 .. _Vultr JSON meta-data: https://www.vultr.com/metadata/
 .. _cloudinit.net.activators.select_activator: https://github.com/canonical/cloud-init/blob/main/cloudinit/net/activators.py#L249

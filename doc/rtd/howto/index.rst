@@ -18,13 +18,11 @@ How do I...?
 .. toctree::
    :maxdepth: 1
 
-   Launch cloud-init with... <launching.rst>
-   Wait for cloud-init <wait_for_cloud_init.rst>
-   Re-run cloud-init <rerun_cloud_init.rst>
-   Change how often a module runs <module_run_frequency.rst>
-   Validate my user-data <debug_user_data.rst>
+   Validate user-data <debug_user_data.rst>
    Debug cloud-init <debugging.rst>
    Check the status of cloud-init <status.rst>
-   Report a bug <bugs.rst>
-   Identify my datasource <identify_datasource.rst>
+   Launch an instance using cloud-init <launching.rst>
+   Wait for cloud-init <wait_for_cloud_init.rst>
+   Re-run cloud-init <rerun_cloud_init.rst>
    Disable cloud-init <disable_cloud_init.rst>
+   Report a bug <bugs.rst>

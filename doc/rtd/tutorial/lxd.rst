@@ -159,4 +159,4 @@ You can also head over to the :ref:`examples page<yaml_examples>` for
 examples of more common use cases.
 
 .. _LXD: https://ubuntu.com/lxd
-.. _other installation options: https://documentation.ubuntu.com/lxd/en/latest/installing/#other-installation-options
+.. _other installation options: https://documentation.ubuntu.com/lxd/en/latest/installing/

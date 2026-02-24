@@ -3,44 +3,34 @@
 LXD
 ***
 
-The LXD datasource allows the user to provide custom user-data,
-vendor-data, meta-data and network-config to the instance without running
-a network service (or even without having a network at all). This datasource
-performs HTTP GETs against the `LXD socket device`_ which is provided to each
-running LXD container and VM as ``/dev/lxd/sock`` and represents all
-instance-meta-data as versioned HTTP routes such as:
+The LXD datasource allows the user to provide custom ``user-data``,
+``vendor-data``, ``meta-data`` and ``network-config`` to the instance without
+running a network service (or even without having a network at all). This
+datasource performs HTTP GETs against the `LXD socket device`_ which is
+provided to each running LXD container and VM as :file:`/dev/lxd/sock`.
 
-  - 1.0/meta-data
-  - 1.0/config/cloud-init.vendor-data
-  - 1.0/config/cloud-init.user-data
-  - 1.0/config/user.<any-custom-key>
-
-The LXD socket device ``/dev/lxd/sock`` is only present on containers and VMs
-when the instance configuration has ``security.devlxd=true`` (default).
-Disabling the ``security.devlxd`` configuration setting at initial launch will
-ensure that ``cloud-init`` uses the :ref:`datasource_nocloud` datasource.
-Disabling ``security.devlxd`` over the life of the container will result in
-warnings from ``cloud-init``, and ``cloud-init`` will keep the
-originally-detected LXD datasource.
+The LXD socket device :file:`/dev/lxd/sock` is required to use the LXD
+datasource. This file is present in containers and VMs when the instance
+configuration sets ``security.devlxd=true``.
 
 The LXD datasource is detected as viable by ``ds-identify`` during the
-:ref:`detect stage<boot-Detect>` when either ``/dev/lxd/sock`` exists or
-``/sys/class/dmi/id/board_name`` matches "LXD".
+:ref:`detect stage<boot-Detect>` when either :file:`/dev/lxd/sock` exists
+or an LXD serial device is present in :file:`/sys/class/virtio-ports`.
 
 The LXD datasource provides ``cloud-init`` with the ability to react to
-meta-data, vendor-data, user-data and network-config changes, and to render the
-updated configuration across a system reboot.
+``meta-data``, ``vendor-data``, ``user-data`` and ``network-config``
+changes, and to render the updated configuration across a system reboot.
 
-To modify which meta-data, vendor-data or user-data are provided to the
-launched container, use either LXD profiles or
+To modify which ``meta-data``, ``vendor-data`` or ``user-data`` are provided
+to the launched container, use either LXD profiles or
 ``lxc launch ... -c <key>="<value>"`` at initial container launch, by setting
 one of the following keys:
 
-- ``cloud-init.vendor-data``: YAML which overrides any meta-data values.
-- ``cloud-init.network-config``: YAML representing either
-  :ref:`network_config_v1` or :ref:`network_config_v2` format.
 - ``cloud-init.user-data``: YAML which takes precedence and overrides both
   meta-data and vendor-data values.
+- ``cloud-init.vendor-data``: YAML which overrides any ``meta-data`` values.
+- ``cloud-init.network-config``: YAML representing either
+  :ref:`network_config_v1` or :ref:`network_config_v2` format.
 - ``user.<any-key>``: Keys prefixed with ``user.`` are included in
   :ref:`instance-data<instance-data>` under the ``ds.config`` key. These
   key value pairs are used in jinja :ref:`cloud-config<jinja-config>`

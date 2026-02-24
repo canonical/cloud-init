@@ -872,6 +872,453 @@ NETWORK_CONFIGS = {
             ),
         },
     },
+    "v1_eni_ipv4_and_ipv6_static_dnsnameservers_only": {
+        "yaml_v1": textwrap.dedent(
+            """\
+            version: 1
+            config:
+                - type: physical
+                  name: iface0
+                  mac_address: c0:d6:9f:2c:e8:80
+                  mtu: 9000
+                  subnets:
+                      - type: static
+                        address: 192.168.14.2/24
+                        dns_nameservers: 8.8.8.8
+                      - type: static6
+                        address: 2001:1::1/64
+                        dns_nameservers: 2001:1::1f
+                - type: nameserver
+                  address:
+                    - 9.9.9.9
+        """
+        ).rstrip(" "),
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+                dns-nameservers 9.9.9.9
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                dns-nameservers 8.8.8.8
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+                dns-nameservers 2001:1::1f
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+                dns-nameservers 9.9.9.9
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                dns-nameservers 8.8.8.8
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+                dns-nameservers 2001:1::1f
+        """
+        ).rstrip(" "),
+    },
+    "v2_eni_ipv4_and_ipv6_static_dnsnameservers_only": {
+        "yaml_v2": textwrap.dedent(
+            """\
+            version: 2
+            ethernets:
+                iface0:
+                    addresses:
+                    - 192.168.14.2/24
+                    - 2001:1::1/64
+                    nameservers:
+                      addresses: [8.8.8.8, 2001:1::1f]
+                    mtu: 9000
+        """
+        ).rstrip(" "),
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                dns-nameservers 8.8.8.8
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+                dns-nameservers 2001:1::1f
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                dns-nameservers 8.8.8.8
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+                dns-nameservers 2001:1::1f
+        """
+        ).rstrip(" "),
+    },
+    "v1_eni_ipv4_and_ipv6_static_dns_only_ipv4": {
+        "yaml_v1": textwrap.dedent(
+            """\
+            version: 1
+            config:
+                - type: physical
+                  name: iface0
+                  mac_address: c0:d6:9f:2c:e8:80
+                  mtu: 9000
+                  subnets:
+                      - type: static
+                        address: 192.168.14.2/24
+                        dns_nameservers:
+                          - 8.8.8.8
+                        dns_search: [lab, home]
+                      - type: static6
+                        address: 2001:1::1/64
+                - type: nameserver
+                  address: 9.9.9.9
+                  search: [cafe]
+        """
+        ).rstrip(" "),
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+                dns-nameservers 9.9.9.9
+                dns-search cafe
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                dns-nameservers 8.8.8.8
+                dns-search lab home
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+                dns-nameservers 9.9.9.9
+                dns-search cafe
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                dns-nameservers 8.8.8.8
+                dns-search lab home
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+        """
+        ).rstrip(" "),
+    },
+    "v2_eni_ipv4_and_ipv6_static_dns_only_ipv4": {
+        "yaml_v2": textwrap.dedent(
+            """\
+            version: 2
+            ethernets:
+                iface0:
+                    addresses:
+                    - 192.168.14.2/24
+                    - 2001:1::1/64
+                    nameservers:
+                      search: [lab, home]
+                      addresses: 8.8.8.8
+                    mtu: 9000
+        """
+        ).rstrip(" "),
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                dns-nameservers 8.8.8.8
+                dns-search lab home
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                dns-nameservers 8.8.8.8
+                dns-search lab home
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+        """
+        ).rstrip(" "),
+    },
+    "v1_eni_ipv4_and_ipv6_static_dns_only_ipv6": {
+        "yaml_v1": textwrap.dedent(
+            """\
+            version: 1
+            config:
+                - type: physical
+                  name: iface0
+                  mac_address: c0:d6:9f:2c:e8:80
+                  mtu: 9000
+                  subnets:
+                      - type: static
+                        address: 192.168.14.2/24
+                      - type: static6
+                        address: 2001:1::1/64
+                        dns_nameservers:
+                          - 2001:1::1f
+                        dns_search: [lab, home]
+                - type: nameserver
+                  address: 2001:3db::2a
+                  search: [cafe]
+        """
+        ).rstrip(" "),
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+                dns-nameservers 2001:1::1f
+                dns-search lab home
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+                dns-nameservers 2001:1::1f
+                dns-search lab home
+        """
+        ).rstrip(" "),
+    },
+    "v2_eni_ipv4_and_ipv6_static_dns_only_ipv6": {
+        "yaml_v2": textwrap.dedent(
+            """\
+            version: 2
+            ethernets:
+                iface0:
+                    addresses:
+                    - 192.168.14.2/24
+                    - 2001:1::1/64
+                    nameservers:
+                      search: [lab, home]
+                      addresses: ["2001:1::1f"]
+                    mtu: 9000
+        """
+        ).rstrip(" "),
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+                dns-nameservers 2001:1::1f
+                dns-search lab home
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+                dns-nameservers 2001:1::1f
+                dns-search lab home
+        """
+        ).rstrip(" "),
+    },
+    "v1_eni_ipv4_and_ipv6_static_dns_both_ipv4_ipv6": {
+        "yaml_v1": textwrap.dedent(
+            """\
+            version: 1
+            config:
+                - type: physical
+                  name: iface0
+                  mac_address: c0:d6:9f:2c:e8:80
+                  mtu: 9000
+                  subnets:
+                      - type: static
+                        address: 192.168.14.2/24
+                        dns_nameservers:
+                          - 8.8.8.8
+                        dns_search: [lab, home]
+                      - type: static6
+                        address: 2001:1::1/64
+                        dns_nameservers:
+                          - 2001:1::1f
+                        dns_search: [lab, home]
+                - type: nameserver
+                  address: [9.9.9.9, 2001:3db::2a]
+                  search: [cafe]
+        """
+        ).rstrip(" "),
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+                dns-nameservers 9.9.9.9
+                dns-search cafe
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                dns-nameservers 8.8.8.8
+                dns-search lab home
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+                dns-nameservers 2001:1::1f
+                dns-search lab home
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+                dns-nameservers 9.9.9.9
+                dns-search cafe
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                dns-nameservers 8.8.8.8
+                dns-search lab home
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+                dns-nameservers 2001:1::1f
+                dns-search lab home
+        """
+        ).rstrip(" "),
+    },
+    "v2_eni_ipv4_and_ipv6_static_dns_both_ipv4_ipv6": {
+        "yaml_v2": textwrap.dedent(
+            """\
+            version: 2
+            ethernets:
+                iface0:
+                    addresses:
+                    - 192.168.14.2/24
+                    - 2001:1::1/64
+                    nameservers:
+                      search: [lab, home]
+                      addresses: [8.8.8.8, "2001:1::1f"]
+                    mtu: 9000
+        """
+        ).rstrip(" "),
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                dns-nameservers 8.8.8.8
+                dns-search lab home
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+                dns-nameservers 2001:1::1f
+                dns-search lab home
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                dns-nameservers 8.8.8.8
+                dns-search lab home
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+                dns-nameservers 2001:1::1f
+                dns-search lab home
+        """
+        ).rstrip(" "),
+    },
     "v6_and_v4": {
         "expected_sysconfig_opensuse": {
             "ifcfg-iface0": textwrap.dedent(

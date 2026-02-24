@@ -4,7 +4,11 @@ Amazon EC2
 **********
 
 The EC2 datasource is the oldest and most widely used datasource that
-``cloud-init`` supports. This datasource interacts with a *magic* IP provided
+``cloud-init`` supports. Various clouds have been designed to emulate
+EC2. Many of these clouds use the same datasource including Brightbox,
+E24Cloud, Outscale, Tilaa, and Zscale.
+
+This datasource interacts with a *magic* IP provided
 to the instance by the cloud provider (typically this IP is
 ``169.254.169.254``). At this IP a http server is provided to the
 instance so that the instance can make calls to get instance user-data and
@@ -36,9 +40,9 @@ User-data is accessible via the following URL: ::
 
 Note that there are multiple EC2 instance metadata service versions of this
 data provided to instances. ``Cloud-init`` attempts to use the most recent API
-version it supports in order to get the latest API features and instance-data.
-If a given API version is not exposed to the instance, those API features will
-be unavailable to the instance.
+version it supports in order to get the latest API features and
+``instance-data``. If a given API version is not exposed to the instance, those
+API features will be unavailable to the instance.
 
 +----------------+----------------------------------------------------------+
 + EC2 version    | supported instance-data/feature                          |
@@ -157,4 +161,4 @@ Notes
    at first boot only but it can be configured to be applied on every boot
    and when NICs are hotplugged, see :ref:`events`.
 
-.. _EC2 tags user guide: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#work-with-tags-in-IMDS
+.. _EC2 tags user guide: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html

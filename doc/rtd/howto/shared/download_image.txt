@@ -2,4 +2,4 @@ Download an Ubuntu image to run:
 
 .. code-block:: shell-session
 
-    wget https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
+    wcurl https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img

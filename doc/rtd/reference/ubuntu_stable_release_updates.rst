@@ -15,7 +15,7 @@ series to the next (Focal -> Jammy).
 SRU supported releases
 ======================
 Cloud-init will provide SRU support for the current active interim releases
-and the most recent 2 long-term suport (LTS) releases as documented in the
+and the most recent 2 long-term support (LTS) releases as documented in the
 `Ubuntu Release Cycle`_
 
 SRU package version
@@ -48,13 +48,12 @@ The `integration test suite` used for validation follows these steps:
 * Upgrade cloud-init and attempt a clean run of cloud-init to assert
   that the new version works properly on the specific platform and Ubuntu
   series.
-* Check for tracebacks and errors in behaviour.
+* Check for tracebacks and errors in behavior.
 
 .. LINKS
 .. include:: ../links.txt
 .. _Ubuntu Release Cycle: https://ubuntu.com/about/release-cycle
 .. _SRU: https://wiki.ubuntu.com/StableReleaseUpdates
 .. _CloudinitUpdates: https://wiki.ubuntu.com/CloudinitUpdates
-.. _new cloud-init bug: https://github.com/canonical/cloud-init/issues
 .. _integration test suite: https://github.com/canonical/cloud-init/tree/main/tests/integration_tests
 .. _SRU release version: https://github.com/canonical/ubuntu-maintainers-handbook/blob/main/VersionStrings.md#version-adding-a-change-in-ubuntu-as-a-stable-release-update

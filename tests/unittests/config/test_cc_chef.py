@@ -18,7 +18,6 @@ from tests.helpers import cloud_init_project_dir
 from tests.unittests.helpers import (
     SCHEMA_EMPTY_ERROR,
     mock,
-    skipIf,
     skipUnlessJsonSchema,
 )
 from tests.unittests.util import MockDistro, get_cloud
@@ -128,7 +127,10 @@ class TestChef:
         for d in cc_chef.CHEF_DIRS:
             assert not os.path.isdir(d)
 
-    @skipIf(not CLIENT_TEMPL, "templates/chef_client.rb.tmpl is not available")
+    @pytest.mark.skipif(
+        not CLIENT_TEMPL,
+        reason="templates/chef_client.rb.tmpl is not available",
+    )
     def test_basic_config(self):
         """
         test basic config looks correct
@@ -265,7 +267,10 @@ class TestChef:
         for expected_msg, count in expected_msg_count.items():
             assert caplog.text.count(expected_msg) == count
 
-    @skipIf(not CLIENT_TEMPL, "templates/chef_client.rb.tmpl is not available")
+    @pytest.mark.skipif(
+        not CLIENT_TEMPL,
+        reason="templates/chef_client.rb.tmpl is not available",
+    )
     def test_template_deletes(self):
 
         util.write_file(
@@ -284,7 +289,10 @@ class TestChef:
         assert "json_attribs" not in c
         assert "Formatter.show_time" not in c
 
-    @skipIf(not CLIENT_TEMPL, "templates/chef_client.rb.tmpl is not available")
+    @pytest.mark.skipif(
+        not CLIENT_TEMPL,
+        reason="templates/chef_client.rb.tmpl is not available",
+    )
     def test_validation_cert_and_validation_key(self):
         # test validation_cert content is written to validation_key path
         util.write_file(
@@ -306,7 +314,10 @@ class TestChef:
         util.load_text_file(v_path)
         assert v_cert == util.load_text_file(v_path)
 
-    @skipIf(not CLIENT_TEMPL, "templates/chef_client.rb.tmpl is not available")
+    @pytest.mark.skipif(
+        not CLIENT_TEMPL,
+        reason="templates/chef_client.rb.tmpl is not available",
+    )
     def test_validation_cert_with_system(self):
         # test validation_cert content is not written over system file
 

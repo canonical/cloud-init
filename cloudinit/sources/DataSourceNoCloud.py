@@ -423,7 +423,7 @@ class DataSourceNoCloudNet(DataSourceNoCloud):
             deprecated_version="24.1",
             extra_message=(
                 "Use 'nocloud' instead, which uses the seedfrom protocol"
-                "scheme (http// or file://) to decide how to run."
+                "scheme (http:// or file://) to decide how to run."
             ),
         )
 

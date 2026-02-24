@@ -61,7 +61,10 @@ def has_gnu_date() -> bool:
     systems without GNU date that the extended parsing is not
     available.
     """
-    return "GNU" in subp.subp(["date", "--help"]).stdout
+    try:
+        return "GNU" in subp.subp(["date", "--help"]).stdout
+    except subp.ProcessExecutionError:
+        return False
 
 
 def parse_timestamp_from_date(timestampstr: str) -> float:

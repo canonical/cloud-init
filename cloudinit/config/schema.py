@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import sys
+import urllib.parse
 from collections import defaultdict
 from contextlib import suppress
 from copy import deepcopy
@@ -49,6 +50,8 @@ except ImportError:
 
 
 LOG = logging.getLogger(__name__)
+
+REMOTE_SCHEMA_BASE = "https://raw.githubusercontent.com/canonical/cloud-init/main/cloudinit/config/schemas/"  # noqa: E501
 
 
 # Note versions.schema.json is publicly consumed by schemastore.org.
@@ -658,6 +661,50 @@ def netplan_validate_network_schema(
     return True
 
 
+def _resource_retriever(uri):
+    """Retrieve a "referencing" Resource from a given URI."""
+    import referencing
+    import referencing.exceptions
+
+    parsed = urllib.parse.urlparse(uri)
+    if parsed.scheme == "file":
+        local_path = urllib.parse.unquote(parsed.path)
+    else:
+        raise referencing.exceptions.NoSuchResource(f"Unsupported URI: {uri}")
+    return referencing.Resource.from_contents(
+        json.loads(load_text_file(local_path))
+    )
+
+
+def _get_validator(schema: dict, strict_metaschema: bool):
+    """Get a JSON schema validator for the given schema."""
+    try:
+        (cloudinitValidator, FormatChecker) = get_jsonschema_validator()
+        if strict_metaschema:
+            validate_cloudconfig_metaschema(
+                cloudinitValidator, schema, throw=False
+            )
+    except ImportError:
+        LOG.debug("Ignoring schema validation. jsonschema is not present")
+        return None
+
+    # The lowest supported version of jsonschema does not use "referencing",
+    # but newer versions of jsonschema threaten to throw errors in the future
+    # when using functionality that doesn't include "referencing".
+    # Once the lowest supported version of jsonschema is 4.18.0 or greater, the
+    # except clause can be removed.
+    try:
+        import referencing
+
+        registry = referencing.Registry(retrieve=_resource_retriever)  # type: ignore
+        validator = cloudinitValidator(
+            schema, format_checker=FormatChecker(), registry=registry
+        )
+    except ImportError:
+        validator = cloudinitValidator(schema, format_checker=FormatChecker())
+    return validator
+
+
 @performance.timed("Validating schema")
 def validate_cloudconfig_schema(
     config: dict,
@@ -721,17 +768,10 @@ def validate_cloudconfig_schema(
 
     if schema is None:
         schema = get_schema(schema_type)
-    try:
-        (cloudinitValidator, FormatChecker) = get_jsonschema_validator()
-        if strict_metaschema:
-            validate_cloudconfig_metaschema(
-                cloudinitValidator, schema, throw=False
-            )
-    except ImportError:
-        LOG.debug("Ignoring schema validation. jsonschema is not present")
-        return False
 
-    validator = cloudinitValidator(schema, format_checker=FormatChecker())
+    validator = _get_validator(schema, strict_metaschema)
+    if not validator:
+        return False
 
     errors: SchemaProblems = []
     deprecations: SchemaProblems = []

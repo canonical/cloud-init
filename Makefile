@@ -7,8 +7,6 @@ NUM_ITER ?= 100
 
 distro ?= redhat
 
-READ_VERSION=$(shell $(PYTHON) $(CWD)/tools/read-version || echo read-version-failed)
-CODE_VERSION=$(shell $(PYTHON) -c "from cloudinit import version; print(version.version_string())")
 GENERATOR_F=./systemd/cloud-init-generator
 DS_IDENTIFY=./tools/ds-identify
 BENCHMARK=./tools/benchmark.sh
@@ -52,13 +50,6 @@ ci-deps-centos:
 	@$(PYTHON) $(CWD)/tools/read-dependencies --distro centos --test-distro
 
 test: unittest
-
-check_version:
-	@if [ "$(READ_VERSION)" != "$(CODE_VERSION)" ]; then \
-		echo "Error: read-version version '$(READ_VERSION)'" \
-			"not equal to code version '$(CODE_VERSION)'"; \
-		exit 2; \
-	else true; fi
 
 config/cloud.cfg:
 	$(PYTHON) ./tools/render-template --is-yaml config/cloud.cfg.tmpl config/cloud.cfg

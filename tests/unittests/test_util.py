@@ -35,7 +35,7 @@ from cloudinit.log import log_util
 from cloudinit.sources import DataSourceHostname
 from cloudinit.subp import SubpResult
 from tests.unittests import helpers
-from tests.unittests.helpers import random_string, skipIf, skipUnlessJinja
+from tests.unittests.helpers import random_string, skipUnlessJinja
 
 LOG = logging.getLogger(__name__)
 M_PATH = "cloudinit.util."
@@ -1299,41 +1299,12 @@ class TestGetLinuxDistro:
         assert ("cos", "93", "") == dist
 
     @mock.patch("platform.system")
-    @mock.patch("platform.dist", create=True)
-    def test_get_linux_distro_no_data(
-        self, m_platform_dist, m_platform_system, m_path_exists
-    ):
+    def test_get_linux_distro_no_data(self, m_platform_system, m_path_exists):
         """Verify we get no information if os-release does not exist"""
-        m_platform_dist.return_value = ("", "", "")
         m_platform_system.return_value = "Linux"
         m_path_exists.return_value = 0
         dist = util.get_linux_distro()
         assert ("", "", "") == dist
-
-    @mock.patch("platform.system")
-    @mock.patch("platform.dist", create=True)
-    def test_get_linux_distro_no_impl(
-        self, m_platform_dist, m_platform_system, m_path_exists
-    ):
-        """Verify we get an empty tuple when no information exists and
-        Exceptions are not propagated"""
-        m_platform_dist.side_effect = Exception()
-        m_platform_system.return_value = "Linux"
-        m_path_exists.return_value = 0
-        dist = util.get_linux_distro()
-        assert ("", "", "") == dist
-
-    @mock.patch("platform.system")
-    @mock.patch("platform.dist", create=True)
-    def test_get_linux_distro_plat_data(
-        self, m_platform_dist, m_platform_system, m_path_exists
-    ):
-        """Verify we get the correct platform information"""
-        m_platform_dist.return_value = ("foo", "1.1", "aarch64")
-        m_platform_system.return_value = "Linux"
-        m_path_exists.return_value = 0
-        dist = util.get_linux_distro()
-        assert ("foo", "1.1", "aarch64") == dist
 
 
 class TestGetVariant:
@@ -1777,7 +1748,7 @@ class FakeSelinux:
         self.restored = []
 
     def matchpathcon(self, path, mode):
-        if path == self.match_what:
+        if os.path.realpath(path) == os.path.realpath(self.match_what):
             return
         else:
             raise OSError("No match!")
@@ -2819,8 +2790,9 @@ class TestLoadShellContent:
         )
 
 
-@skipIf(
-    not util.is_Linux(), "These tests don't make sense on non-Linux systems."
+@pytest.mark.skipif(
+    not util.is_Linux(),
+    reason="These tests don't make sense on non-Linux systems.",
 )
 class TestGetProcEnv:
     """test get_proc_env."""
@@ -2871,19 +2843,29 @@ class TestGetProcEnv:
 class TestGetProcPpid:
     """test get_proc_ppid"""
 
-    @skipIf(not util.is_Linux(), "/proc/$pid/stat is not useful on not-Linux")
+    @pytest.mark.skipif(
+        not util.is_Linux(),
+        reason="/proc/$pid/stat is not useful on not-Linux",
+    )
     def test_get_proc_ppid_linux(self):
         """get_proc_ppid returns correct parent pid value."""
         my_pid = os.getpid()
         my_ppid = os.getppid()
         assert my_ppid == Distro.get_proc_ppid(my_pid)
 
-    @skipIf(not util.is_Linux(), "/proc/$pid/stat is not useful on not-Linux")
+    @pytest.mark.skipif(
+        not util.is_Linux(),
+        reason="/proc/$pid/stat is not useful on not-Linux",
+    )
     def test_get_proc_pgrp_linux(self):
         """get_proc_ppid returns correct parent pid value."""
         assert os.getpgid(0) == Distro.get_proc_pgid(os.getpid())
 
     @pytest.mark.allow_subp_for("ps")
+    @pytest.mark.skipif(
+        not util.is_Linux(),
+        reason="/proc/$pid/stat is not useful on not-Linux",
+    )
     def test_get_proc_ppid_ps(self):
         """get_proc_ppid returns correct parent pid value."""
         my_pid = os.getpid()
@@ -3237,11 +3219,10 @@ class MockPath:
         return self.target_file
 
 
-@pytest.mark.usefixtures("fake_filesystem")
 class TestReadHotplugEnabledFile:
     def test_file_not_found(self, caplog):
         assert {"scopes": []} == util.read_hotplug_enabled_file(MockPath())
-        assert "enabled because it is not decodable" not in caplog.text
+        assert "not decodable" not in caplog.text
 
     def test_json_decode_error(self, caplog, tmpdir):
         target_file = (

@@ -2,15 +2,62 @@
 
 import logging
 import os
-import shutil
-import tempfile
-from contextlib import ExitStack
+from types import SimpleNamespace
 
 import pytest
 
 from cloudinit import handlers, helpers, settings, url_helper, util
 from cloudinit.cmd import main
-from tests.unittests.helpers import TestCase, mock
+from tests.unittests.helpers import mock
+
+
+@pytest.fixture
+def walker_data(tmp_path):
+    data = {
+        "handlercount": 0,
+        "frequency": "",
+        "handlerdir": str(tmp_path),
+        "handlers": helpers.ContentHandlers(),
+        "data": None,
+    }
+
+    expected_module_name = "part-handler-%03d" % (data["handlercount"],)
+    expected_file_name = "%s.py" % expected_module_name
+    expected_file_fullname = os.path.join(
+        data["handlerdir"], expected_file_name
+    )
+
+    return SimpleNamespace(
+        data=data,
+        expected_module_name=expected_module_name,
+        expected_file_fullname=expected_file_fullname,
+        module_fake=FakeModule(),
+        ctype=None,
+        filename=None,
+        payload="dummy payload",
+    )
+
+
+@pytest.fixture
+def m_write_file():
+    """Mock the write_file() function."""
+    with mock.patch("cloudinit.util.write_file") as mock_write:
+        yield mock_write
+
+
+@pytest.fixture
+def handler_data_factory():
+    def _make_handler_data(frequency=settings.PER_INSTANCE):
+        return SimpleNamespace(
+            data="fake data",
+            ctype="fake ctype",
+            filename="fake filename",
+            payload="fake payload",
+            frequency=settings.PER_INSTANCE,
+            headers={"Content-Type": "fake ctype"},
+        )
+
+    return _make_handler_data
 
 
 class FakeModule(handlers.Handler):
@@ -25,199 +72,173 @@ class FakeModule(handlers.Handler):
         pass
 
 
-class TestWalkerHandleHandler(TestCase):
-    def setUp(self):
-        super(TestWalkerHandleHandler, self).setUp()
-        tmpdir = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, tmpdir)
-
-        self.data = {
-            "handlercount": 0,
-            "frequency": "",
-            "handlerdir": tmpdir,
-            "handlers": helpers.ContentHandlers(),
-            "data": None,
-        }
-
-        self.expected_module_name = "part-handler-%03d" % (
-            self.data["handlercount"],
-        )
-        expected_file_name = "%s.py" % self.expected_module_name
-        self.expected_file_fullname = os.path.join(
-            self.data["handlerdir"], expected_file_name
-        )
-        self.module_fake = FakeModule()
-        self.ctype = None
-        self.filename = None
-        self.payload = "dummy payload"
-
-        # Mock the write_file() function.  We'll assert that it got called as
-        # expected in each of the individual tests.
-        resources = ExitStack()
-        self.addCleanup(resources.close)
-        self.write_file_mock = resources.enter_context(
-            mock.patch("cloudinit.util.write_file")
-        )
-
-    def test_no_errors(self):
+class TestWalkerHandleHandler:
+    def test_no_errors(self, walker_data, m_write_file):
         """Payload gets written to file and added to C{pdata}."""
         with mock.patch(
-            "cloudinit.importer.import_module", return_value=self.module_fake
+            "cloudinit.importer.import_module",
+            return_value=walker_data.module_fake,
         ) as mockobj:
             handlers.walker_handle_handler(
-                self.data, self.ctype, self.filename, self.payload
+                walker_data.data,
+                walker_data.ctype,
+                walker_data.filename,
+                walker_data.payload,
             )
-            mockobj.assert_called_once_with(self.expected_module_name)
-        self.write_file_mock.assert_called_once_with(
-            self.expected_file_fullname, self.payload, 0o600
+            mockobj.assert_called_once_with(walker_data.expected_module_name)
+        m_write_file.assert_called_once_with(
+            walker_data.expected_file_fullname, walker_data.payload, 0o600
         )
-        self.assertEqual(self.data["handlercount"], 1)
+        assert walker_data.data["handlercount"] == 1
 
-    def test_import_error(self):
+    def test_import_error(self, walker_data, m_write_file):
         """Module import errors are logged. No handler added to C{pdata}."""
         with mock.patch(
             "cloudinit.importer.import_module", side_effect=ImportError
         ) as mockobj:
             handlers.walker_handle_handler(
-                self.data, self.ctype, self.filename, self.payload
+                walker_data.data,
+                walker_data.ctype,
+                walker_data.filename,
+                walker_data.payload,
             )
-            mockobj.assert_called_once_with(self.expected_module_name)
-        self.write_file_mock.assert_called_once_with(
-            self.expected_file_fullname, self.payload, 0o600
+            mockobj.assert_called_once_with(walker_data.expected_module_name)
+        m_write_file.assert_called_once_with(
+            walker_data.expected_file_fullname, walker_data.payload, 0o600
         )
-        self.assertEqual(self.data["handlercount"], 0)
+        assert walker_data.data["handlercount"] == 0
 
-    def test_attribute_error(self):
+    def test_attribute_error(self, walker_data, m_write_file):
         """Attribute errors are logged. No handler added to C{pdata}."""
         with mock.patch(
             "cloudinit.importer.import_module",
             side_effect=AttributeError,
-            return_value=self.module_fake,
+            return_value=walker_data.module_fake,
         ) as mockobj:
             handlers.walker_handle_handler(
-                self.data, self.ctype, self.filename, self.payload
+                walker_data.data,
+                walker_data.ctype,
+                walker_data.filename,
+                walker_data.payload,
             )
-            mockobj.assert_called_once_with(self.expected_module_name)
-        self.write_file_mock.assert_called_once_with(
-            self.expected_file_fullname, self.payload, 0o600
+            mockobj.assert_called_once_with(walker_data.expected_module_name)
+        m_write_file.assert_called_once_with(
+            walker_data.expected_file_fullname, walker_data.payload, 0o600
         )
-        self.assertEqual(self.data["handlercount"], 0)
+        assert walker_data.data["handlercount"] == 0
 
 
-class TestHandlerHandlePart(TestCase):
-    def setUp(self):
-        super(TestHandlerHandlePart, self).setUp()
-        self.data = "fake data"
-        self.ctype = "fake ctype"
-        self.filename = "fake filename"
-        self.payload = "fake payload"
-        self.frequency = settings.PER_INSTANCE
-        self.headers = {
-            "Content-Type": self.ctype,
-        }
-
-    def test_normal_version_1(self):
+class TestHandlerHandlePart:
+    def test_normal_version_1(self, handler_data_factory):
         """
         C{handle_part} is called without C{frequency} for
         C{handler_version} == 1.
         """
+        handler_data = handler_data_factory()
         mod_mock = mock.Mock(
             frequency=settings.PER_INSTANCE, handler_version=1
         )
         handlers.run_part(
             mod_mock,
-            self.data,
-            self.filename,
-            self.payload,
-            self.frequency,
-            self.headers,
+            handler_data.data,
+            handler_data.filename,
+            handler_data.payload,
+            handler_data.frequency,
+            handler_data.headers,
         )
         # Assert that the handle_part() method of the mock object got
         # called with the expected arguments.
         mod_mock.handle_part.assert_called_once_with(
-            self.data, self.ctype, self.filename, self.payload
+            handler_data.data,
+            handler_data.ctype,
+            handler_data.filename,
+            handler_data.payload,
         )
 
-    def test_normal_version_2(self):
+    def test_normal_version_2(self, handler_data_factory):
         """
         C{handle_part} is called with C{frequency} for
         C{handler_version} == 2.
         """
+        handler_data = handler_data_factory()
         mod_mock = mock.Mock(
             frequency=settings.PER_INSTANCE, handler_version=2
         )
         handlers.run_part(
             mod_mock,
-            self.data,
-            self.filename,
-            self.payload,
-            self.frequency,
-            self.headers,
+            handler_data.data,
+            handler_data.filename,
+            handler_data.payload,
+            handler_data.frequency,
+            handler_data.headers,
         )
         # Assert that the handle_part() method of the mock object got
         # called with the expected arguments.
         mod_mock.handle_part.assert_called_once_with(
-            self.data,
-            self.ctype,
-            self.filename,
-            self.payload,
+            handler_data.data,
+            handler_data.ctype,
+            handler_data.filename,
+            handler_data.payload,
             settings.PER_INSTANCE,
         )
 
-    def test_modfreq_per_always(self):
+    def test_modfreq_per_always(self, handler_data_factory):
         """
         C{handle_part} is called regardless of frequency if nofreq is always.
         """
-        self.frequency = "once"
+        handler_data = handler_data_factory(frequency=settings.PER_ONCE)
         mod_mock = mock.Mock(frequency=settings.PER_ALWAYS, handler_version=1)
         handlers.run_part(
             mod_mock,
-            self.data,
-            self.filename,
-            self.payload,
-            self.frequency,
-            self.headers,
+            handler_data.data,
+            handler_data.filename,
+            handler_data.payload,
+            handler_data.frequency,
+            handler_data.headers,
         )
         # Assert that the handle_part() method of the mock object got
         # called with the expected arguments.
         mod_mock.handle_part.assert_called_once_with(
-            self.data, self.ctype, self.filename, self.payload
+            handler_data.data,
+            handler_data.ctype,
+            handler_data.filename,
+            handler_data.payload,
         )
 
-    def test_no_handle_when_modfreq_once(self):
+    def test_no_handle_when_modfreq_once(self, handler_data_factory):
         """C{handle_part} is not called if frequency is once."""
-        self.frequency = "once"
+        handler_data = handler_data_factory(frequency=settings.PER_ONCE)
         mod_mock = mock.Mock(frequency=settings.PER_ONCE)
         handlers.run_part(
             mod_mock,
-            self.data,
-            self.filename,
-            self.payload,
-            self.frequency,
-            self.headers,
+            handler_data.data,
+            handler_data.filename,
+            handler_data.payload,
+            handler_data.frequency,
+            handler_data.headers,
         )
-        self.assertEqual(0, mod_mock.handle_part.call_count)
+        assert 0 == mod_mock.handle_part.call_count
 
-    def test_exception_is_caught(self):
+    def test_exception_is_caught(self, handler_data_factory):
         """Exceptions within C{handle_part} are caught and logged."""
+        handler_data = handler_data_factory()
         mod_mock = mock.Mock(
             frequency=settings.PER_INSTANCE, handler_version=1
         )
         mod_mock.handle_part.side_effect = Exception
-        try:
-            handlers.run_part(
-                mod_mock,
-                self.data,
-                self.filename,
-                self.payload,
-                self.frequency,
-                self.headers,
-            )
-        except Exception:
-            self.fail("Exception was not caught in handle_part")
-
+        handlers.run_part(
+            mod_mock,
+            handler_data.data,
+            handler_data.filename,
+            handler_data.payload,
+            handler_data.frequency,
+            handler_data.headers,
+        )
         mod_mock.handle_part.assert_called_once_with(
-            self.data, self.ctype, self.filename, self.payload
+            handler_data.data,
+            handler_data.ctype,
+            handler_data.filename,
+            handler_data.payload,
         )
 
 

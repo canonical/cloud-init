@@ -11,7 +11,7 @@ oauthlib
 # that the built-in config parser is not sufficient (ie
 # when we need to preserve comments, or do not have a top-level
 # section)...
-configobj>=5.0.2
+configobj
 
 # All new style configurations are in the yaml format
 pyyaml
