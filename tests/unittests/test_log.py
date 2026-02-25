@@ -179,8 +179,11 @@ def test_logger_prints_to_stderr(capsys, caplog):
     assert message in capsys.readouterr().err
 
 
-def test_logger_prints_security_as_json_lines(capsys, caplog):
+def test_logger_prints_security_as_json_lines(tmp_path, capsys, caplog):
+    log_file = tmp_path / "cloud-init-output.log"
     message = '{"key": "value"}'
     loggers.setup_basic_logging()
+    loggers.setup_security_logging(log_file=str(log_file))
     logging.getLogger().security(message)
-    assert f"{message}\n" == capsys.readouterr().err
+    assert log_file.read_text() == f"{message}\n"
+    assert message not in capsys.readouterr().err

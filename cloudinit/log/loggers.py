@@ -47,23 +47,44 @@ class CustomLoggerType(logging.Logger):
         pass
 
 
-class LevelBasedFormatter(logging.Formatter):
-    def format(self, record):
-        if record.levelno == SECURITY:
-            self._style._fmt = SECURITY_LOG_FORMAT
-        else:
-            self._style._fmt = DEFAULT_LOG_FORMAT
-        return super().format(record)
+SECURITY_LOG_FILE = "/var/log/cloud-init-security.log"
+
+
+class SecurityOnlyFilter(logging.Filter):
+    """Pass only SECURITY level records."""
+
+    def filter(self, record):
+        return record.levelno == SECURITY
+
+
+class NoSecurityFilter(logging.Filter):
+    """Block SECURITY level records from non-security handlers."""
+
+    def filter(self, record):
+        return record.levelno != SECURITY
 
 
 def setup_basic_logging(level=logging.DEBUG, formatter=None):
-    formatter = formatter or LevelBasedFormatter()
+    formatter = formatter or logging.Formatter(DEFAULT_LOG_FORMAT)
     root = logging.getLogger()
     console = logging.StreamHandler(sys.stderr)
     console.setFormatter(formatter)
     console.setLevel(level)
+    console.addFilter(NoSecurityFilter())
     root.addHandler(console)
     root.setLevel(level)
+
+
+def setup_security_logging(log_file: str = SECURITY_LOG_FILE) -> None:
+    """Attach a FileHandler routing SECURITY records exclusively to log_file."""
+    try:
+        handler = logging.FileHandler(log_file)
+    except OSError:
+        return
+    handler.setFormatter(logging.Formatter(SECURITY_LOG_FORMAT))
+    handler.addFilter(SecurityOnlyFilter())
+    handler.setLevel(SECURITY)
+    logging.getLogger().addHandler(handler)
 
 
 def flush_loggers(root):
@@ -232,7 +253,10 @@ def configure_root_logger():
     # add handler only to the root logger
     handler = LogExporter()
     handler.setLevel(logging.WARN)
+    handler.addFilter(NoSecurityFilter())
     logging.getLogger().addHandler(handler)
+
+    setup_security_logging()
 
     # LogRecord allows us to report more useful information than __init__.py
     logging.setLogRecordFactory(CloudInitLogRecord)
