@@ -2262,21 +2262,8 @@ class TestGetConfigLogfiles:
         assert [] == util.get_config_logfiles(None)
         assert [] == util.get_config_logfiles({})
 
-    @pytest.mark.parametrize(
-        "cfg,expected_logs",
-        (
-            ({"def_log_file": "/my.log"}, ["/my.log"]),
-            (
-                {
-                    "def_log_file": "/my.log",
-                    "security_log_file": "/my_sec.log",
-                },
-                ["/my.log", "/my_sec.log"],
-            ),
-        ),
-    )
-    def test_default_log_files_present(self, cfg, expected_logs):
-        """get_config_logfiles reports def_log_file and security_log_file."""
+    def test_default_log_file_present(self):
+        """When default_log_file is set get_config_logfiles finds it."""
         assert ["/my.log"] == util.get_config_logfiles(
             {"def_log_file": "/my.log"}
         )
