@@ -143,6 +143,23 @@ where <major>, <minor>, and <patch> are positive integers
 """
 
 
+EXPERIMENTAL_FAIL_ON_MISSING_CUSTOMDATA = False
+"""
+If ``EXPERIMENTAL_FAIL_ON_MISSING_CUSTOMDATA`` is ``True``, the Azure
+datasource will report a failure when ovf-env.xml is present but does not
+contain custom data, yet IMDS indicates that custom data was provided to the
+VM. This helps detect provisioning issues where custom data is silently lost.
+
+Currently scoped to the case where ovf-env.xml provisioning media is
+available (i.e., UDF/DVD support is present in the VM image). The case
+where no provisioning media is available at all is not yet handled.
+
+Disabled by default while undergoing scale testing. Once validated, this
+flag will be renamed and enabled for new distro releases to avoid breaking
+existing customers on SRUs.
+"""
+
+
 def get_features() -> Dict[str, bool]:
     """Return a dict of applicable features/overrides and their values."""
     return {

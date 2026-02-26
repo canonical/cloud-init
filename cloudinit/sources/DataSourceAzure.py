@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 
-from cloudinit import net, performance, sources, ssh_util, subp, util
+from cloudinit import features, net, performance, sources, ssh_util, subp, util
 from cloudinit.config import cc_mounts
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import device_driver
@@ -815,6 +815,23 @@ class DataSourceAzure(sources.DataSource):
         # only use userdata from imds if OVF did not provide custom data
         # userdata provided by IMDS is always base64 encoded
         if not userdata_raw:
+            # first, check to see if the OVF was supposed to provide custom
+            # data. If it was supposed to and did not, we report failure
+            if (
+                ovf_source
+                and features.EXPERIMENTAL_FAIL_ON_MISSING_CUSTOMDATA
+                and _hascustomdata_from_imds(imds_md)
+            ):
+                report_diagnostic_event(
+                    "IMDS did not return userdata as expected",
+                    logger_func=LOG.error,
+                )
+                self._report_failure(
+                    errors.ReportableErrorImdsInvalidMetadata(
+                        key="extended.compute.userData", value=imds_userdata
+                    )
+                )
+
             imds_userdata = _userdata_from_imds(imds_md)
             if imds_userdata:
                 LOG.debug("Retrieved userdata from IMDS")
@@ -1709,6 +1726,13 @@ def _username_from_imds(imds_data):
 def _userdata_from_imds(imds_data):
     try:
         return imds_data["compute"]["userData"]
+    except KeyError:
+        return None
+
+
+def _hascustomdata_from_imds(imds_data) -> Optional[bool]:
+    try:
+        return imds_data["extended"]["compute"]["hasCustomData"]
     except KeyError:
         return None
 
