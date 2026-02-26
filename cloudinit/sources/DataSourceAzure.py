@@ -828,7 +828,7 @@ class DataSourceAzure(sources.DataSource):
                 )
                 self._report_failure(
                     errors.ReportableErrorImdsInvalidMetadata(
-                        key="extended.compute.userData", value=imds_userdata
+                        key="extended.compute.userData", value=userdata_raw
                     )
                 )
 

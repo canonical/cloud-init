@@ -2382,6 +2382,163 @@ scbus-1 on xpt0 bus 0
         assert ret
         assert dsrc.userdata_raw == userdataOVF.encode("utf-8")
 
+    def test_missing_customdata_no_report_when_feature_flag_disabled(
+        self, get_ds
+    ):
+        """When EXPERIMENTAL_FAIL_ON_MISSING_CUSTOMDATA is False (default),
+        no failure is reported even if OVF lacks custom data and IMDS
+        indicates hasCustomData=True."""
+        sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
+        data = {
+            "ovfcontent": construct_ovf_env(),
+            "sys_cfg": sys_cfg,
+        }
+        imds_data = copy.deepcopy(NETWORK_METADATA)
+        imds_data["extended"] = {"compute": {"hasCustomData": True}}
+        imds_data["compute"]["osProfile"] = dict(
+            adminUsername="username1",
+            computerName="hostname1",
+            disablePasswordAuthentication="true",
+        )
+        self.m_fetch.return_value = imds_data
+        dsrc = get_ds(data)
+        with mock.patch.object(
+            dsrc, "_setup_ephemeral_networking"
+        ), mock.patch.object(
+            dsrc, "_is_ephemeral_networking_up", return_value=True
+        ), mock.patch.object(dsrc, "_report_failure") as m_report_failure:
+            dsrc.crawl_metadata()
+            assert m_report_failure.call_count == 0
+
+    @mock.patch.object(
+        dsaz.features, "EXPERIMENTAL_FAIL_ON_MISSING_CUSTOMDATA", True
+    )
+    def test_missing_customdata_reports_failure_when_flag_enabled(
+        self, get_ds
+    ):
+        """When EXPERIMENTAL_FAIL_ON_MISSING_CUSTOMDATA is True and OVF
+        is present but has no custom data while IMDS says hasCustomData
+        is True, a failure should be reported."""
+        sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
+        data = {
+            "ovfcontent": construct_ovf_env(),
+            "sys_cfg": sys_cfg,
+        }
+        imds_data = copy.deepcopy(NETWORK_METADATA)
+        imds_data["extended"] = {"compute": {"hasCustomData": True}}
+        imds_data["compute"]["osProfile"] = dict(
+            adminUsername="username1",
+            computerName="hostname1",
+            disablePasswordAuthentication="true",
+        )
+        self.m_fetch.return_value = imds_data
+        dsrc = get_ds(data)
+        with mock.patch.object(
+            dsrc, "_setup_ephemeral_networking"
+        ), mock.patch.object(
+            dsrc, "_is_ephemeral_networking_up", return_value=True
+        ), mock.patch.object(dsrc, "_report_failure") as m_report_failure:
+            dsrc.crawl_metadata()
+            m_report_failure.assert_called_once()
+            reported_error = m_report_failure.call_args[0][0]
+            assert isinstance(
+                reported_error, errors.ReportableErrorImdsInvalidMetadata
+            )
+            assert reported_error.supporting_data["key"] == (
+                "extended.compute.userData"
+            )
+
+    @mock.patch.object(
+        dsaz.features, "EXPERIMENTAL_FAIL_ON_MISSING_CUSTOMDATA", True
+    )
+    def test_missing_customdata_no_report_when_ovf_provides_customdata(
+        self, get_ds
+    ):
+        """When OVF provides custom data, no failure is reported even when
+        the feature flag is enabled and IMDS indicates hasCustomData."""
+        userdataOVF = "userdataOVF"
+        sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
+        data = {
+            "ovfcontent": construct_ovf_env(custom_data=userdataOVF),
+            "sys_cfg": sys_cfg,
+        }
+        imds_data = copy.deepcopy(NETWORK_METADATA)
+        imds_data["extended"] = {"compute": {"hasCustomData": True}}
+        imds_data["compute"]["osProfile"] = dict(
+            adminUsername="username1",
+            computerName="hostname1",
+            disablePasswordAuthentication="true",
+        )
+        self.m_fetch.return_value = imds_data
+        dsrc = get_ds(data)
+        with mock.patch.object(
+            dsrc, "_setup_ephemeral_networking"
+        ), mock.patch.object(
+            dsrc, "_is_ephemeral_networking_up", return_value=True
+        ), mock.patch.object(dsrc, "_report_failure") as m_report_failure:
+            crawled_data = dsrc.crawl_metadata()
+            assert m_report_failure.call_count == 0
+            assert crawled_data["userdata_raw"] == userdataOVF.encode("utf-8")
+
+    @mock.patch.object(
+        dsaz.features, "EXPERIMENTAL_FAIL_ON_MISSING_CUSTOMDATA", True
+    )
+    def test_missing_customdata_no_report_when_imds_has_no_hascustomdata(
+        self, get_ds
+    ):
+        """When IMDS does not report hasCustomData (or it's False),
+        no failure is reported even with the flag enabled."""
+        sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
+        data = {
+            "ovfcontent": construct_ovf_env(),
+            "sys_cfg": sys_cfg,
+        }
+        imds_data = copy.deepcopy(NETWORK_METADATA)
+        imds_data["compute"]["osProfile"] = dict(
+            adminUsername="username1",
+            computerName="hostname1",
+            disablePasswordAuthentication="true",
+        )
+        # No "extended" key at all
+        self.m_fetch.return_value = imds_data
+        dsrc = get_ds(data)
+        with mock.patch.object(
+            dsrc, "_setup_ephemeral_networking"
+        ), mock.patch.object(
+            dsrc, "_is_ephemeral_networking_up", return_value=True
+        ), mock.patch.object(dsrc, "_report_failure") as m_report_failure:
+            dsrc.crawl_metadata()
+            assert m_report_failure.call_count == 0
+
+    @mock.patch.object(
+        dsaz.features, "EXPERIMENTAL_FAIL_ON_MISSING_CUSTOMDATA", True
+    )
+    def test_missing_customdata_no_report_when_hascustomdata_is_false(
+        self, get_ds
+    ):
+        """When IMDS reports hasCustomData=False, no failure is reported."""
+        sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
+        data = {
+            "ovfcontent": construct_ovf_env(),
+            "sys_cfg": sys_cfg,
+        }
+        imds_data = copy.deepcopy(NETWORK_METADATA)
+        imds_data["extended"] = {"compute": {"hasCustomData": False}}
+        imds_data["compute"]["osProfile"] = dict(
+            adminUsername="username1",
+            computerName="hostname1",
+            disablePasswordAuthentication="true",
+        )
+        self.m_fetch.return_value = imds_data
+        dsrc = get_ds(data)
+        with mock.patch.object(
+            dsrc, "_setup_ephemeral_networking"
+        ), mock.patch.object(
+            dsrc, "_is_ephemeral_networking_up", return_value=True
+        ), mock.patch.object(dsrc, "_report_failure") as m_report_failure:
+            dsrc.crawl_metadata()
+            assert m_report_failure.call_count == 0
+
     @pytest.mark.usefixtures("fake_filesystem")
     def test_cleanup_resourcedisk_fstab(self, get_ds):
         """Ensure that cloud-init clean will remove resource disk entries
@@ -5700,3 +5857,25 @@ class TestQueryVmId:
 
         mock_query_system_uuid.assert_called_once()
         mock_convert_uuid.assert_called_once_with("test-system-uuid")
+
+class TestHasCustomDataFromImds:
+    """Unit tests for the _hascustomdata_from_imds helper."""
+
+    def test_returns_true_when_present(self):
+        imds_data = {"extended": {"compute": {"hasCustomData": True}}}
+        assert dsaz._hascustomdata_from_imds(imds_data) is True
+
+    def test_returns_false_when_false(self):
+        imds_data = {"extended": {"compute": {"hasCustomData": False}}}
+        assert dsaz._hascustomdata_from_imds(imds_data) is False
+
+    def test_returns_none_when_extended_missing(self):
+        assert dsaz._hascustomdata_from_imds({}) is None
+
+    def test_returns_none_when_compute_missing(self):
+        imds_data = {"extended": {}}
+        assert dsaz._hascustomdata_from_imds(imds_data) is None
+
+    def test_returns_none_when_hascustomdata_key_missing(self):
+        imds_data = {"extended": {"compute": {}}}
+        assert dsaz._hascustomdata_from_imds(imds_data) is None
