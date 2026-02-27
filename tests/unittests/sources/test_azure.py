@@ -5214,7 +5214,7 @@ class TestProvisioning:
 
     @pytest.mark.parametrize("pps_type", ["None", "Running", "Savable"])
     def test_skip_ready_report(self, pps_type):
-        """Verify ready report is skipped when experimental_skip_ready_report=True."""
+        """Verify ready report is skipped when configured to."""
         self.azure_ds.ds_cfg["experimental_skip_ready_report"] = True
 
         is_pps = pps_type in ("Running", "Savable")
