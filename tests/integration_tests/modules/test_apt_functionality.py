@@ -575,12 +575,12 @@ def test_install_missing_deps(session_cloud: IntegrationCloud):
 
     # look for r"un  gpg" using regex ('un' means uninstalled)
     for package in ["gpg", "software-properties-common"]:
-        dpkg_output = instance1.execute(f"dpkg -l {package}")
-        assert re.search(
-            r"[ur][nc]\s+{}".format(package), dpkg_output.stdout
-        ), (
-            f"{package} package is still installed. it should have been "
-            "removed by the user-data."
+        dpkg_output = instance1.execute(
+            "dpkg-query -W -f='${db:Status-Status}\n' " + package
+        )
+        assert dpkg_output.stdout in ("not-installed", "config-files"), (
+            f"{package} package is still installed state {dpkg_output.stdout}."
+            " It should have been removed by the user-data."
         )
 
     snapshot_id = instance1.snapshot()
