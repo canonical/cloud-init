@@ -576,7 +576,7 @@ def test_install_missing_deps(session_cloud: IntegrationCloud):
     # look for r"un  gpg" using regex ('un' means uninstalled)
     for package in ["gpg", "software-properties-common"]:
         dpkg_output = instance1.execute(
-            "dpkg-query -W -f='${db:Status-Status}\n' " + package
+            "dpkg-query --show --showformat='${db:Status-Status}\n' " + package
         )
         assert dpkg_output.stdout in ("not-installed", "config-files"), (
             f"{package} package is still installed state {dpkg_output.stdout}."
