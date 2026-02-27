@@ -122,6 +122,7 @@ class TestPackageUpdateUpgradeInstall:
 
 
 HELLO_VERSIONS_BY_RELEASE = {
+    "resolute": "2.10-5build1",
     "questing": "2.10-5",
     "plucky": "2.10-3build2",
     "oracular": "2.10-3build2",
