@@ -18,7 +18,6 @@ from tests.integration_tests.releases import (
     CURRENT_RELEASE,
     IS_UBUNTU,
     MANTIC,
-    QUESTING,
 )
 from tests.integration_tests.util import (
     get_feature_flag_value,
@@ -64,7 +63,7 @@ apt:
       # Hard-code noble as devel releases may not see new packages for some time
       source: "deb http://ppa.launchpad.net/curtin-dev/daily/ubuntu noble main"
     test_ppa:
-      keyid: 441614D8
+      keyid: 3552C902B4DDF7BD38421821015D28D7441614D8
       keyserver: keyserver.ubuntu.com
       source: "ppa:simplestreams-dev/trunk"
     test_signed_by:
@@ -512,7 +511,7 @@ apt:
       # Hard-code noble as devel releases may not see new packages for some time
       source: "deb http://ppa.launchpad.net/curtin-dev/daily/ubuntu noble main"
     test_ppa:
-      keyid: 441614D8
+      keyid: 3552C902B4DDF7BD38421821015D28D7441614D8
       keyserver: keyserver.ubuntu.com
       source: "ppa:simplestreams-dev/trunk"
 """  # noqa: E501
@@ -549,10 +548,6 @@ def _do_oci_customization(cloud_config: str):
 
 
 @pytest.mark.skipif(not IS_UBUNTU, reason="Apt usage")
-@pytest.mark.skipif(
-    CURRENT_RELEASE == QUESTING,
-    reason="Trying to remove gpg on Questing makes apt unhappy",
-)
 def test_install_missing_deps(session_cloud: IntegrationCloud):
     """
     Test the installation of missing dependencies using apt on an Ubuntu
@@ -580,12 +575,12 @@ def test_install_missing_deps(session_cloud: IntegrationCloud):
 
     # look for r"un  gpg" using regex ('un' means uninstalled)
     for package in ["gpg", "software-properties-common"]:
-        dpkg_output = instance1.execute(f"dpkg -l {package}")
-        assert re.search(
-            r"[ur][nc]\s+{}".format(package), dpkg_output.stdout
-        ), (
-            f"{package} package is still installed. it should have been "
-            "removed by the user-data."
+        dpkg_output = instance1.execute(
+            "dpkg-query --show --showformat='${db:Status-Status}' " + package
+        )
+        assert dpkg_output.stdout in ("not-installed", "config-files"), (
+            f"{package} package is still installed state {dpkg_output.stdout}."
+            " It should have been removed by the user-data."
         )
 
     snapshot_id = instance1.snapshot()

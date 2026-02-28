@@ -42,7 +42,7 @@ class TestPhoneHome:
         )
 
     def test_no_url(self, m_readurl, caplog):
-        cfg = {"phone_home": {}}
+        cfg: dict[str, dict] = {"phone_home": {}}
         phone_home(cfg=cfg)
         assert "Skipping module named" in caplog.text
         assert m_readurl.call_count == 0

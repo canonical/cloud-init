@@ -109,7 +109,7 @@ class TestCloudStackHostname:
             get_networkd_domain,
         )
 
-        with mocker.patch(
+        with patch(
             MOD_PATH + ".util.load_text_file",
             return_value=dedent(
                 """
@@ -217,7 +217,7 @@ class TestCloudStackHostname:
         )
 
         cloudstack_ds.distro.fallback_interface = "eth0"
-        with mocker.patch(MOD_PATH + ".util.load_text_file"):
+        with patch(MOD_PATH + ".util.load_text_file"):
             result = cloudstack_ds.get_hostname(fqdn=True)
             assert expected == result
 

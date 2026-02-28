@@ -107,7 +107,7 @@ class FinishReportingEvent(ReportingEvent):
         """The event represented as json friendly."""
         data = super(FinishReportingEvent, self).as_dict()
         data["result"] = self.result
-        data["duration"] = self.duration
+        data["duration"] = round(self.duration, 4)
         if self.post_files:
             data["files"] = _collect_file_info(self.post_files)
         return data

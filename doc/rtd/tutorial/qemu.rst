@@ -65,7 +65,7 @@ server image using :command:`wcurl`:
 .. note::
    This example uses emulated CPU instructions on non-x86 hosts, so it may be
    slow. To make it faster on non-x86 architectures, one can change the image
-   type and :spelling:ignore:`qemu-system-<arch>` command name to match the
+   type and ``qemu-system-<arch>`` command name to match the
    architecture of your host machine.
 
 Define the configuration data files

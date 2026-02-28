@@ -243,7 +243,7 @@ class TestCombined:
         """
         client = class_client
         timezone_output = client.execute(
-            'date "+%Z" --date="Thu, 03 Nov 2016 00:47:00 -0400"'
+            'date --date="Thu, 03 Nov 2016 00:47:00 -0400" "+%Z"'
         )
         assert timezone_output.strip() == "CET"
 

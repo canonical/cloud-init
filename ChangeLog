@@ -1,3 +1,215 @@
+26.1
+ - test: update hello package tested using rmadison (#6774)
+ - test: add details about failing package status to aid in debug (#6775)
+ - test: rust-coreutils date command breaks if positional args before
+   options (#6773)
+ - ci: resolute rust-based gpg-sq rejects short GPG keyids (#6710)
+ - chore: fix pytest hypothesis-jsonschema warnings (#6761)
+ - chore: silence deprecation warning for strptime (#6762)
+ - ci: disable daily jobs on fork branches
+ - ci: reorder gh actions jobs
+ - chore: silence crypt warnings
+ - test: fix pytest.raises error text warnings
+ - chore: make jsonschema remote retrieval explicit
+ - test: fix mocker warnings during tests
+ - chore: fix untyped-defs (#6760) [Rizwarrior]
+ - test: provide snap commands to trigger wait semaphore on jammy (#6759)
+ - doc: fix various conventions (#6757)
+ - chore: move conftest to test directory (#6758)
+ - doc: replace Red Hat bugzilla with Red Hat jira (#6751) [Ani Sinha]
+ - doc: fix YAML indentation and wording in examples (#6750) [Favour]
+ - ci: restrict build-package upload-artifact and test to cloud-init-base
+ - ci: bddeb only create symlink to cloud-init-base for testing
+ - ci: update PR actions to test questing and runs-on to ubuntu-latest
+   (#6753)
+ - ci: feature values should be read from client under test (#6738)
+ - ci: use branches inclusion instead of branches-ignore exclusion (#6741)
+ - doc: fix mermaid diagram (#6743)
+ - chore: remove unused pylint suppressions (#6726)
+ - chore: remove unmaintained python tools (#6724)
+ - docs: correct network-config filename in NoCloud heading (#6735)
+   [Jörn Heissler]
+ - fix: do not write meson version twice in version.py (#6729)
+ - doc: make doc hierarchy more focused (#6694)
+ - fix: DNS resolution performance regression during local stage (#6707)
+   [drzee99] (GH: 6641)
+ - chore: pin full SHA commits for all workflows (#6711)
+ - fix(azure): round duration field in FinishReportingEvent to four
+   decimal places (#6709) [Peyton Robertson]
+ - ci: install missing distro-info-data dependency to test devel series
+   resolute (#6701)
+ - fix: datasource initialization order in stages (#6700) (GH: 6695)
+ - docs: security company policy updates (#6677)
+ - ci: add shared workflow for lxd_container integration tests
+ - doc: clarify CLA check (#6692)
+ - feat(dhcp): enable --debug option for dhcpcd (#6693) [Chris Patterson]
+ - doc: clarify verbose language (#6688)
+ - fix: migrate from ntp client package installed from ntp to ntpsec (#6684)
+ - chore(stages): enable type checking (#6672)
+ - fix: respect SSH key options for the root user (#6585) [Louis Sautier]
+ - fix: cloud-init clean --logs should not remove non-files (#6568)
+ - fix(cloudstack): Improve domain-name DHCP lease lookup (Cloudstack)
+   (#6554) [CodeBleu]
+ - doc: document socket protocol change
+ - ci: retain system packages for TICS workflow due to virtualenv version
+   errors
+ - ci: run and source pylint tox target used by TICS checkers
+ - ci: add actionlint.yml ignores
+ - ci: export python path to GITHUB_ENV from tox venv
+ - feat(lxd): add s390x virtio-ports detection for LXD (#6597)
+ - test: pytestified test_cc_growpart.py (#6625) [MoeSalah1999]
+ - ci: add reviewdog workflow lint for github actions (#6662)
+ - docs: fix broken external documentation links (#6664)
+   [Ayushi_Sharma] (GH: 6595)
+ - ci: fix cross-distro test failures, various maintenance (#6663)
+ - feat: support Tilaa cloud (#6658)
+ - docs: fix broken documentation links (#6660) [Ayushi_Sharma] (GH: 6595)
+ - ci: typo duplicated run declaration in tics workflow (#6661)
+ - ci: quote workflow names to avoid invalid YAML (#6659)
+ - test: add gh workflow for tiobe TICS static analysis reporting (#6654)
+ - chore: type cloudinit/sources/__init__.py (#6647)
+ - fix(ec2): check elastic NICs for metadata server first (#6651)
+   [Zach Raines] (GH: 6618)
+ - feat(azure): add vm_id to KVP telemetry event keys (#6551)
+   [Peyton Robertson]
+ - ci: exercise TMPDIR now that it works (#6652)
+ - chore: rename workflow files for organization
+ - ci: reword action and workflow names for clarity
+ - ci: add Python 3.15
+ - fix: Pass interface string to get_newest_lease() (#6648) [Leah]
+ - test: Skip Azure openssl tests on non-Linux
+ - test: skip Linux-specific test on non-Linux
+ - test: use realpath for tmp directories
+ - fix: ensure mount type is used if passed
+ - test: Replace 'echo -n' with 'printf'
+ - test: ensure symlinks are resolved in certain tests
+ - test: add a socket fixtures and mocks
+ - test: hardcode passlib usage in Azure test
+ - test: mock chown to account for distro grp differences
+ - test: bring back fake tmpdir creation
+ - test: ensure we don't actually rename ntp.conf in test
+ - fix: ensure timestamp timezone encoded correctly in status.py
+ - test: ensure TMPDIR parents exist
+ - fix: don't traceback when using BSD date
+ - fix(azure): ensure ephemeral networking uses primary NIC (#6556)
+   [Cade Jacobson]
+ - chore: drop dscheck maas (#6638)
+ - chore: enable type checking cloudinit/distros/__init__.py (#6646)
+ - chore: use curl instead of wget (#6610) [Andrei Cherniaev]
+ - fix(distros/freebsd): set home_dir to /home (#6637) [Siva Mahadevan]
+ - chore: Remove multiple entries in spec file (#6599) [Ani Sinha]
+ - chore: add scheduled job for py3-fast (#6634)
+ - tests: convert test_cc_rsyslog.py to pytest (#6622) [MoeSalah1999]
+ - chore(mypy): check sysconfig now that it passes (#6635)
+ - chore: update pin and silence a valid mypy warning (#6633)
+ - tests: convert test_cc_power_state_change.py to pytest (#6624)
+   [MoeSalah1999]
+ - fix: install lxd snap only when snap list lxd reports absent (#6626)
+   (LP: #2136198)
+ - feat(cloudstack): fetch vm password using url_helper instead of wget
+   (#6593) [Wei Zhou]
+ - chore: sync gh workflow/shellcheck-debian-scripts.yml to main
+ - feat(reporting): report duration on finish events (#6552)
+   [Peyton Robertson]
+ - feat(scaleway): add AZ and region fields to DataSourceScaleway (#6616)
+   [Fabien Malfoy]
+ - refactor(scaleway): remove private_ip handling (#6617) [Fabien Malfoy]
+ - chore: drop support for Python 3.8 (#6607)
+ - tests: skip azure ssh-keygen unittests when ssh-keygen not installed
+   (#6612)
+ - chore: no CLA workflow on downstream ubuntu package branches (#6620)
+ - doc(examples): remove datasource configuration (#6609)
+ - feat(raspberry-pi-os): Disable fallback netcfg + remove apt mirror cfg
+   (#6482) [Paul]
+ - fix(raspberry-pi-os): adjust systemd network ordering; drop obsolete
+   deps (#6459) [Paul]
+ - chore: fix logs with too few arguments (#6591)
+ - docs: eliminate unnecessary information from first development page
+   (#6566)
+ - feat(net): render vlan, bond, bridge for v1 network state (#6538)
+   [Mathieu Parent] (GH: 6534)
+ - fix(rhel): Do not override changes in
+   disable-sshd-keygen-if-cloud-init-active.conf (#6587) [Ani Sinha]
+ - fix(ssh_util): typo in exception message (#6590) [Louis Sautier]
+ - docs(reference): include openstack bond change (#6581)
+ - fix(network_state): add some missing keys to V2 key filter list (#6555)
+   [Shreenidhi Shedi]
+ - test(azure): run pubkey extraction and certificate parsing tests (#6572)
+   [Cade Jacobson] (GH: 6571)
+ - fix: support bond names in network_data.json (#6546) [Louis Sautier]
+ - fix(schema): allow accept_ra for bond/bridge/VLAN devices (#6545)
+   [Louis Sautier]
+ - test: convert test__init__.py from unit test to pytest (#6537)
+   [Manish Sah]
+ - doc(network v1): fix list of required keys for bond interfaces (#6544)
+   [Louis Sautier]
+ - fix(oracle): handle null metadata field in oracle data source (#6549)
+   [Prakash Surya]
+ - Add retry logic to 500 errors for reprovision data (#6563)
+   [Cade Jacobson] (GH: 6562)
+ - fix(eni.py): correct resultant dns entries in eni file (#6535)
+   [dermotbradley]
+ - fix: distros link in README (#6574) [Jan]
+ - Fix URL scheme in deprecation message (#6565) [Alvaro Miranda Aguilera]
+ - test: fix bug in tmp_path used as a callable for path join operation
+ - test: replace unittest.skip decorators with pytest equivalents (GH: 6569)
+ - fix: typos in cloud-init clean --help (#6559) [Louis Sautier]
+ - test(sources): Convert test_openstack.py from unittest to pytest (#6530)
+   [Neha Pandey]
+ - test(config): Convert test_cc_mcollective.py from unittest to pytest
+   (#6531) [Neha Pandey]
+ - doc: readthedocs.yaml needs to generate meson_version.py for cloud-init
+   (#6550) (GH: 6547)
+ - fix: use correct tox testenv in PR template (#6543) [Louis Sautier]
+ - feat(ca_certs): add rocky to supported distros (#6540) [Marvin A. Ruder]
+ - delete openEuler in cc_rh_subscription (#6494) [sxt1001] (GH: 6492)
+ - test: convert test_util.py from unit test to pytest (#6536) [Manish Sah]
+ - doc: update specific support docs for sru
+ - doc: migrate ubuntu_test_prerelease content into development/testing
+ - test: update regex for rust-coreutils stat -c output using double quotes
+   (#6500)
+ - chore: packages SPEC files provide downstream_version instead of sed
+ - chore: runtime version set by meson build artifact
+   cloudinit.meson_versions (GH: 6389)
+ - chore: update packages/brpm to avoid dependency on read-version
+ - chore: update packages/bddeb to avoid dependency on read-version
+ - doc: update meson build example options
+ - test (config): Convert test_apt_conf_v1.py from unittest to  pytest
+   (#6520) [Manish Sah]
+ - test(distros): Convert test_user_data_normalize.py from unittest to
+   pytest (#6518) [Manish Sah]
+ - test: Convert test_schema.py to pytest (#6519) [Manish Sah]
+ - doc: fix obvious spelling errors (#6506) [Otto Kekäläinen]
+ - test(distros): Convert test_ifconfig.py from unittest to pytest (#6517)
+   [Manish Sah]
+ - test(config): Convert test_cc_ca_certs.py from unittest to pytest
+   (#6516) [Neha Pandey]
+ - test(config): Convert test_cc_spacewalk.py from unittest to pytest
+   (#6515) [Neha Pandey]
+ - fix: Fix misspelled domain in landscape.canonical.com [Otto Kekäläinen]
+ - test: Convert test_alpine.py from unittest to pytest (#6514) [Manish Sah]
+ - test(distros): Convert test_sysconfig.py from unittest to pytest (#6510)
+   [Manish Sah]
+ - test(distros): Convert test_hostname.py from unittest to pytest (#6511)
+   [Neha Pandey]
+ - test(sources): Convert test_common.py from unittest to pytest (#6512)
+   [Neha Pandey]
+ - feat(cc_raspberry_pi): Replace rpi-connect with usb-gadget support
+   (#6466) [Paul]
+ - fix(raspberry-pi-os): keymap handling on Trixie-based images (#6483)
+   [Paul]
+ - test: Convert test_resolv.py from unittest to pytest (#6504) [Manish Sah]
+ - docs(cc_raspberry_pi): Better phrasing of config descriptions (#6488)
+   [Paul]
+ - fix: install doc files that were previously installed pre-Meson (#6501)
+   [dermotbradley]
+ - test: add regex to cope with stat link output double/single quotes
+   (#6497)
+ - feat(bsd): add FreeBSD support to Meson build (#6458)
+ - docs(cc_timezone): Replace US/Eastern with America/New_York (#6496)
+   [Paul] (GH: 6495)
+ - fix: Fix typos again (#6490) [Viktor Szépe]
+
 25.3
  - chore(cc_rh_subscription): deprecate hyphenated fields, remove self.log
    (#6470) [Mostafa Abdelwahab] (GH: 6370)

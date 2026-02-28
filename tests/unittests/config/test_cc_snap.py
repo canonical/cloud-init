@@ -288,7 +288,9 @@ class TestSnapSchema:
         if error_msg is None:
             validate_cloudconfig_schema(config, get_schema(), strict=True)
         else:
-            with pytest.raises(SchemaValidationError, match=error_msg):
+            with pytest.raises(
+                SchemaValidationError, match=error_msg if error_msg else None
+            ):
                 validate_cloudconfig_schema(config, get_schema(), strict=True)
 
 

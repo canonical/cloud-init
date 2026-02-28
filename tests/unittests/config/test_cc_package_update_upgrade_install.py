@@ -326,5 +326,7 @@ class TestPackageUpdateUpgradeSchema:
     )
     @skipUnlessJsonSchema()
     def test_schema_validation(self, config, error_msg):
-        with pytest.raises(SchemaValidationError, match=error_msg):
+        with pytest.raises(
+            SchemaValidationError, match=error_msg if error_msg else None
+        ):
             validate_cloudconfig_schema(config, get_schema(), strict=True)
