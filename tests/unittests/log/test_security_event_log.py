@@ -16,6 +16,16 @@ from cloudinit.log.security_event_log import (
 )
 from cloudinit.util import get_hostname
 
+MPATH = "cloudinit.log.security_event_log."
+
+
+@pytest.fixture
+def host_ip(mocker):
+    mocker.patch.object(
+        security_event_log, "_get_host_ip", return_value="10.42.42.42"
+    )
+    yield
+
 
 class TestBuildEventString:
     """Tests for _build_event_string function."""
@@ -23,28 +33,30 @@ class TestBuildEventString:
     @pytest.mark.parametrize(
         "event_type,params,expected",
         [
-            (OWASPEventType.SYS_SHUTDOWN, None, "sys_shutdown"),
-            (
+            pytest.param(
+                OWASPEventType.SYS_SHUTDOWN,
+                None,
+                "sys_shutdown",
+                id="no_params",
+            ),
+            pytest.param(
                 OWASPEventType.AUTHN_PASSWORD_CHANGE,
                 ["testuser"],
                 "authn_password_change:testuser",
+                id="single_param",
             ),
-            (
+            pytest.param(
                 OWASPEventType.USER_CREATED,
                 ["cloud-init", "newuser", "groups=wheel"],
                 "user_created:cloud-init,newuser,groups=wheel",
+                id="multiple_params",
             ),
-            (
+            pytest.param(
                 OWASPEventType.USER_CREATED,
                 ["cloud-init", None, "newuser"],
                 "user_created:cloud-init,newuser",
+                id="filters_none_params",
             ),
-        ],
-        ids=[
-            "no_params",
-            "single_param",
-            "multiple_params",
-            "filters_none_params",
         ],
     )
     def test_event_string_formatting(self, event_type, params, expected):
@@ -56,7 +68,7 @@ class TestBuildEventString:
 class TestBuildSecurityEvent:
     """Tests for _build_security_event function."""
 
-    def test_event_contains_required_owasp_fields(self):
+    def test_event_contains_required_owasp_fields(self, host_ip):
         """Test that built event contains all required OWASP fields."""
         event = security_event_log._build_security_event(
             event_type=OWASPEventType.USER_CREATED,
@@ -72,7 +84,7 @@ class TestBuildSecurityEvent:
         assert event["description"] == "Test event"
         assert "hostname" in event
 
-    def test_event_with_additional_data(self):
+    def test_event_with_additional_data(self, host_ip):
         """Test event includes additional data when provided."""
         event = security_event_log._build_security_event(
             event_type=OWASPEventType.USER_CREATED,
@@ -84,7 +96,7 @@ class TestBuildSecurityEvent:
         assert event["groups"] == "wheel"
         assert event["shell"] == "/bin/bash"
 
-    def test_additional_data_does_not_overwrite_core_fields(self):
+    def test_additional_data_does_not_overwrite_core_fields(self, host_ip):
         """Test that additional data cannot overwrite core fields."""
         event = security_event_log._build_security_event(
             event_type=OWASPEventType.USER_CREATED,
@@ -96,7 +108,7 @@ class TestBuildSecurityEvent:
         assert event["appid"] == "canonical.cloud_init"
         assert event["level"] == "INFO"
 
-    def test_timestamp_is_iso_format(self):
+    def test_timestamp_is_iso_format(self, host_ip):
         """Test that datetime is in ISO 8601 format."""
         event = security_event_log._build_security_event(
             event_type=OWASPEventType.USER_CREATED,
@@ -113,7 +125,7 @@ class TestBuildSecurityEvent:
 class TestLogSecurityEvent:
     """Tests for _log_security_event function."""
 
-    def test_writes_json_to_file(self, caplog):
+    def test_writes_json_to_file(self, host_ip, caplog):
         """Test that event is written to log file as JSON."""
         with caplog.at_level(loggers.SECURITY):
             security_event_log._log_security_event(
@@ -128,7 +140,7 @@ class TestLogSecurityEvent:
         assert event["level"] == "INFO"
         assert event["appid"] == "canonical.cloud_init"
 
-    def test_appends_multiple_events(self, caplog):
+    def test_appends_multiple_events(self, host_ip, caplog):
         """Test that multiple events are appended to the log file."""
         with caplog.at_level(loggers.SECURITY):
             security_event_log._log_security_event(
@@ -155,8 +167,14 @@ class TestLogSecurityEvent:
 class TestUserCreatedEvent:
     """Tests for sec_log_user_created function."""
 
-    @pytest.mark.parametrize("user_created", (True, False))
-    def test_logs_user_created_event(self, user_created, caplog):
+    @pytest.mark.parametrize(
+        "user_created",
+        [
+            pytest.param(True, id="user_created_logs_security_event"),
+            pytest.param(False, id="user_not_created_skips_logging"),
+        ],
+    )
+    def test_logs_user_created_event(self, user_created, host_ip, caplog):
         """Test logging a user creation event."""
 
         @sec_log_user_created
@@ -181,15 +199,17 @@ class TestUserCreatedEvent:
             "appid": "canonical.cloud_init",
             "event": "user_created:cloud-init,testuser",
             "description": "User 'testuser' was created",
+            "host_ip": "10.42.42.42",
             "hostname": get_hostname(),
             "level": "WARN",
+            "type": "security",
         } == event
 
 
 class TestPasswordChangedEvent:
     """Tests for sec_log_password_changed function."""
 
-    def test_logs_password_changed_event(self, caplog):
+    def test_logs_password_changed_event(self, host_ip, caplog):
         """Test logging a password change event."""
 
         @sec_log_password_changed
@@ -204,8 +224,10 @@ class TestPasswordChangedEvent:
             "appid": "canonical.cloud_init",
             "event": "authn_password_change:cloud-init,testuser",
             "description": "Password changed for user 'testuser'",
+            "host_ip": "10.42.42.42",
             "hostname": get_hostname(),
             "level": "INFO",
+            "type": "security",
         }
 
         for record in caplog.records:
@@ -219,23 +241,25 @@ class TestSystemShutdownEvent:
 
     @pytest.mark.parametrize(
         "mode,delay,expected_event,expected_descr",
-        (
-            (
+        [
+            pytest.param(
                 "poweroff",
                 "+5",
                 "sys_shutdown:cloud-init",
                 "System shutdown initiated (mode=poweroff)",
+                id="poweroff_with_delay",
             ),
-            (
+            pytest.param(
                 "reboot",
                 "now",
                 "sys_restart:cloud-init",
                 "System restart initiated",
+                id="reboot_immediate",
             ),
-        ),
+        ],
     )
     def test_logs_system_shutdown_event(
-        self, mode, delay, expected_event, expected_descr, caplog
+        self, mode, delay, expected_event, expected_descr, host_ip, caplog
     ):
         """Test logging a system shutdown event."""
 
@@ -256,12 +280,154 @@ class TestSystemShutdownEvent:
             "delay": delay,
             "description": expected_descr,
             "event": expected_event,
+            "host_ip": "10.42.42.42",
             "hostname": get_hostname(),
             "level": "INFO",
+            "type": "security",
         }
         if mode != "reboot":
             expected["mode"] = mode
         assert expected == event
+
+
+class TestGetHostIp:
+    """Tests for _get_host_ip IPv4/IPv6 address resolution."""
+
+    @pytest.mark.parametrize(
+        "netdev_response,expected_ip",
+        [
+            pytest.param(
+                {
+                    "eth0": {
+                        "up": True,
+                        "ipv4": [{"ip": "10.0.0.1", "scope": "global"}],
+                        "ipv6": [],
+                    }
+                },
+                "10.0.0.1",
+                id="global_ipv4",
+            ),
+            pytest.param(
+                {
+                    "eth0": {
+                        "up": True,
+                        "ipv4": [],
+                        "ipv6": [
+                            {"ip": "fd42::1/64", "scope6": "global"},
+                            {"ip": "fe80::1/64", "scope6": "link"},
+                        ],
+                    }
+                },
+                "fd42::1",
+                id="fallback_to_global_ipv6",
+            ),
+            pytest.param(
+                {
+                    "eth0": {
+                        "up": True,
+                        "ipv4": [],
+                        "ipv6": [
+                            {
+                                "ip": "fd42:baa2:3dd:17a::1/64",
+                                "scope6": "global",
+                            }
+                        ],
+                    }
+                },
+                "fd42:baa2:3dd:17a::1",
+                id="ipv6_prefix_stripped",
+            ),
+            pytest.param(
+                {
+                    "eth0": {
+                        "up": True,
+                        "ipv4": [{"ip": "10.0.0.1", "scope": "global"}],
+                        "ipv6": [{"ip": "fd42::1/64", "scope6": "global"}],
+                    }
+                },
+                "10.0.0.1",
+                id="prefers_ipv4_over_ipv6",
+            ),
+            pytest.param(
+                {
+                    "lo": {
+                        "up": True,
+                        "ipv4": [{"ip": "127.0.0.1", "scope": "global"}],
+                        "ipv6": [{"ip": "::1/128", "scope6": "global"}],
+                    },
+                    "eth0": {
+                        "up": True,
+                        "ipv4": [],
+                        "ipv6": [{"ip": "fd42::1/64", "scope6": "global"}],
+                    },
+                },
+                "fd42::1",
+                id="skips_loopback",
+            ),
+            pytest.param(
+                {
+                    "eth0": {
+                        "up": False,
+                        "ipv4": [{"ip": "10.0.0.1", "scope": "global"}],
+                        "ipv6": [{"ip": "fd42::1/64", "scope6": "global"}],
+                    }
+                },
+                None,
+                id="skips_down_interfaces",
+            ),
+            pytest.param(
+                {
+                    "eth0": {
+                        "up": True,
+                        "ipv4": [],
+                        "ipv6": [{"ip": "fe80::1/64", "scope6": "link"}],
+                    }
+                },
+                None,
+                id="ignores_link_local_ipv6",
+            ),
+            pytest.param(
+                Exception("network unavailable"),
+                None,
+                id="exception_returns_none",
+            ),
+        ],
+    )
+    def test_get_host_ip(self, mocker, netdev_response, expected_ip):
+        """Test _get_host_ip returns the correct IP address or None."""
+        if isinstance(netdev_response, Exception):
+            mocker.patch(MPATH + "netdev_info", side_effect=netdev_response)
+        else:
+            mocker.patch(MPATH + "netdev_info", return_value=netdev_response)
+        assert security_event_log._get_host_ip() == expected_ip
+
+
+class TestHostIpInSecurityEvent:
+    """Tests that host_ip is correctly populated in logged security events."""
+
+    @pytest.mark.parametrize(
+        "host_ip",
+        [
+            pytest.param("10.0.0.1", id="ipv4"),
+            pytest.param("fd42:baa2:3dd:17a:216:3eff:fe16:db54", id="ipv6"),
+            pytest.param(None, id="no_network"),
+        ],
+    )
+    def test_event_logs_host_ip(self, host_ip, mocker, caplog):
+        """Security event records host_ip returned by _get_host_ip."""
+        mocker.patch.object(
+            security_event_log, "_get_host_ip", return_value=host_ip
+        )
+        with caplog.at_level(loggers.SECURITY):
+            security_event_log._log_security_event(
+                event_type=OWASPEventType.USER_CREATED,
+                level=OWASPEventLevel.INFO,
+                description="test",
+            )
+        if host_ip is None:
+            assert "host_ip" not in json.loads(caplog.records[0].msg)
+        else:
+            assert json.loads(caplog.records[0].msg)["host_ip"] == host_ip
 
 
 class TestEventTypeEnums:
@@ -270,16 +436,20 @@ class TestEventTypeEnums:
     @pytest.mark.parametrize(
         "event_type,expected_value",
         [
-            (OWASPEventType.AUTHN_PASSWORD_CHANGE, "authn_password_change"),
-            (OWASPEventType.SYS_SHUTDOWN, "sys_shutdown"),
-            (OWASPEventType.SYS_RESTART, "sys_restart"),
-            (OWASPEventType.USER_CREATED, "user_created"),
-        ],
-        ids=[
-            "authn_password_change",
-            "sys_shutdown",
-            "sys_restart",
-            "user_created",
+            pytest.param(
+                OWASPEventType.AUTHN_PASSWORD_CHANGE,
+                "authn_password_change",
+                id="authn_password_change",
+            ),
+            pytest.param(
+                OWASPEventType.SYS_SHUTDOWN, "sys_shutdown", id="sys_shutdown"
+            ),
+            pytest.param(
+                OWASPEventType.SYS_RESTART, "sys_restart", id="sys_restart"
+            ),
+            pytest.param(
+                OWASPEventType.USER_CREATED, "user_created", id="user_created"
+            ),
         ],
     )
     def test_event_type_values(self, event_type, expected_value):

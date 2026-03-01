@@ -267,8 +267,11 @@ class TestUGNormalize:
         assert {"default": False} == users["joe"]
         assert {"default": False} == users["bob"]
 
+    @mock.patch(
+        "cloudinit.log.security_event_log._get_host_ip", return_value=None
+    )
     @mock.patch("cloudinit.subp.subp")
-    def test_create_snap_user(self, mock_subp, caplog):
+    def test_create_snap_user(self, mock_subp, _get_host_ip, caplog):
         mock_subp.side_effect = [
             ('{"username": "joe", "ssh-key-count": 1}\n', "")
         ]
@@ -289,8 +292,11 @@ class TestUGNormalize:
         event = json.loads(caplog.records[-1].msg)
         assert "user_created:cloud-init,joe" == event["event"]
 
+    @mock.patch(
+        "cloudinit.log.security_event_log._get_host_ip", return_value=None
+    )
     @mock.patch("cloudinit.subp.subp")
-    def test_create_snap_user_known(self, mock_subp, caplog):
+    def test_create_snap_user_known(self, mock_subp, _get_host_ip, caplog):
         mock_subp.side_effect = [
             ('{"username": "joe", "ssh-key-count": 1}\n', "")
         ]

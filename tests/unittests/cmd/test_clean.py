@@ -479,7 +479,10 @@ class TestClean:
             == err
         )
 
-    def test_handle_clean_args_reboots(self, init_class):
+    @mock.patch(
+        "cloudinit.log.security_event_log._get_host_ip", return_value=None
+    )
+    def test_handle_clean_args_reboots(self, _get_host_ip, init_class):
         """handle_clean_args_reboots when reboot arg is provided."""
 
         called_cmds = []

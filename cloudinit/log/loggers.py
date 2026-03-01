@@ -23,7 +23,7 @@ from typing import DefaultDict
 
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(filename)s[%(levelname)s]: %(message)s"
 SECURITY_LOG_FORMAT = "%(message)s"
-SECURITY = 36
+SECURITY = 25  # Treat lower than WARNING but higher than INFO
 DEPRECATED = 35
 TRACE = logging.DEBUG - 5
 
@@ -76,7 +76,7 @@ def setup_basic_logging(level=logging.DEBUG, formatter=None):
 
 
 def setup_security_logging(log_file: str = SECURITY_LOG_FILE) -> None:
-    """Attach a FileHandler routing SECURITY records exclusively to log_file."""
+    """Attach a FileHandler routing SECURITY records to log_file."""
     try:
         handler = logging.FileHandler(log_file)
     except OSError:

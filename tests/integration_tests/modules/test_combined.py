@@ -219,6 +219,17 @@ class TestCombined:
                 "/var/spool/rsyslog/cloudinit.log"
             )
 
+    def test_security_logs(self, class_client: IntegrationInstance):
+        """Test security logs are set in /var/log/cloud-init-security.log."""
+        client = class_client
+        security_logs = [
+            json.loads(line)
+            for line in client.read_from_file(
+                "/var/log/cloud-init-security.log"
+            ).splitlines()
+        ]
+        assert len(security_logs) == 1
+
     def test_runcmd(self, class_client: IntegrationInstance):
         """Test runcmd works as expected"""
         client = class_client

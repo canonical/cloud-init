@@ -10,9 +10,11 @@ https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/Logging_Vocabu
 Security events are logged in JSON Lines format with standardized fields:
 - datetime: ISO 8601 timestamp with UTC offset
 - appid: Application identifier (canonical.cloud_init)
+- type: "security"
 - event: Event type with optional parameters (e.g., user_created:root,ubuntu)
 - level: INFO, WARN, or CRITICAL
 - description: Human-readable summary
+- host_ip: Optional IP address, included when network information is available.
 """
 
 import datetime
@@ -24,6 +26,7 @@ from typing import Any, Dict, List, Optional
 
 from cloudinit import util
 from cloudinit.log import loggers
+from cloudinit.netinfo import netdev_info
 
 LOG = logging.getLogger(__name__)
 
@@ -57,6 +60,31 @@ class OWASPEventType(Enum):
     # User management events [USER]
     USER_CREATED = "user_created"
     USER_UPDATED = "user_updated"
+
+
+def _get_host_ip() -> Optional[str]:
+    """Return the first global IP on an active interface.
+
+    Prefers IPv4; falls back to IPv6 when no global IPv4 is available.
+    IPv6 addresses are returned without their prefix-length suffix.
+    """
+    try:
+        first_ipv6: Optional[str] = None
+        for iface, info in netdev_info().items():
+            if iface == "lo" or not info.get("up"):
+                continue
+            for addr in info.get("ipv4", []):
+                if addr.get("scope") == "global" and addr.get("ip"):
+                    return addr["ip"]
+            if first_ipv6 is None:
+                for addr in info.get("ipv6", []):
+                    if addr.get("scope6") == "global" and addr.get("ip"):
+                        first_ipv6 = addr["ip"].split("/")[0]
+                        break
+        return first_ipv6
+    except Exception:
+        pass
+    return None
 
 
 def _build_event_string(
@@ -98,11 +126,15 @@ def _build_security_event(
     event = {
         "datetime": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "appid": APP_ID,
+        "type": "security",
         "event": _build_event_string(event_type, event_params),
         "level": level.value,
         "description": description,
         "hostname": util.get_hostname(),
     }
+    host_ip = _get_host_ip()
+    if host_ip:
+        event["host_ip"] = host_ip
 
     if additional_data:
         # Merge additional data but don't overwrite core fields
