@@ -62,6 +62,9 @@ def test_crlf_in_azure_metadata_ssh_keys(session_cloud):
         # And those two keys should be the same, except for a possible key
         # comment, which Azure strips out
         assert (
-            authorized_keys[0].rsplit(" ")[:2]
-            == authorized_keys[1].split(" ")[:2]
+            "".join(authorized_keys[0].split(" ")[1:3])
+            == authorized_keys[1].split(" ")[1]
         )
+        # Azure logs invalid SSH key formats
+        log_content = client.read_from_file("/var/log/cloud-init.log")
+        assert "Key(s) not in OpenSSH format" in log_content
