@@ -173,7 +173,7 @@ def _log_security_event(
 
 def sec_log_user_created(func):
     """
-    A decorator to log a user creation event and priviledged attributes.
+    A decorator to log a user creation event and group attributes.
 
     :param userid: The user/process that initiated the action.
     :param new_userid: The username of the newly created user.
@@ -188,13 +188,24 @@ def sec_log_user_created(func):
                 "sec_log_user_created requires positional param name or kwarg"
             )
         params = ["cloud-init", new_userid]
+        groups_msg = ""
+        groups_suffix = ""
+        groups = kwargs.get("groups", [])
+        for priveledge in ("sudo", "doas"):
+            if kwargs.get(priveledge) is True:
+                groups.append(priveledge)
+        if groups:
+            groups_suffix = ",".join(groups)
+            groups_msg = f" in groups: {groups_suffix}"
+            params.append(f"groups:{groups_suffix}")
 
         response = func(*args, **kwargs)
         if response:
+            # User creation operation was performed
             _log_security_event(
                 event_type=OWASPEventType.USER_CREATED,
                 level=OWASPEventLevel.WARN,
-                description=f"User '{new_userid}' was created",
+                description=f"User '{new_userid}' was created{groups_msg}",
                 event_params=params,
             )
         return response

@@ -47,8 +47,8 @@ class TestBuildEventString:
             ),
             pytest.param(
                 OWASPEventType.USER_CREATED,
-                ["cloud-init", "newuser", "groups=wheel"],
-                "user_created:cloud-init,newuser,groups=wheel",
+                ["cloud-init", "newuser", "groups:wheel"],
+                "user_created:cloud-init,newuser,groups:wheel",
                 id="multiple_params",
             ),
             pytest.param(
@@ -168,13 +168,30 @@ class TestUserCreatedEvent:
     """Tests for sec_log_user_created function."""
 
     @pytest.mark.parametrize(
-        "user_created",
+        "user_created,uc_kwargs,event_id,description",
         [
-            pytest.param(True, id="user_created_logs_security_event"),
-            pytest.param(False, id="user_not_created_skips_logging"),
+            pytest.param(
+                True,
+                {},
+                "user_created:cloud-init,testuser",
+                "User 'testuser' was created",
+                id="user_created_logs_event",
+            ),
+            pytest.param(
+                True,
+                {"groups": ["grp1", "grp2"]},
+                "user_created:cloud-init,testuser,groups:grp1,grp2",
+                "User 'testuser' was created in groups: grp1,grp2",
+                id="user_created_with_groups_logs_event",
+            ),
+            pytest.param(
+                False, {}, None, None, id="user_not_created_skips_logging"
+            ),
         ],
     )
-    def test_logs_user_created_event(self, user_created, host_ip, caplog):
+    def test_logs_user_created_event(
+        self, user_created, uc_kwargs, event_id, description, host_ip, caplog
+    ):
         """Test logging a user creation event."""
 
         @sec_log_user_created
@@ -185,6 +202,7 @@ class TestUserCreatedEvent:
         with caplog.at_level(loggers.SECURITY):
             user_created_test(
                 name="testuser",
+                **uc_kwargs,
             )
 
         if not user_created:
@@ -197,8 +215,8 @@ class TestUserCreatedEvent:
         assert event.pop("datetime")
         assert {
             "appid": "canonical.cloud_init",
-            "event": "user_created:cloud-init,testuser",
-            "description": "User 'testuser' was created",
+            "event": event_id,
+            "description": description,
             "host_ip": "10.42.42.42",
             "hostname": get_hostname(),
             "level": "WARN",
