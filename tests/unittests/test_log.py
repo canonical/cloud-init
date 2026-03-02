@@ -183,7 +183,8 @@ def test_logger_prints_security_as_json_lines(tmp_path, capsys, caplog):
     log_file = tmp_path / "cloud-init-output.log"
     message = '{"key": "value"}'
     loggers.setup_basic_logging()
-    loggers.setup_security_logging(log_file=str(log_file))
-    logging.getLogger().security(message)
+    root = logging.getLogger()
+    loggers.setup_security_logging(root=root, log_file=str(log_file))
+    root.security(message)
     assert log_file.read_text() == f"{message}\n"
     assert message not in capsys.readouterr().err

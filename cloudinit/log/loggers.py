@@ -23,7 +23,7 @@ from typing import DefaultDict
 
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(filename)s[%(levelname)s]: %(message)s"
 SECURITY_LOG_FORMAT = "%(message)s"
-SECURITY = 25  # Treat lower than WARNING but higher than INFO
+SECURITY = logging.WARNING - 5
 DEPRECATED = 35
 TRACE = logging.DEBUG - 5
 
@@ -75,8 +75,14 @@ def setup_basic_logging(level=logging.DEBUG, formatter=None):
     root.setLevel(level)
 
 
-def setup_security_logging(log_file: str = SECURITY_LOG_FILE) -> None:
-    """Attach a FileHandler routing SECURITY records to log_file."""
+def setup_security_logging(
+    root: logging.Logger, log_file: str = SECURITY_LOG_FILE
+) -> None:
+    """Attach a FileHandler routing SECURITY records to log_file if absent."""
+    for h in root.handlers:
+        if isinstance(h, logging.FileHandler) and h.baseFilename == log_file:
+            return  # handler already attached
+
     try:
         handler = logging.FileHandler(log_file)
     except OSError:
@@ -159,6 +165,7 @@ def setup_logging(cfg=None):
 
             # Attempt to load its config.
             logging.config.fileConfig(log_cfg)
+            setup_security_logging(root_logger)
 
             # Configure warning exporter after loading logging configuration
             root_logger.addHandler(exporter)
@@ -254,9 +261,9 @@ def configure_root_logger():
     handler = LogExporter()
     handler.setLevel(logging.WARN)
     handler.addFilter(NoSecurityFilter())
-    logging.getLogger().addHandler(handler)
-
-    setup_security_logging()
+    root_logger = logging.getLogger()
+    root_logger.addHandler(handler)
+    setup_security_logging(root_logger)
 
     # LogRecord allows us to report more useful information than __init__.py
     logging.setLogRecordFactory(CloudInitLogRecord)
