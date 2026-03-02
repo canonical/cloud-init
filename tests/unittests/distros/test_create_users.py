@@ -514,7 +514,6 @@ class TestCreateUser:
         ex_groups = ["existing_group"]
         groups = ["group1", ex_groups[0]]
         m_is_group.side_effect = lambda m: m in ex_groups
-
         dist.create_user(USER, groups=groups)
         expected = [
             mock.call(["groupadd", "group1", "--extrausers"]),
@@ -525,7 +524,10 @@ class TestCreateUser:
         ]
         assert m_subp.call_args_list == expected
         event = json.loads(caplog.records[-1].msg)
-        assert event["event"] == "user_created:cloud-init,foo_user"
+        assert (
+            event["event"]
+            == "user_created:cloud-init,foo_user,groups:group1,existing_group"
+        )
 
     @mock.patch("cloudinit.distros.util.is_group")
     def test_create_groups_with_whitespace_string(

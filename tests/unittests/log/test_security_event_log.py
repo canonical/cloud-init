@@ -78,7 +78,7 @@ class TestBuildSecurityEvent:
         )
 
         assert "datetime" in event
-        assert event["appid"] == "canonical.cloud_init"
+        assert event["appid"] == "canonical.cloud-init"
         assert event["event"] == "user_created:cloud-init,testuser"
         assert event["level"] == "INFO"
         assert event["description"] == "Test event"
@@ -105,7 +105,7 @@ class TestBuildSecurityEvent:
             additional_data={"appid": "malicious.app", "level": "CRITICAL"},
         )
 
-        assert event["appid"] == "canonical.cloud_init"
+        assert event["appid"] == "canonical.cloud-init"
         assert event["level"] == "INFO"
 
     def test_timestamp_is_iso_format(self, host_ip):
@@ -138,7 +138,7 @@ class TestLogSecurityEvent:
 
         assert event["event"] == "user_created:cloud-init,testuser"
         assert event["level"] == "INFO"
-        assert event["appid"] == "canonical.cloud_init"
+        assert event["appid"] == "canonical.cloud-init"
 
     def test_appends_multiple_events(self, host_ip, caplog):
         """Test that multiple events are appended to the log file."""
@@ -185,6 +185,20 @@ class TestUserCreatedEvent:
                 id="user_created_with_groups_logs_event",
             ),
             pytest.param(
+                True,
+                {"sudo": True, "groups": ["grp1"]},
+                "user_created:cloud-init,testuser,groups:grp1,sudo",
+                "User 'testuser' was created in groups: grp1,sudo",
+                id="user_created_with_sudo_and_groups_logs_event",
+            ),
+            pytest.param(
+                True,
+                {"doas": True, "groups": ["grp2"]},
+                "user_created:cloud-init,testuser,groups:grp2,doas",
+                "User 'testuser' was created in groups: grp2,doas",
+                id="user_created_with_doas_and_groups_logs_event",
+            ),
+            pytest.param(
                 False, {}, None, None, id="user_not_created_skips_logging"
             ),
         ],
@@ -214,7 +228,7 @@ class TestUserCreatedEvent:
 
         assert event.pop("datetime")
         assert {
-            "appid": "canonical.cloud_init",
+            "appid": "canonical.cloud-init",
             "event": event_id,
             "description": description,
             "host_ip": "10.42.42.42",
@@ -239,7 +253,7 @@ class TestPasswordChangedEvent:
             set_passwd_test("testuser")  # Test with positional params
 
         expected_value = {
-            "appid": "canonical.cloud_init",
+            "appid": "canonical.cloud-init",
             "event": "authn_password_change:cloud-init,testuser",
             "description": "Password changed for user 'testuser'",
             "host_ip": "10.42.42.42",
@@ -294,7 +308,7 @@ class TestSystemShutdownEvent:
         event = json.loads(caplog.records[0].msg)
         assert event.pop("datetime")
         expected = {
-            "appid": "canonical.cloud_init",
+            "appid": "canonical.cloud-init",
             "delay": delay,
             "description": expected_descr,
             "event": expected_event,

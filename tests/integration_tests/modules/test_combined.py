@@ -26,7 +26,12 @@ from tests.integration_tests.integration_settings import (
     OS_IMAGE_TYPE,
     PLATFORM,
 )
-from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU, NOBLE
+from tests.integration_tests.releases import (
+    CURRENT_RELEASE,
+    IS_UBUNTU,
+    JAMMY,
+    NOBLE,
+)
 from tests.integration_tests.util import (
     get_feature_flag_value,
     get_inactive_modules,
@@ -228,7 +233,45 @@ class TestCombined:
                 "/var/log/cloud-init-security.log"
             ).splitlines()
         ]
-        assert len(security_logs) == 1
+        assert len(security_logs) == 2
+        if CURRENT_RELEASE == JAMMY:
+            # Downstream in ubuntu/jammy:debian/patches/retain-old-groups.patch
+            default_grp = (
+                "adm,audio,cdrom,dialout,dip,floppy,lxd,netdev,plugdev,sudo,"
+                "video"
+            )
+        else:
+            default_grp = "adm,cdrom,dip,lxd,sudo"
+        expected_security_logs = [
+            {
+                "appid": "canonical.cloud-init",
+                "description": "User 'craig' was created",
+                "event": "user_created:cloud-init,craig",
+                "type": "security",
+                "level": "WARN",
+                "host_ip": client.instance.ip,
+                "hostname": client.instance.name,
+            },
+            {
+                "appid": "canonical.cloud-init",
+                "description": (
+                    f"User 'ubuntu' was created in groups: {default_grp}"
+                ),
+                "event": (
+                    f"user_created:cloud-init,ubuntu,groups:{default_grp}"
+                ),
+                "type": "security",
+                "level": "WARN",
+                "host_ip": client.instance.ip,
+                "hostname": client.instance.name,
+            },
+        ]
+        for security_log in security_logs:
+            assert security_log.pop("datetime")
+        # import pdb
+
+        # pdb.set_trace()
+        assert expected_security_logs == security_logs
 
     def test_runcmd(self, class_client: IntegrationInstance):
         """Test runcmd works as expected"""

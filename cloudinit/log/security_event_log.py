@@ -9,7 +9,7 @@ https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/Logging_Vocabu
 
 Security events are logged in JSON Lines format with standardized fields:
 - datetime: ISO 8601 timestamp with UTC offset
-- appid: Application identifier (canonical.cloud_init)
+- appid: Application identifier (canonical.cloud-init)
 - type: "security"
 - event: Event type with optional parameters (e.g., user_created:root,ubuntu)
 - level: INFO, WARN, or CRITICAL
@@ -31,7 +31,7 @@ from cloudinit.netinfo import netdev_info
 LOG = logging.getLogger(__name__)
 
 # Hard-coded application identifier per spec
-APP_ID = "canonical.cloud_init"
+APP_ID = "canonical.cloud-init"
 
 
 class OWASPEventLevel(Enum):
@@ -189,13 +189,17 @@ def sec_log_user_created(func):
             )
         params = ["cloud-init", new_userid]
         groups_msg = ""
-        groups_suffix = ""
-        groups = kwargs.get("groups", [])
-        for priveledge in ("sudo", "doas"):
-            if kwargs.get(priveledge) is True:
-                groups.append(priveledge)
-        if groups:
-            groups_suffix = ",".join(groups)
+        groups_suffix = kwargs.get("groups", "")
+        if groups_suffix:
+            if isinstance(groups_suffix, (dict, list)):
+                groups_suffix = ",".join(groups_suffix)
+            elif isinstance(groups_suffix, list):
+                groups_suffix = ",".join(groups_suffix)
+        for perms in ("sudo", "doas"):
+            if kwargs.get(perms) is True:
+                groups_suffix += f",{perms}"
+        if groups_suffix:
+            groups_suffix = groups_suffix.strip(",")
             groups_msg = f" in groups: {groups_suffix}"
             params.append(f"groups:{groups_suffix}")
 
