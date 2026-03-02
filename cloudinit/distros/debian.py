@@ -135,7 +135,7 @@ class Distro(distros.Distro):
             update_locale_conf(
                 locale,
                 out_fn,
-                self.default_locale,
+                default_locale=self.default_locale,
                 keyname=keyname,
                 install_function=self.install_packages,
             )
@@ -286,18 +286,7 @@ def read_system_locale(sys_path=LOCALE_CONF_FN, keyname="LANG"):
     return sys_val
 
 
-def _ensure_tool(bin_name: str, install_function=None, pkgs=None):
-    if subp.which(bin_name):
-        return
-    if install_function and pkgs:
-        install_function(pkgs)
-    # if not present and installed raise no RuntimeError
-    # but wait for subp to fail
-
-
 def _normalize_locale(requested: str) -> str:
-    if not requested:
-        raise ValueError("Failed to provide locale value.")
     req = requested.strip()
 
     # Accept canonical “no-regeneration” values as-is
@@ -319,7 +308,8 @@ def update_locale_conf(
     LOG.debug(
         "Updating %s with locale setting %s=%s", sys_path, keyname, locale
     )
-    _ensure_tool("update-locale", install_function, ["locales"])
+    if not subp.which("update-locale") and install_function:
+        install_function(["locales"])
     subp.subp(
         [
             "update-locale",
@@ -335,22 +325,22 @@ def update_locale_conf(
     )
 
 
-def _lookup_supported_line(requested: str) -> str:
+def _lookup_supported_i18n_value(requested: str) -> str:
     """
     Return the canonical line from /usr/share/i18n/SUPPORTED for `requested`.
 
     Accepts:
       - bare language_region:   "fi_FI"
       - with charset:           "fi_FI.ISO-8859-1" or "fi_FI.UTF-8"
-      - with modifier:          "fi_FI@euro" (works with/without charset)
+      - with modifier:           "fi_FI@euro" (works with/without charset)
 
     Prefers UTF-8 only when the request didn’t specify a charset and multiple
     candidates exist; otherwise returns the first match.
     """
     try:
-        sup = util.load_text_file(SUPPORTED_FN).splitlines()
-    except Exception:
-        sup = []
+        supported_lines = util.load_text_file(SUPPORTED_FN).splitlines()
+    except OSError:
+        supported_lines = []
 
     # Parse requested into locale[.charset][@mod]
     m = re.match(
@@ -370,27 +360,23 @@ def _lookup_supported_line(requested: str) -> str:
     # each SUPPORTED line is "locale[.charset][@mod] <space> CHARMAP"
     candidates = []
     rx = re.compile(
-        rf"^{re.escape(prefix)}(?:\.[^\s@]+)?(?:@[^\s]+)?\s+[^\s]+$"
+        rf"^\s*{re.escape(prefix)}(?:\.[^\s@]+)?(?:@[^\s]+)?\s+[^\s]+$"
     )
-    for line in sup:
-        if not line or line.startswith("#"):
-            continue
+    for line in supported_lines:
         if rx.match(line):
             candidates.append(line.strip())
 
     if not candidates:
         # As a last resort, construct a reasonable default (don’t force UTF-8)
         # If user gave a charset, use it; else use UTF-8.
-        if wanted_charset:
-            constructed = f"{prefix}.{wanted_charset} {wanted_charset}"
-        else:
-            constructed = f"{prefix}.UTF-8 UTF-8"
-        return constructed
+        if not wanted_charset:
+            wanted_charset = "UTF-8"
+        return f"{prefix}.{wanted_charset} {wanted_charset}"
 
     if wanted_charset:
         # Find exact charset match on first field (before space)
         rx_exact = re.compile(
-            rf"^{re.escape(prefix)}\.{re.escape(wanted_charset)}(?:@[^\s]+)?\s+"
+            rf"^\s*{re.escape(prefix)}\.{re.escape(wanted_charset)}(?:@[^\s]+)?\s+"
         )
         for line in candidates:
             if rx_exact.match(line):
@@ -421,20 +407,19 @@ def regenerate_locale(
         LOG.debug("%s=%s does not require rengeneration", keyname, locale)
         return
 
-    # ensure tooling
-    _ensure_tool("locale-gen", install_function, ["locales"])
+    if not subp.which("locale-gen") and install_function:
+        install_function(["locales"])
 
     # compute canonical line and NEW_LANG (first field)
-    line = _lookup_supported_line(locale)
+    line = _lookup_supported_i18n_value(locale)
 
     # ensure /etc/locale.gen contains the
     # line (uncomment if present; append if absent)
     existing = ""
-    if os.path.exists(LOCALE_GEN_FN):
-        try:
-            existing = util.load_text_file(LOCALE_GEN_FN)
-        except Exception:
-            existing = ""
+    try:
+        existing = util.load_text_file(LOCALE_GEN_FN)
+    except OSError:
+        existing = ""
 
     out_lines = []
     found_enabled = False
@@ -451,11 +436,8 @@ def regenerate_locale(
             out_lines.append(line)
             found_enabled = True
         else:
-            # disable everything else
-            if raw.lstrip().startswith("#"):
-                out_lines.append(raw)  # already commented
-            else:
-                out_lines.append("# " + raw)
+            # keep all other locales as-is (don't disable them)
+            out_lines.append(raw)
 
     if not found_enabled:
         out_lines.append(line)

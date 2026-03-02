@@ -173,3 +173,69 @@ class TestDebianApplyLocale:
         ):
             distro.apply_locale("")
             m_subp.assert_not_called()
+
+
+@pytest.mark.usefixtures("fake_filesystem")
+class TestLookupSupportedI18nValue:
+    """Test _lookup_supported_i18n_value function."""
+
+    def test_no_match_constructs_default(self, mocker):
+        """When no match is found in SUPPORTED, construct a default line."""
+        from cloudinit.distros.debian import _lookup_supported_i18n_value
+
+        # Mock SUPPORTED file to be empty
+        mocker.patch(
+            "cloudinit.distros.debian.util.load_text_file",
+            side_effect=OSError("File not found"),
+        )
+
+        # Request a locale that won't be found
+        result = _lookup_supported_i18n_value("xyz_XY.UTF-8")
+        assert result == "xyz_XY.UTF-8 UTF-8"
+
+        # Without charset, should default to UTF-8
+        result = _lookup_supported_i18n_value("abc_AB")
+        assert result == "abc_AB.UTF-8 UTF-8"
+
+        # With explicit charset
+        result = _lookup_supported_i18n_value("def_DE.ISO-8859-1")
+        assert result == "def_DE.ISO-8859-1 ISO-8859-1"
+
+    def test_formats_with_charset_and_modifier(self, mocker):
+        """Test various locale formats: prefix, charset, and modifier."""
+        from cloudinit.distros.debian import _lookup_supported_i18n_value
+
+        # Mock SUPPORTED file with various locale formats
+        supported_content = """# Supported locales
+en_US.UTF-8 UTF-8
+fi_FI.ISO-8859-1 ISO-8859-1
+fi_FI.UTF-8 UTF-8
+it_IT@euro ISO-8859-15
+ca_ES@valencia.UTF-8 UTF-8
+de_DE.UTF-8 UTF-8
+  fr_FR.UTF-8 UTF-8
+"""
+        mocker.patch(
+            "cloudinit.distros.debian.util.load_text_file",
+            return_value=supported_content,
+        )
+
+        # Test modifier without explicit charset: it_IT@euro
+        result = _lookup_supported_i18n_value("it_IT@euro")
+        assert result == "it_IT@euro ISO-8859-15"
+
+        # Test charset without modifier: fi_FI.ISO-8859-1
+        result = _lookup_supported_i18n_value("fi_FI.ISO-8859-1")
+        assert result == "fi_FI.ISO-8859-1 ISO-8859-1"
+
+        # Test both charset and modifier: ca_ES@valencia.UTF-8
+        result = _lookup_supported_i18n_value("ca_ES@valencia.UTF-8")
+        assert result == "ca_ES@valencia.UTF-8 UTF-8"
+
+        # Test bare locale preferring UTF-8
+        result = _lookup_supported_i18n_value("fi_FI")
+        assert result == "fi_FI.UTF-8 UTF-8"
+
+        # Test that lines with leading whitespace are matched (then stripped)
+        result = _lookup_supported_i18n_value("fr_FR.UTF-8")
+        assert result == "fr_FR.UTF-8 UTF-8"
