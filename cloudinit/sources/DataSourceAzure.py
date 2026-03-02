@@ -292,6 +292,7 @@ BUILTIN_DS_CONFIG = {
     "disk_aliases": {"ephemeral0": RESOURCE_DISK_PATH},
     "apply_network_config": True,  # Use IMDS published network configuration
     "apply_network_config_for_secondary_ips": True,  # Configure secondary ips
+    "experimental_fail_on_missing_customdata": False,
 }
 
 BUILTIN_CLOUD_EPHEMERAL_DISK_CONFIG = {
@@ -815,6 +816,23 @@ class DataSourceAzure(sources.DataSource):
         # only use userdata from imds if OVF did not provide custom data
         # userdata provided by IMDS is always base64 encoded
         if not userdata_raw:
+            # first, check to see if the OVF was supposed to provide custom
+            # data. If it was supposed to and did not, we report failure
+            if (
+                ovf_source
+                and self.ds_cfg.get("experimental_fail_on_missing_customdata")
+                and _hascustomdata_from_imds(imds_md)
+            ):
+                report_diagnostic_event(
+                    "IMDS did not return userdata as expected",
+                    logger_func=LOG.error,
+                )
+                self._report_failure(
+                    errors.ReportableErrorImdsInvalidMetadata(
+                        key="extended.compute.userData", value=userdata_raw
+                    )
+                )
+
             imds_userdata = _userdata_from_imds(imds_md)
             if imds_userdata:
                 LOG.debug("Retrieved userdata from IMDS")
@@ -1709,6 +1727,13 @@ def _username_from_imds(imds_data):
 def _userdata_from_imds(imds_data):
     try:
         return imds_data["compute"]["userData"]
+    except KeyError:
+        return None
+
+
+def _hascustomdata_from_imds(imds_data) -> Optional[bool]:
+    try:
+        return imds_data["extended"]["compute"]["hasCustomData"]
     except KeyError:
         return None
 
