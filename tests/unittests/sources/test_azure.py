@@ -2410,16 +2410,20 @@ scbus-1 on xpt0 bus 0
             dsrc.crawl_metadata()
             assert m_report_failure.call_count == 0
 
-    @mock.patch.object(
-        dsaz.features, "EXPERIMENTAL_FAIL_ON_MISSING_CUSTOMDATA", True
-    )
     def test_missing_customdata_reports_failure_when_flag_enabled(
         self, get_ds
     ):
         """When EXPERIMENTAL_FAIL_ON_MISSING_CUSTOMDATA is True and OVF
         is present but has no custom data while IMDS says hasCustomData
         is True, a failure should be reported."""
-        sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
+        sys_cfg = {
+            "datasource": {
+                "Azure": {
+                    "apply_network_config": True,
+                    "experimental_fail_on_missing_customdata": True,
+                }
+            }
+        }
         data = {
             "ovfcontent": construct_ovf_env(),
             "sys_cfg": sys_cfg,
@@ -2448,16 +2452,20 @@ scbus-1 on xpt0 bus 0
                 "extended.compute.userData"
             )
 
-    @mock.patch.object(
-        dsaz.features, "EXPERIMENTAL_FAIL_ON_MISSING_CUSTOMDATA", True
-    )
     def test_missing_customdata_no_report_when_ovf_provides_customdata(
         self, get_ds
     ):
         """When OVF provides custom data, no failure is reported even when
         the feature flag is enabled and IMDS indicates hasCustomData."""
         userdataOVF = "userdataOVF"
-        sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
+        sys_cfg = {
+            "datasource": {
+                "Azure": {
+                    "apply_network_config": True,
+                    "experimental_fail_on_missing_customdata": True,
+                }
+            }
+        }
         data = {
             "ovfcontent": construct_ovf_env(custom_data=userdataOVF),
             "sys_cfg": sys_cfg,
@@ -2480,15 +2488,19 @@ scbus-1 on xpt0 bus 0
             assert m_report_failure.call_count == 0
             assert crawled_data["userdata_raw"] == userdataOVF.encode("utf-8")
 
-    @mock.patch.object(
-        dsaz.features, "EXPERIMENTAL_FAIL_ON_MISSING_CUSTOMDATA", True
-    )
     def test_missing_customdata_no_report_when_imds_has_no_hascustomdata(
         self, get_ds
     ):
         """When IMDS does not report hasCustomData (or it's False),
         no failure is reported even with the flag enabled."""
-        sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
+        sys_cfg = {
+            "datasource": {
+                "Azure": {
+                    "apply_network_config": True,
+                    "experimental_fail_on_missing_customdata": True,
+                }
+            }
+        }
         data = {
             "ovfcontent": construct_ovf_env(),
             "sys_cfg": sys_cfg,
@@ -2510,14 +2522,18 @@ scbus-1 on xpt0 bus 0
             dsrc.crawl_metadata()
             assert m_report_failure.call_count == 0
 
-    @mock.patch.object(
-        dsaz.features, "EXPERIMENTAL_FAIL_ON_MISSING_CUSTOMDATA", True
-    )
     def test_missing_customdata_no_report_when_hascustomdata_is_false(
         self, get_ds
     ):
         """When IMDS reports hasCustomData=False, no failure is reported."""
-        sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
+        sys_cfg = {
+            "datasource": {
+                "Azure": {
+                    "apply_network_config": True,
+                    "experimental_fail_on_missing_customdata": True,
+                }
+            }
+        }
         data = {
             "ovfcontent": construct_ovf_env(),
             "sys_cfg": sys_cfg,
