@@ -2406,7 +2406,9 @@ scbus-1 on xpt0 bus 0
             dsrc, "_setup_ephemeral_networking"
         ), mock.patch.object(
             dsrc, "_is_ephemeral_networking_up", return_value=True
-        ), mock.patch.object(dsrc, "_report_failure") as m_report_failure:
+        ), mock.patch.object(
+            dsrc, "_report_failure"
+        ) as m_report_failure:
             dsrc.crawl_metadata()
             assert m_report_failure.call_count == 0
 
@@ -2441,7 +2443,9 @@ scbus-1 on xpt0 bus 0
             dsrc, "_setup_ephemeral_networking"
         ), mock.patch.object(
             dsrc, "_is_ephemeral_networking_up", return_value=True
-        ), mock.patch.object(dsrc, "_report_failure") as m_report_failure:
+        ), mock.patch.object(
+            dsrc, "_report_failure"
+        ) as m_report_failure:
             dsrc.crawl_metadata()
             m_report_failure.assert_called_once()
             reported_error = m_report_failure.call_args[0][0]
@@ -2483,7 +2487,9 @@ scbus-1 on xpt0 bus 0
             dsrc, "_setup_ephemeral_networking"
         ), mock.patch.object(
             dsrc, "_is_ephemeral_networking_up", return_value=True
-        ), mock.patch.object(dsrc, "_report_failure") as m_report_failure:
+        ), mock.patch.object(
+            dsrc, "_report_failure"
+        ) as m_report_failure:
             crawled_data = dsrc.crawl_metadata()
             assert m_report_failure.call_count == 0
             assert crawled_data["userdata_raw"] == userdataOVF.encode("utf-8")
@@ -2518,7 +2524,9 @@ scbus-1 on xpt0 bus 0
             dsrc, "_setup_ephemeral_networking"
         ), mock.patch.object(
             dsrc, "_is_ephemeral_networking_up", return_value=True
-        ), mock.patch.object(dsrc, "_report_failure") as m_report_failure:
+        ), mock.patch.object(
+            dsrc, "_report_failure"
+        ) as m_report_failure:
             dsrc.crawl_metadata()
             assert m_report_failure.call_count == 0
 
@@ -2551,7 +2559,9 @@ scbus-1 on xpt0 bus 0
             dsrc, "_setup_ephemeral_networking"
         ), mock.patch.object(
             dsrc, "_is_ephemeral_networking_up", return_value=True
-        ), mock.patch.object(dsrc, "_report_failure") as m_report_failure:
+        ), mock.patch.object(
+            dsrc, "_report_failure"
+        ) as m_report_failure:
             dsrc.crawl_metadata()
             assert m_report_failure.call_count == 0
 
@@ -5873,6 +5883,7 @@ class TestQueryVmId:
 
         mock_query_system_uuid.assert_called_once()
         mock_convert_uuid.assert_called_once_with("test-system-uuid")
+
 
 class TestHasCustomDataFromImds:
     """Unit tests for the _hascustomdata_from_imds helper."""

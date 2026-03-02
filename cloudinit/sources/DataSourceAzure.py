@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 
-from cloudinit import features, net, performance, sources, ssh_util, subp, util
+from cloudinit import net, performance, sources, ssh_util, subp, util
 from cloudinit.config import cc_mounts
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import device_driver
