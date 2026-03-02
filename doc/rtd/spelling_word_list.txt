@@ -108,6 +108,8 @@ libvirt
 linux
 livepatch
 localdomain
+lv
+lvm
 lxd
 maipo
 manpage
@@ -161,6 +163,7 @@ preseed
 proxmox
 puppetlabs
 puppetserver
+pv
 py
 pycloudlib
 pytest
@@ -240,6 +243,7 @@ vcloud
 ve
 veth
 vfstype
+vg
 virtuozzo
 vm
 vpc
