@@ -11,3 +11,4 @@ jobs:
     with:
       release: noble
       platform: lxd_container
+      hosted_runner: true

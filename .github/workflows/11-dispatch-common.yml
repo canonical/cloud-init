@@ -29,6 +29,9 @@ on:
       filter_tests:
         required: false
         type: string
+      hosted_runner:
+        required: false
+        type: boolean
   workflow_call:
     inputs:
       release:
@@ -46,10 +49,13 @@ on:
       filter_tests:
         required: false
         type: string
+      hosted_runner:
+        required: false
+        type: boolean
 
 jobs:
   lxc:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.hosted_runner && fromJSON('["self-hosted", "linux", "amd64", "tiobe", "noble"]') || 'ubuntu-latest' }}
     if: github.repository == 'canonical/cloud-init'
 
     env:
@@ -58,6 +64,7 @@ jobs:
       CLOUD_INIT_OS_IMAGE_TYPE: ${{ inputs.image_type || 'generic' }}
       CLOUD_INIT_CLOUD_INIT_SOURCE: ${{ inputs.install_source || 'ppa:cloud-init-dev/daily' }}
       CLOUD_INIT_LOCAL_LOG_PATH: ${{ github.workspace }}/cloud_init_test_logs
+      PYCLOUDLIB_CONFIG: ${{ github.workspace }}/pycloudlib.toml
 
 
     steps:
@@ -73,7 +80,7 @@ jobs:
       - name: Setup pycloudlib
         run: |
           ssh-keygen -P "" -q -f ~/.ssh/id_rsa
-          echo "[lxd]" > /home/$USER/.config/pycloudlib.toml
+          echo "[lxd]" > ${{ github.workspace }/pycloudlib.toml
       - name: Install Dependencies
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get -qy update
