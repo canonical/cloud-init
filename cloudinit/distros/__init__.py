@@ -31,6 +31,7 @@ from typing import (
     Tuple,
     Type,
     Union,
+    final,
 )
 
 import cloudinit.net.netops.iproute2 as iproute2
@@ -782,13 +783,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             util.logexc(LOG, "Failed to create user %s", name)
             raise e
 
-        user_attributes = {}
-        for k, v in kwargs.items():
-            if k == "groups":
-                user_attributes["groups"] = ",".join(groups)
-            elif k in ("sudo", "doas") and v:
-                user_attributes[k] = True
-
         # Indicate that a new user was created
         return True
 
@@ -856,6 +850,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 return True
         return False
 
+    @final
     @sec_log_user_created
     def create_user(self, name, **kwargs):
         """
@@ -1336,6 +1331,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 LOG.info("Added user '%s' to group '%s'", member, name)
 
     @classmethod
+    @final
     @sec_log_system_shutdown
     def shutdown_command(cls, *, mode, delay, message):
         # called from cc_power_state_change.load_power_state and clean

@@ -150,7 +150,7 @@ class MockDistro(distros.Distro):
     def add_snap_user(self, name, **kwargs):
         return "snap_user"
 
-    @security_event_log.sec_log_user_created
+    @security_event_log.sec_log_user_created  # type: ignore[misc]
     def create_user(self, name, **kwargs):
         return True
 
@@ -172,7 +172,7 @@ class MockDistro(distros.Distro):
     def create_group(self, name, members=None):
         pass
 
-    @security_event_log.sec_log_system_shutdown
+    @security_event_log.sec_log_system_shutdown  # type: ignore[misc]
     def shutdown_command(self, *, mode, delay, message):
         pass
 

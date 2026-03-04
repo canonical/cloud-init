@@ -292,7 +292,7 @@ def _netdev_info_ifconfig(ifconfig_data):
 
 def netdev_info(
     empty="",
-) -> Dict[str, Dict[str, Interface]]:
+) -> Dict[str, Interface]:
     """return the instance's interfaces and interface data
 
     includes, interface name, link state, hardware address, and lists of ipv4

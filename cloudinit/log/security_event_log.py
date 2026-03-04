@@ -71,9 +71,8 @@ def _get_host_ip() -> Optional[str]:
     try:
         first_ipv6: Optional[str] = None
         for iface, info in netdev_info().items():
-            if iface == "lo" or not info.get("up"):
-                continue
-            for addr in info.get("ipv4", []):
+            ipv4: List[dict] = info.get("ipv4", [])
+            for addr in ipv4:
                 if addr.get("scope") == "global" and addr.get("ip"):
                     return addr["ip"]
             if first_ipv6 is None:
