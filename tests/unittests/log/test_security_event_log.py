@@ -11,6 +11,7 @@ from cloudinit.log.security_event_log import (
     OWASPEventLevel,
     OWASPEventType,
     sec_log_password_changed,
+    sec_log_password_changed_batch,
     sec_log_system_shutdown,
     sec_log_user_created,
 )
@@ -268,6 +269,35 @@ class TestPasswordChangedEvent:
             assert expected_value == event
 
 
+class TestPasswordChangedBatchEvent:
+    """Tests for sec_log_password_changed_batch function."""
+
+    def test_logs_password_changed_event_for_each_user(self, host_ip, caplog):
+        """Test logging a password change event."""
+
+        @sec_log_password_changed_batch
+        def set_passwd_test(pwlist_in):
+            pass
+
+        with caplog.at_level(loggers.SECURITY):
+            set_passwd_test(pwlist_in="testuser")
+
+        expected_value = {
+            "appid": "canonical.cloud-init",
+            "event": "authn_password_change:cloud-init,testuser",
+            "description": "Password changed for user 'testuser'",
+            "host_ip": "10.42.42.42",
+            "hostname": get_hostname(),
+            "level": "INFO",
+            "type": "security",
+        }
+
+        for record in caplog.records:
+            event = json.loads(record.msg)
+            assert event.pop("datetime")
+            assert expected_value == event
+
+
 class TestSystemShutdownEvent:
     """Tests for sec_log_system_shutdown function."""
 
@@ -384,8 +414,8 @@ class TestGetHostIp:
                 {
                     "lo": {
                         "up": True,
-                        "ipv4": [{"ip": "127.0.0.1", "scope": "global"}],
-                        "ipv6": [{"ip": "::1/128", "scope6": "global"}],
+                        "ipv4": [{"ip": "127.0.0.1", "scope": "host"}],
+                        "ipv6": [{"ip": "::1/128", "scope6": "host"}],
                     },
                     "eth0": {
                         "up": True,

@@ -59,7 +59,7 @@ class OWASPEventType(Enum):
 
     # User management events [USER]
     USER_CREATED = "user_created"
-    USER_UPDATED = "user_updated"
+    # TODO(USER_UPDATED = "user_updated")
 
 
 def _get_host_ip() -> Optional[str]:
@@ -71,6 +71,8 @@ def _get_host_ip() -> Optional[str]:
     try:
         first_ipv6: Optional[str] = None
         for iface, info in netdev_info().items():
+            if not info["up"]:
+                continue
             ipv4: List[dict] = info.get("ipv4", [])
             for addr in ipv4:
                 if addr.get("scope") == "global" and addr.get("ip"):
@@ -210,6 +212,25 @@ def sec_log_user_created(func):
                 level=OWASPEventLevel.WARN,
                 description=f"User '{new_userid}' was created{groups_msg}",
                 event_params=params,
+            )
+        return response
+
+    return decorator
+
+
+def sec_log_password_changed_batch(func):
+    @functools.wraps(func)
+    def decorator(*args, **kwargs):
+        response = func(*args, **kwargs)
+        plist_in = kwargs.get("plist_in")
+        if not plist_in:
+            plist_in = args[1]
+        for userid, _ in plist_in:
+            _log_security_event(
+                event_type=OWASPEventType.AUTHN_PASSWORD_CHANGE,
+                level=OWASPEventLevel.INFO,
+                description=f"Password changed for user '{userid}'",
+                event_params=["cloud-init", userid],
             )
         return response
 

@@ -55,6 +55,7 @@ from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
 from cloudinit.lifecycle import log_with_downgradable_level
 from cloudinit.log.security_event_log import (
     sec_log_password_changed,
+    sec_log_password_changed_batch,
     sec_log_system_shutdown,
     sec_log_user_created,
 )
@@ -1122,6 +1123,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         return True
 
+    @sec_log_password_changed_batch
     def chpasswd(self, plist_in: list, hashed: bool):
         payload = (
             "\n".join(
