@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import json
 from pathlib import Path
 from typing import List
 
@@ -15,6 +16,9 @@ USER = "foo_user"
 @pytest.fixture(autouse=True)
 def common_mocks(mocker):
     mocker.patch("cloudinit.distros.util.system_is_snappy", return_value=False)
+    mocker.patch(
+        "cloudinit.log.security_event_log._get_host_ip", return_value=None
+    )
 
 
 def _chpasswdmock(name: str, password: str, hashed: bool = False):
@@ -447,6 +451,14 @@ class TestCreateUser:
         for log in expected_logs:
             assert log in caplog.text
         assert m_subp.call_args_list == expected
+        if "passwd" in create_kwargs:
+            "authn_password_change:cloud-init,clearfoo" in caplog.records[
+                -1
+            ].msg
+        else:
+            "authn_password_change:cloud-init,clearfoo" in caplog.records[
+                -1
+            ].msg
 
     @mock.patch("cloudinit.distros.util.is_group")
     def test_group_added(self, m_is_group, m_subp, dist, mocker):
@@ -494,7 +506,7 @@ class TestCreateUser:
 
     @mock.patch("cloudinit.distros.util.is_group")
     def test_snappy_only_new_group_added(
-        self, m_is_group, m_subp, dist, mocker
+        self, m_is_group, m_subp, dist, mocker, caplog
     ):
         mocker.patch(
             "cloudinit.distros.util.system_is_snappy", return_value=True
@@ -511,6 +523,11 @@ class TestCreateUser:
             mock.call(["passwd", "-l", USER]),
         ]
         assert m_subp.call_args_list == expected
+        event = json.loads(caplog.records[-1].msg)
+        assert (
+            event["event"]
+            == "user_created:cloud-init,foo_user,groups:group1,existing_group"
+        )
 
     @mock.patch("cloudinit.distros.util.is_group")
     def test_create_groups_with_whitespace_string(
@@ -644,6 +661,8 @@ class TestCreateUser:
             "config is deprecated in 22.2 and scheduled to be removed"
             " in 27.2. Use 'null' instead."
         ) in caplog.text
+        event = json.loads(caplog.records[-1].msg)
+        assert event["event"] == "user_created:cloud-init,foo_user"
 
     def test_explicit_sudo_none(self, m_subp, dist, caplog, mocker):
         mocker.patch(

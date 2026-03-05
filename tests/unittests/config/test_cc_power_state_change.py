@@ -23,6 +23,12 @@ def dist():
 
 class TestLoadPowerState:
 
+    @pytest.fixture(autouse=True)
+    def common_mocks(self, mocker):
+        mocker.patch(
+            "cloudinit.log.security_event_log._get_host_ip", return_value=None
+        )
+
     def test_no_config(self, dist):
         # completely empty config should mean do nothing
         (cmd, _timeout, _condition) = psc.load_power_state({}, dist)

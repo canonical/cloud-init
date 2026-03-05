@@ -97,6 +97,13 @@ class TestDeprecatedLogs:
         assert "TRACE" == caplog.records[0].levelname
         assert "trace message" in caplog.text
 
+    def test_security_log_level(self, caplog):
+        logger = cast(loggers.CustomLoggerType, logging.getLogger())
+        logger.setLevel(logging.NOTSET)
+        logger.security("security message")
+        assert "SECURITY" == caplog.records[0].levelname
+        assert "security message" in caplog.text
+
     @pytest.mark.parametrize(
         "expected_log_level, deprecation_info_boundary",
         (
@@ -165,8 +172,19 @@ class TestDeprecatedLogs:
         assert 2 == len(caplog.records)
 
 
-def test_logger_prints_to_stderr(capsys):
+def test_logger_prints_to_stderr(capsys, caplog):
     message = "to stdout"
     loggers.setup_basic_logging()
     logging.getLogger().warning(message)
     assert message in capsys.readouterr().err
+
+
+def test_logger_prints_security_as_json_lines(tmp_path, capsys, caplog):
+    log_file = tmp_path / "cloud-init-output.log"
+    message = '{"key": "value"}'
+    loggers.setup_basic_logging()
+    root = cast(loggers.CustomLoggerType, logging.getLogger())
+    loggers.setup_security_logging(root=root, log_file=str(log_file))
+    root.security(message)
+    assert log_file.read_text() == f"{message}\n"
+    assert message not in capsys.readouterr().err

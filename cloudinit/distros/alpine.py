@@ -573,7 +573,8 @@ class Distro(distros.Distro):
                 subp.subp(["addgroup", member, name])
                 LOG.info("Added user '%s' to group '%s'", member, name)
 
-    def shutdown_command(self, mode="poweroff", delay="now", message=None):
+    @classmethod
+    def _shutdown_command(cls, mode, delay, message):
         # called from cc_power_state_change.load_power_state
         # Alpine has halt/poweroff/reboot, with the following specifics:
         # - we use them rather than the generic "shutdown"
