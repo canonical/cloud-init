@@ -6,7 +6,7 @@ import re
 import pytest
 from pyfakefs.fake_filesystem import FakeFilesystem
 
-from cloudinit import cloud, distros, helpers, util
+from cloudinit import util
 from cloudinit.config import cc_update_etc_hosts
 from cloudinit.config.schema import (
     SchemaValidationError,
@@ -15,6 +15,7 @@ from cloudinit.config.schema import (
 )
 from tests.helpers import cloud_init_project_dir
 from tests.unittests import helpers as t_help
+from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
 
@@ -30,11 +31,6 @@ def with_templates(fake_fs: FakeFilesystem):
 
 @pytest.mark.usefixtures("with_templates")
 class TestHostsFile:
-    def _fetch_distro(self, kind):
-        cls = distros.fetch(kind)
-        paths = helpers.Paths({})
-        return cls(kind, {}, paths)
-
     def test_write_etc_hosts_suse_localhost(self, fake_fs: FakeFilesystem):
         cfg = {
             "manage_etc_hosts": "localhost",
@@ -43,11 +39,8 @@ class TestHostsFile:
         hosts_path = "/etc/hosts"
         hosts_content = "192.168.1.1 blah.blah.us blah\n"
         fake_fs.create_file(hosts_path, contents=hosts_content)
-        distro = self._fetch_distro("sles")
-        distro.hosts_fn = hosts_path
-        paths = helpers.Paths({})
-        ds = None
-        cc = cloud.Cloud(ds, paths, {}, distro, None)
+        cc = get_cloud("sles")
+        cc.distro.hosts_fn = hosts_path
         cc_update_etc_hosts.handle("test", cfg, cc, [])
         contents = util.load_text_file(hosts_path)
         assert (
@@ -62,10 +55,7 @@ class TestHostsFile:
             "manage_etc_hosts": "template",
             "hostname": "cloud-init.test.us",
         }
-        distro = self._fetch_distro("sles")
-        paths = helpers.Paths({})
-        ds = None
-        cc = cloud.Cloud(ds, paths, {}, distro, None)
+        cc = get_cloud("sles")
         cc_update_etc_hosts.handle("test", cfg, cc, [])
         contents = util.load_text_file("/etc/hosts")
         assert (
