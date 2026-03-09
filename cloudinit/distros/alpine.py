@@ -11,9 +11,9 @@ import os
 import re
 import stat
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import List, Optional, Tuple
 
-from cloudinit import distros, helpers, lifecycle, subp, util
+from cloudinit import distros, helpers, subp, util
 from cloudinit.distros.parsers.hostname import HostnameConf
 from cloudinit.settings import PER_ALWAYS, PER_INSTANCE
 
@@ -205,29 +205,16 @@ class Distro(distros.Distro):
 
         return self._preferred_ntp_clients
 
-    def add_user(self, name, **kwargs) -> bool:
-        """
-        Add a user to the system using standard tools
-
-        On Alpine this may use either 'useradd' or 'adduser' depending
-        on whether the 'shadow' package is installed.
-
-        Returns False if user already exists, otherwise True.
-        """
-        if util.is_user(name):
-            LOG.info("User %s already exists, skipping.", name)
-            return False
-
-        if "selinux_user" in kwargs:
+    def _add_user_preprocess_kwargs(self, name: str, kwargs: dict) -> None:
+        if kwargs.pop("selinux_user", None):
             LOG.warning("Ignoring selinux_user parameter for Alpine Linux")
-            del kwargs["selinux_user"]
 
-        # If 'useradd' is available then use the generic
-        # add_user function from __init__.py instead.
+    def _build_add_user_cmd(
+        self, name: str, **kwargs
+    ) -> Tuple[List[str], List[str]]:
+        # If 'useradd' is available then use the generic GNU implementation.
         if subp.which("useradd"):
-            return super().add_user(name, **kwargs)
-
-        create_groups = kwargs.pop("create_groups", True)
+            return super()._build_add_user_cmd(name, **kwargs)
 
         adduser_cmd = ["adduser", "-D"]
 
@@ -244,102 +231,64 @@ class Distro(distros.Distro):
 
         adduser_flags = {"system": "-S"}
 
-        # support kwargs having groups=[list] or groups="g1,g2"
-        groups = kwargs.get("groups")
-        if groups:
-            if isinstance(groups, str):
-                groups = groups.split(",")
-            elif isinstance(groups, dict):
-                lifecycle.deprecate(
-                    deprecated=f"The user {name} has a 'groups' config value "
-                    "of type dict",
-                    deprecated_version="22.3",
-                    extra_message="Use a comma-delimited string or "
-                    "array instead: group1,group2.",
-                )
-
-            # remove any white spaces in group names, most likely
-            # that came in as a string like: groups: group1, group2
-            groups = [g.strip() for g in groups]
-
-            # kwargs.items loop below wants a comma delimited string
-            # that can go right through to the command.
-            kwargs["groups"] = ",".join(groups)
-
-            if kwargs.get("primary_group"):
-                groups.append(kwargs["primary_group"])
-
-        if create_groups and groups:
-            for group in groups:
-                if not util.is_group(group):
-                    self.create_group(group)
-                    LOG.debug("created group '%s' for user '%s'", group, name)
-        if "uid" in kwargs:
-            kwargs["uid"] = str(kwargs["uid"])
-
-        unsupported_busybox_values: Dict[str, Any] = {
-            "groups": [],
-            "expiredate": None,
-            "inactive": None,
-            "passwd": None,
+        # Build the command, skipping options unsupported by busybox adduser
+        # (groups, passwd, expiredate, inactive — handled in _post_add_user).
+        unsupported_busybox_keys = {
+            "groups",
+            "expiredate",
+            "inactive",
+            "passwd",
         }
-
-        # Check the values and create the command
         for key, val in sorted(kwargs.items()):
             if key in adduser_opts and val and isinstance(val, str):
                 adduser_cmd.extend([adduser_opts[key], val])
-            elif (
-                key in unsupported_busybox_values
-                and val
-                and isinstance(val, str)
-            ):
-                # Busybox's 'adduser' does not support specifying these
-                # options so store them for use via alternative means.
-                if key == "groups":
-                    unsupported_busybox_values[key] = val.split(",")
-                else:
-                    unsupported_busybox_values[key] = val
             elif key in adduser_flags and val:
                 adduser_cmd.append(adduser_flags[key])
+            elif key in unsupported_busybox_keys:
+                pass  # handled in _post_add_user
 
-        # Don't create the home directory if directed so
-        # or if the user is a system user
+        # Don't create the home directory if directed so or if the user is a
+        # system user
         if kwargs.get("no_create_home") or kwargs.get("system"):
             adduser_cmd.append("-H")
 
         # Busybox's 'adduser' puts username at end of command
         adduser_cmd.append(name)
 
-        # Run the command
-        LOG.debug("Adding user %s", name)
-        try:
-            subp.subp(adduser_cmd)
-        except subp.ProcessExecutionError as e:
-            LOG.warning("Failed to create user %s", name)
-            raise e
+        return adduser_cmd, adduser_cmd
 
-        # Process remaining options that Busybox's 'adduser' does not support
+    def _post_add_user(self, name: str, **kwargs) -> bool:
+        # When useradd is available, the GNU implementation handles everything.
+        if subp.which("useradd"):
+            return True
+
+        # Busybox post-creation steps.
 
         # Separately add user to each additional group as Busybox's
         # 'adduser' does not support specifying additional groups.
-        for addn_group in unsupported_busybox_values[
-            "groups"
-        ]:  # pylint: disable=E1133
-            LOG.debug("Adding user to group %s", addn_group)
-            try:
-                subp.subp(["addgroup", name, addn_group])
-            except subp.ProcessExecutionError as e:
-                util.logexc(
-                    LOG, "Failed to add user %s to group %s", name, addn_group
-                )
-                raise e
+        groups_str = kwargs.get("groups", "")
+        if groups_str:
+            for addn_group in groups_str.split(","):
+                addn_group = addn_group.strip()
+                if not addn_group:
+                    continue
+                LOG.debug("Adding user to group %s", addn_group)
+                try:
+                    subp.subp(["addgroup", name, addn_group])
+                except subp.ProcessExecutionError as e:
+                    util.logexc(
+                        LOG,
+                        "Failed to add user %s to group %s",
+                        name,
+                        addn_group,
+                    )
+                    raise e
 
-        if unsupported_busybox_values["passwd"]:
+        passwd_val = kwargs.get("passwd")
+        if passwd_val:
             # Separately set password as Busybox's 'adduser' does
             # not support passing password as CLI option.
-            super().set_passwd(
-                name, unsupported_busybox_values["passwd"], hashed=True
-            )
+            super().set_passwd(name, passwd_val, hashed=True)
 
         # Busybox's 'adduser' is hardcoded to always set the following field
         # values (numbered from "0") in /etc/shadow unlike 'useradd':
@@ -356,10 +305,9 @@ class Distro(distros.Distro):
         # values directly in /etc/shadow file as Busybox's 'adduser'
         # does not support passing these as CLI options.
 
-        expiredate = unsupported_busybox_values["expiredate"]
-        inactive = unsupported_busybox_values["inactive"]
+        expiredate = kwargs.get("expiredate")
+        inactive = kwargs.get("inactive")
 
-        shadow_contents = None
         shadow_file = self.shadow_fn
         try:
             shadow_contents = util.load_text_file(shadow_file)
@@ -420,7 +368,6 @@ class Distro(distros.Distro):
                 LOG, "Failed to update %s for user %s", shadow_file, name
             )
 
-        # Indicate that a new user was created
         return True
 
     def lock_passwd(self, name):

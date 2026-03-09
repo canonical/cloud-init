@@ -283,12 +283,10 @@ class TestUGNormalize:
         }
         users, _groups = self._norm(ug_cfg, distro)
         for user, config in users.items():
-            print("user=%s config=%s" % (user, config))
-            username = distro.create_user(user, **config)
+            distro.create_user(user, **config)
 
         snapcmd = ["snap", "create-user", "--sudoer", "--json", "joe@joe.com"]
         mock_subp.assert_called_with(snapcmd, capture=True, logstring=snapcmd)
-        assert username == "joe"
         event = json.loads(caplog.records[-1].msg)
         assert "user_created:cloud-init,joe" == event["event"]
 
@@ -308,8 +306,7 @@ class TestUGNormalize:
         }
         users, _groups = self._norm(ug_cfg, distro)
         for user, config in users.items():
-            print("user=%s config=%s" % (user, config))
-            username = distro.create_user(user, **config)
+            distro.create_user(user, **config)
 
         snapcmd = [
             "snap",
@@ -320,7 +317,6 @@ class TestUGNormalize:
             "joe@joe.com",
         ]
         mock_subp.assert_called_with(snapcmd, capture=True, logstring=snapcmd)
-        assert username == "joe"
         event = json.loads(caplog.records[-1].msg)
         assert "user_created:cloud-init,joe" == event["event"]
 

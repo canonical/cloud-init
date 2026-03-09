@@ -41,7 +41,9 @@ class TestAlpineBusyboxUserGroup:
 
         distro.add_user(user, lock_passwd=True)
 
-        m_subp.assert_called_with(["adduser", "-D", user])
+        m_subp.assert_called_with(
+            ["adduser", "-D", user], logstring=["adduser", "-D", user]
+        )
 
         contents = util.load_text_file(shadow_file)
         expected = root_entry + "\n" + user + ":!:19848::::::" + "\n"
@@ -63,11 +65,14 @@ class TestAlpineShadowUserGroup:
 
         m_subp.assert_called_with(["groupadd", group])
 
+    @mock.patch(
+        "cloudinit.log.security_event_log._get_host_ip", return_value=None
+    )
     @mock.patch("cloudinit.distros.alpine.subp.subp")
     @mock.patch(
         "cloudinit.distros.subp.which", return_value=("/usr/sbin/useradd")
     )
-    def test_shadow_add_user(self, m_which, m_subp):
+    def test_shadow_add_user(self, m_which, m_subp, _get_host_ip):
         user = "me2"
 
         self.distro.add_user(user)

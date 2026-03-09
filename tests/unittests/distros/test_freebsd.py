@@ -9,10 +9,13 @@ M_PATH = "cloudinit.distros.freebsd."
 
 
 class TestFreeBSD:
+    @mock.patch(
+        "cloudinit.log.security_event_log._get_host_ip", return_value=None
+    )
     @mock.patch(M_PATH + "subp.subp")
-    def test_add_user(self, m_subp):
+    def test_add_user(self, m_subp, _get_host_ip):
         distro = get_distro("freebsd")
-        assert True is distro.add_user("me2", uid=1234, default=False)
+        distro.add_user("me2", uid=1234, default=False)
         assert [
             mock.call(
                 [

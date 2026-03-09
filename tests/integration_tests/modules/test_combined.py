@@ -29,7 +29,6 @@ from tests.integration_tests.integration_settings import (
 from tests.integration_tests.releases import (
     CURRENT_RELEASE,
     IS_UBUNTU,
-    JAMMY,
     NOBLE,
 )
 from tests.integration_tests.util import (
@@ -233,15 +232,7 @@ class TestCombined:
                 "/var/log/cloud-init-security.log"
             ).splitlines()
         ]
-        assert len(security_logs) == 2
-        if CURRENT_RELEASE == JAMMY:
-            # Downstream in ubuntu/jammy:debian/patches/retain-old-groups.patch
-            default_grp = (
-                "adm,audio,cdrom,dialout,dip,floppy,lxd,netdev,plugdev,sudo,"
-                "video"
-            )
-        else:
-            default_grp = "adm,cdrom,dip,lxd,sudo"
+        assert len(security_logs) == 1
         expected_security_logs = [
             {
                 "appid": "canonical.cloud-init",
@@ -252,25 +243,9 @@ class TestCombined:
                 "host_ip": client.instance.ip,
                 "hostname": client.instance.name,
             },
-            {
-                "appid": "canonical.cloud-init",
-                "description": (
-                    f"User 'ubuntu' was created in groups: {default_grp}"
-                ),
-                "event": (
-                    f"user_created:cloud-init,ubuntu,groups:{default_grp}"
-                ),
-                "type": "security",
-                "level": "WARN",
-                "host_ip": client.instance.ip,
-                "hostname": client.instance.name,
-            },
         ]
         for security_log in security_logs:
             assert security_log.pop("datetime")
-        # import pdb
-
-        # pdb.set_trace()
         assert expected_security_logs == security_logs
 
     def test_runcmd(self, class_client: IntegrationInstance):

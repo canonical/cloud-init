@@ -169,62 +169,49 @@ class TestUserCreatedEvent:
     """Tests for sec_log_user_created function."""
 
     @pytest.mark.parametrize(
-        "user_created,uc_kwargs,event_id,description",
+        "uc_kwargs,event_id,description",
         [
             pytest.param(
-                True,
                 {},
                 "user_created:cloud-init,testuser",
                 "User 'testuser' was created",
                 id="user_created_logs_event",
             ),
             pytest.param(
-                True,
                 {"groups": ["grp1", "grp2"]},
                 "user_created:cloud-init,testuser,groups:grp1,grp2",
                 "User 'testuser' was created in groups: grp1,grp2",
                 id="user_created_with_groups_logs_event",
             ),
             pytest.param(
-                True,
                 {"sudo": True, "groups": ["grp1"]},
                 "user_created:cloud-init,testuser,groups:grp1,sudo",
                 "User 'testuser' was created in groups: grp1,sudo",
                 id="user_created_with_sudo_and_groups_logs_event",
             ),
             pytest.param(
-                True,
                 {"doas": True, "groups": ["grp2"]},
                 "user_created:cloud-init,testuser,groups:grp2,doas",
                 "User 'testuser' was created in groups: grp2,doas",
                 id="user_created_with_doas_and_groups_logs_event",
             ),
-            pytest.param(
-                False, {}, None, None, id="user_not_created_skips_logging"
-            ),
         ],
     )
     def test_logs_user_created_event(
-        self, user_created, uc_kwargs, event_id, description, host_ip, caplog
+        self, uc_kwargs, event_id, description, host_ip, caplog
     ):
         """Test logging a user creation event."""
 
         @sec_log_user_created
-        def user_created_test(name, **kwargs):
-            # Distro.create_user returns False when no new user is created.
-            return user_created
+        def user_created_decorator_test(name, **kwargs):
+            return
 
         with caplog.at_level(loggers.SECURITY):
-            user_created_test(
+            user_created_decorator_test(
                 name="testuser",
                 **uc_kwargs,
             )
 
-        if not user_created:
-            assert 0 == len(caplog.records)
-            return
-
-        # Create user security event happens only when user is created
         event = json.loads(caplog.records[0].msg)
 
         assert event.pop("datetime")
@@ -276,11 +263,11 @@ class TestPasswordChangedBatchEvent:
         """Test logging a password change event."""
 
         @sec_log_password_changed_batch
-        def set_passwd_test(pwlist_in):
+        def set_passwd_test(plist_in):
             pass
 
         with caplog.at_level(loggers.SECURITY):
-            set_passwd_test(pwlist_in="testuser")
+            set_passwd_test(plist_in=(("testuser", "pw1"),))
 
         expected_value = {
             "appid": "canonical.cloud-init",

@@ -205,14 +205,13 @@ def sec_log_user_created(func):
             params.append(f"groups:{groups_suffix}")
 
         response = func(*args, **kwargs)
-        if response:
-            # User creation operation was performed
-            _log_security_event(
-                event_type=OWASPEventType.USER_CREATED,
-                level=OWASPEventLevel.WARN,
-                description=f"User '{new_userid}' was created{groups_msg}",
-                event_params=params,
-            )
+        # User creation operation did not raise an Exception
+        _log_security_event(
+            event_type=OWASPEventType.USER_CREATED,
+            level=OWASPEventLevel.WARN,
+            description=f"User '{new_userid}' was created{groups_msg}",
+            event_params=params,
+        )
         return response
 
     return decorator
