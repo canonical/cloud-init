@@ -43,12 +43,7 @@ class OWASPEventLevel(Enum):
 
 
 class OWASPEventType(Enum):
-    """
-    OWASP security event types.
-
-    Format: category_event_name
-    Events are logged as: event_type:param1,param2,...
-    """
+    """OWASP security event types."""
 
     # Authentication events [AUTHN]
     AUTHN_PASSWORD_CHANGE = "authn_password_change"
@@ -112,9 +107,9 @@ def _build_security_event(
         event["host_ip"] = host_ip
 
     if additional_data:
-        # Merge additional data but don't overwrite core fields
+        # Merge additional non-empty data but don't overwrite core fields
         for key, value in additional_data.items():
-            if key not in event:
+            if key not in event and value:
                 event[key] = value
 
     return event
@@ -147,13 +142,7 @@ def _log_security_event(
 
 
 def sec_log_user_created(func):
-    """
-    A decorator to log a user creation event and group attributes.
-
-    :param userid: The user/process that initiated the action.
-    :param new_userid: The username of the newly created user.
-    :param attributes: Additional user attributes (groups, shell, etc.).
-    """
+    """A decorator to log a user creation event and group attributes."""
 
     @functools.wraps(func)
     def decorator(*args, **kwargs):
@@ -237,28 +226,23 @@ def sec_log_system_shutdown(func):
     """A decorator logging a system shutdown event."""
 
     @functools.wraps(func)
-    def decorator(*args, **kwargs):
-        mode = kwargs["mode"]
-        delay = kwargs["delay"]
-
-        additional = {}
+    def decorator(cls, mode, delay, message):
         if mode == "reboot":
             event_type = OWASPEventType.SYS_RESTART
             description = "System restart initiated"
         else:
             event_type = OWASPEventType.SYS_SHUTDOWN
-            description = f"System shutdown initiated (mode={mode})"
-            additional["mode"] = mode
-        if delay:
-            additional["delay"] = delay
+            description = "System shutdown initiated"
+        if message:
+            description += f": {message}"
 
         _log_security_event(
             event_type=event_type,
             level=OWASPEventLevel.INFO,
             description=description,
             event_params=["cloud-init"],
-            additional_data=additional if additional else None,
+            additional_data={"delay": delay, "mode": mode},
         )
-        return func(*args, **kwargs)
+        return func(cls, mode=mode, delay=delay, message=message)
 
     return decorator

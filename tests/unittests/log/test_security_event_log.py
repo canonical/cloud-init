@@ -289,37 +289,58 @@ class TestSystemShutdownEvent:
     """Tests for sec_log_system_shutdown function."""
 
     @pytest.mark.parametrize(
-        "mode,delay,expected_event,expected_descr",
+        "mode,delay,message,expected_event,expected_descr",
         [
             pytest.param(
                 "poweroff",
                 "+5",
+                "",
                 "sys_shutdown:cloud-init",
-                "System shutdown initiated (mode=poweroff)",
+                "System shutdown initiated",
                 id="poweroff_with_delay",
             ),
             pytest.param(
                 "reboot",
                 "now",
+                None,
                 "sys_restart:cloud-init",
                 "System restart initiated",
+                id="reboot_immediate",
+            ),
+            pytest.param(
+                "reboot",
+                "now",
+                "Restart FTW",
+                "sys_restart:cloud-init",
+                "System restart initiated: Restart FTW",
                 id="reboot_immediate",
             ),
         ],
     )
     def test_logs_system_shutdown_event(
-        self, mode, delay, expected_event, expected_descr, host_ip, caplog
+        self,
+        mode,
+        delay,
+        message,
+        expected_event,
+        expected_descr,
+        host_ip,
+        caplog,
     ):
         """Test logging a system shutdown event."""
 
-        @sec_log_system_shutdown
-        def shutdown_test(mode, delay):
-            pass
+        class DecoratedShutDownTest:
+            @sec_log_system_shutdown
+            def shutdown_test(cls, mode, delay, message):
+                pass
+
+        method_test = DecoratedShutDownTest()
 
         with caplog.at_level(loggers.SECURITY):
-            shutdown_test(
+            method_test.shutdown_test(
                 mode=mode,
                 delay=delay,
+                message=message,
             )
 
         event = json.loads(caplog.records[0].msg)
@@ -332,6 +353,7 @@ class TestSystemShutdownEvent:
             "host_ip": "10.42.42.42",
             "hostname": get_hostname(),
             "level": "INFO",
+            "mode": "reboot",
             "type": "security",
         }
         if mode != "reboot":
