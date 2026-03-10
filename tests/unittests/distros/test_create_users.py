@@ -18,7 +18,7 @@ USER = "foo_user"
 def common_mocks(mocker):
     mocker.patch("cloudinit.distros.util.system_is_snappy", return_value=False)
     mocker.patch(
-        "cloudinit.log.security_event_log._get_host_ip", return_value=None
+        "cloudinit.log.security_event_log.get_host_ip", return_value=None
     )
 
 

@@ -26,7 +26,7 @@ class TestLoadPowerState:
     @pytest.fixture(autouse=True)
     def common_mocks(self, mocker):
         mocker.patch(
-            "cloudinit.log.security_event_log._get_host_ip", return_value=None
+            "cloudinit.log.security_event_log.get_host_ip", return_value=None
         )
 
     def test_no_config(self, dist):

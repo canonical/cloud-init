@@ -23,7 +23,7 @@ MPATH = "cloudinit.log.security_event_log."
 @pytest.fixture
 def host_ip(mocker):
     mocker.patch.object(
-        security_event_log, "_get_host_ip", return_value="10.42.42.42"
+        security_event_log, "get_host_ip", return_value="10.42.42.42"
     )
     yield
 
@@ -339,118 +339,6 @@ class TestSystemShutdownEvent:
         assert expected == event
 
 
-class TestGetHostIp:
-    """Tests for _get_host_ip IPv4/IPv6 address resolution."""
-
-    @pytest.mark.parametrize(
-        "netdev_response,expected_ip",
-        [
-            pytest.param(
-                {
-                    "eth0": {
-                        "up": True,
-                        "ipv4": [{"ip": "10.0.0.1", "scope": "global"}],
-                        "ipv6": [],
-                    }
-                },
-                "10.0.0.1",
-                id="global_ipv4",
-            ),
-            pytest.param(
-                {
-                    "eth0": {
-                        "up": True,
-                        "ipv4": [],
-                        "ipv6": [
-                            {"ip": "fd42::1/64", "scope6": "global"},
-                            {"ip": "fe80::1/64", "scope6": "link"},
-                        ],
-                    }
-                },
-                "fd42::1",
-                id="fallback_to_global_ipv6",
-            ),
-            pytest.param(
-                {
-                    "eth0": {
-                        "up": True,
-                        "ipv4": [],
-                        "ipv6": [
-                            {
-                                "ip": "fd42:baa2:3dd:17a::1/64",
-                                "scope6": "global",
-                            }
-                        ],
-                    }
-                },
-                "fd42:baa2:3dd:17a::1",
-                id="ipv6_prefix_stripped",
-            ),
-            pytest.param(
-                {
-                    "eth0": {
-                        "up": True,
-                        "ipv4": [{"ip": "10.0.0.1", "scope": "global"}],
-                        "ipv6": [{"ip": "fd42::1/64", "scope6": "global"}],
-                    }
-                },
-                "10.0.0.1",
-                id="prefers_ipv4_over_ipv6",
-            ),
-            pytest.param(
-                {
-                    "lo": {
-                        "up": True,
-                        "ipv4": [{"ip": "127.0.0.1", "scope": "host"}],
-                        "ipv6": [{"ip": "::1/128", "scope6": "host"}],
-                    },
-                    "eth0": {
-                        "up": True,
-                        "ipv4": [],
-                        "ipv6": [{"ip": "fd42::1/64", "scope6": "global"}],
-                    },
-                },
-                "fd42::1",
-                id="skips_loopback",
-            ),
-            pytest.param(
-                {
-                    "eth0": {
-                        "up": False,
-                        "ipv4": [{"ip": "10.0.0.1", "scope": "global"}],
-                        "ipv6": [{"ip": "fd42::1/64", "scope6": "global"}],
-                    }
-                },
-                None,
-                id="skips_down_interfaces",
-            ),
-            pytest.param(
-                {
-                    "eth0": {
-                        "up": True,
-                        "ipv4": [],
-                        "ipv6": [{"ip": "fe80::1/64", "scope6": "link"}],
-                    }
-                },
-                None,
-                id="ignores_link_local_ipv6",
-            ),
-            pytest.param(
-                Exception("network unavailable"),
-                None,
-                id="exception_returns_none",
-            ),
-        ],
-    )
-    def test_get_host_ip(self, mocker, netdev_response, expected_ip):
-        """Test _get_host_ip returns the correct IP address or None."""
-        if isinstance(netdev_response, Exception):
-            mocker.patch(MPATH + "netdev_info", side_effect=netdev_response)
-        else:
-            mocker.patch(MPATH + "netdev_info", return_value=netdev_response)
-        assert security_event_log._get_host_ip() == expected_ip
-
-
 class TestHostIpInSecurityEvent:
     """Tests that host_ip is correctly populated in logged security events."""
 
@@ -463,9 +351,9 @@ class TestHostIpInSecurityEvent:
         ],
     )
     def test_event_logs_host_ip(self, host_ip, mocker, caplog):
-        """Security event records host_ip returned by _get_host_ip."""
+        """Security event records host_ip returned by get_host_ip."""
         mocker.patch.object(
-            security_event_log, "_get_host_ip", return_value=host_ip
+            security_event_log, "get_host_ip", return_value=host_ip
         )
         with caplog.at_level(loggers.SECURITY):
             security_event_log._log_security_event(

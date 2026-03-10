@@ -26,16 +26,16 @@ from typing import Any, Dict, List, Optional
 
 from cloudinit import util
 from cloudinit.log import loggers
-from cloudinit.netinfo import netdev_info
+from cloudinit.netinfo import get_host_ip
 
 LOG = logging.getLogger(__name__)
 
-# Hard-coded application identifier per spec
+# Hard-coded application identifier
 APP_ID = "canonical.cloud-init"
 
 
 class OWASPEventLevel(Enum):
-    """Log levels per OWASP recommendations."""
+    """OWASP log levels."""
 
     INFO = "INFO"
     WARN = "WARN"
@@ -60,32 +60,6 @@ class OWASPEventType(Enum):
     # User management events [USER]
     USER_CREATED = "user_created"
     # TODO(USER_UPDATED = "user_updated")
-
-
-def _get_host_ip() -> Optional[str]:
-    """Return the first global IP on an active interface.
-
-    Prefers IPv4; falls back to IPv6 when no global IPv4 is available.
-    IPv6 addresses are returned without their prefix-length suffix.
-    """
-    try:
-        first_ipv6: Optional[str] = None
-        for iface, info in netdev_info().items():
-            if not info["up"]:
-                continue
-            ipv4: List[dict] = info.get("ipv4", [])
-            for addr in ipv4:
-                if addr.get("scope") == "global" and addr.get("ip"):
-                    return addr["ip"]
-            if first_ipv6 is None:
-                for addr in info.get("ipv6", []):
-                    if addr.get("scope6") == "global" and addr.get("ip"):
-                        first_ipv6 = addr["ip"].split("/")[0]
-                        break
-        return first_ipv6
-    except Exception:
-        pass
-    return None
 
 
 def _build_event_string(
@@ -133,7 +107,7 @@ def _build_security_event(
         "description": description,
         "hostname": util.get_hostname(),
     }
-    host_ip = _get_host_ip()
+    host_ip = get_host_ip()
     if host_ip:
         event["host_ip"] = host_ip
 
@@ -244,7 +218,10 @@ def sec_log_password_changed(func):
         response = func(*args, **kwargs)
         userid = kwargs.get("user")
         if not userid:
-            userid = args[-1]
+            for arg in args:
+                if isinstance(arg, str):
+                    userid = arg
+                    break
         _log_security_event(
             event_type=OWASPEventType.AUTHN_PASSWORD_CHANGE,
             level=OWASPEventLevel.INFO,

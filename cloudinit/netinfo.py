@@ -13,7 +13,7 @@ import logging
 import re
 from copy import copy, deepcopy
 from ipaddress import IPv4Network
-from typing import Dict, List, TypedDict
+from typing import Dict, List, Optional, TypedDict
 
 from cloudinit import lifecycle, subp, util
 from cloudinit.net.network_state import net_prefix_to_ipv4_mask
@@ -374,6 +374,32 @@ def netdev_info(
 
     fill(devs, new_val=empty)
     return devs
+
+
+def get_host_ip() -> Optional[str]:
+    """Return the first global IP on an active interface.
+
+    Prefers IPv4; falls back to IPv6 when no global IPv4 is available.
+    IPv6 addresses are returned without their prefix-length suffix.
+    """
+    try:
+        first_ipv6: Optional[str] = None
+        for iface, info in netdev_info().items():
+            if not info["up"]:
+                continue
+            ipv4: List[dict] = info.get("ipv4", [])
+            for addr in ipv4:
+                if addr.get("scope") == "global" and addr.get("ip"):
+                    return addr["ip"]
+            if first_ipv6 is None:
+                for addr in info.get("ipv6", []):
+                    if addr.get("scope6") == "global" and addr.get("ip"):
+                        first_ipv6 = addr["ip"].split("/")[0]
+                        break
+        return first_ipv6
+    except Exception:
+        pass
+    return None
 
 
 def _netdev_route_info_iproute(iproute_data):

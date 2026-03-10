@@ -268,7 +268,7 @@ class TestUGNormalize:
         assert {"default": False} == users["bob"]
 
     @mock.patch(
-        "cloudinit.log.security_event_log._get_host_ip", return_value=None
+        "cloudinit.log.security_event_log.get_host_ip", return_value=None
     )
     @mock.patch("cloudinit.subp.subp")
     def test_create_snap_user(self, mock_subp, _get_host_ip, caplog):
@@ -291,7 +291,7 @@ class TestUGNormalize:
         assert "user_created:cloud-init,joe" == event["event"]
 
     @mock.patch(
-        "cloudinit.log.security_event_log._get_host_ip", return_value=None
+        "cloudinit.log.security_event_log.get_host_ip", return_value=None
     )
     @mock.patch("cloudinit.subp.subp")
     def test_create_snap_user_known(self, mock_subp, _get_host_ip, caplog):

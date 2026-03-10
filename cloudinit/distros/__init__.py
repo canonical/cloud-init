@@ -1113,6 +1113,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             util.logexc(LOG, "Failed to set 'expire' for %s", user)
             raise e
 
+    @final
     @sec_log_password_changed
     def set_passwd(self, user, passwd, hashed=False):
         pass_string = "%s:%s" % (user, passwd)
@@ -1364,7 +1365,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         args = command + [delay]
         if message:
             args.append(message)
-
         return args
 
     @classmethod

@@ -66,7 +66,7 @@ class TestAlpineShadowUserGroup:
         m_subp.assert_called_with(["groupadd", group])
 
     @mock.patch(
-        "cloudinit.log.security_event_log._get_host_ip", return_value=None
+        "cloudinit.log.security_event_log.get_host_ip", return_value=None
     )
     @mock.patch("cloudinit.distros.alpine.subp.subp")
     @mock.patch(
