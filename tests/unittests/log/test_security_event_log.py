@@ -232,13 +232,16 @@ class TestPasswordChangedEvent:
     def test_logs_password_changed_event(self, host_ip, caplog):
         """Test logging a password change event."""
 
-        @sec_log_password_changed
-        def set_passwd_test(user):
-            pass
+        class DecoratedSetPasswordTest:
+            @sec_log_password_changed
+            def set_passwd(self, user):
+                pass
+
+        method_test = DecoratedSetPasswordTest()
 
         with caplog.at_level(loggers.SECURITY):
-            set_passwd_test(user="testuser")
-            set_passwd_test("testuser")  # Test with positional params
+            method_test.set_passwd(user="testuser")
+            method_test.set_passwd("testuser")  # Test positional params
 
         expected_value = {
             "appid": "canonical.cloud-init",
@@ -262,12 +265,15 @@ class TestPasswordChangedBatchEvent:
     def test_logs_password_changed_event_for_each_user(self, host_ip, caplog):
         """Test logging a password change event."""
 
-        @sec_log_password_changed_batch
-        def set_passwd_test(plist_in):
-            pass
+        class DecoratedChpasswdTest:
+            @sec_log_password_changed_batch
+            def chpasswd(self, plist_in):
+                pass
+
+        method_test = DecoratedChpasswdTest()
 
         with caplog.at_level(loggers.SECURITY):
-            set_passwd_test(plist_in=(("testuser", "pw1"),))
+            method_test.chpasswd(plist_in=(("testuser", "pw1"),))
 
         expected_value = {
             "appid": "canonical.cloud-init",

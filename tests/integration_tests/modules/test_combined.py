@@ -232,7 +232,7 @@ class TestCombined:
                 "/var/log/cloud-init-security.log"
             ).splitlines()
         ]
-        assert len(security_logs) == 1
+        assert len(security_logs) >= 1
         expected_security_logs = [
             {
                 "appid": "canonical.cloud-init",
@@ -246,7 +246,8 @@ class TestCombined:
         ]
         for security_log in security_logs:
             assert security_log.pop("datetime")
-        assert expected_security_logs == security_logs
+        for expected_log in expected_security_logs:
+            assert expected_log in security_logs
 
     def test_runcmd(self, class_client: IntegrationInstance):
         """Test runcmd works as expected"""

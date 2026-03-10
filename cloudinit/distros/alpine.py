@@ -257,10 +257,10 @@ class Distro(distros.Distro):
 
         return adduser_cmd, adduser_cmd
 
-    def _post_add_user(self, name: str, **kwargs) -> bool:
+    def _post_add_user(self, name: str, **kwargs):
         # When useradd is available, the GNU implementation handles everything.
         if subp.which("useradd"):
-            return True
+            return
 
         # Busybox post-creation steps.
 
@@ -367,8 +367,6 @@ class Distro(distros.Distro):
             util.logexc(
                 LOG, "Failed to update %s for user %s", shadow_file, name
             )
-
-        return True
 
     def lock_passwd(self, name):
         """

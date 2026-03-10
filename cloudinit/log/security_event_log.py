@@ -157,10 +157,8 @@ def sec_log_user_created(func):
         if groups_suffix:
             if isinstance(groups_suffix, (dict, list)):
                 groups_suffix = ",".join(groups_suffix)
-            elif isinstance(groups_suffix, list):
-                groups_suffix = ",".join(groups_suffix)
         for perms in ("sudo", "doas"):
-            if kwargs.get(perms) is True:
+            if kwargs.get(perms):
                 groups_suffix += f",{perms}"
         if groups_suffix:
             groups_suffix = groups_suffix.strip(",")
@@ -207,10 +205,7 @@ def sec_log_password_changed(func):
         response = func(*args, **kwargs)
         userid = kwargs.get("user")
         if not userid:
-            for arg in args:
-                if isinstance(arg, str):
-                    userid = arg
-                    break
+            userid = args[1]
         _log_security_event(
             event_type=OWASPEventType.AUTHN_PASSWORD_CHANGE,
             level=OWASPEventLevel.INFO,

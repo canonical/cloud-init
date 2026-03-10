@@ -452,14 +452,11 @@ class TestCreateUser:
         for log in expected_logs:
             assert log in caplog.text
         assert m_subp.call_args_list == expected
-        if "passwd" in create_kwargs:
-            "authn_password_change:cloud-init,clearfoo" in caplog.records[
-                -1
-            ].msg
-        else:
-            "authn_password_change:cloud-init,clearfoo" in caplog.records[
-                -1
-            ].msg
+        if "passwd" not in create_kwargs:
+            assert (
+                "authn_password_change:cloud-init,foo_user"
+                in caplog.records[-1].msg
+            )
 
     @mock.patch("cloudinit.distros.util.is_group")
     def test_group_added(self, m_is_group, m_subp, dist, mocker):
