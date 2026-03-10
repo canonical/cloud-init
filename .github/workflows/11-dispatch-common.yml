@@ -7,10 +7,10 @@ on:
         required: true
         type: choice
         options:
+        - resolute
         - questing
         - jammy
         - noble
-        - resolute
       platform:
         required: true
         type: choice
