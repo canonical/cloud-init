@@ -65,8 +65,10 @@ jobs:
     steps:
       - name: Assert repo secret.PYCLOUDLIB_TOML is set
         run: |
-          test '${{ secrets.PYCLOUDLIB_TOML }}' != '' || echo "ERROR: Missing required repo secrets.PYCLOUDLIB_TOML non-empty value."
-          test '${{ secrets.PYCLOUDLIB_TOML }}' == '' && exit 1
+          if [ -z "${{ env.REQUIRED_SECRET }}" ]; then
+             echo "ERROR: Missing required repo secrets.PYCLOUDLIB_TOML non-empty value."
+             exit 1
+          fi
       - name: Checkout
         if: ${{ env.REQUIRED_SECRET != '' }}
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
