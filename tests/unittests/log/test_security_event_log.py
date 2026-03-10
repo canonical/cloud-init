@@ -336,6 +336,7 @@ class TestSystemShutdownEvent:
         """Test logging a system shutdown event."""
 
         class DecoratedShutDownTest:
+            @classmethod
             @sec_log_system_shutdown
             def shutdown_test(cls, mode, delay, message):
                 pass

@@ -145,14 +145,20 @@ class MockDistro(distros.Distro):
         pass
 
     @security_event_log.sec_log_user_created  # type: ignore[misc]
-    def add_user(self, name, **kwargs):
+    def add_user(
+        self, name, **kwargs
+    ):  # pylint: disable=overridden-final-method
         pass
 
     @security_event_log.sec_log_user_created  # type: ignore[misc]
-    def add_snap_user(self, name, **kwargs):
+    def add_snap_user(
+        self, name, **kwargs
+    ):  # pylint: disable=overridden-final-method
         return "snap_user"
 
-    def create_user(self, name, **kwargs):  # type: ignore[misc]
+    def create_user(
+        self, name, **kwargs
+    ):  # pylint: disable=overridden-final-method
         return True
 
     def lock_passwd(self, name):
@@ -174,7 +180,9 @@ class MockDistro(distros.Distro):
         pass
 
     @security_event_log.sec_log_system_shutdown  # type: ignore[misc]
-    def shutdown_command(self, *, mode, delay, message):
+    def shutdown_command(
+        self, *, mode, delay, message
+    ):  # pylint: disable=overridden-final-method
         pass
 
     def package_command(self, command, args=None, pkgs=None):

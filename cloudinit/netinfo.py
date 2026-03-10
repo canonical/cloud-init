@@ -384,7 +384,7 @@ def get_host_ip() -> Optional[str]:
     """
     try:
         first_ipv6: Optional[str] = None
-        for iface, info in netdev_info().items():
+        for _, info in netdev_info().items():
             if not info["up"]:
                 continue
             ipv4: List[dict] = info.get("ipv4", [])
