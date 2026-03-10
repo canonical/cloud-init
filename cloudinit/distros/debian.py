@@ -88,9 +88,6 @@ class Distro(distros.Distro):
         if not locale:
             raise ValueError("Failed to provide locale value.")
 
-        # Make sure it has a charset for system commands to work
-        locale = _normalize_locale(locale)
-
         # Only call locale regeneration if needed
         # Update system locale config with specified locale if needed
         distro_locale = self.get_locale()
@@ -286,21 +283,6 @@ def read_system_locale(sys_path=LOCALE_CONF_FN, keyname="LANG"):
     return sys_val
 
 
-def _normalize_locale(requested: str) -> str:
-    req = requested.strip()
-
-    # Accept canonical “no-regeneration” values as-is
-    if req.lower() in ("c", "posix", "c.utf-8", "c.utf8"):
-        return (
-            "C.UTF-8" if req.lower() != "c" and "utf" in req.lower() else "C"
-        )
-
-    # If no charset specified, default to UTF-8
-    if "." not in req and "@" not in req:
-        return req + ".UTF-8"
-    return req
-
-
 def update_locale_conf(
     locale, sys_path, default_locale, keyname="LANG", install_function=None
 ):
@@ -403,7 +385,7 @@ def regenerate_locale(
     # C
     # C.UTF-8
     # POSIX
-    if locale.lower() in ["c", "c.utf-8", "posix"]:
+    if locale.lower() in ["c", "c.utf-8", "c.utf8", "posix"]:
         LOG.debug("%s=%s does not require rengeneration", keyname, locale)
         return
 
@@ -431,7 +413,7 @@ def regenerate_locale(
             out_lines.append(raw)
             continue
 
-        if target_re.match(s.lstrip("# ").rstrip()):
+        if target_re.match(s.lstrip("# ")):
             # enable target locale
             out_lines.append(line)
             found_enabled = True
@@ -447,9 +429,9 @@ def regenerate_locale(
 
     # finally, generate locales listed in /etc/locale.gen
     LOG.debug("Generating locales for %s", locale)
-    # TODO: maybe --keep-existing to avoid removing existing locales?
+    # Using --keep-existing to avoid removing already generated locales
     subp.subp(
-        ["locale-gen"],
+        ["locale-gen", "--keep-existing"],
         capture=False,
         update_env={
             "LANGUAGE": default_locale,

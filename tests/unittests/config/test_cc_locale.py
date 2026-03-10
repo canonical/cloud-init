@@ -1,9 +1,3 @@
-# Copyright (C) 2013 Hewlett-Packard Development Company, L.P.
-# Copyright (C) 2025 Raspberry Pi Ltd.
-#
-# Author: Juerg Haefliger <juerg.haefliger@hp.com>
-# Author: Paul Oberosler <paul.oberosler@raspberrypi.com>
-#
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
 from io import BytesIO
