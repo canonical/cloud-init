@@ -144,14 +144,15 @@ class MockDistro(distros.Distro):
     def update_etc_hosts(self, hostname, fqdn):
         pass
 
+    @security_event_log.sec_log_user_created  # type: ignore[misc]
     def add_user(self, name, **kwargs):
         pass
 
+    @security_event_log.sec_log_user_created  # type: ignore[misc]
     def add_snap_user(self, name, **kwargs):
         return "snap_user"
 
-    @security_event_log.sec_log_user_created  # type: ignore[misc]
-    def create_user(self, name, **kwargs):
+    def create_user(self, name, **kwargs):  # type: ignore[misc]
         return True
 
     def lock_passwd(self, name):
