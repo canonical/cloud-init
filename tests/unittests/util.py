@@ -156,7 +156,7 @@ class MockDistro(distros.Distro):
     ):  # pylint: disable=overridden-final-method
         return "snap_user"
 
-    def create_user(
+    def create_user(  # type: ignore[misc]
         self, name, **kwargs
     ):  # pylint: disable=overridden-final-method
         return True
