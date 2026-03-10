@@ -70,10 +70,9 @@ jobs:
              exit 1
           fi
       - name: Checkout
-        if: ${{ env.REQUIRED_SECRET != '' }}
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       - name: Setup LXD
-        if: ${{ env.REQUIRED_SECRET != '' && contains(fromJSON('["lxd_vm", "lxd_container"]'), env.CLOUD_INIT_PLATFORM ) }}
+        if: ${{ contains(fromJSON('["lxd_vm", "lxd_container"]'), env.CLOUD_INIT_PLATFORM ) }}
         uses: canonical/setup-lxd@8c6a87bfb56aa48f3fb9b830baa18562d8bfd4ee # v0.1.2
         with:
           channel: 6/stable
@@ -81,21 +80,18 @@ jobs:
         run: |
           rm -rf ${{ github.workspace }}/cloud_init_test_logs/
       - name: Setup pycloudlib
-        if: ${{ env.REQUIRED_SECRET != '' }}
         run: |
           ssh-keygen -P "" -q -f ~/.ssh/id_rsa
           echo "${{ secrets.PYCLOUDLIB_TOML }}" > /home/$USER/.config/pycloudlib.toml
       - name: Install Dependencies
-        if: ${{ env.REQUIRED_SECRET != '' }}
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get -qy update
           sudo DEBIAN_FRONTEND=noninteractive apt-get -qy install tox distro-info-data devscripts
       - name: Run integration Tests
-        if: ${{ env.REQUIRED_SECRET != '' }}
         run: |
           tox -e integration-tests -- --junitxml="${{ github.workspace }}/reports/junit-report-${{ inputs.platform }}-${{ inputs.release }}.xml" --color=yes ${{ inputs.filter_tests || 'tests/integration_tests' }} | tee pytest-${{ inputs.platform }}-${{ inputs.release }}-${{ inputs.image_type }}.log
       - name: Publish Test Report with Insights
-        if: ${{ env.REQUIRED_SECRET != '' && always() }}
+        if: ${{ always() }}
         uses: ctrf-io/github-test-reporter@024bc4b64d997ca9da86833c6b9548c55c620e40 # v1.0.26
         with:
           report-path: '${{ github.workspace }}/reports/junit-report-${{ inputs.platform}}-${{ inputs.release }}.xml'
@@ -125,7 +121,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload failure artifacts
-        if: ${{ env.REQUIRED_SECRET != '' && failure() }}
+        if: ${{ failure() }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: failure-${{ github.job }}
