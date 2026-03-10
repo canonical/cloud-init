@@ -240,12 +240,12 @@ class TestCombined:
                 "event": "user_created:cloud-init,craig",
                 "type": "security",
                 "level": "WARN",
-                "host_ip": client.instance.ip,
                 "hostname": client.instance.name,
             },
         ]
         for security_log in security_logs:
             assert security_log.pop("datetime")
+            assert client.instance.ip == security_log.pop("host_ip")
         for expected_log in expected_security_logs:
             assert expected_log in security_logs
 
