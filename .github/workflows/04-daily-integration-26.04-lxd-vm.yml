@@ -1,0 +1,13 @@
+name: "Daily: Integration Resolute lxd_vm"
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '2 23 * * *'
+
+jobs:
+  resolute-lxd_vm:
+    uses: ./.github/workflows/_integration_common.yml
+    with:
+      release: resolute
+      platform: lxd_vm
