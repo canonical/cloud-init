@@ -1682,6 +1682,11 @@
               "type": "boolean",
               "default": false,
               "description": "If ``true``, ignore the presence of ``/etc/growroot-disabled``. If ``false`` and the file exists, then don't resize. Default: ``false``."
+            },
+            "resize_lv": {
+              "type": "boolean",
+              "default": true,
+              "description": "For LVM devices, if ``true``, extend the logical volume to consume all free space in the volume group after resizing physical volumes. If ``false``, only resize physical volumes, leaving the logical volume size unchanged. This is useful when multiple logical volumes exist in the same volume group (e.g., separate LVs for ``/home``, ``/var/log``, etc.) and you want to preserve free space for other LVs. Default: ``true``."
             }
           }
         }
