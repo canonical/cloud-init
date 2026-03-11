@@ -1,13 +1,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
-import os
 import re
-import shutil
 
 import pytest
+from pyfakefs.fake_filesystem import FakeFilesystem
 
-from cloudinit import cloud, distros, helpers, util
+from cloudinit import util
 from cloudinit.config import cc_update_etc_hosts
 from cloudinit.config.schema import (
     SchemaValidationError,
@@ -16,44 +15,34 @@ from cloudinit.config.schema import (
 )
 from tests.helpers import cloud_init_project_dir
 from tests.unittests import helpers as t_help
+from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
 
 
-@pytest.fixture(autouse=True)
-def with_templates(tmp_path, fake_filesystem_hook):
-    shutil.copytree(
-        str(cloud_init_project_dir("templates")),
-        str(tmp_path / "templates"),
-        dirs_exist_ok=True,
+@pytest.fixture
+def with_templates(fake_fs: FakeFilesystem):
+    fake_fs.add_real_directory(
+        cloud_init_project_dir("templates"),
+        target_path="/etc/cloud/templates",
+        read_only=True,
     )
 
 
-@pytest.mark.usefixtures("fake_filesystem")
+@pytest.mark.usefixtures("with_templates")
 class TestHostsFile:
-    def _fetch_distro(self, kind):
-        cls = distros.fetch(kind)
-        paths = helpers.Paths({})
-        return cls(kind, {}, paths)
-
-    def test_write_etc_hosts_suse_localhost(self, tmp_path):
+    def test_write_etc_hosts_suse_localhost(self, fake_fs: FakeFilesystem):
         cfg = {
             "manage_etc_hosts": "localhost",
             "hostname": "cloud-init.test.us",
         }
-        os.makedirs(tmp_path / "etc/")
+        hosts_path = "/etc/hosts"
         hosts_content = "192.168.1.1 blah.blah.us blah\n"
-        etc_hosts = str(tmp_path / "etc/hosts")
-        fout = open(etc_hosts, "w")
-        fout.write(hosts_content)
-        fout.close()
-        distro = self._fetch_distro("sles")
-        distro.hosts_fn = etc_hosts
-        paths = helpers.Paths({})
-        ds = None
-        cc = cloud.Cloud(ds, paths, {}, distro, None)
+        fake_fs.create_file(hosts_path, contents=hosts_content)
+        cc = get_cloud("sles")
+        cc.distro.hosts_fn = hosts_path
         cc_update_etc_hosts.handle("test", cfg, cc, [])
-        contents = util.load_text_file(etc_hosts)
+        contents = util.load_text_file(hosts_path)
         assert (
             "127.0.1.1\tcloud-init.test.us\tcloud-init" in contents
         ), "No entry for 127.0.1.1 in etc/hosts"
@@ -62,21 +51,14 @@ class TestHostsFile:
         ), "Default etc/hosts content modified"
 
     @t_help.skipUnlessJinja()
-    def test_write_etc_hosts_suse_template(self, tmp_path):
+    def test_write_etc_hosts_suse_template(self, fake_fs):
         cfg = {
             "manage_etc_hosts": "template",
             "hostname": "cloud-init.test.us",
         }
-        shutil.copytree(
-            tmp_path / "templates", str(tmp_path / "etc/cloud/templates")
-        )
-        distro = self._fetch_distro("sles")
-        paths = helpers.Paths({})
-        paths.template_tpl = str(tmp_path / "etc/cloud/templates/%s.tmpl")
-        ds = None
-        cc = cloud.Cloud(ds, paths, {}, distro, None)
+        cc = get_cloud("sles")
         cc_update_etc_hosts.handle("test", cfg, cc, [])
-        contents = util.load_text_file(tmp_path / "etc/hosts")
+        contents = util.load_text_file("/etc/hosts")
         assert (
             "127.0.1.1 cloud-init.test.us cloud-init" in contents
         ), "No entry for 127.0.1.1 in etc/hosts"
