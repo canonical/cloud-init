@@ -97,13 +97,6 @@ apt:
 #     timeout: 5 # (defaults to 50 seconds)
 #     max_wait: 10 # (defaults to 120 seconds)
 
-{% if variant == "amazon" %}
-# Amazon Linux relies on ec2-net-utils for network configuration
-network:
-  config: disabled
-
-{% endif -%}
-
 {% if is_rhel %}
 # Default redhat settings:
 ssh_deletekeys: true
@@ -168,12 +161,12 @@ cloud_config_modules:
 {% if variant == "ubuntu" %}
   - ubuntu_pro
 {% endif %}
-{% elif variant in ["azurelinux", "fedora", "mariner", "openeuler",
+{% elif variant in ["amazon", "azurelinux", "fedora", "mariner", "openeuler",
                     "openmandriva", "photon"] or is_rhel %}
 {% if is_rhel %}
   - rh_subscription
 {% endif %}
-{% if variant not in ["azurelinux", "mariner", "photon"] %}
+{% if variant not in ["amazon", "azurelinux", "mariner", "photon"] %}
   - spacewalk
 {% endif %}
   - yum_add_repo
