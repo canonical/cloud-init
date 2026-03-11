@@ -1300,6 +1300,10 @@ def is_resolvable(url) -> bool:
     with suppress(ValueError):
         if net.is_ip_address(parsed_url.netloc.strip("[]")):
             return True
+    try:
+        hostname_result = socket.getaddrinfo(name, None)
+    except (socket.gaierror, socket.error):
+        return False
 
     if _DNS_REDIRECT_IP is None:
         badips = set()
@@ -1324,13 +1328,11 @@ def is_resolvable(url) -> bool:
         if badresults:
             LOG.debug("detected dns redirection: %s", badresults)
 
-    try:
-        result = socket.getaddrinfo(name, None)
-        # check first result's sockaddr field
-        addr = result[0][4][0]
-        return addr not in _DNS_REDIRECT_IP
-    except (socket.gaierror, socket.error):
+    # check first result's sockaddr field
+    addr = hostname_result[0][4][0]
+    if addr in _DNS_REDIRECT_IP:
         return False
+    return True
 
 
 def get_hostname():
