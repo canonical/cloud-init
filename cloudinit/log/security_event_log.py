@@ -26,7 +26,6 @@ from typing import Any, Dict, List, Optional
 
 from cloudinit import util
 from cloudinit.log import loggers
-from cloudinit.netinfo import get_host_ip
 
 LOG = logging.getLogger(__name__)
 
@@ -102,10 +101,6 @@ def _build_security_event(
         "description": description,
         "hostname": util.get_hostname(),
     }
-    host_ip = get_host_ip()
-    if host_ip:
-        event["host_ip"] = host_ip
-
     if additional_data:
         # Merge additional non-empty data but don't overwrite core fields
         for key, value in additional_data.items():

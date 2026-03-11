@@ -6,11 +6,8 @@ M_PATH = "cloudinit.distros.openbsd."
 
 
 class TestOpenBSD:
-    @mock.patch(
-        "cloudinit.log.security_event_log.get_host_ip", return_value=None
-    )
     @mock.patch(M_PATH + "subp.subp")
-    def test_add_user(self, m_subp, _get_host_ip):
+    def test_add_user(self, m_subp):
         distro = get_distro("openbsd")
         distro.add_user("me2", uid=1234, default=False)
         assert [

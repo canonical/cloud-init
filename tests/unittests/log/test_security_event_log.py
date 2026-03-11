@@ -20,14 +20,6 @@ from cloudinit.util import get_hostname
 MPATH = "cloudinit.log.security_event_log."
 
 
-@pytest.fixture
-def host_ip(mocker):
-    mocker.patch.object(
-        security_event_log, "get_host_ip", return_value="10.42.42.42"
-    )
-    yield
-
-
 class TestBuildEventString:
     """Tests for _build_event_string function."""
 
@@ -69,7 +61,7 @@ class TestBuildEventString:
 class TestBuildSecurityEvent:
     """Tests for _build_security_event function."""
 
-    def test_event_contains_required_owasp_fields(self, host_ip):
+    def test_event_contains_required_owasp_fields(self):
         """Test that built event contains all required OWASP fields."""
         event = security_event_log._build_security_event(
             event_type=OWASPEventType.USER_CREATED,
@@ -85,7 +77,7 @@ class TestBuildSecurityEvent:
         assert event["description"] == "Test event"
         assert "hostname" in event
 
-    def test_event_with_additional_data(self, host_ip):
+    def test_event_with_additional_data(self):
         """Test event includes additional data when provided."""
         event = security_event_log._build_security_event(
             event_type=OWASPEventType.USER_CREATED,
@@ -97,7 +89,7 @@ class TestBuildSecurityEvent:
         assert event["groups"] == "wheel"
         assert event["shell"] == "/bin/bash"
 
-    def test_additional_data_does_not_overwrite_core_fields(self, host_ip):
+    def test_additional_data_does_not_overwrite_core_fields(self):
         """Test that additional data cannot overwrite core fields."""
         event = security_event_log._build_security_event(
             event_type=OWASPEventType.USER_CREATED,
@@ -109,7 +101,7 @@ class TestBuildSecurityEvent:
         assert event["appid"] == "canonical.cloud-init"
         assert event["level"] == "INFO"
 
-    def test_timestamp_is_iso_format(self, host_ip):
+    def test_timestamp_is_iso_format(self):
         """Test that datetime is in ISO 8601 format."""
         event = security_event_log._build_security_event(
             event_type=OWASPEventType.USER_CREATED,
@@ -126,7 +118,7 @@ class TestBuildSecurityEvent:
 class TestLogSecurityEvent:
     """Tests for _log_security_event function."""
 
-    def test_writes_json_to_file(self, host_ip, caplog):
+    def test_writes_json_to_file(self, caplog):
         """Test that event is written to log file as JSON."""
         with caplog.at_level(loggers.SECURITY):
             security_event_log._log_security_event(
@@ -141,7 +133,7 @@ class TestLogSecurityEvent:
         assert event["level"] == "INFO"
         assert event["appid"] == "canonical.cloud-init"
 
-    def test_appends_multiple_events(self, host_ip, caplog):
+    def test_appends_multiple_events(self, caplog):
         """Test that multiple events are appended to the log file."""
         with caplog.at_level(loggers.SECURITY):
             security_event_log._log_security_event(
@@ -198,7 +190,7 @@ class TestUserCreatedEvent:
         ],
     )
     def test_logs_user_created_event(
-        self, uc_kwargs, event_id, description, host_ip, caplog
+        self, uc_kwargs, event_id, description, caplog
     ):
         """Test logging a user creation event."""
 
@@ -219,7 +211,6 @@ class TestUserCreatedEvent:
             "appid": "canonical.cloud-init",
             "event": event_id,
             "description": description,
-            "host_ip": "10.42.42.42",
             "hostname": get_hostname(),
             "level": "WARN",
             "type": "security",
@@ -229,7 +220,7 @@ class TestUserCreatedEvent:
 class TestPasswordChangedEvent:
     """Tests for sec_log_password_changed function."""
 
-    def test_logs_password_changed_event(self, host_ip, caplog):
+    def test_logs_password_changed_event(self, caplog):
         """Test logging a password change event."""
 
         class DecoratedSetPasswordTest:
@@ -247,7 +238,6 @@ class TestPasswordChangedEvent:
             "appid": "canonical.cloud-init",
             "event": "authn_password_change:cloud-init,testuser",
             "description": "Password changed for user 'testuser'",
-            "host_ip": "10.42.42.42",
             "hostname": get_hostname(),
             "level": "INFO",
             "type": "security",
@@ -262,7 +252,7 @@ class TestPasswordChangedEvent:
 class TestPasswordChangedBatchEvent:
     """Tests for sec_log_password_changed_batch function."""
 
-    def test_logs_password_changed_event_for_each_user(self, host_ip, caplog):
+    def test_logs_password_changed_event_for_each_user(self, caplog):
         """Test logging a password change event."""
 
         class DecoratedChpasswdTest:
@@ -279,7 +269,6 @@ class TestPasswordChangedBatchEvent:
             "appid": "canonical.cloud-init",
             "event": "authn_password_change:cloud-init,testuser",
             "description": "Password changed for user 'testuser'",
-            "host_ip": "10.42.42.42",
             "hostname": get_hostname(),
             "level": "INFO",
             "type": "security",
@@ -330,7 +319,6 @@ class TestSystemShutdownEvent:
         message,
         expected_event,
         expected_descr,
-        host_ip,
         caplog,
     ):
         """Test logging a system shutdown event."""
@@ -357,7 +345,6 @@ class TestSystemShutdownEvent:
             "delay": delay,
             "description": expected_descr,
             "event": expected_event,
-            "host_ip": "10.42.42.42",
             "hostname": get_hostname(),
             "level": "INFO",
             "mode": "reboot",
@@ -366,34 +353,6 @@ class TestSystemShutdownEvent:
         if mode != "reboot":
             expected["mode"] = mode
         assert expected == event
-
-
-class TestHostIpInSecurityEvent:
-    """Tests that host_ip is correctly populated in logged security events."""
-
-    @pytest.mark.parametrize(
-        "host_ip",
-        [
-            pytest.param("10.0.0.1", id="ipv4"),
-            pytest.param("fd42:baa2:3dd:17a:216:3eff:fe16:db54", id="ipv6"),
-            pytest.param(None, id="no_network"),
-        ],
-    )
-    def test_event_logs_host_ip(self, host_ip, mocker, caplog):
-        """Security event records host_ip returned by get_host_ip."""
-        mocker.patch.object(
-            security_event_log, "get_host_ip", return_value=host_ip
-        )
-        with caplog.at_level(loggers.SECURITY):
-            security_event_log._log_security_event(
-                event_type=OWASPEventType.USER_CREATED,
-                level=OWASPEventLevel.INFO,
-                description="test",
-            )
-        if host_ip is None:
-            assert "host_ip" not in json.loads(caplog.records[0].msg)
-        else:
-            assert json.loads(caplog.records[0].msg)["host_ip"] == host_ip
 
 
 class TestEventTypeEnums:

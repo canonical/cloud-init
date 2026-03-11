@@ -10,6 +10,7 @@ import importlib
 import json
 import re
 import uuid
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -226,28 +227,24 @@ class TestCombined:
     def test_security_logs(self, class_client: IntegrationInstance):
         """Test security logs are set in /var/log/cloud-init-security.log."""
         client = class_client
-        security_logs = [
-            json.loads(line)
-            for line in client.read_from_file(
-                "/var/log/cloud-init-security.log"
-            ).splitlines()
-        ]
+        security_logs = []
+        for line in client.read_from_file(
+            "/var/log/cloud-init-security.log"
+        ).splitlines():
+            sec_log = json.loads(line)
+            assert datetime.strptime(
+                sec_log.pop("datetime"), "%Y-%m-%dT%H:%M:%S.%f+00:00"
+            )
+            security_logs.append(sec_log)
         assert len(security_logs) >= 1
-        expected_security_logs = [
-            {
-                "appid": "canonical.cloud-init",
-                "description": "User 'craig' was created",
-                "event": "user_created:cloud-init,craig",
-                "type": "security",
-                "level": "WARN",
-                "hostname": client.instance.name,
-            },
-        ]
-        for security_log in security_logs:
-            assert security_log.pop("datetime")
-            assert client.instance.ip == security_log.pop("host_ip")
-        for expected_log in expected_security_logs:
-            assert expected_log in security_logs
+        assert {
+            "appid": "canonical.cloud-init",
+            "description": "User 'craig' was created",
+            "event": "user_created:cloud-init,craig",
+            "type": "security",
+            "level": "WARN",
+            "hostname": client.instance.name,
+        } in security_logs
 
     def test_runcmd(self, class_client: IntegrationInstance):
         """Test runcmd works as expected"""

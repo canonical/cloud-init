@@ -17,9 +17,6 @@ USER = "foo_user"
 @pytest.fixture(autouse=True)
 def common_mocks(mocker):
     mocker.patch("cloudinit.distros.util.system_is_snappy", return_value=False)
-    mocker.patch(
-        "cloudinit.log.security_event_log.get_host_ip", return_value=None
-    )
 
 
 def _chpasswdmock(name: str, password: str, hashed: bool = False):

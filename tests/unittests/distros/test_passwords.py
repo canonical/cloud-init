@@ -8,13 +8,6 @@ from tests.unittests.helpers import get_distro, mock
 USER = "foo_user"
 
 
-@pytest.fixture(autouse=True)
-def common_mocks(mocker):
-    mocker.patch(
-        "cloudinit.log.security_event_log.get_host_ip", return_value=None
-    )
-
-
 @mock.patch("cloudinit.distros.subp.subp")
 class TestChpasswd:
 

@@ -65,14 +65,11 @@ class TestAlpineShadowUserGroup:
 
         m_subp.assert_called_with(["groupadd", group])
 
-    @mock.patch(
-        "cloudinit.log.security_event_log.get_host_ip", return_value=None
-    )
     @mock.patch("cloudinit.distros.alpine.subp.subp")
     @mock.patch(
         "cloudinit.distros.subp.which", return_value=("/usr/sbin/useradd")
     )
-    def test_shadow_add_user(self, m_which, m_subp, _get_host_ip):
+    def test_shadow_add_user(self, m_which, m_subp):
         user = "me2"
 
         self.distro.add_user(user)
