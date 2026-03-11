@@ -979,7 +979,7 @@ def get_interfaces_by_mac_on_linux() -> dict:
             # cloud-init happens to enumerate network interfaces before drivers
             # have fully initialized the leader/subordinate relationships for
             # those devices or switches.
-            if driver in ("fsl_enetc", "mscc_felix", "qmi_wwan"):
+            if driver in ("fsl_enetc", "igc", "mscc_felix", "qmi_wwan"):
                 LOG.debug(
                     "Ignoring duplicate macs from '%s' and '%s' due to "
                     "driver '%s'.",
