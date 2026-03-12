@@ -117,7 +117,7 @@ apt:
       #
       # Additionally, if the repository requires a custom signing key, it can be
       # specified via the same fields as for custom sources:
-      #   'keyid': providing a key to import via shortid or fingerprint
+      #   'keyid': providing a key to import via fingerprint or 16-character ID
       #   'key': providing a raw PGP key
       #   'keyserver': specify an alternate keyserver to pull keys from that
       #                were specified by keyid
@@ -199,7 +199,7 @@ apt:
   #
   # The values inside the entries consist of the following optional entries:
   #   'source': a sources.list entry (some variable replacements apply)
-  #   'keyid': providing a key to import via shortid or fingerprint
+  #   'keyid': providing a key to import via fingerprint or 16-character ID
   #   'key': providing a raw PGP key
   #   'keyserver': specify an alternate keyserver to pull keys from that
   #                were specified by keyid
@@ -237,7 +237,7 @@ apt:
       #
       # Importing a gpg key for a given key id. Used keyserver defaults to
       # keyserver.ubuntu.com
-      keyid: F430BBA5 # GPG key ID published on a key server
+      keyid: 1BC30F715A3B861247A81A5E55FE7C8C0165013E # GPG key ID published on a key server
 
     ignored1:
       # 2.3 PPA shortcut
@@ -261,12 +261,12 @@ apt:
       # The entry below would be possibly turned into:
       #   source: deb http://archive.ubuntu.com/ubuntu bionic multiverse
       source: deb [signed-by=$KEY_FILE] $MIRROR $RELEASE multiverse
-      keyid: F430BBA5
+      keyid: 1BC30F715A3B861247A81A5E55FE7C8C0165013E
 
     my-repo3.list:
       # this would have the same end effect as 'ppa:curtin-dev/test-archive'
       source: "deb http://ppa.launchpad.net/curtin-dev/test-archive/ubuntu bionic main"
-      keyid: F430BBA5 # GPG key ID published on the key server
+      keyid: 1BC30F715A3B861247A81A5E55FE7C8C0165013E # GPG key ID published on the key server
       filename: curtin-dev-ppa.list
 
     ignored2:
@@ -279,7 +279,7 @@ apt:
     ignored3:
       # 2.6 key id alternatives
       #
-      # Keyid's can also be specified via their long fingerprints
+      # Keyid's can also be specified via their fingerprints
       keyid: B59D 5F15 97A5 04B7 E230  6DCA 0620 BBCF 0368 3F77
 
     ignored4:

@@ -20,7 +20,6 @@ from cloudinit import (
 )
 from cloudinit.gpg import GPG
 from cloudinit.log import loggers
-from tests.hypothesis import HAS_HYPOTHESIS
 from tests.unittests.helpers import (
     example_netdev,
     rebase_path,
@@ -220,13 +219,6 @@ if PYTEST_VERSION_TUPLE < (3, 9, 0):
     @pytest.fixture
     def tmp_path(tmpdir):
         return Path(tmpdir)
-
-
-if HAS_HYPOTHESIS:
-    from hypothesis import settings  # pylint: disable=import-error
-
-    settings.register_profile("ci", max_examples=1000)
-    settings.load_profile(os.getenv("HYPOTHESIS_PROFILE", "default"))
 
 
 @pytest.fixture

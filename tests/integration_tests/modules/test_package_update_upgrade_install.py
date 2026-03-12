@@ -10,6 +10,7 @@ import re
 
 import pytest
 
+from cloudinit.subp import subp
 from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU
 from tests.integration_tests.util import verify_clean_boot, verify_clean_log
@@ -121,17 +122,6 @@ class TestPackageUpdateUpgradeInstall:
         ).ok
 
 
-HELLO_VERSIONS_BY_RELEASE = {
-    "questing": "2.10-5",
-    "plucky": "2.10-3build2",
-    "oracular": "2.10-3build2",
-    "noble": "2.10-3build1",
-    "mantic": "2.10-3",
-    "lunar": "2.10-3",
-    "jammy": "2.10-2ubuntu4",
-    "focal": "2.10-2ubuntu2",
-}
-
 VERSIONED_USER_DATA = """\
 #cloud-config
 packages:
@@ -141,17 +131,12 @@ packages:
 
 @pytest.mark.skipif(not IS_UBUNTU, reason="Uses Apt")
 def test_versioned_packages_are_installed(session_cloud: IntegrationCloud):
-    pkg_version = HELLO_VERSIONS_BY_RELEASE.get(
-        CURRENT_RELEASE.series, "2.10-5"
-    )
+    pkg_version = subp(
+        ["rmadison", f"--suite={CURRENT_RELEASE.series}", "hello"]
+    ).stdout.split()[2]
     with session_cloud.launch(
         user_data=VERSIONED_USER_DATA.format(pkg_version=pkg_version)
     ) as client:
         verify_clean_log(client.read_from_file("/var/log/cloud-init.log"))
         verify_clean_boot(client)
-        assert f"hello	{pkg_version}" == client.execute(
-            "dpkg-query -W hello"
-        ), (
-            "If this is failing for a new release, add it to "
-            "HELLO_VERSIONS_BY_RELEASE"
-        )
+        assert f"hello	{pkg_version}" == client.execute("dpkg-query -W hello")
