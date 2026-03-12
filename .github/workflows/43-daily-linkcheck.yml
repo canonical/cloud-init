@@ -9,6 +9,7 @@ concurrency:
 jobs:
   linkcheck:
     runs-on: ubuntu-latest
+    if: github.repository == 'canonical/cloud-init'
     continue-on-error: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.failOnError == 'true') }}
     steps:
       - name: Checkout Repository

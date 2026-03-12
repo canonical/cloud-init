@@ -1,11 +1,7 @@
 """Global conftest.py
 
-This conftest is used for unit tests in ``cloudinit/`` and ``tests/unittests/``
-as well as the integration tests in ``tests/integration_tests/``.
-
-Any imports that are performed at the top-level here must be installed wherever
-any of these tests run: that is to say, they must be listed in
-``integration-requirements.txt`` and in ``test-requirements.txt``.
+Any imports must be listed in ``integration-requirements.txt`` and
+``test-requirements.txt``.
 """
 
 # If we don't import this early, lru_cache may get applied before we have the
@@ -205,4 +201,4 @@ def monkeypatch_system_info():
             "variant": "ubuntu",
         }
 
-    util.system_info = my_system_info
+    util.system_info = my_system_info  # type: ignore

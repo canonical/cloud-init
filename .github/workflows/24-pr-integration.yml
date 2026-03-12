@@ -1,4 +1,4 @@
-name: Integration
+name: "PR: Integration"
 
 on:
   pull_request:
@@ -45,12 +45,12 @@ jobs:
       - name: Build package
         run: |
           DEB_BUILD_OPTIONS=nocheck ./packages/bddeb -d --release ${{ env.RELEASE }}
-          cp cloud-init_all.deb ${{ runner.temp }}
+          cp cloud-init-base*.deb ${{ runner.temp }}
       - name: Archive debs as artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         with:
           name: 'cloud-init-${{ env.RELEASE }}-deb'
-          path: '${{ runner.temp }}/cloud-init*.deb'
+          path: '${{ runner.temp }}/cloud-init-base*.deb'
           retention-days: 3
       - name: Setup LXD
         uses: canonical/setup-lxd@8c6a87bfb56aa48f3fb9b830baa18562d8bfd4ee  # v1
@@ -59,12 +59,12 @@ jobs:
       - name: Verify deb package
         run: |
           ls -hal '${{ runner.temp }}'
-          echo ${{ runner.temp }}/cloud-init*.deb || true
-          ls -hal ${{ runner.temp }}/cloud-init*.deb || true
+          echo ${{ runner.temp }}/cloud-init-base*.deb || true
+          ls -hal ${{ runner.temp }}/cloud-init-base*.deb || true
       - name: Set up Pycloudlib
         run: |
           ssh-keygen -P "" -q -f ~/.ssh/id_rsa
           echo "[lxd]" > /home/$USER/.config/pycloudlib.toml
       - name: Run integration Tests
         run: |
-          CLOUD_INIT_CLOUD_INIT_SOURCE="$(ls ${{ runner.temp }}/cloud-init*.deb)" CLOUD_INIT_OS_IMAGE=${{ env.RELEASE }} tox -e integration-tests-ci -- --color=yes tests/integration_tests/
+          CLOUD_INIT_CLOUD_INIT_SOURCE="$(ls ${{ runner.temp }}/cloud-init-base*.deb)" CLOUD_INIT_OS_IMAGE=${{ env.RELEASE }} tox -e integration-tests-ci -- --color=yes tests/integration_tests/

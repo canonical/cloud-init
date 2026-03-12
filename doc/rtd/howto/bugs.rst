@@ -106,7 +106,7 @@ Red Hat, CentOS and Fedora
 --------------------------
 
 To file a bug against the Red Hat or Fedora packages of ``cloud-init`` please
-use the `Red Hat bugzilla`_.
+use the `Red Hat jira`_.
 
 SUSE and openSUSE
 -----------------
@@ -127,7 +127,7 @@ details.
 .. _Ubuntu bug tracker: https://bugs.launchpad.net/ubuntu/+source/cloud-init/+filebug
 .. _Debian bug tracker: https://bugs.debian.org/cgi-bin/pkgreport.cgi?pkg=cloud-init;dist=unstable
 .. _Debian bug reporting wiki: https://www.debian.org/Bugs/Reporting
-.. _Red Hat bugzilla: https://bugzilla.redhat.com/
+.. _Red Hat jira: https://issues.redhat.com/
 .. _SUSE bugzilla: https://bugzilla.suse.com/index.cgi
 .. _Arch Linux Bugtracker: https://bugs.archlinux.org/
 .. _Arch Linux bug reporting wiki: https://wiki.archlinux.org/index.php/Bug_reporting_guidelines

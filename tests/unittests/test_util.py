@@ -3173,6 +3173,12 @@ class TestVersion:
 
 @pytest.mark.allow_dns_lookup
 class TestResolvable:
+    @pytest.fixture(autouse=True)
+    def reset_dns_redirect_ip(self):
+        util._DNS_REDIRECT_IP = None
+        yield  # Test runs here
+        util._DNS_REDIRECT_IP = None
+
     @mock.patch.object(util, "_DNS_REDIRECT_IP", return_value=True)
     @mock.patch.object(util.socket, "getaddrinfo")
     def test_ips_need_not_be_resolved(self, m_getaddr, m_dns):
@@ -3184,6 +3190,40 @@ class TestResolvable:
         assert util.is_resolvable("http://169.254.169.254/") is True
         assert util.is_resolvable("http://[fd00:ec2::254]/") is True
         assert not m_getaddr.called
+
+    @mock.patch.object(util.net, "is_ip_address")
+    @mock.patch.object(util.socket, "getaddrinfo")
+    def test_hostnames_require_dns_resolution(self, m_getaddr, m_is_ip):
+        """Hostnames should go through DNS resolution."""
+        m_is_ip.return_value = False
+
+        def mock_getaddrinfo(host, port, *args, **kwargs):
+            badnames = (
+                "does-not-exist.example.com.",
+                "example.invalid.",
+                "__cloud_init_expected_not_found__",
+            )
+            if host in badnames:
+                return [(None, None, None, "badname", ("192.0.2.1", 0))]
+            return [(None, None, None, "example.com", ("10.2.3.4", 0))]
+
+        m_getaddr.side_effect = mock_getaddrinfo
+
+        assert util.is_resolvable("http://example.com/") is True
+        assert m_getaddr.called
+
+        assert m_getaddr.call_args_list[0] == mock.call("example.com", None)
+
+        badnames = (
+            "does-not-exist.example.com.",
+            "example.invalid.",
+            "__cloud_init_expected_not_found__",
+        )
+        called_hosts = [call[0][0] for call in m_getaddr.call_args_list[1:]]
+        for badname in badnames:
+            assert (
+                badname in called_hosts
+            ), f"Expected badname {badname} to be checked"
 
 
 class TestMaybeB64Decode:

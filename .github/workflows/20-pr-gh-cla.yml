@@ -1,4 +1,4 @@
-name: "GH: CLA"
+name: "PR: CLA"
 
 on:
   pull_request:
@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  cla-check:
+  cla:
     runs-on: ubuntu-latest
     steps:
       - name: Check if CLA signed

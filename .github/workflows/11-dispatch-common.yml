@@ -1,4 +1,4 @@
-name: "Daily: Integration (reusable/manual)"
+name: "Dispatch: Integration"
 
 on:
   workflow_dispatch:
@@ -50,6 +50,7 @@ on:
 jobs:
   lxc:
     runs-on: ubuntu-latest
+    if: github.repository == 'canonical/cloud-init'
 
     env:
       CLOUD_INIT_PLATFORM: ${{ inputs.platform || 'lxd_container' }}
@@ -76,7 +77,7 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get -qy update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get -qy install tox distro-info-data
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -qy install tox distro-info-data devscripts
       - name: Run integration Tests
         run: |
           tox -e integration-tests -- --junitxml="${{ github.workspace }}/reports/junit-report-${{ inputs.platform }}-${{ inputs.release }}.xml" --color=yes ${{ inputs.filter_tests || 'tests/integration_tests' }}

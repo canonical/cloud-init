@@ -1,4 +1,4 @@
-name: "GH: Manage stale PRs"
+name: "Daily: Manage stale PRs"
 
 on:
   schedule:
@@ -8,6 +8,7 @@ jobs:
   stale:
 
     runs-on: ubuntu-latest
+    if: github.repository == 'canonical/cloud-init'
 
     steps:
     - uses: actions/stale@997185467fa4f803885201cee163a9f38240193d  # v10.1.1

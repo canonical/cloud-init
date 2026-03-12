@@ -1,6 +1,6 @@
 project(
   'cloud-init',
-  version: '25.3',
+  version: '26.1',
   meson_version: '>=0.63.0', # rockylinux/9
   license: 'GPL-3 OR Apache-2.0',
   default_options: [

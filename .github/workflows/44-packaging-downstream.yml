@@ -2,7 +2,7 @@
 # patches apply and unit tests pass.
 #
 # TODO: add full build-package / sbuild test
-name: "Packaging: Check patches (downstream)"
+name: "PR(Downstream): Check patches"
 
 on:
   pull_request:

@@ -40,9 +40,9 @@ User-data is accessible via the following URL: ::
 
 Note that there are multiple EC2 instance metadata service versions of this
 data provided to instances. ``Cloud-init`` attempts to use the most recent API
-version it supports in order to get the latest API features and instance-data.
-If a given API version is not exposed to the instance, those API features will
-be unavailable to the instance.
+version it supports in order to get the latest API features and
+``instance-data``. If a given API version is not exposed to the instance, those
+API features will be unavailable to the instance.
 
 +----------------+----------------------------------------------------------+
 + EC2 version    | supported instance-data/feature                          |

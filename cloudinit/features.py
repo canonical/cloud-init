@@ -45,7 +45,7 @@ so we no longer include ``ec2_region`` in mirror determination on
 non-AWS cloud platforms.
 
 If the old behavior is desired, users can provide the appropriate
-mirrors via :py:mod:`apt: <cloudinit.config.cc_apt_configure>`
+mirrors via :ref:`apt_configure <mod_cc_apt_configure>`
 directives in cloud-config.
 """
 

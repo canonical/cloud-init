@@ -1,4 +1,4 @@
-name: "Packaging: Lint"
+name: "PR: Lint packaging"
 
 env:
   # This is a space separated string for multiple globs

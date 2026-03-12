@@ -384,7 +384,7 @@ def main():
                 continue
             shutil.move(full_fn, base_fn)
             print("Wrote %r" % (base_fn))
-            if base_fn.endswith("_all.deb"):
+            if base_fn.startswith("cloud-init-base"):
                 # Add in the local link
                 util.del_file(link_fn)
                 os.symlink(base_fn, link_fn)

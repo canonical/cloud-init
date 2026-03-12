@@ -11,6 +11,7 @@ import os
 import os.path
 import re
 import socket
+import warnings
 import xml.etree.ElementTree as ET  # nosec B405
 from enum import Enum
 from pathlib import Path
@@ -50,7 +51,9 @@ from cloudinit.sources.helpers.azure import (
 from cloudinit.url_helper import UrlError
 
 try:
-    import crypt  # pylint: disable=W4901
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=DeprecationWarning)
+        import crypt  # pylint: disable=W4901
 
     blowfish_hash: Any = functools.partial(
         crypt.crypt, salt=f"$6${util.rand_str(strlen=16)}"
@@ -289,6 +292,7 @@ BUILTIN_DS_CONFIG = {
     "disk_aliases": {"ephemeral0": RESOURCE_DISK_PATH},
     "apply_network_config": True,  # Use IMDS published network configuration
     "apply_network_config_for_secondary_ips": True,  # Configure secondary ips
+    "experimental_skip_ready_report": False,  # Skip final ready report
 }
 
 BUILTIN_CLOUD_EPHEMERAL_DISK_CONFIG = {
@@ -835,21 +839,28 @@ class DataSourceAzure(sources.DataSource):
         crawled_data["metadata"]["instance-id"] = self._iid()
 
         if self._negotiated is False and self._is_ephemeral_networking_up():
-            # Report ready and fetch public-keys from Wireserver, if required.
-            pubkey_info = self._determine_wireserver_pubkey_info(
-                cfg=cfg, imds_md=imds_md
-            )
-            try:
-                ssh_keys = self._report_ready(pubkey_info=pubkey_info)
-            except Exception:
-                # Failed to report ready, but continue with best effort.
-                pass
+            if self.ds_cfg.get("experimental_skip_ready_report", False):
+                LOG.debug(
+                    "Skipping final health report as "
+                    "experimental_skip_ready_report is enabled."
+                )
             else:
-                LOG.debug("negotiating returned %s", ssh_keys)
-                if ssh_keys:
-                    crawled_data["metadata"]["public-keys"] = ssh_keys
+                # Report ready and fetch public-keys from Wireserver,
+                # if required.
+                pubkey_info = self._determine_wireserver_pubkey_info(
+                    cfg=cfg, imds_md=imds_md
+                )
+                try:
+                    ssh_keys = self._report_ready(pubkey_info=pubkey_info)
+                except Exception:
+                    # Failed to report ready, but continue with best effort.
+                    pass
+                else:
+                    LOG.debug("negotiating returned %s", ssh_keys)
+                    if ssh_keys:
+                        crawled_data["metadata"]["public-keys"] = ssh_keys
 
-                self._cleanup_markers()
+            self._cleanup_markers()
 
         return crawled_data
 
