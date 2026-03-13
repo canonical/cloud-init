@@ -1358,7 +1358,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return cls._build_shutdown_command(mode, delay, message)
 
     @classmethod
-    def _build_shutdown_command(cls, *, mode, delay, message):
+    def _build_shutdown_command(cls, mode, delay, message):
         command = ["shutdown", cls.shutdown_options_map[mode], delay]
         if message:
             command.append(message)
