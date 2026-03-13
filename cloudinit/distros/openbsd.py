@@ -13,6 +13,7 @@ LOG = logging.getLogger(__name__)
 class Distro(cloudinit.distros.netbsd.NetBSD):
     hostname_conf_fn = "/etc/myname"
     init_cmd = ["rcctl"]
+    usr_lib_exec = "/usr/local/lib"
 
     # For OpenBSD (from https://man.openbsd.org/passwd.5) a password field
     # of "" indicates no password, and password field values of either
