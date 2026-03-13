@@ -67,7 +67,7 @@ class Distro(debian.Distro):
             else:
                 LOG.error("Failed to set locale %s", locale)
 
-    def _post_add_user(self, name: str, **kwargs):
+    def _post_add_user(self, name: str, **kwargs) -> None:
         try:
             subp.subp(
                 [

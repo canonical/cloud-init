@@ -103,7 +103,6 @@ class Distro(cloudinit.distros.bsd.BSD):
     ) -> Tuple[List[str], List[str]]:
         pw_useradd_cmd = ["pw", "useradd", "-n", name]
         log_pw_useradd_cmd = ["pw", "useradd", "-n", name]
-
         pw_useradd_opts = {
             "homedir": "-d",
             "gecos": "-c",
@@ -122,6 +121,7 @@ class Distro(cloudinit.distros.bsd.BSD):
         for key, val in kwargs.items():
             if key in pw_useradd_opts and val and isinstance(val, (str, int)):
                 pw_useradd_cmd.extend([pw_useradd_opts[key], str(val)])
+
             elif key in pw_useradd_flags and val:
                 pw_useradd_cmd.append(pw_useradd_flags[key])
                 log_pw_useradd_cmd.append(pw_useradd_flags[key])
@@ -138,13 +138,12 @@ class Distro(cloudinit.distros.bsd.BSD):
 
         return pw_useradd_cmd, log_pw_useradd_cmd
 
-    def _post_add_user(self, name: str, **kwargs) -> bool:
+    def _post_add_user(self, name: str, **kwargs) -> None:
         # Set the password if it is provided.
         # For security consideration, only hashed passwd is assumed.
         passwd_val = kwargs.get("passwd", None)
         if passwd_val is not None:
             self.set_passwd(name, passwd_val, hashed=True)
-        return True
 
     def expire_passwd(self, user):
         try:

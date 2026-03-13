@@ -109,13 +109,12 @@ class NetBSD(cloudinit.distros.bsd.BSD):
 
         return adduser_cmd, log_adduser_cmd
 
-    def _post_add_user(self, name: str, **kwargs) -> bool:
+    def _post_add_user(self, name: str, **kwargs) -> None:
         # Set the password if it is provided.
         # For security consideration, only hashed passwd is assumed.
         passwd_val = kwargs.get("passwd", None)
         if passwd_val is not None:
             self.set_passwd(name, passwd_val, hashed=True)
-        return True
 
     def set_passwd(self, user, passwd, hashed=False):
         if hashed:

@@ -257,7 +257,7 @@ class Distro(distros.Distro):
 
         return adduser_cmd, adduser_cmd
 
-    def _post_add_user(self, name: str, **kwargs):
+    def _post_add_user(self, name: str, **kwargs) -> None:
         # When useradd is available, the GNU implementation handles everything.
         if subp.which("useradd"):
             return

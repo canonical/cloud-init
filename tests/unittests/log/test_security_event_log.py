@@ -194,12 +194,13 @@ class TestUserCreatedEvent:
     ):
         """Test logging a user creation event."""
 
-        @sec_log_user_created
-        def user_created_decorator_test(name, **kwargs):
-            return
+        class DecoratedSetPasswordTest:
+            @sec_log_user_created
+            def user_created_decorator_test(self, name, **kwargs):
+                return
 
         with caplog.at_level(loggers.SECURITY):
-            user_created_decorator_test(
+            DecoratedSetPasswordTest().user_created_decorator_test(
                 name="testuser",
                 **uc_kwargs,
             )

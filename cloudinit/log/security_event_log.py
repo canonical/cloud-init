@@ -140,13 +140,12 @@ def sec_log_user_created(func):
     """A decorator to log a user creation event and group attributes."""
 
     @functools.wraps(func)
-    def decorator(*args, **kwargs):
-        new_userid = args[-1] if args else kwargs.get("name")
-        if not new_userid:
+    def decorator(self, name, *args, **kwargs):
+        if not name:
             raise RuntimeError(
                 "sec_log_user_created requires positional param name or kwarg"
             )
-        params = ["cloud-init", new_userid]
+        params = ["cloud-init", name]
         groups_msg = ""
         groups_suffix = kwargs.get("groups", "")
         if groups_suffix:
@@ -160,12 +159,12 @@ def sec_log_user_created(func):
             groups_msg = f" in groups: {groups_suffix}"
             params.append(f"groups:{groups_suffix}")
 
-        response = func(*args, **kwargs)
+        response = func(self, name, *args, **kwargs)
         # User creation operation did not raise an Exception
         _log_security_event(
             event_type=OWASPEventType.USER_CREATED,
             level=OWASPEventLevel.WARN,
-            description=f"User '{new_userid}' was created{groups_msg}",
+            description=f"User '{name}' was created{groups_msg}",
             event_params=params,
         )
         return response
@@ -175,11 +174,8 @@ def sec_log_user_created(func):
 
 def sec_log_password_changed_batch(func):
     @functools.wraps(func)
-    def decorator(*args, **kwargs):
-        response = func(*args, **kwargs)
-        plist_in = kwargs.get("plist_in")
-        if not plist_in:
-            plist_in = args[1]
+    def decorator(self, plist_in, *args, **kwargs):
+        response = func(self, plist_in, *args, **kwargs)
         for userid, _ in plist_in:
             _log_security_event(
                 event_type=OWASPEventType.AUTHN_PASSWORD_CHANGE,
@@ -196,16 +192,13 @@ def sec_log_password_changed(func):
     """A decorator logging a password change event."""
 
     @functools.wraps(func)
-    def decorator(*args, **kwargs):
-        response = func(*args, **kwargs)
-        userid = kwargs.get("user")
-        if not userid:
-            userid = args[1]
+    def decorator(self, user: str, *args, **kwargs):
+        response = func(self, user, *args, **kwargs)
         _log_security_event(
             event_type=OWASPEventType.AUTHN_PASSWORD_CHANGE,
             level=OWASPEventLevel.INFO,
-            description=f"Password changed for user '{userid}'",
-            event_params=["cloud-init", userid],
+            description=f"Password changed for user '{user}'",
+            event_params=["cloud-init", user],
         )
         return response
 
@@ -216,7 +209,7 @@ def sec_log_system_shutdown(func):
     """A decorator logging a system shutdown event."""
 
     @functools.wraps(func)
-    def decorator(cls, mode, delay, message):
+    def decorator(cls, mode: str, delay: str, message):
         if mode == "reboot":
             event_type = OWASPEventType.SYS_RESTART
             description = "System restart initiated"

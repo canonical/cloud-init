@@ -668,7 +668,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     @final
     @sec_log_user_created
-    def add_user(self, name, **kwargs):
+    def add_user(self, name, **kwargs) -> None:
         """Add a user to the system."""
 
         self._add_user_preprocess_kwargs(name, kwargs)
@@ -793,7 +793,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         return useradd_cmd, log_useradd_cmd
 
-    def _post_add_user(self, name: str, **kwargs):
+    def _post_add_user(self, name: str, **kwargs) -> None:
         """Hook called after the user-creation command succeeds.
 
         Overridden to perform distro-specific post-creation steps.
