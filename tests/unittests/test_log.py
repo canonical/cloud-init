@@ -4,6 +4,7 @@
 
 import datetime
 import io
+import json
 import logging
 import time
 from typing import cast
@@ -180,11 +181,15 @@ def test_logger_prints_to_stderr(capsys, caplog):
 
 
 def test_logger_prints_security_as_json_lines(tmp_path, capsys, caplog):
+    """Security logs accepts dict as payload logs JSON lines."""
     log_file = tmp_path / "cloud-init-output.log"
-    message = '{"key": "value"}'
+    message = {"key": "value"}  # Security logs expect python dict
     loggers.setup_basic_logging()
     root = cast(loggers.CustomLoggerType, logging.getLogger())
     loggers.setup_security_logging(root=root, log_file=str(log_file))
     root.security(message)
-    assert log_file.read_text() == f"{message}\n"
-    assert message not in capsys.readouterr().err
+    message_json = json.dumps(message, separators=(",", ":"))
+    logged_event = json.loads(log_file.read_text())
+    assert logged_event.pop("datetime")
+    assert logged_event == message
+    assert message_json not in capsys.readouterr().err

@@ -10,7 +10,9 @@
 
 import collections.abc  # pylint: disable=import-error
 import copy
+import datetime
 import io
+import json
 import logging
 import logging.config
 import logging.handlers
@@ -64,6 +66,22 @@ class NoSecurityFilter(logging.Filter):
         return record.levelno != SECURITY
 
 
+class SecurityFormatter(logging.Formatter):
+    """Inject a 'datetime' field (UTC ISO-8601) into SECURITY JSON messages."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        # Use record.msg instead of getMessage which formats dict to JSON
+        event = copy.deepcopy(record.msg)
+        if not isinstance(event, dict):
+            raise TypeError(
+                f"SECURITY logs expected dict but found {type(event)}: {event}"
+            )
+        event["datetime"] = datetime.datetime.fromtimestamp(
+            record.created, tz=datetime.timezone.utc
+        ).isoformat()
+        return json.dumps(event, separators=(",", ":"))
+
+
 def setup_basic_logging(level=logging.DEBUG, formatter=None):
     formatter = formatter or logging.Formatter(DEFAULT_LOG_FORMAT)
     root = logging.getLogger()
@@ -87,7 +105,7 @@ def setup_security_logging(
         handler = logging.FileHandler(log_file)
     except OSError:
         return
-    handler.setFormatter(logging.Formatter(SECURITY_LOG_FORMAT))
+    handler.setFormatter(SecurityFormatter())
     handler.addFilter(SecurityOnlyFilter())
     handler.setLevel(SECURITY)
     logging.getLogger().addHandler(handler)

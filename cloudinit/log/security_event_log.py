@@ -17,9 +17,7 @@ Security events are logged in JSON Lines format with standardized fields:
 - host_ip: Optional IP address, included when network information is available.
 """
 
-import datetime
 import functools
-import json
 import logging
 from enum import Enum
 from typing import Any, Dict, List, Optional
@@ -75,41 +73,6 @@ def _build_event_string(
     return event_str
 
 
-def _build_security_event(
-    event_type: OWASPEventType,
-    level: OWASPEventLevel,
-    description: str,
-    event_params: Optional[List[str]] = None,
-    additional_data: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
-    """
-    Build a security event dictionary following OWASP Logging Vocabulary.
-
-    :param event_type: Type of security event.
-    :param level: Log level (INFO, WARN, CRITICAL).
-    :param description: Human-readable description of the event.
-    :param event_params: Parameters to include in the event string.
-    :param additional_data: Additional context-specific data.
-    :return: Dictionary containing the security event data.
-    """
-    event = {
-        "datetime": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        "appid": APP_ID,
-        "type": "security",
-        "event": _build_event_string(event_type, event_params),
-        "level": level.value,
-        "description": description,
-        "hostname": util.get_hostname(),
-    }
-    if additional_data:
-        # Merge additional non-empty data but don't overwrite core fields
-        for key, value in additional_data.items():
-            if key not in event and value:
-                event[key] = value
-
-    return event
-
-
 def _log_security_event(
     event_type: OWASPEventType,
     level: OWASPEventLevel,
@@ -126,14 +89,21 @@ def _log_security_event(
     :param event_params: Parameters to include in the event string.
     :param additional_data: Additional context-specific data.
     """
-    event = _build_security_event(
-        event_type=event_type,
-        level=level,
-        description=description,
-        event_params=event_params,
-        additional_data=additional_data,
-    )
-    LOG.log(loggers.SECURITY, json.dumps(event, separators=(",", ":")))
+    event = {
+        "appid": APP_ID,
+        "type": "security",
+        "event": _build_event_string(event_type, event_params),
+        "level": level.value,
+        "description": description,
+        "hostname": util.get_hostname(),
+    }
+    if additional_data:
+        # Merge additional non-empty data but don't overwrite core fields
+        for key, value in additional_data.items():
+            if key not in event and value:
+                event[key] = value
+
+    LOG.log(loggers.SECURITY, event)
 
 
 def sec_log_user_created(func):

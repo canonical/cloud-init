@@ -3,10 +3,12 @@
 """Tests for cloudinit.log.security_event_log"""
 
 import json
+import logging
 
 import pytest
 
 from cloudinit.log import loggers, security_event_log
+from cloudinit.log.loggers import SecurityFormatter
 from cloudinit.log.security_event_log import (
     OWASPEventLevel,
     OWASPEventType,
@@ -57,69 +59,36 @@ class TestBuildEventString:
         result = security_event_log._build_event_string(event_type, params)
         assert result == expected
 
-
-class TestBuildSecurityEvent:
-    """Tests for _build_security_event function."""
-
-    def test_event_contains_required_owasp_fields(self):
-        """Test that built event contains all required OWASP fields."""
-        event = security_event_log._build_security_event(
-            event_type=OWASPEventType.USER_CREATED,
-            level=OWASPEventLevel.INFO,
-            description="Test event",
-            event_params=["cloud-init", "testuser"],
-        )
-
-        assert "datetime" in event
-        assert event["appid"] == "canonical.cloud-init"
-        assert event["event"] == "user_created:cloud-init,testuser"
-        assert event["level"] == "INFO"
-        assert event["description"] == "Test event"
-        assert "hostname" in event
-
-    def test_event_with_additional_data(self):
-        """Test event includes additional data when provided."""
-        event = security_event_log._build_security_event(
-            event_type=OWASPEventType.USER_CREATED,
-            level=OWASPEventLevel.INFO,
-            description="Test event",
-            additional_data={"groups": "wheel", "shell": "/bin/bash"},
-        )
-
-        assert event["groups"] == "wheel"
-        assert event["shell"] == "/bin/bash"
-
-    def test_additional_data_does_not_overwrite_core_fields(self):
+    def test_additional_data_does_not_overwrite_core_fields(self, caplog):
         """Test that additional data cannot overwrite core fields."""
-        event = security_event_log._build_security_event(
+        security_event_log._log_security_event(
             event_type=OWASPEventType.USER_CREATED,
             level=OWASPEventLevel.INFO,
             description="Test event",
             additional_data={"appid": "malicious.app", "level": "CRITICAL"},
         )
-
+        event = caplog.records[0].msg
         assert event["appid"] == "canonical.cloud-init"
         assert event["level"] == "INFO"
-
-    def test_timestamp_is_iso_format(self):
-        """Test that datetime is in ISO 8601 format."""
-        event = security_event_log._build_security_event(
-            event_type=OWASPEventType.USER_CREATED,
-            level=OWASPEventLevel.INFO,
-            description="Test event",
-        )
-
-        # ISO 8601 format check - should contain 'T' separator
-        assert "T" in event["datetime"]
-        # Should end with timezone info (e.g., +00:00)
-        assert "+" in event["datetime"] or "Z" in event["datetime"]
 
 
 class TestLogSecurityEvent:
     """Tests for _log_security_event function."""
 
+    def test_event_with_additional_data(self, caplog):
+        """Test event includes additional data when provided."""
+        security_event_log._log_security_event(
+            event_type=OWASPEventType.USER_CREATED,
+            level=OWASPEventLevel.INFO,
+            description="Test event",
+            additional_data={"groups": "wheel", "shell": "/bin/bash"},
+        )
+        event = caplog.records[0].msg
+        assert event["groups"] == "wheel"
+        assert event["shell"] == "/bin/bash"
+
     def test_writes_json_to_file(self, caplog):
-        """Test that event is written to log file as JSON."""
+        """Test that event is written to log file with OWASP fields."""
         with caplog.at_level(loggers.SECURITY):
             security_event_log._log_security_event(
                 event_type=OWASPEventType.USER_CREATED,
@@ -127,11 +96,13 @@ class TestLogSecurityEvent:
                 description="User created successfully",
                 event_params=["cloud-init", "testuser"],
             )
-        event = json.loads(caplog.records[0].msg)
+        event = caplog.records[0].msg
 
         assert event["event"] == "user_created:cloud-init,testuser"
         assert event["level"] == "INFO"
         assert event["appid"] == "canonical.cloud-init"
+        assert event["description"] == "User created successfully"
+        assert "hostname" in event
 
     def test_appends_multiple_events(self, caplog):
         """Test that multiple events are appended to the log file."""
@@ -151,8 +122,8 @@ class TestLogSecurityEvent:
             )
 
         assert len(caplog.records) == 2
-        event1 = json.loads(caplog.records[0].msg)
-        event2 = json.loads(caplog.records[1].msg)
+        event1 = caplog.records[0].msg
+        event2 = caplog.records[1].msg
         assert "user1" in event1["event"]
         assert "user2" in event2["event"]
 
@@ -205,9 +176,6 @@ class TestUserCreatedEvent:
                 **uc_kwargs,
             )
 
-        event = json.loads(caplog.records[0].msg)
-
-        assert event.pop("datetime")
         assert {
             "appid": "canonical.cloud-init",
             "event": event_id,
@@ -215,7 +183,7 @@ class TestUserCreatedEvent:
             "hostname": get_hostname(),
             "level": "WARN",
             "type": "security",
-        } == event
+        } == caplog.records[0].msg
 
 
 class TestPasswordChangedEvent:
@@ -245,9 +213,7 @@ class TestPasswordChangedEvent:
         }
 
         for record in caplog.records:
-            event = json.loads(record.msg)
-            assert event.pop("datetime")
-            assert expected_value == event
+            assert expected_value == record.msg
 
 
 class TestPasswordChangedBatchEvent:
@@ -276,9 +242,7 @@ class TestPasswordChangedBatchEvent:
         }
 
         for record in caplog.records:
-            event = json.loads(record.msg)
-            assert event.pop("datetime")
-            assert expected_value == event
+            assert expected_value == record.msg
 
 
 class TestSystemShutdownEvent:
@@ -339,8 +303,6 @@ class TestSystemShutdownEvent:
                 message=message,
             )
 
-        event = json.loads(caplog.records[0].msg)
-        assert event.pop("datetime")
         expected = {
             "appid": "canonical.cloud-init",
             "delay": delay,
@@ -353,7 +315,49 @@ class TestSystemShutdownEvent:
         }
         if mode != "reboot":
             expected["mode"] = mode
-        assert expected == event
+        assert expected == caplog.records[0].msg
+
+
+class TestSecurityFormatter:
+    """Tests for SecurityFormatter."""
+
+    def _make_record(self, msg) -> logging.LogRecord:
+        record = logging.LogRecord(
+            name="test",
+            level=loggers.SECURITY,
+            pathname="",
+            lineno=0,
+            msg=msg,
+            args=(),
+            exc_info=None,
+        )
+        return record
+
+    def test_injects_datetime_into_json_message(self):
+        """Formatter adds 'datetime' and formats valid JSON messages."""
+        record = self._make_record({"appid": "canonical.cloud-init"})
+        result = json.loads(SecurityFormatter().format(record))
+        assert "datetime" in result
+        # ISO 8601: contains 'T' separator and UTC offset
+        assert "T" in result["datetime"]
+        assert "+" in result["datetime"] or "Z" in result["datetime"]
+
+    def test_errors_on_non_dict(self):
+        """Non-Dict messages are returned unchanged."""
+        record = self._make_record("not dict")
+        with pytest.raises(TypeError, match="SECURITY logs expected dict but"):
+            SecurityFormatter().format(record)
+
+    def test_datetime_uses_record_created_timestamp(self):
+        """The injected datetime reflects the log record's creation time."""
+        import datetime as dt
+
+        record = self._make_record({})
+        result = json.loads(SecurityFormatter().format(record))
+        expected = dt.datetime.fromtimestamp(
+            record.created, tz=dt.timezone.utc
+        ).isoformat()
+        assert result["datetime"] == expected
 
 
 class TestEventTypeEnums:

@@ -1,6 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import json
 from pathlib import Path
 from typing import List
 
@@ -452,7 +451,7 @@ class TestCreateUser:
         if "passwd" not in create_kwargs:
             assert (
                 "authn_password_change:cloud-init,foo_user"
-                in caplog.records[-1].msg
+                in caplog.records[-1].msg["event"]
             )
 
     @mock.patch("cloudinit.distros.util.is_group")
@@ -518,9 +517,8 @@ class TestCreateUser:
             mock.call(["passwd", "-l", USER]),
         ]
         assert m_subp.call_args_list == expected
-        event = json.loads(caplog.records[-1].msg)
         assert (
-            event["event"]
+            caplog.records[-1].msg["event"]
             == "user_created:cloud-init,foo_user,groups:group1,existing_group"
         )
 
@@ -664,7 +662,7 @@ class TestCreateUser:
         assert deprecation_record, "Missing deprecation log"
         assert deprecation_record.levelname in expected_levels
         assert security_record, "Missing security log"
-        security_event = json.loads(security_record.msg)
+        security_event = security_record.msg
         assert security_event["event"] == "user_created:cloud-init,foo_user"
 
     def test_explicit_sudo_none(self, m_subp, dist, caplog, mocker):

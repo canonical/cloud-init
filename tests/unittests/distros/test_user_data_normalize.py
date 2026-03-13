@@ -1,5 +1,4 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-import json
 from unittest import mock
 
 import pytest
@@ -284,7 +283,7 @@ class TestUGNormalize:
 
         snapcmd = ["snap", "create-user", "--sudoer", "--json", "joe@joe.com"]
         mock_subp.assert_called_with(snapcmd, capture=True, logstring=snapcmd)
-        event = json.loads(caplog.records[-1].msg)
+        event = caplog.records[-1].msg
         assert "user_created:cloud-init,joe" == event["event"]
 
     @mock.patch("cloudinit.subp.subp")
@@ -311,7 +310,7 @@ class TestUGNormalize:
             "joe@joe.com",
         ]
         mock_subp.assert_called_with(snapcmd, capture=True, logstring=snapcmd)
-        event = json.loads(caplog.records[-1].msg)
+        event = caplog.records[-1].msg
         assert "user_created:cloud-init,joe" == event["event"]
 
     @mock.patch("cloudinit.util.system_is_snappy")
