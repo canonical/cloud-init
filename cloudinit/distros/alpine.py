@@ -519,7 +519,7 @@ class Distro(distros.Distro):
                 LOG.info("Added user '%s' to group '%s'", member, name)
 
     @classmethod
-    def _build_shutdown_cmd(cls, mode, delay, message):
+    def _build_shutdown_command(cls, mode, delay, message):
         # Alpine has halt/poweroff/reboot, with the following specifics:
         # - we use them rather than the generic "shutdown"
         # - delay is given with "-d [integer]"
