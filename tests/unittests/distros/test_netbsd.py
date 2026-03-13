@@ -19,7 +19,7 @@ class TestNetBSD:
     @mock.patch(M_PATH + "subp.subp")
     def test_add_user(self, m_subp):
         distro = get_distro("netbsd")
-        assert True is distro.add_user("me2", uid=1234, default=False)
+        distro.add_user("me2", uid=1234, default=False)
         assert [
             mock.call(
                 ["useradd", "-m", "me2"], logstring=["useradd", "-m", "me2"]

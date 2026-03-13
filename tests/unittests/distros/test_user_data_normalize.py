@@ -267,7 +267,7 @@ class TestUGNormalize:
         assert {"default": False} == users["bob"]
 
     @mock.patch("cloudinit.subp.subp")
-    def test_create_snap_user(self, mock_subp):
+    def test_create_snap_user(self, mock_subp, caplog):
         mock_subp.side_effect = [
             ('{"username": "joe", "ssh-key-count": 1}\n', "")
         ]
@@ -279,15 +279,15 @@ class TestUGNormalize:
         }
         users, _groups = self._norm(ug_cfg, distro)
         for user, config in users.items():
-            print("user=%s config=%s" % (user, config))
-            username = distro.create_user(user, **config)
+            distro.create_user(user, **config)
 
         snapcmd = ["snap", "create-user", "--sudoer", "--json", "joe@joe.com"]
         mock_subp.assert_called_with(snapcmd, capture=True, logstring=snapcmd)
-        assert username == "joe"
+        event = caplog.records[-1].msg
+        assert "user_created:cloud-init,joe" == event["event"]
 
     @mock.patch("cloudinit.subp.subp")
-    def test_create_snap_user_known(self, mock_subp):
+    def test_create_snap_user_known(self, mock_subp, caplog):
         mock_subp.side_effect = [
             ('{"username": "joe", "ssh-key-count": 1}\n', "")
         ]
@@ -299,8 +299,7 @@ class TestUGNormalize:
         }
         users, _groups = self._norm(ug_cfg, distro)
         for user, config in users.items():
-            print("user=%s config=%s" % (user, config))
-            username = distro.create_user(user, **config)
+            distro.create_user(user, **config)
 
         snapcmd = [
             "snap",
@@ -311,7 +310,8 @@ class TestUGNormalize:
             "joe@joe.com",
         ]
         mock_subp.assert_called_with(snapcmd, capture=True, logstring=snapcmd)
-        assert username == "joe"
+        event = caplog.records[-1].msg
+        assert "user_created:cloud-init,joe" == event["event"]
 
     @mock.patch("cloudinit.util.system_is_snappy")
     @mock.patch("cloudinit.util.is_group")

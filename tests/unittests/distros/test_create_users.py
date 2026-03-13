@@ -6,6 +6,7 @@ from typing import List
 import pytest
 
 from cloudinit import distros, features, lifecycle, ssh_util
+from cloudinit.log import loggers
 from tests.unittests.helpers import get_distro, mock
 from tests.unittests.util import abstract_to_concrete
 
@@ -447,6 +448,11 @@ class TestCreateUser:
         for log in expected_logs:
             assert log in caplog.text
         assert m_subp.call_args_list == expected
+        if "passwd" not in create_kwargs:
+            assert (
+                "authn_password_change:cloud-init,foo_user"
+                in caplog.records[-1].msg["event"]
+            )
 
     @mock.patch("cloudinit.distros.util.is_group")
     def test_group_added(self, m_is_group, m_subp, dist, mocker):
@@ -494,7 +500,7 @@ class TestCreateUser:
 
     @mock.patch("cloudinit.distros.util.is_group")
     def test_snappy_only_new_group_added(
-        self, m_is_group, m_subp, dist, mocker
+        self, m_is_group, m_subp, dist, mocker, caplog
     ):
         mocker.patch(
             "cloudinit.distros.util.system_is_snappy", return_value=True
@@ -511,6 +517,10 @@ class TestCreateUser:
             mock.call(["passwd", "-l", USER]),
         ]
         assert m_subp.call_args_list == expected
+        assert (
+            caplog.records[-1].msg["event"]
+            == "user_created:cloud-init,foo_user,groups:group1,existing_group"
+        )
 
     @mock.patch("cloudinit.distros.util.is_group")
     def test_create_groups_with_whitespace_string(
@@ -638,12 +648,22 @@ class TestCreateUser:
             )
             else ["INFO"]
         )
-        assert caplog.records[1].levelname in expected_levels
-        assert (
+        deprecation_msg = (
             "The value of 'false' in user foo_user's 'sudo' "
             "config is deprecated in 22.2 and scheduled to be removed"
             " in 27.2. Use 'null' instead."
-        ) in caplog.text
+        )
+        deprecation_record = security_record = None
+        for record in caplog.records:
+            if deprecation_msg in record.msg:
+                deprecation_record = record
+            if record.levelno == loggers.SECURITY:
+                security_record = record
+        assert deprecation_record, "Missing deprecation log"
+        assert deprecation_record.levelname in expected_levels
+        assert security_record, "Missing security log"
+        security_event = security_record.msg
+        assert security_event["event"] == "user_created:cloud-init,foo_user"
 
     def test_explicit_sudo_none(self, m_subp, dist, caplog, mocker):
         mocker.patch(
@@ -736,11 +756,13 @@ class TestCreateUser:
         """ssh_authorized_keys warns on non-iterable/string type."""
         dist.create_user(USER, ssh_authorized_keys=-1)
         m_setup_user_keys.assert_called_once_with(set([]), USER)
-        assert caplog.records[1].levelname in ["WARNING", "DEPRECATED"]
-        assert (
+        deprecation_msg = (
             "Invalid type '<class 'int'>' detected for 'ssh_authorized_keys'"
-            in caplog.text
         )
+        deprecation_record = [
+            r for r in caplog.records if deprecation_msg in r.message
+        ][0]
+        assert deprecation_record.levelname in ["WARNING", "DEPRECATED"]
 
     @mock.patch("cloudinit.ssh_util.setup_user_keys")
     def test_create_user_with_ssh_redirect_user_no_cloud_keys(
@@ -748,11 +770,16 @@ class TestCreateUser:
     ):
         """Log a warning when trying to redirect a user no cloud ssh keys."""
         dist.create_user(USER, ssh_redirect_user="someuser")
-        assert caplog.records[1].levelname in ["WARNING", "DEPRECATED"]
-        assert (
+        deprecation_msg = (
             "Unable to disable SSH logins for foo_user given "
-            "ssh_redirect_user: someuser. No cloud public-keys present.\n"
-        ) in caplog.text
+            "ssh_redirect_user: someuser. No cloud public-keys present."
+        )
+        deprecation_records = [
+            record
+            for record in caplog.records
+            if deprecation_msg in record.message
+        ]
+        assert deprecation_records[0].levelname in ["WARNING", "DEPRECATED"]
         m_setup_user_keys.assert_not_called()
 
     @mock.patch("cloudinit.ssh_util.setup_user_keys")
