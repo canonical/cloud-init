@@ -1347,12 +1347,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     @final
     @sec_log_system_shutdown
     def shutdown_command(cls, *, mode, delay, message):
-        # called from cc_power_state_change.load_power_state and clean
-        if hasattr(cls, "_shutdown_command"):  # Overridden in alpine.Distro
-            return cls._shutdown_command(
-                mode=mode, delay=delay, message=message
-            )
-        command = ["shutdown", cls.shutdown_options_map[mode]]
         try:
             if delay != "now":
                 delay = "+%d" % int(delay)
@@ -1361,10 +1355,14 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 "power_state[delay] must be 'now' or '+m' (minutes)."
                 " found '%s'." % (delay,)
             ) from e
-        args = command + [delay]
+        return cls._build_shutdown_command(mode, delay, message)
+
+    @classmethod
+    def _build_shutdown_command(cls, *, mode, delay, message):
+        command = ["shutdown", cls.shutdown_options_map[mode], delay]
         if message:
-            args.append(message)
-        return args
+            command.append(message)
+        return command
 
     @classmethod
     def reload_init(cls, rcs=None):

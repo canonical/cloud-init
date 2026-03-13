@@ -519,14 +519,12 @@ class Distro(distros.Distro):
                 LOG.info("Added user '%s' to group '%s'", member, name)
 
     @classmethod
-    def _shutdown_command(cls, mode, delay, message):
-        # called from cc_power_state_change.load_power_state
+    def _build_shutdown_cmd(cls, mode, delay, message):
         # Alpine has halt/poweroff/reboot, with the following specifics:
         # - we use them rather than the generic "shutdown"
         # - delay is given with "-d [integer]"
         # - the integer is in seconds, cannot be "now", and takes no "+"
         # - no message is supported (argument ignored, here)
-
         command = [mode, "-d"]
 
         # Convert delay from minutes to seconds, as Alpine's
@@ -535,14 +533,7 @@ class Distro(distros.Distro):
             # Alpine's commands do not understand "now".
             command += ["0"]
         else:
-            try:
-                command.append(str(int(delay) * 60))
-            except ValueError as e:
-                raise TypeError(
-                    "power_state[delay] must be 'now' or '+m' (minutes)."
-                    " found '%s'." % (delay,)
-                ) from e
-
+            command.append(str(int(delay) * 60))
         return command
 
     @staticmethod
@@ -554,7 +545,7 @@ class Distro(distros.Distro):
 
     @classmethod
     def manage_service(
-        self, action: str, service: str, *extra_args: str, rcs=None
+        cls, action: str, service: str, *extra_args: str, rcs=None
     ):
         """
         Perform the requested action on a service. This handles OpenRC
