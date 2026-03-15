@@ -210,11 +210,11 @@ class Distro(distros.Distro):
             LOG.warning("Ignoring selinux_user parameter for Alpine Linux")
 
     def _build_add_user_cmd(
-        self, name: str, **kwargs
+        self, name: str, groups: List[str], **kwargs
     ) -> Tuple[List[str], List[str]]:
         # If 'useradd' is available then use the generic GNU implementation.
         if subp.which("useradd"):
-            return super()._build_add_user_cmd(name, **kwargs)
+            return super()._build_add_user_cmd(name, groups, **kwargs)
 
         adduser_cmd = ["adduser", "-D"]
 
@@ -257,7 +257,7 @@ class Distro(distros.Distro):
 
         return adduser_cmd, adduser_cmd
 
-    def _post_add_user(self, name: str, **kwargs) -> None:
+    def _post_add_user(self, name: str, groups: List[str], **kwargs) -> None:
         # When useradd is available, the GNU implementation handles everything.
         if subp.which("useradd"):
             return
@@ -266,23 +266,21 @@ class Distro(distros.Distro):
 
         # Separately add user to each additional group as Busybox's
         # 'adduser' does not support specifying additional groups.
-        groups_str = kwargs.get("groups", "")
-        if groups_str:
-            for addn_group in groups_str.split(","):
-                addn_group = addn_group.strip()
-                if not addn_group:
-                    continue
-                LOG.debug("Adding user to group %s", addn_group)
-                try:
-                    subp.subp(["addgroup", name, addn_group])
-                except subp.ProcessExecutionError as e:
-                    util.logexc(
-                        LOG,
-                        "Failed to add user %s to group %s",
-                        name,
-                        addn_group,
-                    )
-                    raise e
+        for addn_group in groups:
+            addn_group = addn_group.strip()
+            if not addn_group:
+                continue
+            LOG.debug("Adding user to group %s", addn_group)
+            try:
+                subp.subp(["addgroup", name, addn_group])
+            except subp.ProcessExecutionError as e:
+                util.logexc(
+                    LOG,
+                    "Failed to add user %s to group %s",
+                    name,
+                    addn_group,
+                )
+                raise e
 
         passwd_val = kwargs.get("passwd")
         if passwd_val:

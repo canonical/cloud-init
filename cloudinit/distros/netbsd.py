@@ -75,7 +75,7 @@ class NetBSD(cloudinit.distros.bsd.BSD):
         return ["usermod", "-G", group_name, member_name]
 
     def _build_add_user_cmd(
-        self, name: str, **kwargs
+        self, name: str, groups: List[str], **kwargs
     ) -> Tuple[List[str], List[str]]:
         adduser_cmd = ["useradd"]
         log_adduser_cmd = ["useradd"]
@@ -84,7 +84,6 @@ class NetBSD(cloudinit.distros.bsd.BSD):
             "homedir": "-d",
             "gecos": "-c",
             "primary_group": "-g",
-            "groups": "-G",
             "shell": "-s",
         }
         adduser_flags = {
@@ -93,6 +92,8 @@ class NetBSD(cloudinit.distros.bsd.BSD):
             "no_log_init": "--no-log-init",
         }
 
+        if groups:
+            adduser_cmd.extend(["-G", ",".join(groups)])
         for key, val in kwargs.items():
             if key in adduser_opts and val and isinstance(val, str):
                 adduser_cmd.extend([adduser_opts[key], val])
@@ -109,7 +110,7 @@ class NetBSD(cloudinit.distros.bsd.BSD):
 
         return adduser_cmd, log_adduser_cmd
 
-    def _post_add_user(self, name: str, **kwargs) -> None:
+    def _post_add_user(self, name: str, groups: List[str], **kwargs) -> None:
         # Set the password if it is provided.
         # For security consideration, only hashed passwd is assumed.
         passwd_val = kwargs.get("passwd", None)
