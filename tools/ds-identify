@@ -1783,7 +1783,7 @@ WSL_run_cmd() {
     shift
     # Using the '/u' flag to enforce Unicode (UTF-16 LE), thus we need to decode it afterwards.
     # It's more reliable than the default ANSI Code Pages for anything above the ASCII range.
-    _RET=$(/init "$exepath" /u /c "$@" 2>/dev/null | iconv --from-code UTF-16LE --to-code UTF-8)
+    _RET=$(/init "$exepath" /u /c "$@" 2> /dev/null | iconv --from-code UTF-16LE --to-code UTF-8)
 }
 
 WSL_profile_dir() {
@@ -1797,8 +1797,8 @@ WSL_profile_dir() {
             # Here WSL's `/init` is used to start the Windows cmd.exe
             # to output the Windows user profile directory path, which is
             # held by the environment variable %USERPROFILE%.
-	    # See https://wsl.dev/technical-documentation/interop/ for more information on how /init
-	    # is used to launch Windows binaries.
+            # See https://wsl.dev/technical-documentation/interop/ for more information on how /init
+            # is used to launch Windows binaries.
             WSL_run_cmd "$cmdexe" "echo.%USERPROFILE%"
             profiledir="${_RET%%[[:cntrl:]]}"
             if [ -n "$profiledir" ]; then
