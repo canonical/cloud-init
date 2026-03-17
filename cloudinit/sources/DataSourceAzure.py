@@ -5,7 +5,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import base64
-import functools
 import logging
 import os
 import os.path
@@ -49,31 +48,6 @@ from cloudinit.sources.helpers.azure import (
     report_failure_to_fabric,
 )
 from cloudinit.url_helper import UrlError
-
-try:
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", category=DeprecationWarning)
-        import crypt  # pylint: disable=W4901
-
-    blowfish_hash: Any = functools.partial(
-        crypt.crypt, salt=f"$6${util.rand_str(strlen=16)}"
-    )
-except (ImportError, AttributeError):
-    try:
-        import passlib.hash
-
-        blowfish_hash = passlib.hash.sha512_crypt.hash
-    except ImportError:
-
-        def blowfish_hash(_):
-            """Raise when called so that importing this module doesn't throw
-            ImportError when ds_detect() returns false. In this case, crypt
-            and passlib are not needed.
-            """
-            raise ImportError(
-                "crypt and passlib not found, missing dependency"
-            )
-
 
 LOG = logging.getLogger(__name__)
 
@@ -164,6 +138,35 @@ def find_dev_from_busdev(camcontrol_out: str, busdev: str) -> Optional[str]:
                 dev_pass = items[1].split(",")
                 return dev_pass[0]
     return None
+
+
+def hash_password(password: str) -> str:
+    """Hash a password using SHA-512 crypt.
+
+    Try to use crypt, falling back to passlib.
+
+    If neither are available, raise ReportableErrorImportError.
+
+    :param password: plaintext password to hash.
+    :return: The hashed password string.
+    :raises ReportableErrorImportError: If crypt and passlib are unavailable.
+    """
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=DeprecationWarning)
+            import crypt  # pylint: disable=W4901
+
+        salt = crypt.mksalt(crypt.METHOD_SHA512)
+        return crypt.crypt(password, salt)
+    except (ImportError, AttributeError):
+        pass
+
+    try:
+        import passlib.hash
+
+        return passlib.hash.sha512_crypt.hash(password)
+    except ImportError as error:
+        raise errors.ReportableErrorImportError(error=error) from error
 
 
 def normalize_mac_address(mac: str) -> str:
@@ -292,6 +295,7 @@ BUILTIN_DS_CONFIG = {
     "disk_aliases": {"ephemeral0": RESOURCE_DISK_PATH},
     "apply_network_config": True,  # Use IMDS published network configuration
     "apply_network_config_for_secondary_ips": True,  # Configure secondary ips
+    "experimental_skip_ready_report": False,  # Skip final ready report
     "experimental_fail_on_missing_customdata": False,
 }
 
@@ -856,21 +860,28 @@ class DataSourceAzure(sources.DataSource):
         crawled_data["metadata"]["instance-id"] = self._iid()
 
         if self._negotiated is False and self._is_ephemeral_networking_up():
-            # Report ready and fetch public-keys from Wireserver, if required.
-            pubkey_info = self._determine_wireserver_pubkey_info(
-                cfg=cfg, imds_md=imds_md
-            )
-            try:
-                ssh_keys = self._report_ready(pubkey_info=pubkey_info)
-            except Exception:
-                # Failed to report ready, but continue with best effort.
-                pass
+            if self.ds_cfg.get("experimental_skip_ready_report", False):
+                LOG.debug(
+                    "Skipping final health report as "
+                    "experimental_skip_ready_report is enabled."
+                )
             else:
-                LOG.debug("negotiating returned %s", ssh_keys)
-                if ssh_keys:
-                    crawled_data["metadata"]["public-keys"] = ssh_keys
+                # Report ready and fetch public-keys from Wireserver,
+                # if required.
+                pubkey_info = self._determine_wireserver_pubkey_info(
+                    cfg=cfg, imds_md=imds_md
+                )
+                try:
+                    ssh_keys = self._report_ready(pubkey_info=pubkey_info)
+                except Exception:
+                    # Failed to report ready, but continue with best effort.
+                    pass
+                else:
+                    LOG.debug("negotiating returned %s", ssh_keys)
+                    if ssh_keys:
+                        crawled_data["metadata"]["public-keys"] = ssh_keys
 
-                self._cleanup_markers()
+            self._cleanup_markers()
 
         return crawled_data
 
@@ -2009,7 +2020,7 @@ def read_azure_ovf(contents):
     if ovf_env.password:
         defuser["lock_passwd"] = False
         if DEF_PASSWD_REDACTION != ovf_env.password:
-            defuser["hashed_passwd"] = encrypt_pass(ovf_env.password)
+            defuser["hashed_passwd"] = hash_password(ovf_env.password)
 
     if defuser:
         cfg["system_info"] = {"default_user": defuser}
@@ -2032,10 +2043,6 @@ def read_azure_ovf(contents):
         logger_func=LOG.info,
     )
     return (md, ud, cfg)
-
-
-def encrypt_pass(password):
-    return blowfish_hash(password)
 
 
 def find_primary_nic():
