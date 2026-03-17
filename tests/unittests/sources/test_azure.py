@@ -6125,6 +6125,7 @@ class TestHasCustomDataFromImds:
         imds_data = {"extended": {"compute": {}}}
         assert dsaz._hascustomdata_from_imds(imds_data) is None
 
+
 class TestHashPassword:
     """Tests for the hash_password function."""
 
