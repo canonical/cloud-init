@@ -20,7 +20,7 @@ M_NAME = "cloudinit.cmd.status"
 M_PATH = f"{M_NAME}."
 
 MyPaths = namedtuple("MyPaths", "run_dir")
-MyArgs = namedtuple("MyArgs", "long wait format")
+MyArgs = namedtuple("MyArgs", "long wait format timeout", defaults=(None,))
 Config = namedtuple(
     "Config", "new_root, status_file, disable_file, result_file, paths"
 )
@@ -912,6 +912,134 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
         assert e.value.code == 0
         out, _err = capsys.readouterr()
         assert out == "status: running\n"
+
+
+    @mock.patch(M_PATH + "read_cfg_paths")
+    @mock.patch(
+        f"{M_PATH}systemd_failed",
+        return_value=None,
+    )
+    def test_status_wait_timeout_completes_before_timeout(
+        self, m_get_systemd_status, m_read_cfg_paths, config: Config, capsys
+    ):
+        """--timeout N, cloud-init finishes before N seconds → exit 0."""
+        m_read_cfg_paths.return_value = config.paths
+        done_json = {
+            "v1": {
+                "stage": None,
+                "init": {"start": 124.456, "finished": 125.678},
+                "init-local": {"start": 123.45, "finished": 123.46},
+            }
+        }
+
+        # monotonic: first call establishes deadline (0.0 + 5 = 5.0),
+        # second call inside the loop returns 1.0 (< 5.0, not timed out).
+        monotonic_values = iter([0.0, 1.0])
+
+        def fake_sleep(interval):
+            pass  # cloud-init is already done before the first sleep
+
+        write_json(config.status_file, done_json)
+        ensure_file(config.result_file)
+
+        cmdargs = MyArgs(long=False, wait=True, format="tabular", timeout=5)
+        retcode = wrap_and_call(
+            M_NAME,
+            {
+                "sleep": {"side_effect": fake_sleep},
+                "monotonic": {"side_effect": monotonic_values},
+                "get_bootstatus": (status.EnabledStatus.UNKNOWN, ""),
+            },
+            status.handle_status_args,
+            "ignored",
+            cmdargs,
+        )
+        assert retcode == 0
+        out, _err = capsys.readouterr()
+        assert "status: done" in out
+
+    @mock.patch(M_PATH + "read_cfg_paths")
+    @mock.patch(
+        f"{M_PATH}systemd_failed",
+        return_value=None,
+    )
+    def test_status_wait_timeout_expires(
+        self, m_get_systemd_status, m_read_cfg_paths, config: Config, capsys
+    ):
+        """--timeout N, cloud-init does not finish within N seconds → exit 1."""
+        m_read_cfg_paths.return_value = config.paths
+        running_json = {
+            "v1": {
+                "stage": "init",
+                "init": {"start": 124.456, "finished": None},
+                "init-local": {"start": 123.45, "finished": 123.46},
+            }
+        }
+        write_json(config.status_file, running_json)
+
+        # monotonic: deadline = 0.0 + 1 = 1.0; loop check returns 2.0 (expired)
+        monotonic_values = iter([0.0, 2.0])
+
+        cmdargs = MyArgs(long=False, wait=True, format="tabular", timeout=1)
+        retcode = wrap_and_call(
+            M_NAME,
+            {
+                "sleep": mock.DEFAULT,
+                "monotonic": {"side_effect": monotonic_values},
+                "get_bootstatus": (status.EnabledStatus.UNKNOWN, ""),
+            },
+            status.handle_status_args,
+            "ignored",
+            cmdargs,
+        )
+        assert retcode == 1
+        out, _err = capsys.readouterr()
+        assert "Timed out waiting for cloud-init to complete after 1s" in out
+
+    @mock.patch(M_PATH + "read_cfg_paths")
+    @mock.patch(
+        f"{M_PATH}systemd_failed",
+        return_value=None,
+    )
+    def test_status_wait_no_timeout_unchanged(
+        self, m_get_systemd_status, m_read_cfg_paths, config: Config, capsys
+    ):
+        """Without --timeout, --wait polls until done with no time limit."""
+        m_read_cfg_paths.return_value = config.paths
+        done_json = {
+            "v1": {
+                "stage": None,
+                "init": {"start": 124.456, "finished": 125.678},
+                "init-local": {"start": 123.45, "finished": 123.46},
+            }
+        }
+
+        sleep_calls = 0
+
+        def fake_sleep(interval):
+            nonlocal sleep_calls
+            assert interval == 0.25
+            sleep_calls += 1
+            if sleep_calls == 1:
+                write_json(config.status_file, done_json)
+                ensure_file(config.result_file)
+
+        # timeout=None (not passed); monotonic should never be called
+        cmdargs = MyArgs(long=False, wait=True, format="tabular", timeout=None)
+        retcode = wrap_and_call(
+            M_NAME,
+            {
+                "sleep": {"side_effect": fake_sleep},
+                "get_bootstatus": (status.EnabledStatus.UNKNOWN, ""),
+            },
+            status.handle_status_args,
+            "ignored",
+            cmdargs,
+        )
+        assert retcode == 0
+        out, _err = capsys.readouterr()
+        assert "status: done" in out
+        assert "Timed out" not in out
 
 
 class TestSystemdFailed:

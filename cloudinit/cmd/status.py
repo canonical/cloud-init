@@ -13,7 +13,7 @@ import os
 import sys
 from copy import deepcopy
 from datetime import datetime, timezone
-from time import sleep
+from time import monotonic, sleep
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 from cloudinit import safeyaml, subp
@@ -140,6 +140,17 @@ def get_parser(parser=None):
         default=False,
         help="Block waiting on cloud-init to complete",
     )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=None,
+        metavar="SECONDS",
+        help=(
+            "Maximum number of seconds to wait with --wait."
+            " Note: using --timeout means cloud-init may not have"
+            " completed configuration at exit."
+        ),
+    )
     return parser
 
 
@@ -235,10 +246,18 @@ def handle_status_args(name, args) -> int:
     paths = read_cfg_paths()
     details = get_status_details(paths, args.wait)
     if args.wait:
+        timeout = getattr(args, "timeout", None)
+        deadline = monotonic() + timeout if timeout is not None else None
         while details.running_status in (
             RunningStatus.NOT_STARTED,
             RunningStatus.RUNNING,
         ):
+            if deadline is not None and monotonic() >= deadline:
+                print(
+                    f"Timed out waiting for cloud-init to complete"
+                    f" after {timeout}s"
+                )
+                return 1
             if args.format == "tabular":
                 sys.stdout.write(".")
                 sys.stdout.flush()
