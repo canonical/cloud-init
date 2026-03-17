@@ -305,14 +305,16 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
             cmdargs,
         )
         assert retcode == 0
-        expected = dedent("""\
+        expected = dedent(
+            """\
             status: disabled
             extended_status: disabled
             boot_status_code: disabled-by-kernel-command-line
             detail: disabled for some reason
             errors: []
             recoverable_errors: {}
-        """)
+        """
+        )
         out, _err = capsys.readouterr()
         assert out == expected
 
@@ -384,7 +386,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                 None,
                 MyArgs(long=True, wait=False, format="tabular"),
                 0,
-                dedent("""\
+                dedent(
+                    """\
                     status: done
                     extended_status: done
                     boot_status_code: enabled-by-generator
@@ -392,7 +395,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                     detail: DataSourceNoCloud [seed=/var/.../seed/nocloud-net][dsmode=net]
                     errors: []
                     recoverable_errors: {}
-                    """),  # noqa: E501
+                    """
+                ),  # noqa: E501
                 id="returns_done_long",
             ),
             # Reports error when any stage has errors.
@@ -444,7 +448,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                 None,
                 MyArgs(long=True, wait=False, format="tabular"),
                 1,
-                dedent("""\
+                dedent(
+                    """\
                 status: error
                 extended_status: error - running
                 boot_status_code: enabled-by-kernel-command-line
@@ -455,7 +460,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                 \t- error2
                 \t- error3
                 recoverable_errors: {}
-                """),  # noqa: E501
+                """
+                ),  # noqa: E501
                 id="on_errors_long",
             ),
             # Long format reports the stage in which we are running.
@@ -472,7 +478,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                 None,
                 MyArgs(long=True, wait=False, format="tabular"),
                 0,
-                dedent("""\
+                dedent(
+                    """\
                     status: running
                     extended_status: running
                     boot_status_code: enabled-by-kernel-command-line
@@ -480,7 +487,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                     detail: Running in stage: init
                     errors: []
                     recoverable_errors: {}
-                    """),
+                    """
+                ),
                 id="running_long_format",
             ),
             pytest.param(
@@ -496,7 +504,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                 None,
                 MyArgs(long=False, wait=False, format="yaml"),
                 0,
-                dedent("""\
+                dedent(
+                    """\
                    ---
                    boot_status_code: enabled-by-kernel-command-line
                    datasource: ''
@@ -515,7 +524,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                    status: running
                    ...
 
-                   """),
+                   """
+                ),
                 id="running_yaml_format",
             ),
             pytest.param(
