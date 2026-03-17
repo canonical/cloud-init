@@ -395,8 +395,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                     detail: DataSourceNoCloud [seed=/var/.../seed/nocloud-net][dsmode=net]
                     errors: []
                     recoverable_errors: {}
-                    """
-                ),  # noqa: E501
+                    """  # noqa: E501
+                ),
                 id="returns_done_long",
             ),
             # Reports error when any stage has errors.
@@ -460,8 +460,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
                 \t- error2
                 \t- error3
                 recoverable_errors: {}
-                """
-                ),  # noqa: E501
+                """  # noqa: E501
+                ),
                 id="on_errors_long",
             ),
             # Long format reports the stage in which we are running.
