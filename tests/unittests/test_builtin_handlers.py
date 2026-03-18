@@ -6,6 +6,7 @@ import copy
 import errno
 import os
 import re
+from unittest import mock
 
 import pytest
 
@@ -25,7 +26,6 @@ from cloudinit.handlers.shell_script_by_frequency import (
     path_map,
 )
 from cloudinit.settings import PER_ALWAYS, PER_INSTANCE, PER_ONCE
-from tests.unittests.helpers import mock, skipUnlessJinja
 from tests.unittests.util import FakeDataSource
 
 INSTANCE_DATA_FILE = "instance-data-sensitive.json"
@@ -95,7 +95,6 @@ class TestJinjaTemplatePartHandler:
             )
         m_handle_part.assert_not_called()
 
-    @skipUnlessJinja()
     def test_jinja_template_handle_subhandler_v2_with_clean_payload(
         self, paths
     ):
@@ -122,7 +121,6 @@ class TestJinjaTemplatePartHandler:
             "data", "!__begin__", "part01", "#!/bin/bash\necho himom", "freq"
         )
 
-    @skipUnlessJinja()
     def test_jinja_template_handle_subhandler_v3_with_clean_payload(
         self, paths
     ):
@@ -208,7 +206,6 @@ class TestJinjaTemplatePartHandler:
             "Unexpected file created %s" % script_file
         )
 
-    @skipUnlessJinja()
     def test_jinja_template_handle_renders_jinja_content(self, paths, caplog):
         """When present, render jinja variables from instance data"""
         script_handler = ShellScriptPartHandler(paths)
@@ -237,7 +234,6 @@ class TestJinjaTemplatePartHandler:
         )
         assert "#!/bin/bash\necho himom" == util.load_text_file(script_file)
 
-    @skipUnlessJinja()
     def test_jinja_template_handle_renders_jinja_content_missing_keys(
         self, paths, caplog
     ):
@@ -349,7 +345,7 @@ class TestConvertJinjaInstanceData:
 
 
 class TestRenderJinjaPayload:
-    @skipUnlessJinja()
+
     def test_render_jinja_payload_logs_jinja_vars_on_debug(self, caplog):
         """When debug is True, log jinja variables available."""
         payload = (
@@ -372,7 +368,6 @@ class TestRenderJinjaPayload:
         )
         assert re.match(expected_log, caplog.text, re.DOTALL)
 
-    @skipUnlessJinja()
     def test_render_jinja_payload_replaces_missing_variables_and_warns(
         self, caplog
     ):
