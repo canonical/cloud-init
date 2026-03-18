@@ -411,3 +411,93 @@ class TestShouldBringUpInterfaces:
 
         result = main._should_bring_up_interfaces(init, args)
         assert result == expected
+
+
+class TestGetSchemaHandler:
+    """Tests for _get_schema_handler which resolves Paths from CLI args."""
+
+    @mock.patch("cloudinit.cmd.main.read_cfg_paths")
+    def test_config_file_skips_datasource_load(self, read_cfg_paths):
+        """When --config-file is provided, datasource loading is skipped."""
+        mock_paths = mock.Mock()
+        read_cfg_paths.return_value = mock_paths
+        mock_handler = mock.Mock()
+        wrapper = main._get_schema_handler(mock_handler)
+
+        args = mock.Mock()
+        args.config_file = "/some/config.yml"
+
+        wrapper("schema", args)
+
+        read_cfg_paths.assert_called_once_with()
+        mock_handler.assert_called_once_with("schema", args, mock_paths)
+
+    @mock.patch("cloudinit.cmd.main.read_cfg_paths")
+    def test_system_loads_datasource(self, read_cfg_paths):
+        """When --system is provided, datasource is loaded."""
+        mock_paths = mock.Mock()
+        read_cfg_paths.return_value = mock_paths
+        mock_handler = mock.Mock()
+        wrapper = main._get_schema_handler(mock_handler)
+
+        args = mock.Mock()
+        args.config_file = None
+
+        wrapper("schema", args)
+
+        read_cfg_paths.assert_called_once_with(
+            fetch_existing_datasource="trust"
+        )
+        mock_handler.assert_called_once_with("schema", args, mock_paths)
+
+    @mock.patch("cloudinit.cmd.main.read_cfg_paths")
+    def test_system_falls_back_on_eacces(self, read_cfg_paths, caplog):
+        """When datasource load fails with EACCES, falls back gracefully."""
+        from errno import EACCES
+
+        exception = IOError("No perms")
+        exception.errno = EACCES
+        mock_paths = mock.Mock()
+        read_cfg_paths.side_effect = [exception, mock_paths]
+        mock_handler = mock.Mock()
+        wrapper = main._get_schema_handler(mock_handler)
+
+        args = mock.Mock()
+        args.config_file = None
+
+        wrapper("schema", args)
+
+        assert read_cfg_paths.call_count == 2
+        assert read_cfg_paths.call_args_list[0] == mock.call(
+            fetch_existing_datasource="trust"
+        )
+        assert read_cfg_paths.call_args_list[1] == mock.call()
+        assert "Using default instance-data/user-data paths for non-root" \
+            in caplog.text
+
+    @mock.patch("cloudinit.cmd.main.read_cfg_paths")
+    def test_system_falls_back_on_datasource_not_found(
+        self, read_cfg_paths, caplog
+    ):
+        """When no cached datasource exists, falls back gracefully."""
+        from cloudinit.sources import DataSourceNotFoundException
+
+        mock_paths = mock.Mock()
+        read_cfg_paths.side_effect = [
+            DataSourceNotFoundException("No cache"),
+            mock_paths,
+        ]
+        mock_handler = mock.Mock()
+        wrapper = main._get_schema_handler(mock_handler)
+
+        args = mock.Mock()
+        args.config_file = None
+
+        wrapper("schema", args)
+
+        assert read_cfg_paths.call_count == 2
+        assert read_cfg_paths.call_args_list[0] == mock.call(
+            fetch_existing_datasource="trust"
+        )
+        assert read_cfg_paths.call_args_list[1] == mock.call()
+        assert "datasource not detected" in caplog.text

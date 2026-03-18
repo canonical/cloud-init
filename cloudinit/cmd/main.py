@@ -79,6 +79,42 @@ STAGE_NAME = {
 LOG = logging.getLogger(__name__)
 
 
+def _get_schema_handler(handle_schema_args):
+    """Return a schema handler that resolves Paths from CLI args.
+
+    When --config-file is provided, skip datasource loading since we're
+    only validating a user-provided file, not system instance data.
+    When --system is provided, attempt to load the existing datasource
+    for instance path resolution, falling back gracefully on failure.
+    """
+    from errno import EACCES
+
+    def wrapper(name, args):
+        if args.config_file:
+            paths = read_cfg_paths()
+        else:
+            try:
+                paths = read_cfg_paths(fetch_existing_datasource="trust")
+            except (IOError, OSError) as e:
+                if e.errno == EACCES:
+                    LOG.debug(
+                        "Using default instance-data/user-data paths for "
+                        "non-root user"
+                    )
+                    paths = read_cfg_paths()
+                else:
+                    raise
+            except sources.DataSourceNotFoundException:
+                paths = read_cfg_paths()
+                LOG.warning(
+                    "datasource not detected, using default"
+                    " instance-data/user-data paths."
+                )
+        return handle_schema_args(name, args, paths)
+
+    return wrapper
+
+
 class SubcommandAwareArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1290,7 +1326,12 @@ def main(sysv_args=None):
             )
 
             schema_parser(parser_schema)
-            parser_schema.set_defaults(action=("schema", handle_schema_args))
+            parser_schema.set_defaults(
+                action=(
+                    "schema",
+                    _get_schema_handler(handle_schema_args),
+                )
+            )
         elif subcommand == "status":
             from cloudinit.cmd.status import (
                 get_parser as status_parser,
