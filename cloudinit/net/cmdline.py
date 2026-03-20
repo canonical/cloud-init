@@ -63,9 +63,14 @@ class KlibcNetworkConfigSource(InitramfsNetworkConfigSource):
                     self._mac_addrs[k] = mac_addr
 
     def is_applicable(self) -> bool:
-        """
-        Return whether this system has klibc initramfs network config or not
+        """Return whether this system has klibc initramfs network config."""
 
+        if is_applicable := self._is_applicable():
+            LOG.debug("Using initramfs network config from klibc")
+        return is_applicable
+
+    def _is_applicable(self) -> bool:
+        """
         Will return True if:
             (a) klibc files exist in /run, AND
             (b) either:
