@@ -77,7 +77,8 @@ def _log_security_event(
         event_params = ["cloud-init"]
 
     event_str = event_type.value
-    event_str += ":" + ",".join(event_params)
+    if event_params:
+        event_str += ":" + ",".join(event_params)
     event = {
         "appid": APP_ID,
         "type": "security",
@@ -106,15 +107,10 @@ def sec_log_user_created(func):
             )
         params = [name]
         groups_msg = ""
-        groups_suffix = kwargs.get("groups", "")
-        if groups_suffix:
-            if isinstance(groups_suffix, (dict, list)):
-                groups_suffix = ",".join(groups_suffix)
-        for perms in ("sudo", "doas"):
-            if kwargs.get(perms):
-                groups_suffix += f",{perms}"
-        if groups_suffix:
-            groups_suffix = groups_suffix.strip(",")
+        groups = self._user_groups_to_list(kwargs.get("groups", None))
+        all_groups = groups + self._get_elevated_roles(**kwargs)
+        if all_groups:
+            groups_suffix = ",".join(all_groups)
             groups_msg = f" in groups: {groups_suffix}"
             params.append(f"groups:{groups_suffix}")
 
@@ -122,7 +118,8 @@ def sec_log_user_created(func):
         # User creation operation did not raise an Exception
         _log_security_event(
             event_type=OWASPEventType.USER_CREATED,
-            level=OWASPEventLevel.WARN,
+            # Treat INFO level as this is prescribed provisioning at launch
+            level=OWASPEventLevel.INFO,
             description=f"User '{name}' was created{groups_msg}",
             event_params=params,
         )

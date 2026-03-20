@@ -674,6 +674,14 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             groups = groups.split(",")
         return [g.strip() for g in groups]
 
+    def _get_elevated_roles(self, **kwargs) -> List[str]:
+        elevated_roles = []
+        if kwargs.get("sudo"):
+            elevated_roles.append("sudo")
+        if kwargs.get("doas"):
+            elevated_roles.append("doas")
+        return elevated_roles
+
     @final
     @sec_log_user_created
     def add_user(self, name, **kwargs) -> None:

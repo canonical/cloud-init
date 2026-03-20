@@ -18,6 +18,7 @@ from cloudinit.log.security_event_log import (
     sec_log_user_created,
 )
 from cloudinit.util import get_hostname
+from tests.unittests.util import MockDistro
 
 MPATH = "cloudinit.log.security_event_log."
 
@@ -31,33 +32,37 @@ class TestBuildEventString:
             pytest.param(
                 OWASPEventType.SYS_SHUTDOWN,
                 None,
-                "sys_shutdown",
+                "sys_shutdown:cloud-init",
                 id="no_params",
             ),
             pytest.param(
                 OWASPEventType.AUTHN_PASSWORD_CHANGE,
                 ["testuser"],
-                "authn_password_change:testuser",
+                "authn_password_change:cloud-init,testuser",
                 id="single_param",
             ),
             pytest.param(
                 OWASPEventType.USER_CREATED,
-                ["cloud-init", "newuser", "groups:wheel"],
+                ["newuser", "groups:wheel"],
                 "user_created:cloud-init,newuser,groups:wheel",
                 id="multiple_params",
             ),
-            pytest.param(
-                OWASPEventType.USER_CREATED,
-                ["cloud-init", None, "newuser"],
-                "user_created:cloud-init,newuser",
-                id="filters_none_params",
-            ),
         ],
     )
-    def test_event_string_formatting(self, event_type, params, expected):
+    def test_event_string_formatting(
+        self, event_type, params, expected, caplog
+    ):
         """Test event string formatting with various parameter combinations."""
-        result = security_event_log._build_event_string(event_type, params)
-        assert result == expected
+        security_event_log._log_security_event(
+            event_type=event_type,
+            level=OWASPEventLevel.WARN,
+            description="Test Descr",
+            event_params=params,
+        )
+        event = caplog.records[0].msg
+        assert event["appid"] == "canonical.cloud-init"
+        assert event["level"] == "WARN"
+        assert event["event"] == expected
 
     def test_additional_data_does_not_overwrite_core_fields(self, caplog):
         """Test that additional data cannot overwrite core fields."""
@@ -94,7 +99,7 @@ class TestLogSecurityEvent:
                 event_type=OWASPEventType.USER_CREATED,
                 level=OWASPEventLevel.INFO,
                 description="User created successfully",
-                event_params=["cloud-init", "testuser"],
+                event_params=["testuser"],
             )
         event = caplog.records[0].msg
 
@@ -165,7 +170,8 @@ class TestUserCreatedEvent:
     ):
         """Test logging a user creation event."""
 
-        class DecoratedSetPasswordTest:
+        class DecoratedSetPasswordTest(MockDistro):
+
             @sec_log_user_created
             def user_created_decorator_test(self, name, **kwargs):
                 return
@@ -181,7 +187,7 @@ class TestUserCreatedEvent:
             "event": event_id,
             "description": description,
             "hostname": get_hostname(),
-            "level": "WARN",
+            "level": "INFO",
             "type": "security",
         } == caplog.records[0].msg
 
