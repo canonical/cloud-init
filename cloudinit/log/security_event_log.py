@@ -54,25 +54,6 @@ class OWASPEventType(Enum):
     # TODO(USER_UPDATED = "user_updated")
 
 
-def _build_event_string(
-    event_type: OWASPEventType, params: Optional[List[str]] = None
-) -> str:
-    """
-    Build the OWASP event string with optional parameters.
-
-    :param event_type: The type of security event.
-    :param params: Optional list of parameters to append.
-    :return: Event string in format "event_type:param1,param2,..."
-    """
-    event_str = event_type.value
-    if params:
-        # Filter out None values and convert to strings
-        filtered_params = [str(p) for p in params if p is not None]
-        if filtered_params:
-            event_str += ":" + ",".join(filtered_params)
-    return event_str
-
-
 def _log_security_event(
     event_type: OWASPEventType,
     level: OWASPEventLevel,
@@ -89,10 +70,13 @@ def _log_security_event(
     :param event_params: Parameters to include in the event string.
     :param additional_data: Additional context-specific data.
     """
+    event_str = event_type.value
+    if event_params:
+        event_str += ":" + ",".join(event_params)
     event = {
         "appid": APP_ID,
         "type": "security",
-        "event": _build_event_string(event_type, event_params),
+        "event": event_str
         "level": level.value,
         "description": description,
         "hostname": util.get_hostname(),
