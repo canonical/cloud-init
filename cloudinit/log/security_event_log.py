@@ -99,7 +99,7 @@ def sec_log_user_created(func):
     """A decorator to log a user creation event and group attributes."""
 
     @functools.wraps(func)
-    def decorator(self, name, *args, **kwargs):
+    def decorator(self, name: str, *args, **kwargs):
         if not name:
             raise RuntimeError(
                 "sec_log_user_created requires positional param name or kwarg"
