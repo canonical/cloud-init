@@ -70,9 +70,14 @@ def _log_security_event(
     :param event_params: Parameters to include in the event string.
     :param additional_data: Additional context-specific data.
     """
-    event_str = event_type.value
+    # cloud-init is the default primary 'actor' for any system change operation
     if event_params:
-        event_str += ":" + ",".join(event_params)
+        event_params.insert(0, "cloud-init")
+    else:
+        event_params = ["cloud-init"]
+
+    event_str = event_type.value
+    event_str += ":" + ",".join(event_params)
     event = {
         "appid": APP_ID,
         "type": "security",
@@ -99,7 +104,7 @@ def sec_log_user_created(func):
             raise RuntimeError(
                 "sec_log_user_created requires positional param name or kwarg"
             )
-        params = ["cloud-init", name]
+        params = [name]
         groups_msg = ""
         groups_suffix = kwargs.get("groups", "")
         if groups_suffix:
@@ -135,7 +140,7 @@ def sec_log_password_changed_batch(func):
                 event_type=OWASPEventType.AUTHN_PASSWORD_CHANGE,
                 level=OWASPEventLevel.INFO,
                 description=f"Password changed for user '{userid}'",
-                event_params=["cloud-init", userid],
+                event_params=[userid],
             )
         return response
 
@@ -152,7 +157,7 @@ def sec_log_password_changed(func):
             event_type=OWASPEventType.AUTHN_PASSWORD_CHANGE,
             level=OWASPEventLevel.INFO,
             description=f"Password changed for user '{user}'",
-            event_params=["cloud-init", user],
+            event_params=[user],
         )
         return response
 
@@ -177,7 +182,6 @@ def sec_log_system_shutdown(func):
             event_type=event_type,
             level=OWASPEventLevel.INFO,
             description=description,
-            event_params=["cloud-init"],
             additional_data={"delay": delay, "mode": mode},
         )
         return func(cls, mode=mode, delay=delay, message=message)

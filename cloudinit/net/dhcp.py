@@ -620,7 +620,6 @@ class Dhcpcd(DhcpClient):
         interface: str,
         dhcp_log_func: Optional[Callable[[str, str, str], None]] = None,
         distro=None,
-        metric=None,
     ) -> Dict[str, Any]:
         """Run dhcpcd on the interface without scripts/filesystem artifacts.
 
