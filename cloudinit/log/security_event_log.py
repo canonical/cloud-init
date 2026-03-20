@@ -20,7 +20,7 @@ Security events are logged in JSON Lines format with standardized fields:
 import functools
 import logging
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from cloudinit import util
 from cloudinit.log import loggers
@@ -76,8 +76,8 @@ def _log_security_event(
     event = {
         "appid": APP_ID,
         "type": "security",
-        "event": event_str
-        "level": level.value,
+        "event": event_str,
+        "level": str(level.value),
         "description": description,
         "hostname": util.get_hostname(),
     }
@@ -128,7 +128,7 @@ def sec_log_user_created(func):
 
 def sec_log_password_changed_batch(func):
     @functools.wraps(func)
-    def decorator(self, plist_in, *args, **kwargs):
+    def decorator(self, plist_in: List[Tuple[str, str]], *args, **kwargs):
         response = func(self, plist_in, *args, **kwargs)
         for userid, _ in plist_in:
             _log_security_event(

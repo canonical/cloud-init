@@ -1132,7 +1132,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return True
 
     @sec_log_password_changed_batch
-    def chpasswd(self, plist_in: list, hashed: bool):
+    def chpasswd(self, plist_in: List[Tuple[str, str]], hashed: bool):
         payload = (
             "\n".join(
                 (":".join([name, password]) for name, password in plist_in)
