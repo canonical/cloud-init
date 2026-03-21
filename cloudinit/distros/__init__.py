@@ -659,27 +659,78 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def get_default_user(self):
         return self.get_option("default_user")
 
-    def add_user(self, name, **kwargs) -> bool:
+    def _user_groups_to_list(self, groups) -> List[str]:
+        """Return a list of designation groups with whitespace removed."""
+        if not groups:
+            return []
+        if isinstance(groups, str):
+            groups = groups.split(",")
+        return [g.strip() for g in groups]
+
+    def _get_elevated_roles(self, **kwargs) -> List[str]:
+        elevated_roles = []
+        if kwargs.get("sudo"):
+            elevated_roles.append("sudo")
+        if kwargs.get("doas"):
+            elevated_roles.append("doas")
+        return elevated_roles
+
+    def add_user(self, name, **kwargs) -> None:
+        """Add a user to the system."""
+
+        self._add_user_preprocess_kwargs(name, kwargs)
+
+        create_groups = kwargs.pop("create_groups", True)
+
+        if isinstance(kwargs.get("groups", None), dict):
+            lifecycle.deprecate(
+                deprecated=f"The user {name} has a 'groups' config value "
+                "of type dict",
+                deprecated_version="22.3",
+                extra_message="Use a comma-delimited string or "
+                "array instead: group1,group2.",
+            )
+        groups = self._user_groups_to_list(kwargs.pop("groups", None))
+        if groups:
+            primary_group = kwargs.get("primary_group")
+            if primary_group:
+                groups.append(primary_group)
+
+        if create_groups and groups:
+            for group in groups:
+                if not util.is_group(group):
+                    self.create_group(group)
+                    LOG.debug("created group '%s' for user '%s'", group, name)
+
+        if "uid" in kwargs:
+            kwargs["uid"] = str(kwargs["uid"])
+
+        LOG.debug("Adding user %s", name)
+        cmd, log_cmd = self._build_add_user_cmd(name, groups, **kwargs)
+        try:
+            subp.subp(cmd, logstring=log_cmd)
+        except Exception as e:
+            util.logexc(LOG, "Failed to create user %s", name)
+            raise e
+
+        self._post_add_user(name, groups, **kwargs)
+
+    def _add_user_preprocess_kwargs(self, name: str, kwargs: dict) -> None:
+        """Preprocess kwargs in-place before building the add-user command.
+
+        Overridden to filter for distro-specific user creation tools.
         """
-        Add a user to the system using standard GNU tools
 
-        This should be overridden on distros where useradd is not desirable or
-        not available.
+    def _build_add_user_cmd(
+        self, name: str, groups: List[str], **kwargs
+    ) -> Tuple[List[str], List[str]]:
+        """Build the useradd command for GNU/Linux systems.
 
-        Returns False if user already exists, otherwise True.
+        Overridden  for distro-specific user-creation tools.
+
+        Returns a (cmd, log_cmd) tuple where log_cmd has sensitive values
+        redacted.
         """
-        # XXX need to make add_user idempotent somehow as we
-        # still want to add groups or modify SSH keys on pre-existing
-        # users in the image.
-        if util.is_user(name):
-            LOG.info("User %s already exists, skipping.", name)
-            return False
-
-        if "create_groups" in kwargs:
-            create_groups = kwargs.pop("create_groups")
-        else:
-            create_groups = True
-
         useradd_cmd = ["useradd", name]
         log_useradd_cmd = ["useradd", name]
         if util.system_is_snappy():
@@ -694,7 +745,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             "homedir": "--home",
             "primary_group": "--gid",
             "uid": "--uid",
-            "groups": "--groups",
             "passwd": "--password",
             "shell": "--shell",
             "expiredate": "--expiredate",
@@ -710,42 +760,10 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         redact_opts = ["passwd"]
 
-        # support kwargs having groups=[list] or groups="g1,g2"
-        groups = kwargs.get("groups")
-        if groups:
-            if isinstance(groups, str):
-                groups = groups.split(",")
-
-            if isinstance(groups, dict):
-                lifecycle.deprecate(
-                    deprecated=f"The user {name} has a 'groups' config value "
-                    "of type dict",
-                    deprecated_version="22.3",
-                    extra_message="Use a comma-delimited string or "
-                    "array instead: group1,group2.",
-                )
-
-            # remove any white spaces in group names, most likely
-            # that came in as a string like: groups: group1, group2
-            groups = [g.strip() for g in groups]
-
-            # kwargs.items loop below wants a comma delimited string
-            # that can go right through to the command.
-            kwargs["groups"] = ",".join(groups)
-
-            primary_group = kwargs.get("primary_group")
-            if primary_group:
-                groups.append(primary_group)
-
-        if create_groups and groups:
-            for group in groups:
-                if not util.is_group(group):
-                    self.create_group(group)
-                    LOG.debug("created group '%s' for user '%s'", group, name)
-        if "uid" in kwargs.keys():
-            kwargs["uid"] = str(kwargs["uid"])
-
         # Check the values and create the command
+        if groups:
+            useradd_cmd.extend(["--groups", ",".join(groups)])
+            log_useradd_cmd.extend(["--groups", ",".join(groups)])
         for key, val in sorted(kwargs.items()):
             if key in useradd_opts and val and isinstance(val, str):
                 useradd_cmd.extend([useradd_opts[key], val])
@@ -769,16 +787,13 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             useradd_cmd.append("-m")
             log_useradd_cmd.append("-m")
 
-        # Run the command
-        LOG.debug("Adding user %s", name)
-        try:
-            subp.subp(useradd_cmd, logstring=log_useradd_cmd)
-        except Exception as e:
-            util.logexc(LOG, "Failed to create user %s", name)
-            raise e
+        return useradd_cmd, log_useradd_cmd
 
-        # Indicate that a new user was created
-        return True
+    def _post_add_user(self, name: str, groups: List[str], **kwargs) -> None:
+        """Hook called after the user-creation command succeeds.
+
+        Overridden to perform distro-specific post-creation steps.
+        """
 
     def add_snap_user(self, name, **kwargs):
         """
@@ -802,13 +817,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 create_user_cmd, logstring=create_user_cmd, capture=True
             )
             LOG.debug("snap create-user returned: %s:%s", out, err)
-            jobj = util.load_json(out)
-            username = jobj.get("username", None)
         except Exception as e:
             util.logexc(LOG, "Failed to create snap user %s", name)
             raise e
-
-        return username
 
     def _shadow_file_has_empty_user_password(self, username) -> bool:
         """
@@ -869,8 +880,11 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         if "snapuser" in kwargs:
             return self.add_snap_user(name, **kwargs)
 
-        # Add the user
-        pre_existing_user = not self.add_user(name, **kwargs)
+        pre_existing_user = util.is_user(name)
+        if pre_existing_user:
+            LOG.info("User %s already exists, skipping.", name)
+        else:
+            self.add_user(name, **kwargs)
 
         has_existing_password = False
         ud_blank_password_specified = False
@@ -1021,7 +1035,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 ssh_util.setup_user_keys(
                     set(cloud_keys), name, options=disable_option
                 )
-        return True
 
     def lock_passwd(self, name):
         """
@@ -1113,7 +1126,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         return True
 
-    def chpasswd(self, plist_in: list, hashed: bool):
+    def chpasswd(self, plist_in: List[Tuple[str, str]], hashed: bool):
         payload = (
             "\n".join(
                 (":".join([name, password]) for name, password in plist_in)
@@ -1323,8 +1336,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     @classmethod
     def shutdown_command(cls, *, mode, delay, message):
-        # called from cc_power_state_change.load_power_state
-        command = ["shutdown", cls.shutdown_options_map[mode]]
         try:
             if delay != "now":
                 delay = "+%d" % int(delay)
@@ -1333,10 +1344,14 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 "power_state[delay] must be 'now' or '+m' (minutes)."
                 " found '%s'." % (delay,)
             ) from e
-        args = command + [delay]
+        return cls._build_shutdown_command(mode, delay, message)
+
+    @classmethod
+    def _build_shutdown_command(cls, mode, delay, message):
+        command = ["shutdown", cls.shutdown_options_map[mode], delay]
         if message:
-            args.append(message)
-        return args
+            command.append(message)
+        return command
 
     @classmethod
     def reload_init(cls, rcs=None):
