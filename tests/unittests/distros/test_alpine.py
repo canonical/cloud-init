@@ -41,7 +41,9 @@ class TestAlpineBusyboxUserGroup:
 
         distro.add_user(user, lock_passwd=True)
 
-        m_subp.assert_called_with(["adduser", "-D", user])
+        m_subp.assert_called_with(
+            ["adduser", "-D", user], logstring=["adduser", "-D", user]
+        )
 
         contents = util.load_text_file(shadow_file)
         expected = root_entry + "\n" + user + ":!:19848::::::" + "\n"

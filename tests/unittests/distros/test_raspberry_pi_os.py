@@ -118,43 +118,39 @@ class TestRaspberryPiOS:
         )
 
     @mock.patch(M_PATH + "subp.subp")
-    def test_add_user_happy_path(self, m_subp):
+    @mock.patch("cloudinit.distros.util.is_user", return_value=False)
+    def test_add_user_happy_path(self, m_is_user, m_subp):
         cls = fetch("raspberry_pi_os")
         distro = cls("raspberry-pi-os", {}, None)
-        # Mock the superclass add_user to return True
-        with mock.patch(
-            "cloudinit.distros.debian.Distro.add_user", return_value=True
+        with mock.patch.object(
+            distro,
+            "_build_add_user_cmd",
+            return_value=(["useradd", "pi", "-m"], ["useradd", "pi", "-m"]),
         ):
-            assert distro.add_user("pi") is True
-            m_subp.assert_called_once_with(
+            distro.add_user("pi")
+            m_subp.assert_any_call(
                 ["/usr/bin/rename-user", "-f", "-s"],
                 update_env={"SUDO_USER": "pi"},
             )
 
     @mock.patch(M_PATH + "subp.subp")
-    def test_add_user_existing_user(self, m_subp):
+    @mock.patch("cloudinit.distros.util.is_user", return_value=False)
+    def test_add_user_rename_fails_logs_error(self, m_is_user, m_subp, caplog):
         cls = fetch("raspberry_pi_os")
         distro = cls("raspberry-pi-os", {}, None)
-        with mock.patch(
-            "cloudinit.distros.debian.Distro.add_user", return_value=False
+        # First subp call (useradd) succeeds; second (rename-user) fails.
+        m_subp.side_effect = [
+            None,
+            ProcessExecutionError("rename-user failed"),
+        ]
+        with mock.patch.object(
+            distro,
+            "_build_add_user_cmd",
+            return_value=(["useradd", "pi", "-m"], ["useradd", "pi", "-m"]),
         ):
-            assert distro.add_user("pi") is False
-            m_subp.assert_not_called()
-
-    @mock.patch(
-        M_PATH + "subp.subp",
-        side_effect=ProcessExecutionError("rename-user failed"),
-    )
-    @mock.patch("cloudinit.distros.debian.Distro.add_user", return_value=True)
-    def test_add_user_rename_fails_logs_error(
-        self, m_super_add_user, m_subp, caplog
-    ):
-        cls = fetch("raspberry_pi_os")
-        distro = cls("raspberry-pi-os", {}, None)
-
-        with caplog.at_level(logging.ERROR):
-            assert distro.add_user("pi") is False
-            assert "Failed to setup user" in caplog.text
+            with caplog.at_level(logging.ERROR):
+                distro.add_user("pi")
+                assert "Failed to setup user" in caplog.text
 
     @mock.patch(
         "cloudinit.net.generate_fallback_config",

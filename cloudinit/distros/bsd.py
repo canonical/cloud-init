@@ -1,7 +1,7 @@
 import logging
 import platform
 import re
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import cloudinit.net.netops.bsd_netops as bsd_netops
 from cloudinit import distros, helpers, net, subp, util
@@ -149,7 +149,7 @@ class BSD(distros.Distro):
     def apply_locale(self, locale, out_fn=None):
         LOG.debug("Cannot set the locale.")
 
-    def chpasswd(self, plist_in: list, hashed: bool):
+    def chpasswd(self, plist_in: List[Tuple[str, str]], hashed: bool):
         for name, password in plist_in:
             self.set_passwd(name, password, hashed=hashed)
 
