@@ -10,7 +10,9 @@
 
 import collections.abc  # pylint: disable=import-error
 import copy
+import datetime
 import io
+import json
 import logging
 import logging.config
 import logging.handlers
@@ -22,6 +24,8 @@ from contextlib import suppress
 from typing import DefaultDict
 
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(filename)s[%(levelname)s]: %(message)s"
+SECURITY_LOG_FORMAT = "%(message)s"
+SECURITY = logging.WARNING - 5
 DEPRECATED = 35
 TRACE = logging.DEBUG - 5
 
@@ -41,6 +45,42 @@ class CustomLoggerType(logging.Logger):
     def deprecated(self, *args, **kwargs):
         pass
 
+    def security(self, *args, **kwargs):
+        pass
+
+
+SECURITY_LOG_FILE = "/var/log/cloud-init-security.log"
+
+
+class SecurityOnlyFilter(logging.Filter):
+    """Pass only SECURITY level records."""
+
+    def filter(self, record):
+        return record.levelno == SECURITY
+
+
+class NoSecurityFilter(logging.Filter):
+    """Block SECURITY level records from non-security handlers."""
+
+    def filter(self, record):
+        return record.levelno != SECURITY
+
+
+class SecurityFormatter(logging.Formatter):
+    """Inject a 'datetime' field (UTC ISO-8601) into SECURITY JSON messages."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        # Use record.msg instead of getMessage which formats dict to JSON
+        event = copy.deepcopy(record.msg)
+        if not isinstance(event, dict):
+            raise TypeError(
+                f"SECURITY logs expected dict but found {type(event)}: {event}"
+            )
+        event["datetime"] = datetime.datetime.fromtimestamp(
+            record.created, tz=datetime.timezone.utc
+        ).isoformat()
+        return json.dumps(event, separators=(",", ":"))
+
 
 def setup_basic_logging(level=logging.DEBUG, formatter=None):
     formatter = formatter or logging.Formatter(DEFAULT_LOG_FORMAT)
@@ -48,8 +88,27 @@ def setup_basic_logging(level=logging.DEBUG, formatter=None):
     console = logging.StreamHandler(sys.stderr)
     console.setFormatter(formatter)
     console.setLevel(level)
+    console.addFilter(NoSecurityFilter())
     root.addHandler(console)
     root.setLevel(level)
+
+
+def setup_security_logging(
+    root: logging.Logger, log_file: str = SECURITY_LOG_FILE
+) -> None:
+    """Attach a FileHandler routing SECURITY records to log_file if absent."""
+    for h in root.handlers:
+        if isinstance(h, logging.FileHandler) and h.baseFilename == log_file:
+            return  # handler already attached
+
+    try:
+        handler = logging.FileHandler(log_file)
+    except OSError:
+        return
+    handler.setFormatter(SecurityFormatter())
+    handler.addFilter(SecurityOnlyFilter())
+    handler.setLevel(SECURITY)
+    logging.getLogger().addHandler(handler)
 
 
 def flush_loggers(root):
@@ -63,7 +122,7 @@ def flush_loggers(root):
 
 
 def define_extra_loggers() -> None:
-    """Add DEPRECATED and TRACE log levels to the logging module."""
+    """Add SECURITY, DEPRECATED and TRACE log levels to the logging module."""
 
     def new_logger(level):
         def log_at_level(self, message, *args, **kwargs):
@@ -72,8 +131,10 @@ def define_extra_loggers() -> None:
 
         return log_at_level
 
+    logging.addLevelName(SECURITY, "SECURITY")
     logging.addLevelName(DEPRECATED, "DEPRECATED")
     logging.addLevelName(TRACE, "TRACE")
+    setattr(logging.Logger, "security", new_logger(SECURITY))
     setattr(logging.Logger, "deprecated", new_logger(DEPRECATED))
     setattr(logging.Logger, "trace", new_logger(TRACE))
 
@@ -122,6 +183,7 @@ def setup_logging(cfg=None):
 
             # Attempt to load its config.
             logging.config.fileConfig(log_cfg)
+            setup_security_logging(root_logger)
 
             # Configure warning exporter after loading logging configuration
             root_logger.addHandler(exporter)
@@ -216,7 +278,10 @@ def configure_root_logger():
     # add handler only to the root logger
     handler = LogExporter()
     handler.setLevel(logging.WARN)
-    logging.getLogger().addHandler(handler)
+    handler.addFilter(NoSecurityFilter())
+    root_logger = logging.getLogger()
+    root_logger.addHandler(handler)
+    setup_security_logging(root_logger)
 
     # LogRecord allows us to report more useful information than __init__.py
     logging.setLogRecordFactory(CloudInitLogRecord)

@@ -10,6 +10,7 @@ import importlib
 import json
 import re
 import uuid
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -290,6 +291,28 @@ class TestCombined:
         )
         if class_client.execute("command -v rsyslogd").ok:
             assert "My test log" in class_client.read_from_file(log_file)
+
+    def test_security_logs(self, class_client: IntegrationInstance):
+        """Test security logs are set in /var/log/cloud-init-security.log."""
+        client = class_client
+        security_logs = []
+        for line in client.read_from_file(
+            "/var/log/cloud-init-security.log"
+        ).splitlines():
+            sec_log = json.loads(line)
+            assert datetime.strptime(
+                sec_log.pop("datetime"), "%Y-%m-%dT%H:%M:%S.%f+00:00"
+            )
+            security_logs.append(sec_log)
+        assert len(security_logs) >= 1
+        assert {
+            "appid": "canonical.cloud-init",
+            "description": "User 'craig' was created",
+            "event": "user_created:cloud-init,craig",
+            "type": "security",
+            "level": "INFO",
+            "hostname": client.instance.name,
+        } in security_logs
 
     def test_runcmd(self, class_client: IntegrationInstance):
         """Test runcmd works as expected"""

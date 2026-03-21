@@ -31,6 +31,7 @@ from typing import (
     Tuple,
     Type,
     Union,
+    final,
 )
 
 import cloudinit.net.netops.iproute2 as iproute2
@@ -52,6 +53,12 @@ from cloudinit.distros.package_management.utils import known_package_managers
 from cloudinit.distros.parsers import hosts
 from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
 from cloudinit.lifecycle import log_with_downgradable_level
+from cloudinit.log.security_event_log import (
+    sec_log_password_changed,
+    sec_log_password_changed_batch,
+    sec_log_system_shutdown,
+    sec_log_user_created,
+)
 from cloudinit.net import activators, dhcp, renderers
 from cloudinit.net.netops import NetOps
 from cloudinit.net.network_state import parse_net_config_data
@@ -667,6 +674,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             elevated_roles.append("doas")
         return elevated_roles
 
+    @final
+    @sec_log_user_created
     def add_user(self, name: str, *, groups: List[str], **kwargs) -> None:
         """Add a user to the system."""
 
@@ -776,6 +785,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         Overridden to perform distro-specific post-creation steps.
         """
 
+    @final
+    @sec_log_user_created
     def add_snap_user(self, name, **kwargs):
         """
         Add a snappy user to the system using snappy tools
@@ -836,6 +847,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 return True
         return False
 
+    @final
     def create_user(self, name: str, *, groups: List[str], **kwargs):
         """
         Creates or partially updates the ``name`` user in the system.
@@ -1087,6 +1099,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             util.logexc(LOG, "Failed to set 'expire' for %s", user)
             raise e
 
+    @sec_log_password_changed
     def set_passwd(self, user, passwd, hashed=False):
         pass_string = "%s:%s" % (user, passwd)
         cmd = ["chpasswd"]
@@ -1107,6 +1120,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         return True
 
+    @sec_log_password_changed_batch
     def chpasswd(self, plist_in: List[Tuple[str, str]], hashed: bool):
         payload = (
             "\n".join(
@@ -1316,6 +1330,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 LOG.info("Added user '%s' to group '%s'", member, name)
 
     @classmethod
+    @final
+    @sec_log_system_shutdown
     def shutdown_command(cls, *, mode, delay, message):
         try:
             if delay != "now":
