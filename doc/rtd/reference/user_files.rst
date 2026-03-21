@@ -14,6 +14,9 @@ Log files
 - :file:`/var/log/cloud-init.log`: The primary log file. Verbose, but useful.
 - :file:`/var/log/cloud-init-output.log`: Captures the output from each stage.
   Output from user scripts goes here.
+- :file:`/var/log/cloud-init-security.log`: This file contains OWASP security
+  events as JSON lines format implementing OWASP events including user creation
+  and update, password modification and system power events.
 
 Logs are appended to the files in :file:`/var/log`: files may contain logs
 from multiple boots.

@@ -6,6 +6,7 @@ from typing import List
 import pytest
 
 from cloudinit import distros, features, lifecycle, ssh_util
+from cloudinit.log import loggers
 from tests.unittests.helpers import get_distro, mock
 from tests.unittests.util import abstract_to_concrete
 
@@ -447,6 +448,11 @@ class TestCreateUser:
         for log in expected_logs:
             assert log in caplog.text
         assert m_subp.call_args_list == expected
+        if "passwd" not in create_kwargs:
+            assert (
+                "authn_password_change:cloud-init,foo_user"
+                in caplog.records[-1].msg["event"]
+            )
 
     @mock.patch("cloudinit.distros.util.is_group")
     def test_group_added(self, m_is_group, m_subp, dist, mocker):
@@ -511,6 +517,10 @@ class TestCreateUser:
             mock.call(["passwd", "-l", USER]),
         ]
         assert m_subp.call_args_list == expected
+        assert (
+            caplog.records[-1].msg["event"]
+            == "user_created:cloud-init,foo_user,groups:group1,existing_group"
+        )
 
     @mock.patch("cloudinit.distros.util.is_group")
     def test_create_groups_with_whitespace_string(
@@ -643,12 +653,17 @@ class TestCreateUser:
             "config is deprecated in 22.2 and scheduled to be removed"
             " in 27.2. Use 'null' instead."
         )
-        deprecation_record = None
+        deprecation_record = security_record = None
         for record in caplog.records:
             if deprecation_msg in record.msg:
                 deprecation_record = record
+            if record.levelno == loggers.SECURITY:
+                security_record = record
         assert deprecation_record, "Missing deprecation log"
         assert deprecation_record.levelname in expected_levels
+        assert security_record, "Missing security log"
+        security_event = security_record.msg
+        assert security_event["event"] == "user_created:cloud-init,foo_user"
 
     def test_explicit_sudo_none(self, m_subp, dist, caplog, mocker):
         mocker.patch(
