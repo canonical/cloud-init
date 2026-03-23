@@ -556,7 +556,6 @@ class TestOpenSSLManagerActions:
         for fp in fingerprints:
             assert fp in keys_by_fp
 
-    @pytest.mark.allow_subp_for("openssl", "ssh-keygen")
     def test_parse_certificates_processes_all_certificates(self):
         pem_bundle = (
             "header\r\n"
@@ -581,6 +580,9 @@ class TestOpenSSLManagerActions:
             "-----END CERTIFICATE-----"
         )
         with mock.patch.object(
+            azure_helper.OpenSSLManager,
+            "generate_certificate",
+        ), mock.patch.object(
             azure_helper.OpenSSLManager,
             "_decrypt_certs_from_xml",
             return_value=pem_bundle,
