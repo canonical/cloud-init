@@ -45,6 +45,22 @@ The settings that may be configured are:
 
   Boolean to configure secondary IP address(es) for each NIC per IMDS
   configuration. Default is True.
+
+* :command:`apply_network_config_set_name`
+
+  Boolean to include ``set-name`` directives in the generated network
+  configuration, which renames interfaces to ``ethX`` naming. When set to
+  False, interfaces are matched by MAC address only and retain kernel-assigned
+  names. Default is True.
+
+  Azure's IMDS does not guarantee the ordering of NICs in the network metadata
+  response (see `Azure IMDS documentation
+  <https://learn.microsoft.com/azure/virtual-machines/instance-metadata-service>`_).
+  Because cloud-init derives ``ethX`` names from the IMDS response order,
+  NIC names may change between reboots. Disabling this option avoids that
+  problem by matching interfaces on MAC address only, allowing the kernel or
+  udev to assign and retain stable names.
+
 * :command:`data_dir`
 
   Path used to read meta-data files and write crawled data.
@@ -67,6 +83,7 @@ An example configuration with the default values is provided below:
      Azure:
        apply_network_config: true
        apply_network_config_for_secondary_ips: true
+       apply_network_config_set_name: false
        data_dir: /var/lib/waagent
        disk_aliases:
          ephemeral0: /dev/disk/cloud/azure_resource
