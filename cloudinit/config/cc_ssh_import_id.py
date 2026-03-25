@@ -148,13 +148,25 @@ def import_ssh_ids(ids, user):
     else:
         LOG.error("Neither sudo nor doas available! Unable to import SSH ids.")
         return
-    LOG.debug("Importing SSH ids for user %s.", user)
+    retry_ssh_import(cmd, user, 3, 0.5)
 
-    try:
-        subp.subp(cmd, capture=False)
-    except subp.ProcessExecutionError as exc:
-        util.logexc(LOG, "Failed to run command to import %s SSH ids", user)
-        raise exc
+
+def retry_ssh_import(cmd, user, tries, delay):
+    LOG.debug("Importing SSH ids for user %s.", user)
+    for _ in range(tries):
+        try:
+            subp.subp(cmd, capture=False)
+            break
+        except subp.ProcessExecutionError as exc:
+            if exc.exit_code == 1:
+                LOG.debug(
+                    "Retrying SSH import command of %s on exit[%d]",
+                    user,
+                    exc.exit_code,
+                )
+            else:
+                util.logexc(LOG, "Failed to import %s SSH IDs", user)
+                raise exc
 
 
 def is_key_in_nested_dict(config: dict, search_key: str) -> bool:
