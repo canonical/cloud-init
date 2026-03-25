@@ -14,9 +14,9 @@ PIPE="/run/cloud-init/share/hook-hotplug-cmd"
 [ -p $PIPE ] || mkfifo -m700 $PIPE
 
 while true; do
-  # shellcheck disable=SC2162
-  if read args < $PIPE; then
-    # shellcheck disable=SC2086
-    /usr/bin/cloud-init devel hotplug-hook $args
-  fi
+    # shellcheck disable=SC2162
+    if read args < $PIPE; then
+        # shellcheck disable=SC2086
+        /usr/bin/cloud-init devel hotplug-hook $args
+    fi
 done
