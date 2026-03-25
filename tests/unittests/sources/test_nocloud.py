@@ -2,6 +2,7 @@
 
 import os
 import textwrap
+from unittest import mock
 
 import pytest
 import yaml
@@ -11,7 +12,7 @@ from cloudinit.sources.DataSourceNoCloud import (
     DataSourceNoCloudNet,
     parse_cmdline_data,
 )
-from tests.unittests.helpers import mock, populate_dir
+from tests.unittests.helpers import populate_dir
 
 
 @pytest.fixture(autouse=True)

@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from io import StringIO
+from unittest import mock
 
 import pytest
 
@@ -8,7 +9,6 @@ from cloudinit.cmd.devel import render
 from cloudinit.helpers import Paths
 from cloudinit.templater import JinjaSyntaxParsingException
 from cloudinit.util import ensure_dir, write_file
-from tests.unittests.helpers import mock
 
 M_PATH = "cloudinit.cmd.devel.render."
 

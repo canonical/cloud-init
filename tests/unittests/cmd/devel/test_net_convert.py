@@ -1,13 +1,13 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import itertools
+from unittest import mock
 
 import pytest
 import yaml
 
 from cloudinit.cmd.devel import net_convert
 from cloudinit.distros.debian import NETWORK_FILE_HEADER
-from tests.unittests.helpers import mock
 
 M_PATH = "cloudinit.cmd.devel.net_convert."
 

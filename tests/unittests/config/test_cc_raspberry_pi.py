@@ -1,5 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+from unittest import mock
+
 import pytest
 
 import cloudinit.config.cc_raspberry_pi as cc_rpi
@@ -15,7 +17,7 @@ from cloudinit.config.schema import (
     validate_cloudconfig_schema,
 )
 from cloudinit.subp import ProcessExecutionError
-from tests.unittests.helpers import mock, skipUnlessJsonSchema
+from tests.unittests.helpers import skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
 M_PATH = "cloudinit.config.cc_raspberry_pi."
