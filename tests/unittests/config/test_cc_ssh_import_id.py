@@ -127,35 +127,49 @@ class TestHandleSshImportIDs:
             "Neither sudo nor doas available! Unable to import SSH ids"
         ) in caplog.text
 
-    @pytest.mark.parametrize(
-        "subp_errors",
-        (
-            [
-                ProcessExecutionError(exit_code=1, stderr="chad"),
-                ProcessExecutionError(
-                    stderr="something failed fast", exit_code=2
-                ),
+    @mock.patch("cloudinit.config.cc_ssh_import_id.time.sleep")
+    @mock.patch("cloudinit.ssh_util.pwd.getpwnam")
+    @mock.patch("cloudinit.subp.which")
+    def test_retry_three_times_on_exit_code_1(
+        self, m_which, m_getpwnam, m_sleep, caplog, mocker
+    ):
+        """Retry up to 3 attempts when ssh-import-id exits with code 1."""
+        m_subp = mocker.patch(
+            "cloudinit.config.cc_ssh_import_id.subp.subp",
+            side_effect=[
+                ProcessExecutionError(exit_code=1, stderr="try1"),
+                ProcessExecutionError(exit_code=1, stderr="try2"),
+                ProcessExecutionError(exit_code=1, stderr="try3"),
             ],
-            [ProcessExecutionError(exit_code=1), None],
-        ),
-    )
+        )
+        m_which.return_value = "/usr/bin/ssh-import-id"
+        ids = ["waffle"]
+        user = "bob"
+        with pytest.raises(ProcessExecutionError):
+            cc_ssh_import_id.import_ssh_ids(ids, user)
+
+        assert m_subp.call_count == 3
+        assert m_sleep.call_count == 2
+        assert "Retrying SSH import command of bob on exit[1]" in caplog.text
+        assert "Failed to import bob SSH IDs" in caplog.text
+
+    @mock.patch("cloudinit.config.cc_ssh_import_id.time.sleep")
     @mock.patch("cloudinit.ssh_util.pwd.getpwnam")
     @mock.patch("cloudinit.config.cc_ssh_import_id.subp.subp")
     @mock.patch("cloudinit.subp.which")
-    def test_retry_on_errors(
-        self, m_which, m_subp, m_getpwnam, subp_errors, caplog
+    def test_do_not_retry_when_exit_code_not_1(
+        self, m_which, m_subp, m_getpwnam, m_sleep, caplog
     ):
-        """Test retries on errors from sudo"""
+        """Do not retry ssh-import-id for non-retryable exit codes."""
         m_which.return_value = "/usr/bin/ssh-import-id"
-        m_subp.side_effect = subp_errors
+        m_subp.side_effect = ProcessExecutionError(exit_code=2, stderr="boom")
         ids = ["waffle"]
         user = "bob"
-        if isinstance(subp_errors[-1], Exception):
-            with pytest.raises(subp_errors[-1].__class__):
-                cc_ssh_import_id.import_ssh_ids(ids, user)
-        else:
+
+        with pytest.raises(ProcessExecutionError):
             cc_ssh_import_id.import_ssh_ids(ids, user)
-        if subp_errors[-1]:
-            assert str(subp_errors[-1]) in caplog.text
-            assert "Failed to import bob SSH IDs" in caplog.text
-        assert "Retrying SSH import command of bob on exit[1]" in caplog.text
+
+        assert m_subp.call_count == 1
+        assert m_sleep.call_count == 0
+        assert "Retrying SSH import command" not in caplog.text
+        assert "Failed to import bob SSH IDs" in caplog.text

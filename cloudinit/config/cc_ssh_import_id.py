@@ -9,6 +9,7 @@
 
 import logging
 import pwd
+import time
 
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
@@ -153,20 +154,25 @@ def import_ssh_ids(ids, user):
 
 def retry_ssh_import(cmd, user, tries, delay):
     LOG.debug("Importing SSH ids for user %s.", user)
-    for _ in range(tries):
+    last_err = None
+    for idx in range(tries):
         try:
-            subp.subp(cmd, capture=False)
-            break
+            return subp.subp(cmd, capture=False)
         except subp.ProcessExecutionError as exc:
-            if exc.exit_code == 1:
+            last_err = exc
+            if exc.exit_code != 1:
+                break
+            if tries - idx > 1 and exc.exit_code == 1:
                 LOG.debug(
                     "Retrying SSH import command of %s on exit[%d]",
                     user,
                     exc.exit_code,
                 )
-            else:
-                util.logexc(LOG, "Failed to import %s SSH IDs", user)
-                raise exc
+                time.sleep(delay)
+
+    if last_err:
+        util.logexc(LOG, "Failed to import %s SSH IDs", user)
+        raise last_err
 
 
 def is_key_in_nested_dict(config: dict, search_key: str) -> bool:
