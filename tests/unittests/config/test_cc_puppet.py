@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import textwrap
+from unittest import mock
 
 import pytest
 import responses
@@ -13,7 +14,7 @@ from cloudinit.config.schema import (
 )
 from cloudinit.distros import PackageInstallerError
 from cloudinit.subp import ProcessExecutionError
-from tests.unittests.helpers import mock, skipUnlessJsonSchema
+from tests.unittests.helpers import skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
 

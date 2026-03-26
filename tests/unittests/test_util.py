@@ -35,7 +35,7 @@ from cloudinit.log import log_util
 from cloudinit.sources import DataSourceHostname
 from cloudinit.subp import SubpResult
 from tests.unittests import helpers
-from tests.unittests.helpers import random_string, skipUnlessJinja
+from tests.unittests.helpers import random_string
 
 LOG = logging.getLogger(__name__)
 M_PATH = "cloudinit.util."
@@ -470,7 +470,6 @@ class TestUtil:
         )
         assert util.read_conf("any") == {"a": "b"}
 
-    @skipUnlessJinja()
     def test_read_conf_with_template(self, mocker, caplog):
         mocker.patch("os.path.exists", return_value=True)
         mocker.patch(
@@ -489,7 +488,6 @@ class TestUtil:
             "from 'cfg_path'"
         ) in caplog.text
 
-    @skipUnlessJinja()
     def test_read_conf_with_failed_config_json(self, mocker, caplog):
         mocker.patch("os.path.exists", return_value=True)
         mocker.patch(
@@ -504,7 +502,6 @@ class TestUtil:
         assert "Failed loading yaml blob" in caplog.text
         assert conf == {}
 
-    @skipUnlessJinja()
     def test_read_conf_with_failed_instance_data_json(self, mocker, caplog):
         mocker.patch("os.path.exists", return_value=True)
         mocker.patch(
@@ -527,7 +524,6 @@ class TestUtil:
             "{% if c %} C is present {% else % } C is NOT present {% endif %}",
         ],
     )
-    @skipUnlessJinja()
     def test_read_conf_with_config_invalid_jinja_syntax(
         self, mocker, caplog, template
     ):

@@ -2,12 +2,13 @@
 
 """Tests for cloud-id command line utility."""
 
+from unittest import mock
+
 import pytest
 
 from cloudinit import atomic_helper
 from cloudinit.cmd import cloud_id, status
 from cloudinit.helpers import Paths
-from tests.unittests.helpers import mock
 
 M_PATH = "cloudinit.cmd.cloud_id."
 

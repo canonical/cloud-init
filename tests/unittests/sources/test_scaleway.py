@@ -3,6 +3,7 @@
 
 import json
 import socket
+from unittest import mock
 from urllib.parse import SplitResult, urlsplit
 
 import pytest
@@ -13,7 +14,7 @@ from requests.exceptions import ConnectionError, ConnectTimeout
 from cloudinit import settings
 from cloudinit.distros import ubuntu
 from cloudinit.sources import DataSourceScaleway
-from tests.unittests.helpers import mock, responses_assert_call_count
+from tests.unittests.helpers import responses_assert_call_count
 
 
 class DataResponses:

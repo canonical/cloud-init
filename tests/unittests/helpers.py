@@ -10,15 +10,12 @@ import time
 import unittest
 from contextlib import contextmanager
 from unittest import mock
-from unittest.util import strclass
 from urllib.parse import urlsplit, urlunsplit
 
 import pytest
 import responses
 
 from cloudinit import distros, helpers, settings, util
-from cloudinit.helpers import Paths
-from cloudinit.templater import JINJA_AVAILABLE
 from tests.helpers import cloud_init_project_dir
 
 try:
@@ -114,42 +111,6 @@ def random_string(length=8):
     )
 
 
-# Note: The use of this class and unittests.TestCase is discouraged. Use pytest
-# instead. See development docs on testing.
-class TestCase(unittest.TestCase):
-    def reset_global_state(self):
-        """Reset any global state to its original settings.
-
-        cloudinit caches some values in cloudinit.util.  Unit tests that
-        involved those cached paths were then subject to failure if the order
-        of invocation changed (LP: #1703697).
-
-        This function resets any of these global state variables to their
-        initial state.
-
-        In the future this should really be done with some registry that
-        can then be cleaned in a more obvious way.
-        """
-        util._DNS_REDIRECT_IP = None
-
-    def setUp(self):
-        super(TestCase, self).setUp()
-        self.reset_global_state()
-
-    def shortDescription(self):
-        return strclass(self.__class__) + "." + self._testMethodName
-
-    def add_patch(self, target, attr, *args, **kwargs):
-        """Patches specified target object and sets it as attr on test
-        instance also schedules cleanup"""
-        if "autospec" not in kwargs:
-            kwargs["autospec"] = True
-        m = mock.patch(target, *args, **kwargs)
-        p = m.start()
-        self.addCleanup(m.stop)
-        setattr(self, attr, p)
-
-
 def replicate_test_root(example_root, target_root):
     real_root = resourceLocation()
     real_root = os.path.join(real_root, "roots", example_root)
@@ -193,24 +154,6 @@ def responses_assert_call_count(url: str, count: int) -> bool:
             f"Expected URL '{url}' to be called {count} times. "
             f"Called {call_count} times."
         )
-
-
-def get_mock_paths(temp_dir):
-    class MockPaths(Paths):
-        def __init__(self, path_cfgs: dict, ds=None):
-            super().__init__(path_cfgs=path_cfgs, ds=ds)
-
-            self.cloud_dir: str = path_cfgs.get(
-                "cloud_dir", f"{temp_dir}/var/lib/cloud"
-            )
-            self.run_dir: str = path_cfgs.get(
-                "run_dir", f"{temp_dir}/run/cloud/"
-            )
-            self.template_dir: str = path_cfgs.get(
-                "templates_dir", f"{temp_dir}/etc/cloud/templates/"
-            )
-
-    return MockPaths
 
 
 def populate_dir(path, files):
@@ -338,43 +281,6 @@ def skipUnlessJsonSchema():
         _missing_jsonschema_dep,
         reason="No python-jsonschema dependency present.",
     )
-
-
-def skipUnlessJinja():
-    return pytest.mark.skipif(
-        not JINJA_AVAILABLE, reason="No jinja dependency present."
-    )
-
-
-@skipUnlessJinja()
-def skipUnlessJinjaVersionGreaterThan(version=(0, 0, 0)):
-    import jinja2
-
-    return pytest.mark.skipif(
-        tuple(map(int, jinja2.__version__.split("."))) < version,
-        reason=f"jinj2 version is less than {version}",
-    )
-
-
-def skipIfJinja():
-    return pytest.mark.skipif(
-        JINJA_AVAILABLE, reason="Jinja dependency present."
-    )
-
-
-# older versions of mock do not have the useful 'assert_not_called'
-if not hasattr(mock.Mock, "assert_not_called"):
-
-    def __mock_assert_not_called(mmock):
-        if mmock.call_count != 0:
-            msg = (
-                "[citest] Expected '%s' to not have been called. "
-                "Called %s times."
-                % (mmock._mock_name or "mock", mmock.call_count)
-            )
-            raise AssertionError(msg)
-
-    mock.Mock.assert_not_called = __mock_assert_not_called  # type: ignore
 
 
 @contextmanager

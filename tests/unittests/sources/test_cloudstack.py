@@ -2,6 +2,7 @@
 # pylint: disable=attribute-defined-outside-init
 from socket import gaierror
 from textwrap import dedent
+from unittest import mock
 from unittest.mock import patch
 
 import pytest
@@ -16,7 +17,6 @@ from cloudinit.sources.DataSourceCloudStack import (
     get_data_server,
     get_vr_address,
 )
-from tests.unittests.helpers import mock
 from tests.unittests.util import MockDistro
 
 SOURCES_PATH = "cloudinit.sources"

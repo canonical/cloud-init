@@ -1,5 +1,6 @@
 from contextlib import suppress
 from typing import Any, Dict, List, Optional, Union
+from unittest import mock
 
 import pytest
 
@@ -8,7 +9,6 @@ from cloudinit.sources.DataSourceAkamai import (
     DataSourceAkamaiLocal,
     MetadataAvailabilityResult,
 )
-from tests.unittests.helpers import mock
 
 
 class TestDataSourceAkamai:

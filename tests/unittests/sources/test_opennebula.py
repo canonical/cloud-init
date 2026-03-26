@@ -3,12 +3,13 @@
 
 import os
 import pwd
+from unittest import mock
 
 import pytest
 
 from cloudinit import atomic_helper, util
 from cloudinit.sources import DataSourceOpenNebula as ds
-from tests.unittests.helpers import mock, populate_dir
+from tests.unittests.helpers import populate_dir
 
 TEST_VARS = {
     "VAR1": "single",

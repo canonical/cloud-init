@@ -1,12 +1,12 @@
 import json
 import os
+from unittest import mock
 
 import pytest
 import responses
 
 from cloudinit import helpers
 from cloudinit.sources import DataSourceBigstep as bigstep
-from tests.unittests.helpers import mock
 
 M_PATH = "cloudinit.sources.DataSourceBigstep."
 
