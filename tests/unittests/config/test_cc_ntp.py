@@ -5,6 +5,7 @@ import re
 import shutil
 from os.path import dirname
 from typing import Any, Dict, List
+from unittest import mock
 
 import pytest
 
@@ -15,7 +16,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import mock, skipUnlessJsonSchema
+from tests.unittests.helpers import skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
 NTP_TEMPLATE = """\

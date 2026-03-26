@@ -3,6 +3,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 import os
+from unittest import mock
 
 import requests
 import responses
@@ -16,7 +17,6 @@ from cloudinit.sources.DataSourceExoscale import (
     get_password,
     read_metadata,
 )
-from tests.unittests.helpers import mock
 
 TEST_PASSWORD_URL = "{}:{}/{}/".format(
     METADATA_URL, PASSWORD_SERVER_PORT, API_VERSION

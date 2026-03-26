@@ -16,28 +16,13 @@ import collections
 import logging
 import re
 import sys
-from typing import Any
 
-from jinja2 import TemplateSyntaxError
+from jinja2 import DebugUndefined, Template, TemplateSyntaxError
 
 from cloudinit import performance
 from cloudinit import type_utils as tu
 from cloudinit import util
 from cloudinit.atomic_helper import write_file
-
-# After bionic EOL, mypy==1.0.0 will be able to type-analyse dynamic
-# base types, substitute this by:
-# JUndefined: typing.Type
-JUndefined: Any
-try:
-    from jinja2 import DebugUndefined as _DebugUndefined
-    from jinja2 import Template as JTemplate
-
-    JINJA_AVAILABLE = True
-    JUndefined = _DebugUndefined
-except (ImportError, AttributeError):
-    JINJA_AVAILABLE = False
-    JUndefined = object
 
 LOG = logging.getLogger(__name__)
 MISSING_JINJA_PREFIX = "CI_MISSING_JINJA_VAR/"
@@ -86,7 +71,7 @@ class JinjaSyntaxParsingException(TemplateSyntaxError):
 
 # Mypy, and the PEP 484 ecosystem in general, does not support creating
 # classes with dynamic base types: https://stackoverflow.com/a/59636248
-class UndefinedJinjaVariable(JUndefined):
+class UndefinedJinjaVariable(DebugUndefined):
     """Class used to represent any undefined jinja template variable."""
 
     def __str__(self):
@@ -150,7 +135,7 @@ def detect_template(text):
         try:
             with performance.Timed("Rendering jinja2 template"):
                 return (
-                    JTemplate(
+                    Template(
                         content,
                         undefined=UndefinedJinjaVariable,
                         trim_blocks=True,
@@ -181,13 +166,7 @@ def detect_template(text):
                 "Unknown template rendering type '%s' requested"
                 % template_type
             )
-        if template_type == "jinja" and not JINJA_AVAILABLE:
-            LOG.warning(
-                "Jinja not available as the selected renderer for"
-                " desired template, reverting to the basic renderer."
-            )
-            return ("basic", basic_render, rest)
-        elif template_type == "jinja" and JINJA_AVAILABLE:
+        elif template_type == "jinja":
             return ("jinja", jinja_render, rest)
         # Only thing left over is the basic renderer (it is always available).
         return ("basic", basic_render, rest)

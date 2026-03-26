@@ -4,6 +4,7 @@ import warnings
 from contextlib import suppress
 from datetime import datetime, timezone
 from textwrap import dedent
+from unittest import mock
 
 import pytest
 
@@ -14,7 +15,6 @@ from cloudinit.analyze.dump import (
     parse_timestamp,
 )
 from cloudinit.util import write_file
-from tests.unittests.helpers import mock
 
 
 class TestParseTimestamp:

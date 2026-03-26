@@ -61,7 +61,6 @@ class TestHostsFile:
             "192.168.1.1\tblah.blah.us\tblah" in contents
         ), "Default etc/hosts content modified"
 
-    @t_help.skipUnlessJinja()
     def test_write_etc_hosts_suse_template(self, tmp_path):
         cfg = {
             "manage_etc_hosts": "template",
@@ -116,7 +115,6 @@ class TestUpdateEtcHosts:
             ),
         ],
     )
-    @t_help.skipUnlessJsonSchema()
     def test_schema_validation(self, config, expectation):
         with expectation:
             validate_cloudconfig_schema(config, get_schema(), strict=True)

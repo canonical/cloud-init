@@ -1,10 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
+from unittest import mock
 
 from cloudinit.distros import fetch
 from cloudinit.subp import ProcessExecutionError
-from tests.unittests.helpers import mock
 
 M_PATH = "cloudinit.distros.raspberry_pi_os."
 
