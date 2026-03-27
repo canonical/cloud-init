@@ -1051,12 +1051,8 @@ class TestGenerateNetworkConfig:
                 {
                     "macAddress": "000D3A047598",
                     "ipv6": {
-                        "subnet": [
-                            {"prefix": "64", "address": "fd00::"}
-                        ],
-                        "ipAddress": [
-                            {"privateIpAddress": "fd00::4"}
-                        ],
+                        "subnet": [{"prefix": "64", "address": "fd00::"}],
+                        "ipAddress": [{"privateIpAddress": "fd00::4"}],
                     },
                     "ipv4": {
                         "subnet": [{"prefix": "24", "address": "10.0.0.0"}],
