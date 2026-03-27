@@ -154,25 +154,20 @@ def import_ssh_ids(ids, user):
 
 def retry_ssh_import(cmd, user, tries, delay):
     LOG.debug("Importing SSH ids for user %s.", user)
-    last_err = None
     for idx in range(tries):
         try:
             return subp.subp(cmd, capture=False)
         except subp.ProcessExecutionError as exc:
-            last_err = exc
-            if exc.exit_code != 1:
-                break
-            if tries - idx > 1 and exc.exit_code == 1:
+            if tries - idx > 1:
                 LOG.debug(
                     "Retrying SSH import command of %s on exit[%d]",
                     user,
                     exc.exit_code,
                 )
                 time.sleep(delay)
-
-    if last_err:
-        util.logexc(LOG, "Failed to import %s SSH IDs", user)
-        raise last_err
+            else:
+                util.logexc(LOG, "Failed to import SSH IDs: %s", cmd)
+                raise exc
 
 
 def is_key_in_nested_dict(config: dict, search_key: str) -> bool:

@@ -151,25 +151,29 @@ class TestHandleSshImportIDs:
         assert m_subp.call_count == 3
         assert m_sleep.call_count == 2
         assert "Retrying SSH import command of bob on exit[1]" in caplog.text
-        assert "Failed to import bob SSH IDs" in caplog.text
+        assert "Failed to import SSH IDs" in caplog.text
 
     @mock.patch("cloudinit.config.cc_ssh_import_id.time.sleep")
     @mock.patch("cloudinit.ssh_util.pwd.getpwnam")
-    @mock.patch("cloudinit.config.cc_ssh_import_id.subp.subp")
     @mock.patch("cloudinit.subp.which")
-    def test_do_not_retry_when_exit_code_not_1(
-        self, m_which, m_subp, m_getpwnam, m_sleep, caplog
+    def test_retry_with_success(
+        self, m_which, m_getpwnam, m_sleep, caplog, mocker
     ):
-        """Do not retry ssh-import-id for non-retryable exit codes."""
+        """Retry succeeds on ssh-import-id retries less than 3 attempts."""
+        m_subp = mocker.patch(
+            "cloudinit.config.cc_ssh_import_id.subp.subp",
+            side_effect=[
+                ProcessExecutionError(exit_code=1, stderr="try1"),
+                ProcessExecutionError(exit_code=1, stderr="try2"),
+                None,
+            ],
+        )
         m_which.return_value = "/usr/bin/ssh-import-id"
-        m_subp.side_effect = ProcessExecutionError(exit_code=2, stderr="boom")
         ids = ["waffle"]
         user = "bob"
+        cc_ssh_import_id.import_ssh_ids(ids, user)
 
-        with pytest.raises(ProcessExecutionError):
-            cc_ssh_import_id.import_ssh_ids(ids, user)
-
-        assert m_subp.call_count == 1
-        assert m_sleep.call_count == 0
-        assert "Retrying SSH import command" not in caplog.text
-        assert "Failed to import bob SSH IDs" in caplog.text
+        assert m_subp.call_count == 3
+        assert m_sleep.call_count == 2
+        assert "Retrying SSH import command of bob on exit[1]" in caplog.text
+        assert "Failed to import SSH IDs" not in caplog.text
