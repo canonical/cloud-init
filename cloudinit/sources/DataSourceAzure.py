@@ -2121,7 +2121,7 @@ def generate_network_config_from_instance_network_metadata(
         if apply_network_config_set_name:
             nicname = "eth{idx}".format(idx=idx)
         else:
-            nicname = "nic{mac}".format(mac=mac.replace(":", ""))
+            nicname = "enx{mac}".format(mac=mac.replace(":", ""))
         dhcp_override = {"route-metric": (idx + 1) * 100}
         # DNS resolution through secondary NICs is not supported, disable it.
         if idx > 0:

@@ -1022,14 +1022,14 @@ class TestGenerateNetworkConfig:
                 False,
                 {
                     "ethernets": {
-                        "nic000d3a047598": {
+                        "enx000d3a047598": {
                             "dhcp4": True,
                             "dhcp4-overrides": {"route-metric": 100},
                             "dhcp6": True,
                             "dhcp6-overrides": {"route-metric": 100},
                             "match": {"macaddress": "00:0d:3a:04:75:98"},
                         },
-                        "nic220d3a047598": {
+                        "enx220d3a047598": {
                             "dhcp4": True,
                             "dhcp4-overrides": {
                                 "route-metric": 200,
@@ -1115,7 +1115,7 @@ class TestNetworkConfig:
                 False,
                 {
                     "ethernets": {
-                        "nic000d3a047598": {
+                        "enx000d3a047598": {
                             "dhcp4": True,
                             "dhcp4-overrides": {"route-metric": 100},
                             "dhcp6": False,
