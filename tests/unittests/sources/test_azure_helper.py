@@ -595,8 +595,8 @@ class TestOpenSSLManagerActions:
             "_get_fingerprint_from_cert",
             side_effect=["fp1", "fp2"],
         ) as m_get_fp, mock.patch(
-            "cloudinit.sources.helpers.azure.certs.extract_x509_certificate",
-            side_effect=[cert1, cert2, None],
+            "cloudinit.sources.helpers.azure.certs.extract_x509_certificates",
+            return_value=[cert1, cert2],
         ):
             sslmgr = azure_helper.OpenSSLManager()
             result = sslmgr.parse_certificates("fake-xml")

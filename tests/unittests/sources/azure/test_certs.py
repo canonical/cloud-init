@@ -173,21 +173,21 @@ class TestIsX509Certificate:
         assert certs.is_x509_certificate(cert) is False
 
 
-class TestExtractX509Certificate:
-    """Test extract_x509_certificate() function."""
+class TestExtractX509Certificates:
+    """Test extract_x509_certificates() function."""
 
     def _data_file_path(self, name):
         """Helper to get path to test data file."""
         return os.path.join("tests", "data", "azure", name)
 
-    def test_no_certificate_returns_none(self):
-        """Data with no certificate should return None."""
+    def test_no_certificate_returns_empty_list(self):
+        """Data with no certificate should return empty list."""
         data = "this is just some random text\nwith no certificate"
-        assert certs.extract_x509_certificate(data) is None
+        assert certs.extract_x509_certificates(data) == []
 
     @mock.patch("cloudinit.sources.azure.certs.is_x509_certificate")
-    def test_extracts_first_valid_certificate(self, m_is_x509):
-        """Should extract and return the first valid certificate."""
+    def test_extracts_all_valid_certificates(self, m_is_x509):
+        """Should extract and return all valid certificates."""
         cert1 = dedent(
             """\
             -----BEGIN CERTIFICATE-----
@@ -204,15 +204,13 @@ class TestExtractX509Certificate:
         )
         bundle = cert1 + "\n" + cert2
 
-        # Mock validation to accept cert1
         m_is_x509.return_value = True
 
-        result = certs.extract_x509_certificate(bundle)
+        result = certs.extract_x509_certificates(bundle)
 
-        # Should return first cert
-        assert result is not None
-        assert "CERT1DATA" in result
-        assert "CERT2DATA" not in result
+        assert len(result) == 2
+        assert "CERT1DATA" in result[0]
+        assert "CERT2DATA" in result[1]
 
     @mock.patch("cloudinit.sources.azure.certs.is_x509_certificate")
     def test_skips_private_keys(self, m_is_x509):
@@ -235,15 +233,15 @@ class TestExtractX509Certificate:
 
         m_is_x509.return_value = True
 
-        result = certs.extract_x509_certificate(bundle)
+        result = certs.extract_x509_certificates(bundle)
 
-        assert result is not None
-        assert "CERTDATA" in result
-        assert "PRIVATEKEYDATA" not in result
+        assert len(result) == 1
+        assert "CERTDATA" in result[0]
+        assert "PRIVATEKEYDATA" not in result[0]
 
     @mock.patch("cloudinit.sources.azure.certs.is_x509_certificate")
-    def test_returns_first_valid_cert_after_invalid(self, m_is_x509):
-        """Should skip invalid cert and return next valid one."""
+    def test_skips_invalid_certs(self, m_is_x509):
+        """Should skip invalid cert and return only valid ones."""
         invalid_cert = dedent(
             """\
             -----BEGIN CERTIFICATE-----
@@ -260,14 +258,19 @@ class TestExtractX509Certificate:
         )
         bundle = invalid_cert + "\n" + valid_cert
 
-        # First call returns False (invalid), second returns True (valid)
         m_is_x509.side_effect = [False, True]
 
-        result = certs.extract_x509_certificate(bundle)
+        result = certs.extract_x509_certificates(bundle)
 
-        assert result is not None
-        assert "VALID" in result
-        assert "INVALID" not in result
+        assert len(result) == 1
+        assert "VALID" in result[0]
+
+    @mock.patch("cloudinit.sources.azure.certs.is_x509_certificate")
+    def test_empty_data_returns_empty_list(self, m_is_x509):
+        """Empty data should return empty list."""
+        assert certs.extract_x509_certificates("") == []
+        assert certs.extract_x509_certificates(None) == []
+        m_is_x509.assert_not_called()
 
     @pytest.mark.allow_subp_for("openssl")
     def test_extraction_from_mixed_bundle_integration(self):
@@ -275,14 +278,12 @@ class TestExtractX509Certificate:
         _require_commands("openssl")
         cert_file = self._data_file_path("pubkey_extract_cert")
 
-        # Skip if test data file doesn't exist
         if not os.path.exists(cert_file):
             pytest.skip("Test data file not found")
 
         with open(cert_file, "r") as f:
             cert = f.read()
 
-        # Create a bundle with a private key and certificate
         private_key = dedent(
             """\
             -----BEGIN PRIVATE KEY-----
@@ -292,12 +293,11 @@ class TestExtractX509Certificate:
         )
         bundle = private_key + "\n" + cert
 
-        result = certs.extract_x509_certificate(bundle)
+        result = certs.extract_x509_certificates(bundle)
 
-        # Should extract the valid certificate, not the private key
-        assert result is not None
-        assert "-----BEGIN CERTIFICATE-----" in result
-        assert "PRIVATE KEY" not in result
+        assert len(result) == 1
+        assert "-----BEGIN CERTIFICATE-----" in result[0]
+        assert "PRIVATE KEY" not in result[0]
 
 
 class TestConvertX509ToOpenssh:
