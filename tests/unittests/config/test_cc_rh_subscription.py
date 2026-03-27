@@ -116,7 +116,7 @@ class TestHappyPath:
             mock.call(["repos", "--enable=repo1"])
         ]
 
-    def test_full_registration(self, m_sman_cli, caplog):
+    def test_full_registration(self, m_sman_cli, caplog, mocker):
         """
         Registration with auto_attach, service_level, adding pools,
         enabling and disabling yum repos and setting release_version
@@ -147,7 +147,7 @@ class TestHappyPath:
         # to avoid deleting the actual cache files
         # (triggered by the presence of the release_version key)
         # on the host running the tests
-        mock.patch("shutil.rmtree")
+        mocker.patch("shutil.rmtree")
 
         cc_rh_subscription.handle(NAME, self.CONFIG_FULL, None, [])
         assert m_sman_cli.call_count == 10
