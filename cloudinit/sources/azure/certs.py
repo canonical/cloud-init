@@ -4,7 +4,7 @@
 
 import logging
 import re
-from typing import Optional
+from typing import List, Optional
 
 from cloudinit import ssh_util, subp
 
@@ -24,22 +24,25 @@ def is_openssh_formatted(key: str) -> bool:
 
     """
     if not key:
-        LOG.debug("Empty key content provided.")
+        LOG.debug("Empty SSH key content provided.")
         return False
     # See https://bugs.launchpad.net/cloud-init/+bug/1910835
+    # AuthKeyLineParser.parse() uses split(None, 2) which treats \r\n
+    # as whitespace, so a key with \r\n in the middle would incorrectly
+    # validate. We must reject it explicitly before parsing.
     if "\r\n" in key.strip():
-        LOG.debug("Key contains carriage returns.")
+        LOG.debug("SSH key contains carriage returns.")
         return False
 
     parser = ssh_util.AuthKeyLineParser()
     try:
         akl = parser.parse(key)
     except TypeError:
-        LOG.debug("Key could not be parsed.")
+        LOG.debug("SSH key could not be parsed.")
         return False
 
     if akl.keytype is None:
-        LOG.debug("Key type is missing.")
+        LOG.debug("SSH key type is missing.")
         return False
 
     return True
@@ -75,33 +78,38 @@ def is_x509_certificate(cert: str) -> bool:
         return False
 
 
-def extract_x509_certificate(data: str) -> Optional[str]:
-    """Extract and validate the first x509 certificate from a data bundle.
+def extract_x509_certificates(data: Optional[str]) -> List[str]:
+    """Extract and validate all x509 certificates from a data bundle.
 
     The data may contain a mix of certificates and private keys. This function
-    finds the first valid x509 certificate and returns it.
+    finds all valid x509 certificates and returns them.
 
     Args:
         data: String containing certificate data, potentially mixed with
-              private keys or other content.
+              private keys or other content. May be None.
 
     Returns:
-        The first valid x509 certificate as a string, or None if no valid
-        certificate is found.
+        A list of valid x509 certificate strings. Empty if none are found.
     """
     if not data:
         LOG.debug("No data provided for certificate extraction.")
-        return None
+        return []
 
+    certificates = []
     for match in _CERTIFICATE_BLOCK_RE.finditer(data):
         certificate = match.group(0)
         if is_x509_certificate(certificate):
             LOG.debug("Successfully extracted x509 certificate from bundle.")
-            return certificate
-        LOG.debug("Found certificate block but validation failed, skipping.")
+            certificates.append(certificate)
+        else:
+            LOG.debug(
+                "Found certificate block but validation failed, skipping."
+            )
 
-    LOG.debug("No valid x509 certificate found in data bundle.")
-    return None
+    if not certificates:
+        LOG.debug("No valid x509 certificates found in data bundle.")
+
+    return certificates
 
 
 def convert_x509_to_openssh(certificate: str) -> str:

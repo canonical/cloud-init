@@ -536,25 +536,11 @@ class OpenSSLManager:
         fingerprints and associated SSH keys derived from the certs."""
         out = self._decrypt_certs_from_xml(certificates_xml)
         keys = {}
-        remaining_data = out
 
-        while True:
-            certificate = certs.extract_x509_certificate(remaining_data)
-            if certificate is None:
-                break
-
+        for certificate in certs.extract_x509_certificates(out):
             ssh_key = self._get_ssh_key_from_cert(certificate)
             fingerprint = self._get_fingerprint_from_cert(certificate)
             keys[fingerprint] = ssh_key
-
-            cert_index = remaining_data.find(certificate)
-            if cert_index == -1:
-                LOG.debug(
-                    "Could not locate previously extracted certificate "
-                    "in data."
-                )
-                break
-            remaining_data = remaining_data[cert_index + len(certificate) :]
 
         return keys
 
