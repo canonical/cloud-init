@@ -6,6 +6,7 @@ import pytest
 
 from cloudinit import subp, templater, util
 from tests.helpers import cloud_init_project_dir
+from tests.unittests.helpers import skipUnlessJinjaVersionGreaterThan
 
 # TODO(Look to align with tools.render-template or cloudinit.distos.OSFAMILIES)
 DISTRO_VARIANTS = [
@@ -203,6 +204,7 @@ class TestRenderSourcesList:
             ),
         ],
     )
+    @skipUnlessJinjaVersionGreaterThan((3, 0, 0))
     def test_render_sources_list_templates(
         self, tmpdir, template_path, expected
     ):

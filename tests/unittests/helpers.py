@@ -283,6 +283,15 @@ def skipUnlessJsonSchema():
     )
 
 
+def skipUnlessJinjaVersionGreaterThan(version=(0, 0, 0)):
+    import jinja2
+
+    return pytest.mark.skipif(
+        tuple(map(int, jinja2.__version__.split("."))) < version,
+        reason=f"jinj2 version is less than {version}",
+    )
+
+
 @contextmanager
 def does_not_raise():
     """Context manager to parametrize tests raising and not raising exceptions
