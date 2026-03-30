@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import warnings
 from contextlib import suppress
 from datetime import datetime, timezone
 from textwrap import dedent
@@ -195,12 +196,21 @@ class TestParseCILogLine:
             "Apr 30 19:39:11 cloud-init[2673]: handlers.py[DEBUG]: start:"
             " init-local/check-cache: attempting to read from cache [check]"
         )
-        # Generate the expected value using `datetime`, so that TZ
-        # determination is consistent with the code under test.
-        timestamp_dt = (
-            datetime.strptime("Apr 30 19:39:11", "%b %d %H:%M:%S")
-            .replace(year=datetime.now().year)
-            .replace(tzinfo=timezone.utc)
+
+        # Python deprecated parsing dates without a year due to ambiguous
+        # leap year behavior. Parsing dates without leap years is something
+        # that cloud-init analyze attempts to support.
+        #
+        # This test will start to fail in a future version of Python if
+        # the deprecated behavior changes in a breaking way.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=DeprecationWarning)
+            # Generate the expected value using `datetime`, so that TZ
+            # determination is consistent with the code under test.
+            date = datetime.strptime("Apr 30 19:39:11", "%b %d %H:%M:%S")
+
+        timestamp_dt = date.replace(year=datetime.now().year).replace(
+            tzinfo=timezone.utc
         )
         expected = {
             "description": "attempting to read from cache [check]",

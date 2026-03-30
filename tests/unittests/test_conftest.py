@@ -1,7 +1,7 @@
 import pytest
 
 from cloudinit import subp
-from conftest import UnexpectedSubpError
+from tests.conftest import UnexpectedSubpError
 
 
 class TestDisableSubpUsage:

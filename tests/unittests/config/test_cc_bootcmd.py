@@ -43,9 +43,9 @@ class TestBootcmd:
 
     def test_handler_skip_if_no_bootcmd(self, caplog):
         """When the provided config doesn't contain bootcmd, skip it."""
-        cfg = {}
+        cfg: dict[str, object] = {}
         mycloud = get_cloud()
-        handle("notimportant", cfg, mycloud, None)
+        handle("notimportant", cfg, mycloud, [])
         assert (
             "Skipping module named notimportant, no 'bootcmd' key"
             in caplog.text
@@ -53,16 +53,16 @@ class TestBootcmd:
 
     def test_handler_invalid_command_set(self, caplog):
         """Commands which can't be converted to shell will raise errors."""
-        invalid_config = {"bootcmd": 1}
+        invalid_config_value = {"bootcmd": 1}
         cc = get_cloud()
         with pytest.raises(
             TypeError,
             match="Input to shellify was type 'int'. Expected list or tuple.",
         ):
-            handle("cc_bootcmd", invalid_config, cc, [])
+            handle("cc_bootcmd", invalid_config_value, cc, [])
         assert "Failed to shellify bootcmd" in caplog.text
 
-        invalid_config = {
+        invalid_config_items = {
             "bootcmd": ["ls /", 20, ["wcurl", "http://stuff/blah"], {"a": "n"}]
         }
         cc = get_cloud()
@@ -71,7 +71,7 @@ class TestBootcmd:
             match="Unable to shellify type 'int'. Expected list, string, "
             "tuple. Got: 20",
         ):
-            handle("cc_bootcmd", invalid_config, cc, [])
+            handle("cc_bootcmd", invalid_config_items, cc, [])
         assert "Failed to shellify" in caplog.text
 
     @pytest.mark.allow_subp_for("/bin/sh")

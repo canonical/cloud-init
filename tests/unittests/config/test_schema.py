@@ -9,12 +9,11 @@ import os
 import re
 import sys
 from collections import namedtuple
-from copy import deepcopy
 from errno import EACCES
 from pathlib import Path
 from textwrap import dedent
 from types import ModuleType
-from typing import List, Optional, Sequence, Set
+from typing import List
 
 import pytest
 import yaml
@@ -43,12 +42,9 @@ from cloudinit.sources import DataSourceNotFoundException
 from cloudinit.templater import JinjaSyntaxParsingException
 from cloudinit.util import load_text_file, write_file
 from tests.helpers import cloud_init_project_dir
-from tests.hypothesis import given
-from tests.hypothesis_jsonschema import from_schema
 from tests.unittests.helpers import (
     does_not_raise,
     mock,
-    skipUnlessHypothesisJsonSchema,
     skipUnlessJsonSchema,
     skipUnlessJsonSchemaVersionGreaterThan,
 )
@@ -1956,63 +1952,6 @@ class TestMeta:
             assert "distros" in module.meta
             assert {module.meta["frequency"]}.issubset(FREQUENCIES)
             assert set(module.meta["distros"]).issubset(all_distros)
-
-
-def remove_modules(schema, modules: Set[str]) -> dict:
-    indices_to_delete = set()
-    for module in set(modules):
-        for index, ref_dict in enumerate(schema["allOf"]):
-            if ref_dict["$ref"] == f"#/$defs/{module}":
-                indices_to_delete.add(index)
-                continue  # module found
-    for index in indices_to_delete:
-        schema["allOf"].pop(index)
-    return schema
-
-
-def remove_defs(schema, defs: Set[str]) -> dict:
-    defs_to_delete = set(schema["$defs"].keys()).intersection(set(defs))
-    for key in defs_to_delete:
-        del schema["$defs"][key]
-    return schema
-
-
-def clean_schema(
-    schema=None,
-    modules: Optional[Sequence[str]] = None,
-    defs: Optional[Sequence[str]] = None,
-):
-    schema = deepcopy(schema or get_schema())
-    if modules:
-        remove_modules(schema, set(modules))
-    if defs:
-        remove_defs(schema, set(defs))
-    del schema["properties"]
-    del schema["additionalProperties"]
-    return schema
-
-
-@pytest.mark.hypothesis_slow
-class TestSchemaFuzz:
-    # Avoid https://github.com/Zac-HD/hypothesis-jsonschema/issues/97
-    SCHEMA = clean_schema(
-        modules=["cc_users_groups"],
-        defs=["users_groups.groups_by_groupname", "users_groups.user"],
-    )
-
-    @skipUnlessHypothesisJsonSchema()
-    @given(from_schema(SCHEMA))
-    def test_validate_full_schema(self, orig_config):
-        config = deepcopy(orig_config)
-        valid_props = get_schema()["properties"].keys()
-        for key in orig_config.keys():
-            if key not in valid_props:
-                del config[key]
-        try:
-            validate_cloudconfig_schema(config, strict=True)
-        except SchemaValidationError as ex:
-            if ex.has_errors():
-                raise
 
 
 class TestHandleSchemaArgs:

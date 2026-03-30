@@ -6,9 +6,7 @@
 cloud-init
 ami\-
 ubuntu\:
-IPv[46]
 ^/
 $/
 ecdsa-sha2-nistp
-ed25519
 1.0/config/user

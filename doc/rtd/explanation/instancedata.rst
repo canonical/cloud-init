@@ -1,17 +1,9 @@
+:orphan:
+
 .. _instance-data:
 
-
-Instance-data
-*************
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   kernel-command-line.rst
-
-What is ``instance-data?``
-==========================
+``Instance-data``
+*****************
 
 ``instance-data`` is a JSON object which contains instance-specific variables
 in a standardized format. These variables may be used in ``cloud-init``
@@ -50,10 +42,9 @@ provided to this instance. Non-root users referencing ``userdata`` or
 ``vendordata`` keys will see only redacted values.
 
 .. note::
-   To save time designing a user data template for a specific cloud's
-   :file:`instance-data.json`, use the :command:`render` command on an
-   instance booted on your favorite cloud. See :ref:`cli_devel` for more
-   information.
+
+    Run the :command:`cloud-init devel render` from an instance
+    to debug template rendering issues.
 
 .. _instancedata-Using:
 
@@ -76,8 +67,7 @@ Any ``instance-data`` variables are surfaced as jinja template variables.
 .. note::
    Trying to reference jinja variables that don't exist in ``instance-data``
    will result in warnings in :file:`/var/log/cloud-init.log` and the following
-   string in your rendered :file:`user-data`:
-   ``CI_MISSING_JINJA_VAR/<your_varname>``.
+   string in your rendered ``user-data``: ``CI_MISSING_JINJA_VAR/<your_varname>``.
 
 Sensitive data such as user passwords may be contained in ``instance-data``.
 ``Cloud-init`` separates this sensitive data such that is it only readable by
@@ -153,27 +143,15 @@ Example: CLI discovery of ``instance-data``
 Reference
 =========
 
-Storage locations
------------------
-
-* :file:`/run/cloud-init/instance-data.json`: world-readable JSON containing
-  standardized keys, sensitive keys redacted.
-* :file:`/run/cloud-init/instance-data-sensitive.json`: root-readable
-  unredacted JSON blob.
-* :file:`/run/cloud-init/combined-cloud-config.json`: root-readable
-  unredacted JSON blob. Any meta-data, vendor-data and user-data overrides
-  are applied to the :file:`/run/cloud-init/combined-cloud-config.json` config
-  values.
-
 .. _instance-data-keys:
 
-:file:`instance-data.json` top level keys
------------------------------------------
+`instance-data` top level keys
+------------------------------
 
 ``base64_encoded_keys``
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-A list of forward-slash delimited key paths into the :file:`instance-data.json`
+A list of forward-slash delimited key paths into the ``instance-data`` JSON
 object whose value is base64encoded for JSON compatibility. Values at these
 paths should be decoded to get the original value.
 
@@ -187,9 +165,9 @@ the feature is enabled.
 ``sensitive_keys``
 ^^^^^^^^^^^^^^^^^^
 
-A list of forward-slash delimited key paths into the :file:`instance-data.json`
+A list of forward-slash delimited key paths into the ``instance-data`` JSON
 object whose value is considered by the datasource as 'security sensitive'.
-Only the keys listed here will be redacted from :file:`instance-data.json` for
+Only the keys listed here will be redacted from ``instance-data`` JSON for
 non-root users.
 
 ``merged_cfg``
@@ -207,9 +185,7 @@ included in the ``sensitive-keys`` list which is only readable by root.
 .. note::
    ``merged_system_cfg`` represents only the merged config from the underlying
    filesystem. These values can be overridden by meta-data, vendor-data or
-   user-data. The fully merged cloud-config provided to a machine
-   which accounts for any supplemental overrides is the file
-   :file:`/run/cloud-init/combined-cloud-config.json`.
+   user-data.
 
 ``ds``
 ^^^^^^
@@ -248,7 +224,7 @@ top-level key aliases for any standardized ``v#`` keys present. The preceding
 ``v1`` is not required of ``v1.var_name`` These aliases will represent the
 value of the highest versioned standard key. For example, ``cloud_name``
 value will be ``v2.cloud_name`` if both ``v1`` and ``v2`` keys are present in
-:file:`instance-data.json`.
+``instance-data``.
 
 ``Cloud-init`` also provides jinja-safe key aliases for any ``instance-data``
 keys which contain jinja operator characters such as ``+``, ``-``, ``.``,
@@ -257,8 +233,8 @@ jinja-safe key alias. This allows for ``cloud-init`` templates to use aliased
 variable references which allow for jinja's dot-notation reference such as
 ``{{ ds.v1_0.my_safe_key }}`` instead of ``{{ ds["v1.0"]["my/safe-key"] }}``.
 
-Standardized :file:`instance-data.json` v1 keys
------------------------------------------------
+Standardized instance-data` v1 keys
+-----------------------------------
 
 ``v1._beta_keys``
 ^^^^^^^^^^^^^^^^^
@@ -278,7 +254,7 @@ on. This is different than the 'platform' item. For example, the cloud name of
 Amazon Web Services is 'aws', while the platform is 'ec2'.
 
 If determining a specific name is not possible or provided in
-:file:`meta-data`, then this field may contain the same content as 'platform'.
+``meta-data``, then this field may contain the same content as 'platform'.
 
 Example output:
 
@@ -420,8 +396,7 @@ Example output:
 Example Output
 --------------
 
-Below is an example of ``/run/cloud-init/instance-data-sensitive.json`` on an
-EC2 instance:
+Below is an example of sensitive ``instance-data`` on an EC2 instance:
 
 .. sourcecode:: json
 
