@@ -233,6 +233,28 @@ class OpenNebulaNetwork:
         # allow empty string to return the default.
         return default if val in (None, "") else val
 
+    def get_alias_addresses(self, c_dev, mac):
+        """Return list of alias IP/prefix strings for context device c_dev.
+
+        Scans context for ETHx_ALIASn_IP / ETHx_ALIASn_MASK keys, where x
+        matches c_dev (e.g. 'ETH0').  Missing MASK defaults to /32.
+        Stops at the first gap in the alias index sequence.
+        """
+        aliases = []
+        prefix = c_dev.upper() + "_ALIAS"
+        idx = 0
+        while True:
+            ip_key = "%s%d_IP" % (prefix, idx)
+            ip = self.context.get(ip_key)
+            if not ip:
+                break
+            mask_key = "%s%d_MASK" % (prefix, idx)
+            mask = self.context.get(mask_key) or "255.255.255.255"
+            net_prefix = str(net.ipv4_mask_to_net_prefix(mask))
+            aliases.append("%s/%s" % (ip, net_prefix))
+            idx += 1
+        return aliases
+
     def gen_conf(self):
         netconf = {}
         netconf["version"] = 2
@@ -256,6 +278,11 @@ class OpenNebulaNetwork:
             mask = self.get_mask(c_dev)
             prefix = str(net.ipv4_mask_to_net_prefix(mask))
             devconf["addresses"].append(self.get_ip(c_dev, mac) + "/" + prefix)
+
+            # Set alias (anycast) IPv4 addresses
+            alias_addresses = self.get_alias_addresses(c_dev, mac)
+            if alias_addresses:
+                devconf["addresses"].extend(alias_addresses)
 
             # Set IPv6 Global and ULA address
             addresses6 = self.get_ip6(c_dev)

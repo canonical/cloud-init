@@ -77,6 +77,16 @@ Static `network configuration`_.
 
 ::
 
+    ETH<x>_ALIAS<n>_IP
+    ETH<x>_ALIAS<n>_MASK
+
+Additional (anycast) IPv4 addresses for interface ``ETH<x>``. Aliases are
+numbered from 0 (e.g. ``ETH0_ALIAS0_IP``, ``ETH0_ALIAS1_IP``, …). The
+``MASK`` field defaults to ``255.255.255.255`` (``/32``) when absent. All
+alias addresses are added to the interface alongside the primary address.
+
+::
+
     SET_HOSTNAME
     HOSTNAME
 

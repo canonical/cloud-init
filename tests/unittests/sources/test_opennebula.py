@@ -986,6 +986,118 @@ class TestOpenNebulaNetwork:
 
         assert expected == net.gen_conf()
 
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_get_alias_addresses_single(self, m_get_phys_by_mac):
+        """Single alias on ETH0 produces one extra address."""
+        context = {
+            "ETH0_MAC": MACADDR,
+            "ETH0_ALIAS0_IP": "192.168.1.10",
+            "ETH0_ALIAS0_MASK": "255.255.255.0",
+        }
+        m_get_phys_by_mac.return_value = {MACADDR: "eth0"}
+        net = ds.OpenNebulaNetwork(context, mock.Mock())
+        aliases = net.get_alias_addresses("ETH0", MACADDR)
+        assert aliases == ["192.168.1.10/24"]
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_get_alias_addresses_multiple(self, m_get_phys_by_mac):
+        """Multiple aliases on same interface are all returned."""
+        context = {
+            "ETH0_MAC": MACADDR,
+            "ETH0_ALIAS0_IP": "192.168.1.10",
+            "ETH0_ALIAS0_MASK": "255.255.255.0",
+            "ETH0_ALIAS1_IP": "192.168.1.11",
+            "ETH0_ALIAS1_MASK": "255.255.255.0",
+            "ETH0_ALIAS2_IP": "192.168.1.12",
+            "ETH0_ALIAS2_MASK": "255.255.255.0",
+        }
+        m_get_phys_by_mac.return_value = {MACADDR: "eth0"}
+        net = ds.OpenNebulaNetwork(context, mock.Mock())
+        aliases = net.get_alias_addresses("ETH0", MACADDR)
+        assert aliases == [
+            "192.168.1.10/24",
+            "192.168.1.11/24",
+            "192.168.1.12/24",
+        ]
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_get_alias_addresses_none(self, m_get_phys_by_mac):
+        """No alias variables → empty list."""
+        context = {"ETH0_MAC": MACADDR}
+        m_get_phys_by_mac.return_value = {MACADDR: "eth0"}
+        net = ds.OpenNebulaNetwork(context, mock.Mock())
+        aliases = net.get_alias_addresses("ETH0", MACADDR)
+        assert aliases == []
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_get_alias_addresses_default_mask(self, m_get_phys_by_mac):
+        """Alias without MASK uses default /32."""
+        context = {
+            "ETH0_MAC": MACADDR,
+            "ETH0_ALIAS0_IP": "10.0.0.5",
+        }
+        m_get_phys_by_mac.return_value = {MACADDR: "eth0"}
+        net = ds.OpenNebulaNetwork(context, mock.Mock())
+        aliases = net.get_alias_addresses("ETH0", MACADDR)
+        assert aliases == ["10.0.0.5/32"]
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_aliases_in_addresses(self, m_get_phys_by_mac):
+        """gen_conf includes alias IPs in addresses list."""
+        context = {
+            "ETH0_MAC": MACADDR,
+            "ETH0_IP": PUBLIC_IP,
+            "ETH0_MASK": "255.255.255.0",
+            "ETH0_ALIAS0_IP": "192.168.1.10",
+            "ETH0_ALIAS0_MASK": "255.255.255.0",
+            "ETH0_ALIAS1_IP": "192.168.1.11",
+            "ETH0_ALIAS1_MASK": "255.255.255.0",
+        }
+        for nic in self.system_nics:
+            m_get_phys_by_mac.return_value = {MACADDR: nic}
+            net = ds.OpenNebulaNetwork(context, mock.Mock())
+            conf = net.gen_conf()
+            addresses = conf["ethernets"][nic]["addresses"]
+            assert PUBLIC_IP + "/24" in addresses
+            assert "192.168.1.10/24" in addresses
+            assert "192.168.1.11/24" in addresses
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_no_aliases_unchanged(self, m_get_phys_by_mac):
+        """gen_conf without aliases produces same output as before."""
+        context = {
+            "ETH0_MAC": MACADDR,
+            "ETH0_IP": PUBLIC_IP,
+            "ETH0_MASK": "255.255.255.0",
+        }
+        for nic in self.system_nics:
+            m_get_phys_by_mac.return_value = {MACADDR: nic}
+            net = ds.OpenNebulaNetwork(context, mock.Mock())
+            conf = net.gen_conf()
+            assert conf["ethernets"][nic]["addresses"] == [PUBLIC_IP + "/24"]
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_aliases_on_second_nic(self, m_get_phys_by_mac):
+        """Aliases on a second NIC do not bleed into the first."""
+        MAC_1 = "02:00:0a:12:01:01"
+        MAC_2 = "02:00:0a:12:01:02"
+        context = {
+            "ETH0_MAC": MAC_1,
+            "ETH0_IP": "10.0.0.1",
+            "ETH1_MAC": MAC_2,
+            "ETH1_IP": "10.0.1.1",
+            "ETH1_ALIAS0_IP": "10.0.1.100",
+            "ETH1_ALIAS0_MASK": "255.255.255.0",
+        }
+        net = ds.OpenNebulaNetwork(
+            context,
+            mock.Mock(),
+            system_nics_by_mac={MAC_1: "eth0", MAC_2: "eth1"},
+        )
+        conf = net.gen_conf()
+        assert conf["ethernets"]["eth0"]["addresses"] == ["10.0.0.1/24"]
+        assert "10.0.1.100/24" in conf["ethernets"]["eth1"]["addresses"]
+
 
 class TestParseShellConfig:
     @pytest.mark.allow_subp_for("bash", "sh")
