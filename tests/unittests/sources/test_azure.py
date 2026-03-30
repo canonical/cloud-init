@@ -2463,9 +2463,7 @@ scbus-1 on xpt0 bus 0
                 reported_error.supporting_data["provisioning_media_found"]
                 is True
             )
-            assert (
-                reported_error.supporting_data["ovf_env_xml_found"] is True
-            )
+            assert reported_error.supporting_data["ovf_env_xml_found"] is True
 
     def test_missing_customdata_no_report_when_ovf_provides_customdata(
         self, get_ds
