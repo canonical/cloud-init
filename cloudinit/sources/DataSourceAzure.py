@@ -817,11 +817,11 @@ class DataSourceAzure(sources.DataSource):
                     logger_func=LOG.debug,
                 )
 
-        # only use userdata from imds if OVF did not provide custom data
-        # userdata provided by IMDS is always base64 encoded
+        # Only use userdata from imds if OVF did not provide custom data.
+        # Userdata provided by IMDS is always base64 encoded.
         if not userdata_raw:
-            # first, check to see if the OVF was supposed to provide custom
-            # data. If it was supposed to and did not, we report failure
+            # First, check to see if the OVF was supposed to provide custom
+            # data. If it was supposed to and did not, we report failure.
             if (
                 self.ds_cfg.get("experimental_fail_on_missing_customdata")
                 and _hascustomdata_from_imds(imds_md)
