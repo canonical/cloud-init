@@ -1,4 +1,4 @@
-cloud-init (26.1-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
+cloud-init (26.1-0ubuntu1~22.04.1) jammy; urgency=medium
 
   * d/p/0001-Revert-fix-DNS-resolution-performance-regression-dur.patch revert Ec2 URL change 
   * d/p/0001-Revert-fix-support-bond-names-in-network_data.patch revert bond name change
@@ -17,7 +17,7 @@ cloud-init (26.1-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/26.1/ChangeLog
 
- -- Chad Smith <chad.smith@canonical.com>  Mon, 30 Mar 2026 12:56:46 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 30 Mar 2026 12:56:49 -0600
 
 cloud-init (25.3-0ubuntu1~22.04.1) jammy; urgency=medium
 
