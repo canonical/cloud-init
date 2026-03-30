@@ -1,4 +1,4 @@
-cloud-init (25.3-0ubuntu1~25.10.2) UNRELEASED; urgency=medium
+cloud-init (26.1-0ubuntu1~25.10.1) UNRELEASED; urgency=medium
 
   * d/p/0001-Revert-fix-DNS-resolution-performance-regression-dur.patch revert Ec2 URL change
   * d/p/0001-Revert-fix-support-bond-names-in-network_data.patch
@@ -6,8 +6,11 @@ cloud-init (25.3-0ubuntu1~25.10.2) UNRELEASED; urgency=medium
   * d/rules: use meson flag -Ddownstream_version to set packaged version
   * Upstream snapshot based on upstream/main at 26c7d38d.
   * Upstream snapshot based on upstream/main at 72809f80.
+  * Upstream snapshot based on 26.1. (LP: #2146833).
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/26.1/ChangeLog
 
- -- Brett Holman <brett.holman@canonical.com>  Thu, 05 Feb 2026 17:49:18 +0000
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 30 Mar 2026 12:51:41 -0600
 
 cloud-init (25.3-0ubuntu1~25.10.1) questing; urgency=medium
 
