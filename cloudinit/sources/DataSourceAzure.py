@@ -827,7 +827,7 @@ class DataSourceAzure(sources.DataSource):
                 and _hascustomdata_from_imds(imds_md)
             ):
                 report_diagnostic_event(
-                    "IMDS did not return userdata as expected",
+                    "IMDS did not return custom data as expected",
                     logger_func=LOG.error,
                 )
                 self._report_failure(
