@@ -169,9 +169,7 @@ class ReportableErrorMissingCustomData(ReportableError):
         provisioning_media_found: bool,
         ovf_env_xml_found: bool,
     ) -> None:
-        super().__init__(
-            "failed finding customData but extended.compute.hasCustomData=true"
-        )
+        super().__init__("failure to read customData while hasCustomData=true")
 
         self.supporting_data["pps_type"] = pps_type
         self.supporting_data["provisioning_media_found"] = (
