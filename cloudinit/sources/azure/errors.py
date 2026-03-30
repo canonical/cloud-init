@@ -166,16 +166,12 @@ class ReportableErrorMissingCustomData(ReportableError):
         self,
         *,
         pps_type: str,
-        provisioning_media_found: bool,
-        ovf_env_xml_found: bool,
+        provisioning_media: str,
     ) -> None:
         super().__init__("failure to read customData while hasCustomData=true")
 
         self.supporting_data["pps_type"] = pps_type
-        self.supporting_data["provisioning_media_found"] = (
-            provisioning_media_found
-        )
-        self.supporting_data["ovf_env_xml_found"] = ovf_env_xml_found
+        self.supporting_data["provisioning_media"] = provisioning_media
 
 
 class ReportableErrorImdsMetadataParsingException(ReportableError):

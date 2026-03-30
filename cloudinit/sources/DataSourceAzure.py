@@ -736,6 +736,8 @@ class DataSourceAzure(sources.DataSource):
             report_diagnostic_event(msg)
             raise sources.InvalidMetaDataException(msg)
 
+        self.seed = ovf_source or "IMDS"
+
         # Refresh PPS type using metadata.
         pps_type = self._determine_pps_type(cfg, imds_md)
         if pps_type != PPSType.NONE:
@@ -763,6 +765,8 @@ class DataSourceAzure(sources.DataSource):
             if cfg.get("ProvisionGuestProxyAgent"):
                 self._check_azure_proxy_agent_status()
 
+            ovf_source = "IMDS"
+
             # fetch metadata again as it has changed after reprovisioning
             imds_md = self.get_metadata_from_imds(report_failure=True)
 
@@ -778,7 +782,6 @@ class DataSourceAzure(sources.DataSource):
         # Report errors if IMDS network configuration is missing data.
         self.validate_imds_network_metadata(imds_md=imds_md)
 
-        self.seed = ovf_source or "IMDS"
         crawled_data.update(
             {
                 "cfg": cfg,
@@ -832,8 +835,7 @@ class DataSourceAzure(sources.DataSource):
                 self._report_failure(
                     errors.ReportableErrorMissingCustomData(
                         pps_type=pps_type.value,
-                        provisioning_media_found=bool(ovf_source),
-                        ovf_env_xml_found="ovf-env.xml" in files,
+                        provisioning_media=ovf_source,
                     )
                 )
 
