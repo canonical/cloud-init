@@ -20,7 +20,6 @@ from cloudinit import distros, helpers, settings, util
 from cloudinit.helpers import Paths
 from cloudinit.templater import JINJA_AVAILABLE
 from tests.helpers import cloud_init_project_dir
-from tests.hypothesis_jsonschema import HAS_HYPOTHESIS_JSONSCHEMA
 
 try:
     import apt_pkg  # type: ignore # noqa: F401
@@ -360,13 +359,6 @@ def skipUnlessJinjaVersionGreaterThan(version=(0, 0, 0)):
 def skipIfJinja():
     return pytest.mark.skipif(
         JINJA_AVAILABLE, reason="Jinja dependency present."
-    )
-
-
-def skipUnlessHypothesisJsonSchema():
-    return pytest.mark.skipif(
-        not HAS_HYPOTHESIS_JSONSCHEMA,
-        reason="No python-hypothesis-jsonschema dependency present.",
     )
 
 

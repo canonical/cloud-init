@@ -1,4 +1,4 @@
-name: Lint
+name: "PR: Lint"
 on:
   pull_request:
   push:

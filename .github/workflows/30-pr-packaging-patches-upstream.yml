@@ -1,6 +1,6 @@
 # This test runs after merging PRs into upstream to notify maintainers when
 # a new PR has caused a patch to not apply against the merged branch.
-name: "Packaging: Post-merge (main)"
+name: "PR(post-merge): Packaging patches"
 
 on:
   push:

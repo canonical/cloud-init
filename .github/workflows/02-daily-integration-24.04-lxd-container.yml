@@ -1,4 +1,4 @@
-name: "Daily: Integration Noble lxd_container"
+name: "Daily(24.04): lxd_container"
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   noble-lxd_container:
-    uses: ./.github/workflows/_integration_common.yml
+    uses: ./.github/workflows/11-dispatch-common.yml
     with:
       release: noble
       platform: lxd_container

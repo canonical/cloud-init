@@ -1,4 +1,4 @@
-name: Integration
+name: "PR: Integration"
 
 on:
   pull_request:
