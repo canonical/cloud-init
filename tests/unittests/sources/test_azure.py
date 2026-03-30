@@ -1123,7 +1123,7 @@ class TestNetworkConfig:
             ),
         ],
     )
-    def test_set_name_ds_cfg(
+    def test_network_config(
         self, azure_ds, mock_get_interfaces, set_name, expected
     ):
         """Verify network_config via ds_cfg for set-name enabled/disabled."""
