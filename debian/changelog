@@ -1,4 +1,4 @@
-cloud-init (26.1-0ubuntu1~24.04.1) UNRELEASED; urgency=medium
+cloud-init (26.1-0ubuntu1~24.04.1) noble; urgency=medium
 
   * d/rules: replace DOWNSTREAM_VERSION with packaged DEB_VERSION value
   * d/p/0001-Revert-fix-DNS-resolution-performance-regression-dur.patch revert Ec2 URL change
@@ -14,7 +14,7 @@ cloud-init (26.1-0ubuntu1~24.04.1) UNRELEASED; urgency=medium
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/26.1/ChangeLog
 
- -- Chad Smith <chad.smith@canonical.com>  Mon, 30 Mar 2026 12:55:15 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 30 Mar 2026 12:55:18 -0600
 
 cloud-init (25.3-0ubuntu1~24.04.1) noble; urgency=medium
 
