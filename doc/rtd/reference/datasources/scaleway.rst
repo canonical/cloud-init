@@ -13,8 +13,8 @@ The instance metadata service is reachable at the following addresses :
 Configuration
 =============
 Scaleway datasource may be configured in system configuration
-(in `/etc/cloud cloud.cfg`) or by adding a file with the .cfg suffix containing
-the following information in the `/etc/cloud.cfg.d` directory::
+(in :file:`/etc/cloud/cloud.cfg`) or by adding a file with the .cfg suffix
+containing the following information in the `/etc/cloud.cfg.d` directory::
 
  datasource:
    Scaleway:

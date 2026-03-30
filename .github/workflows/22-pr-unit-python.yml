@@ -28,7 +28,7 @@ jobs:
             check-latest: false
             experimental: false
     name: Python ${{matrix.python-version}} ${{ matrix.slug }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     continue-on-error: ${{ matrix.experimental }}
     steps:
       - name: Checkout

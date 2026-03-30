@@ -11,6 +11,7 @@ import os
 import os.path
 import re
 import socket
+import warnings
 import xml.etree.ElementTree as ET  # nosec B405
 from enum import Enum
 from pathlib import Path
@@ -50,7 +51,9 @@ from cloudinit.sources.helpers.azure import (
 from cloudinit.url_helper import UrlError
 
 try:
-    import crypt  # pylint: disable=W4901
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=DeprecationWarning)
+        import crypt  # pylint: disable=W4901
 
     blowfish_hash: Any = functools.partial(
         crypt.crypt, salt=f"$6${util.rand_str(strlen=16)}"
