@@ -2456,10 +2456,15 @@ scbus-1 on xpt0 bus 0
             m_report_failure.assert_called_once()
             reported_error = m_report_failure.call_args[0][0]
             assert isinstance(
-                reported_error, errors.ReportableErrorImdsInvalidMetadata
+                reported_error, errors.ReportableErrorMissingCustomData
             )
-            assert reported_error.supporting_data["key"] == (
-                "extended.compute.userData"
+            assert reported_error.supporting_data["pps_type"] == "None"
+            assert (
+                reported_error.supporting_data["provisioning_media_found"]
+                is True
+            )
+            assert (
+                reported_error.supporting_data["ovf_env_xml_found"] is True
             )
 
     def test_missing_customdata_no_report_when_ovf_provides_customdata(

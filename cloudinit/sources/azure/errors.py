@@ -161,6 +161,25 @@ class ReportableErrorImdsInvalidMetadata(ReportableError):
         self.supporting_data["type"] = type(value).__name__
 
 
+class ReportableErrorMissingCustomData(ReportableError):
+    def __init__(
+        self,
+        *,
+        pps_type: str,
+        provisioning_media_found: bool,
+        ovf_env_xml_found: bool,
+    ) -> None:
+        super().__init__(
+            f"failure to find customData and extended.compute.hasCustomData=true"
+        )
+
+        self.supporting_data["pps_type"] = pps_type
+        self.supporting_data["provisioning_media_found"] = (
+            provisioning_media_found
+        )
+        self.supporting_data["ovf_env_xml_found"] = ovf_env_xml_found
+
+
 class ReportableErrorImdsMetadataParsingException(ReportableError):
     def __init__(self, *, exception: ValueError) -> None:
         super().__init__("error parsing IMDS metadata")

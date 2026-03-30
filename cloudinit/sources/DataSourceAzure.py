@@ -295,8 +295,8 @@ BUILTIN_DS_CONFIG = {
     "disk_aliases": {"ephemeral0": RESOURCE_DISK_PATH},
     "apply_network_config": True,  # Use IMDS published network configuration
     "apply_network_config_for_secondary_ips": True,  # Configure secondary ips
-    "experimental_skip_ready_report": False,  # Skip final ready report
     "experimental_fail_on_missing_customdata": False,
+    "experimental_skip_ready_report": False,  # Skip final ready report
 }
 
 BUILTIN_CLOUD_EPHEMERAL_DISK_CONFIG = {
@@ -823,8 +823,7 @@ class DataSourceAzure(sources.DataSource):
             # first, check to see if the OVF was supposed to provide custom
             # data. If it was supposed to and did not, we report failure
             if (
-                ovf_source
-                and self.ds_cfg.get("experimental_fail_on_missing_customdata")
+                self.ds_cfg.get("experimental_fail_on_missing_customdata")
                 and _hascustomdata_from_imds(imds_md)
             ):
                 report_diagnostic_event(
@@ -832,8 +831,10 @@ class DataSourceAzure(sources.DataSource):
                     logger_func=LOG.error,
                 )
                 self._report_failure(
-                    errors.ReportableErrorImdsInvalidMetadata(
-                        key="extended.compute.userData", value=userdata_raw
+                    errors.ReportableErrorMissingCustomData(
+                        pps_type=pps_type.value,
+                        provisioning_media_found=bool(ovf_source),
+                        ovf_env_xml_found="ovf-env.xml" in files,
                     )
                 )
 
