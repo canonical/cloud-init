@@ -170,7 +170,7 @@ class ReportableErrorMissingCustomData(ReportableError):
         ovf_env_xml_found: bool,
     ) -> None:
         super().__init__(
-            f"failure to find customData and extended.compute.hasCustomData=true"
+            "failed finding customData but extended.compute.hasCustomData=true"
         )
 
         self.supporting_data["pps_type"] = pps_type
