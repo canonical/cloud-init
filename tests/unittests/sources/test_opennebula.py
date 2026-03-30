@@ -975,6 +975,94 @@ class TestOpenNebulaNetwork:
 
         assert expected == net.gen_conf()
 
+    # --- PCIx_* passthrough interface tests ---
+
+    def test_get_pci_context_ifaces_none(self):
+        """No PCIx_ADDRESS keys → empty list."""
+        net = ds.OpenNebulaNetwork({}, mock.Mock())
+        assert net._get_pci_context_ifaces() == []
+
+    def test_get_pci_context_ifaces_single(self):
+        """Single PCI0_ADDRESS key → ['PCI0']."""
+        context = {"PCI0_ADDRESS": "0000:00:06.0"}
+        net = ds.OpenNebulaNetwork(context, mock.Mock())
+        assert net._get_pci_context_ifaces() == ["PCI0"]
+
+    def test_get_pci_context_ifaces_multiple(self):
+        """Multiple PCIx_ADDRESS keys → sorted list."""
+        context = {
+            "PCI2_ADDRESS": "0000:00:08.0",
+            "PCI0_ADDRESS": "0000:00:06.0",
+            "PCI1_ADDRESS": "0000:00:07.0",
+        }
+        net = ds.OpenNebulaNetwork(context, mock.Mock())
+        assert net._get_pci_context_ifaces() == ["PCI0", "PCI1", "PCI2"]
+
+    def test_pci_addr_to_dev(self, tmp_path):
+        """_pci_addr_to_dev reads net/ dir under sysfs path."""
+        sysfs = tmp_path / "0000:00:06.0" / "net"
+        sysfs.mkdir(parents=True)
+        (sysfs / "enp0s6").mkdir()
+        with mock.patch.object(
+            ds.OpenNebulaNetwork,
+            "_pci_sysfs_root",
+            str(tmp_path),
+        ):
+            net = ds.OpenNebulaNetwork({}, mock.Mock())
+            assert net._pci_addr_to_dev("0000:00:06.0") == "enp0s6"
+
+    def test_pci_addr_to_dev_missing(self, tmp_path):
+        """_pci_addr_to_dev returns None when sysfs path is absent."""
+        with mock.patch.object(
+            ds.OpenNebulaNetwork,
+            "_pci_sysfs_root",
+            str(tmp_path),
+        ):
+            net = ds.OpenNebulaNetwork({}, mock.Mock())
+            assert net._pci_addr_to_dev("0000:00:99.0") is None
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_pci_static(self, m_get_phys_by_mac, tmp_path):
+        """PCI interface with static IP appears in ethernets output."""
+        sysfs = tmp_path / "0000:00:06.0" / "net"
+        sysfs.mkdir(parents=True)
+        (sysfs / "enp0s6").mkdir()
+        m_get_phys_by_mac.return_value = {}
+        context = {
+            "PCI0_ADDRESS": "0000:00:06.0",
+            "PCI0_IP": "10.5.0.1",
+            "PCI0_MASK": "255.255.255.0",
+        }
+        with mock.patch.object(
+            ds.OpenNebulaNetwork, "_pci_sysfs_root", str(tmp_path)
+        ):
+            net = ds.OpenNebulaNetwork(context, mock.Mock())
+            conf = net.gen_conf()
+        assert "enp0s6" in conf["ethernets"]
+        assert "10.5.0.1/24" in conf["ethernets"]["enp0s6"]["addresses"]
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_pci_absent_no_output(self, m_get_phys_by_mac):
+        """No PCIx_ADDRESS → no extra entries in ethernets."""
+        m_get_phys_by_mac.return_value = {}
+        net = ds.OpenNebulaNetwork({}, mock.Mock())
+        conf = net.gen_conf()
+        assert conf["ethernets"] == {}
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_pci_sysfs_missing_skips(
+        self, m_get_phys_by_mac, tmp_path
+    ):
+        """PCI device with no sysfs entry is skipped with a warning."""
+        m_get_phys_by_mac.return_value = {}
+        context = {"PCI0_ADDRESS": "0000:00:99.0"}
+        with mock.patch.object(
+            ds.OpenNebulaNetwork, "_pci_sysfs_root", str(tmp_path)
+        ):
+            net = ds.OpenNebulaNetwork(context, mock.Mock())
+            conf = net.gen_conf()
+        assert conf["ethernets"] == {}
+
 
 class TestParseShellConfig:
     @pytest.mark.allow_subp_for("bash", "sh")

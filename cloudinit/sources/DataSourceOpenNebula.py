@@ -228,6 +228,31 @@ class OpenNebulaNetwork:
     def get_mask(self, dev: str) -> str:
         return self.get_field(dev, "mask", "255.255.255.0")
 
+    # Overridable for tests
+    _pci_sysfs_root: str = "/sys/bus/pci/devices"
+
+    def _get_pci_context_ifaces(self) -> List[str]:
+        """Return sorted PCIx prefixes that have an ADDRESS variable."""
+        seen = set()
+        for key in self.context:
+            m = re.match(r"^(PCI\d+)_ADDRESS$", key)
+            if m:
+                seen.add(m.group(1))
+        return sorted(seen)
+
+    def _pci_addr_to_dev(self, pci_address: str) -> Optional[str]:
+        """Map a PCI address (e.g. 0000:00:06.0) to a network device name.
+
+        Returns the first entry found under the sysfs net/ directory,
+        or None if the path does not exist or is empty.
+        """
+        sysfs = os.path.join(self._pci_sysfs_root, pci_address, "net")
+        try:
+            devs = os.listdir(sysfs)
+            return devs[0] if devs else None
+        except OSError:
+            return None
+
     @overload
     def get_field(self, dev: str, name: str) -> Optional[str]: ...
     @overload
@@ -307,6 +332,44 @@ class OpenNebulaNetwork:
             ethernets[dev] = devconf
 
         netconf["ethernets"] = ethernets
+
+        # Configure PCI passthrough interfaces (PCIx_ADDRESS / PCIx_IP …)
+        for pci_prefix in self._get_pci_context_ifaces():
+            pci_addr: Optional[str] = self.get_field(pci_prefix, "address")
+            if not pci_addr:
+                continue
+            pci_dev: Optional[str] = self._pci_addr_to_dev(pci_addr)
+            if not pci_dev:
+                LOG.warning(
+                    "Could not find netdev for PCI %s (%s), skipping",
+                    pci_prefix,
+                    pci_addr,
+                )
+                continue
+
+            pci_devconf: Dict[str, Any] = {}
+            ip = self.get_field(pci_prefix, "ip")
+            if ip:
+                mask = self.get_field(pci_prefix, "mask", "255.255.255.0")
+                prefix = str(net.ipv4_mask_to_net_prefix(mask))
+                pci_devconf["addresses"] = [ip + "/" + prefix]
+            gateway = self.get_field(pci_prefix, "gateway")
+            if gateway:
+                pci_devconf["gateway4"] = gateway
+            mtu = self.get_field(pci_prefix, "mtu")
+            if mtu:
+                pci_devconf["mtu"] = mtu
+
+            vlan_id: Optional[str] = self.get_field(pci_prefix, "vlan_id")
+            if vlan_id:
+                netconf["ethernets"][pci_dev] = {}
+                target_name = "%s.%s" % (pci_dev, vlan_id)
+                pci_devconf["id"] = int(vlan_id)
+                pci_devconf["link"] = pci_dev
+                netconf.setdefault("vlans", {})[target_name] = pci_devconf
+            else:
+                netconf["ethernets"][pci_dev] = pci_devconf
+
         return netconf
 
 
