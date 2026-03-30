@@ -74,6 +74,20 @@ the OpenNebula documentation.
     ETH<x>_IP6_GATEWAY
     ETH<x>_ROUTES
 
+::
+
+    PCI<x>_ADDRESS
+    PCI<x>_IP
+    PCI<x>_MASK
+    PCI<x>_GATEWAY
+    PCI<x>_MTU
+    PCI<x>_VLAN_ID
+
+PCI passthrough network interfaces, identified by their PCI address
+(e.g. ``0000:00:06.0``). ``cloud-init`` resolves the address to a
+system device name via sysfs and applies the same IP configuration
+as ``ETH<x>_*`` interfaces. ``PCI<x>_VLAN_ID`` is also supported.
+
 Static `network configuration`_.
 
 ``ETH<x>_ROUTES`` is a comma-separated list of static routes in the form
