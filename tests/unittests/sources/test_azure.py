@@ -6111,24 +6111,18 @@ class TestQueryVmId:
 class TestHasCustomDataFromImds:
     """Unit tests for the _hascustomdata_from_imds helper."""
 
-    def test_returns_true_when_present(self):
-        imds_data = {"extended": {"compute": {"hasCustomData": True}}}
-        assert dsaz._hascustomdata_from_imds(imds_data) is True
-
-    def test_returns_false_when_false(self):
-        imds_data = {"extended": {"compute": {"hasCustomData": False}}}
-        assert dsaz._hascustomdata_from_imds(imds_data) is False
-
-    def test_returns_none_when_extended_missing(self):
-        assert dsaz._hascustomdata_from_imds({}) is None
-
-    def test_returns_none_when_compute_missing(self):
-        imds_data = {"extended": {}}
-        assert dsaz._hascustomdata_from_imds(imds_data) is None
-
-    def test_returns_none_when_hascustomdata_key_missing(self):
-        imds_data = {"extended": {"compute": {}}}
-        assert dsaz._hascustomdata_from_imds(imds_data) is None
+    @pytest.mark.parametrize(
+        "imds_data,expected",
+        [
+            ({"extended": {"compute": {"hasCustomData": True}}}, True),
+            ({"extended": {"compute": {"hasCustomData": False}}}, False),
+            ({}, None),
+            ({"extended": {}}, None),
+            ({"extended": {"compute": {}}}, None),
+        ],
+    )
+    def test_hascustomdata_from_imds(self, imds_data, expected):
+        assert dsaz._hascustomdata_from_imds(imds_data) is expected
 
 
 class TestHashPassword:
