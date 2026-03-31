@@ -140,8 +140,22 @@ CI_SYSTEM_BASE_PKGS = {
     "freebsd": [f"{FREEBSD_PKG_PREFIX}tox"],
     "redhat": ["python3-tox"],
     "centos": ["python3-tox"],
-    "ubuntu": ["make", "devscripts", "python3-dev", "libssl-dev", "tox", "sbuild"],
-    "debian": ["make", "devscripts", "python3-dev", "libssl-dev", "tox", "sbuild"],
+    "ubuntu": [
+        "make",
+        "devscripts",
+        "python3-dev",
+        "libssl-dev",
+        "tox",
+        "sbuild",
+    ],
+    "debian": [
+        "make",
+        "devscripts",
+        "python3-dev",
+        "libssl-dev",
+        "tox",
+        "sbuild",
+    ],
 }
 
 
@@ -363,7 +377,7 @@ def pkg_install(pkg_list, distro, test_distro=False, dry_run=False):
     if test_distro:
         pkg_list = list(pkg_list) + CI_SYSTEM_BASE_PKGS["common"]
         if distro not in ("freebsd",):
-           pkg_list += CI_SYSTEM_BASE_PKGS["linux_common"]
+            pkg_list += CI_SYSTEM_BASE_PKGS["linux_common"]
         distro_base_pkgs = CI_SYSTEM_BASE_PKGS.get(distro, [])
         pkg_list += distro_base_pkgs
     print(

@@ -211,6 +211,7 @@ lint.ignore = [
     "D403", # docstring: capitalized first line
     "E731", # Do not assign a `lambda` expression, use a `def`
 ]
+extend-include = ["*read-dependencies", "*bddeb", "*brpm"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "pep257"
