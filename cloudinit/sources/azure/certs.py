@@ -16,6 +16,22 @@ _CERTIFICATE_BLOCK_RE = re.compile(
 )
 
 
+def sanitize_openssh_key(key: str) -> str:
+    r"""Sanitize an OpenSSH key by removing embedded CRLF sequences.
+
+    Azure-generated SSH keys may contain \\r\\n sequences embedded in the
+    base64 key data. This strips those sequences so the key can be properly
+    parsed and written to authorized_keys.
+
+    See https://bugs.launchpad.net/cloud-init/+bug/1910835
+    """
+    key = key.strip()
+    if "\r\n" in key:
+        LOG.debug("SSH key contains embedded CRLF sequences, sanitizing.")
+        key = key.replace("\r\n", "")
+    return key
+
+
 def is_openssh_formatted(key: str) -> bool:
     """Validate whether or not the key is OpenSSH-formatted.
 
@@ -25,13 +41,6 @@ def is_openssh_formatted(key: str) -> bool:
     """
     if not key:
         LOG.debug("Empty SSH key content provided.")
-        return False
-    # See https://bugs.launchpad.net/cloud-init/+bug/1910835
-    # AuthKeyLineParser.parse() uses split(None, 2) which treats \r\n
-    # as whitespace, so a key with \r\n in the middle would incorrectly
-    # validate. We must reject it explicitly before parsing.
-    if "\r\n" in key.strip():
-        LOG.debug("SSH key contains carriage returns.")
         return False
 
     parser = ssh_util.AuthKeyLineParser()
