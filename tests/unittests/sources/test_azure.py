@@ -2234,9 +2234,9 @@ scbus-1 on xpt0 bus 0
         test_key = "ssh-rsa somerandomkeystuff some comment"
         assert True is dsaz._key_is_openssh_formatted(test_key)
 
-    def test_key_with_crlf_invalid(self):
+    def test_key_with_crlf_sanitized(self):
         test_key = "ssh-rsa someran\r\ndomkeystuff some comment"
-        assert False is dsaz._key_is_openssh_formatted(test_key)
+        assert True is dsaz._key_is_openssh_formatted(test_key)
 
     def test_key_endswith_crlf_valid(self):
         test_key = "ssh-rsa somerandomkeystuff some comment\r\n"

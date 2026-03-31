@@ -1044,6 +1044,11 @@ class DataSourceAzure(sources.DataSource):
             report_diagnostic_event(log_msg, logger_func=LOG.debug)
             raise
 
+        ssh_keys = [
+            certs.sanitize_openssh_key(key) if "\r\n" in key else key
+            for key in ssh_keys
+        ]
+
         if any(not _key_is_openssh_formatted(key=key) for key in ssh_keys):
             log_msg = "Key(s) not in OpenSSH format"
             report_diagnostic_event(log_msg, logger_func=LOG.debug)

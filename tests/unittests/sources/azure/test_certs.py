@@ -50,9 +50,9 @@ class TestIsOpensshFormatted:
         assert certs.is_openssh_formatted(key) is True
 
     def test_key_with_windows_line_endings(self):
-        r"""Keys with Windows line endings (\\r\\n) should return False."""
+        r"""Keys with embedded \\r\\n should be sanitized and validate."""
         key = "ssh-rsa AAAAB3NzaC1yc2EAAAA\r\nBBBB user@host"
-        assert certs.is_openssh_formatted(key) is False
+        assert certs.is_openssh_formatted(key) is True
 
     def test_x509_certificate_returns_false(self):
         """x509 certificates are not OpenSSH formatted."""
@@ -77,6 +77,36 @@ class TestIsOpensshFormatted:
         """Malformed key should return False."""
         key = "not-a-key-type AAAAB3NzaC1yc2EAAAADAQABAAABAQ"
         assert certs.is_openssh_formatted(key) is False
+
+
+class TestSanitizeOpensshKey:
+    """Test sanitize_openssh_key() function."""
+
+    def test_removes_embedded_crlf(self):
+        """Embedded CRLF in base64 data should be removed."""
+        key = "ssh-rsa AAAA\r\nBBBB user@host"
+        assert certs.sanitize_openssh_key(key) == (
+            "ssh-rsa AAAABBBB user@host"
+        )
+
+    def test_strips_trailing_crlf(self):
+        """Trailing CRLF should be stripped."""
+        key = "ssh-rsa AAAABBBB user@host\r\n"
+        assert certs.sanitize_openssh_key(key) == (
+            "ssh-rsa AAAABBBB user@host"
+        )
+
+    def test_clean_key_unchanged(self):
+        """Key without CRLF should be returned unchanged (after strip)."""
+        key = "ssh-rsa AAAABBBB user@host"
+        assert certs.sanitize_openssh_key(key) == key
+
+    def test_multiple_crlf_sequences(self):
+        """Multiple embedded CRLF sequences should all be removed."""
+        key = "ssh-rsa AA\r\nAA\r\nBBBB user@host"
+        assert certs.sanitize_openssh_key(key) == (
+            "ssh-rsa AAAABBBB user@host"
+        )
 
 
 class TestIsX509Certificate:
