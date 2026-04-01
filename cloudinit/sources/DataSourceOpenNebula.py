@@ -228,6 +228,23 @@ class OpenNebulaNetwork:
     def get_mask(self, dev: str) -> str:
         return self.get_field(dev, "mask", "255.255.255.0")
 
+    def get_method(self, dev: str) -> str:
+        """Return IPv4 config method: static | dhcp | skip."""
+        return self.get_field(dev, "method", "static").lower()
+
+    def get_ip6_method(self, dev: str) -> str:
+        """Return IPv6 config method: static | dhcp | auto | disable | skip.
+
+        Defaults to 'static' when ETHx_IP6 is set, otherwise 'disable'.
+        """
+        val = self.get_field(dev, "ip6_method", "")
+        if val:
+            return val.lower()
+        # infer from presence of IPv6 address or gateway
+        if self.get_ip6(dev) or self.get_gateway6(dev):
+            return "static"
+        return "disable"
+
     @overload
     def get_field(self, dev: str, name: str) -> Optional[str]: ...
     @overload
@@ -270,29 +287,36 @@ class OpenNebulaNetwork:
             # Set MAC address
             devconf["match"] = {"macaddress": mac}
 
-            # Set IPv4 address
-            devconf["addresses"] = []
-            mask = self.get_mask(c_dev)
-            prefix = str(net.ipv4_mask_to_net_prefix(mask))
-            devconf["addresses"].append(self.get_ip(c_dev, mac) + "/" + prefix)
+            # Set IPv4 address / method
+            method: str = self.get_method(c_dev)
+            if method == "skip":
+                continue
+            elif method == "dhcp":
+                devconf["dhcp4"] = True
+            else:  # static (default)
+                mask = self.get_mask(c_dev)
+                prefix = str(net.ipv4_mask_to_net_prefix(mask))
+                devconf["addresses"] = [self.get_ip(c_dev, mac) + "/" + prefix]
+                gateway = self.get_gateway(c_dev)
+                if gateway:
+                    devconf["gateway4"] = gateway
 
-            # Set IPv6 Global and ULA address
-            addresses6 = self.get_ip6(c_dev)
-            if addresses6:
-                prefix6 = self.get_ip6_prefix(c_dev)
-                devconf["addresses"].extend(
-                    [i + "/" + prefix6 for i in addresses6]
-                )
-
-            # Set IPv4 default gateway
-            gateway = self.get_gateway(c_dev)
-            if gateway:
-                devconf["gateway4"] = gateway
-
-            # Set IPv6 default gateway
-            gateway6 = self.get_gateway6(c_dev)
-            if gateway6:
-                devconf["gateway6"] = gateway6
+            # Set IPv6 address / method
+            ip6_method: str = self.get_ip6_method(c_dev)
+            if ip6_method in ("dhcp", "dhcp6"):
+                devconf["dhcp6"] = True
+            elif ip6_method in ("auto", "slaac"):
+                devconf["accept-ra"] = True
+            elif ip6_method not in ("disable", "skip"):  # static
+                addresses6 = self.get_ip6(c_dev)
+                if addresses6:
+                    prefix6 = self.get_ip6_prefix(c_dev)
+                    devconf.setdefault("addresses", []).extend(
+                        [i + "/" + prefix6 for i in addresses6]
+                    )
+                gateway6 = self.get_gateway6(c_dev)
+                if gateway6:
+                    devconf["gateway6"] = gateway6
 
             # Set DNS servers and search domains
             nameservers = self.get_nameservers(c_dev)
