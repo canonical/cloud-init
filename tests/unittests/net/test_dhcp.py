@@ -20,8 +20,11 @@ from cloudinit.net.dhcp import (
     NoDHCPLeaseInterfaceError,
     NoDHCPLeaseMissingDhclientError,
     Udhcpc,
+    find_correct_device_nmcli,
     maybe_perform_dhcp_discovery,
+    network_manager_load_leases,
     networkd_load_leases,
+    run_nmcli,
 )
 from cloudinit.net.ephemeral import EphemeralDHCPv4
 from cloudinit.subp import SubpResult
@@ -1392,3 +1395,110 @@ class TestMaybePerformDhcpDiscovery:
         with pytest.raises(NoDHCPLeaseInterfaceError):
             distro = mock.Mock(fallback_interface=None)
             maybe_perform_dhcp_discovery(distro, None)
+
+
+class TestNMDhcpLeases:
+    def test_find_correct_device_firstmatch(self):
+        with mock.patch(
+            "cloudinit.net.dhcp.run_nmcli",
+            return_value=dedent(
+                """
+                   ens160:ethernet:connected:Wired connection 1
+                   ens256:ethernet:connected:Wired connection 2
+                   lo:loopback:connected (externally):lo
+                """
+            ),
+        ):
+            ret = find_correct_device_nmcli(None)
+        assert ret == "ens160"
+
+    def test_find_correct_device_nomatch(self):
+        with mock.patch(
+            "cloudinit.net.dhcp.run_nmcli",
+            return_value=dedent(
+                """
+                   ens160:ethernet:connected:Wired connection 1
+                   ens256:ethernet:connected:Wired connection 2
+                   lo:loopback:connected (externally):lo
+                """
+            ),
+        ):
+            ret = find_correct_device_nmcli("ens250")
+        assert ret is None
+
+    def test_find_correct_device_second_match(self):
+        with mock.patch(
+            "cloudinit.net.dhcp.run_nmcli",
+            return_value=dedent(
+                """
+                   ens160:ethernet:connected:Wired connection 1
+                   ens256:ethernet:connected:Wired connection 2
+                   lo:loopback:connected (externally):lo
+                """
+            ),
+        ):
+            ret = find_correct_device_nmcli("ens256")
+        assert ret == "ens256"
+
+    def test_network_manager_load_leases(self):
+        expected_return = {
+            "broadcast_address": "172.16.127.255",
+            "dhcp_client_identifier": "01:00:0c:29:bf:c5:56",
+            "dhcp_lease_time": "1800",
+            "dhcp_server_identifier": "172.16.127.254",
+        }
+        with mock.patch(
+            "cloudinit.net.dhcp.run_nmcli",
+            return_value=dedent(
+                """
+                DHCP4.OPTION[1]: broadcast_address = 172.16.127.255
+                DHCP4.OPTION[2]: dhcp_client_identifier = 01:00:0c:29:bf:c5:56
+                DHCP4.OPTION[3]: dhcp_lease_time = 1800
+                DHCP4.OPTION[4]: dhcp_server_identifier = 172.16.127.254
+                """
+            ),
+        ):
+            ret = network_manager_load_leases("ens10")
+            assert ret == expected_return
+
+    @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/usr/bin/nmcli")
+    @mock.patch("cloudinit.net.dhcp.subp.subp")
+    def test_run_nmcli(self, m_subp, m_which):
+        expected_return = dedent(
+            """
+                DHCP4.OPTION[1]: broadcast_address = 172.16.127.255
+                DHCP4.OPTION[2]: dhcp_client_identifier = 01:00:0c:29:bf:c5:56
+                DHCP4.OPTION[3]: dhcp_lease_time = 1800
+                DHCP4.OPTION[4]: dhcp_server_identifier = 172.16.127.254
+                """
+        )
+        m_subp.return_value = (expected_return, "")
+        ret = run_nmcli(["show"])
+        assert ret == expected_return
+
+    @mock.patch("cloudinit.net.dhcp.subp.which", return_value=None)
+    def test_run_nmcli_missing_nmcli(self, m_which):
+        """verify that absence of nmcli binary can result in
+        raising NoDHCPLeaseMissingDhclientError"""
+
+        with pytest.raises(NoDHCPLeaseMissingDhclientError):
+            run_nmcli(["show"])
+
+    @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/usr/bin/nmcli")
+    @mock.patch("cloudinit.net.dhcp.subp.subp")
+    def test_run_nmcli_subp_err(self, m_subp, m_which):
+        """verify that when subp.ProcessExecutionError is raised while
+        running nmcli, it results in run_nmcli raising NoDHCPLeaseError"""
+
+        m_subp.side_effect = subp.ProcessExecutionError(exit_code=-5)
+
+        with pytest.raises(NoDHCPLeaseError):
+            run_nmcli(["--fields", "all", "device", "show"])
+
+        m_subp.assert_has_calls(
+            [
+                mock.call(
+                    ["/usr/bin/nmcli", "--fields", "all", "device", "show"],
+                ),
+            ]
+        )
