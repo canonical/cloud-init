@@ -59,6 +59,7 @@ the OpenNebula documentation.
 ::
 
     DNS
+    SEARCH_DOMAIN
     ETH<x>_IP
     ETH<x>_NETWORK
     ETH<x>_MASK
@@ -73,7 +74,9 @@ the OpenNebula documentation.
     ETH<x>_IP6_PREFIX_LENGTH
     ETH<x>_IP6_GATEWAY
 
-Static `network configuration`_.
+Static `network configuration`_. ``DNS`` and ``SEARCH_DOMAIN`` are global
+fallbacks applied to every interface. Per-interface ``ETH<x>_DNS`` and
+``ETH<x>_SEARCH_DOMAIN`` take precedence; duplicate entries are suppressed.
 
 ::
 
