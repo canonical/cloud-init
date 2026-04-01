@@ -228,6 +228,30 @@ class OpenNebulaNetwork:
     def get_mask(self, dev: str) -> str:
         return self.get_field(dev, "mask", "255.255.255.0")
 
+    def get_routes(self, dev: str) -> List[Dict[str, str]]:
+        """Parse ETHx_ROUTES into a list of Netplan route dicts.
+
+        Expected format: "NETWORK via GATEWAY[, NETWORK via GATEWAY, ...]"
+        e.g. "10.0.0.0/8 via 192.168.1.1, 192.168.100.0/24 via 10.0.0.1"
+        Returns an empty list when the variable is absent or empty.
+        """
+        routes: List[Dict[str, str]] = []
+        for entry in self.get_field(dev, "routes", "").split(","):
+            entry = entry.strip()
+            if not entry:
+                continue
+            m = re.match(
+                r"\s*(?P<route_to>\S+)\s+via\s+(?P<route_via>\S+)\s*$",
+                entry,
+            )
+            if m:
+                routes.append({"to": m["route_to"], "via": m["route_via"]})
+            else:
+                LOG.warning(
+                    "Unparseable ETHx_ROUTES entry for %s: %r", dev, entry
+                )
+        return routes
+
     @overload
     def get_field(self, dev: str, name: str) -> Optional[str]: ...
     @overload
@@ -303,6 +327,11 @@ class OpenNebulaNetwork:
             mtu = self.get_mtu(c_dev)
             if mtu:
                 devconf["mtu"] = mtu
+
+            # Set static routes
+            extra_routes: List[Dict[str, str]] = self.get_routes(c_dev)
+            if extra_routes:
+                devconf["routes"] = extra_routes
 
             ethernets[dev] = devconf
 
