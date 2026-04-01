@@ -252,6 +252,9 @@ class OpenNebulaNetwork:
                 )
         return routes
 
+    def get_metric(self, dev: str) -> Optional[str]:
+        return self.get_field(dev, "metric")
+
     @overload
     def get_field(self, dev: str, name: str) -> Optional[str]: ...
     @overload
@@ -309,9 +312,21 @@ class OpenNebulaNetwork:
                 )
 
             # Set IPv4 default gateway
+            # When a metric is specified, emit an explicit route so the metric
+            # can be attached to it. Otherwise use the simpler gateway4 key.
             gateway = self.get_gateway(c_dev)
+            metric: Optional[str] = self.get_metric(c_dev)
             if gateway:
-                devconf["gateway4"] = gateway
+                if metric is not None:
+                    devconf.setdefault("routes", []).append(
+                        {
+                            "to": "default",
+                            "via": gateway,
+                            "metric": int(metric),
+                        }
+                    )
+                else:
+                    devconf["gateway4"] = gateway
 
             # Set IPv6 default gateway
             gateway6 = self.get_gateway6(c_dev)
