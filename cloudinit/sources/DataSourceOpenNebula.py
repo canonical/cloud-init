@@ -190,6 +190,9 @@ class OpenNebulaNetwork:
         if dns:
             nameservers["addresses"] = dns
         search_domain = self.get_field(dev, "search_domain", "").split()
+        for domain in self.context.get("SEARCH_DOMAIN", "").split():
+            if domain not in search_domain:
+                search_domain.append(domain)
         if search_domain:
             nameservers["search"] = search_domain
         return nameservers
