@@ -828,10 +828,6 @@ class DataSourceAzure(sources.DataSource):
             if self.ds_cfg.get(
                 "experimental_fail_on_missing_customdata"
             ) and _hascustomdata_from_imds(imds_md):
-                report_diagnostic_event(
-                    "IMDS did not return custom data as expected",
-                    logger_func=LOG.error,
-                )
                 self._report_failure(
                     errors.ReportableErrorMissingCustomData(
                         pps_type=pps_type.value,
