@@ -5689,9 +5689,7 @@ class TestProvisioning:
         """When experimental_fail_on_missing_customdata is True and OVF
         has no custom data while IMDS says hasCustomData is True,
         a failure should be reported."""
-        self.azure_ds.ds_cfg[
-            "experimental_fail_on_missing_customdata"
-        ] = True
+        self.azure_ds.ds_cfg["experimental_fail_on_missing_customdata"] = True
 
         imds_md = copy.deepcopy(self.imds_md)
         imds_md["extended"]["compute"]["hasCustomData"] = True
@@ -5721,9 +5719,7 @@ class TestProvisioning:
     def test_missing_customdata_no_report_when_ovf_provides_customdata(self):
         """When OVF provides custom data, no failure is reported even with
         the feature flag enabled and IMDS indicating hasCustomData=True."""
-        self.azure_ds.ds_cfg[
-            "experimental_fail_on_missing_customdata"
-        ] = True
+        self.azure_ds.ds_cfg["experimental_fail_on_missing_customdata"] = True
 
         imds_md = copy.deepcopy(self.imds_md)
         imds_md["extended"]["compute"]["hasCustomData"] = True
@@ -5752,9 +5748,7 @@ class TestProvisioning:
     def test_missing_customdata_no_report_when_hascustomdata_is_false(self):
         """When IMDS reports hasCustomData=False, no failure is reported
         even with the flag enabled."""
-        self.azure_ds.ds_cfg[
-            "experimental_fail_on_missing_customdata"
-        ] = True
+        self.azure_ds.ds_cfg["experimental_fail_on_missing_customdata"] = True
 
         imds_md = copy.deepcopy(self.imds_md)
         imds_md["extended"]["compute"]["hasCustomData"] = False
