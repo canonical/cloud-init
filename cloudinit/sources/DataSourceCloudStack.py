@@ -90,6 +90,7 @@ class DataSourceCloudStack(sources.DataSource):
         """Try obtaining a "domain-name" DHCP lease parameter:
         - From systemd-networkd lease (case-insensitive)
         - From ISC dhclient
+        - From network manager dhcp client
         - From dhcpcd (ephemeral)
         - Return empty string if not found (non-fatal)
         """
@@ -113,7 +114,19 @@ class DataSourceCloudStack(sources.DataSource):
 
         LOG.debug(
             "Could not obtain FQDN from ISC dhclient leases. Falling back to "
-            "%s",
+            "Network Manager leases"
+        )
+        with suppress(
+            dhcp.NoDHCPLeaseMissingDhclientError, dhcp.NoDHCPLeaseError
+        ):
+            domain_name = dhcp.network_manager_get_option_from_leases(
+                "domain_name"
+            )
+            if domain_name:
+                return domain_name.strip()
+
+        LOG.debug(
+            "Could not obtain FQDN from NM leases. Falling back to %s",
             self.distro.dhcp_client.client_name,
         )
         try:
