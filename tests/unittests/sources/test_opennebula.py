@@ -975,6 +975,84 @@ class TestOpenNebulaNetwork:
 
         assert expected == net.gen_conf()
 
+    @pytest.mark.parametrize(
+        "context,expected_search",
+        [
+            pytest.param(
+                {"SEARCH_DOMAIN": "global.example.com global.example.org"},
+                ["global.example.com", "global.example.org"],
+                id="global_only",
+            ),
+            pytest.param(
+                {
+                    "ETH0_SEARCH_DOMAIN": "iface.example.com",
+                    "SEARCH_DOMAIN": "global.example.com",
+                },
+                ["iface.example.com", "global.example.com"],
+                id="per_interface_and_global",
+            ),
+            pytest.param(
+                {"ETH0_SEARCH_DOMAIN": "iface.example.com"},
+                ["iface.example.com"],
+                id="per_interface_only",
+            ),
+            pytest.param(
+                {
+                    "ETH0_SEARCH_DOMAIN": "shared.example.com",
+                    # extra precedes shared in global; shared must still come
+                    # first because per-interface ordering takes precedence
+                    "SEARCH_DOMAIN": "extra.example.com shared.example.com",
+                },
+                ["shared.example.com", "extra.example.com"],
+                id="dedup_iface_order_preferred",
+            ),
+        ],
+    )
+    def test_get_nameservers_search_domain(self, context, expected_search):
+        """get_nameservers merges and deduplicates SEARCH_DOMAIN correctly."""
+        net = ds.OpenNebulaNetwork(context, mock.Mock())
+        val = net.get_nameservers("eth0")
+        assert val["search"] == expected_search
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_global_search_domain(self, m_get_phys_by_mac):
+        """gen_conf includes global SEARCH_DOMAIN in nameservers.search."""
+        context = {
+            "ETH0_MAC": MACADDR,
+            "SEARCH_DOMAIN": "global.example.com",
+        }
+        for nic in self.system_nics:
+            m_get_phys_by_mac.return_value = {MACADDR: nic}
+            net = ds.OpenNebulaNetwork(context, mock.Mock())
+            conf = net.gen_conf()
+            assert conf["ethernets"][nic]["nameservers"]["search"] == [
+                "global.example.com"
+            ]
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_global_search_domain_multiple_nics(
+        self, m_get_phys_by_mac
+    ):
+        """Global SEARCH_DOMAIN appears on every NIC."""
+        MAC_1 = "02:00:0a:12:01:01"
+        MAC_2 = "02:00:0a:12:01:02"
+        context = {
+            "ETH0_MAC": MAC_1,
+            "ETH1_MAC": MAC_2,
+            "SEARCH_DOMAIN": "global.example.com",
+        }
+        net = ds.OpenNebulaNetwork(
+            context,
+            mock.Mock(),
+            system_nics_by_mac={MAC_1: "eth0", MAC_2: "eth1"},
+        )
+        conf = net.gen_conf()
+        for nic in ("eth0", "eth1"):
+            assert (
+                "global.example.com"
+                in conf["ethernets"][nic]["nameservers"]["search"]
+            )
+
     # ------------------------------------------------------------------ #
     # ETHx_ROUTES                                                          #
     # ------------------------------------------------------------------ #
