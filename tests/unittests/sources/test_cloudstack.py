@@ -108,6 +108,10 @@ class TestCloudStackHostname:
             DHCP_MOD_PATH + ".networkd_get_option_from_leases",
             get_networkd_domain,
         )
+        mocker.patch(
+            MOD_PATH + ".dhcp.IscDhclient.get_newest_lease_file_from_distro",
+            return_value=True,
+        )
 
         with patch(
             MOD_PATH + ".util.load_text_file",
