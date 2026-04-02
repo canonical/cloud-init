@@ -19,9 +19,12 @@ _CERTIFICATE_BLOCK_RE = re.compile(
 def sanitize_openssh_key(key: str) -> str:
     r"""Sanitize an OpenSSH key by removing embedded CRLF sequences.
 
-    Azure-generated SSH keys may contain \\r\\n sequences embedded in the
-    base64 key data. This strips those sequences so the key can be properly
-    parsed and written to authorized_keys.
+    Azure-generated SSH keys may contain CRLF (\r\n) sequences embedded
+    in the base64 key data. This strips those sequences so the key can
+    be properly parsed and written to authorized_keys.
+
+    Note: Azure no longer generates keys with embedded CRLF sequences,
+    but previously provisioned keys may still be in use.
 
     See https://bugs.launchpad.net/cloud-init/+bug/1910835
     """
@@ -70,11 +73,11 @@ def is_x509_certificate(cert: str) -> bool:
     cert = cert.strip()
 
     if "-----BEGIN CERTIFICATE-----" not in cert:
-        LOG.debug("Missing BEGIN CERTIFICATE marker.")
+        LOG.debug("No BEGIN CERTIFICATE marker.")
         return False
 
     if "-----END CERTIFICATE-----" not in cert:
-        LOG.debug("Missing END CERTIFICATE marker.")
+        LOG.debug("No END CERTIFICATE marker.")
         return False
 
     # Attempt to parse the certificate with openssl to validate it.

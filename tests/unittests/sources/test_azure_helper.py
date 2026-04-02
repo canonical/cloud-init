@@ -604,28 +604,12 @@ class TestOpenSSLManagerActions:
         assert result == {"fp1": "ssh-cert-1", "fp2": "ssh-cert-2"}
         m_decrypt.assert_called_once_with("fake-xml")
         assert m_get_key.call_args_list == [
-            mock.call(
-                "-----BEGIN CERTIFICATE-----\r\n"
-                "CERTDATA1\r\n"
-                "-----END CERTIFICATE-----"
-            ),
-            mock.call(
-                "-----BEGIN CERTIFICATE-----\r\n"
-                "CERTDATA2\r\n"
-                "-----END CERTIFICATE-----"
-            ),
+            mock.call(cert1),
+            mock.call(cert2),
         ]
         assert m_get_fp.call_args_list == [
-            mock.call(
-                "-----BEGIN CERTIFICATE-----\r\n"
-                "CERTDATA1\r\n"
-                "-----END CERTIFICATE-----"
-            ),
-            mock.call(
-                "-----BEGIN CERTIFICATE-----\r\n"
-                "CERTDATA2\r\n"
-                "-----END CERTIFICATE-----"
-            ),
+            mock.call(cert1),
+            mock.call(cert2),
         ]
 
 
