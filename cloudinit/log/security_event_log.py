@@ -100,21 +100,24 @@ def sec_log_user_created(func):
     """A decorator to log a user creation event and group attributes."""
 
     @functools.wraps(func)
-    def decorator(self, name: str, *args, **kwargs):
+    def decorator(
+        self, name: str, groups: Optional[List[str]] = None, *args, **kwargs
+    ):
         if not name:
             raise RuntimeError(
                 "sec_log_user_created requires positional param name or kwarg"
             )
         params = [name]
         groups_msg = ""
-        groups = self._user_groups_to_list(kwargs.get("groups", None))
+        if groups is None:
+            groups = []
         all_groups = groups + self._get_elevated_roles(**kwargs)
         if all_groups:
             groups_suffix = ",".join(all_groups)
             groups_msg = f" in groups: {groups_suffix}"
             params.append(f"groups:{groups_suffix}")
 
-        response = func(self, name, *args, **kwargs)
+        response = func(self, name, groups=groups, *args, **kwargs)
         # User creation operation did not raise an Exception
         _log_security_event(
             event_type=OWASPEventType.USER_CREATED,

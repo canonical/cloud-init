@@ -325,7 +325,7 @@ class TestUGNormalize:
         distro = self._make_distro("ubuntu")
         ug_cfg = {
             "users": [
-                {"name": "joe", "groups": "users", "create_groups": True},
+                {"name": "joe", "groups": ["users"], "create_groups": True},
             ],
         }
         users, _groups = self._norm(ug_cfg, distro)

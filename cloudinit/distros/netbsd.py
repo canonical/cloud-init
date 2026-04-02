@@ -6,7 +6,7 @@ import functools
 import logging
 import os
 import platform
-from typing import Any, List, Tuple
+from typing import Any, List, Optional, Tuple
 
 import cloudinit.distros.bsd
 from cloudinit import subp, util
@@ -75,7 +75,7 @@ class NetBSD(cloudinit.distros.bsd.BSD):
         return ["usermod", "-G", group_name, member_name]
 
     def _build_add_user_cmd(
-        self, name: str, groups: List[str], **kwargs
+        self, name: str, groups: Optional[List[str]] = None, **kwargs
     ) -> Tuple[List[str], List[str]]:
         adduser_cmd = ["useradd"]
         log_adduser_cmd = ["useradd"]
@@ -110,7 +110,9 @@ class NetBSD(cloudinit.distros.bsd.BSD):
 
         return adduser_cmd, log_adduser_cmd
 
-    def _post_add_user(self, name: str, groups: List[str], **kwargs) -> None:
+    def _post_add_user(
+        self, name: str, groups: Optional[List[str]] = None, **kwargs
+    ) -> None:
         # Set the password if it is provided.
         # For security consideration, only hashed passwd is assumed.
         passwd_val = kwargs.get("passwd", None)
