@@ -365,13 +365,12 @@ class TestOpenNebulaDataSource:
             }.get(criteria, [])
 
         m_find_devs_with.side_effect = my_devs_with
-        util.find_devs_with = my_devs_with
+        util.find_devs_with = my_devs_with  # type: ignore[assignment]
         assert ["/dev/sdb", "/dev/sr0", "/dev/vdb"] == ds.find_candidate_devs()
 
 
 @mock.patch(DS_PATH + ".net.get_interfaces_by_mac", mock.Mock(return_value={}))
 class TestOpenNebulaNetwork:
-
     system_nics = ("eth0", "ens3")
 
     def test_context_devname(self):
@@ -1016,8 +1015,8 @@ class TestGetPhysicalNicsByMac:
     )
     def test(self, interfaces_by_mac, physical_devs, expected_return):
         distro = mock.Mock()
-        distro.networking.is_physical.side_effect = (
-            lambda devname: devname in physical_devs
+        distro.networking.is_physical.side_effect = lambda devname: (
+            devname in physical_devs
         )
         with mock.patch(
             DS_PATH + ".net.get_interfaces_by_mac",

@@ -20,6 +20,7 @@ import pwd
 import re
 import shlex
 import textwrap
+from typing import Any, Dict, Optional
 
 from cloudinit import atomic_helper, net, sources, subp, util
 
@@ -41,7 +42,6 @@ EXCLUDED_VARS = (
 
 
 class DataSourceOpenNebula(sources.DataSource):
-
     dsname = "OpenNebula"
 
     def __init__(self, sys_cfg, distro, paths):
@@ -56,8 +56,8 @@ class DataSourceOpenNebula(sources.DataSource):
 
     def _get_data(self):
         defaults = {"instance-id": DEFAULT_IID}
-        results = None
-        seed = None
+        results: Optional[Dict[str, Any]] = None
+        seed: Optional[str] = None
 
         # decide parseuser for context.sh shell reader
         parseuser = DEFAULT_PARSEUSER
@@ -97,6 +97,8 @@ class DataSourceOpenNebula(sources.DataSource):
         if not seed:
             return False
 
+        assert results is not None
+
         # merge fetched metadata with datasource defaults
         md = results["metadata"]
         md = util.mergemanydict([md, defaults])
@@ -117,6 +119,7 @@ class DataSourceOpenNebula(sources.DataSource):
 
     def _get_subplatform(self):
         """Return the subplatform metadata source details."""
+        assert self.seed is not None
         if self.seed_dir in self.seed:
             subplatform_type = "seed-dir"
         else:
@@ -233,12 +236,10 @@ class OpenNebulaNetwork:
         # allow empty string to return the default.
         return default if val in (None, "") else val
 
-    def gen_conf(self):
-        netconf = {}
-        netconf["version"] = 2
-        netconf["ethernets"] = {}
+    def gen_conf(self) -> Dict[str, Any]:
+        netconf: Dict[str, Any] = {"version": 2, "ethernets": {}}
 
-        ethernets = {}
+        ethernets: Dict[str, Dict[str, Any]] = {}
         for mac, dev in self.ifaces.items():
             mac = mac.lower()
 
@@ -246,7 +247,7 @@ class OpenNebulaNetwork:
             # dev stores the current system name.
             c_dev = self.context_devname.get(mac, dev)
 
-            devconf = {}
+            devconf: Dict[str, Any] = {}
 
             # Set MAC address
             devconf["match"] = {"macaddress": mac}
@@ -394,13 +395,15 @@ def parse_shell_config(content, asuser=None):
     return ret
 
 
-def read_context_disk_dir(source_dir, distro, asuser=None):
+def read_context_disk_dir(
+    source_dir: str, distro: Any, asuser: Optional[str] = None
+) -> Dict[str, Any]:
     """
     read_context_disk_dir(source_dir):
     read source_dir and return a tuple with metadata dict and user-data
     string populated.  If not a valid dir, raise a NonContextDiskDir
     """
-    found = {}
+    found: Dict[str, str] = {}
     for af in CONTEXT_DISK_FILES:
         fn = os.path.join(source_dir, af)
         if os.path.isfile(fn):
@@ -409,8 +412,8 @@ def read_context_disk_dir(source_dir, distro, asuser=None):
     if not found:
         raise NonContextDiskDir("%s: %s" % (source_dir, "no files found"))
 
-    context = {}
-    results = {"userdata": None, "metadata": {}}
+    context: Dict[str, str] = {}
+    results: Dict[str, Any] = {"userdata": None, "metadata": {}}
 
     if "context.sh" in found:
         if asuser is not None:
@@ -450,7 +453,7 @@ def read_context_disk_dir(source_dir, distro, asuser=None):
         ssh_key_var = "SSH_PUBLIC_KEY"
 
     if ssh_key_var:
-        lines = context.get(ssh_key_var).splitlines()
+        lines = context[ssh_key_var].splitlines()
         results["metadata"]["public-keys"] = [
             line for line in lines if len(line) and not line.startswith("#")
         ]
