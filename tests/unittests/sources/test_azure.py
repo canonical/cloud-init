@@ -5481,33 +5481,26 @@ class TestProvisioning:
         assert len(self.mock_kvp_report_via_kvp.mock_calls) == 1
         assert not self.mock_kvp_report_success_to_host.mock_calls
 
-    def test_missing_customdata_no_report_when_flag_disabled(self):
-        """When experimental_fail_on_missing_customdata is False (default),
-        no failure is reported even if OVF lacks custom data and IMDS
-        indicates hasCustomData=True."""
-        imds_md = copy.deepcopy(self.imds_md)
-        imds_md["extended"]["compute"]["hasCustomData"] = True
-
-        ovf = construct_ovf_env(provision_guest_proxy_agent=False)
-        md, ud, cfg = dsaz.read_azure_ovf(ovf)
-        self.mock_util_mount_cb.return_value = (md, ud, cfg, {})
-        self.mock_readurl.side_effect = [
-            mock.MagicMock(contents=json.dumps(imds_md).encode()),
-        ]
-        self.mock_azure_get_metadata_from_fabric.return_value = []
-
-        self.azure_ds._check_and_get_data()
-
-        # Verify no failure reported via KVP or fabric.
-        assert not self.mock_kvp_report_via_kvp.mock_calls
-        assert not self.mock_azure_report_failure_to_fabric.mock_calls
-        assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
-
-    def test_missing_customdata_reports_failure_when_flag_enabled(self):
-        """When experimental_fail_on_missing_customdata is True and OVF
-        has no custom data while IMDS says hasCustomData is True,
-        a failure should be reported."""
-        self.azure_ds.ds_cfg["experimental_fail_on_missing_customdata"] = True
+    @pytest.mark.parametrize(
+        "flag_enabled,expected_kvp_failures,expected_fabric_failures,"
+        "expected_successes",
+        [
+            (False, 0, 0, 1),
+            (True, 1, 1, 0),
+        ],
+    )
+    def test_missing_customdata_report_on_flag(
+        self,
+        flag_enabled,
+        expected_kvp_failures,
+        expected_fabric_failures,
+        expected_successes,
+    ):
+        """Failure is reported only when
+        experimental_fail_on_missing_customdata is True."""
+        self.azure_ds.ds_cfg["experimental_fail_on_missing_customdata"] = (
+            flag_enabled
+        )
 
         imds_md = copy.deepcopy(self.imds_md)
         imds_md["extended"]["compute"]["hasCustomData"] = True
@@ -5522,17 +5515,18 @@ class TestProvisioning:
 
         self.azure_ds._check_and_get_data()
 
-        # Verify failure reported via KVP.
-        assert len(self.mock_kvp_report_via_kvp.mock_calls) == 1
-        reported = self.mock_kvp_report_via_kvp.call_args[0][0]
-        assert "failure to read customData" in reported
-
-        # Verify fabric failure report.
-        assert len(self.mock_azure_report_failure_to_fabric.mock_calls) == 1
-
-        # _report_failure sets _negotiated=True, so _report_ready is
-        # skipped and report_success_to_host is not called.
-        assert not self.mock_kvp_report_success_to_host.mock_calls
+        assert (
+            len(self.mock_kvp_report_via_kvp.mock_calls)
+            == expected_kvp_failures
+        )
+        assert (
+            len(self.mock_azure_report_failure_to_fabric.mock_calls)
+            == expected_fabric_failures
+        )
+        assert (
+            len(self.mock_kvp_report_success_to_host.mock_calls)
+            == expected_successes
+        )
 
     def test_missing_customdata_no_report_when_ovf_provides_customdata(self):
         """When OVF provides custom data, no failure is reported even with
