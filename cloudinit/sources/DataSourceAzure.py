@@ -1044,12 +1044,9 @@ class DataSourceAzure(sources.DataSource):
             report_diagnostic_event(log_msg, logger_func=LOG.debug)
             raise
 
-        ssh_keys = [
-            certs.sanitize_openssh_key(key) if "\r\n" in key else key
-            for key in ssh_keys
-        ]
+        ssh_keys = [certs.sanitize_openssh_key(key) for key in ssh_keys]
 
-        if any(not _key_is_openssh_formatted(key=key) for key in ssh_keys):
+        if any(not certs.is_openssh_formatted(key) for key in ssh_keys):
             log_msg = "Key(s) not in OpenSSH format"
             report_diagnostic_event(log_msg, logger_func=LOG.debug)
             raise ValueError(log_msg)
@@ -1744,13 +1741,6 @@ def _disable_password_from_imds(imds_data):
         )
     except KeyError:
         return None
-
-
-def _key_is_openssh_formatted(key):
-    """
-    Validate whether or not the key is OpenSSH-formatted.
-    """
-    return certs.is_openssh_formatted(key)
 
 
 def _partitions_on_device(devpath, maxnum=16):

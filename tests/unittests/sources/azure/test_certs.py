@@ -2,7 +2,6 @@
 
 import os
 from textwrap import dedent
-from unittest import mock
 
 import pytest
 
@@ -17,206 +16,196 @@ def _require_commands(*commands):
             pytest.skip(f"{command} not available")
 
 
+@pytest.fixture
+def data_file_path():
+    """Return a helper that resolves Azure test data file paths."""
+
+    def _path(name):
+        return os.path.join("tests", "data", "azure", name)
+
+    return _path
+
+
+@pytest.fixture
+def cert_data(data_file_path):
+    """Load the test certificate data, skipping if unavailable."""
+    cert_file = data_file_path("pubkey_extract_cert")
+    if not os.path.exists(cert_file):
+        pytest.skip("Test data file not found")
+    with open(cert_file, "r") as f:
+        return f.read()
+
+
+# --- Shared test data ---
+
+_VALID_RSA_KEY = (
+    "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDHU9IDclbKVYVbYuv0+zViX"
+    "+wTwlKspslmy/uf3hkWLh7pyzyrq70S7qtSW2EGixUPxZS/R8pOLHoinlKF9ILgj"
+    "0gVTCJsSwnWpXRg3rhZwIVoYMHN50BHS1SqVD0lsWNMXmo76LoJcjmWvwIznvj5C"
+    "/gnhU+K7+c3m7AlCyU2wjwpBAEYj7PQs6l/wTqpEiaqC5NytNBd7qp+lYYysVrpa"
+    "1PFL0Nj4MMZARIfjkiJtL9qDhy9YZeJRQ6q/Fhz0kjvkZnfxixfKF4yWzOfhBrAt"
+    "pF6oOnuYKk3hxjh9KjTTX4/U8zdLojalX09iyHyEjwJKGlGEpzh1aY7t5btUyvp"
+)
+
+_VALID_ED25519_KEY = (
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6U"
+    "Orhxd+wTwlKspslmy/uf user@host"
+)
+
+_VALID_ECDSA_KEY = (
+    "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAI"
+    "bmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87u"
+    "RFNngSmOjp2S185mF user@host"
+)
+
+_INVALID_X509_CERT = (
+    "-----BEGIN CERTIFICATE-----\nINVALID\n-----END CERTIFICATE-----"
+)
+
+_X509_CERT = dedent(
+    """\
+    -----BEGIN CERTIFICATE-----
+    MIIB+TCCAeOgAwIBAgIBATANBgkqhkiG9w0BAQUFADAWMRQwEgYDVQQDDAtSb290
+    -----END CERTIFICATE-----
+    """
+)
+
+
 class TestIsOpensshFormatted:
     """Test is_openssh_formatted() function."""
 
-    def test_valid_rsa_key_without_comment(self):
-        """Valid ssh-rsa key without comment should return True."""
-        key = (
-            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDHU9IDclbKVYVbYuv0+zViX"
-            "+wTwlKspslmy/uf3hkWLh7pyzyrq70S7qtSW2EGixUPxZS/R8pOLHoinlKF9ILgj"
-            "0gVTCJsSwnWpXRg3rhZwIVoYMHN50BHS1SqVD0lsWNMXmo76LoJcjmWvwIznvj5C"
-            "/gnhU+K7+c3m7AlCyU2wjwpBAEYj7PQs6l/wTqpEiaqC5NytNBd7qp+lYYysVrpa"
-            "1PFL0Nj4MMZARIfjkiJtL9qDhy9YZeJRQ6q/Fhz0kjvkZnfxixfKF4yWzOfhBrAt"
-            "pF6oOnuYKk3hxjh9KjTTX4/U8zdLojalX09iyHyEjwJKGlGEpzh1aY7t5btUyvp"
-        )
+    @pytest.mark.parametrize(
+        "key",
+        [
+            pytest.param(_VALID_RSA_KEY, id="rsa-without-comment"),
+            pytest.param(_VALID_ED25519_KEY, id="ed25519"),
+            pytest.param(_VALID_ECDSA_KEY, id="ecdsa"),
+            pytest.param(
+                "ssh-rsa AAAAB3NzaC1yc2EAAAA\r\nBBBB user@host",
+                id="windows-line-endings",
+            ),
+        ],
+    )
+    def test_valid(self, key):
+        """Valid OpenSSH keys should return True."""
         assert certs.is_openssh_formatted(key) is True
 
-    def test_valid_ed25519_key(self):
-        """Valid ssh-ed25519 key should return True."""
-        key = (
-            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6U"
-            "Orhxd+wTwlKspslmy/uf user@host"
-        )
-        assert certs.is_openssh_formatted(key) is True
-
-    def test_valid_ecdsa_key(self):
-        """Valid ecdsa-sha2-nistp256 key should return True."""
-        key = (
-            "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAI"
-            "bmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87u"
-            "RFNngSmOjp2S185mF user@host"
-        )
-        assert certs.is_openssh_formatted(key) is True
-
-    def test_key_with_windows_line_endings(self):
-        r"""Keys with embedded \\r\\n should be sanitized and validate."""
-        key = "ssh-rsa AAAAB3NzaC1yc2EAAAA\r\nBBBB user@host"
-        assert certs.is_openssh_formatted(key) is True
-
-    def test_x509_certificate_returns_false(self):
-        """x509 certificates are not OpenSSH formatted."""
-        cert = dedent(
-            """\
-            -----BEGIN CERTIFICATE-----
-            MIIB+TCCAeOgAwIBAgIBATANBgkqhkiG9w0BAQUFADAWMRQwEgYDVQQDDAtSb290
-            -----END CERTIFICATE-----
-            """
-        )
-        assert certs.is_openssh_formatted(cert) is False
-
-    def test_empty_string(self):
-        """Empty string should return False."""
-        assert certs.is_openssh_formatted("") is False
-
-    def test_random_string(self):
-        """Random non-key string should return False."""
-        assert certs.is_openssh_formatted("this is not a key") is False
-
-    def test_malformed_key(self):
-        """Malformed key should return False."""
-        key = "not-a-key-type AAAAB3NzaC1yc2EAAAADAQABAAABAQ"
-        assert certs.is_openssh_formatted(key) is False
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param(_X509_CERT, id="x509-certificate"),
+            pytest.param("", id="empty-string"),
+            pytest.param("this is not a key", id="random-string"),
+            pytest.param(
+                "not-a-key-type AAAAB3NzaC1yc2EAAAADAQABAAABAQ",
+                id="malformed-key-type",
+            ),
+        ],
+    )
+    def test_invalid(self, value):
+        """Non-OpenSSH strings should return False."""
+        assert certs.is_openssh_formatted(value) is False
 
 
 class TestSanitizeOpensshKey:
     """Test sanitize_openssh_key() function."""
 
-    def test_removes_embedded_crlf(self):
-        """Embedded CRLF in base64 data should be removed."""
-        key = "ssh-rsa AAAA\r\nBBBB user@host"
-        assert certs.sanitize_openssh_key(key) == (
-            "ssh-rsa AAAABBBB user@host"
-        )
-
-    def test_strips_trailing_crlf(self):
-        """Trailing CRLF should be stripped."""
-        key = "ssh-rsa AAAABBBB user@host\r\n"
-        assert certs.sanitize_openssh_key(key) == (
-            "ssh-rsa AAAABBBB user@host"
-        )
-
-    def test_clean_key_unchanged(self):
-        """Key without CRLF should be returned unchanged (after strip)."""
-        key = "ssh-rsa AAAABBBB user@host"
-        assert certs.sanitize_openssh_key(key) == key
-
-    def test_multiple_crlf_sequences(self):
-        """Multiple embedded CRLF sequences should all be removed."""
-        key = "ssh-rsa AA\r\nAA\r\nBBBB user@host"
-        assert certs.sanitize_openssh_key(key) == (
-            "ssh-rsa AAAABBBB user@host"
-        )
+    @pytest.mark.parametrize(
+        "key, expected",
+        [
+            pytest.param(
+                "ssh-rsa AAAA\r\nBBBB user@host",
+                "ssh-rsa AAAABBBB user@host",
+                id="removes-embedded-crlf",
+            ),
+            pytest.param(
+                "ssh-rsa AAAABBBB user@host\r\n",
+                "ssh-rsa AAAABBBB user@host",
+                id="strips-trailing-crlf",
+            ),
+            pytest.param(
+                "ssh-rsa AAAABBBB user@host",
+                "ssh-rsa AAAABBBB user@host",
+                id="clean-key-unchanged",
+            ),
+            pytest.param(
+                "ssh-rsa AA\r\nAA\r\nBBBB user@host",
+                "ssh-rsa AAAABBBB user@host",
+                id="multiple-crlf-sequences",
+            ),
+        ],
+    )
+    def test_sanitize(self, key, expected):
+        """Sanitized keys should have CRLF sequences removed."""
+        assert certs.sanitize_openssh_key(key) == expected
 
 
 class TestIsX509Certificate:
     """Test is_x509_certificate() function."""
 
-    def _data_file_path(self, name):
-        """Helper to get path to test data file."""
-        return os.path.join("tests", "data", "azure", name)
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param(_VALID_RSA_KEY, id="openssh-key"),
+            pytest.param("", id="empty-string"),
+            pytest.param("this is not a certificate", id="random-string"),
+            pytest.param(
+                "-----BEGIN CERTIFICATE-----", id="only-begin-marker"
+            ),
+            pytest.param("-----END CERTIFICATE-----", id="only-end-marker"),
+        ],
+    )
+    def test_invalid(self, value):
+        """Non-certificate inputs should return False."""
+        assert certs.is_x509_certificate(value) is False
 
-    def test_openssh_key_returns_false(self):
-        """OpenSSH keys should return False."""
-        key = (
-            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDHU9IDclbKVYVbYuv0+zViX"
-            "+wTwlKspslmy/uf3hkWLh7pyzyrq70S7qtSW2EGixUPxZS/R8pOLHoinlKF9ILgj"
-        )
-        assert certs.is_x509_certificate(key) is False
-
-    def test_empty_string(self):
-        """Empty string should return False."""
-        assert certs.is_x509_certificate("") is False
-
-    def test_random_string(self):
-        """Random string should return False."""
-        assert certs.is_x509_certificate("this is not a certificate") is False
-
-    def test_only_begin_marker(self):
-        """Only BEGIN marker should return False."""
-        cert = "-----BEGIN CERTIFICATE-----"
-        assert certs.is_x509_certificate(cert) is False
-
-    def test_only_end_marker(self):
-        """Only END marker should return False."""
-        cert = "-----END CERTIFICATE-----"
-        assert certs.is_x509_certificate(cert) is False
-
-    @mock.patch("cloudinit.sources.azure.certs.subp.subp")
-    def test_invalid_certificate_content(self, m_subp):
+    def test_invalid_certificate_content(self, monkeypatch):
         """Certificate with invalid content should return False."""
-        cert = (
-            "-----BEGIN CERTIFICATE-----\nINVALID\n-----END CERTIFICATE-----"
-        )
 
-        # Mock openssl failure for invalid certificate
-        m_subp.side_effect = subp.ProcessExecutionError(
-            "unable to load certificate"
-        )
+        def _raise(*args, **kwargs):
+            raise subp.ProcessExecutionError("unable to load certificate")
 
-        assert certs.is_x509_certificate(cert) is False
+        monkeypatch.setattr("cloudinit.sources.azure.certs.subp.subp", _raise)
+        assert certs.is_x509_certificate(_INVALID_X509_CERT) is False
 
     @pytest.mark.allow_subp_for("openssl")
-    def test_valid_certificate_integration(self):
+    def test_valid_certificate_integration(self, cert_data):
         """Integration test: Actually validate certificate with openssl."""
         _require_commands("openssl")
-        cert_file = self._data_file_path("pubkey_extract_cert")
-
-        # Skip if test data file doesn't exist
-        if not os.path.exists(cert_file):
-            pytest.skip("Test data file not found")
-
-        with open(cert_file, "r") as f:
-            cert = f.read()
-
-        # Actually calls openssl to validate
-        assert certs.is_x509_certificate(cert) is True
+        assert certs.is_x509_certificate(cert_data) is True
 
     @pytest.mark.allow_subp_for("openssl")
-    def test_certificate_with_extra_whitespace_integration(self):
+    def test_certificate_with_extra_whitespace_integration(self, cert_data):
         """Integration test: Certificate with extra whitespace validates."""
         _require_commands("openssl")
-        cert_file = self._data_file_path("pubkey_extract_cert")
-
-        # Skip if test data file doesn't exist
-        if not os.path.exists(cert_file):
-            pytest.skip("Test data file not found")
-
-        with open(cert_file, "r") as f:
-            cert = f.read()
-
-        # Add extra whitespace
-        cert = "\n\n" + cert + "\n\n"
-
-        # Actually calls openssl to validate
-        assert certs.is_x509_certificate(cert) is True
+        assert certs.is_x509_certificate("\n\n" + cert_data + "\n\n") is True
 
     @pytest.mark.allow_subp_for("openssl")
     def test_invalid_certificate_integration(self):
         """Integration test: Reject invalid certificate with real openssl."""
         _require_commands("openssl")
-        cert = (
-            "-----BEGIN CERTIFICATE-----\nINVALID\n-----END CERTIFICATE-----"
-        )
-
-        # Actually calls openssl, which will fail on invalid cert
-        assert certs.is_x509_certificate(cert) is False
+        assert certs.is_x509_certificate(_INVALID_X509_CERT) is False
 
 
 class TestExtractX509Certificates:
     """Test extract_x509_certificates() function."""
 
-    def _data_file_path(self, name):
-        """Helper to get path to test data file."""
-        return os.path.join("tests", "data", "azure", name)
-
-    def test_no_certificate_returns_empty_list(self):
-        """Data with no certificate should return empty list."""
-        data = "this is just some random text\nwith no certificate"
+    @pytest.mark.parametrize(
+        "data",
+        [
+            pytest.param("", id="empty-string"),
+            pytest.param(None, id="none"),
+            pytest.param(
+                "this is just some random text\nwith no certificate",
+                id="no-cert-markers",
+            ),
+        ],
+    )
+    def test_returns_empty_list(self, data):
+        """Data with no certificates should return empty list."""
         assert certs.extract_x509_certificates(data) == []
 
-    @mock.patch("cloudinit.sources.azure.certs.is_x509_certificate")
-    def test_extracts_all_valid_certificates(self, m_is_x509):
+    def test_extracts_all_valid_certificates(self, monkeypatch):
         """Should extract and return all valid certificates."""
         cert1 = dedent(
             """\
@@ -234,7 +223,10 @@ class TestExtractX509Certificates:
         )
         bundle = cert1 + "\n" + cert2
 
-        m_is_x509.return_value = True
+        monkeypatch.setattr(
+            "cloudinit.sources.azure.certs.is_x509_certificate",
+            lambda cert: True,
+        )
 
         result = certs.extract_x509_certificates(bundle)
 
@@ -242,8 +234,7 @@ class TestExtractX509Certificates:
         assert "CERT1DATA" in result[0]
         assert "CERT2DATA" in result[1]
 
-    @mock.patch("cloudinit.sources.azure.certs.is_x509_certificate")
-    def test_skips_private_keys(self, m_is_x509):
+    def test_skips_private_keys(self, monkeypatch):
         """Should skip private keys and extract certificate."""
         private_key = dedent(
             """\
@@ -261,7 +252,10 @@ class TestExtractX509Certificates:
         )
         bundle = private_key + "\n" + certificate
 
-        m_is_x509.return_value = True
+        monkeypatch.setattr(
+            "cloudinit.sources.azure.certs.is_x509_certificate",
+            lambda cert: True,
+        )
 
         result = certs.extract_x509_certificates(bundle)
 
@@ -269,8 +263,7 @@ class TestExtractX509Certificates:
         assert "CERTDATA" in result[0]
         assert "PRIVATEKEYDATA" not in result[0]
 
-    @mock.patch("cloudinit.sources.azure.certs.is_x509_certificate")
-    def test_skips_invalid_certs(self, m_is_x509):
+    def test_skips_invalid_certs(self, monkeypatch):
         """Should skip invalid cert and return only valid ones."""
         invalid_cert = dedent(
             """\
@@ -288,31 +281,21 @@ class TestExtractX509Certificates:
         )
         bundle = invalid_cert + "\n" + valid_cert
 
-        m_is_x509.side_effect = [False, True]
+        results = iter([False, True])
+        monkeypatch.setattr(
+            "cloudinit.sources.azure.certs.is_x509_certificate",
+            lambda cert: next(results),
+        )
 
         result = certs.extract_x509_certificates(bundle)
 
         assert len(result) == 1
         assert "VALID" in result[0]
 
-    @mock.patch("cloudinit.sources.azure.certs.is_x509_certificate")
-    def test_empty_data_returns_empty_list(self, m_is_x509):
-        """Empty data should return empty list."""
-        assert certs.extract_x509_certificates("") == []
-        assert certs.extract_x509_certificates(None) == []
-        m_is_x509.assert_not_called()
-
     @pytest.mark.allow_subp_for("openssl")
-    def test_extraction_from_mixed_bundle_integration(self):
+    def test_extraction_from_mixed_bundle_integration(self, cert_data):
         """Integration test: Extract cert from bundle with private key."""
         _require_commands("openssl")
-        cert_file = self._data_file_path("pubkey_extract_cert")
-
-        if not os.path.exists(cert_file):
-            pytest.skip("Test data file not found")
-
-        with open(cert_file, "r") as f:
-            cert = f.read()
 
         private_key = dedent(
             """\
@@ -321,7 +304,7 @@ class TestExtractX509Certificates:
             -----END PRIVATE KEY-----
             """
         )
-        bundle = private_key + "\n" + cert
+        bundle = private_key + "\n" + cert_data
 
         result = certs.extract_x509_certificates(bundle)
 
@@ -333,12 +316,7 @@ class TestExtractX509Certificates:
 class TestConvertX509ToOpenssh:
     """Test convert_x509_to_openssh() function."""
 
-    def _data_file_path(self, name):
-        """Helper to get path to test data file."""
-        return os.path.join("tests", "data", "azure", name)
-
-    @mock.patch("cloudinit.sources.azure.certs.subp.subp")
-    def test_conversion_with_mocked_commands(self, m_subp):
+    def test_conversion_calls_correct_commands(self, monkeypatch):
         """Test basic conversion flow with mocked subp calls."""
         cert = dedent(
             """\
@@ -352,25 +330,25 @@ class TestConvertX509ToOpenssh:
         )
         expected_ssh_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQ..."
 
-        # Mock the subp calls: first for openssl, second for ssh-keygen
-        m_subp.side_effect = [
-            (pubkey, ""),  # openssl x509 -noout -pubkey
-            (expected_ssh_key, ""),  # ssh-keygen -i -m PKCS8
-        ]
+        calls = []
+
+        def mock_subp(cmd, data=None, **kwargs):
+            calls.append((cmd, data))
+            if cmd[0] == "openssl":
+                return (pubkey, "")
+            return (expected_ssh_key, "")
+
+        monkeypatch.setattr(
+            "cloudinit.sources.azure.certs.subp.subp", mock_subp
+        )
 
         result = certs.convert_x509_to_openssh(cert)
 
         assert result == expected_ssh_key
-        assert m_subp.call_count == 2
-
-        # Verify openssl command
-        openssl_call = m_subp.call_args_list[0]
-        assert openssl_call[0][0] == ["openssl", "x509", "-noout", "-pubkey"]
-        assert openssl_call[1]["data"] == cert
-
-        # Verify ssh-keygen command
-        keygen_call = m_subp.call_args_list[1]
-        assert keygen_call[0][0] == [
+        assert len(calls) == 2
+        assert calls[0][0] == ["openssl", "x509", "-noout", "-pubkey"]
+        assert calls[0][1] == cert
+        assert calls[1][0] == [
             "ssh-keygen",
             "-i",
             "-m",
@@ -378,58 +356,58 @@ class TestConvertX509ToOpenssh:
             "-f",
             "/dev/stdin",
         ]
-        assert keygen_call[1]["data"] == pubkey
+        assert calls[1][1] == pubkey
 
-    @mock.patch("cloudinit.sources.azure.certs.subp.subp")
-    def test_openssl_failure_raises_exception(self, m_subp):
+    def test_openssl_failure_raises_exception(self, monkeypatch):
         """Test that openssl failure raises ProcessExecutionError."""
         cert = (
             "-----BEGIN CERTIFICATE-----\nINVALID\n-----END CERTIFICATE-----"
         )
 
-        m_subp.side_effect = subp.ProcessExecutionError("openssl failed")
+        def _raise(*args, **kwargs):
+            raise subp.ProcessExecutionError("openssl failed")
 
-        with pytest.raises(subp.ProcessExecutionError) as exc_info:
+        monkeypatch.setattr("cloudinit.sources.azure.certs.subp.subp", _raise)
+
+        with pytest.raises(subp.ProcessExecutionError, match="openssl failed"):
             certs.convert_x509_to_openssh(cert)
 
-        assert "openssl failed" in str(exc_info.value)
-
-    @mock.patch("cloudinit.sources.azure.certs.subp.subp")
-    def test_ssh_keygen_failure_raises_exception(self, m_subp):
+    def test_ssh_keygen_failure_raises_exception(self, monkeypatch):
         """Test that ssh-keygen failure raises ProcessExecutionError."""
         cert = "-----BEGIN CERTIFICATE-----\nVALID\n-----END CERTIFICATE-----"
         pubkey = (
             "-----BEGIN PUBLIC KEY-----\nMIIB...\n-----END PUBLIC KEY-----"
         )
 
-        # First call (openssl) succeeds, second call (ssh-keygen) fails
-        m_subp.side_effect = [
-            (pubkey, ""),
-            subp.ProcessExecutionError("ssh-keygen failed"),
-        ]
+        call_count = 0
 
-        with pytest.raises(subp.ProcessExecutionError) as exc_info:
+        def mock_subp(cmd, data=None, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return (pubkey, "")
+            raise subp.ProcessExecutionError("ssh-keygen failed")
+
+        monkeypatch.setattr(
+            "cloudinit.sources.azure.certs.subp.subp", mock_subp
+        )
+
+        with pytest.raises(
+            subp.ProcessExecutionError, match="ssh-keygen failed"
+        ):
             certs.convert_x509_to_openssh(cert)
 
-        assert "ssh-keygen failed" in str(exc_info.value)
-
     @pytest.mark.allow_subp_for("openssl", "ssh-keygen")
-    def test_conversion_integration(self):
+    def test_conversion_integration(self, cert_data, data_file_path):
         """Integration test: Convert certificate with real commands."""
         _require_commands("openssl", "ssh-keygen")
-        cert_file = self._data_file_path("pubkey_extract_cert")
-        key_file = self._data_file_path("pubkey_extract_ssh_key")
+        key_file = data_file_path("pubkey_extract_ssh_key")
 
-        # Skip if test data files don't exist
-        if not os.path.exists(cert_file) or not os.path.exists(key_file):
+        if not os.path.exists(key_file):
             pytest.skip("Test data files not found")
 
-        # Load test data
-        with open(cert_file, "r") as f:
-            cert = f.read()
         with open(key_file, "r") as f:
             expected_key = f.read().strip()
 
-        # Convert and compare
-        result = certs.convert_x509_to_openssh(cert)
+        result = certs.convert_x509_to_openssh(cert_data)
         assert result.strip() == expected_key
