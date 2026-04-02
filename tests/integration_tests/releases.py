@@ -105,3 +105,7 @@ UBUNTU_STABLE = (FOCAL, JAMMY, MANTIC, NOBLE)
 
 CURRENT_RELEASE = Release.from_os_image()
 IS_UBUNTU = CURRENT_RELEASE.os == "ubuntu"
+IS_RHEL = CURRENT_RELEASE.os in (
+    "rhel",
+    "centos",
+)  # will add other RHEL-like distros later
