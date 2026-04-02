@@ -5528,16 +5528,25 @@ class TestProvisioning:
             == expected_successes
         )
 
-    def test_missing_customdata_no_report_when_ovf_provides_customdata(self):
-        """When OVF provides custom data, no failure is reported even with
-        the feature flag enabled and IMDS indicating hasCustomData=True."""
+    @pytest.mark.parametrize(
+        "has_custom_data,custom_data,expected_userdata",
+        [
+            (True, "myCustomData", b"myCustomData"),
+            (False, None, ""),
+        ],
+    )
+    def test_missing_customdata_no_report_when_not_applicable(
+        self, has_custom_data, custom_data, expected_userdata
+    ):
+        """No failure is reported when OVF provides custom data or
+        when IMDS reports hasCustomData=False, even with the flag enabled."""
         self.azure_ds.ds_cfg["experimental_fail_on_missing_customdata"] = True
 
         imds_md = copy.deepcopy(self.imds_md)
-        imds_md["extended"]["compute"]["hasCustomData"] = True
+        imds_md["extended"]["compute"]["hasCustomData"] = has_custom_data
 
         ovf = construct_ovf_env(
-            custom_data="myCustomData",
+            custom_data=custom_data,
             provision_guest_proxy_agent=False,
         )
         md, ud, cfg = dsaz.read_azure_ovf(ovf)
@@ -5554,31 +5563,7 @@ class TestProvisioning:
         assert not self.mock_azure_report_failure_to_fabric.mock_calls
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
-        # Verify OVF custom data is used.
-        assert self.azure_ds.userdata_raw == b"myCustomData"
-
-    def test_missing_customdata_no_report_when_hascustomdata_is_false(self):
-        """When IMDS reports hasCustomData=False, no failure is reported
-        even with the flag enabled."""
-        self.azure_ds.ds_cfg["experimental_fail_on_missing_customdata"] = True
-
-        imds_md = copy.deepcopy(self.imds_md)
-        imds_md["extended"]["compute"]["hasCustomData"] = False
-
-        ovf = construct_ovf_env(provision_guest_proxy_agent=False)
-        md, ud, cfg = dsaz.read_azure_ovf(ovf)
-        self.mock_util_mount_cb.return_value = (md, ud, cfg, {})
-        self.mock_readurl.side_effect = [
-            mock.MagicMock(contents=json.dumps(imds_md).encode()),
-        ]
-        self.mock_azure_get_metadata_from_fabric.return_value = []
-
-        self.azure_ds._check_and_get_data()
-
-        # Verify no failure reported.
-        assert not self.mock_kvp_report_via_kvp.mock_calls
-        assert not self.mock_azure_report_failure_to_fabric.mock_calls
-        assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
+        assert self.azure_ds.userdata_raw == expected_userdata
 
 
 class TestCheckAzureProxyAgent:
