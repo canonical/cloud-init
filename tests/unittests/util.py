@@ -1,5 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-from typing import Optional, Type
+from typing import List, Optional, Type
 from unittest import mock
 
 from cloudinit import cloud, distros, helpers
@@ -146,7 +146,7 @@ class MockDistro(distros.Distro):
 
     @security_event_log.sec_log_user_created  # type: ignore[misc]
     def add_user(
-        self, name, **kwargs
+        self, name: str, *, groups: List[str], **kwargs
     ):  # pylint: disable=overridden-final-method
         pass
 

@@ -210,7 +210,7 @@ class Distro(distros.Distro):
             LOG.warning("Ignoring selinux_user parameter for Alpine Linux")
 
     def _build_add_user_cmd(
-        self, name: str, groups: List[str], **kwargs
+        self, name: str, groups: Optional[List[str]] = None, **kwargs
     ) -> Tuple[List[str], List[str]]:
         # If 'useradd' is available then use the generic GNU implementation.
         if subp.which("useradd"):
@@ -231,23 +231,12 @@ class Distro(distros.Distro):
 
         adduser_flags = {"system": "-S"}
 
-        # Build the command, skipping options unsupported by busybox adduser
-        # (groups, passwd, expiredate, inactive — handled in _post_add_user).
-        unsupported_busybox_keys = {
-            "groups",
-            "expiredate",
-            "inactive",
-            "passwd",
-        }
         for key, val in sorted(kwargs.items()):
             if key in adduser_opts and val and isinstance(val, str):
                 adduser_cmd.extend([adduser_opts[key], val])
             elif key in adduser_flags and val:
                 adduser_cmd.append(adduser_flags[key])
-            elif key in unsupported_busybox_keys:
-                pass  # handled in _post_add_user
-
-        # Don't create the home directory if directed so or if the user is a
+        # Don't create the home directory if directed or if the user is a
         # system user
         if kwargs.get("no_create_home") or kwargs.get("system"):
             adduser_cmd.append("-H")
@@ -257,12 +246,13 @@ class Distro(distros.Distro):
 
         return adduser_cmd, adduser_cmd
 
-    def _post_add_user(self, name: str, groups: List[str], **kwargs) -> None:
+    def _post_add_user(
+        self, name: str, groups: Optional[List[str]] = None, **kwargs
+    ) -> None:
+        """Busybox post user-creation commands."""
         # When useradd is available, the GNU implementation handles everything.
         if subp.which("useradd"):
             return
-
-        # Busybox post-creation steps.
 
         # Separately add user to each additional group as Busybox's
         # 'adduser' does not support specifying additional groups.

@@ -170,6 +170,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     # their lease file name format
     dhclient_lease_file_regex: Optional[str] = None
 
+    # BSD do not support using chpasswd for bulk operations.
+    support_bulk_chpasswd = True
+
     def __init__(self, name, cfg, paths):
         self._paths = paths
         self._cfg = cfg
@@ -686,7 +689,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             if primary_group:
                 groups.append(primary_group)
 
-        if kwargs.pop("create_groups", True) and groups:
+        if kwargs.pop("create_groups", True):
             for group in groups:
                 if not util.is_group(group):
                     self.create_group(group)
@@ -712,7 +715,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """
 
     def _build_add_user_cmd(
-        self, name: str, groups: List[str], **kwargs
+        self, name: str, groups: Optional[List[str]] = None, **kwargs
     ) -> Tuple[List[str], List[str]]:
         """Build the useradd command for GNU/Linux systems.
 
@@ -779,7 +782,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         return useradd_cmd, log_useradd_cmd
 
-    def _post_add_user(self, name: str, groups: List[str], **kwargs) -> None:
+    def _post_add_user(
+        self, name: str, groups: Optional[List[str]] = None, **kwargs
+    ) -> None:
         """Hook called after the user-creation command succeeds.
 
         Overridden to perform distro-specific post-creation steps.
@@ -1099,8 +1104,15 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             util.logexc(LOG, "Failed to set 'expire' for %s", user)
             raise e
 
-    @sec_log_password_changed
-    def set_passwd(self, user, passwd, hashed=False):
+    @staticmethod
+    def _build_set_passwd_command(
+        user: str, passwd: str, hashed=False
+    ) -> Tuple[List[str], str]:
+        """Build a command and password string to set a user's password.
+
+        Overridden in distros that need to use a different command or
+        format for chpasswd.
+        """
         pass_string = "%s:%s" % (user, passwd)
         cmd = ["chpasswd"]
 
@@ -1110,6 +1122,16 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             # chpasswd don't know about long names.
             cmd.append("-e")
 
+        return cmd, pass_string
+
+    def _set_password_with_command(
+        self, cmd: List[str], pass_string: str, user: str
+    ):
+        """Run command to set the password,with the password string as input.
+
+        Provided to avoid duplicated security logging decorators for distros
+        which do not support bulk chpasswd use.
+        """
         try:
             subp.subp(
                 cmd, data=pass_string, logstring="chpasswd for %s" % user
@@ -1118,10 +1140,22 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             util.logexc(LOG, "Failed to set password for %s", user)
             raise e
 
-        return True
+    @final
+    @sec_log_password_changed
+    def set_passwd(self, user, passwd, hashed=False):
+        cmd, pass_string = self._build_set_passwd_command(user, passwd, hashed)
+        self._set_password_with_command(cmd, pass_string, user)
 
+    @final
     @sec_log_password_changed_batch
     def chpasswd(self, plist_in: List[Tuple[str, str]], hashed: bool):
+        if not self.support_bulk_chpasswd:
+            for name, password in plist_in:
+                cmd, pass_string = self._build_set_passwd_command(
+                    name, password, hashed
+                )
+                self._set_password_with_command(cmd, pass_string, name)
+            return
         payload = (
             "\n".join(
                 (":".join([name, password]) for name, password in plist_in)

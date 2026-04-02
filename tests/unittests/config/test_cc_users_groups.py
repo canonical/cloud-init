@@ -184,8 +184,8 @@ class TestHandleUsersGroups:
                 ),
                 mock.call(
                     "me2",
-                    cloud_public_ssh_keys=["key1"],
                     groups=[],
+                    cloud_public_ssh_keys=["key1"],
                     default=False,
                     ssh_redirect_user="ubuntu",
                 ),
