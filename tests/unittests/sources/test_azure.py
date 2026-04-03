@@ -5537,9 +5537,7 @@ class TestProvisioning:
             assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
         if custom_data is not None:
-            assert (
-                self.azure_ds.userdata_raw == custom_data.encode("utf-8")
-            )
+            assert self.azure_ds.userdata_raw == custom_data.encode("utf-8")
         else:
             assert self.azure_ds.userdata_raw == ""
 
