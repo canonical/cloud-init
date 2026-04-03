@@ -1,4 +1,5 @@
 import os
+from unittest import mock
 
 import pytest
 
@@ -11,7 +12,6 @@ from cloudinit.analyze.show import (
     dist_check_timestamp,
     gather_timestamps_using_systemd,
 )
-from tests.unittests.helpers import mock
 
 err_code = (FAIL_CODE, -1, -1, -1)
 

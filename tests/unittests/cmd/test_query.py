@@ -8,6 +8,7 @@ from collections import namedtuple
 from io import BytesIO
 from pathlib import Path
 from textwrap import dedent
+from unittest import mock
 
 import pytest
 
@@ -17,7 +18,6 @@ from cloudinit.helpers import Paths
 from cloudinit.sources import REDACT_SENSITIVE_VALUE
 from cloudinit.templater import JinjaSyntaxParsingException
 from cloudinit.util import write_file
-from tests.unittests.helpers import mock
 
 M_PATH = "cloudinit.cmd.query."
 

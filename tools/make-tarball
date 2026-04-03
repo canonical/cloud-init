@@ -8,7 +8,7 @@ cleanup() {
 trap cleanup EXIT
 
 Usage() {
-    cat <<EOF
+    cat << EOF
 Usage: ${0##*/} [revision]
     create a tarball of revision (default HEAD)
 
@@ -25,22 +25,38 @@ short_opts="ho:v"
 long_opts="help,output:,version:,orig-tarball,long"
 getopt_out=$(getopt --name "${0##*/}" \
     --options "${short_opts}" --long "${long_opts}" -- "$@") &&
-    eval set -- "${getopt_out}" || { Usage 1>&2; exit 1; }
+    eval set -- "${getopt_out}" || {
+    Usage 1>&2
+    exit 1
+}
 
 long_opt=""
 orig_opt=""
 version=""
 while [ $# -ne 0 ]; do
-    cur=$1; next=$2
+    cur=$1
+    next=$2
     case "$cur" in
-        -h|--help) Usage; exit 0;;
-        -o|--output) output=$next; shift;;
-           --version) version=$next; shift;;
-           --long) long_opt="--long";;
-           --orig-tarball) orig_opt=".orig";;
-        --) shift; break;;
+        -h | --help)
+            Usage
+            exit 0
+            ;;
+        -o | --output)
+            output=$next
+            shift
+            ;;
+        --version)
+            version=$next
+            shift
+            ;;
+        --long) long_opt="--long" ;;
+        --orig-tarball) orig_opt=".orig" ;;
+        --)
+            shift
+            break
+            ;;
     esac
-    shift;
+    shift
 done
 
 rev=${1:-HEAD}

@@ -1,8 +1,9 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+from unittest import mock
+
 import pytest
 
 import cloudinit.distros.bsd_utils as bsd_utils
-from tests.unittests.helpers import mock
 
 RC_FILE = """
 if something; then
