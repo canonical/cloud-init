@@ -693,7 +693,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             for group in groups:
                 if not util.is_group(group):
                     self.create_group(group)
-                    LOG.debug("created group '%s' for user '%s'", group, name)
 
         if "uid" in kwargs:
             kwargs["uid"] = str(kwargs["uid"])
@@ -879,9 +878,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             return self.add_snap_user(name, **kwargs)
 
         pre_existing_user = util.is_user(name)
-        if pre_existing_user:
-            LOG.info("User %s already exists, skipping.", name)
-        else:
+        if not pre_existing_user:
             self.add_user(name, groups=groups, **kwargs)
 
         has_existing_password = False

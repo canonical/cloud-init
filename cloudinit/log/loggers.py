@@ -71,15 +71,20 @@ class SecurityFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         # Use record.msg instead of getMessage which formats dict to JSON
-        event = copy.deepcopy(record.msg)
-        if not isinstance(event, dict):
-            raise TypeError(
-                f"SECURITY logs expected dict but found {type(event)}: {event}"
+        if not isinstance(record.msg, dict):
+            raise ValueError(
+                f"SECURITY logs expected dict but found: {record.msg}"
             )
-        event["datetime"] = datetime.datetime.fromtimestamp(
-            record.created, tz=datetime.timezone.utc
-        ).isoformat()
-        return json.dumps(event, separators=(",", ":"))
+        # Produce compressed JSON lines with separators to avoid whitespace.
+        return json.dumps(
+            {
+                **record.msg,
+                "datetime": datetime.datetime.fromtimestamp(
+                    record.created, tz=datetime.timezone.utc
+                ).isoformat(),
+            },
+            separators=(",", ":"),
+        )
 
 
 def setup_basic_logging(level=logging.DEBUG, formatter=None):
