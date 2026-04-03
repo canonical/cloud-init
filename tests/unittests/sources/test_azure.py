@@ -5482,65 +5482,29 @@ class TestProvisioning:
         assert not self.mock_kvp_report_success_to_host.mock_calls
 
     @pytest.mark.parametrize(
-        "flag_enabled,expected_kvp_failures,expected_fabric_failures,"
-        "expected_successes",
+        "flag_enabled",
+        [False, True],
+    )
+    @pytest.mark.parametrize(
+        "has_custom_data,custom_data",
         [
-            (False, 0, 0, 1),
-            (True, 1, 1, 0),
+            (True, None),
+            (True, "myCustomData"),
+            (False, None),
         ],
     )
-    def test_missing_customdata_report_on_flag(
+    def test_missing_customdata_reporting(
         self,
         flag_enabled,
-        expected_kvp_failures,
-        expected_fabric_failures,
-        expected_successes,
+        has_custom_data,
+        custom_data,
     ):
         """Failure is reported only when
-        experimental_fail_on_missing_customdata is True."""
+        experimental_fail_on_missing_customdata is True,
+        IMDS reports hasCustomData=True, and OVF has no custom data."""
         self.azure_ds.ds_cfg["experimental_fail_on_missing_customdata"] = (
             flag_enabled
         )
-
-        imds_md = copy.deepcopy(self.imds_md)
-        imds_md["extended"]["compute"]["hasCustomData"] = True
-
-        ovf = construct_ovf_env(provision_guest_proxy_agent=False)
-        md, ud, cfg = dsaz.read_azure_ovf(ovf)
-        self.mock_util_mount_cb.return_value = (md, ud, cfg, {})
-        self.mock_readurl.side_effect = [
-            mock.MagicMock(contents=json.dumps(imds_md).encode()),
-        ]
-        self.mock_azure_get_metadata_from_fabric.return_value = []
-
-        self.azure_ds._check_and_get_data()
-
-        assert (
-            len(self.mock_kvp_report_via_kvp.mock_calls)
-            == expected_kvp_failures
-        )
-        assert (
-            len(self.mock_azure_report_failure_to_fabric.mock_calls)
-            == expected_fabric_failures
-        )
-        assert (
-            len(self.mock_kvp_report_success_to_host.mock_calls)
-            == expected_successes
-        )
-
-    @pytest.mark.parametrize(
-        "has_custom_data,custom_data,expected_userdata",
-        [
-            (True, "myCustomData", b"myCustomData"),
-            (False, None, ""),
-        ],
-    )
-    def test_missing_customdata_no_report_when_not_applicable(
-        self, has_custom_data, custom_data, expected_userdata
-    ):
-        """No failure is reported when OVF provides custom data or
-        when IMDS reports hasCustomData=False, even with the flag enabled."""
-        self.azure_ds.ds_cfg["experimental_fail_on_missing_customdata"] = True
 
         imds_md = copy.deepcopy(self.imds_md)
         imds_md["extended"]["compute"]["hasCustomData"] = has_custom_data
@@ -5558,12 +5522,26 @@ class TestProvisioning:
 
         self.azure_ds._check_and_get_data()
 
-        # Verify no failure reported.
-        assert not self.mock_kvp_report_via_kvp.mock_calls
-        assert not self.mock_azure_report_failure_to_fabric.mock_calls
-        assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
+        expect_failure = (
+            flag_enabled and has_custom_data and custom_data is None
+        )
+        if expect_failure:
+            assert len(self.mock_kvp_report_via_kvp.mock_calls) == 1
+            assert (
+                len(self.mock_azure_report_failure_to_fabric.mock_calls) == 1
+            )
+            assert not self.mock_kvp_report_success_to_host.mock_calls
+        else:
+            assert not self.mock_kvp_report_via_kvp.mock_calls
+            assert not self.mock_azure_report_failure_to_fabric.mock_calls
+            assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
-        assert self.azure_ds.userdata_raw == expected_userdata
+        if custom_data is not None:
+            assert (
+                self.azure_ds.userdata_raw == custom_data.encode("utf-8")
+            )
+        else:
+            assert self.azure_ds.userdata_raw == ""
 
 
 class TestCheckAzureProxyAgent:
