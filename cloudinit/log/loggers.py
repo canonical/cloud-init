@@ -10,7 +10,6 @@
 
 import collections.abc  # pylint: disable=import-error
 import copy
-import datetime
 import io
 import json
 import logging
@@ -69,6 +68,9 @@ class NoSecurityFilter(logging.Filter):
 class SecurityFormatter(logging.Formatter):
     """Inject a 'datetime' field (UTC ISO-8601) into SECURITY JSON messages."""
 
+    # Provide granular enough details and TZ info in datetime value.
+    default_msec_format = "%s,%03d+00:00"
+
     def format(self, record: logging.LogRecord) -> str:
         # Use record.msg instead of getMessage which formats dict to JSON
         if not isinstance(record.msg, dict):
@@ -79,9 +81,7 @@ class SecurityFormatter(logging.Formatter):
         return json.dumps(
             {
                 **record.msg,
-                "datetime": datetime.datetime.fromtimestamp(
-                    record.created, tz=datetime.timezone.utc
-                ).isoformat(),
+                "datetime": self.formatTime(record),
             },
             separators=(",", ":"),
         )
