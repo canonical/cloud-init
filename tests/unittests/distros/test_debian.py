@@ -67,7 +67,7 @@ class TestDebianApplyLocale:
         util.write_file(LOCALE_PATH, "LANG=fr_FR.UTF-8", omode="w")
         distro.apply_locale(locale, out_fn=LOCALE_PATH)
         assert [
-            ["locale-gen"],
+            ["locale-gen", "--keep-existing"],
             [
                 "update-locale",
                 f"--locale-file={LOCALE_PATH}",
@@ -103,7 +103,7 @@ class TestDebianApplyLocale:
         with mock.patch.object(distro, "install_packages") as m_install:
             distro.apply_locale(locale, out_fn=LOCALE_PATH)
         assert [
-            ["locale-gen"],
+            ["locale-gen", "--keep-existing"],
             [
                 "update-locale",
                 f"--locale-file={LOCALE_PATH}",
@@ -128,7 +128,7 @@ class TestDebianApplyLocale:
         util.write_file(LOCALE_PATH, "LANG=", omode="w")
         distro.apply_locale(locale, out_fn=LOCALE_PATH)
         assert [
-            ["locale-gen"],
+            ["locale-gen", "--keep-existing"],
             [
                 "update-locale",
                 f"--locale-file={LOCALE_PATH}",
@@ -151,7 +151,7 @@ class TestDebianApplyLocale:
         util.write_file(LOCALE_PATH, "LANG=", omode="w")
         distro.apply_locale(locale, out_fn=LOCALE_PATH, keyname="LC_ALL")
         assert [
-            ["locale-gen"],
+            ["locale-gen", "--keep-existing"],
             [
                 "update-locale",
                 f"--locale-file={LOCALE_PATH}",
