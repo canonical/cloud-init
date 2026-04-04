@@ -4,6 +4,7 @@
 
 import json
 import logging
+from datetime import datetime
 
 import pytest
 
@@ -345,25 +346,25 @@ class TestSecurityFormatter:
         result = json.loads(SecurityFormatter().format(record))
         assert "datetime" in result
         # ISO 8601: contains 'T' separator and UTC offset
-        assert "T" in result["datetime"]
-        assert "+" in result["datetime"] or "Z" in result["datetime"]
+        dt = datetime.utcfromtimestamp(record.created)
+        expected_date = dt.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "+00:00"
+        assert result["datetime"] == expected_date
 
     def test_errors_on_non_dict(self):
         """Non-Dict messages are returned unchanged."""
         record = self._make_record("not dict")
-        with pytest.raises(TypeError, match="SECURITY logs expected dict but"):
+        with pytest.raises(
+            ValueError, match="SECURITY logs expected dict but"
+        ):
             SecurityFormatter().format(record)
 
     def test_datetime_uses_record_created_timestamp(self):
         """The injected datetime reflects the log record's creation time."""
-        import datetime as dt
-
         record = self._make_record({})
         result = json.loads(SecurityFormatter().format(record))
-        expected = dt.datetime.fromtimestamp(
-            record.created, tz=dt.timezone.utc
-        ).isoformat()
-        assert result["datetime"] == expected
+        dt = datetime.utcfromtimestamp(record.created)
+        expected_date = dt.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "+00:00"
+        assert result["datetime"] == expected_date
 
 
 class TestEventTypeEnums:
