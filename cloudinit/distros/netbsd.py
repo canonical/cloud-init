@@ -6,7 +6,7 @@ import functools
 import logging
 import os
 import platform
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Tuple
 
 import cloudinit.distros.bsd
 from cloudinit import subp, util
@@ -75,7 +75,7 @@ class NetBSD(cloudinit.distros.bsd.BSD):
         return ["usermod", "-G", group_name, member_name]
 
     def _build_add_user_cmd(
-        self, name: str, groups: Optional[List[str]] = None, **kwargs
+        self, name: str, groups: List[str], **kwargs
     ) -> Tuple[List[str], List[str]]:
         adduser_cmd = ["useradd"]
         log_adduser_cmd = ["useradd"]
@@ -110,29 +110,31 @@ class NetBSD(cloudinit.distros.bsd.BSD):
 
         return adduser_cmd, log_adduser_cmd
 
-    def _post_add_user(
-        self, name: str, groups: Optional[List[str]] = None, **kwargs
-    ) -> None:
+    def _post_add_user(self, name: str, groups: List[str], **kwargs) -> None:
         # Set the password if it is provided.
         # For security consideration, only hashed passwd is assumed.
         passwd_val = kwargs.get("passwd", None)
         if passwd_val is not None:
             self.set_passwd(name, passwd_val, hashed=True)
 
-    def set_passwd(self, user, passwd, hashed=False):
+    @staticmethod
+    def _build_set_passwd_command(
+        user: str, passwd: str, hashed=False
+    ) -> Tuple[List[str], str]:
+        """Build a command and password string to set a user's password.
+
+        Overridden in NetBSD to use usermod and blowfish hash.
+        """
         if hashed:
             hashed_pw = passwd
         else:
             hashed_pw = blowfish_hash(passwd)
+        return ["usermod", "-p", hashed_pw, user], ""
 
-        try:
-            subp.subp(["usermod", "-p", hashed_pw, user])
-        except Exception:
-            util.logexc(LOG, "Failed to set password for %s", user)
-            raise
+    def _post_set_password(self, user: str) -> None:
         self.unlock_passwd(user)
 
-    def lock_passwd(self, name):
+    def lock_passwd(self, name: str) -> None:
         try:
             subp.subp(["usermod", "-C", "yes", name])
         except Exception:
