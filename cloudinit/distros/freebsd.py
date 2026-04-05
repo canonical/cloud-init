@@ -8,7 +8,7 @@ import logging
 import os
 import re
 from io import StringIO
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 import cloudinit.distros.bsd
 from cloudinit import subp, util
@@ -99,7 +99,7 @@ class Distro(cloudinit.distros.bsd.BSD):
         return ["pw", "usermod", "-n", member_name, "-G", group_name]
 
     def _build_add_user_cmd(
-        self, name: str, groups: Optional[List[str]] = None, **kwargs
+        self, name: str, groups: List[str], **kwargs
     ) -> Tuple[List[str], List[str]]:
         pw_useradd_cmd = ["pw", "useradd", "-n", name]
         log_pw_useradd_cmd = ["pw", "useradd", "-n", name]
@@ -139,9 +139,7 @@ class Distro(cloudinit.distros.bsd.BSD):
 
         return pw_useradd_cmd, log_pw_useradd_cmd
 
-    def _post_add_user(
-        self, name: str, groups: Optional[List[str]] = None, **kwargs
-    ) -> None:
+    def _post_add_user(self, name: str, groups: List[str], **kwargs) -> None:
         # Set the password if it is provided.
         # For security consideration, only hashed passwd is assumed.
         passwd_val = kwargs.get("passwd", None)

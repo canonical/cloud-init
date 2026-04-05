@@ -210,7 +210,7 @@ class Distro(distros.Distro):
             LOG.warning("Ignoring selinux_user parameter for Alpine Linux")
 
     def _build_add_user_cmd(
-        self, name: str, groups: Optional[List[str]] = None, **kwargs
+        self, name: str, groups: List[str], **kwargs
     ) -> Tuple[List[str], List[str]]:
         # If 'useradd' is available then use the generic GNU implementation.
         if subp.which("useradd"):
@@ -246,9 +246,7 @@ class Distro(distros.Distro):
 
         return adduser_cmd, adduser_cmd
 
-    def _post_add_user(
-        self, name: str, groups: Optional[List[str]] = None, **kwargs
-    ) -> None:
+    def _post_add_user(self, name: str, groups: List[str], **kwargs) -> None:
         """Busybox post user-creation commands."""
         # When useradd is available, the GNU implementation handles everything.
         if subp.which("useradd"):

@@ -167,7 +167,9 @@ class MockDistro(distros.Distro):
     def expire_passwd(self, user):
         pass
 
-    def set_passwd(self, user, passwd, hashed=False):
+    def set_passwd(  # type: ignore[misc]
+        self, user, passwd, hashed=False
+    ):  # pylint: disable=overridden-final-method
         return True
 
     def ensure_sudo_dir(self, path, sudo_base="/etc/sudoers"):

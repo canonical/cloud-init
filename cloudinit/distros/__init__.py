@@ -679,9 +679,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     @final
     @sec_log_user_created
-    def add_user(
-        self, name: str, *, groups: Optional[List[str]] = None, **kwargs
-    ) -> None:
+    def add_user(self, name: str, *, groups: List[str], **kwargs) -> None:
         """Add a user to the system."""
 
         self._add_user_preprocess_kwargs(name, kwargs)
@@ -718,7 +716,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """
 
     def _build_add_user_cmd(
-        self, name: str, groups: Optional[List[str]] = None, **kwargs
+        self, name: str, groups: List[str], **kwargs
     ) -> Tuple[List[str], List[str]]:
         """Build the useradd command for GNU/Linux systems.
 
@@ -785,9 +783,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         return useradd_cmd, log_useradd_cmd
 
-    def _post_add_user(
-        self, name: str, groups: Optional[List[str]] = None, **kwargs
-    ) -> None:
+    def _post_add_user(self, name: str, groups: List[str], **kwargs) -> None:
         """Hook called after the user-creation command succeeds.
 
         Overridden to perform distro-specific post-creation steps.
@@ -856,9 +852,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return False
 
     @final
-    def create_user(
-        self, name: str, *, groups: Optional[List[str]] = None, **kwargs
-    ):
+    def create_user(self, name: str, *, groups: List[str], **kwargs):
         """
         Creates or partially updates the ``name`` user in the system.
 
@@ -1127,18 +1121,17 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         return cmd, pass_string
 
-    def _set_password_with_command(
-        self, cmd: List[str], pass_string: str, user: str
-    ):
+    def _set_password_with_command(self, cmd: List[str], data: str, user: str):
         """Run command to set the password,with the password string as input.
 
         Provided to avoid duplicated security logging decorators for distros
         which do not support bulk chpasswd use.
         """
+        cmd_kwargs = {"logstring": f"chpasswd for {user}"}
+        if data:
+            cmd_kwargs["data"] = data
         try:
-            subp.subp(
-                cmd, data=pass_string, logstring="chpasswd for %s" % user
-            )
+            subp.subp(cmd, **cmd_kwargs)
         except Exception as e:
             util.logexc(LOG, "Failed to set password for %s", user)
             raise e
@@ -1148,6 +1141,13 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def set_passwd(self, user, passwd, hashed=False):
         cmd, pass_string = self._build_set_passwd_command(user, passwd, hashed)
         self._set_password_with_command(cmd, pass_string, user)
+        self._post_set_password(user)
+
+    def _post_set_password(self, user: str) -> None:
+        """Hook called after the set password command succeeds.
+
+        Overridden to perform distro-specific post-creation steps.
+        """
 
     @final
     @sec_log_password_changed_batch

@@ -101,7 +101,7 @@ def sec_log_user_created(func):
 
     @functools.wraps(func)
     def decorator(
-        self, name: str, groups: Optional[List[str]] = None, *args, **kwargs
+        self, name: str, *args, groups: Optional[List[str]] = None, **kwargs
     ):
         if not name:
             raise RuntimeError(
