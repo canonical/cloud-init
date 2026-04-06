@@ -113,7 +113,7 @@ class TestRaspberryPiMethods:
         with mock.patch("os.path.exists", return_value=True):
             cc_rpi.configure_usb_gadget(True)
         m_subp.assert_called_once_with(
-            [RPI_USB_GADGET_SCRIPT, "on", "-f"], capture=False, timeout=15
+            [RPI_USB_GADGET_SCRIPT, "on", "-f"], capture=False, timeout=30
         )
 
     @mock.patch("cloudinit.subp.subp")
@@ -152,7 +152,7 @@ class TestRaspberryPiMethods:
 
         # Subprocess should have been invoked once
         m_subp.assert_called_once_with(
-            [RPI_USB_GADGET_SCRIPT, "on", "-f"], capture=False, timeout=15
+            [RPI_USB_GADGET_SCRIPT, "on", "-f"], capture=False, timeout=30
         )
 
         # Error log should contain failure message
