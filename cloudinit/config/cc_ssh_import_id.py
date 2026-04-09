@@ -149,24 +149,19 @@ def import_ssh_ids(ids, user):
     else:
         LOG.error("Neither sudo nor doas available! Unable to import SSH ids.")
         return
-    retry_ssh_import(cmd, user, 3, 0.5)
+    retry_ssh_import(cmd, 2, 0.5)
 
 
-def retry_ssh_import(cmd, user, tries, delay):
-    LOG.debug("Importing SSH ids for user %s.", user)
+def retry_ssh_import(cmd: list, tries: int, delay: float) -> None:
     for idx in range(tries):
         try:
-            return subp.subp(cmd, capture=False)
+            subp.subp(cmd, capture=False)
+            return
         except subp.ProcessExecutionError as exc:
-            if tries - idx > 1:
-                LOG.debug(
-                    "Retrying SSH import command of %s on exit[%d]",
-                    user,
-                    exc.exit_code,
-                )
+            if idx + 1 < tries:
+                LOG.debug("Retrying SSH import command")
                 time.sleep(delay)
             else:
-                util.logexc(LOG, "Failed to import SSH IDs: %s", cmd)
                 raise exc
 
 
