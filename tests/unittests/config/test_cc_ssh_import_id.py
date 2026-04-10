@@ -130,7 +130,7 @@ class TestHandleSshImportIDs:
     @mock.patch("cloudinit.config.cc_ssh_import_id.time.sleep")
     @mock.patch("cloudinit.ssh_util.pwd.getpwnam")
     @mock.patch("cloudinit.subp.which")
-    def test_retry_three_times_on_exit_code_1(
+    def test_retry_once_on_exit_code_1(
         self, m_which, m_getpwnam, m_sleep, caplog, mocker
     ):
         """Only attempt one retry when ssh-import-id exits with code 1."""

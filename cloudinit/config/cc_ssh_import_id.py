@@ -10,6 +10,7 @@
 import logging
 import pwd
 import time
+from contextlib import suppress
 
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
@@ -149,20 +150,17 @@ def import_ssh_ids(ids, user):
     else:
         LOG.error("Neither sudo nor doas available! Unable to import SSH ids.")
         return
-    retry_ssh_import(cmd, 2, 0.5)
+    retry_ssh_import(cmd, 0.5)
 
 
-def retry_ssh_import(cmd: list, tries: int, delay: float) -> None:
-    for idx in range(tries):
-        try:
-            subp.subp(cmd, capture=False)
-            return
-        except subp.ProcessExecutionError as exc:
-            if idx + 1 < tries:
-                LOG.debug("Retrying SSH import command")
-                time.sleep(delay)
-            else:
-                raise exc
+def retry_ssh_import(cmd: list, delay: float) -> None:
+    """Retry ssh-import-id once if it exits 1."""
+    with suppress(subp.ProcessExecutionError):
+        subp.subp(cmd, capture=False)
+        return
+    LOG.debug("Retrying SSH import command")
+    time.sleep(delay)
+    subp.subp(cmd, capture=False)
 
 
 def is_key_in_nested_dict(config: dict, search_key: str) -> bool:
