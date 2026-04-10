@@ -23,6 +23,7 @@ DEFAULT_REQUIREMENTS = "requirements.txt"
 
 DEFAULT_PKG_PREFIX = "python3-"
 FREEBSD_PKG_PREFIX = f"py{sys.version_info.major}{sys.version_info.minor}-"
+OPENBSD_PKG_PREFIX = "py3-"
 
 # Map the appropriate package dir needed for each distro choice
 DISTRO_PKG_TYPE_MAP = {
@@ -30,6 +31,7 @@ DISTRO_PKG_TYPE_MAP = {
     "eurolinux": "redhat",
     "miraclelinux": "redhat",
     "freebsd": "freebsd",
+    "openbsd": "openbsd",
     "fedora": "fedora",
     "rocky": "redhat",
     "redhat": "redhat",
@@ -113,12 +115,14 @@ DRYRUN_DISTRO_INSTALL_PKG_CMD = {
     "redhat": ["yum", "install", "--assumeyes"],
     "fedora": ["yum", "install", "--assumeyes"],
     "freebsd": ["pkg", "install", "--yes"],
+    "openbsd": ["pkg_add", "-n"],
 }
 
 DISTRO_INSTALL_PKG_CMD = {
     "redhat": MAYBE_RELIABLE_YUM_INSTALL,
     "fedora": MAYBE_RELIABLE_YUM_INSTALL,
     "freebsd": ["pkg", "install", "--yes"],
+    "openbsd": ["pkg_add", "-I"],
     "debian": ["apt", "install", "-y"],
     "suse": ZYPPER_INSTALL,
 }
@@ -126,6 +130,7 @@ DISTRO_INSTALL_PKG_CMD = {
 DISTRO_UPDATE_PKG_CMD = {
     "redhat": ["yum", "update"],
     "freebsd": ["pkg", "update"],
+    "openbsd": ["pkg_add", "-I", "-u"],
     "debian": ["apt", "update", "-q"],
     "suse": ["zypper", "update"],
 }
@@ -138,6 +143,7 @@ CI_SYSTEM_BASE_PKGS = {
     "miraclelinux": ["python3-tox"],
     "fedora": ["python3-tox"],
     "freebsd": [f"{FREEBSD_PKG_PREFIX}tox"],
+    "openbsd": [f"{OPENBSD_PKG_PREFIX}tox"],
     "redhat": ["python3-tox"],
     "centos": ["python3-tox"],
     "ubuntu": [
@@ -284,6 +290,8 @@ def translate_pip_to_system_pkg(distro, pip_requires, renames):
     """
     if distro in ("freebsd",):
         prefix = FREEBSD_PKG_PREFIX
+    elif distro in ("openbsd",):
+        prefix = OPENBSD_PKG_PREFIX
     else:
         prefix = DEFAULT_PKG_PREFIX
     standard_pkg_name = "{0}{1}"
@@ -376,7 +384,7 @@ def pkg_install(pkg_list, distro, test_distro=False, dry_run=False):
     """Install a list of packages using the DISTRO_INSTALL_PKG_CMD."""
     if test_distro:
         pkg_list = list(pkg_list) + CI_SYSTEM_BASE_PKGS["common"]
-        if distro not in ("freebsd",):
+        if distro not in ("freebsd", "openbsd"):
             pkg_list += CI_SYSTEM_BASE_PKGS["linux_common"]
         distro_base_pkgs = CI_SYSTEM_BASE_PKGS.get(distro, [])
         pkg_list += distro_base_pkgs
