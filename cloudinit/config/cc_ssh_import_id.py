@@ -158,7 +158,6 @@ def retry_ssh_import(cmd: list, delay: float) -> None:
     with suppress(subp.ProcessExecutionError):
         subp.subp(cmd, capture=False)
         return
-    LOG.debug("Retrying SSH import command")
     time.sleep(delay)
     subp.subp(cmd, capture=False)
 
