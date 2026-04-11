@@ -73,7 +73,7 @@ class TestManagePuppetServices:
         assert expected_calls == m_subp.call_args_list
 
 
-@pytest.mark.usefixtures("fake_filesystem")
+@pytest.mark.usefixtures("fake_fs")
 @mock.patch("cloudinit.config.cc_puppet._manage_puppet_services")
 class TestPuppetHandle:
     CONF = "/etc/puppet/puppet.conf"

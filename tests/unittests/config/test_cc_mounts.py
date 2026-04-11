@@ -295,7 +295,7 @@ class TestFstabHandling:
 
     @pytest.fixture(autouse=True)
     def setup(self, mocker, fake_fs):
-        self._makedirs("/etc")
+        fake_fs.create_dir("/etc")
 
         self.m_subp = mocker.patch(f"{M_PATH}subp.subp")
         self.m_mounts = mocker.patch(
@@ -316,10 +316,6 @@ class TestFstabHandling:
         self.mock_cloud = mock.Mock()
         self.mock_log = mock.Mock()
         self.mock_cloud.device_name_to_device = self.device_name_to_device
-
-    def _makedirs(self, directory):
-        if not os.path.exists(directory):
-            os.makedirs(directory)
 
     def device_name_to_device(self, path):
         if path == "swap":
