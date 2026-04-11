@@ -75,7 +75,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     errors = []
     if update or upgrade:
         try:
-            cloud.distro.update_package_sources()
+            cloud.distro.update_package_sources(force=True)
         except Exception as e:
             util.logexc(LOG, "Package update failed")
             errors.append(e)
