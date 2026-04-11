@@ -279,7 +279,7 @@ class TestUGNormalize:
         }
         users, _groups = self._norm(ug_cfg, distro)
         for user, config in users.items():
-            distro.create_user(user, **config)
+            distro.create_user(user, groups=[], **config)
 
         snapcmd = ["snap", "create-user", "--sudoer", "--json", "joe@joe.com"]
         mock_subp.assert_called_with(snapcmd, capture=True, logstring=snapcmd)
@@ -297,7 +297,7 @@ class TestUGNormalize:
         }
         users, _groups = self._norm(ug_cfg, distro)
         for user, config in users.items():
-            distro.create_user(user, **config)
+            distro.create_user(user, groups=[], **config)
 
         snapcmd = [
             "snap",
@@ -321,7 +321,7 @@ class TestUGNormalize:
         distro = self._make_distro("ubuntu")
         ug_cfg = {
             "users": [
-                {"name": "joe", "groups": "users", "create_groups": True},
+                {"name": "joe", "groups": ["users"], "create_groups": True},
             ],
         }
         users, _groups = self._norm(ug_cfg, distro)

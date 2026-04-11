@@ -235,7 +235,7 @@ class TestCreateUser:
         mocker.patch(
             "cloudinit.distros.util.system_is_snappy", return_value=is_snappy
         )
-        dist.create_user(name=USER, **create_kwargs)
+        dist.create_user(name=USER, groups=[], **create_kwargs)
         assert m_subp.call_args_list == expected
 
     @pytest.mark.parametrize(
@@ -391,7 +391,7 @@ class TestCreateUser:
                 )
             shadow_file.write_text(content)
         unlock_passwd = mocker.patch.object(dist, "unlock_passwd")
-        dist.create_user(name=USER, lock_passwd=False)
+        dist.create_user(name=USER, groups=[], lock_passwd=False)
         for log in expected_logs:
             assert log in caplog.text
         unlock_passwd.assert_not_called()
@@ -443,7 +443,7 @@ class TestCreateUser:
         mocker,
     ):
         """When user exists, don't unlock on empty or locked passwords."""
-        dist.create_user(name=USER, **create_kwargs)
+        dist.create_user(name=USER, groups=[], **create_kwargs)
         for log in expected_logs:
             assert log in caplog.text
         assert m_subp.call_args_list == expected
@@ -512,75 +512,6 @@ class TestCreateUser:
         ]
         assert m_subp.call_args_list == expected
 
-    @mock.patch("cloudinit.distros.util.is_group")
-    def test_create_groups_with_whitespace_string(
-        self, m_is_group, m_subp, dist, mocker
-    ):
-        # groups supported as a comma delimited string even with white space
-        mocker.patch(
-            "cloudinit.distros.util.system_is_snappy", return_value=False
-        )
-        m_is_group.return_value = False
-        dist.create_user(USER, groups="group1, group2")
-        expected = [
-            mock.call(["groupadd", "group1"]),
-            mock.call(["groupadd", "group2"]),
-            _useradd2call([USER, "--groups", "group1,group2", "-m"]),
-            mock.call(["passwd", "-l", USER]),
-        ]
-        assert m_subp.call_args_list == expected
-
-    @mock.patch("cloudinit.distros.util.is_group")
-    def test_snappy_create_groups_with_whitespace_string(
-        self, m_is_group, m_subp, dist, mocker
-    ):
-        # groups supported as a comma delimited string even with white space
-        mocker.patch(
-            "cloudinit.distros.util.system_is_snappy", return_value=True
-        )
-        m_is_group.return_value = False
-        dist.create_user(USER, groups="group1, group2")
-        expected = [
-            mock.call(["groupadd", "group1", "--extrausers"]),
-            mock.call(["groupadd", "group2", "--extrausers"]),
-            _useradd2call(
-                [USER, "--extrausers", "--groups", "group1,group2", "-m"]
-            ),
-            mock.call(["passwd", "-l", USER]),
-        ]
-        assert m_subp.call_args_list == expected
-
-    @mock.patch("cloudinit.distros.util.is_group", return_value=False)
-    def test_create_groups_with_dict_deprecated(
-        self, m_is_group, m_subp, dist, caplog, mocker
-    ):
-        """users.groups supports a dict value, but emit deprecation log."""
-        mocker.patch(
-            "cloudinit.distros.util.system_is_snappy", return_value=False
-        )
-        dist.create_user(USER, groups={"group1": None, "group2": None})
-        expected = [
-            mock.call(["groupadd", "group1"]),
-            mock.call(["groupadd", "group2"]),
-            _useradd2call([USER, "--groups", "group1,group2", "-m"]),
-            mock.call(["passwd", "-l", USER]),
-        ]
-        assert m_subp.call_args_list == expected
-
-        expected_levels = (
-            ["WARNING", "DEPRECATED"]
-            if lifecycle.should_log_deprecation(
-                "23.1", features.DEPRECATION_INFO_BOUNDARY
-            )
-            else ["INFO"]
-        )
-        assert caplog.records[0].levelname in expected_levels
-        assert (
-            "The user foo_user has a 'groups' config value of type dict"
-            in caplog.records[0].message
-        )
-        assert "Use a comma-delimited" in caplog.records[0].message
-
     @mock.patch("cloudinit.distros.util.is_group", return_value=False)
     def test_create_groups_with_list(
         self, m_is_group, m_subp, dist, caplog, mocker
@@ -625,7 +556,7 @@ class TestCreateUser:
         mocker.patch(
             "cloudinit.distros.util.system_is_snappy", return_value=False
         )
-        dist.create_user(USER, sudo=False)
+        dist.create_user(USER, groups=[], sudo=False)
         assert m_subp.call_args_list == [
             _useradd2call([USER, "-m"]),
             mock.call(["passwd", "-l", USER]),
@@ -654,7 +585,7 @@ class TestCreateUser:
         mocker.patch(
             "cloudinit.distros.util.system_is_snappy", return_value=False
         )
-        dist.create_user(USER, sudo=None)
+        dist.create_user(USER, groups=[], sudo=None)
         assert m_subp.call_args_list == [
             _useradd2call([USER, "-m"]),
             mock.call(["passwd", "-l", USER]),
@@ -666,7 +597,7 @@ class TestCreateUser:
         mocker.patch(
             "cloudinit.distros.util.system_is_snappy", return_value=True
         )
-        dist.create_user(USER, sudo=None)
+        dist.create_user(USER, groups=[], sudo=None)
         assert m_subp.call_args_list == [
             _useradd2call([USER, "--extrausers", "-m"]),
             mock.call(["passwd", "-l", USER]),
@@ -682,7 +613,7 @@ class TestCreateUser:
         mocker.patch(
             "cloudinit.distros.util.system_is_snappy", return_value=False
         )
-        dist.create_user(USER, ssh_authorized_keys="mykey")
+        dist.create_user(USER, groups=[], ssh_authorized_keys="mykey")
         assert m_subp.call_args_list == [
             _useradd2call([USER, "-m"]),
             mock.call(["passwd", "-l", USER]),
@@ -697,7 +628,7 @@ class TestCreateUser:
         mocker.patch(
             "cloudinit.distros.util.system_is_snappy", return_value=True
         )
-        dist.create_user(USER, ssh_authorized_keys="mykey")
+        dist.create_user(USER, groups=[], ssh_authorized_keys="mykey")
         assert m_subp.call_args_list == [
             _useradd2call([USER, "--extrausers", "-m"]),
             mock.call(["passwd", "-l", USER]),
@@ -712,7 +643,7 @@ class TestCreateUser:
         mocker.patch(
             "cloudinit.distros.util.system_is_snappy", return_value=False
         )
-        dist.create_user(USER, ssh_authorized_keys=["key1", "key2"])
+        dist.create_user(USER, groups=[], ssh_authorized_keys=["key1", "key2"])
         assert m_subp.call_args_list == [
             _useradd2call([USER, "-m"]),
             mock.call(["passwd", "-l", USER]),
@@ -727,7 +658,7 @@ class TestCreateUser:
         mocker.patch(
             "cloudinit.distros.util.system_is_snappy", return_value=True
         )
-        dist.create_user(USER, ssh_authorized_keys=["key1", "key2"])
+        dist.create_user(USER, groups=[], ssh_authorized_keys=["key1", "key2"])
         assert m_subp.call_args_list == [
             _useradd2call([USER, "--extrausers", "-m"]),
             mock.call(["passwd", "-l", USER]),
@@ -739,7 +670,7 @@ class TestCreateUser:
         self, m_setup_user_keys, m_subp, dist, caplog
     ):
         """ssh_authorized_keys warns on non-iterable/string type."""
-        dist.create_user(USER, ssh_authorized_keys=-1)
+        dist.create_user(USER, groups=[], ssh_authorized_keys=-1)
         m_setup_user_keys.assert_called_once_with(set([]), USER)
         deprecation_msg = (
             "Invalid type '<class 'int'>' detected for 'ssh_authorized_keys'"
@@ -754,7 +685,7 @@ class TestCreateUser:
         self, m_setup_user_keys, m_subp, dist, caplog
     ):
         """Log a warning when trying to redirect a user no cloud ssh keys."""
-        dist.create_user(USER, ssh_redirect_user="someuser")
+        dist.create_user(USER, groups=[], ssh_redirect_user="someuser")
         deprecation_msg = (
             "Unable to disable SSH logins for foo_user given "
             "ssh_redirect_user: someuser. No cloud public-keys present."
@@ -773,7 +704,10 @@ class TestCreateUser:
     ):
         """Disable ssh when ssh_redirect_user and cloud ssh keys are set."""
         dist.create_user(
-            USER, ssh_redirect_user="someuser", cloud_public_ssh_keys=["key1"]
+            USER,
+            groups=[],
+            ssh_redirect_user="someuser",
+            cloud_public_ssh_keys=["key1"],
         )
         disable_prefix = ssh_util.DISABLE_USER_OPTS
         disable_prefix = disable_prefix.replace("$USER", "someuser")
@@ -789,6 +723,7 @@ class TestCreateUser:
         """Do not disable ssh_authorized_keys when ssh_redirect_user is set."""
         dist.create_user(
             USER,
+            groups=[],
             ssh_authorized_keys="auth1",
             ssh_redirect_user="someuser",
             cloud_public_ssh_keys=["key1"],

@@ -39,7 +39,7 @@ class TestAlpineBusyboxUserGroup:
 
         distro.shadow_fn = shadow_file
 
-        distro.add_user(user, lock_passwd=True)
+        distro.add_user(user, groups=[], lock_passwd=True)
 
         m_subp.assert_called_with(
             ["adduser", "-D", user], logstring=["adduser", "-D", user]
@@ -72,7 +72,7 @@ class TestAlpineShadowUserGroup:
     def test_shadow_add_user(self, m_which, m_subp):
         user = "me2"
 
-        self.distro.add_user(user)
+        self.distro.add_user(user, groups=[])
 
         m_subp.assert_called_with(
             ["useradd", user, "-m"], logstring=["useradd", user, "-m"]

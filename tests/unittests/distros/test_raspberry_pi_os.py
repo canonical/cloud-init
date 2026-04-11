@@ -127,7 +127,7 @@ class TestRaspberryPiOS:
             "_build_add_user_cmd",
             return_value=(["useradd", "pi", "-m"], ["useradd", "pi", "-m"]),
         ):
-            distro.add_user("pi")
+            distro.add_user("pi", groups=[])
             m_subp.assert_any_call(
                 ["/usr/bin/rename-user", "-f", "-s"],
                 update_env={"SUDO_USER": "pi"},
@@ -149,7 +149,7 @@ class TestRaspberryPiOS:
             return_value=(["useradd", "pi", "-m"], ["useradd", "pi", "-m"]),
         ):
             with caplog.at_level(logging.ERROR):
-                distro.add_user("pi")
+                distro.add_user("pi", groups=[])
                 assert "Failed to setup user" in caplog.text
 
     @mock.patch(

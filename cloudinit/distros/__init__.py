@@ -659,14 +659,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def get_default_user(self):
         return self.get_option("default_user")
 
-    def _user_groups_to_list(self, groups) -> List[str]:
-        """Return a list of designation groups with whitespace removed."""
-        if not groups:
-            return []
-        if isinstance(groups, str):
-            groups = groups.split(",")
-        return [g.strip() for g in groups]
-
     def _get_elevated_roles(self, **kwargs) -> List[str]:
         elevated_roles = []
         if kwargs.get("sudo"):
@@ -675,28 +667,17 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             elevated_roles.append("doas")
         return elevated_roles
 
-    def add_user(self, name, **kwargs) -> None:
+    def add_user(self, name: str, *, groups: List[str], **kwargs) -> None:
         """Add a user to the system."""
 
         self._add_user_preprocess_kwargs(name, kwargs)
 
-        create_groups = kwargs.pop("create_groups", True)
-
-        if isinstance(kwargs.get("groups", None), dict):
-            lifecycle.deprecate(
-                deprecated=f"The user {name} has a 'groups' config value "
-                "of type dict",
-                deprecated_version="22.3",
-                extra_message="Use a comma-delimited string or "
-                "array instead: group1,group2.",
-            )
-        groups = self._user_groups_to_list(kwargs.pop("groups", None))
         if groups:
             primary_group = kwargs.get("primary_group")
             if primary_group:
                 groups.append(primary_group)
 
-        if create_groups and groups:
+        if kwargs.pop("create_groups", True) and groups:
             for group in groups:
                 if not util.is_group(group):
                     self.create_group(group)
@@ -855,7 +836,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 return True
         return False
 
-    def create_user(self, name, **kwargs):
+    def create_user(self, name: str, *, groups: List[str], **kwargs):
         """
         Creates or partially updates the ``name`` user in the system.
 
@@ -884,7 +865,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         if pre_existing_user:
             LOG.info("User %s already exists, skipping.", name)
         else:
-            self.add_user(name, **kwargs)
+            self.add_user(name, groups=groups, **kwargs)
 
         has_existing_password = False
         ud_blank_password_specified = False
