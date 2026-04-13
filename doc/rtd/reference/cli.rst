@@ -85,6 +85,7 @@ Logs collected include:
 
 * :file:`/var/log/cloud-init.log`
 * :file:`/var/log/cloud-init-output.log`
+* :file:`/var/log/cloud-init-security.log`
 * :file:`/run/cloud-init`
 * :file:`/var/lib/cloud/instance/user-data.txt`
 * ``cloud-init`` package version

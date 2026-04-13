@@ -8,6 +8,7 @@ import logging
 import os
 import re
 from io import StringIO
+from typing import List, Tuple
 
 import cloudinit.distros.bsd
 from cloudinit import subp, util
@@ -97,24 +98,15 @@ class Distro(cloudinit.distros.bsd.BSD):
     def _get_add_member_to_group_cmd(self, member_name, group_name):
         return ["pw", "usermod", "-n", member_name, "-G", group_name]
 
-    def add_user(self, name, **kwargs) -> bool:
-        """
-        Add a user to the system using standard tools
-
-        Returns False if user already exists, otherwise True.
-        """
-        if util.is_user(name):
-            LOG.info("User %s already exists, skipping.", name)
-            return False
-
+    def _build_add_user_cmd(
+        self, name: str, groups: List[str], **kwargs
+    ) -> Tuple[List[str], List[str]]:
         pw_useradd_cmd = ["pw", "useradd", "-n", name]
         log_pw_useradd_cmd = ["pw", "useradd", "-n", name]
-
         pw_useradd_opts = {
             "homedir": "-d",
             "gecos": "-c",
             "primary_group": "-g",
-            "groups": "-G",
             "shell": "-s",
             "inactive": "-E",
             "uid": "-u",
@@ -125,6 +117,8 @@ class Distro(cloudinit.distros.bsd.BSD):
             "no_log_init": "--no-log-init",
         }
 
+        if groups:
+            pw_useradd_cmd.extend(["-G", ",".join(groups)])
         for key, val in kwargs.items():
             if key in pw_useradd_opts and val and isinstance(val, (str, int)):
                 pw_useradd_cmd.extend([pw_useradd_opts[key], str(val)])
@@ -143,21 +137,14 @@ class Distro(cloudinit.distros.bsd.BSD):
             log_pw_useradd_cmd.append("-d" + homedir)
             log_pw_useradd_cmd.append("-m")
 
-        # Run the command
-        LOG.info("Adding user %s", name)
-        try:
-            subp.subp(pw_useradd_cmd, logstring=log_pw_useradd_cmd)
-        except Exception:
-            util.logexc(LOG, "Failed to create user %s", name)
-            raise
-        # Set the password if it is provided
-        # For security consideration, only hashed passwd is assumed
+        return pw_useradd_cmd, log_pw_useradd_cmd
+
+    def _post_add_user(self, name: str, groups: List[str], **kwargs) -> None:
+        # Set the password if it is provided.
+        # For security consideration, only hashed passwd is assumed.
         passwd_val = kwargs.get("passwd", None)
         if passwd_val is not None:
             self.set_passwd(name, passwd_val, hashed=True)
-
-        # Indicate that a new user was created
-        return True
 
     def expire_passwd(self, user):
         try:
@@ -166,21 +153,20 @@ class Distro(cloudinit.distros.bsd.BSD):
             util.logexc(LOG, "Failed to set pw expiration for %s", user)
             raise
 
-    def set_passwd(self, user, passwd, hashed=False):
+    @staticmethod
+    def _build_set_passwd_command(
+        user: str, passwd: str, hashed=False
+    ) -> Tuple[List[str], str]:
+        """Build a command and password string to set a user's password.
+
+        Overridden in FreeBSD to use pw.
+        """
         if hashed:
             hash_opt = "-H"
         else:
             hash_opt = "-h"
 
-        try:
-            subp.subp(
-                ["pw", "usermod", user, hash_opt, "0"],
-                data=passwd,
-                logstring="chpasswd for %s" % user,
-            )
-        except Exception:
-            util.logexc(LOG, "Failed to set password for %s", user)
-            raise
+        return ["pw", "usermod", user, hash_opt, "0"], passwd
 
     def lock_passwd(self, name):
         try:

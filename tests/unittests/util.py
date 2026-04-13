@@ -1,9 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-from typing import Optional, Type
+from typing import List, Optional, Type
 from unittest import mock
 
 from cloudinit import cloud, distros, helpers
 from cloudinit.config import Config
+from cloudinit.log import security_event_log
 from cloudinit.net.dhcp import IscDhclient
 from cloudinit.sources import DataSource, DataSourceHostname
 from cloudinit.sources.DataSourceNone import DataSourceNone
@@ -143,13 +144,21 @@ class MockDistro(distros.Distro):
     def update_etc_hosts(self, hostname, fqdn):
         pass
 
-    def add_user(self, name, **kwargs):
+    @security_event_log.sec_log_user_created  # type: ignore[misc]
+    def add_user(
+        self, name: str, *, groups: List[str], **kwargs
+    ):  # pylint: disable=overridden-final-method
         pass
 
-    def add_snap_user(self, name, **kwargs):
+    @security_event_log.sec_log_user_created  # type: ignore[misc]
+    def add_snap_user(
+        self, name, **kwargs
+    ):  # pylint: disable=overridden-final-method
         return "snap_user"
 
-    def create_user(self, name, **kwargs):
+    def create_user(  # type: ignore[misc]
+        self, name, **kwargs
+    ):  # pylint: disable=overridden-final-method
         return True
 
     def lock_passwd(self, name):
@@ -158,7 +167,9 @@ class MockDistro(distros.Distro):
     def expire_passwd(self, user):
         pass
 
-    def set_passwd(self, user, passwd, hashed=False):
+    def set_passwd(  # type: ignore[misc]
+        self, user, passwd, hashed=False
+    ):  # pylint: disable=overridden-final-method
         return True
 
     def ensure_sudo_dir(self, path, sudo_base="/etc/sudoers"):
@@ -170,7 +181,10 @@ class MockDistro(distros.Distro):
     def create_group(self, name, members=None):
         pass
 
-    def shutdown_command(self, *, mode, delay, message):
+    @security_event_log.sec_log_system_shutdown  # type: ignore[misc]
+    def shutdown_command(
+        self, *, mode, delay, message
+    ):  # pylint: disable=overridden-final-method
         pass
 
     def package_command(self, command, args=None, pkgs=None):

@@ -30,6 +30,7 @@ class BSD(distros.Distro):
     pkg_cmd_update_prefix: Optional[List[str]] = None
     pkg_cmd_upgrade_prefix: Optional[List[str]] = None
     net_ops = bsd_netops.BsdNetOps
+    support_bulk_chpasswd = False
 
     def __init__(self, name, cfg, paths):
         super().__init__(name, cfg, paths)
@@ -148,10 +149,6 @@ class BSD(distros.Distro):
 
     def apply_locale(self, locale, out_fn=None):
         LOG.debug("Cannot set the locale.")
-
-    def chpasswd(self, plist_in: list, hashed: bool):
-        for name, password in plist_in:
-            self.set_passwd(name, password, hashed=hashed)
 
     @staticmethod
     def get_proc_ppid(pid):

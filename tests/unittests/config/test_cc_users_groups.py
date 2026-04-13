@@ -64,11 +64,11 @@ class TestHandleUsersGroups:
             [
                 mock.call(
                     "ubuntu",
-                    groups="lxd,sudo",
+                    groups=["lxd", "sudo"],
                     lock_passwd=True,
                     shell="/bin/bash",
                 ),
-                mock.call("me2", default=False),
+                mock.call("me2", groups=[], default=False),
             ],
         )
         m_group.assert_not_called()
@@ -110,12 +110,12 @@ class TestHandleUsersGroups:
             [
                 mock.call(
                     "freebsd",
-                    groups="wheel",
+                    groups=["wheel"],
                     lock_passwd=True,
                     shell="/bin/tcsh",
                     homedir="/home/freebsd",
                 ),
-                mock.call("me2", uid=1234, default=False),
+                mock.call("me2", groups=[], uid=1234, default=False),
             ],
         )
         m_fbsd_group.assert_not_called()
@@ -144,12 +144,13 @@ class TestHandleUsersGroups:
             [
                 mock.call(
                     "ubuntu",
-                    groups="lxd,sudo",
+                    groups=["lxd", "sudo"],
                     lock_passwd=True,
                     shell="/bin/bash",
                 ),
                 mock.call(
                     "me2",
+                    groups=[],
                     cloud_public_ssh_keys=["key1"],
                     default=False,
                     ssh_redirect_user="ubuntu",
@@ -183,12 +184,13 @@ class TestHandleUsersGroups:
             [
                 mock.call(
                     "ubuntu",
-                    groups="lxd,sudo",
+                    groups=["lxd", "sudo"],
                     lock_passwd=True,
                     shell="/bin/bash",
                 ),
                 mock.call(
                     "me2",
+                    groups=[],
                     cloud_public_ssh_keys=["key1"],
                     default=False,
                     ssh_redirect_user="ubuntu",
@@ -264,11 +266,11 @@ class TestHandleUsersGroups:
             [
                 mock.call(
                     "ubuntu",
-                    groups="lxd,sudo",
+                    groups=["lxd", "sudo"],
                     lock_passwd=True,
                     shell="/bin/bash",
                 ),
-                mock.call("me2", default=False),
+                mock.call("me2", groups=[], default=False),
             ],
         )
         m_group.assert_not_called()
@@ -285,7 +287,7 @@ class TestHandleUsersGroups:
         metadata = {}  # no public-keys defined
         cloud = get_cloud(distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata)
         cc_users_groups.handle("modulename", cfg, cloud, None)
-        m_user.assert_called_once_with("me2", default=False)
+        m_user.assert_called_once_with("me2", groups=[], default=False)
         m_group.assert_not_called()
         assert [
             (
@@ -296,6 +298,38 @@ class TestHandleUsersGroups:
                 " cloud configuration users:  [default, ..].",
             )
         ] == caplog.record_tuples
+
+    def test_user_groups_string_normalized_to_list(self, m_user, m_group):
+        cfg = {"users": [{"name": "me2", "groups": "group1, group2"}]}
+        cloud = get_cloud(distro="ubuntu", sys_cfg={}, metadata={})
+
+        cc_users_groups.handle("modulename", cfg, cloud, None)
+
+        m_user.assert_called_once_with(
+            "me2", default=False, groups=["group1", "group2"]
+        )
+        m_group.assert_not_called()
+
+    def test_user_groups_dict_deprecated_normalized_to_list(
+        self, m_user, m_group, caplog
+    ):
+        cfg = {
+            "users": [
+                {"name": "me2", "groups": {"group1": None, "group2": None}}
+            ]
+        }
+        cloud = get_cloud(distro="ubuntu", sys_cfg={}, metadata={})
+
+        cc_users_groups.handle("modulename", cfg, cloud, None)
+
+        m_user.assert_called_once_with(
+            "me2", default=False, groups=["group1", "group2"]
+        )
+        assert (
+            "The user me2 has a 'groups' config value of type dict"
+            in caplog.text
+        )
+        m_group.assert_not_called()
 
 
 class TestUsersGroupsSchema:

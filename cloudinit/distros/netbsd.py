@@ -6,7 +6,7 @@ import functools
 import logging
 import os
 import platform
-from typing import Any
+from typing import Any, List, Tuple
 
 import cloudinit.distros.bsd
 from cloudinit import subp, util
@@ -74,16 +74,9 @@ class NetBSD(cloudinit.distros.bsd.BSD):
     def _get_add_member_to_group_cmd(self, member_name, group_name):
         return ["usermod", "-G", group_name, member_name]
 
-    def add_user(self, name, **kwargs) -> bool:
-        """
-        Add a user to the system using standard tools
-
-        Returns False if user already exists, otherwise True.
-        """
-        if util.is_user(name):
-            LOG.info("User %s already exists, skipping.", name)
-            return False
-
+    def _build_add_user_cmd(
+        self, name: str, groups: List[str], **kwargs
+    ) -> Tuple[List[str], List[str]]:
         adduser_cmd = ["useradd"]
         log_adduser_cmd = ["useradd"]
 
@@ -91,7 +84,6 @@ class NetBSD(cloudinit.distros.bsd.BSD):
             "homedir": "-d",
             "gecos": "-c",
             "primary_group": "-g",
-            "groups": "-G",
             "shell": "-s",
         }
         adduser_flags = {
@@ -100,10 +92,11 @@ class NetBSD(cloudinit.distros.bsd.BSD):
             "no_log_init": "--no-log-init",
         }
 
+        if groups:
+            adduser_cmd.extend(["-G", ",".join(groups)])
         for key, val in kwargs.items():
             if key in adduser_opts and val and isinstance(val, str):
                 adduser_cmd.extend([adduser_opts[key], val])
-
             elif key in adduser_flags and val:
                 adduser_cmd.append(adduser_flags[key])
                 log_adduser_cmd.append(adduser_flags[key])
@@ -115,36 +108,33 @@ class NetBSD(cloudinit.distros.bsd.BSD):
         adduser_cmd += [name]
         log_adduser_cmd += [name]
 
-        # Run the command
-        LOG.info("Adding user %s", name)
-        try:
-            subp.subp(adduser_cmd, logstring=log_adduser_cmd)
-        except Exception:
-            util.logexc(LOG, "Failed to create user %s", name)
-            raise
-        # Set the password if it is provided
-        # For security consideration, only hashed passwd is assumed
+        return adduser_cmd, log_adduser_cmd
+
+    def _post_add_user(self, name: str, groups: List[str], **kwargs) -> None:
+        # Set the password if it is provided.
+        # For security consideration, only hashed passwd is assumed.
         passwd_val = kwargs.get("passwd", None)
         if passwd_val is not None:
             self.set_passwd(name, passwd_val, hashed=True)
 
-        # Indicate that a new user was created
-        return True
+    @staticmethod
+    def _build_set_passwd_command(
+        user: str, passwd: str, hashed=False
+    ) -> Tuple[List[str], str]:
+        """Build a command and password string to set a user's password.
 
-    def set_passwd(self, user, passwd, hashed=False):
+        Overridden in NetBSD to use usermod and blowfish hash.
+        """
         if hashed:
             hashed_pw = passwd
         else:
             hashed_pw = blowfish_hash(passwd)
+        return ["usermod", "-p", hashed_pw, user], ""
 
-        try:
-            subp.subp(["usermod", "-p", hashed_pw, user])
-        except Exception:
-            util.logexc(LOG, "Failed to set password for %s", user)
-            raise
+    def _post_set_password(self, user: str) -> None:
         self.unlock_passwd(user)
 
-    def lock_passwd(self, name):
+    def lock_passwd(self, name: str) -> None:
         try:
             subp.subp(["usermod", "-C", "yes", name])
         except Exception:

@@ -4,6 +4,7 @@
 
 import datetime
 import io
+import json
 import logging
 import time
 from typing import cast
@@ -97,6 +98,13 @@ class TestDeprecatedLogs:
         assert "TRACE" == caplog.records[0].levelname
         assert "trace message" in caplog.text
 
+    def test_security_log_level(self, caplog):
+        logger = cast(loggers.CustomLoggerType, logging.getLogger())
+        logger.setLevel(logging.NOTSET)
+        logger.security("security message")
+        assert "SECURITY" == caplog.records[0].levelname
+        assert "security message" in caplog.text
+
     @pytest.mark.parametrize(
         "expected_log_level, deprecation_info_boundary",
         (
@@ -165,8 +173,40 @@ class TestDeprecatedLogs:
         assert 2 == len(caplog.records)
 
 
-def test_logger_prints_to_stderr(capsys):
+def test_logger_prints_to_stderr(capsys, caplog):
     message = "to stdout"
     loggers.setup_basic_logging()
     logging.getLogger().warning(message)
     assert message in capsys.readouterr().err
+
+
+class TestSecurityLogs:
+    def test_logger_prints_security_as_json_lines(
+        self, tmp_path, capsys, caplog
+    ):
+        """Security logs accepts dict as payload and logs JSON lines."""
+        log_file = tmp_path / "cloud-init-output.log"
+        loggers.setup_basic_logging()
+        root = cast(loggers.CustomLoggerType, logging.getLogger())
+        loggers.setup_security_logging(root=root, log_file=str(log_file))
+        message = {"key": "value"}  # Security logs expect python dict
+        root.security(message)
+        logged_event = json.loads(log_file.read_text())
+        assert logged_event.pop("datetime"), "Missing expected datetime in log"
+        assert logged_event == message
+        # SECURITY level logs are not reflected to stderr
+        assert "" == capsys.readouterr().err
+
+    def test_logger_requires_dict_payload(self, tmp_path, capsys):
+        """Security logs will error when payload message is not a dict.
+
+        Future-proofing additional call-sites from calling
+        LOG.security("non-dict payload")
+        """
+        log_file = tmp_path / "cloud-init-output.log"
+        loggers.setup_basic_logging()
+        root = cast(loggers.CustomLoggerType, logging.getLogger())
+        loggers.setup_security_logging(root=root, log_file=str(log_file))
+        root.security("some non-dict payload")
+        # Invalid security payloads are not logged and don't crash cloud-init.
+        assert "" == log_file.read_text()
