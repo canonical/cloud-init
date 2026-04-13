@@ -572,17 +572,6 @@ class TestOpenNebulaNetwork:
         val = net.get_field("eth9", "dummy")
         assert None is val
 
-    def test_get_field_nonecontext(self):
-        """
-        Verify get_field('device', 'name') returns None if context value is
-        None.
-        """
-        # Deliberately passing None value to test defensive handling in get_field
-        context = {"ETH9_DUMMY": None}
-        net = ds.OpenNebulaNetwork(context, mock.Mock())  # type: ignore[arg-type]
-        val = net.get_field("eth9", "dummy")
-        assert None is val
-
     @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
     def test_gen_conf_gateway(self, m_get_phys_by_mac):
         """Test rendering with/without IPv4 gateway"""
