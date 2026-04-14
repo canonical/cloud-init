@@ -838,7 +838,7 @@ class DataSourceAzure(sources.DataSource):
                 report_diagnostic_event(
                     "Did not find custom data in %s, IMDS returned"
                     " extended.compute.hasCustomData=%r"
-                    % (ovf_source, _hascustomdata_from_imds(imds_md)),
+                    % (ovf_source, imds_md["extended"]["compute"]["hasCustomData"]),
                     logger_func=LOG.error,
                 )
 
