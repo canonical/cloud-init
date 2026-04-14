@@ -212,6 +212,7 @@ class DataSourceCloudStack(sources.DataSource):
 
     def _get_data(self):
         seed_ret: Dict[str, Any] = {}
+        primary_nic = None
         if util.read_optional_seed(seed_ret, base=(self.seed_dir + "/")):
             self.userdata_raw = seed_ret["user-data"]
             self.metadata = seed_ret["meta-data"]
@@ -362,7 +363,7 @@ def get_vr_address(distro):
             LOG.debug("Found SERVER_ADDRESS '%s' via nmcli", latest_address)
             return latest_address
 
-    with suppress(FileNotFoundError):
+    with suppress(FileNotFoundError, dhcp.NoDHCPLeaseError):
         latest_lease = distro.dhcp_client.get_newest_lease(
             distro.fallback_interface
         )
