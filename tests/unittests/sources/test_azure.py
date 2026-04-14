@@ -5490,18 +5490,22 @@ class TestProvisioning:
         [
             (True, None),
             (True, "myCustomData"),
+            (True, ""),
             (False, None),
         ],
     )
     def test_missing_customdata_reporting(
         self,
+        caplog,
         flag_enabled,
         has_custom_data,
         custom_data,
     ):
         """Failure is reported only when
         experimental_fail_on_missing_customdata is True,
-        IMDS reports hasCustomData=True, and OVF has no custom data."""
+        IMDS reports hasCustomData=True, and OVF has no custom data.
+        When the flag is not enabled but IMDS reports custom data
+        should be present, a diagnostic event is logged."""
         self.azure_ds.ds_cfg["experimental_fail_on_missing_customdata"] = (
             flag_enabled
         )
@@ -5523,7 +5527,7 @@ class TestProvisioning:
         self.azure_ds._check_and_get_data()
 
         expect_failure = (
-            flag_enabled and has_custom_data and custom_data is None
+            flag_enabled and has_custom_data and not custom_data
         )
         if expect_failure:
             assert len(self.mock_kvp_report_via_kvp.mock_calls) == 1
@@ -5536,10 +5540,23 @@ class TestProvisioning:
             assert not self.mock_azure_report_failure_to_fabric.mock_calls
             assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
-        if custom_data is not None:
+        if custom_data:
             assert self.azure_ds.userdata_raw == custom_data.encode("utf-8")
         else:
             assert self.azure_ds.userdata_raw == ""
+
+        # Verify diagnostic event for missing custom data when
+        # the experimental flag is not enabled.
+        expect_diagnostic = (
+            not flag_enabled and has_custom_data and not custom_data
+        )
+        if expect_diagnostic:
+            assert (
+                "Did not find custom data in /dev/sr0,"
+                " IMDS reports custom data should be present"
+            ) in caplog.text
+        else:
+            assert "Did not find custom data in" not in caplog.text
 
 
 class TestCheckAzureProxyAgent:

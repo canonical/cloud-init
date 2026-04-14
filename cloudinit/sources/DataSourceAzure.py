@@ -834,6 +834,13 @@ class DataSourceAzure(sources.DataSource):
                         provisioning_media=ovf_source,
                     )
                 )
+            elif _hascustomdata_from_imds(imds_md):
+                report_diagnostic_event(
+                    "Did not find custom data in %s,"
+                    " IMDS reports custom data should be present"
+                    % ovf_source,
+                    logger_func=LOG.error,
+                )
 
             imds_userdata = _userdata_from_imds(imds_md)
             if imds_userdata:
