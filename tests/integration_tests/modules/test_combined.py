@@ -90,7 +90,7 @@ snap:
   commands:
     - snap install hello-world
 ssh_import_id:
-  - lp:smoser
+  - gh:blackboxsw
 
 timezone: Europe/Madrid
 """
@@ -678,4 +678,4 @@ class TestCombinedNoCI:
         client = class_client
         ssh_output = client.read_from_file("/home/ubuntu/.ssh/authorized_keys")
 
-        assert "# ssh-import-id lp:smoser" in ssh_output
+        assert "# ssh-import-id gh:blackboxsw" in ssh_output

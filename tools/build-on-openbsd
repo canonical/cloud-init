@@ -1,4 +1,8 @@
 #!/bin/sh
+# This script provides a quick and dirty way of building and installing
+# cloud-init on OpenBSD.
+
+set -eux
 
 fail() {
     echo "FAILED:" "$@" 1>&2
@@ -13,42 +17,11 @@ fi
 
 # Check dependencies:
 depschecked=/tmp/c-i.dependencieschecked
-pkgs="
-   bash
-   dmidecode
-   py3-configobj
-   py3-jinja2
-   py3-jsonschema
-   py3-jsonpatch
-   py3-jsonpointer
-   py3-oauthlib
-   py3-requests
-   py3-setuptools
-   py3-serial
-   py3-yaml
-   sudo--
-   wget
-"
+[ -f "$depschecked" ] || ./tools/read-dependencies --distro openbsd -t || fail "install packages"
+touch "$depschecked"
 
-[ -f $depschecked ] || echo "Installing the following packages: $pkgs"
-output=$(pkg_add -zI $pkgs 2>&1)
+# Build the code and install in /usr/local/:
+meson setup builddir -Dinit_system=sysvinit_openbsd -Dsysconfdir=/etc
+meson install -C builddir
 
-if echo "$output" | grep -q -e "Can't find" -e "Ambiguous"; then
-    echo "Failed to find or install one or more packages"
-    echo "Failed Package(s):"
-    echo "$output"
-    exit 1
-else
-    echo Successfully installed packages
-    touch $depschecked
-
-    python3 setup.py build
-    python3 setup.py install -O1 --distro openbsd --skip-build --init-system sysvinit_openbsd
-
-    echo "Installation completed."
-
-    rcctl enable cloudinitlocal
-    rcctl enable cloudinit
-    rcctl enable cloudconfig
-    rcctl enable cloudfinal
-fi
+echo "Installation completed."
