@@ -5550,8 +5550,8 @@ class TestProvisioning:
         )
         if expect_diagnostic:
             assert (
-                "Did not find custom data in /dev/sr0,"
-                " IMDS reports custom data should be present"
+                "Did not find custom data in /dev/sr0, IMDS returned"
+                " extended.compute.hasCustomData=True"
             ) in caplog.text
         else:
             assert "Did not find custom data in" not in caplog.text
