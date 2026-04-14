@@ -5526,9 +5526,7 @@ class TestProvisioning:
 
         self.azure_ds._check_and_get_data()
 
-        expect_failure = (
-            flag_enabled and has_custom_data and not custom_data
-        )
+        expect_failure = flag_enabled and has_custom_data and not custom_data
         if expect_failure:
             assert len(self.mock_kvp_report_via_kvp.mock_calls) == 1
             assert (
