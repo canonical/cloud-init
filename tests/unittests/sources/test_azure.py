@@ -5501,11 +5501,14 @@ class TestProvisioning:
         has_custom_data,
         custom_data,
     ):
-        """Failure is reported only when
+        """Test failure reporting behavior based on custom data fields.
+
+        Failure is reported only when
         experimental_fail_on_missing_customdata is True,
         IMDS reports hasCustomData=True, and OVF has no custom data.
         When the flag is not enabled but IMDS reports custom data
-        should be present, a diagnostic event is logged."""
+        should be present, a diagnostic event is logged.
+        """
         self.azure_ds.ds_cfg["experimental_fail_on_missing_customdata"] = (
             flag_enabled
         )

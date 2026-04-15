@@ -825,25 +825,25 @@ class DataSourceAzure(sources.DataSource):
         if not userdata_raw:
             # First, check to see if the OVF was supposed to provide custom
             # data. If it was supposed to and did not, we report failure.
-            if self.ds_cfg.get(
-                "experimental_fail_on_missing_customdata"
-            ) and _hascustomdata_from_imds(imds_md):
-                self._report_failure(
-                    errors.ReportableErrorMissingCustomData(
-                        pps_type=pps_type.value,
-                        provisioning_media=ovf_source,
+            has_custom_data = _hascustomdata_from_imds(imds_md)
+            if has_custom_data:
+                if self.ds_cfg.get("experimental_fail_on_missing_customdata"):
+                    self._report_failure(
+                        errors.ReportableErrorMissingCustomData(
+                            pps_type=pps_type.value,
+                            provisioning_media=ovf_source,
+                        )
                     )
-                )
-            elif _hascustomdata_from_imds(imds_md):
-                report_diagnostic_event(
-                    "Did not find custom data in %s, IMDS returned"
-                    " extended.compute.hasCustomData=%r"
-                    % (
-                        ovf_source,
-                        imds_md["extended"]["compute"]["hasCustomData"],
-                    ),
-                    logger_func=LOG.error,
-                )
+                else:
+                    report_diagnostic_event(
+                        "Did not find custom data in %s, IMDS returned"
+                        " extended.compute.hasCustomData=%r"
+                        % (
+                            ovf_source,
+                            has_custom_data,
+                        ),
+                        logger_func=LOG.error,
+                    )
 
             imds_userdata = _userdata_from_imds(imds_md)
             if imds_userdata:
