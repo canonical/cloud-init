@@ -1,3 +1,10 @@
+cloud-init (26.1-0ubuntu2) UNRELEASED; urgency=medium
+
+  * cherry-pick d4566b1a: Configure arm64 to use archive.ubuntu.com
+    (LP: #2147101)
+
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 15 Apr 2026 13:54:46 -0600
+
 cloud-init (26.1-0ubuntu1) resolute; urgency=medium
 
   * Upstream snapshot based on 26.1.
