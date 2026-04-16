@@ -3185,6 +3185,8 @@ class TestResolvable:
         """
         assert util.is_resolvable("http://169.254.169.254/") is True
         assert util.is_resolvable("http://[fd00:ec2::254]/") is True
+        assert util.is_resolvable("http://169.254.169.254:80") is True
+        assert util.is_resolvable("http://[fd00:ec2::254]:80/") is True
         assert not m_getaddr.called
 
     @mock.patch.object(util.net, "is_ip_address")
@@ -3206,6 +3208,7 @@ class TestResolvable:
         m_getaddr.side_effect = mock_getaddrinfo
 
         assert util.is_resolvable("http://example.com/") is True
+        assert util.is_resolvable("http://example.com/:80") is True
         assert m_getaddr.called
 
         assert m_getaddr.call_args_list[0] == mock.call("example.com", None)
