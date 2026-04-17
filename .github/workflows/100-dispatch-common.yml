@@ -1,3 +1,6 @@
+# WARNING: This workflow handles repository secrets (PYCLOUDLIB_TOML, SSH keys).
+# It MUST NOT be triggered by PR-driven workflows to prevent secret exposure to
+# untrusted code submitted via pull requests.
 name: "Dispatch: Integration"
 
 on:
@@ -46,6 +49,13 @@ on:
       filter_tests:
         required: false
         type: string
+    secrets:
+      PYCLOUDLIB_TOML:
+        required: true
+      SSH_PRIVATE_KEY:
+        required: true
+      SSH_PUBLIC_KEY:
+        required: true
 
 jobs:
   lxc:
@@ -53,14 +63,21 @@ jobs:
     if: github.repository == 'canonical/cloud-init'
 
     env:
-      CLOUD_INIT_PLATFORM: ${{ inputs.platform || 'lxd_container' }}
-      CLOUD_INIT_OS_IMAGE: ${{ inputs.release || 'questing' }}
-      CLOUD_INIT_OS_IMAGE_TYPE: ${{ inputs.image_type || 'generic' }}
-      CLOUD_INIT_CLOUD_INIT_SOURCE: ${{ inputs.install_source || 'ppa:cloud-init-dev/daily' }}
-      CLOUD_INIT_LOCAL_LOG_PATH: ${{ github.workspace }}/cloud_init_test_logs
-
+      REQUIRED_SECRET: ${{ secrets.PYCLOUDLIB_TOML }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
+      CLOUD_INIT_PLATFORM: ${{ inputs.platform }}
+      CLOUD_INIT_OS_IMAGE: ${{ inputs.release }}
+      CLOUD_INIT_OS_IMAGE_TYPE: ${{ inputs.image_type }}
+      CLOUD_INIT_CLOUD_INIT_SOURCE: ${{ inputs.install_source }}
 
     steps:
+      - name: Assert repo secrets.PYCLOUDLIB_TOML is set
+        run: |
+          if [ -z "${{ env.REQUIRED_SECRET }}" ]; then
+             echo "ERROR: Missing required repo secrets.PYCLOUDLIB_TOML non-empty value."
+             exit 1
+          fi
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       - name: Setup LXD
@@ -70,15 +87,26 @@ jobs:
       - name: Clean workspace
         run: |
           rm -rf ${{ github.workspace }}/cloud_init_test_logs/
-      - name: Setup pycloudlib
+      - name: Setup SSH
         run: |
-          ssh-keygen -P "" -q -f ~/.ssh/id_rsa
-          echo "[lxd]" > /home/$USER/.config/pycloudlib.toml
+          mkdir -p ~/.ssh
+          # Dump secrets using a subprocess to avoid accidental leaks while debugging.
+          sh -c 'printf "%s\n" "$SSH_PUBLIC_KEY" > ~/.ssh/cloudinit_id_rsa.pub'
+          sh -c 'printf "%s\n" "$SSH_PRIVATE_KEY" > ~/.ssh/cloudinit_id_rsa'
+          chmod 600 ~/.ssh/cloudinit_id_rsa
+      - name: Setup pycloudlib
+        env:
+          PYCLOUDLIB_CONFIG: ${{ runner.temp }}/pycloudlib.toml
+        run: |
+          sh -c 'echo "${{ secrets.PYCLOUDLIB_TOML}}" | base64 -d > "$PYCLOUDLIB_CONFIG"'
       - name: Install Dependencies
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get -qy update
           sudo DEBIAN_FRONTEND=noninteractive apt-get -qy install tox distro-info-data devscripts
       - name: Run integration Tests
+        env:
+          PYCLOUDLIB_CONFIG: ${{ runner.temp }}/pycloudlib.toml
+          CLOUD_INIT_LOCAL_LOG_PATH: ${{ github.workspace }}/cloud_init_test_logs
         run: |
           tox -e integration-tests -- --junitxml="${{ github.workspace }}/reports/junit-report-${{ inputs.platform }}-${{ inputs.release }}.xml" --color=yes ${{ inputs.filter_tests || 'tests/integration_tests' }}
       - name: Publish Test Report with Insights
@@ -117,3 +145,7 @@ jobs:
           name: failure-${{ github.job }}
           path: ${{ github.workspace }}/cloud_init_test_logs/
           retention-days: 2
+      - name: Clean pycloudlib
+        if: ${{ always() }}
+        run: |
+          rm -f ${{ runner.temp }}/pycloudlib.toml
