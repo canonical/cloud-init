@@ -1,4 +1,4 @@
-name: "Daily(26.04): lxd_container"
+name: "Daily 26.04: lxd_container"
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   resolute-lxd_container:
-    uses: ./.github/workflows/11-dispatch-common.yml
+    uses: ./.github/workflows/100-dispatch-common.yml
     with:
       release: resolute
       platform: lxd_container
