@@ -1298,7 +1298,7 @@ def is_resolvable(url) -> bool:
 
     # Early return for IP addresses - no DNS resolution needed
     with suppress(ValueError):
-        if net.is_ip_address(parsed_url.netloc.strip("[]")):
+        if net.is_ip_address(name):
             return True
     try:
         hostname_result = socket.getaddrinfo(name, None)
