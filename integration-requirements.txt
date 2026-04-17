@@ -5,6 +5,7 @@
 pycloudlib>=1!10.0.2,<1!11
 
 pytest-timeout
+pytest-json-ctrf  # Used for GH ctrf.io test report dashboard
 
 # Even when xdist is not actively used, we have fixtures that require it
 pytest-xdist
