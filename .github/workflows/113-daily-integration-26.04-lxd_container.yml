@@ -11,3 +11,7 @@ jobs:
     with:
       release: resolute
       platform: lxd_container
+    secrets:
+      PYCLOUDLIB_TOML: ${{ secrets.PYCLOUDLIB_TOML }}
+      SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
