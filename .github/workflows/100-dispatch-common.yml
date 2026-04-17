@@ -10,16 +10,17 @@ on:
         required: true
         type: choice
         options:
+        - resolute
         - questing
         - jammy
         - noble
-        - resolute
       platform:
         required: true
         type: choice
         options:
         - lxd_container
         - lxd_vm
+        - ec2
       image_type:
         type: choice
         options:
@@ -41,10 +42,10 @@ on:
         required: true
         type: string
       image_type:
-        required: false
+        required: true
         type: string
       install_source:
-        required: false
+        required: true
         type: string
       filter_tests:
         required: false
@@ -81,6 +82,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       - name: Setup LXD
+        if: ${{ contains(fromJSON('["lxd_vm", "lxd_container"]'), env.CLOUD_INIT_PLATFORM ) }}
         uses: canonical/setup-lxd@8c6a87bfb56aa48f3fb9b830baa18562d8bfd4ee # v0.1.2
         with:
           channel: 6/stable

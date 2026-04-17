@@ -1,16 +1,22 @@
-name: "Daily 26.04: lxd_container"
+name: "Twice weekly 22.04: ec2"
 
 on:
   workflow_dispatch:
+    inputs:
+      install_source:
+        required: false
+        type: string
+        default: 'ppa:cloud-init-dev/daily'
   schedule:
-    - cron: '2 22 * * *'
+    # Run Mon & Thurs for high-cost test runs
+    - cron: '2 22 * * 1,4'
 
 jobs:
-  resolute-lxd_container:
+  jammy-ec2:
     uses: ./.github/workflows/100-dispatch-common.yml
     with:
-      release: resolute
-      platform: lxd_container
+      release: jammy
+      platform: ec2
       install_source: ${{ inputs.install_source || 'ppa:cloud-init-dev/daily' }}
       image_type: generic
     secrets:
