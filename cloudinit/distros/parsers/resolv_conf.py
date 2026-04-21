@@ -6,6 +6,7 @@
 
 import logging
 from io import StringIO
+from typing import List, Optional, Tuple
 
 from cloudinit import util
 from cloudinit.distros.parsers import chop_comment
@@ -15,37 +16,44 @@ LOG = logging.getLogger(__name__)
 
 # See: man resolv.conf
 class ResolvConf:
-    def __init__(self, text):
+    def __init__(self, text: str) -> None:
         self._text = text
-        self._contents = None
+        self._contents: Optional[List[Tuple[str, List[str]]]] = None
 
-    def parse(self):
+    def parse(self) -> None:
         if self._contents is None:
             self._contents = self._parse(self._text)
 
     @property
-    def nameservers(self):
+    def nameservers(self) -> List[str]:
         self.parse()
+        assert self._contents is not None
+        assert self._contents is not None
         return self._retr_option("nameserver")
 
     @property
-    def local_domain(self):
+    def local_domain(self) -> Optional[str]:
         self.parse()
+        assert self._contents is not None
+        assert self._contents is not None
         dm = self._retr_option("domain")
         if dm:
             return dm[0]
         return None
 
     @local_domain.setter
-    def local_domain(self, domain):
+    def local_domain(self, domain: str) -> None:
         self.parse()
+        assert self._contents is not None
+        assert self._contents is not None
         self._remove_option("domain")
         self._contents.append(("option", ["domain", str(domain), ""]))
-        return domain
 
     @property
-    def search_domains(self):
+    def search_domains(self) -> List[str]:
         self.parse()
+        assert self._contents is not None
+        assert self._contents is not None
         current_sds = self._retr_option("search")
         flat_sds = []
         for sdlist in current_sds:
@@ -54,8 +62,10 @@ class ResolvConf:
                     flat_sds.append(sd)
         return flat_sds
 
-    def __str__(self):
+    def __str__(self) -> str:
         self.parse()
+        assert self._contents is not None
+        assert self._contents is not None
         contents = StringIO()
         for line_type, components in self._contents:
             if line_type == "blank":
@@ -70,7 +80,8 @@ class ResolvConf:
                 contents.write("%s\n" % (line))
         return contents.getvalue()
 
-    def _retr_option(self, opt_name):
+    def _retr_option(self, opt_name: str) -> List[str]:
+        assert self._contents is not None
         found = []
         for line_type, components in self._contents:
             if line_type == "option":
@@ -79,8 +90,10 @@ class ResolvConf:
                     found.append(cfg_value)
         return found
 
-    def add_nameserver(self, ns):
+    def add_nameserver(self, ns: str) -> List[str]:
         self.parse()
+        assert self._contents is not None
+        assert self._contents is not None
         current_ns = self._retr_option("nameserver")
         new_ns = list(current_ns)
         new_ns.append(str(ns))
@@ -92,7 +105,7 @@ class ResolvConf:
             self._contents.append(("option", ["nameserver", n, ""]))
         return new_ns
 
-    def _remove_option(self, opt_name):
+    def _remove_option(self, opt_name: str) -> None:
         def remove_opt(item):
             line_type, components = item
             if line_type != "option":
@@ -102,13 +115,14 @@ class ResolvConf:
                 return False
             return True
 
+        assert self._contents is not None
         new_contents = []
         for c in self._contents:
             if not remove_opt(c):
                 new_contents.append(c)
         self._contents = new_contents
 
-    def add_search_domain(self, search_domain):
+    def add_search_domain(self, search_domain: str) -> List[str]:
         flat_sds = self.search_domains
         new_sds = list(flat_sds)
         new_sds.append(str(search_domain))
@@ -129,10 +143,11 @@ class ResolvConf:
                 "256 maximum search list character limit" % (search_domain)
             )
         self._remove_option("search")
+        assert self._contents is not None
         self._contents.append(("option", ["search", s_list, ""]))
         return flat_sds
 
-    def _parse(self, contents):
+    def _parse(self, contents: str) -> List[Tuple[str, List[str]]]:
         entries = []
         for i, line in enumerate(contents.splitlines()):
             sline = line.strip()
