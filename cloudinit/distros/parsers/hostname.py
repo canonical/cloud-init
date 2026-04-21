@@ -24,20 +24,20 @@ class HostnameConf:
 
     def __str__(self) -> str:
         self.parse()
-        buf = StringIO()
+        contents = StringIO()
         for line_type, components in self._contents:
             if line_type == "blank":
-                buf.write("%s\n" % (components[0]))
+                contents.write("%s\n" % (components[0]))
             elif line_type == "all_comment":
-                buf.write("%s\n" % (components[0]))
+                contents.write("%s\n" % (components[0]))
             elif line_type == "hostname":
                 (hostname, tail) = components
-                buf.write("%s%s\n" % (hostname, tail))
+                contents.write("%s%s\n" % (hostname, tail))
         # Ensure trailing newline
-        result = buf.getvalue()
-        if not result.endswith("\n"):
-            result += "\n"
-        return result
+        rendered = contents.getvalue()
+        if not rendered.endswith("\n"):
+            rendered += "\n"
+        return rendered
 
     @property
     def hostname(self) -> Optional[str]:
