@@ -116,7 +116,7 @@ class DataSourceOpenNebula(sources.DataSource):
         self.userdata_raw = results.get("userdata")
         return True
 
-    def _get_subplatform(self):
+    def _get_subplatform(self) -> str:
         """Return the subplatform metadata source details."""
         if self.seed is None:
             raise RuntimeError(
