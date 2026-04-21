@@ -5645,6 +5645,75 @@ class TestGetInterfacesByMac:
         }
         assert expected == result
 
+    def test_r8152_passthru_mac_is_included(self, mocks):
+        """An onboard NIC keeps its own MAC while a r8152 dock/USB NIC is
+        assigned a pass-thru (stolen) MAC of [onboard]+1.  The two do not
+        collide, so both must be enumerated.  See GH-6110."""
+        onboard_mac = "aa:aa:aa:aa:aa:10"
+        passthru_mac = "aa:aa:aa:aa:aa:11"  # [onboard_mac] + 1
+        self.data["macs"]["onboard0"] = onboard_mac
+        self.data["macs"]["usb0"] = passthru_mac
+        self.data["devices"].update({"onboard0", "usb0"})
+        self.data["own_macs"].append("onboard0")
+        self.data["drivers"]["usb0"] = "r8152"
+        # usb0 uses a pass-thru MAC and is intentionally NOT in own_macs
+        ret = net.get_interfaces_by_mac()
+        assert ret[onboard_mac] == "onboard0"
+        assert ret[passthru_mac] == "usb0"
+
+    def test_non_r8152_stolen_mac_is_excluded(self, mocks):
+        """A stolen MAC from any driver other than r8152 keeps the previous
+        behaviour and is excluded from the mapping."""
+        stolen_mac = "aa:aa:aa:aa:aa:20"
+        self.data["macs"]["inherit0"] = stolen_mac
+        self.data["devices"].add("inherit0")
+        self.data["drivers"]["inherit0"] = "some_virt_driver"
+        # inherit0 has a stolen mac (intentionally NOT in own_macs)
+        ret = net.get_interfaces_by_mac()
+        assert stolen_mac not in ret
+
+    def test_r8152_duplicate_passthru_macs_prefer_connected(self, mocks):
+        """Multiple Dell USB NICs are all assigned the same [mac]+1 pass-thru
+        address.  When they collide, prefer the interface that is connected
+        (has carrier), regardless of enumeration order."""
+        dup_mac = "aa:aa:aa:aa:aa:30"
+        self.data["macs"]["usb0"] = dup_mac
+        self.data["macs"]["usb1"] = dup_mac
+        self.data["drivers"]["usb0"] = "r8152"
+        self.data["drivers"]["usb1"] = "r8152"
+        # Enumerate the connected NIC (usb1) FIRST, and make it lexically
+        # greater, so a lexical tiebreak alone would wrongly pick usb0.
+        # The connected NIC must still win.
+        self.data["devices"] = ["usb1", "usb0"]
+        carrier = {"usb0": 0, "usb1": 1}
+        with mock.patch(
+            "cloudinit.net.read_sys_net_int",
+            side_effect=lambda name, field: carrier.get(name),
+        ):
+            ret = net.get_interfaces_by_mac()
+        assert ret[dup_mac] == "usb1"
+
+    def test_r8152_duplicate_passthru_macs_none_connected_prefers_lexical(
+        self, mocks
+    ):
+        """When multiple r8152 pass-thru NICs share a MAC and none are
+        connected, fall back to a deterministic choice (the lexically smallest
+        name) so the result is stable across enumeration order."""
+        dup_mac = "aa:aa:aa:aa:aa:31"
+        self.data["macs"]["usb2"] = dup_mac
+        self.data["macs"]["usb1"] = dup_mac
+        self.data["drivers"]["usb2"] = "r8152"
+        self.data["drivers"]["usb1"] = "r8152"
+        # Enumerate the lexically-greater NIC (usb2) first to prove the choice
+        # does not depend on order; neither is connected.
+        self.data["devices"] = ["usb2", "usb1"]
+        with mock.patch(
+            "cloudinit.net.read_sys_net_int",
+            side_effect=lambda name, field: 0,
+        ):
+            ret = net.get_interfaces_by_mac()
+        assert ret[dup_mac] == "usb1"
+
 
 @pytest.mark.parametrize("driver", ("mscc_felix", "fsl_enetc", "qmi_wwan"))
 @mock.patch("cloudinit.net.get_sys_class_path")
