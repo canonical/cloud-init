@@ -119,9 +119,7 @@ class DataSourceOpenNebula(sources.DataSource):
     def _get_subplatform(self) -> str:
         """Return the subplatform metadata source details."""
         if self.seed is None:
-            raise RuntimeError(
-                "_get_subplatform called before datasource was read"
-            )
+            return sources.METADATA_UNKNOWN
         if self.seed_dir in self.seed:
             subplatform_type = "seed-dir"
         else:
