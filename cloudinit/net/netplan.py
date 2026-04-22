@@ -120,7 +120,10 @@ def _extract_addresses(config: dict, entry: dict, ifname, features: Callable):
                 dhcp_override["route-metric"] = sn_metric
                 entry.update({dhcp_override_key: dhcp_override})
         elif sn_type in IPV6_DYNAMIC_TYPES:
-            entry.update({"dhcp6": True})
+            if sn_type == "ipv6_slaac":
+                entry.update({"accept-ra": True})
+            else:
+                entry.update({"dhcp6": True})
             if sn_metric is not None:
                 # Add metric to DHCP6 override if specified in the subnet```
                 dhcp_override = entry.get("dhcp6-overrides", {})
