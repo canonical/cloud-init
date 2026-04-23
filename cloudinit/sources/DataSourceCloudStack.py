@@ -351,6 +351,15 @@ def get_vr_address(distro):
             LOG.debug("Found SERVER_ADDRESS '%s' via dhclient", latest_address)
             return latest_address
 
+    # try network manager DHCP lease information
+    with suppress(dhcp.NoDHCPLeaseMissingDhclientError, dhcp.NoDHCPLeaseError):
+        latest_address = dhcp.network_manager_get_option_from_leases(
+            "dhcp_server_identifier"
+        )
+        if latest_address:
+            LOG.debug("Found SERVER_ADDRESS '%s' via nmcli", latest_address)
+            return latest_address
+
     with suppress(FileNotFoundError):
         latest_lease = distro.dhcp_client.get_newest_lease(
             distro.fallback_interface
