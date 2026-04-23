@@ -492,9 +492,17 @@ class TestGetDataServer:
     MOD_PATH + ".dhcp.networkd_get_option_from_leases",
     return_value="10.1.37.132",
 )
+@mock.patch(
+    MOD_PATH + ".dhcp.network_manager_get_option_from_leases",
+    return_value="10.1.37.135",
+)
 class TestGetVrAddress:
     def test_get_vr_addr_from_dns(
-        self, m_networkd_option_from_leases, m_get_data_server, caplog
+        self,
+        m_nm_get_option_from_leases,
+        m_networkd_option_from_leases,
+        m_get_data_server,
+        caplog,
     ):
         """cloud-init first obtains data-server if resolved by DNS"""
         assert "10.1.37.131" == get_vr_address(MockDistro())
@@ -505,7 +513,12 @@ class TestGetVrAddress:
         assert 0 == m_networkd_option_from_leases.call_count
 
     def test_get_vr_addr_from_networkd_leases(
-        self, m_networkd_option_from_leases, m_get_data_server, mocker, caplog
+        self,
+        m_nm_get_option_from_leases,
+        m_networkd_option_from_leases,
+        m_get_data_server,
+        mocker,
+        caplog,
     ):
         """When no DNS for data-server use networkd dhcp-server-identifier"""
         mocker.patch(MOD_PATH + ".get_data_server", return_value=None)
@@ -515,6 +528,31 @@ class TestGetVrAddress:
             in caplog.text
         )
         m_networkd_option_from_leases.assert_called_once_with("SERVER_ADDRESS")
+
+    def test_get_vr_addr_from_network_manager_leases(
+        self,
+        m_nm_get_option_from_leases,
+        m_networkd_option_from_leases,
+        m_get_data_server,
+        mocker,
+        caplog,
+    ):
+        """When no DNS for data-server or networkd or IscDhclient,
+        use dhcp_server_identifier from network manager lease"""
+        mocker.patch(MOD_PATH + ".get_data_server", return_value=None)
+        mocker.patch(
+            MOD_PATH + ".dhcp.networkd_get_option_from_leases",
+            return_value=None,
+        )
+        mocker.patch(
+            DHCP_MOD_PATH + ".IscDhclient.get_newest_lease",
+            return_value=None,
+        )
+        assert "10.1.37.135" == get_vr_address(MockDistro())
+        assert "Found SERVER_ADDRESS '10.1.37.135' via nmcli" in caplog.text
+        m_nm_get_option_from_leases.assert_called_once_with(
+            "dhcp_server_identifier"
+        )
 
 
 @pytest.mark.usefixtures("dhclient_exists")
@@ -536,6 +574,10 @@ class TestCloudStackPasswordFetching:
                 "expire": "5 2017/07/28 07:08:15",
                 "dhcp-server-identifier": "168.63.129.16",
             },
+        )
+        mocker.patch(
+            DHCP_MOD_PATH + ".network_manager_get_option_from_leases",
+            return_value=None,
         )
         get_newest_lease_file_from_distro = mock.MagicMock(return_value=None)
         mocker.patch(
