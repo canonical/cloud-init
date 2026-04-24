@@ -659,6 +659,14 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def get_default_user(self):
         return self.get_option("default_user")
 
+    def _get_elevated_roles(self, **kwargs: Dict[str, Any]) -> List[str]:
+        elevated_roles = []
+        if kwargs.get("sudo"):
+            elevated_roles.append("sudo")
+        if kwargs.get("doas"):
+            elevated_roles.append("doas")
+        return elevated_roles
+
     def add_user(self, name, **kwargs) -> bool:
         """
         Add a user to the system using standard GNU tools
