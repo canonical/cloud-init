@@ -659,25 +659,21 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def get_default_user(self):
         return self.get_option("default_user")
 
-    def _get_elevated_roles(self, **kwargs) -> List[str]:
-        elevated_roles = []
-        if kwargs.get("sudo"):
-            elevated_roles.append("sudo")
-        if kwargs.get("doas"):
-            elevated_roles.append("doas")
-        return elevated_roles
-
-    def add_user(self, name: str, *, groups: List[str], **kwargs) -> None:
+    def add_user(
+        self,
+        name: str,
+        *,
+        groups: List[str],
+        create_groups: Optional[bool] = True,
+        primary_group: Optional[str] = None,
+        **kwargs,
+    ) -> None:
         """Add a user to the system."""
 
-        self._add_user_preprocess_kwargs(name, kwargs)
+        if groups and primary_group:
+            groups = groups + [primary_group]
 
-        if groups:
-            primary_group = kwargs.get("primary_group")
-            if primary_group:
-                groups.append(primary_group)
-
-        if kwargs.pop("create_groups", True) and groups:
+        if create_groups and groups:
             for group in groups:
                 if not util.is_group(group):
                     self.create_group(group)
@@ -687,20 +683,34 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             kwargs["uid"] = str(kwargs["uid"])
 
         LOG.debug("Adding user %s", name)
+        self._add_user(
+            name,
+            groups=groups,
+            primary_group=primary_group,
+            create_groups=create_groups,
+            **kwargs,
+        )
+
+    def _add_user(
+        self,
+        name: str,
+        *,
+        groups: List[str],
+        **kwargs,
+    ) -> None:
+        """Internal user-creation implementation; override in subclasses.
+
+        Subclasses should override this instead of add_user to plug in
+        distro-specific user-creation tools while letting add_user handle
+        group setup.
+        """
         cmd, log_cmd = self._build_add_user_cmd(name, groups, **kwargs)
         try:
             subp.subp(cmd, logstring=log_cmd)
         except Exception as e:
             util.logexc(LOG, "Failed to create user %s", name)
             raise e
-
         self._post_add_user(name, groups, **kwargs)
-
-    def _add_user_preprocess_kwargs(self, name: str, kwargs: dict) -> None:
-        """Preprocess kwargs in-place before building the add-user command.
-
-        Overridden to filter for distro-specific user creation tools.
-        """
 
     def _build_add_user_cmd(
         self, name: str, groups: List[str], **kwargs
@@ -836,7 +846,14 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 return True
         return False
 
-    def create_user(self, name: str, *, groups: List[str], **kwargs):
+    def create_user(
+        self,
+        name: str,
+        *,
+        groups: List[str],
+        create_groups: Optional[bool] = True,
+        **kwargs,
+    ):
         """
         Creates or partially updates the ``name`` user in the system.
 

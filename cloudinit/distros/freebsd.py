@@ -8,7 +8,7 @@ import logging
 import os
 import re
 from io import StringIO
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import cloudinit.distros.bsd
 from cloudinit import subp, util
@@ -139,12 +139,17 @@ class Distro(cloudinit.distros.bsd.BSD):
 
         return pw_useradd_cmd, log_pw_useradd_cmd
 
-    def _post_add_user(self, name: str, groups: List[str], **kwargs) -> None:
+    def _post_add_user(
+        self,
+        name: str,
+        groups: List[str],
+        passwd: Optional[str] = None,
+        **kwargs,
+    ) -> None:
         # Set the password if it is provided.
         # For security consideration, only hashed passwd is assumed.
-        passwd_val = kwargs.get("passwd", None)
-        if passwd_val is not None:
-            self.set_passwd(name, passwd_val, hashed=True)
+        if passwd is not None:
+            self.set_passwd(name, passwd, hashed=True)
 
     def expire_passwd(self, user):
         try:

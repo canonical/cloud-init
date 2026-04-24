@@ -11,7 +11,7 @@ import os
 import re
 import stat
 from datetime import datetime
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 from cloudinit import distros, helpers, subp, util
 from cloudinit.distros.parsers.hostname import HostnameConf
@@ -205,16 +205,23 @@ class Distro(distros.Distro):
 
         return self._preferred_ntp_clients
 
-    def _add_user_preprocess_kwargs(self, name: str, kwargs: dict) -> None:
-        if kwargs.pop("selinux_user", None):
+    def _add_user(
+        self,
+        name: str,
+        *,
+        groups: List[str],
+        selinux_user: Optional[str] = None,
+        passwd: Optional[str] = None,
+        **kwargs,
+    ) -> None:
+        if selinux_user:
             LOG.warning("Ignoring selinux_user parameter for Alpine Linux")
 
-    def _build_add_user_cmd(
-        self, name: str, groups: List[str], **kwargs
-    ) -> Tuple[List[str], List[str]]:
-        # If 'useradd' is available then use the generic GNU implementation.
+        # If 'useradd' is available (e.g. shadow package installed) use the
+        # generic GNU implementation.
         if subp.which("useradd"):
-            return super()._build_add_user_cmd(name, groups, **kwargs)
+            super()._add_user(name, groups=groups, passwd=passwd, **kwargs)
+            return
 
         adduser_cmd = ["adduser", "-D"]
 
@@ -228,24 +235,13 @@ class Distro(distros.Distro):
             "shell": "-s",
             "uid": "-u",
         }
-
         adduser_flags = {"system": "-S"}
 
-        # Build the command, skipping options unsupported by busybox adduser
-        # (groups, passwd, expiredate, inactive — handled in _post_add_user).
-        unsupported_busybox_keys = {
-            "groups",
-            "expiredate",
-            "inactive",
-            "passwd",
-        }
         for key, val in sorted(kwargs.items()):
             if key in adduser_opts and val and isinstance(val, str):
                 adduser_cmd.extend([adduser_opts[key], val])
             elif key in adduser_flags and val:
                 adduser_cmd.append(adduser_flags[key])
-            elif key in unsupported_busybox_keys:
-                pass  # handled in _post_add_user
 
         # Don't create the home directory if directed so or if the user is a
         # system user
@@ -255,14 +251,11 @@ class Distro(distros.Distro):
         # Busybox's 'adduser' puts username at end of command
         adduser_cmd.append(name)
 
-        return adduser_cmd, adduser_cmd
-
-    def _post_add_user(self, name: str, groups: List[str], **kwargs) -> None:
-        # When useradd is available, the GNU implementation handles everything.
-        if subp.which("useradd"):
-            return
-
-        # Busybox post-creation steps.
+        try:
+            subp.subp(adduser_cmd, logstring=adduser_cmd)
+        except Exception as e:
+            util.logexc(LOG, "Failed to create user %s", name)
+            raise e
 
         # Separately add user to each additional group as Busybox's
         # 'adduser' does not support specifying additional groups.
@@ -282,11 +275,10 @@ class Distro(distros.Distro):
                 )
                 raise e
 
-        passwd_val = kwargs.get("passwd")
-        if passwd_val:
+        if passwd:
             # Separately set password as Busybox's 'adduser' does
             # not support passing password as CLI option.
-            super().set_passwd(name, passwd_val, hashed=True)
+            super().set_passwd(name, passwd, hashed=True)
 
         # Busybox's 'adduser' is hardcoded to always set the following field
         # values (numbered from "0") in /etc/shadow unlike 'useradd':

@@ -6,7 +6,7 @@ import functools
 import logging
 import os
 import platform
-from typing import Any, List, Tuple
+from typing import Any, List, Optional, Tuple
 
 import cloudinit.distros.bsd
 from cloudinit import subp, util
@@ -110,12 +110,17 @@ class NetBSD(cloudinit.distros.bsd.BSD):
 
         return adduser_cmd, log_adduser_cmd
 
-    def _post_add_user(self, name: str, groups: List[str], **kwargs) -> None:
+    def _post_add_user(
+        self,
+        name: str,
+        groups: List[str],
+        passwd: Optional[str] = None,
+        **kwargs,
+    ) -> None:
         # Set the password if it is provided.
         # For security consideration, only hashed passwd is assumed.
-        passwd_val = kwargs.get("passwd", None)
-        if passwd_val is not None:
-            self.set_passwd(name, passwd_val, hashed=True)
+        if passwd is not None:
+            self.set_passwd(name, passwd, hashed=True)
 
     def set_passwd(self, user, passwd, hashed=False):
         if hashed:
