@@ -68,12 +68,18 @@ the OpenNebula documentation.
     ETH<x>_DNS
     ETH<x>_SEARCH_DOMAIN
     ETH<x>_MTU
+    ETH<x>_VLAN_ID
     ETH<x>_IP6
     ETH<x>_IP6_ULA
     ETH<x>_IP6_PREFIX_LENGTH
     ETH<x>_IP6_GATEWAY
 
 Static `network configuration`_.
+
+When ``ETH<x>_VLAN_ID`` is set, ``cloud-init`` creates an 802.1Q VLAN
+sub-interface named ``<dev>.<VLAN_ID>`` (e.g. ``eth0.100``) and assigns
+all IP configuration to that sub-interface. The parent interface is
+brought up with no address.
 
 ::
 

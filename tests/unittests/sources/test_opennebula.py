@@ -975,6 +975,83 @@ class TestOpenNebulaNetwork:
 
         assert expected == net.gen_conf()
 
+    # --- ETHx_VLAN_ID tests ---
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_vlan_id(self, m_get_phys_by_mac):
+        """VLAN_ID set → vlans: section; parent has no addresses."""
+        context = {
+            "ETH0_MAC": MACADDR,
+            "ETH0_IP": PUBLIC_IP,
+            "ETH0_MASK": "255.255.255.0",
+            "ETH0_VLAN_ID": "100",
+        }
+        for nic in self.system_nics:
+            m_get_phys_by_mac.return_value = {MACADDR: nic}
+            net = ds.OpenNebulaNetwork(context, mock.Mock())
+            conf = net.gen_conf()
+            # Parent ethernet: just MAC match, no addresses
+            assert nic in conf["ethernets"]
+            assert "addresses" not in conf["ethernets"][nic]
+            # VLAN child carries the IP config
+            vlan_name = "%s.100" % nic
+            assert "vlans" in conf
+            assert vlan_name in conf["vlans"]
+            vlan = conf["vlans"][vlan_name]
+            assert vlan["id"] == 100
+            assert vlan["link"] == nic
+            assert PUBLIC_IP + "/24" in vlan["addresses"]
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_no_vlan_no_vlans_key(self, m_get_phys_by_mac):
+        """Without VLAN_ID the output has no 'vlans' key."""
+        context = {"ETH0_MAC": MACADDR}
+        for nic in self.system_nics:
+            m_get_phys_by_mac.return_value = {MACADDR: nic}
+            net = ds.OpenNebulaNetwork(context, mock.Mock())
+            conf = net.gen_conf()
+            assert "vlans" not in conf
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_vlan_with_gateway(self, m_get_phys_by_mac):
+        """Gateway on a VLAN interface ends up in the vlans entry."""
+        context = {
+            "ETH0_MAC": MACADDR,
+            "ETH0_IP": PUBLIC_IP,
+            "ETH0_GATEWAY": "10.0.0.1",
+            "ETH0_VLAN_ID": "200",
+        }
+        m_get_phys_by_mac.return_value = {MACADDR: "eth0"}
+        net = ds.OpenNebulaNetwork(context, mock.Mock())
+        conf = net.gen_conf()
+        vlan = conf["vlans"]["eth0.200"]
+        assert vlan.get("gateway4") == "10.0.0.1"
+        assert "gateway4" not in conf["ethernets"]["eth0"]
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_vlan_mixed_nics(self, m_get_phys_by_mac):
+        """One NIC with VLAN, one without: only one vlans entry."""
+        MAC_1 = "02:00:0a:12:01:01"
+        MAC_2 = "02:00:0a:12:01:02"
+        context = {
+            "ETH0_MAC": MAC_1,
+            "ETH0_IP": "10.0.0.1",
+            "ETH0_VLAN_ID": "10",
+            "ETH1_MAC": MAC_2,
+            "ETH1_IP": "10.0.1.1",
+        }
+        net = ds.OpenNebulaNetwork(
+            context,
+            mock.Mock(),
+            system_nics_by_mac={MAC_1: "eth0", MAC_2: "eth1"},
+        )
+        conf = net.gen_conf()
+        assert "vlans" in conf
+        assert "eth0.10" in conf["vlans"]
+        assert "eth1" in conf["ethernets"]
+        assert "addresses" in conf["ethernets"]["eth1"]
+        assert "addresses" not in conf["ethernets"]["eth0"]
+
 
 class TestParseShellConfig:
     @pytest.mark.allow_subp_for("bash", "sh")

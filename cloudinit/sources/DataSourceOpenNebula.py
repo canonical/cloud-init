@@ -255,9 +255,8 @@ class OpenNebulaNetwork:
         return default if val in (None, "") else val
 
     def gen_conf(self) -> Dict[str, Any]:
-        netconf: Dict[str, Any] = {"version": 2, "ethernets": {}}
+        netconf: Dict[str, Any] = {"version": 2, "ethernets": {}, "vlans": {}}
 
-        ethernets: Dict[str, Dict[str, Any]] = {}
         for mac, dev in self.ifaces.items():
             mac = mac.lower()
 
@@ -265,10 +264,18 @@ class OpenNebulaNetwork:
             # dev stores the current system name.
             c_dev = self.context_devname.get(mac, dev)
 
-            devconf: Dict[str, Any] = {}
+            vlan_id: Optional[str] = self.get_field(c_dev, "vlan_id")
+            devconf: Dict[str, Any]
 
-            # Set MAC address
-            devconf["match"] = {"macaddress": mac}
+            if vlan_id:
+                # Parent: just bring it up, no IP configuration
+                netconf["ethernets"][dev] = {"match": {"macaddress": mac}}
+                # VLAN sub-interface carries the actual IP config
+                target_name = "%s.%s" % (dev, vlan_id)
+                devconf = {"id": int(vlan_id), "link": dev}
+            else:
+                target_name = dev
+                devconf = {"match": {"macaddress": mac}}
 
             # Set IPv4 address
             devconf["addresses"] = []
@@ -304,9 +311,15 @@ class OpenNebulaNetwork:
             if mtu:
                 devconf["mtu"] = mtu
 
-            ethernets[dev] = devconf
+            if vlan_id:
+                netconf["vlans"][target_name] = devconf
+            else:
+                netconf["ethernets"][target_name] = devconf
 
-        netconf["ethernets"] = ethernets
+        # Remove empty top-level sections
+        if not netconf["vlans"]:
+            del netconf["vlans"]
+
         return netconf
 
 
