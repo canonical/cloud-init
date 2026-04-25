@@ -72,8 +72,14 @@ the OpenNebula documentation.
     ETH<x>_IP6_ULA
     ETH<x>_IP6_PREFIX_LENGTH
     ETH<x>_IP6_GATEWAY
+    ETH<x>_ROUTES
 
 Static `network configuration`_.
+
+``ETH<x>_ROUTES`` is a comma-separated list of static routes in the form
+``NETWORK via GATEWAY``. For example::
+
+    ETH0_ROUTES="10.0.0.0/8 via 192.168.1.1, 172.16.0.0/12 via 192.168.1.254"
 
 ::
 
