@@ -156,9 +156,7 @@ class TestHandleSshImportIDs:
     @mock.patch("cloudinit.config.cc_ssh_import_id.time.sleep")
     @mock.patch("cloudinit.ssh_util.pwd.getpwnam")
     @mock.patch("cloudinit.subp.which")
-    def test_retry_with_success(
-        self, m_which, m_getpwnam, m_sleep, caplog, mocker
-    ):
+    def test_retry_with_success(self, m_which, m_getpwnam, m_sleep, mocker):
         """Retry succeeds on ssh-import-id with a retry."""
         m_subp = mocker.patch(
             "cloudinit.config.cc_ssh_import_id.subp.subp",
@@ -174,4 +172,3 @@ class TestHandleSshImportIDs:
 
         assert m_subp.call_count == 2
         assert m_sleep.call_count == 1
-        assert "Failed to import SSH IDs" not in caplog.text

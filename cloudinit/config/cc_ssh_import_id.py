@@ -154,7 +154,7 @@ def import_ssh_ids(ids, user):
 
 
 def retry_ssh_import(cmd: list, delay: float) -> None:
-    """Retry ssh-import-id once if it exits 1."""
+    """Retry ssh-import-id once if it exits in error."""
     with suppress(subp.ProcessExecutionError):
         subp.subp(cmd, capture=False)
         return
