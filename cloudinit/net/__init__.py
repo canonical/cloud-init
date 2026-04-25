@@ -968,10 +968,13 @@ def get_interfaces_by_mac_on_openbsd() -> dict:
 def get_interfaces_by_mac_on_linux() -> dict:
     """Build a dictionary of tuples {mac: name}.
 
-    Bridges and any devices that have a 'stolen' mac are excluded."""
+    Bridges and any devices that have a non-unique 'stolen' mac are
+    excluded."""
     ret: dict = {}
 
-    for name, mac, driver, _devid in get_interfaces():
+    for name, mac, driver, _devid in get_interfaces(
+        filter_without_own_mac=False
+    ):
         if mac in ret:
             # This is intended to be a short-term fix of LP: #1997922
             # Long term, we should better handle configuration of virtual
@@ -986,6 +989,45 @@ def get_interfaces_by_mac_on_linux() -> dict:
                     name,
                     ret[mac],
                     driver,
+                )
+                continue
+
+            stored_is_real = interface_has_own_mac(ret[mac])
+            current_is_real = interface_has_own_mac(name)
+            if not stored_is_real and current_is_real:
+                LOG.debug(
+                    "Replacing mac '%s' mapping from '%s' to '%s' "
+                    "because '%s' is a real device and '%s' stole its mac.",
+                    mac,
+                    ret[mac],
+                    name,
+                    name,
+                    ret[mac],
+                )
+                ret[mac] = name
+                continue
+            elif stored_is_real and not current_is_real:
+                LOG.debug(
+                    "Keeping mac '%s' mapping to '%s' instead of '%s' "
+                    "because '%s' is a real device and '%s' stole its mac.",
+                    mac,
+                    ret[mac],
+                    name,
+                    ret[mac],
+                    name,
+                )
+                continue
+            elif not stored_is_real and not current_is_real:
+                # We should probably anticipate having a real device if we have
+                # two devices with the same mac and both are stolen, but for
+                # now just log and keep the first one we found.
+                LOG.debug(
+                    "Both '%s' and '%s' have mac '%s', but both are stolen "
+                    "mac. Keeping the first mapping to '%s'.",
+                    name,
+                    ret[mac],
+                    mac,
+                    ret[mac],
                 )
                 continue
 
