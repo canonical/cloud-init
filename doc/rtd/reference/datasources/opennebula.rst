@@ -68,12 +68,19 @@ the OpenNebula documentation.
     ETH<x>_DNS
     ETH<x>_SEARCH_DOMAIN
     ETH<x>_MTU
+    ETH<x>_METRIC
     ETH<x>_IP6
     ETH<x>_IP6_ULA
     ETH<x>_IP6_PREFIX_LENGTH
     ETH<x>_IP6_GATEWAY
 
 Static `network configuration`_.
+
+When ``ETH<x>_METRIC`` is set, the default gateway is expressed as an explicit
+route with that metric value rather than the simple ``gateway4`` key. This
+allows correct route priority on multi-homed VMs. For example, setting
+``ETH0_METRIC=0`` and ``ETH1_METRIC=1`` makes interface 0 the preferred
+default route.
 
 ::
 

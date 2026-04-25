@@ -975,6 +975,114 @@ class TestOpenNebulaNetwork:
 
         assert expected == net.gen_conf()
 
+    # ------------------------------------------------------------------ #
+    # ETHx_METRIC                                                          #
+    # ------------------------------------------------------------------ #
+
+    def test_get_metric_absent(self):
+        """get_metric returns None when ETHx_METRIC is not set."""
+        net = ds.OpenNebulaNetwork({}, mock.Mock())
+        assert net.get_metric("eth0") is None
+
+    def test_get_metric_set(self):
+        """get_metric returns the value string when ETHx_METRIC is set."""
+        net = ds.OpenNebulaNetwork({"ETH0_METRIC": "1"}, mock.Mock())
+        assert net.get_metric("eth0") == "1"
+
+    def test_get_metric_zero(self):
+        """get_metric returns '0' when ETHx_METRIC is explicitly zero."""
+        net = ds.OpenNebulaNetwork({"ETH0_METRIC": "0"}, mock.Mock())
+        assert net.get_metric("eth0") == "0"
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_metric_replaces_gateway4(self, m_get_phys_by_mac):
+        """When metric is set, gateway is emitted as an explicit route."""
+        context = {
+            "ETH0_MAC": MACADDR,
+            "ETH0_IP": PUBLIC_IP,
+            "ETH0_GATEWAY": "10.0.0.1",
+            "ETH0_METRIC": "100",
+        }
+        m_get_phys_by_mac.return_value = {MACADDR: "eth0"}
+        net = ds.OpenNebulaNetwork(context, mock.Mock())
+        conf = net.gen_conf()
+        eth0 = conf["ethernets"]["eth0"]
+        assert "gateway4" not in eth0
+        expected_route = {"to": "default", "via": "10.0.0.1", "metric": 100}
+        assert expected_route in eth0["routes"]
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_metric_zero(self, m_get_phys_by_mac):
+        """Metric value '0' is emitted as integer 0 in the route."""
+        context = {
+            "ETH0_MAC": MACADDR,
+            "ETH0_IP": PUBLIC_IP,
+            "ETH0_GATEWAY": "10.0.0.1",
+            "ETH0_METRIC": "0",
+        }
+        m_get_phys_by_mac.return_value = {MACADDR: "eth0"}
+        net = ds.OpenNebulaNetwork(context, mock.Mock())
+        conf = net.gen_conf()
+        eth0 = conf["ethernets"]["eth0"]
+        assert "gateway4" not in eth0
+        expected_route = {"to": "default", "via": "10.0.0.1", "metric": 0}
+        assert expected_route in eth0["routes"]
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_no_metric_uses_gateway4(self, m_get_phys_by_mac):
+        """Without ETHx_METRIC the gateway4 key is used (no regression)."""
+        context = {
+            "ETH0_MAC": MACADDR,
+            "ETH0_IP": PUBLIC_IP,
+            "ETH0_GATEWAY": "10.0.0.1",
+        }
+        m_get_phys_by_mac.return_value = {MACADDR: "eth0"}
+        net = ds.OpenNebulaNetwork(context, mock.Mock())
+        conf = net.gen_conf()
+        eth0 = conf["ethernets"]["eth0"]
+        assert eth0["gateway4"] == "10.0.0.1"
+        assert "routes" not in eth0
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_metric_without_gateway(self, m_get_phys_by_mac):
+        """Metric set but no gateway: no routes list, no gateway4 key."""
+        context = {
+            "ETH0_MAC": MACADDR,
+            "ETH0_IP": PUBLIC_IP,
+            "ETH0_METRIC": "10",
+        }
+        m_get_phys_by_mac.return_value = {MACADDR: "eth0"}
+        net = ds.OpenNebulaNetwork(context, mock.Mock())
+        conf = net.gen_conf()
+        eth0 = conf["ethernets"]["eth0"]
+        assert "gateway4" not in eth0
+        assert "routes" not in eth0
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_multi_nic_different_metrics(self, m_get_phys_by_mac):
+        """Each NIC gets its own metric in its own explicit route."""
+        MAC_1 = "02:00:0a:12:01:01"
+        MAC_2 = "02:00:0a:12:01:02"
+        context = {
+            "ETH0_MAC": MAC_1,
+            "ETH0_IP": "10.0.0.5",
+            "ETH0_GATEWAY": "10.0.0.1",
+            "ETH0_METRIC": "0",
+            "ETH1_MAC": MAC_2,
+            "ETH1_IP": "185.70.43.5",
+            "ETH1_GATEWAY": "185.70.43.1",
+            "ETH1_METRIC": "1",
+        }
+        m_get_phys_by_mac.return_value = {MAC_1: "eth0", MAC_2: "eth1"}
+        net = ds.OpenNebulaNetwork(context, mock.Mock())
+        conf = net.gen_conf()
+        assert {"to": "default", "via": "10.0.0.1", "metric": 0} in (
+            conf["ethernets"]["eth0"]["routes"]
+        )
+        assert {"to": "default", "via": "185.70.43.1", "metric": 1} in (
+            conf["ethernets"]["eth1"]["routes"]
+        )
+
 
 class TestParseShellConfig:
     @pytest.mark.allow_subp_for("bash", "sh")
