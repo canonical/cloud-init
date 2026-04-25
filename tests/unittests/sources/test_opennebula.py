@@ -975,6 +975,122 @@ class TestOpenNebulaNetwork:
 
         assert expected == net.gen_conf()
 
+    # --- ETHx_METHOD / ETHx_IP6_METHOD tests ---
+
+    def test_get_method_default(self):
+        """METHOD absent → default 'static'."""
+        net = ds.OpenNebulaNetwork({}, mock.Mock())
+        assert net.get_method("eth0") == "static"
+
+    def test_get_method_dhcp(self):
+        """METHOD=dhcp → 'dhcp'."""
+        net = ds.OpenNebulaNetwork({"ETH0_METHOD": "dhcp"}, mock.Mock())
+        assert net.get_method("eth0") == "dhcp"
+
+    def test_get_method_skip(self):
+        """METHOD=skip → 'skip'."""
+        net = ds.OpenNebulaNetwork({"ETH0_METHOD": "skip"}, mock.Mock())
+        assert net.get_method("eth0") == "skip"
+
+    def test_get_ip6_method_default_no_ip6(self):
+        """IP6_METHOD absent, no ETHx_IP6 → 'disable'."""
+        net = ds.OpenNebulaNetwork({}, mock.Mock())
+        assert net.get_ip6_method("eth0") == "disable"
+
+    def test_get_ip6_method_default_with_ip6(self):
+        """IP6_METHOD absent, ETHx_IP6 present → 'static'."""
+        net = ds.OpenNebulaNetwork({"ETH0_IP6": IP6_GLOBAL}, mock.Mock())
+        assert net.get_ip6_method("eth0") == "static"
+
+    def test_get_ip6_method_dhcp(self):
+        """IP6_METHOD=dhcp → 'dhcp'."""
+        net = ds.OpenNebulaNetwork({"ETH0_IP6_METHOD": "dhcp"}, mock.Mock())
+        assert net.get_ip6_method("eth0") == "dhcp"
+
+    def test_get_ip6_method_auto(self):
+        """IP6_METHOD=auto → 'auto'."""
+        net = ds.OpenNebulaNetwork({"ETH0_IP6_METHOD": "auto"}, mock.Mock())
+        assert net.get_ip6_method("eth0") == "auto"
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_method_dhcp4(self, m_get_phys_by_mac):
+        """METHOD=dhcp → dhcp4: true, no addresses key."""
+        context = {"ETH0_MAC": MACADDR, "ETH0_METHOD": "dhcp"}
+        for nic in self.system_nics:
+            m_get_phys_by_mac.return_value = {MACADDR: nic}
+            net = ds.OpenNebulaNetwork(context, mock.Mock())
+            conf = net.gen_conf()
+            eth = conf["ethernets"][nic]
+            assert eth.get("dhcp4") is True
+            assert "addresses" not in eth
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_method_skip(self, m_get_phys_by_mac):
+        """METHOD=skip → interface absent from ethernets output."""
+        context = {"ETH0_MAC": MACADDR, "ETH0_METHOD": "skip"}
+        for nic in self.system_nics:
+            m_get_phys_by_mac.return_value = {MACADDR: nic}
+            net = ds.OpenNebulaNetwork(context, mock.Mock())
+            conf = net.gen_conf()
+            assert nic not in conf["ethernets"]
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_method_static_no_regression(self, m_get_phys_by_mac):
+        """METHOD absent (static) produces same output as before."""
+        context = {
+            "ETH0_MAC": MACADDR,
+            "ETH0_IP": PUBLIC_IP,
+            "ETH0_MASK": "255.255.255.0",
+        }
+        for nic in self.system_nics:
+            m_get_phys_by_mac.return_value = {MACADDR: nic}
+            net = ds.OpenNebulaNetwork(context, mock.Mock())
+            conf = net.gen_conf()
+            eth = conf["ethernets"][nic]
+            assert PUBLIC_IP + "/24" in eth["addresses"]
+            assert "dhcp4" not in eth
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_ip6_method_dhcp(self, m_get_phys_by_mac):
+        """IP6_METHOD=dhcp → dhcp6: true, no IPv6 addresses."""
+        context = {"ETH0_MAC": MACADDR, "ETH0_IP6_METHOD": "dhcp"}
+        for nic in self.system_nics:
+            m_get_phys_by_mac.return_value = {MACADDR: nic}
+            net = ds.OpenNebulaNetwork(context, mock.Mock())
+            conf = net.gen_conf()
+            eth = conf["ethernets"][nic]
+            assert eth.get("dhcp6") is True
+            assert not any(
+                "/" in a and ":" in a for a in eth.get("addresses", [])
+            )
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_ip6_method_auto(self, m_get_phys_by_mac):
+        """IP6_METHOD=auto → accept-ra: true."""
+        context = {"ETH0_MAC": MACADDR, "ETH0_IP6_METHOD": "auto"}
+        for nic in self.system_nics:
+            m_get_phys_by_mac.return_value = {MACADDR: nic}
+            net = ds.OpenNebulaNetwork(context, mock.Mock())
+            conf = net.gen_conf()
+            assert conf["ethernets"][nic].get("accept-ra") is True
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_ip6_method_disable(self, m_get_phys_by_mac):
+        """IP6_METHOD=disable (or default with no IP6) → no IPv6 keys."""
+        context = {
+            "ETH0_MAC": MACADDR,
+            "ETH0_IP6": IP6_GLOBAL,
+            "ETH0_IP6_METHOD": "disable",
+        }
+        for nic in self.system_nics:
+            m_get_phys_by_mac.return_value = {MACADDR: nic}
+            net = ds.OpenNebulaNetwork(context, mock.Mock())
+            conf = net.gen_conf()
+            eth = conf["ethernets"][nic]
+            assert "dhcp6" not in eth
+            assert "accept-ra" not in eth
+            assert not any(":" in a for a in eth.get("addresses", []))
+
 
 class TestParseShellConfig:
     @pytest.mark.allow_subp_for("bash", "sh")
