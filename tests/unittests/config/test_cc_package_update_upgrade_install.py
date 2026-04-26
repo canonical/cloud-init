@@ -288,6 +288,43 @@ class TestMultiplePackageManagers:
         )
 
 
+class TestPackageUpdateForce:
+    def test_package_update_calls_update_sources_with_force(
+        self, common_mocks
+    ):
+        """update_package_sources must be called with force=True when
+        package_update is configured, so the semaphore is bypassed."""
+        cloud = get_cloud("ubuntu")
+        cfg = {"package_update": True}
+        handle("", cfg, cloud, [])
+        cloud.distro.update_package_sources.assert_called_once_with(force=True)
+
+    def test_package_upgrade_calls_update_sources_with_force(
+        self, common_mocks, mocker
+    ):
+        """update_package_sources must be called with force=True when
+        package_upgrade is configured, so the semaphore is bypassed."""
+        mocker.patch("cloudinit.subp.subp", return_value=SubpResult("{}", ""))
+        cloud = get_cloud("ubuntu")
+        cfg = {"package_upgrade": True}
+        handle("", cfg, cloud, [])
+        cloud.distro.update_package_sources.assert_called_once_with(force=True)
+
+    def test_no_update_sources_when_no_update_or_upgrade(self, common_mocks):
+        """update_package_sources should not be called when neither
+        package_update nor package_upgrade is set."""
+
+        def _subp(*args, **kwargs):
+            if args and "apt-cache" in args[0]:
+                return SubpResult("git\n", None)
+
+        cloud = get_cloud("ubuntu")
+        cfg = {"packages": ["git"]}
+        with mock.patch("cloudinit.subp.subp", side_effect=_subp):
+            handle("", cfg, cloud, [])
+        cloud.distro.update_package_sources.assert_not_called()
+
+
 class TestPackageUpdateUpgradeSchema:
     @pytest.mark.parametrize(
         "config, error_msg",

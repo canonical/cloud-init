@@ -9,7 +9,7 @@ from cloudinit import distros, helpers, subp, util
 from cloudinit.distros import PackageList
 from cloudinit.distros.parsers.hostname import HostnameConf
 from cloudinit.distros.parsers.sys_conf import SysConf
-from cloudinit.settings import PER_INSTANCE
+from cloudinit.settings import PER_ALWAYS, PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
@@ -112,7 +112,7 @@ class Distro(distros.Distro):
             "update-sources",
             self.package_command,
             "refresh",
-            freq=PER_INSTANCE,
+            freq=PER_ALWAYS if force else PER_INSTANCE,
         )
 
 
