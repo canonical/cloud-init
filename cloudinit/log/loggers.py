@@ -54,14 +54,14 @@ SECURITY_LOG_FILE = "/var/log/cloud-init-security.log"
 class SecurityOnlyFilter(logging.Filter):
     """Pass only SECURITY level records."""
 
-    def filter(self, record):
+    def filter(self, record) -> bool:
         return record.levelno == SECURITY
 
 
 class NoSecurityFilter(logging.Filter):
     """Block SECURITY level records from non-security handlers."""
 
-    def filter(self, record):
+    def filter(self, record) -> bool:
         return record.levelno != SECURITY
 
 
