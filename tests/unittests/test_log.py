@@ -225,12 +225,15 @@ class TestSecurityLogs:
         ]
         assert len(security_handlers) == 1
 
-    def test_setup_security_logging_oserror_is_silent(self, tmp_path):
-        """setup_security_logging silent return on unwriatable log."""
-        unwritable = "/root/cannot-create-this-security.log"
+    def test_setup_security_logging_oserror_is_silent(self, mocker):
+        """setup_security_logging silent return on unwritable log."""
+        mocker.patch(
+            "cloudinit.log.loggers.logging.FileHandler",
+            side_effect=OSError("Permission denied"),
+        )
         root = logging.getLogger()
         handlers_before = list(root.handlers)
-        loggers.setup_security_logging(root=root, log_file=unwritable)
+        loggers.setup_security_logging(root=root, log_file="/any/path")
         # No new handler should have been attached.
         assert root.handlers == handlers_before
 

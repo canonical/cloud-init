@@ -104,7 +104,7 @@ def setup_security_logging(
 ) -> None:
     """Attach a FileHandler routing SECURITY records to log_file if absent."""
     for h in root.handlers:
-        if isinstance(h, logging.FileHandler) and h.baseFilename == log_file:
+        if getattr(h, "baseFilename", None) == log_file:
             return  # handler already attached
 
     try:
