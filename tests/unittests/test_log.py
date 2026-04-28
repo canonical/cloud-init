@@ -4,6 +4,7 @@
 
 import datetime
 import io
+import json
 import logging
 import time
 from typing import cast
@@ -97,6 +98,13 @@ class TestDeprecatedLogs:
         assert "TRACE" == caplog.records[0].levelname
         assert "trace message" in caplog.text
 
+    def test_security_log_level(self, caplog):
+        logger = cast(loggers.CustomLoggerType, logging.getLogger())
+        logger.setLevel(logging.NOTSET)
+        logger.security("security message")
+        assert "SECURITY" == caplog.records[0].levelname
+        assert "security message" in caplog.text
+
     @pytest.mark.parametrize(
         "expected_log_level, deprecation_info_boundary",
         (
@@ -165,8 +173,117 @@ class TestDeprecatedLogs:
         assert 2 == len(caplog.records)
 
 
-def test_logger_prints_to_stderr(capsys):
+def test_logger_prints_to_stderr(capsys, caplog):
     message = "to stdout"
     loggers.setup_basic_logging()
     logging.getLogger().warning(message)
     assert message in capsys.readouterr().err
+
+
+class TestSecurityLogs:
+    def test_logger_prints_security_as_json_lines(
+        self, tmp_path, capsys, caplog
+    ):
+        """Security logs accepts dict as payload and logs JSON lines."""
+        log_file = tmp_path / "cloud-init-output.log"
+        loggers.setup_basic_logging()
+        root = cast(loggers.CustomLoggerType, logging.getLogger())
+        loggers.setup_security_logging(root=root, log_file=str(log_file))
+        message = {"key": "value"}  # Security logs expect python dict
+        root.security(message)
+        logged_event = json.loads(log_file.read_text())
+        assert logged_event.pop("datetime"), "Missing expected datetime in log"
+        assert logged_event == message
+        # SECURITY level logs are not reflected to stderr
+        assert "" == capsys.readouterr().err
+
+    def test_logger_requires_dict_payload(self, tmp_path, capsys):
+        """Security logs will error when payload message is not a dict.
+
+        Future-proofing additional call-sites from calling
+        LOG.security("non-dict payload")
+        """
+        log_file = tmp_path / "cloud-init-output.log"
+        loggers.setup_basic_logging()
+        root = cast(loggers.CustomLoggerType, logging.getLogger())
+        loggers.setup_security_logging(root=root, log_file=str(log_file))
+        root.security("some non-dict payload")
+        # Invalid security payloads are not logged and don't crash cloud-init.
+        assert "" == log_file.read_text()
+
+    def test_setup_security_logging_idempotent(self, tmp_path):
+        """Multiple setup_security_logging calls do not duplicate handlers."""
+        log_file = str(tmp_path / "sec.log")
+        root = logging.getLogger()
+        loggers.setup_security_logging(root=root, log_file=log_file)
+        loggers.setup_security_logging(root=root, log_file=log_file)
+        security_handlers = [
+            h
+            for h in root.handlers
+            if isinstance(h, logging.FileHandler)
+            and h.baseFilename == log_file
+        ]
+        assert len(security_handlers) == 1
+
+    def test_setup_security_logging_oserror_is_silent(self, mocker):
+        """setup_security_logging silent return on unwritable log."""
+        mocker.patch(
+            "cloudinit.log.loggers.logging.FileHandler",
+            side_effect=OSError("Permission denied"),
+        )
+        root = logging.getLogger()
+        handlers_before = list(root.handlers)
+        loggers.setup_security_logging(root=root, log_file="/any/path")
+        # No new handler should have been attached.
+        assert root.handlers == handlers_before
+
+    def test_security_formatter_datetime_iso8601(self, tmp_path):
+        """SecurityFormatter logs an ISO-8601 timestamp with offset."""
+        import re
+
+        log_file = tmp_path / "sec.log"
+        loggers.setup_basic_logging()
+        root = cast(loggers.CustomLoggerType, logging.getLogger())
+        loggers.setup_security_logging(root=root, log_file=str(log_file))
+        root.security({"event": "test"})
+        logged = json.loads(log_file.read_text())
+        # e.g. 2026-04-24T16:20:43.123+00:00
+        iso8601_ms_tz = re.compile(
+            r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}\+00:00$"
+        )
+        assert iso8601_ms_tz.match(
+            logged["datetime"]
+        ), f"Unexpected datetime format: {logged['datetime']}"
+
+    def test_security_only_filter_passes_security_records(self):
+        """SecurityOnlyFilter allows only SECURITY-level records through."""
+        f = loggers.SecurityOnlyFilter()
+        sec_record = logging.LogRecord(
+            "test", loggers.SECURITY, "", 0, {}, (), None
+        )
+        warn_record = logging.LogRecord(
+            "test", logging.WARNING, "", 0, "msg", (), None
+        )
+        assert f.filter(sec_record) is True
+        assert f.filter(warn_record) is False
+
+    def test_no_security_filter_blocks_security_records(self):
+        """NoSecurityFilter blocks SECURITY-level records and passes others."""
+        f = loggers.NoSecurityFilter()
+        sec_record = logging.LogRecord(
+            "test", loggers.SECURITY, "", 0, {}, (), None
+        )
+        warn_record = logging.LogRecord(
+            "test", logging.WARNING, "", 0, "msg", (), None
+        )
+        assert f.filter(sec_record) is False
+        assert f.filter(warn_record) is True
+
+    def test_security_logs_absent_from_regular_stderr(self, tmp_path, capsys):
+        """SECURITY records absent on stderr after setup_basic_logging."""
+        log_file = tmp_path / "sec.log"
+        loggers.setup_basic_logging()
+        root = cast(loggers.CustomLoggerType, logging.getLogger())
+        loggers.setup_security_logging(root=root, log_file=str(log_file))
+        root.security({"event": "should-not-be-on-stderr"})
+        assert "should-not-be-on-stderr" not in capsys.readouterr().err
