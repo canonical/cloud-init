@@ -881,7 +881,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         if pre_existing_user:
             LOG.info("User %s already exists, skipping.", name)
         else:
-            self.add_user(name, groups=groups, **kwargs)
+            self.add_user(
+                name, groups=groups, create_groups=create_groups, **kwargs
+            )
 
         has_existing_password = False
         ud_blank_password_specified = False
