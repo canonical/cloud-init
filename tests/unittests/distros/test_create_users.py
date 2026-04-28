@@ -494,7 +494,7 @@ class TestCreateUser:
 
     @mock.patch("cloudinit.distros.util.is_group")
     def test_snappy_only_new_group_added(
-        self, m_is_group, m_subp, dist, mocker, caplog
+        self, m_is_group, m_subp, dist, mocker
     ):
         mocker.patch(
             "cloudinit.distros.util.system_is_snappy", return_value=True

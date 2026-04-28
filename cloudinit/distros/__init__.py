@@ -509,8 +509,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         try:
             subp.subp(["hostname", hostname])
         except subp.ProcessExecutionError:
-            util.logexc(
-                LOG,
+            LOG.warning(
                 "Failed to non-persistently adjust the system hostname to %s",
                 hostname,
             )
@@ -707,9 +706,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         cmd, log_cmd = self._build_add_user_cmd(name, groups, **kwargs)
         try:
             subp.subp(cmd, logstring=log_cmd)
-        except Exception as e:
-            util.logexc(LOG, "Failed to create user %s", name)
-            raise e
+        except subp.ProcessExecutionError:
+            LOG.warning("Failed to create user %s", name)
+            raise
         self._post_add_user(name, groups, **kwargs)
 
     def _build_add_user_cmd(
@@ -808,9 +807,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 create_user_cmd, logstring=create_user_cmd, capture=True
             )
             LOG.debug("snap create-user returned: %s:%s", out, err)
-        except Exception as e:
-            util.logexc(LOG, "Failed to create snap user %s", name)
-            raise e
+        except subp.ProcessExecutionError:
+            LOG.warning("Failed to create snap user %s", name)
+            raise
 
     def _shadow_file_has_empty_user_password(self, username) -> bool:
         """
@@ -1049,9 +1048,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             ) from e
         try:
             subp.subp(cmd)
-        except Exception as e:
-            util.logexc(LOG, "Failed to disable password for user %s", name)
-            raise e
+        except subp.ProcessExecutionError:
+            LOG.warning("Failed to disable password for user %s", name)
+            raise
 
     def unlock_passwd(self, name: str):
         """
@@ -1068,9 +1067,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             ) from e
         try:
             _, err = subp.subp(cmd, rcs=[0, 3])
-        except Exception as e:
-            util.logexc(LOG, "Failed to enable password for user %s", name)
-            raise e
+        except subp.ProcessExecutionError:
+            LOG.warning("Failed to enable password for user %s", name)
+            raise
         if err:
             # if "passwd" or "usermod" are unable to unlock an account with
             # an empty password then they display a message on stdout. In
@@ -1091,18 +1090,16 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 ) from e
             try:
                 subp.subp(cmd)
-            except Exception as e:
-                util.logexc(
-                    LOG, "Failed to set blank password for user %s", name
-                )
-                raise e
+            except subp.ProcessExecutionError:
+                LOG.warning("Failed to set blank password for user %s", name)
+                raise
 
     def expire_passwd(self, user):
         try:
             subp.subp(["passwd", "--expire", user])
-        except Exception as e:
-            util.logexc(LOG, "Failed to set 'expire' for %s", user)
-            raise e
+        except subp.ProcessExecutionError:
+            LOG.warning("Failed to set 'expire' for %s", user)
+            raise
 
     def set_passwd(self, user, passwd, hashed=False):
         pass_string = "%s:%s" % (user, passwd)
@@ -1118,9 +1115,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             subp.subp(
                 cmd, data=pass_string, logstring="chpasswd for %s" % user
             )
-        except Exception as e:
-            util.logexc(LOG, "Failed to set password for %s", user)
-            raise e
+        except subp.ProcessExecutionError:
+            LOG.warning("Failed to set password for %s", user)
+            raise
 
         return True
 
@@ -1314,8 +1311,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             try:
                 subp.subp(group_add_cmd)
                 LOG.info("Created new group %s", name)
-            except Exception:
-                util.logexc(LOG, "Failed to create group %s", name)
+            except subp.ProcessExecutionError:
+                LOG.warning("Failed to create group %s", name)
 
         # Add members to the group, if so defined
         if len(members) > 0:
