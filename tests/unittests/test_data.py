@@ -687,7 +687,7 @@ c: 4
 
 class TestConsumeUserDataHttp:
     @responses.activate
-    @mock.patch("cloudinit.url_helper.time.sleep")
+    @mock.patch("cloudinit.util.time.sleep")
     def test_include(self, mock_sleep, init_tmp):
         """Test #include."""
         included_url = "http://hostname/path"
@@ -706,7 +706,7 @@ class TestConsumeUserDataHttp:
         assert cc.get("included") is True
 
     @responses.activate
-    @mock.patch("cloudinit.url_helper.time.sleep")
+    @mock.patch("cloudinit.util.time.sleep")
     def test_include_bad_url(self, mock_sleep, init_tmp):
         """Test #include with a bad URL."""
         bad_url = "http://bad/forbidden"
@@ -730,7 +730,7 @@ class TestConsumeUserDataHttp:
             util.load_text_file(init_tmp.paths.get_ipath("cloud_config"))
 
     @responses.activate
-    @mock.patch("cloudinit.url_helper.time.sleep")
+    @mock.patch("cloudinit.util.time.sleep")
     @mock.patch("cloudinit.util.is_container")
     @mock.patch(
         "cloudinit.user_data.features.ERROR_ON_USER_DATA_FAILURE", False

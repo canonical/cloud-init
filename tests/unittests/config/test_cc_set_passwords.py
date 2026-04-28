@@ -43,7 +43,7 @@ def common_fixtures(mocker):
 
 
 class TestHandleSSHPwauth:
-    @mock.patch("cloudinit.distros.subp.subp")
+    @mock.patch("cloudinit.config.cc_set_passwords.subp.subp")
     def test_unknown_value_logs_warning(self, m_subp, caplog):
         cloud = get_cloud("ubuntu")
         setpass.handle_ssh_pwauth("floo", cloud.distro)
@@ -62,7 +62,7 @@ class TestHandleSSHPwauth:
         ),
     )
     @mock.patch(f"{MODPATH}update_ssh_config")
-    @mock.patch("cloudinit.distros.subp.subp")
+    @mock.patch("cloudinit.config.cc_set_passwords.subp.subp")
     def test_restart_ssh_only_when_changes_made_and_ssh_installed(
         self,
         m_subp,
@@ -92,7 +92,7 @@ class TestHandleSSHPwauth:
                 assert SYSTEMD_RESTART_CALL not in m_subp.call_args_list
 
     @mock.patch(f"{MODPATH}update_ssh_config", return_value=True)
-    @mock.patch("cloudinit.distros.subp.subp")
+    @mock.patch("cloudinit.config.cc_set_passwords.subp.subp")
     def test_unchanged_value_does_nothing(self, m_subp, update_ssh_config):
         """If 'unchanged', then no updates to config and no restart."""
         update_ssh_config.assert_not_called()
@@ -103,7 +103,7 @@ class TestHandleSSHPwauth:
         assert SERVICE_RESTART_CALL not in m_subp.call_args_list
 
     @pytest.mark.allow_subp_for("systemctl")
-    @mock.patch("cloudinit.distros.subp.subp")
+    @mock.patch("cloudinit.config.cc_set_passwords.subp.subp")
     def test_valid_value_changes_updates_ssh(self, m_subp):
         """If value is a valid changed value, then update will be called."""
         cloud = get_cloud("ubuntu")
@@ -227,7 +227,7 @@ class TestSetPasswordsHandle:
         m_subp = mocker.patch(f"{MODPATH}subp.subp")
         # patch for ifconfig -a
         with mock.patch(
-            "cloudinit.distros.networking.subp.subp", return_values=("", None)
+            "cloudinit.config.cc_set_passwords.subp.subp", return_values=("", None)
         ):
             cloud = get_cloud(distro="freebsd")
         cfg = {"chpasswd": user_cfg}

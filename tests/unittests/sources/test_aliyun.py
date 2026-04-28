@@ -202,7 +202,7 @@ class TestAliYunDatasource:
 
     @responses.activate
     @pytest.mark.usefixtures("regist_default_server", "regist_json_meta_path")
-    @mock.patch("cloudinit.sources.DataSourceEc2.util.is_resolvable")
+    @mock.patch("cloudinit.sources.helpers.aliyun.util.is_resolvable")
     @mock.patch("cloudinit.sources.DataSourceAliYun._is_aliyun")
     def test_with_mock_server(self, m_is_aliyun, m_resolv, ds):
         m_is_aliyun.return_value = True
@@ -219,7 +219,7 @@ class TestAliYunDatasource:
 
     @responses.activate
     @pytest.mark.usefixtures("regist_default_server")
-    @mock.patch("cloudinit.sources.DataSourceEc2.util.is_resolvable")
+    @mock.patch("cloudinit.sources.helpers.aliyun.util.is_resolvable")
     @mock.patch("cloudinit.sources.DataSourceAliYun._is_aliyun")
     def test_with_mock_server_without_json_path(
         self, m_is_aliyun, m_resolv, ds
@@ -240,11 +240,11 @@ class TestAliYunDatasource:
     @pytest.mark.usefixtures("regist_default_server", "regist_json_meta_path")
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv6Network")
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
-    @mock.patch("cloudinit.sources.DataSourceEc2.util.is_resolvable")
+    @mock.patch("cloudinit.sources.helpers.aliyun.util.is_resolvable")
     @mock.patch("cloudinit.sources.DataSourceAliYun._is_aliyun")
     @mock.patch("cloudinit.net.find_fallback_nic")
     @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
-    @mock.patch("cloudinit.sources.DataSourceEc2.util.is_FreeBSD")
+    @mock.patch("cloudinit.sources.helpers.aliyun.util.is_FreeBSD")
     @pytest.mark.usefixtures("disable_netdev_info")
     def test_aliyun_local_with_mock_server(
         self,

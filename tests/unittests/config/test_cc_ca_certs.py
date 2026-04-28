@@ -62,7 +62,7 @@ class TestConfig:
 
     @pytest.mark.parametrize("distro_name", cc_ca_certs.distros)
     @mock.patch(
-        "cloudinit.distros.networking.subp.subp",
+        "cloudinit.config.cc_ca_certs.subp.subp",
         return_value=("", None),
     )
     def test_no_trusted_list(self, _, distro_name, ca_mocks):
@@ -80,7 +80,7 @@ class TestConfig:
 
     @pytest.mark.parametrize("distro_name", cc_ca_certs.distros)
     @mock.patch(
-        "cloudinit.distros.networking.subp.subp",
+        "cloudinit.config.cc_ca_certs.subp.subp",
         return_value=("", None),
     )
     def test_empty_trusted_list(self, _, distro_name, ca_mocks):
@@ -95,7 +95,7 @@ class TestConfig:
 
     @pytest.mark.parametrize("distro_name", cc_ca_certs.distros)
     @mock.patch(
-        "cloudinit.distros.networking.subp.subp",
+        "cloudinit.config.cc_ca_certs.subp.subp",
         return_value=("", None),
     )
     def test_single_trusted(self, _, distro_name, ca_mocks):
@@ -111,7 +111,7 @@ class TestConfig:
 
     @pytest.mark.parametrize("distro_name", cc_ca_certs.distros)
     @mock.patch(
-        "cloudinit.distros.networking.subp.subp",
+        "cloudinit.config.cc_ca_certs.subp.subp",
         return_value=("", None),
     )
     def test_multiple_trusted(self, _, distro_name, ca_mocks):
@@ -127,7 +127,7 @@ class TestConfig:
 
     @pytest.mark.parametrize("distro_name", cc_ca_certs.distros)
     @mock.patch(
-        "cloudinit.distros.networking.subp.subp",
+        "cloudinit.config.cc_ca_certs.subp.subp",
         return_value=("", None),
     )
     def test_remove_default_ca_certs(self, _, distro_name, ca_mocks):
@@ -142,7 +142,7 @@ class TestConfig:
 
     @pytest.mark.parametrize("distro_name", cc_ca_certs.distros)
     @mock.patch(
-        "cloudinit.distros.networking.subp.subp",
+        "cloudinit.config.cc_ca_certs.subp.subp",
         return_value=("", None),
     )
     def test_no_remove_defaults_if_false(self, _, distro_name, ca_mocks):
@@ -157,7 +157,7 @@ class TestConfig:
 
     @pytest.mark.parametrize("distro_name", cc_ca_certs.distros)
     @mock.patch(
-        "cloudinit.distros.networking.subp.subp",
+        "cloudinit.config.cc_ca_certs.subp.subp",
         return_value=("", None),
     )
     def test_correct_order_for_remove_then_add(self, _, distro_name, ca_mocks):

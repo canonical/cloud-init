@@ -427,7 +427,7 @@ class TestDHCPDiscoveryClean:
         assert "DHCP client not found: udhcpc" in caplog.text
 
     @mock.patch("cloudinit.net.dhcp.os.remove")
-    @mock.patch("cloudinit.util.time.sleep", mock.MagicMock())
+    @mock.patch("cloudinit.net.dhcp.time.sleep", mock.MagicMock())
     @mock.patch("cloudinit.net.dhcp.os.kill")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
     @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/dhclient")

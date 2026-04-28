@@ -311,7 +311,7 @@ def distro_freebsd(mocker):
     with open("tests/data/netinfo/freebsd-ifconfig-output", "r") as fh:
         ifs_txt = fh.read()
         mocker.patch(
-            "cloudinit.distros.networking.subp.subp",
+            "cloudinit.net.activators.subp.subp",
             return_value=(ifs_txt, None),
         )
         return get_distro("freebsd", renderers=["freebsd"])
@@ -586,7 +586,7 @@ def distro_netplan():
 
 @pytest.fixture
 def m_netplan_subp(mocker):
-    mocker.patch("cloudinit.net.netplan.subp.subp", return_value=("", ""))
+    mocker.patch("cloudinit.net.activators.subp.subp", return_value=("", ""))
 
 
 @pytest.mark.usefixtures("fake_filesystem", "m_netplan_subp")
@@ -1163,7 +1163,7 @@ class TestNetCfgDistroArch:
 
 @pytest.fixture
 def distro_photon(mocker):
-    mocker.patch("cloudinit.net.networkd.util.chownbyname")
+    mocker.patch("cloudinit.net.activators.util.chownbyname")
     return get_distro("photon", renderers=["networkd"])
 
 
@@ -1303,7 +1303,7 @@ class TestNetCfgDistroPhoton:
 
 @pytest.fixture
 def distro_mariner(mocker):
-    mocker.patch("cloudinit.net.networkd.util.chownbyname")
+    mocker.patch("cloudinit.net.activators.util.chownbyname")
     return get_distro("mariner", renderers=["networkd"])
 
 
@@ -1443,7 +1443,7 @@ class TestNetCfgDistroMariner:
 
 @pytest.fixture
 def distro_azurelinux(mocker):
-    mocker.patch("cloudinit.net.networkd.util.chownbyname")
+    mocker.patch("cloudinit.net.activators.util.chownbyname")
     return get_distro("azurelinux", renderers=["networkd"])
 
 

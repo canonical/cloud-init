@@ -131,7 +131,7 @@ class TestGenerateResolvConf:
         ] == m_render_to_file.call_args_list
 
     # Patch in templater so we can assert on the actual generated content
-    @mock.patch("cloudinit.templater.util.write_file")
+    @mock.patch("cloudinit.config.cc_resolv_conf.util.write_file")
     # Parameterise with the value to be passed to generate_resolv_conf as the
     # params parameter, and the expected line after the header as
     # expected_extra_line.

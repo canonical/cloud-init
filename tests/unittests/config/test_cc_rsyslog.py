@@ -91,7 +91,7 @@ class TestLoadConfig:
 
         # patch for ifconfig -a
         with mock.patch(
-            "cloudinit.distros.networking.subp.subp", return_values=("", None)
+            "cloudinit.config.cc_rsyslog.subp.subp", return_values=("", None)
         ):
             cloud = get_cloud(distro="freebsd", metadata={})
         assert load_config({}, distro=cloud.distro) == self.BSDCFG
@@ -338,7 +338,7 @@ class TestInstallRsyslog:
         }
         # patch for ifconfig -a
         with mock.patch(
-            "cloudinit.distros.networking.subp.subp", return_values=("", None)
+            "cloudinit.config.cc_rsyslog.subp.subp", return_values=("", None)
         ):
             cloud = get_cloud(distro="freebsd", metadata={})
             m_which.return_value = None

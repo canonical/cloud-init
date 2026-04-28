@@ -91,7 +91,7 @@ class TestReadDMIData:
         self._configure_dmidecode_return(
             mocker, "use-dmidecode", expected_dmi_value
         )
-        with mock.patch("cloudinit.util.os.uname") as m_uname:
+        with mock.patch("cloudinit.dmi.os.uname") as m_uname:
             m_uname.return_value = (
                 "x-sysname",
                 "x-nodename",
@@ -115,7 +115,7 @@ class TestReadDMIData:
         # we do not run the 'dmi-decode' binary on some arches
         # verify that anything requested that is not in the sysfs dir
         # will return None on those arches.
-        with mock.patch("cloudinit.util.os.uname") as m_uname:
+        with mock.patch("cloudinit.dmi.os.uname") as m_uname:
             for arch in expected:
                 m_uname.return_value = (
                     "x-sysname",

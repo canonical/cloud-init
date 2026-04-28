@@ -614,7 +614,7 @@ class TestAnsible:
     @mock.patch(M_PATH + "subp.which", return_value=True)
     @mock.patch(M_PATH + "subp.subp", return_value=(distro_version, "stderr"))
     @mock.patch(
-        "cloudinit.distros.subp.subp", return_value=(distro_version, "stderr")
+        "cloudinit.config.cc_ansible.subp.subp", return_value=(distro_version, "stderr")
     )
     @mark.parametrize(
         ("cfg_dict", "expected"),
@@ -681,7 +681,7 @@ class TestAnsible:
     @mock.patch(M_PATH + "subp.which", return_value=True)
     @mock.patch(M_PATH + "subp.subp", return_value=(distro_version, ""))
     @mock.patch(
-        "cloudinit.distros.subp.subp", return_value=(distro_version, "")
+        "cloudinit.config.cc_ansible.subp.subp", return_value=(distro_version, "")
     )
     @mark.parametrize(
         ("cfg_list", "expected"),

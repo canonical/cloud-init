@@ -879,7 +879,7 @@ class TestConvertNetworkData:
     def test_convert_raises_value_error_on_missing_name(self):
         macs = {"aa:aa:aa:aa:aa:00": "ens1"}
         with mock.patch(
-            "cloudinit.sources.helpers.openstack.util.udevadm_settle"
+            "cloudinit.sources.DataSourceConfigDrive.util.udevadm_settle"
         ):
             with pytest.raises(ValueError):
                 openstack.convert_net_json(

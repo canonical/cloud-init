@@ -120,7 +120,7 @@ def test_mode_off(mocker):
 def freebsd_cloud(mocker):
     # Patch networking call during distro init
     mocker.patch(
-        "cloudinit.distros.networking.subp.subp",
+        "cloudinit.config.cc_growpart.subp.subp",
         return_value=("", None),
     )
     cls = distros.fetch("freebsd")
@@ -403,7 +403,7 @@ class TestResizeZFS:
         cls = distros.fetch("freebsd")
         # patch ifconfig -a
         mocker.patch(
-            "cloudinit.distros.networking.subp.subp", return_value=("", None)
+            "cloudinit.config.cc_growpart.subp.subp", return_value=("", None)
         )
         self.distro = cls("freebsd", {}, None)
         # The fixture must yield to guarantee fixture lifcycle semantics,

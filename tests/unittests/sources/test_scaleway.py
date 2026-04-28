@@ -391,7 +391,7 @@ class TestDataSourceScaleway:
         "cloudinit.sources.DataSourceScaleway.DataSourceScaleway"
         ".override_ds_detect"
     )
-    @mock.patch("cloudinit.url_helper.time.sleep")
+    @mock.patch("cloudinit.sources.DataSourceScaleway.time.sleep")
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralIPv6Network")
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4")
     def test_ipv4_ipv6_metadata_timeout(self, dhcpv4, inet6, sleep, ds_detect):
@@ -461,7 +461,7 @@ class TestDataSourceScaleway:
         assert self.datasource.get_vendordata_raw() is None
 
     @responses.activate
-    @mock.patch("cloudinit.url_helper.time.sleep", lambda x: None)
+    @mock.patch("cloudinit.sources.DataSourceScaleway.time.sleep", lambda x: None)
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4")
     def test_metadata_connection_errors_legacy_ipv4_url(self, dhcpv4):
         """
@@ -492,7 +492,7 @@ class TestDataSourceScaleway:
         "cloudinit.sources.DataSourceScaleway.DataSourceScaleway"
         ".override_ds_detect"
     )
-    @mock.patch("cloudinit.url_helper.time.sleep")
+    @mock.patch("cloudinit.sources.DataSourceScaleway.time.sleep")
     @mock.patch("cloudinit.sources.DataSourceScaleway.socket.getaddrinfo")
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralIPv6Network")
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4")

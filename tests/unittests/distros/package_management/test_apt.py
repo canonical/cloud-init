@@ -15,8 +15,8 @@ TMP_DIR = tempfile.TemporaryDirectory()
 
 
 @mock.patch.dict("os.environ", {}, clear=True)
-@mock.patch("cloudinit.distros.debian.subp.which", return_value=True)
-@mock.patch("cloudinit.distros.debian.subp.subp")
+@mock.patch("cloudinit.distros.package_management.apt.subp.which", return_value=True)
+@mock.patch("cloudinit.distros.package_management.apt.subp.subp")
 class TestPackageCommand:
     @mock.patch(
         "cloudinit.distros.package_management.apt.Apt._apt_lock_available",

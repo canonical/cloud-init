@@ -1099,7 +1099,7 @@ class TestAzureDataSource:
             mock.MagicMock(return_value=NETWORK_METADATA),
         )
         self.m_fallback_nic = mocker.patch(
-            "cloudinit.sources.net.find_fallback_nic", return_value="eth9"
+            "cloudinit.sources.DataSourceAzure.net.find_fallback_nic", return_value="eth9"
         )
         self.m_remove_ubuntu_network_scripts = mocker.patch.object(
             dsaz,

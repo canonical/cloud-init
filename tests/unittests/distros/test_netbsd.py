@@ -44,7 +44,7 @@ def test_init(m_os, with_pkgin):
 
     # patch ifconfig -a
     with mock.patch(
-        "cloudinit.distros.networking.subp.subp", return_value=("", None)
+        "cloudinit.distros.netbsd.subp.subp", return_value=("", None)
     ):
         distro = cloudinit.distros.netbsd.NetBSD("netbsd", cfg, None)
     expectation = ["pkgin", "-y", "full-upgrade"] if with_pkgin else None
