@@ -1032,7 +1032,7 @@ class TestISCDHClient:
             "some_other_file",
         ),
     )
-    @mock.patch("os.path.getmtime", return_value=123.45)
+    @mock.patch("cloudinit.net.dhcp.os.path.getmtime", return_value=123.45)
     def test_get_newest_lease_file_from_distro_rhel(self, *_):
         """
         Test that an rhel style lease has been found
@@ -1051,7 +1051,7 @@ class TestISCDHClient:
             "some_other_file",
         ),
     )
-    @mock.patch("os.path.getmtime", return_value=123.45)
+    @mock.patch("cloudinit.net.dhcp.os.path.getmtime", return_value=123.45)
     def test_get_newest_lease_file_from_distro_amazonlinux(self, *_):
         """
         Test that an amazon style lease has been found
@@ -1070,7 +1070,7 @@ class TestISCDHClient:
             "some_other_file",
         ),
     )
-    @mock.patch("os.path.getmtime", return_value=123.45)
+    @mock.patch("cloudinit.net.dhcp.os.path.getmtime", return_value=123.45)
     def test_get_newest_lease_file_from_distro_freebsd(self, *_):
         """
         Test that an freebsd style lease has been found
@@ -1089,7 +1089,7 @@ class TestISCDHClient:
             "some_other_file",
         ),
     )
-    @mock.patch("os.path.getmtime", return_value=123.45)
+    @mock.patch("cloudinit.net.dhcp.os.path.getmtime", return_value=123.45)
     def test_get_newest_lease_file_from_distro_alpine(self, *_):
         """
         Test that an alpine style lease has been found
@@ -1108,7 +1108,7 @@ class TestISCDHClient:
             "some_other_file",
         ),
     )
-    @mock.patch("os.path.getmtime", return_value=123.45)
+    @mock.patch("cloudinit.net.dhcp.os.path.getmtime", return_value=123.45)
     def test_get_newest_lease_file_from_distro_debian(self, *_):
         """
         Test that an debian style lease has been found
@@ -1129,7 +1129,7 @@ class TestISCDHClient:
             else ["some_file", "!@#$-eth0.lease", "some_other_file"]
         ),
     )
-    @mock.patch("os.path.getmtime", return_value=123.45)
+    @mock.patch("cloudinit.net.dhcp.os.path.getmtime", return_value=123.45)
     def test_fallback_when_nothing_found(self, *_):
         """
         This tests a situation where Distro provides lease information
@@ -1149,7 +1149,7 @@ class TestISCDHClient:
             "some_other_file",
         ),
     )
-    @mock.patch("os.path.getmtime", return_value=123.45)
+    @mock.patch("cloudinit.net.dhcp.os.path.getmtime", return_value=123.45)
     def test_get_newest_lease_file_from_distro_notfound(self, *_):
         """
         Test the case when no leases were found

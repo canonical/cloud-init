@@ -2999,7 +2999,7 @@ class TestFindDevs:
             ("LABEL_FATBOOT=A_LABEL", []),  # lp: #1841466
         ),
     )
-    @mock.patch("glob.glob")
+    @mock.patch("cloudinit.util.glob.glob")
     def test_find_devs_with_freebsd(self, m_glob, criteria, expected_devlist):
         def fake_glob(pattern):
             msdos = ["/dev/msdosfs/EFISYS"]
