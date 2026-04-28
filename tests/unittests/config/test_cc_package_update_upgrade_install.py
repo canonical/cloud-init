@@ -125,7 +125,7 @@ class TestRebootIfRequired:
         with mock.patch(
             "cloudinit.subp.subp", return_value=SubpResult("{}", "fakeerr")
         ) as m_subp:
-            with mock.patch("os.path.isfile", side_effect=_isfile):
+            with mock.patch(f"{M_PATH}os.path.isfile", side_effect=_isfile):
                 with mock.patch(M_PATH + "time.sleep") as m_sleep:
                     with mock.patch(M_PATH + "flush_loggers"):
                         with expectation:

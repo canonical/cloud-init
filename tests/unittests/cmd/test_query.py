@@ -239,7 +239,7 @@ class TestQuery:
         paths, _, _, _ = self._setup_paths(tmpdir)
         with mock.patch(M_PATH + "read_cfg_paths") as m_paths:
             m_paths.return_value = paths
-            with mock.patch("os.getuid") as m_getuid:
+            with mock.patch("cloudinit.cmd.query.os.getuid") as m_getuid:
                 m_getuid.return_value = 0
                 assert 1 == query.handle_args("anyname", args)
         json_file = paths.get_runpath("instance_data")
@@ -280,7 +280,7 @@ class TestQuery:
         )
         with mock.patch(M_PATH + "read_cfg_paths") as m_paths:
             m_paths.return_value = paths
-            with mock.patch("os.getuid") as m_getuid:
+            with mock.patch("cloudinit.cmd.query.os.getuid") as m_getuid:
                 m_getuid.return_value = 0
                 assert 0 == query.handle_args("anyname", args)
         out, _err = capsys.readouterr()
@@ -349,7 +349,7 @@ class TestQuery:
         )
         with mock.patch(M_PATH + "read_cfg_paths") as m_paths:
             m_paths.return_value = paths
-            with mock.patch("os.getuid") as m_getuid:
+            with mock.patch("cloudinit.cmd.query.os.getuid") as m_getuid:
                 m_getuid.return_value = 0
                 assert 0 == query.handle_args("anyname", args)
         expected = (
@@ -373,7 +373,7 @@ class TestQuery:
             vendor_data="vd",
             varname=None,
         )
-        with mock.patch("os.getuid") as m_getuid:
+        with mock.patch("cloudinit.cmd.query.os.getuid") as m_getuid:
             m_getuid.return_value = 100
             assert 0 == query.handle_args("anyname", args)
         expected = (
@@ -400,7 +400,7 @@ class TestQuery:
             vendor_data="vd",
             varname="my_var",
         )
-        with mock.patch("os.getuid") as m_getuid:
+        with mock.patch("cloudinit.cmd.query.os.getuid") as m_getuid:
             m_getuid.return_value = 100
             assert 0 == query.handle_args("anyname", args)
         out, _err = capsys.readouterr()
@@ -439,7 +439,7 @@ class TestQuery:
             list_keys=False,
             varname=varname,
         )
-        with mock.patch("os.getuid") as m_getuid:
+        with mock.patch("cloudinit.cmd.query.os.getuid") as m_getuid:
             m_getuid.return_value = 100
             assert 0 == query.handle_args("anyname", args)
         out, _err = capsys.readouterr()
@@ -483,7 +483,7 @@ class TestQuery:
             list_keys=False,
             varname=None,
         )
-        with mock.patch("os.getuid") as m_getuid:
+        with mock.patch("cloudinit.cmd.query.os.getuid") as m_getuid:
             m_getuid.return_value = 100
             assert 0 == query.handle_args("anyname", args)
         out, _err = capsys.readouterr()
@@ -512,7 +512,7 @@ class TestQuery:
             vendor_data="vd",
             varname=None,
         )
-        with mock.patch("os.getuid") as m_getuid:
+        with mock.patch("cloudinit.cmd.query.os.getuid") as m_getuid:
             m_getuid.return_value = 100
             assert 0 == query.handle_args("anyname", args)
         out, _err = capsys.readouterr()
@@ -538,7 +538,7 @@ class TestQuery:
             vendor_data="vd",
             varname="v1",
         )
-        with mock.patch("os.getuid") as m_getuid:
+        with mock.patch("cloudinit.cmd.query.os.getuid") as m_getuid:
             m_getuid.return_value = 100
             assert 0 == query.handle_args("anyname", args)
         out, _err = capsys.readouterr()
@@ -564,7 +564,7 @@ class TestQuery:
             vendor_data="vd",
             varname="top",
         )
-        with mock.patch("os.getuid") as m_getuid:
+        with mock.patch("cloudinit.cmd.query.os.getuid") as m_getuid:
             m_getuid.return_value = 100
             assert 1 == query.handle_args("anyname", args)
         assert expected_error in caplog.text
@@ -596,7 +596,7 @@ class TestQuery:
             vendor_data="vd",
             varname=None,
         )
-        with mock.patch("os.getuid") as m_getuid:
+        with mock.patch("cloudinit.cmd.query.os.getuid") as m_getuid:
             m_getuid.return_value = 100
             assert 0 == query.handle_args("anyname", args)
         out, _err = capsys.readouterr()
@@ -628,7 +628,7 @@ class TestQuery:
             vendor_data="vd",
             varname=None,
         )
-        with mock.patch("os.getuid") as m_getuid:
+        with mock.patch("cloudinit.cmd.query.os.getuid") as m_getuid:
             m_getuid.return_value = 100
             assert 1 == query.handle_args("anyname", args)
         assert expected_error in caplog.text

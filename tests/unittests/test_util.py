@@ -1007,8 +1007,8 @@ class TestGetLinuxDistro:
         dist = util.get_linux_distro()
         assert ("ubuntu", "16.04", "xenial") == dist
 
-    @mock.patch("platform.system")
-    @mock.patch("platform.release")
+    @mock.patch("cloudinit.util.platform.system")
+    @mock.patch("cloudinit.util.platform.release", return_value="17.1.0")
     @mock.patch(M_PATH + "_parse_redhat_release")
     def test_get_linux_freebsd(
         self,

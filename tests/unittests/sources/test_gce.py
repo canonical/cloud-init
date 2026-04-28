@@ -86,7 +86,7 @@ class TestDataSourceGCE:
         self.m_is_resolvable_url = mocker.patch(
             M_PATH + "util.is_resolvable_url", return_value=True
         )
-        mocker.patch("time.sleep")
+        mocker.patch("cloudinit.url_helper.time.sleep")
 
     def _set_mock_metadata(self, gce_meta=None, *, check_headers=None):
         if gce_meta is None:

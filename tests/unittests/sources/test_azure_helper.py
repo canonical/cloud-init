@@ -472,10 +472,7 @@ class TestHttpWithRetries:
 class TestOpenSSLManager:
     @pytest.fixture(autouse=True)
     def fixtures(self, mocker):
-        try:
-            mocker.patch("__builtin__.open")
-        except ImportError:
-            mocker.patch("builtins.open")
+        mocker.patch("cloudinit.util.open")
 
     @mock.patch.object(azure_helper, "cd", mock.MagicMock())
     @mock.patch.object(azure_helper.temp_utils, "mkdtemp")

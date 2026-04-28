@@ -520,9 +520,11 @@ class TestEncrypted:
         self.distro = MockDistro()
         original_device_part_info = self.distro.device_part_info
         self.distro.device_part_info = self._device_part_info_side_effect
-        mocker.patch("os.stat")
-        mocker.patch("stat.S_ISBLK")
-        mocker.patch("stat.S_ISCHR")
+        mocker.patch("cloudinit.config.cc_growpart.os.stat")
+        mocker.patch("cloudinit.config.cc_growpart.stat.S_ISBLK")
+        mocker.patch(
+            "cloudinit.config.cc_growpart.stat.S_ISCHR", return_value=False
+        )
         mocker.patch(
             "cloudinit.config.cc_growpart.devent2dev",
             side_effect=self._devent2dev_side_effect,
