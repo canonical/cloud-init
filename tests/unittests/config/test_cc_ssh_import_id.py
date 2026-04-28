@@ -11,7 +11,7 @@ from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
 
-MODPATH = "cloudinit.config.cc_ssh_import_ids."
+MODPATH = "cloudinit.config.cc_ssh_import_id."
 
 
 class TestIsKeyInNestedDict:
@@ -70,7 +70,7 @@ class TestHandleSshImportIDs:
             ({"ssh_import_id": ["bobkey"]}, "ssh-import-id is not installed"),
         ),
     )
-    @mock.patch("cloudinit.subp.which")
+    @mock.patch(MODPATH + "subp.which")
     def test_skip_inapplicable_configs(self, m_which, cfg, log, caplog):
         """Skip config without ssh_import_id"""
         m_which.return_value = None
@@ -78,9 +78,9 @@ class TestHandleSshImportIDs:
         cc_ssh_import_id.handle("name", cfg, cloud, [])
         assert log in caplog.text
 
-    @mock.patch("cloudinit.ssh_util.pwd.getpwnam")
-    @mock.patch("cloudinit.config.cc_ssh_import_id.subp.subp")
-    @mock.patch("cloudinit.subp.which")
+    @mock.patch(MODPATH + "pwd.getpwnam")
+    @mock.patch(MODPATH + "subp.subp")
+    @mock.patch(MODPATH + "subp.which")
     def test_use_sudo(self, m_which, m_subp, m_getpwnam):
         """Check that sudo is available and use that"""
         m_which.return_value = "/usr/bin/ssh-import-id"
@@ -99,9 +99,9 @@ class TestHandleSshImportIDs:
             capture=False,
         )
 
-    @mock.patch("cloudinit.ssh_util.pwd.getpwnam")
-    @mock.patch("cloudinit.config.cc_ssh_import_id.subp.subp")
-    @mock.patch("cloudinit.subp.which")
+    @mock.patch(MODPATH + "pwd.getpwnam")
+    @mock.patch(MODPATH + "subp.subp")
+    @mock.patch(MODPATH + "subp.which")
     def test_use_doas(self, m_which, m_subp, m_getpwnam):
         """Check that doas is available and use that"""
         m_which.side_effect = [None, "/usr/bin/doas"]
@@ -112,9 +112,9 @@ class TestHandleSshImportIDs:
             ["doas", "-u", user, "ssh-import-id"] + ids, capture=False
         )
 
-    @mock.patch("cloudinit.ssh_util.pwd.getpwnam")
-    @mock.patch("cloudinit.config.cc_ssh_import_id.subp.subp")
-    @mock.patch("cloudinit.subp.which")
+    @mock.patch(MODPATH + "pwd.getpwnam")
+    @mock.patch(MODPATH + "subp.subp")
+    @mock.patch(MODPATH + "subp.which")
     def test_use_neither_sudo_nor_doas(
         self, m_which, m_subp, m_getpwnam, caplog
     ):
@@ -127,9 +127,9 @@ class TestHandleSshImportIDs:
             "Neither sudo nor doas available! Unable to import SSH ids"
         ) in caplog.text
 
-    @mock.patch("cloudinit.config.cc_ssh_import_id.time.sleep")
-    @mock.patch("cloudinit.ssh_util.pwd.getpwnam")
-    @mock.patch("cloudinit.subp.which")
+    @mock.patch(MODPATH + "time.sleep")
+    @mock.patch(MODPATH + "pwd.getpwnam")
+    @mock.patch(MODPATH + "subp.which")
     def test_retry_once_on_exit_code_1(
         self, m_which, m_getpwnam, m_sleep, mocker
     ):
@@ -142,20 +142,18 @@ class TestHandleSshImportIDs:
             ],
         )
         m_which.return_value = "/usr/bin/ssh-import-id"
-        ids = ["waffle"]
-        user = "bob"
         with pytest.raises(
             ProcessExecutionError,
             match=r"(?s)Unexpected error while running command.*try2",
         ):
-            cc_ssh_import_id.import_ssh_ids(ids, user)
+            cc_ssh_import_id.import_ssh_ids(["waffle"], "bob")
 
         assert m_subp.call_count == 2
         assert m_sleep.call_count == 1
 
-    @mock.patch("cloudinit.config.cc_ssh_import_id.time.sleep")
-    @mock.patch("cloudinit.ssh_util.pwd.getpwnam")
-    @mock.patch("cloudinit.subp.which")
+    @mock.patch(MODPATH + "time.sleep")
+    @mock.patch(MODPATH + "pwd.getpwnam")
+    @mock.patch(MODPATH + "subp.which")
     def test_retry_with_success(self, m_which, m_getpwnam, m_sleep, mocker):
         """Retry succeeds on ssh-import-id with a retry."""
         m_subp = mocker.patch(
@@ -166,9 +164,7 @@ class TestHandleSshImportIDs:
             ],
         )
         m_which.return_value = "/usr/bin/ssh-import-id"
-        ids = ["waffle"]
-        user = "bob"
-        cc_ssh_import_id.import_ssh_ids(ids, user)
+        cc_ssh_import_id.import_ssh_ids(["waffle"], "bob")
 
         assert m_subp.call_count == 2
         assert m_sleep.call_count == 1
