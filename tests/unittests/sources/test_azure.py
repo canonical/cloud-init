@@ -25,7 +25,7 @@ from cloudinit.config import cc_mounts
 from cloudinit.net import dhcp, ephemeral
 from cloudinit.sources import UNSET
 from cloudinit.sources import DataSourceAzure as dsaz
-from cloudinit.sources.azure import errors, identity, imds
+from cloudinit.sources.azure import certs, errors, identity, imds
 from cloudinit.sources.helpers import netlink
 from cloudinit.util import (
     MountFailedError,
@@ -2232,15 +2232,15 @@ scbus-1 on xpt0 bus 0
 
     def test_key_without_crlf_valid(self):
         test_key = "ssh-rsa somerandomkeystuff some comment"
-        assert True is dsaz._key_is_openssh_formatted(test_key)
+        assert True is certs.is_openssh_formatted(test_key)
 
-    def test_key_with_crlf_invalid(self):
+    def test_key_with_crlf_sanitized(self):
         test_key = "ssh-rsa someran\r\ndomkeystuff some comment"
-        assert False is dsaz._key_is_openssh_formatted(test_key)
+        assert True is certs.is_openssh_formatted(test_key)
 
     def test_key_endswith_crlf_valid(self):
         test_key = "ssh-rsa somerandomkeystuff some comment\r\n"
-        assert True is dsaz._key_is_openssh_formatted(test_key)
+        assert True is certs.is_openssh_formatted(test_key)
 
     @mock.patch(
         "cloudinit.sources.helpers.azure.OpenSSLManager.parse_certificates"

@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 
-from cloudinit import net, performance, sources, ssh_util, subp, util
+from cloudinit import net, performance, sources, subp, util
 from cloudinit.config import cc_mounts
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import device_driver
@@ -30,7 +30,7 @@ from cloudinit.net.dhcp import (
 )
 from cloudinit.net.ephemeral import EphemeralDHCPv4, EphemeralIPv4Network
 from cloudinit.reporting import events
-from cloudinit.sources.azure import errors, identity, imds, kvp
+from cloudinit.sources.azure import certs, errors, identity, imds, kvp
 from cloudinit.sources.helpers import netlink
 from cloudinit.sources.helpers.azure import (
     DEFAULT_WIRESERVER_ENDPOINT,
@@ -1044,7 +1044,9 @@ class DataSourceAzure(sources.DataSource):
             report_diagnostic_event(log_msg, logger_func=LOG.debug)
             raise
 
-        if any(not _key_is_openssh_formatted(key=key) for key in ssh_keys):
+        ssh_keys = [certs.sanitize_openssh_key(key) for key in ssh_keys]
+
+        if any(not certs.is_openssh_formatted(key) for key in ssh_keys):
             log_msg = "Key(s) not in OpenSSH format"
             report_diagnostic_event(log_msg, logger_func=LOG.debug)
             raise ValueError(log_msg)
@@ -1739,23 +1741,6 @@ def _disable_password_from_imds(imds_data):
         )
     except KeyError:
         return None
-
-
-def _key_is_openssh_formatted(key):
-    """
-    Validate whether or not the key is OpenSSH-formatted.
-    """
-    # See https://bugs.launchpad.net/cloud-init/+bug/1910835
-    if "\r\n" in key.strip():
-        return False
-
-    parser = ssh_util.AuthKeyLineParser()
-    try:
-        akl = parser.parse(key)
-    except TypeError:
-        return False
-
-    return akl.keytype is not None
 
 
 def _partitions_on_device(devpath, maxnum=16):
