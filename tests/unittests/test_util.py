@@ -2946,7 +2946,7 @@ class TestKernelVersion:
         ("4.18.0-144.el8.x86_64", (4, 18)),
     ]
 
-    @mock.patch("os.uname")
+    @mock.patch("cloudinit.util.os.uname")
     @pytest.mark.parametrize("uname_release,expected", params)
     def test_kernel_version(self, m_uname, uname_release, expected):
         m_uname.return_value.release = uname_release

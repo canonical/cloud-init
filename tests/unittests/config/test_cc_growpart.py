@@ -354,7 +354,7 @@ class TestResize:
             "device_part_info",
             side_effect=simple_device_part_info,
         )
-        mocker.patch("os.stat", side_effect=mystat)
+        mocker.patch("cloudinit.config.cc_growpart.os.stat", side_effect=mystat)
         resized = cc_growpart.resize_devices(
             myresizer(), devs + enoent, distro
         )

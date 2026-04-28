@@ -1024,7 +1024,7 @@ class TestUDHCPCDiscoveryClean:
 
 class TestISCDHClient:
     @mock.patch(
-        "os.listdir",
+        "cloudinit.net.dhcp.os.listdir",
         return_value=(
             "some_file",
             # rhel style lease file
@@ -1043,7 +1043,7 @@ class TestISCDHClient:
         )
 
     @mock.patch(
-        "os.listdir",
+        "cloudinit.net.dhcp.os.listdir",
         return_value=(
             "some_file",
             # amazon linux style
@@ -1062,7 +1062,7 @@ class TestISCDHClient:
         )
 
     @mock.patch(
-        "os.listdir",
+        "cloudinit.net.dhcp.os.listdir",
         return_value=(
             "some_file",
             # freebsd style lease file
@@ -1081,7 +1081,7 @@ class TestISCDHClient:
         )
 
     @mock.patch(
-        "os.listdir",
+        "cloudinit.net.dhcp.os.listdir",
         return_value=(
             "some_file",
             # alpine style lease file
@@ -1100,7 +1100,7 @@ class TestISCDHClient:
         )
 
     @mock.patch(
-        "os.listdir",
+        "cloudinit.net.dhcp.os.listdir",
         return_value=(
             "some_file",
             # debian style lease file
@@ -1122,7 +1122,7 @@ class TestISCDHClient:
     # then mock an empty reply
     # otherwise mock a reply with leasefile
     @mock.patch(
-        "os.listdir",
+        "cloudinit.net.dhcp.os.listdir",
         side_effect=lambda x: (
             []
             if x == "/var/lib/NetworkManager"
@@ -1142,7 +1142,7 @@ class TestISCDHClient:
         )
 
     @mock.patch(
-        "os.listdir",
+        "cloudinit.net.dhcp.os.listdir",
         return_value=(
             "some_file",
             "totally_not_a_leasefile",
