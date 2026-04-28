@@ -879,7 +879,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         pre_existing_user = util.is_user(name)
         if pre_existing_user:
-            LOG.info("User %s already exists, skipping.", name)
+            LOG.info("Skipping '%s' user creation: user already exists.", name)
         else:
             self.add_user(
                 name, groups=groups, create_groups=create_groups, **kwargs
@@ -1332,7 +1332,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 LOG.info("Added user '%s' to group '%s'", member, name)
 
     @classmethod
-    def shutdown_command(cls, *, mode, delay, message):
+    def shutdown_command(cls, *, mode, delay, message) -> List[str]:
         try:
             if delay != "now":
                 delay = "+%d" % int(delay)
@@ -1344,7 +1344,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return cls._build_shutdown_command(mode, delay, message)
 
     @classmethod
-    def _build_shutdown_command(cls, mode, delay, message):
+    def _build_shutdown_command(cls, mode, delay, message) -> List[str]:
         command = ["shutdown", cls.shutdown_options_map[mode], delay]
         if message:
             command.append(message)

@@ -212,6 +212,10 @@ class Distro(distros.Distro):
         groups: List[str],
         selinux_user: Optional[str] = None,
         passwd: Optional[str] = None,
+        no_create_home: Optional[bool] = False,
+        system: Optional[bool] = False,
+        expiredate: Optional[str] = None,
+        inactive: Optional[str] = None,
         **kwargs,
     ) -> None:
         if selinux_user:
@@ -220,7 +224,17 @@ class Distro(distros.Distro):
         # If 'useradd' is available (e.g. shadow package installed) use the
         # generic GNU implementation.
         if subp.which("useradd"):
-            super()._add_user(name, groups=groups, passwd=passwd, **kwargs)
+            super()._add_user(
+                name,
+                groups=groups,
+                passwd=passwd,
+                selinux_user=selinux_user,
+                no_create_home=no_create_home,
+                system=system,
+                expiredate=expiredate,
+                inactive=inactive,
+                **kwargs,
+            )
             return
 
         adduser_cmd = ["adduser", "-D"]
@@ -235,17 +249,16 @@ class Distro(distros.Distro):
             "shell": "-s",
             "uid": "-u",
         }
-        adduser_flags = {"system": "-S"}
 
         for key, val in sorted(kwargs.items()):
             if key in adduser_opts and val and isinstance(val, str):
                 adduser_cmd.extend([adduser_opts[key], val])
-            elif key in adduser_flags and val:
-                adduser_cmd.append(adduser_flags[key])
+        if system:
+            adduser_cmd.append("-S")
 
-        # Don't create the home directory if directed so or if the user is a
-        # system user
-        if kwargs.get("no_create_home") or kwargs.get("system"):
+        # Don't create the home directory no_create_home is True or if the
+        # user is a system user.
+        if no_create_home or system:
             adduser_cmd.append("-H")
 
         # Busybox's 'adduser' puts username at end of command
@@ -253,16 +266,14 @@ class Distro(distros.Distro):
 
         try:
             subp.subp(adduser_cmd, logstring=adduser_cmd)
-        except Exception as e:
-            util.logexc(LOG, "Failed to create user %s", name)
+        except subp.ProcessExecutionError:
+            LOG.warning("Failed to create user %s", name)
             raise
 
         # Separately add user to each additional group as Busybox's
         # 'adduser' does not support specifying additional groups.
         for addn_group in groups:
             addn_group = addn_group.strip()
-            if not addn_group:
-                continue
             LOG.debug("Adding user to group %s", addn_group)
             try:
                 subp.subp(["addgroup", name, addn_group])
@@ -294,9 +305,6 @@ class Distro(distros.Distro):
         # Also set expiredate (field '7') and/or inactive (field '6')
         # values directly in /etc/shadow file as Busybox's 'adduser'
         # does not support passing these as CLI options.
-
-        expiredate = kwargs.get("expiredate")
-        inactive = kwargs.get("inactive")
 
         shadow_file = self.shadow_fn
         try:
@@ -509,7 +517,7 @@ class Distro(distros.Distro):
                 LOG.info("Added user '%s' to group '%s'", member, name)
 
     @classmethod
-    def _build_shutdown_command(cls, mode, delay, message):
+    def _build_shutdown_command(cls, mode, delay, message) -> List[str]:
         # Alpine has halt/poweroff/reboot, with the following specifics:
         # - we use them rather than the generic "shutdown"
         # - delay is given with "-d [integer]"

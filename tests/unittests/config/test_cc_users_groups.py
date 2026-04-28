@@ -47,13 +47,19 @@ class TestHandleUsersGroups:
     @pytest.mark.parametrize(
         "groups_cfg,normalized_groups,deprecation_log",
         (
-            (
-                {"grp1": True, "grp2 ": True},
+            pytest.param(
+                {"grp1": True, "grp2 ": True, "    ": True},
                 ["grp1", "grp2"],
                 "The user me2 has a 'groups' config value of type dict is"
                 " deprecated in 22.3",
+                id="groups-as-dict-ignores-whitespace",
             ),
-            (" grp1,grp2", ["grp1", "grp2"], None),
+            pytest.param(
+                " grp1,  ,grp2",
+                ["grp1", "grp2"],
+                None,
+                id="groups-comma-separated-with-whitespace",
+            ),
         ),
     )
     def test_handle_users_in_cfg_normalizes_group_values(

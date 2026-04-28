@@ -51,7 +51,7 @@ def _normalize_user_groups(
             extra_message="Use a comma-delimited string or "
             "array instead: group1,group2.",
         )
-        return list(group.strip() for group in groups)
+        return list(group.strip() for group in groups if group.strip())
 
     if isinstance(groups, list):
         if not all(isinstance(group, str) for group in groups):
@@ -74,8 +74,6 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         cloud.distro.create_group(name, members)
 
     for user, config in users.items():
-        user_groups = _normalize_user_groups(user, config.pop("groups", []))
-
         no_home = [key for key in NO_HOME if config.get(key)]
         need_home = [key for key in NEED_HOME if config.get(key)]
         if no_home and need_home:
@@ -111,4 +109,5 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                 config["ssh_redirect_user"] = default_user
                 config["cloud_public_ssh_keys"] = cloud_keys
 
+        user_groups = _normalize_user_groups(user, config.pop("groups", []))
         cloud.distro.create_user(user, groups=user_groups, **config)
