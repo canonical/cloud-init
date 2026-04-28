@@ -67,6 +67,7 @@ class TestCloudStackHostname:
         self.hostname = "vm-hostname"
         self.networkd_domainname = "networkd.local"
         self.isc_dhclient_domainname = "dhclient.local"
+        self.nm_domainname = "nm.local"
 
         get_hostname_parent = mock.MagicMock(
             return_value=DataSourceHostname(self.hostname, True)
@@ -108,6 +109,10 @@ class TestCloudStackHostname:
             DHCP_MOD_PATH + ".networkd_get_option_from_leases",
             get_networkd_domain,
         )
+        mocker.patch(
+            MOD_PATH + ".dhcp.IscDhclient.get_newest_lease_file_from_distro",
+            return_value=True,
+        )
 
         with patch(
             MOD_PATH + ".util.load_text_file",
@@ -140,6 +145,201 @@ class TestCloudStackHostname:
         ):
             result = cloudstack_ds._get_domainname()
         assert self.isc_dhclient_domainname == result
+
+    def test_get_domainname_network_manager(self, cloudstack_ds, mocker):
+        """
+        Test if DataSourceCloudStack._get_domainname()
+        gets domain name from nmcli lease information
+        """
+        nmcliop = f"DHCP4.OPTION[5]:        domain_name = {self.nm_domainname}"
+        get_networkd_domain = mock.MagicMock(return_value=None)
+        mocker.patch(
+            DHCP_MOD_PATH + ".networkd_get_option_from_leases",
+            get_networkd_domain,
+        )
+        mocker.patch(
+            MOD_PATH + ".dhcp.IscDhclient.get_newest_lease_file_from_distro",
+            return_value=True,
+        )
+
+        mocker.patch(
+            MOD_PATH + ".util.load_text_file",
+            return_value=None,
+        )
+
+        mocker.patch(
+            DHCP_MOD_PATH + ".find_correct_device_nmcli",
+            return_value="ens120",
+        )
+
+        with patch(
+            DHCP_MOD_PATH + ".run_nmcli",
+            return_value=dedent(
+                """
+     DHCP4.OPTION[1]:          broadcast_address = 172.16.127.255
+     DHCP4.OPTION[2]:          dhcp_client_identifier = 01:00:0c:29:bf:c5:56
+     DHCP4.OPTION[3]:          dhcp_lease_time = 1800
+     DHCP4.OPTION[4]:          dhcp_server_identifier = 172.16.127.254
+     """
+                + nmcliop
+                + """
+     DHCP4.OPTION[6]:          domain_name_servers = 172.16.127.2
+     DHCP4.OPTION[7]:          expiry = 1775029195
+     DHCP4.OPTION[8]:          ip_address = 172.16.127.135
+     DHCP4.OPTION[9]:          next_server = 172.16.127.254
+     """
+            ),
+        ):
+            result = cloudstack_ds._get_domainname()
+        assert self.nm_domainname == result
+
+    def test_get_domainname_nm_multi_conn_nic(self, cloudstack_ds, mocker):
+        """
+        Test if DataSourceCloudStack._get_domainname()
+        can handle multi connected nic environments.
+        """
+        domain_name = f"{self.nm_domainname}"
+        get_networkd_domain = mock.MagicMock(return_value=None)
+        mocker.patch(
+            DHCP_MOD_PATH + ".networkd_get_option_from_leases",
+            get_networkd_domain,
+        )
+        mocker.patch(
+            MOD_PATH + ".dhcp.IscDhclient.get_newest_lease_file_from_distro",
+            return_value=True,
+        )
+
+        mocker.patch(
+            MOD_PATH + ".util.load_text_file",
+            return_value=None,
+        )
+
+        mocker.patch(
+            DHCP_MOD_PATH + ".run_nmcli",
+            return_value=dedent(
+                """
+                   ens160:ethernet:connected:Wired connection 1
+                   ens256:ethernet:connected:Wired connection 2
+                   lo:loopback:connected (externally):lo
+                """
+            ),
+        )
+
+        with patch(
+            DHCP_MOD_PATH + ".network_manager_load_leases",
+            return_value={"domain_name": domain_name},
+        ):
+            result = cloudstack_ds._get_domainname()
+        assert self.nm_domainname == result
+
+    def test_get_domainname_nm_single_conn_nic(self, cloudstack_ds, mocker):
+        """
+        Test if DataSourceCloudStack._get_domainname()
+        can handle one connected nic environments.
+        """
+        domain_name = f"{self.nm_domainname}"
+        get_networkd_domain = mock.MagicMock(return_value=None)
+        mocker.patch(
+            DHCP_MOD_PATH + ".networkd_get_option_from_leases",
+            get_networkd_domain,
+        )
+        mocker.patch(
+            MOD_PATH + ".dhcp.IscDhclient.get_newest_lease_file_from_distro",
+            return_value=True,
+        )
+
+        mocker.patch(
+            MOD_PATH + ".util.load_text_file",
+            return_value=None,
+        )
+
+        mocker.patch(
+            DHCP_MOD_PATH + ".run_nmcli",
+            return_value=dedent(
+                """
+                   ens160:ethernet:connected:Wired connection 1
+                   lo:loopback:connected (externally):lo
+                   ens256:ethernet:unavailable:
+                """
+            ),
+        )
+
+        with patch(
+            DHCP_MOD_PATH + ".network_manager_load_leases",
+            return_value={"domain_name": domain_name},
+        ):
+            result = cloudstack_ds._get_domainname()
+        assert self.nm_domainname == result
+
+    def test_get_domainname_nm_no_conn_nic(
+        self, cloudstack_ds, mocker, caplog
+    ):
+        """
+        Test if DataSourceCloudStack._get_domainname()
+        can handle one connected nic environments.
+        """
+        get_networkd_domain = mock.MagicMock(return_value=None)
+        mocker.patch(
+            DHCP_MOD_PATH + ".networkd_get_option_from_leases",
+            get_networkd_domain,
+        )
+        mocker.patch(
+            MOD_PATH + ".dhcp.IscDhclient.get_newest_lease_file_from_distro",
+            return_value=True,
+        )
+
+        mocker.patch(
+            MOD_PATH + ".util.load_text_file",
+            return_value=None,
+        )
+
+        mocker.patch(
+            DHCP_MOD_PATH + ".run_nmcli",
+            return_value=dedent(
+                """
+                   lo:loopback:connected (externally):lo
+                   ens256:ethernet:unavailable:
+                """
+            ),
+        )
+
+        result = cloudstack_ds._get_domainname()
+        assert "Could not obtain FQDN from NM leases" in caplog.text
+        assert (
+            "No domain name found in any DHCP lease; returning empty"
+            in caplog.text
+        )
+        assert result == ""
+
+    def test_get_domainname_nm_nodhcp_lease_err(
+        self, cloudstack_ds, mocker, caplog
+    ):
+        """
+        Test if DataSourceCloudStack._get_domainname()
+        can handle NoDHCPLeaseError.
+        """
+        get_networkd_domain = mock.MagicMock(return_value=None)
+        mocker.patch(
+            DHCP_MOD_PATH + ".networkd_get_option_from_leases",
+            get_networkd_domain,
+        )
+        mocker.patch(
+            MOD_PATH + ".dhcp.IscDhclient.get_newest_lease_file_from_distro",
+            return_value=True,
+        )
+
+        mocker.patch(
+            MOD_PATH + ".util.load_text_file",
+            return_value=None,
+        )
+
+        mocker.patch(
+            DHCP_MOD_PATH + ".network_manager_get_option_from_leases",
+            side_effect=NoDHCPLeaseError,
+        )
+
+        cloudstack_ds._get_domainname()
+        assert "Could not obtain FQDN from NM leases" in caplog.text
 
     def test_get_hostname_non_fqdn(self, cloudstack_ds):
         """
@@ -184,6 +384,12 @@ class TestCloudStackHostname:
         mocker.patch(
             DHCP_MOD_PATH + ".networkd_get_option_from_leases",
             get_networkd_domain,
+        )
+
+        get_nm_domain = mock.MagicMock(return_value=None)
+        mocker.patch(
+            DHCP_MOD_PATH + ".network_manager_get_option_from_leases",
+            get_nm_domain,
         )
 
         mocker.patch(
@@ -286,9 +492,17 @@ class TestGetDataServer:
     MOD_PATH + ".dhcp.networkd_get_option_from_leases",
     return_value="10.1.37.132",
 )
+@mock.patch(
+    MOD_PATH + ".dhcp.network_manager_get_option_from_leases",
+    return_value="10.1.37.135",
+)
 class TestGetVrAddress:
     def test_get_vr_addr_from_dns(
-        self, m_networkd_option_from_leases, m_get_data_server, caplog
+        self,
+        m_nm_get_option_from_leases,
+        m_networkd_option_from_leases,
+        m_get_data_server,
+        caplog,
     ):
         """cloud-init first obtains data-server if resolved by DNS"""
         assert "10.1.37.131" == get_vr_address(MockDistro())
@@ -299,7 +513,12 @@ class TestGetVrAddress:
         assert 0 == m_networkd_option_from_leases.call_count
 
     def test_get_vr_addr_from_networkd_leases(
-        self, m_networkd_option_from_leases, m_get_data_server, mocker, caplog
+        self,
+        m_nm_get_option_from_leases,
+        m_networkd_option_from_leases,
+        m_get_data_server,
+        mocker,
+        caplog,
     ):
         """When no DNS for data-server use networkd dhcp-server-identifier"""
         mocker.patch(MOD_PATH + ".get_data_server", return_value=None)
@@ -309,6 +528,31 @@ class TestGetVrAddress:
             in caplog.text
         )
         m_networkd_option_from_leases.assert_called_once_with("SERVER_ADDRESS")
+
+    def test_get_vr_addr_from_network_manager_leases(
+        self,
+        m_nm_get_option_from_leases,
+        m_networkd_option_from_leases,
+        m_get_data_server,
+        mocker,
+        caplog,
+    ):
+        """When no DNS for data-server or networkd or IscDhclient,
+        use dhcp_server_identifier from network manager lease"""
+        mocker.patch(MOD_PATH + ".get_data_server", return_value=None)
+        mocker.patch(
+            MOD_PATH + ".dhcp.networkd_get_option_from_leases",
+            return_value=None,
+        )
+        mocker.patch(
+            DHCP_MOD_PATH + ".IscDhclient.get_newest_lease",
+            return_value=None,
+        )
+        assert "10.1.37.135" == get_vr_address(MockDistro())
+        assert "Found SERVER_ADDRESS '10.1.37.135' via nmcli" in caplog.text
+        m_nm_get_option_from_leases.assert_called_once_with(
+            "dhcp_server_identifier"
+        )
 
 
 @pytest.mark.usefixtures("dhclient_exists")
@@ -330,6 +574,10 @@ class TestCloudStackPasswordFetching:
                 "expire": "5 2017/07/28 07:08:15",
                 "dhcp-server-identifier": "168.63.129.16",
             },
+        )
+        mocker.patch(
+            DHCP_MOD_PATH + ".network_manager_get_option_from_leases",
+            return_value=None,
         )
         get_newest_lease_file_from_distro = mock.MagicMock(return_value=None)
         mocker.patch(
