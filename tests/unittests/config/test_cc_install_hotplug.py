@@ -20,7 +20,10 @@ def mocks():
     m_del = mock.patch("cloudinit.util.del_file", autospec=True)
     m_subp = mock.patch("cloudinit.subp.subp")
     m_which = mock.patch("cloudinit.subp.which", return_value=None)
-    m_path_exists = mock.patch("os.path.exists", return_value=False)
+    m_path_exists = mock.patch(
+        "cloudinit.config.cc_install_hotplug.os.path.exists",
+        return_value=False,
+    )
 
     yield namedtuple(
         "Mocks", "m_update_enabled m_write m_del m_subp m_which m_path_exists"
@@ -58,7 +61,10 @@ class TestInstallHotplug:
             libexecdir = "/usr/libexec/cloud-init"
         else:
             libexecdir = "/usr/lib/cloud-init"
-        with mock.patch("os.path.exists", return_value=libexec_exists):
+        with mock.patch(
+            "cloudinit.config.cc_install_hotplug.os.path.exists",
+            return_value=libexec_exists,
+        ):
             handle(None, {}, m_cloud, None)
             mocks.m_write.assert_called_once_with(
                 filename=HOTPLUG_UDEV_PATH,
@@ -141,7 +147,9 @@ class TestInstallHotplug:
             DataSourceEc2.extra_hotplug_udev_rules
         )
 
-        with mock.patch("os.path.exists", return_value=True):
+        with mock.patch(
+            "cloudinit.config.cc_install_hotplug.os.path.exists", return_value=True
+        ):
             handle(None, {}, m_cloud, None)
 
         udev_rules = """\
