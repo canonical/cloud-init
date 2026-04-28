@@ -59,7 +59,7 @@ def _normalize_user_groups(
                 f"Not creating user {user}. 'groups' must contain only "
                 "string values."
             )
-        return groups
+        return [group.strip() for group in groups if group.strip()]
     raise TypeError(
         f"Not creating user {user}. 'groups' must be a string, list, or dict."
     )
