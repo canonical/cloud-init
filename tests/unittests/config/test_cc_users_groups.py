@@ -48,12 +48,12 @@ class TestHandleUsersGroups:
         "groups_cfg,normalized_groups,deprecation_log",
         (
             (
-                {"grp1": True, "grp2": True},
+                {"grp1": True, "grp2 ": True},
                 ["grp1", "grp2"],
                 "The user me2 has a 'groups' config value of type dict is"
                 " deprecated in 22.3",
             ),
-            ("grp1,grp2", ["grp1", "grp2"], None),
+            (" grp1,grp2", ["grp1", "grp2"], None),
         ),
     )
     def test_handle_users_in_cfg_normalizes_group_values(

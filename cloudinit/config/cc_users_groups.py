@@ -51,7 +51,7 @@ def _normalize_user_groups(
             extra_message="Use a comma-delimited string or "
             "array instead: group1,group2.",
         )
-        return list(groups)
+        return list(group.strip() for group in groups)
 
     if isinstance(groups, list):
         if not all(isinstance(group, str) for group in groups):
