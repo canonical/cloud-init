@@ -2,6 +2,8 @@
 
 import logging
 
+import pytest
+
 from cloudinit.distros import fetch
 from cloudinit.subp import ProcessExecutionError
 from tests.unittests.helpers import mock
@@ -149,8 +151,9 @@ class TestRaspberryPiOS:
             return_value=(["useradd", "pi", "-m"], ["useradd", "pi", "-m"]),
         ):
             with caplog.at_level(logging.ERROR):
-                distro.add_user("pi", groups=[])
-                assert "Failed to setup user" in caplog.text
+                with pytest.raises(ProcessExecutionError):
+                    distro.add_user("pi", groups=[])
+            assert "Failed to setup user" in caplog.text
 
     @mock.patch(
         "cloudinit.net.generate_fallback_config",

@@ -80,6 +80,7 @@ class Distro(debian.Distro):
             )
         except subp.ProcessExecutionError as e:
             LOG.error("Failed to setup user: %s", e)
+            raise
 
     def generate_fallback_config(self):
         # Based on Photon OS implementation
