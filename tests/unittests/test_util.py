@@ -2014,7 +2014,7 @@ class TestDelDir:
         """
         mocked_side_effect = PermissionError
         mock_rmtree = mocker.patch(
-            "shutil.rmtree",
+            "cloudinit.util.shutil.rmtree",
             side_effect=mocked_side_effect,
         )
         with pytest.raises(mocked_side_effect):
