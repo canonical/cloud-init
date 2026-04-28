@@ -56,7 +56,7 @@ def mocks():
         return_value=m_network_state,
     )
 
-    sleep = mock.patch("time.sleep")
+    sleep = mock.patch("cloudinit.cmd.devel.hotplug_hook.time.sleep")
 
     read_sys_net.start()
     update_event_enabled.start()

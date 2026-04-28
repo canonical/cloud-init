@@ -3243,7 +3243,7 @@ class TestPreprovisioningPollIMDS:
     def fixtures(self, waagent_d):
         dsaz.BUILTIN_DS_CONFIG["data_dir"] = waagent_d
 
-    @mock.patch("time.sleep", mock.MagicMock())
+    @mock.patch(MOCKPATH + "sleep", mock.MagicMock())
     def test_poll_imds_re_dhcp_on_timeout(
         self,
         m_fetch_reprovisiondata,

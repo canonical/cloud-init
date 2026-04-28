@@ -410,7 +410,7 @@ class TestEc2:
         if sys_cfg is None:
             sys_cfg = {}
         ds = self.datasource(sys_cfg=sys_cfg, distro=distro, paths=paths)
-        mocker.patch("time.sleep")
+        mocker.patch(M_PATH + "time.sleep")
         if not md_version:
             md_version = ds.min_metadata_version
         if platform_data is not None:

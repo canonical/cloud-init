@@ -148,7 +148,8 @@ class TestInstallHotplug:
         )
 
         with mock.patch(
-            "cloudinit.config.cc_install_hotplug.os.path.exists", return_value=True
+            "cloudinit.config.cc_install_hotplug.os.path.exists",
+            return_value=True,
         ):
             handle(None, {}, m_cloud, None)
 
