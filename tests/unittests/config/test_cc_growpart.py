@@ -120,7 +120,7 @@ def test_mode_off(mocker):
 def freebsd_cloud(mocker):
     # Patch networking call during distro init
     mocker.patch(
-        "cloudinit.distros.networking.subp.subp",
+        "cloudinit.config.cc_growpart.subp.subp",
         return_value=("", None),
     )
     cls = distros.fetch("freebsd")
@@ -354,7 +354,9 @@ class TestResize:
             "device_part_info",
             side_effect=simple_device_part_info,
         )
-        mocker.patch("os.stat", side_effect=mystat)
+        mocker.patch(
+            "cloudinit.config.cc_growpart.os.stat", side_effect=mystat
+        )
         resized = cc_growpart.resize_devices(
             myresizer(), devs + enoent, distro
         )
@@ -401,7 +403,7 @@ class TestResizeZFS:
         cls = distros.fetch("freebsd")
         # patch ifconfig -a
         mocker.patch(
-            "cloudinit.distros.networking.subp.subp", return_value=("", None)
+            "cloudinit.config.cc_growpart.subp.subp", return_value=("", None)
         )
         self.distro = cls("freebsd", {}, None)
         # The fixture must yield to guarantee fixture lifcycle semantics,
@@ -520,9 +522,11 @@ class TestEncrypted:
         self.distro = MockDistro()
         original_device_part_info = self.distro.device_part_info
         self.distro.device_part_info = self._device_part_info_side_effect
-        mocker.patch("os.stat")
-        mocker.patch("stat.S_ISBLK")
-        mocker.patch("stat.S_ISCHR")
+        mocker.patch("cloudinit.config.cc_growpart.os.stat")
+        mocker.patch("cloudinit.config.cc_growpart.stat.S_ISBLK")
+        mocker.patch(
+            "cloudinit.config.cc_growpart.stat.S_ISCHR", return_value=False
+        )
         mocker.patch(
             "cloudinit.config.cc_growpart.devent2dev",
             side_effect=self._devent2dev_side_effect,

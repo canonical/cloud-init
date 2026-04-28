@@ -610,7 +610,7 @@ class TestCreateSwapfile:
     def test_suggested_swapsize(self, memsize, expected, mocker):
         mock_stat = namedtuple("mock_stat", "f_frsize f_bfree")
         mocker.patch(
-            "os.statvfs",
+            f"{M_PATH}os.statvfs",
             # Don't care about available disk space for the purposes of this
             # test
             return_value=mock_stat(math.inf, math.inf),

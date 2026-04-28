@@ -410,7 +410,7 @@ class TestEc2:
         if sys_cfg is None:
             sys_cfg = {}
         ds = self.datasource(sys_cfg=sys_cfg, distro=distro, paths=paths)
-        mocker.patch("time.sleep")
+        mocker.patch(M_PATH + "time.sleep")
         if not md_version:
             md_version = ds.min_metadata_version
         if platform_data is not None:
@@ -716,7 +716,7 @@ class TestEc2:
                 conn_error,
                 mock_success,
             )
-            with mock.patch("cloudinit.url_helper.time.sleep"):
+            with mock.patch("cloudinit.sources.DataSourceEc2.time.sleep"):
                 assert True is ds.wait_for_metadata_service()
 
         # Just one /latest/api/token request
@@ -918,7 +918,7 @@ class TestEc2:
     @pytest.mark.usefixtures("disable_netdev_info")
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv6Network")
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
-    @mock.patch("cloudinit.distros.net.find_candidate_nics")
+    @mock.patch("cloudinit.sources.DataSourceEc2.net.find_candidate_nics")
     @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
     @mock.patch("cloudinit.sources.DataSourceEc2.util.is_FreeBSD")
     def test_ec2_local_performs_dhcp_on_non_bsd(
@@ -977,7 +977,7 @@ class TestEc2:
     @pytest.mark.usefixtures("disable_netdev_info")
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv6Network")
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
-    @mock.patch("cloudinit.distros.net.find_candidate_nics")
+    @mock.patch("cloudinit.sources.DataSourceEc2.net.find_candidate_nics")
     @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
     @mock.patch("cloudinit.sources.DataSourceEc2.util.is_FreeBSD")
     def test_ec2_local_get_metadata_via_iterating_nics(

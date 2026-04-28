@@ -110,7 +110,7 @@ class TestHandleRaspberryPi:
 class TestRaspberryPiMethods:
     @mock.patch("cloudinit.subp.subp")
     def test_configure_usb_gadget_enable(self, m_subp):
-        with mock.patch("os.path.exists", return_value=True):
+        with mock.patch(f"{M_PATH}os.path.exists", return_value=True):
             cc_rpi.configure_usb_gadget(True)
         m_subp.assert_called_once_with(
             [RPI_USB_GADGET_SCRIPT, "on", "-f"], capture=False, timeout=30
@@ -146,7 +146,7 @@ class TestRaspberryPiMethods:
             stderr="fail",
         )
 
-        with mock.patch("os.path.exists", return_value=True):
+        with mock.patch(f"{M_PATH}os.path.exists", return_value=True):
             with caplog.at_level("ERROR"):
                 result = cc_rpi.configure_usb_gadget(True)
 

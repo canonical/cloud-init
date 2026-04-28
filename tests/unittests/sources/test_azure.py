@@ -1099,7 +1099,7 @@ class TestAzureDataSource:
             mock.MagicMock(return_value=NETWORK_METADATA),
         )
         self.m_fallback_nic = mocker.patch(
-            "cloudinit.sources.net.find_fallback_nic", return_value="eth9"
+            "cloudinit.sources.DataSourceAzure.net.find_fallback_nic", return_value="eth9"
         )
         self.m_remove_ubuntu_network_scripts = mocker.patch.object(
             dsaz,
@@ -3243,7 +3243,7 @@ class TestPreprovisioningPollIMDS:
     def fixtures(self, waagent_d):
         dsaz.BUILTIN_DS_CONFIG["data_dir"] = waagent_d
 
-    @mock.patch("time.sleep", mock.MagicMock())
+    @mock.patch(MOCKPATH + "sleep", mock.MagicMock())
     def test_poll_imds_re_dhcp_on_timeout(
         self,
         m_fetch_reprovisiondata,

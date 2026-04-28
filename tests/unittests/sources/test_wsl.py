@@ -99,7 +99,7 @@ class TestWSLHelperFunctions:
         mounts = wsl.mounted_win_drives()
         assert [] == mounts
 
-    @mock.patch("os.access")
+    @mock.patch("cloudinit.sources.DataSourceWSL.os.access")
     @mock.patch("cloudinit.util.mounts")
     def test_cmd_exe_ok(self, m_mounts, m_os_access):
         """
@@ -113,7 +113,7 @@ class TestWSLHelperFunctions:
         assert cmd is not None
         assert None is not cmd.relative_to(GOOD_MOUNTS["C:\\"]["mountpoint"])
 
-    @mock.patch("os.access")
+    @mock.patch("cloudinit.sources.DataSourceWSL.os.access")
     @mock.patch("cloudinit.util.mounts")
     def test_cmd_not_executable(self, m_mounts, m_os_access):
         """
@@ -130,7 +130,7 @@ class TestWSLHelperFunctions:
         with pytest.raises(IOError):
             wsl.cmd_executable()
 
-    @mock.patch("os.access")
+    @mock.patch("cloudinit.sources.DataSourceWSL.os.access")
     @mock.patch("cloudinit.util.mounts")
     def test_cmd_exe_no_win_mounts(self, m_mounts, m_os_access):
         """

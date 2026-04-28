@@ -47,7 +47,9 @@ def get_cloud(
         distro_cls = MockDistro
     # *BSD calls platform.system to determine osfamilies
     osfamily = distro.lower() if distro else "ubuntu"
-    with mock.patch("platform.system", return_value=osfamily):
+    with mock.patch(
+        "cloudinit.distros.bsd.platform.system", return_value=osfamily
+    ):
         mydist = distro_cls(distro, sys_cfg, paths)
     if mocked_distro:
         mydist = mock.MagicMock(wraps=mydist)

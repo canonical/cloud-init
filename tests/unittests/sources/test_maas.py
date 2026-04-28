@@ -226,7 +226,7 @@ class TestMAASDataSource:
     @responses.activate
     def test_get_data_with_retry(self, mocker, paths, caplog):
         """Ensure we can get data from IMDS even if some attempts fail."""
-        mocker.patch("time.sleep")
+        mocker.patch("cloudinit.url_helper.time.sleep")
         metadata_url = "http://169.254.169.254/MAAS/metadata"
         response_data = {
             "instance-id": "i-123",

@@ -1007,8 +1007,8 @@ class TestGetLinuxDistro:
         dist = util.get_linux_distro()
         assert ("ubuntu", "16.04", "xenial") == dist
 
-    @mock.patch("platform.system")
-    @mock.patch("platform.release")
+    @mock.patch("cloudinit.util.platform.system")
+    @mock.patch("cloudinit.util.platform.release", return_value="17.1.0")
     @mock.patch(M_PATH + "_parse_redhat_release")
     def test_get_linux_freebsd(
         self,
@@ -2014,7 +2014,7 @@ class TestDelDir:
         """
         mocked_side_effect = PermissionError
         mock_rmtree = mocker.patch(
-            "shutil.rmtree",
+            "cloudinit.util.shutil.rmtree",
             side_effect=mocked_side_effect,
         )
         with pytest.raises(mocked_side_effect):
@@ -2946,7 +2946,7 @@ class TestKernelVersion:
         ("4.18.0-144.el8.x86_64", (4, 18)),
     ]
 
-    @mock.patch("os.uname")
+    @mock.patch("cloudinit.util.os.uname")
     @pytest.mark.parametrize("uname_release,expected", params)
     def test_kernel_version(self, m_uname, uname_release, expected):
         m_uname.return_value.release = uname_release
@@ -2999,7 +2999,7 @@ class TestFindDevs:
             ("LABEL_FATBOOT=A_LABEL", []),  # lp: #1841466
         ),
     )
-    @mock.patch("glob.glob")
+    @mock.patch("cloudinit.util.glob.glob")
     def test_find_devs_with_freebsd(self, m_glob, criteria, expected_devlist):
         def fake_glob(pattern):
             msdos = ["/dev/msdosfs/EFISYS"]

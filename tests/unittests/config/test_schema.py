@@ -992,7 +992,7 @@ class TestValidateCloudConfigFile:
     ):
         # will throw error because of space between last two }'s
         invalid_jinja_template = "## template: jinja\na:b\nc:{{ d } }"
-        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch(f"{M_PATH}os.path.exists", return_value=True)
         mocker.patch(
             "cloudinit.util.load_text_file",
             return_value=invalid_jinja_template,

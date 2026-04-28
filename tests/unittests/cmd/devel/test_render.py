@@ -56,7 +56,7 @@ class TestRender:
         ensure_dir(run_dir)
         paths = Paths({"run_dir": run_dir})
         m_paths.return_value = paths
-        with mock.patch("os.getuid") as m_getuid:
+        with mock.patch("cloudinit.cmd.devel.render.os.getuid") as m_getuid:
             m_getuid.return_value = 0
             assert render.render_template(user_data, None, False) == 1
         json_file = paths.get_runpath("instance_data")
@@ -82,7 +82,9 @@ class TestRender:
         write_file(json_sensitive, '{"my-var": "jinja worked"}')
         m_paths.return_value = Paths({"run_dir": run_dir})
         with mock.patch("sys.stdout", new_callable=StringIO) as m_stdout:
-            with mock.patch("os.getuid") as m_getuid:
+            with mock.patch(
+                "cloudinit.cmd.devel.render.os.getuid"
+            ) as m_getuid:
                 m_getuid.return_value = 0
                 assert render.render_template(user_data, None, False) == 0
         assert "rendering: jinja worked" in m_stdout.getvalue()

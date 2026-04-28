@@ -94,7 +94,7 @@ class TestLoadPowerState:
 
     def test_freebsd_poweroff_uses_lowercase_p(self):
         with mock.patch(
-            "cloudinit.distros.networking.subp.subp",
+            "cloudinit.config.cc_power_state_change.subp.subp",
             return_value=("", None),
         ):
             cls = distros.fetch("freebsd")
