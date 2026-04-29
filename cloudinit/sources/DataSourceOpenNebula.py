@@ -302,7 +302,7 @@ class OpenNebulaNetwork:
             # Set MTU size
             mtu = self.get_mtu(c_dev)
             if mtu:
-                devconf["mtu"] = mtu
+                devconf["mtu"] = int(mtu)
 
             ethernets[dev] = devconf
 

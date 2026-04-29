@@ -789,7 +789,7 @@ class TestOpenNebulaNetwork:
                 "version": 2,
                 "ethernets": {
                     nic: {
-                        "mtu": "1280",
+                        "mtu": 1280,
                         "match": {"macaddress": MACADDR},
                         "addresses": [IP_BY_MACADDR + "/" + IP4_PREFIX],
                     }
@@ -898,7 +898,7 @@ class TestOpenNebulaNetwork:
                             "addresses": ["1.2.3.6", "1.2.3.7", "1.2.3.8"],
                             "search": ["example.com", "example.org"],
                         },
-                        "mtu": "1280",
+                        "mtu": 1280,
                     }
                 },
             }
@@ -959,7 +959,7 @@ class TestOpenNebulaNetwork:
                         "addresses": ["1.2.3.6", "1.2.3.7", "1.2.3.8"],
                         "search": ["example.com"],
                     },
-                    "mtu": "1280",
+                    "mtu": 1280,
                 },
                 "enp0s25": {
                     "match": {"macaddress": MAC_1},
