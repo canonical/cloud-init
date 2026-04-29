@@ -1,0 +1,24 @@
+name: "Daily 26.04: lxd_container"
+
+on:
+  workflow_dispatch:
+    inputs:
+      install_source:
+        required: false
+        type: string
+        default: 'ppa:cloud-init-dev/daily'
+  schedule:
+    - cron: '2 22 * * *'
+
+jobs:
+  resolute-lxd_container:
+    uses: ./.github/workflows/100-dispatch-common.yml
+    with:
+      release: resolute
+      platform: lxd_container
+      install_source: ${{ inputs.install_source || 'ppa:cloud-init-dev/daily' }}
+      image_type: generic
+    secrets:
+      PYCLOUDLIB_TOML: ${{ secrets.PYCLOUDLIB_TOML }}
+      SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
