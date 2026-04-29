@@ -589,7 +589,7 @@ class TestDistro:
     ],
 )
 class TestDHCP:
-    @mock.patch("cloudinit.net.subp.which")
+    @mock.patch("cloudinit.net.dhcp.subp.which")
     def test_dhcp_configuration(
         self, m_which, chosen_client, config, which_override
     ):
