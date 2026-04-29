@@ -525,9 +525,6 @@ class TestEncrypted:
         mocker.patch("cloudinit.config.cc_growpart.os.stat")
         mocker.patch("cloudinit.config.cc_growpart.stat.S_ISBLK")
         mocker.patch(
-            "cloudinit.config.cc_growpart.stat.S_ISCHR", return_value=False
-        )
-        mocker.patch(
             "cloudinit.config.cc_growpart.devent2dev",
             side_effect=self._devent2dev_side_effect,
         )

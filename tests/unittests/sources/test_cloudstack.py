@@ -187,7 +187,7 @@ class TestCloudStackHostname:
         )
 
         mocker.patch(
-            "cloudinit.sources.net.find_fallback_nic",
+            MOD_PATH + ".net.find_fallback_nic",
             return_value="eth0",
         )
 

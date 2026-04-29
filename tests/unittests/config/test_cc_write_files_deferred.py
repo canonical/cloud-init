@@ -23,7 +23,7 @@ class TestWriteFilesDeferred:
 
     USER = "root"
 
-    @mock.patch("cloudinit.config.cc_write_files_deferred.util.chownbyname")
+    @mock.patch("cloudinit.config.cc_write_files.util.chownbyname")
     def test_filtering_deferred_files(self, m_chownbyname):
         expected = "hello world\n"
         config = {

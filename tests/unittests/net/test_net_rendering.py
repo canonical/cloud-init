@@ -91,7 +91,7 @@ def _check_network_manager(network_state: NetworkState, tmp_path: Path):
     _check_file_diff(expected_paths, tmp_path)
 
 
-@mock.patch("cloudinit.net.netplan.util.chownbyname", return_value=True)
+@mock.patch("cloudinit.net.networkd.util.chownbyname", return_value=True)
 def _check_networkd_renderer(
     test_name: str, network_state: NetworkState, tmp_path: Path, m_chown
 ):
