@@ -826,9 +826,9 @@ class TestMultipleSshAuthorizedKeysFile:
 
     @pytest.mark.parametrize("inverted", [False, True])
     @patch("cloudinit.ssh_util.pwd.getpwnam")
-    @patch("cloudinit.util.get_permissions")
-    @patch("cloudinit.util.get_owner")
-    @patch("cloudinit.util.get_group")
+    @patch("cloudinit.ssh_util.util.get_permissions")
+    @patch("cloudinit.ssh_util.util.get_owner")
+    @patch("cloudinit.ssh_util.util.get_group")
     def test_single_user_two_local_files(
         self,
         m_get_group,
@@ -894,9 +894,9 @@ class TestMultipleSshAuthorizedKeysFile:
 
     @pytest.mark.parametrize("inverted", [False, True])
     @patch("cloudinit.ssh_util.pwd.getpwnam")
-    @patch("cloudinit.util.get_permissions")
-    @patch("cloudinit.util.get_owner")
-    @patch("cloudinit.util.get_group")
+    @patch("cloudinit.ssh_util.util.get_permissions")
+    @patch("cloudinit.ssh_util.util.get_owner")
+    @patch("cloudinit.ssh_util.util.get_group")
     def test_single_user_local_global_files(
         self,
         m_get_group,
@@ -963,9 +963,9 @@ class TestMultipleSshAuthorizedKeysFile:
         self.execute_and_check(*exec_args)
 
     @patch("cloudinit.ssh_util.pwd.getpwnam")
-    @patch("cloudinit.util.get_permissions")
-    @patch("cloudinit.util.get_owner")
-    @patch("cloudinit.util.get_group")
+    @patch("cloudinit.ssh_util.util.get_permissions")
+    @patch("cloudinit.ssh_util.util.get_owner")
+    @patch("cloudinit.ssh_util.util.get_group")
     def test_single_user_global_file(
         self, m_get_group, m_get_owner, m_get_permissions, m_getpwnam, tmpdir
     ):
@@ -1006,9 +1006,9 @@ class TestMultipleSshAuthorizedKeysFile:
         self.execute_and_check(user_bobby, sshd_config, default, keys)
 
     @patch("cloudinit.ssh_util.pwd.getpwnam")
-    @patch("cloudinit.util.get_permissions")
-    @patch("cloudinit.util.get_owner")
-    @patch("cloudinit.util.get_group")
+    @patch("cloudinit.ssh_util.util.get_permissions")
+    @patch("cloudinit.ssh_util.util.get_owner")
+    @patch("cloudinit.ssh_util.util.get_group")
     def test_two_users_local_file_standard(
         self, m_get_group, m_get_owner, m_get_permissions, m_getpwnam, tmpdir
     ):
@@ -1063,9 +1063,9 @@ class TestMultipleSshAuthorizedKeysFile:
         self.execute_and_check(user_suzie, sshd_config, authorized_keys2, keys)
 
     @patch("cloudinit.ssh_util.pwd.getpwnam")
-    @patch("cloudinit.util.get_permissions")
-    @patch("cloudinit.util.get_owner")
-    @patch("cloudinit.util.get_group")
+    @patch("cloudinit.ssh_util.util.get_permissions")
+    @patch("cloudinit.ssh_util.util.get_owner")
+    @patch("cloudinit.ssh_util.util.get_group")
     def test_two_users_local_file_custom(
         self, m_get_group, m_get_owner, m_get_permissions, m_getpwnam, tmpdir
     ):
@@ -1120,9 +1120,9 @@ class TestMultipleSshAuthorizedKeysFile:
         self.execute_and_check(user_suzie, sshd_config, authorized_keys2, keys)
 
     @patch("cloudinit.ssh_util.pwd.getpwnam")
-    @patch("cloudinit.util.get_permissions")
-    @patch("cloudinit.util.get_owner")
-    @patch("cloudinit.util.get_group")
+    @patch("cloudinit.ssh_util.util.get_permissions")
+    @patch("cloudinit.ssh_util.util.get_owner")
+    @patch("cloudinit.ssh_util.util.get_group")
     def test_two_users_local_global_files(
         self, m_get_group, m_get_owner, m_get_permissions, m_getpwnam, tmpdir
     ):
@@ -1198,11 +1198,11 @@ class TestMultipleSshAuthorizedKeysFile:
         self.execute_and_check(user_bobby, sshd_config, user_keys, keys)
         self.execute_and_check(user_suzie, sshd_config, authorized_keys2, keys)
 
-    @patch("cloudinit.util.get_user_groups")
+    @patch("cloudinit.ssh_util.util.get_user_groups")
     @patch("cloudinit.ssh_util.pwd.getpwnam")
-    @patch("cloudinit.util.get_permissions")
-    @patch("cloudinit.util.get_owner")
-    @patch("cloudinit.util.get_group")
+    @patch("cloudinit.ssh_util.util.get_permissions")
+    @patch("cloudinit.ssh_util.util.get_owner")
+    @patch("cloudinit.ssh_util.util.get_group")
     def test_two_users_local_global_files_badguy(
         self,
         m_get_group,
@@ -1281,11 +1281,11 @@ class TestMultipleSshAuthorizedKeysFile:
             user_badguy, sshd_config, authorized_keys2, keys
         )
 
-    @patch("cloudinit.util.get_user_groups")
+    @patch("cloudinit.ssh_util.util.get_user_groups")
     @patch("cloudinit.ssh_util.pwd.getpwnam")
-    @patch("cloudinit.util.get_permissions")
-    @patch("cloudinit.util.get_owner")
-    @patch("cloudinit.util.get_group")
+    @patch("cloudinit.ssh_util.util.get_permissions")
+    @patch("cloudinit.ssh_util.util.get_owner")
+    @patch("cloudinit.ssh_util.util.get_group")
     def test_two_users_unaccessible_file(
         self,
         m_get_group,
@@ -1374,11 +1374,11 @@ class TestMultipleSshAuthorizedKeysFile:
             user_badguy, sshd_config, authorized_keys2, keys
         )
 
-    @patch("cloudinit.util.get_user_groups")
+    @patch("cloudinit.ssh_util.util.get_user_groups")
     @patch("cloudinit.ssh_util.pwd.getpwnam")
-    @patch("cloudinit.util.get_permissions")
-    @patch("cloudinit.util.get_owner")
-    @patch("cloudinit.util.get_group")
+    @patch("cloudinit.ssh_util.util.get_permissions")
+    @patch("cloudinit.ssh_util.util.get_owner")
+    @patch("cloudinit.ssh_util.util.get_group")
     def test_two_users_accessible_file(
         self,
         m_get_group,
@@ -1468,11 +1468,11 @@ class TestMultipleSshAuthorizedKeysFile:
         )
 
     @pytest.mark.parametrize("inverted", [False, True])
-    @patch("cloudinit.util.get_user_groups")
+    @patch("cloudinit.ssh_util.util.get_user_groups")
     @patch("cloudinit.ssh_util.pwd.getpwnam")
-    @patch("cloudinit.util.get_permissions")
-    @patch("cloudinit.util.get_owner")
-    @patch("cloudinit.util.get_group")
+    @patch("cloudinit.ssh_util.util.get_permissions")
+    @patch("cloudinit.ssh_util.util.get_owner")
+    @patch("cloudinit.ssh_util.util.get_group")
     def test_two_users_hardcoded_single_user_file(
         self,
         m_get_group,
@@ -1545,11 +1545,11 @@ class TestMultipleSshAuthorizedKeysFile:
         self.execute_and_check(user_bobby, sshd_config, expected_bobby, keys)
         self.execute_and_check(user_suzie, sshd_config, expected_suzie, keys)
 
-    @patch("cloudinit.util.get_user_groups")
+    @patch("cloudinit.ssh_util.util.get_user_groups")
     @patch("cloudinit.ssh_util.pwd.getpwnam")
-    @patch("cloudinit.util.get_permissions")
-    @patch("cloudinit.util.get_owner")
-    @patch("cloudinit.util.get_group")
+    @patch("cloudinit.ssh_util.util.get_permissions")
+    @patch("cloudinit.ssh_util.util.get_owner")
+    @patch("cloudinit.ssh_util.util.get_group")
     def test_two_users_hardcoded_user_files(
         self,
         m_get_group,

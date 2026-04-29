@@ -383,7 +383,7 @@ class TestIsPlatformViable:
 
 @pytest.mark.is_iscsi(False)
 @mock.patch(
-    "cloudinit.net.is_openvswitch_internal_interface",
+    "cloudinit.sources.net.is_openvswitch_internal_interface",
     mock.Mock(return_value=False),
 )
 class TestNetworkConfigFromOpcImds:

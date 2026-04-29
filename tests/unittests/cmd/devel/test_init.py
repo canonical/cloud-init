@@ -18,8 +18,11 @@ class TestReadCfgPaths:
             with mock.patch.object(init, "_restore_from_cache") as restore:
                 restore.return_value = FakeDataSource(paths=init.paths)
                 with mock.patch(
-                    "cloudinit.util.read_conf_from_cmdline", return_value={}
-                ), mock.patch("cloudinit.util.read_conf", return_value={}):
+                    "cloudinit.stages.util.read_conf_from_cmdline",
+                    return_value={},
+                ), mock.patch(
+                    "cloudinit.stages.util.read_conf", return_value={}
+                ):
                     m_init.return_value = init
                     paths = read_cfg_paths()
                     assert paths.get_ipath() is None

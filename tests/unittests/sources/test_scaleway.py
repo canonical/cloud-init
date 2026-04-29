@@ -91,9 +91,9 @@ class TestOnScaleway:
             else "BOOT_IMAGE=/vmlinuz-3.11.0-26-generic"
         )
 
-    @mock.patch("cloudinit.util.get_cmdline")
+    @mock.patch("cloudinit.distros.util.get_cmdline")
     @mock.patch("os.path.exists")
-    @mock.patch("cloudinit.dmi.read_dmi_data")
+    @mock.patch("cloudinit.sources.dmi.read_dmi_data")
     def test_not_ds_detect(
         self, m_read_dmi_data, m_file_exists, m_get_cmdline, paths
     ):
@@ -110,9 +110,9 @@ class TestOnScaleway:
         )
         assert False is datasource.get_data()
 
-    @mock.patch("cloudinit.util.get_cmdline")
+    @mock.patch("cloudinit.distros.util.get_cmdline")
     @mock.patch("os.path.exists")
-    @mock.patch("cloudinit.dmi.read_dmi_data")
+    @mock.patch("cloudinit.sources.dmi.read_dmi_data")
     def test_ds_detect_dmi(
         self, m_read_dmi_data, m_file_exists, m_get_cmdline
     ):
@@ -127,9 +127,9 @@ class TestOnScaleway:
         )
         assert True is DataSourceScaleway.DataSourceScaleway.ds_detect()
 
-    @mock.patch("cloudinit.util.get_cmdline")
+    @mock.patch("cloudinit.distros.util.get_cmdline")
     @mock.patch("os.path.exists")
-    @mock.patch("cloudinit.dmi.read_dmi_data")
+    @mock.patch("cloudinit.sources.dmi.read_dmi_data")
     def test_ds_detect_var_run_scaleway(
         self, m_read_dmi_data, m_file_exists, m_get_cmdline
     ):
@@ -143,9 +143,9 @@ class TestOnScaleway:
         )
         assert True is DataSourceScaleway.DataSourceScaleway.ds_detect()
 
-    @mock.patch("cloudinit.util.get_cmdline")
+    @mock.patch("cloudinit.distros.util.get_cmdline")
     @mock.patch("os.path.exists")
-    @mock.patch("cloudinit.dmi.read_dmi_data")
+    @mock.patch("cloudinit.sources.dmi.read_dmi_data")
     def test_ds_detect_cmdline(
         self, m_read_dmi_data, m_file_exists, m_get_cmdline
     ):
@@ -678,7 +678,7 @@ class TestDataSourceScaleway:
         ]
 
     @mock.patch("cloudinit.distros.net.find_fallback_nic")
-    @mock.patch("cloudinit.util.get_cmdline")
+    @mock.patch("cloudinit.distros.util.get_cmdline")
     def test_primary_ipv4_config_ok(self, m_get_cmdline, fallback_nic):
         """
         network_config will only generate IPv4 config if no IPv6 is
@@ -709,7 +709,7 @@ class TestDataSourceScaleway:
         assert netcfg == resp
 
     @mock.patch("cloudinit.distros.net.find_fallback_nic")
-    @mock.patch("cloudinit.util.get_cmdline")
+    @mock.patch("cloudinit.distros.util.get_cmdline")
     def test_additional_ipv4_config_ok(self, m_get_cmdline, fallback_nic):
         """
         network_config will generate IPv4 config with additional address
@@ -750,7 +750,7 @@ class TestDataSourceScaleway:
         assert netcfg == resp
 
     @mock.patch("cloudinit.distros.net.find_fallback_nic")
-    @mock.patch("cloudinit.util.get_cmdline")
+    @mock.patch("cloudinit.distros.util.get_cmdline")
     def test_primary_ipv6_config_ok(self, m_get_cmdline, fallback_nic):
         """
         Generate network_config with only IPv6
@@ -786,7 +786,7 @@ class TestDataSourceScaleway:
         assert netcfg == resp
 
     @mock.patch("cloudinit.distros.net.find_fallback_nic")
-    @mock.patch("cloudinit.util.get_cmdline")
+    @mock.patch("cloudinit.distros.util.get_cmdline")
     def test_primary_ipv4_v6_config_ok(self, m_get_cmdline, fallback_nic):
         """
         Generate network_config with IPv4+IPv6
@@ -833,7 +833,7 @@ class TestDataSourceScaleway:
         assert netcfg == resp
 
     @mock.patch("cloudinit.distros.net.find_fallback_nic")
-    @mock.patch("cloudinit.util.get_cmdline")
+    @mock.patch("cloudinit.distros.util.get_cmdline")
     def test_primary_ipv6_v4_config_ok(self, m_get_cmdline, fallback_nic):
         """
         Generate network_config with IPv6+IPv4

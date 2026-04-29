@@ -18,8 +18,14 @@ from tests.unittests.helpers import populate_dir
 @pytest.fixture(autouse=True)
 def common_mocks(mocker):
     mocker.patch("cloudinit.sources.DataSourceNoCloud.util.is_lxd")
-    mocker.patch("cloudinit.util.get_cmdline", return_value="root=TESTCMDLINE")
-    mocker.patch("cloudinit.dmi.read_dmi_data", return_value=None)
+    mocker.patch(
+        "cloudinit.sources.DataSourceNoCloud.util.get_cmdline",
+        return_value="root=TESTCMDLINE",
+    )
+    mocker.patch(
+        "cloudinit.sources.DataSourceNoCloud.dmi.read_dmi_data",
+        return_value=None,
+    )
 
 
 class TestNoCloudDataSource:
@@ -43,9 +49,13 @@ class TestNoCloudDataSource:
                 return []
 
         mocker.patch(
-            "cloudinit.util.find_devs_with", side_effect=m_find_devs_with
+            "cloudinit.sources.DataSourceNoCloud.util.find_devs_with",
+            side_effect=m_find_devs_with,
         )
-        mocker.patch("cloudinit.util.mount_cb", side_effect=m_mount_cb)
+        mocker.patch(
+            "cloudinit.sources.DataSourceNoCloud.util.mount_cb",
+            side_effect=m_mount_cb,
+        )
         sys_cfg = {"datasource": {"NoCloud": {"fs_label": fs_label_to_search}}}
         dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=paths)
         ret = dsrc.get_data()
@@ -124,7 +134,8 @@ class TestNoCloudDataSource:
             pass
 
         mocker.patch(
-            "cloudinit.util.find_devs_with", side_effect=PsuedoException
+            "cloudinit.sources.DataSourceNoCloud.util.find_devs_with",
+            side_effect=PsuedoException,
         )
 
         # by default, NoCloud should search for filesystems by label
@@ -315,7 +326,7 @@ class TestNoCloudDataSource:
         assert netconf == dsrc.network_config
         assert gateway not in str(dsrc.network_config)
 
-    @mock.patch("cloudinit.util.blkid")
+    @mock.patch("cloudinit.sources.DataSourceNoCloud.util.blkid")
     def test_nocloud_get_devices_freebsd(self, fake_blkid, mocker, paths):
         populate_dir(
             os.path.join(paths.seed_dir, "nocloud"),
@@ -324,7 +335,10 @@ class TestNoCloudDataSource:
 
         sys_cfg = {"datasource": {"NoCloud": {"fs_label": None}}}
 
-        mocker.patch("cloudinit.util.is_FreeBSD", return_value=True)
+        mocker.patch(
+            "cloudinit.sources.DataSourceNoCloud.util.is_FreeBSD",
+            return_value=True,
+        )
 
         def _mfind_devs_with_freebsd(
             criteria=None,
@@ -344,7 +358,7 @@ class TestNoCloudDataSource:
             return []
 
         mocker.patch(
-            "cloudinit.util.find_devs_with",
+            "cloudinit.sources.DataSourceNoCloud.util.find_devs_with",
             side_effect=_mfind_devs_with_freebsd,
         )
 

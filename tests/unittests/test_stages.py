@@ -458,7 +458,7 @@ class TestInit:
         assert f"network config is disabled by {disable_file}" in caplog.text
 
     @pytest.mark.parametrize("instance_dir_present", (True, False))
-    @mock.patch("cloudinit.net.get_interfaces_by_mac")
+    @mock.patch("cloudinit.stages.net.get_interfaces_by_mac")
     @mock.patch("cloudinit.distros.ubuntu.Distro")
     def test_apply_network_on_new_instance(
         self, m_ubuntu, m_macs, instance_dir_present
@@ -569,8 +569,8 @@ class TestInit:
         self.init.is_new_instance = mock.Mock(return_value=False)
         return net_cfg
 
-    @mock.patch("cloudinit.util._get_cmdline", return_value="")
-    @mock.patch("cloudinit.net.get_interfaces_by_mac")
+    @mock.patch("cloudinit.stages.util._get_cmdline", return_value="")
+    @mock.patch("cloudinit.stages.net.get_interfaces_by_mac")
     @mock.patch("cloudinit.distros.ubuntu.Distro")
     @mock.patch.dict(
         sources.DataSource.default_update_events,
@@ -593,7 +593,7 @@ class TestInit:
             == self.init.distro.apply_network_config.call_args_list[-1]
         )
 
-    @mock.patch("cloudinit.net.get_interfaces_by_mac")
+    @mock.patch("cloudinit.stages.net.get_interfaces_by_mac")
     @mock.patch("cloudinit.distros.ubuntu.Distro")
     @mock.patch.dict(
         sources.DataSource.default_update_events,
@@ -611,8 +611,8 @@ class TestInit:
             "network update allowed" in caplog.text
         )
 
-    @mock.patch("cloudinit.util._get_cmdline", return_value="")
-    @mock.patch("cloudinit.net.get_interfaces_by_mac")
+    @mock.patch("cloudinit.stages.util._get_cmdline", return_value="")
+    @mock.patch("cloudinit.stages.net.get_interfaces_by_mac")
     @mock.patch("cloudinit.distros.ubuntu.Distro")
     @mock.patch.dict(
         sources.DataSource.default_update_events,
@@ -631,7 +631,7 @@ class TestInit:
             net_cfg, bring_up=True
         )
 
-    @mock.patch("cloudinit.net.get_interfaces_by_mac")
+    @mock.patch("cloudinit.stages.net.get_interfaces_by_mac")
     @mock.patch("cloudinit.distros.ubuntu.Distro")
     @mock.patch.dict(
         sources.DataSource.supported_update_events,

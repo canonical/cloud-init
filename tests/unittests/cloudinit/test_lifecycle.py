@@ -18,7 +18,9 @@ class TestLogWithDowngradableLevel:
     def test_log_with_downgradable_level(
         self, mocker, caplog, version, expected
     ):
-        mocker.patch("cloudinit.features.DEPRECATION_INFO_BOUNDARY", "10")
+        mocker.patch(
+            "cloudinit.lifecycle.features.DEPRECATION_INFO_BOUNDARY", "10"
+        )
         lifecycle.log_with_downgradable_level(
             logger=LOG,
             version=version,

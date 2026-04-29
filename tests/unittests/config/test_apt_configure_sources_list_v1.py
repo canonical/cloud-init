@@ -91,9 +91,13 @@ class TestAptSourceConfigSourceList:
             subp, "subp", return_value=SubpResult("PPID   PID", "")
         )
         mocker.patch("cloudinit.config.cc_apt_configure._ensure_dependencies")
-        lsb = mocker.patch("cloudinit.util.lsb_release")
+        lsb = mocker.patch(
+            "cloudinit.config.cc_apt_configure.util.lsb_release"
+        )
         lsb.return_value = {"codename": "fakerelease"}
-        m_arch = mocker.patch("cloudinit.util.get_dpkg_architecture")
+        m_arch = mocker.patch(
+            "cloudinit.config.cc_apt_configure.util.get_dpkg_architecture"
+        )
         m_arch.return_value = "amd64"
         self.deb822 = mocker.patch.object(
             cc_apt_configure.features, "APT_DEB822_SOURCE_LIST_FILE", True

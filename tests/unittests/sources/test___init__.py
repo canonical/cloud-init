@@ -48,7 +48,7 @@ openstack_ds_name = ds.DataSourceOpenStack.dsname.lower()
 def test_ds_detect_kernel_command_line(m_cmdline, expected_ds):
     """check command line match"""
     with mock.patch(
-        "cloudinit.util.get_cmdline",
+        "cloudinit.sources.util.get_cmdline",
         return_value=m_cmdline,
     ):
         assert (

@@ -230,9 +230,16 @@ class TestUpgrade:
             class_attrs = set(ds_class.__dict__)
 
             # Mock known subp calls from some datasource __init__ setup
-            mocker.patch("cloudinit.util.is_container", return_value=False)
-            mocker.patch("cloudinit.dmi.read_dmi_data", return_value="")
-            mocker.patch("cloudinit.subp.subp", return_value=("", ""))
+            mocker.patch(
+                "cloudinit.importer.util.is_container", return_value=False
+            )
+            mocker.patch(
+                "cloudinit.sources.dmi.read_dmi_data", return_value=""
+            )
+            mocker.patch(
+                "cloudinit.sources.DataSourceAzure.subp.subp",
+                return_value=("", ""),
+            )
 
             # Initialize the class to grab the instance attributes from
             # instance.__dict__ magic method.

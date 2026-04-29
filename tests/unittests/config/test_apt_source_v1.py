@@ -71,11 +71,12 @@ class TestAptSourceConfig:
     @pytest.fixture(autouse=True)
     def common_mocks(self, mocker):
         mocker.patch(
-            "cloudinit.util.lsb_release",
+            "cloudinit.config.cc_apt_configure.util.lsb_release",
             return_value={"codename": self.release},
         )
         mocker.patch(
-            "cloudinit.util.get_dpkg_architecture", return_value="amd64"
+            "cloudinit.config.cc_apt_configure.util.get_dpkg_architecture",
+            return_value="amd64",
         )
         mocker.patch.object(
             subp, "subp", return_value=SubpResult("PPID   PID", "")

@@ -40,7 +40,7 @@ def generic_networking_cls():
 
     error = AssertionError("Unexpectedly used /sys in generic networking code")
     with mock.patch(
-        "cloudinit.net.get_sys_class_path",
+        "cloudinit.distros.networking.net.get_sys_class_path",
         side_effect=error,
     ):
         yield TestNetworking
@@ -62,7 +62,7 @@ def sys_class_net(tmpdir):
     sys_class_net_path = tmpdir.join("sys/class/net")
     sys_class_net_path.ensure_dir()
     with mock.patch(
-        "cloudinit.net.get_sys_class_path",
+        "cloudinit.distros.networking.net.get_sys_class_path",
         return_value=sys_class_net_path.strpath + "/",
     ):
         yield sys_class_net_path
@@ -125,7 +125,7 @@ class TestBSDNetworkingTrySetLinkUp:
         networking = bsd_networking_cls()
         m_is_up.return_value = True
 
-        with mock.patch("cloudinit.subp.subp") as m_subp:
+        with mock.patch("cloudinit.distros.networking.subp.subp") as m_subp:
             is_success = networking.try_set_link_up(devname)
             assert (
                 mock.call(["ifconfig", devname, "up"])
@@ -134,7 +134,7 @@ class TestBSDNetworkingTrySetLinkUp:
         assert is_success
 
 
-@mock.patch("cloudinit.net.is_up")
+@mock.patch("cloudinit.distros.networking.net.is_up")
 @mock.patch("cloudinit.distros.networking.subp.subp")
 class TestLinuxNetworkingTrySetLinkUp:
     def test_calls_subp_return_true(self, m_subp, m_is_up):
@@ -345,8 +345,8 @@ class TestLinuxNetworkingApplyNetworkCfgNames:
             pytest.param("V2_CONFIG", id="v2"),
         ],
     )
-    @mock.patch("cloudinit.net.device_devid")
-    @mock.patch("cloudinit.net.device_driver")
+    @mock.patch("cloudinit.distros.networking.net.device_devid")
+    @mock.patch("cloudinit.distros.networking.net.device_driver")
     def test_apply_renames(
         self,
         m_device_driver,

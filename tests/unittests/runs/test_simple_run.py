@@ -20,7 +20,7 @@ def replicate_root(tmp_path):
 @pytest.fixture(autouse=True)
 def cfg(mocker, tmp_path):
     # root group doesn't exist everywhere
-    mocker.patch("cloudinit.util.chownbyname")
+    mocker.patch("cloudinit.atomic_helper.util.chownbyname")
 
     new_root = str(tmp_path)
     _cfg = {

@@ -453,7 +453,8 @@ class TestDHCPDiscoveryClean:
         )
 
         with mock.patch(
-            "cloudinit.util.load_text_file", return_value=lease_content
+            "cloudinit.net.dhcp.util.load_text_file",
+            return_value=lease_content,
         ):
             assert {
                 "interface": "eth9",
@@ -462,7 +463,9 @@ class TestDHCPDiscoveryClean:
                 "routers": "192.168.2.1",
             } == IscDhclient().get_newest_lease("eth0")
         with pytest.raises(InvalidDHCPLeaseFileError):
-            with mock.patch("cloudinit.util.load_text_file", return_value=""):
+            with mock.patch(
+                "cloudinit.net.dhcp.util.load_text_file", return_value=""
+            ):
                 IscDhclient().dhcp_discovery("eth9", distro=MockDistro())
         assert (
             "dhclient(pid=, parentpid=unknown) failed to daemonize after"
@@ -498,7 +501,7 @@ class TestDHCPDiscoveryClean:
     @mock.patch("cloudinit.net.dhcp.os.kill")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
     @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/dhclient")
-    @mock.patch("cloudinit.util.wait_for_files", return_value=False)
+    @mock.patch("cloudinit.net.dhcp.util.wait_for_files", return_value=False)
     def test_dhcp_discovery(
         self,
         m_wait,
@@ -525,7 +528,8 @@ class TestDHCPDiscoveryClean:
         )
         my_pid = 1
         with mock.patch(
-            "cloudinit.util.load_text_file", side_effect=["1", lease_content]
+            "cloudinit.net.dhcp.util.load_text_file",
+            side_effect=["1", lease_content],
         ):
             assert {
                 "interface": "eth9",
@@ -558,8 +562,10 @@ class TestDHCPDiscoveryClean:
         m_kill.assert_has_calls([mock.call(my_pid, signal.SIGKILL)])
         mocked_is_ib_interface.assert_called_once_with("eth9")
 
-    @mock.patch("cloudinit.temp_utils.get_tmp_ancestor", return_value="/tmp")
-    @mock.patch("cloudinit.util.write_file")
+    @mock.patch(
+        "cloudinit.net.dhcp.temp_utils.get_tmp_ancestor", return_value="/tmp"
+    )
+    @mock.patch("cloudinit.net.dhcp.util.write_file")
     @mock.patch(
         "cloudinit.net.dhcp.get_interface_mac",
         return_value="%s:AA:AA:AA:00:00:AA:AA:AA" % ib_address_prefix,
@@ -569,7 +575,7 @@ class TestDHCPDiscoveryClean:
     @mock.patch("cloudinit.net.dhcp.os.kill")
     @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/dhclient")
     @mock.patch("cloudinit.net.dhcp.subp.subp", return_value=("", ""))
-    @mock.patch("cloudinit.util.wait_for_files", return_value=False)
+    @mock.patch("cloudinit.net.dhcp.util.wait_for_files", return_value=False)
     def test_dhcp_discovery_ib(
         self,
         m_wait,
@@ -598,7 +604,8 @@ class TestDHCPDiscoveryClean:
         )
         my_pid = 1
         with mock.patch(
-            "cloudinit.util.load_text_file", side_effect=["1", lease_content]
+            "cloudinit.net.dhcp.util.load_text_file",
+            side_effect=["1", lease_content],
         ):
             assert {
                 "interface": "ib0",
@@ -644,7 +651,7 @@ class TestDHCPDiscoveryClean:
     @mock.patch("cloudinit.net.dhcp.os.kill")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
     @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/dhclient")
-    @mock.patch("cloudinit.util.wait_for_files")
+    @mock.patch("cloudinit.net.dhcp.util.wait_for_files")
     def test_dhcp_output_error_stream(
         self, m_wait, m_which, m_subp, m_kill, m_remove, tmpdir
     ):
@@ -896,9 +903,9 @@ class TestUDHCPCDiscoveryClean:
     @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/udhcpc")
     @mock.patch("cloudinit.net.dhcp.os.remove")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
-    @mock.patch("cloudinit.util.load_json")
-    @mock.patch("cloudinit.util.load_text_file")
-    @mock.patch("cloudinit.util.write_file")
+    @mock.patch("cloudinit.net.dhcp.util.load_json")
+    @mock.patch("cloudinit.net.dhcp.util.load_text_file")
+    @mock.patch("cloudinit.net.dhcp.util.write_file")
     def test_udhcpc_discovery(
         self,
         m_write_file,
@@ -961,9 +968,9 @@ class TestUDHCPCDiscoveryClean:
     @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/udhcpc")
     @mock.patch("cloudinit.net.dhcp.os.remove")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
-    @mock.patch("cloudinit.util.load_json")
-    @mock.patch("cloudinit.util.load_text_file")
-    @mock.patch("cloudinit.util.write_file")
+    @mock.patch("cloudinit.net.dhcp.util.load_json")
+    @mock.patch("cloudinit.net.dhcp.util.load_text_file")
+    @mock.patch("cloudinit.net.dhcp.util.write_file")
     def test_udhcpc_discovery_ib(
         self,
         m_write_file,
@@ -1301,9 +1308,9 @@ class TestDhcpcd:
     @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/dhcpcd")
     @mock.patch("cloudinit.net.dhcp.os.killpg")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
-    @mock.patch("cloudinit.util.load_json")
-    @mock.patch("cloudinit.util.load_binary_file")
-    @mock.patch("cloudinit.util.write_file")
+    @mock.patch("cloudinit.net.dhcp.util.load_json")
+    @mock.patch("cloudinit.net.dhcp.util.load_binary_file")
+    @mock.patch("cloudinit.net.dhcp.util.write_file")
     def test_dhcpcd_discovery_ib(
         self,
         m_write_file,
@@ -1343,9 +1350,9 @@ class TestDhcpcd:
     @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/dhcpcd")
     @mock.patch("cloudinit.net.dhcp.os.killpg")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
-    @mock.patch("cloudinit.util.load_json")
-    @mock.patch("cloudinit.util.load_binary_file")
-    @mock.patch("cloudinit.util.write_file")
+    @mock.patch("cloudinit.net.dhcp.util.load_json")
+    @mock.patch("cloudinit.net.dhcp.util.load_binary_file")
+    @mock.patch("cloudinit.net.dhcp.util.write_file")
     def test_dhcpcd_discovery_timeout(
         self,
         m_write_file,

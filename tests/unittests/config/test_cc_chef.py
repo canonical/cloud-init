@@ -513,8 +513,10 @@ class TestHelpers:
             "tests.unittests.util.MockDistro.get_tmp_exec_path",
             return_value=tmpdir,
         )
-        mocker.patch("cloudinit.temp_utils.mkdtemp", return_value=tmpdir)
-        write_file = mocker.patch("cloudinit.util.write_file")
+        mocker.patch(
+            "cloudinit.config.cc_chef.temp_utils.mkdtemp", return_value=tmpdir
+        )
+        write_file = mocker.patch("cloudinit.config.cc_chef.util.write_file")
         m_subp = mocker.patch("cloudinit.config.cc_chef.subp.subp")
         distro = MockDistro()
 
@@ -527,8 +529,10 @@ class TestHelpers:
             "tests.unittests.util.MockDistro.get_tmp_exec_path",
             return_value=tmpdir,
         )
-        mocker.patch("cloudinit.temp_utils.mkdtemp", return_value=tmpdir)
-        write_file = mocker.patch("cloudinit.util.write_file")
+        mocker.patch(
+            "cloudinit.config.cc_chef.temp_utils.mkdtemp", return_value=tmpdir
+        )
+        write_file = mocker.patch("cloudinit.config.cc_chef.util.write_file")
         m_subp = mocker.patch("cloudinit.config.cc_chef.subp.subp")
         distro = MockDistro()
 

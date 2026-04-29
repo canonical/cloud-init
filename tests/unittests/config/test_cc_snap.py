@@ -295,7 +295,7 @@ class TestSnapSchema:
 
 
 class TestHandle:
-    @mock.patch("cloudinit.util.wait_for_snap_seeded")
+    @mock.patch("cloudinit.config.cc_snap.util.wait_for_snap_seeded")
     @mock.patch("cloudinit.config.cc_snap.subp.subp")
     def test_handle_adds_assertions(
         self, m_subp, wait_for_snap_seeded, fake_cloud, tmpdir

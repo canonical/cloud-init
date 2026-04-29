@@ -101,5 +101,7 @@ class TestMaybeStripInvalidMTU:
         ),
     )
     def test__strip_invalid_mtu(self, netcfg, expected, strip_enabled, mocker):
-        mocker.patch("cloudinit.features.STRIP_INVALID_MTU", strip_enabled)
+        mocker.patch(
+            "cloudinit.net.netplan.features.STRIP_INVALID_MTU", strip_enabled
+        )
         assert expected == netplan._maybe_strip_invalid_mtu(netcfg)

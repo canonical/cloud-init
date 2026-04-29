@@ -90,7 +90,7 @@ class TestPackageCommand:
             return_value=True,
         )
         m_subp = mocker.patch(
-            "cloudinit.subp.subp",
+            "cloudinit.distros.subp.subp",
             side_effect=subp_side_effect,
         )
         m_apt_run_package_command = mocker.patch(

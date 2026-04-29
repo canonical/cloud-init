@@ -410,7 +410,7 @@ class TestEc2:
         if sys_cfg is None:
             sys_cfg = {}
         ds = self.datasource(sys_cfg=sys_cfg, distro=distro, paths=paths)
-        mocker.patch("cloudinit.url_helper.time.sleep")
+        mocker.patch("cloudinit.sources.DataSourceEc2.time.sleep")
         if not md_version:
             md_version = ds.min_metadata_version
         if platform_data is not None:
@@ -716,7 +716,7 @@ class TestEc2:
                 conn_error,
                 mock_success,
             )
-            with mock.patch("cloudinit.url_helper.time.sleep"):
+            with mock.patch("cloudinit.sources.DataSourceEc2.time.sleep"):
                 assert True is ds.wait_for_metadata_service()
 
         # Just one /latest/api/token request

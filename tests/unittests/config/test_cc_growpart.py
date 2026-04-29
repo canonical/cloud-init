@@ -393,7 +393,10 @@ class TestResizeZFS:
             "cloudinit.config.cc_growpart.devent2dev",
             side_effect=self._devent2dev_side_effect,
         )
-        mocker.patch("cloudinit.util.is_container", return_value=False)
+        mocker.patch(
+            "cloudinit.config.cc_growpart.util.is_container",
+            return_value=False,
+        )
         # Find /etc/rc.d/growfs
         mocker.patch("os.path.isfile", return_value=True)
         mocker.patch(

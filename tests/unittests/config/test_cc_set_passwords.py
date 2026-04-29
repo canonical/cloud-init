@@ -39,7 +39,7 @@ SERVICE_RESTART_CALL = mock.call(
 @pytest.fixture(autouse=True)
 def common_fixtures(mocker):
     mocker.patch("cloudinit.distros.uses_systemd", return_value=True)
-    mocker.patch("cloudinit.log.log_util.write_to_console")
+    mocker.patch("cloudinit.config.cc_set_passwords.log_util.write_to_console")
 
 
 class TestHandleSSHPwauth:

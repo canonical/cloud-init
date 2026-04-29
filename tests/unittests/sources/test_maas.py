@@ -121,7 +121,9 @@ class TestMAASDataSource:
             return url_helper.StringResponse(data[short], url)
 
         # Now do the actual call of the code under test.
-        with mock.patch("cloudinit.url_helper.readurl") as mock_readurl:
+        with mock.patch(
+            "cloudinit.sources.DataSourceMAAS.url_helper.readurl"
+        ) as mock_readurl:
             mock_readurl.side_effect = my_readurl
             return DataSourceMAAS.read_maas_seed_url(seed, version=version)
 
@@ -183,7 +185,7 @@ class TestMAASDataSource:
         ),
     )
     @pytest.mark.usefixtures("fake_filesystem")
-    @mock.patch("cloudinit.util.get_cmdline")
+    @mock.patch("cloudinit.helpers.util.get_cmdline")
     def tests_wb_local_stage_detects_datasource_on_initramfs_network(
         self, cmdline, initramfs_file, cmdline_value, expected, tmpdir
     ):
@@ -226,7 +228,7 @@ class TestMAASDataSource:
     @responses.activate
     def test_get_data_with_retry(self, mocker, paths, caplog):
         """Ensure we can get data from IMDS even if some attempts fail."""
-        mocker.patch("cloudinit.url_helper.time.sleep")
+        mocker.patch("cloudinit.sources.DataSourceMAAS.url_helper.time.sleep")
         metadata_url = "http://169.254.169.254/MAAS/metadata"
         response_data = {
             "instance-id": "i-123",

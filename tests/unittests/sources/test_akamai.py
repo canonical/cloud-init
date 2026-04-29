@@ -289,7 +289,7 @@ class TestDataSourceAkamai:
             ),
         ),
     )
-    @mock.patch("cloudinit.url_helper.readurl")
+    @mock.patch("cloudinit.sources.DataSourceAkamai.url_helper.readurl")
     def test_fetch_metadata(
         self,
         readurl,

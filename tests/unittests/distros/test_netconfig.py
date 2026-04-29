@@ -291,7 +291,7 @@ class WriteBuffer:
 
 @pytest.fixture(autouse=True)
 def system_is_snappy():
-    mock.patch("cloudinit.util.system_is_snappy")
+    mock.patch("cloudinit.net.activators.util.system_is_snappy")
 
 
 def assertCfgEquals(blob1, blob2):
@@ -356,7 +356,7 @@ class TestNetCfgDistroFreeBSD:
             )
             assert 0o644 == get_mode(cfgpath, str(rootd))
 
-    @mock.patch("cloudinit.net.get_interfaces_by_mac")
+    @mock.patch("cloudinit.util.net.get_interfaces_by_mac")
     def test_apply_network_config_freebsd_standard(
         self, ifaces_mac, distro_freebsd, tmp_path
     ):
@@ -380,7 +380,7 @@ ifconfig_eth1=DHCP
             expected_cfgs=expected_cfgs.copy(),
         )
 
-    @mock.patch("cloudinit.net.get_interfaces_by_mac")
+    @mock.patch("cloudinit.util.net.get_interfaces_by_mac")
     def test_apply_network_config_freebsd_ipv6_standard(
         self, ifaces_mac, distro_freebsd, tmp_path
     ):
@@ -404,7 +404,7 @@ ifconfig_eth0_ipv6='inet6 2607:f0d0:1002:0011::2/64'
             expected_cfgs=expected_cfgs.copy(),
         )
 
-    @mock.patch("cloudinit.net.get_interfaces_by_mac")
+    @mock.patch("cloudinit.util.net.get_interfaces_by_mac")
     def test_apply_network_config_freebsd_ifrename(
         self, ifaces_mac, distro_freebsd, tmp_path
     ):
@@ -432,7 +432,7 @@ ifconfig_eth1=DHCP
             expected_cfgs=expected_cfgs.copy(),
         )
 
-    @mock.patch("cloudinit.net.get_interfaces_by_mac")
+    @mock.patch("cloudinit.util.net.get_interfaces_by_mac")
     def test_apply_network_config_freebsd_nameserver(
         self, ifaces_mac, distro_freebsd, tmp_path
     ):
@@ -482,7 +482,7 @@ class TestNetCfgDistroUbuntuEni:
         if not expected_cfgs:
             raise ValueError("expected_cfg must not be None")
 
-        with mock.patch("cloudinit.net.eni.available") as m_avail:
+        with mock.patch("cloudinit.net.activators.eni.available") as m_avail:
             m_avail.return_value = True
             path_modes = {}
             for previous_path, content, mode in previous_files:
@@ -605,9 +605,11 @@ class TestNetCfgDistroUbuntuNetplan:
         if not expected_cfgs:
             raise ValueError("expected_cfg must not be None")
 
-        with mock.patch("cloudinit.net.netplan.available", return_value=True):
+        with mock.patch(
+            "cloudinit.net.activators.netplan.available", return_value=True
+        ):
             with mock.patch(
-                "cloudinit.net.netplan.get_devicelist",
+                "cloudinit.net.activators.netplan.get_devicelist",
                 return_value=self.DEV_LIST,
             ):
                 for previous_path, content, mode in previous_files:
@@ -1105,7 +1107,8 @@ class TestNetCfgDistroArch:
             raise ValueError("expected_cfg must not be None")
 
         with mock.patch(
-            "cloudinit.net.netplan.available", return_value=with_netplan
+            "cloudinit.net.activators.netplan.available",
+            return_value=with_netplan,
         ):
             apply_fn(config, bringup)
 
@@ -1150,7 +1153,7 @@ class TestNetCfgDistroArch:
         }
 
         with mock.patch(
-            "cloudinit.net.netplan.get_devicelist", return_value=[]
+            "cloudinit.net.activators.netplan.get_devicelist", return_value=[]
         ):
             self._apply_and_verify(
                 distro_arch.apply_network_config,
@@ -1163,7 +1166,7 @@ class TestNetCfgDistroArch:
 
 @pytest.fixture
 def distro_photon(mocker):
-    mocker.patch("cloudinit.net.networkd.util.chownbyname")
+    mocker.patch("cloudinit.net.activators.networkd.util.chownbyname")
     return get_distro("photon", renderers=["networkd"])
 
 
@@ -1193,7 +1196,9 @@ class TestNetCfgDistroPhoton:
         if not expected_cfgs:
             raise ValueError("expected_cfg must not be None")
 
-        with mock.patch("cloudinit.net.networkd.available") as m_avail:
+        with mock.patch(
+            "cloudinit.net.activators.networkd.available"
+        ) as m_avail:
             m_avail.return_value = True
             apply_fn(config, bringup)
 
@@ -1303,7 +1308,7 @@ class TestNetCfgDistroPhoton:
 
 @pytest.fixture
 def distro_mariner(mocker):
-    mocker.patch("cloudinit.net.networkd.util.chownbyname")
+    mocker.patch("cloudinit.net.activators.networkd.util.chownbyname")
     return get_distro("mariner", renderers=["networkd"])
 
 
@@ -1333,7 +1338,9 @@ class TestNetCfgDistroMariner:
         if not expected_cfgs:
             raise ValueError("expected_cfg must not be None")
 
-        with mock.patch("cloudinit.net.networkd.available") as m_avail:
+        with mock.patch(
+            "cloudinit.net.activators.networkd.available"
+        ) as m_avail:
             m_avail.return_value = True
             apply_fn(config, bringup)
 
@@ -1443,7 +1450,7 @@ class TestNetCfgDistroMariner:
 
 @pytest.fixture
 def distro_azurelinux(mocker):
-    mocker.patch("cloudinit.net.networkd.util.chownbyname")
+    mocker.patch("cloudinit.net.activators.networkd.util.chownbyname")
     return get_distro("azurelinux", renderers=["networkd"])
 
 
@@ -1473,7 +1480,9 @@ class TestNetCfgDistroAzureLinux:
         if not expected_cfgs:
             raise ValueError("expected_cfg must not be None")
 
-        with mock.patch("cloudinit.net.networkd.available") as m_avail:
+        with mock.patch(
+            "cloudinit.net.activators.networkd.available"
+        ) as m_avail:
             m_avail.return_value = True
             apply_fn(config, bringup)
 

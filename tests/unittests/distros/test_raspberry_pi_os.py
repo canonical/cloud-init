@@ -10,7 +10,7 @@ M_PATH = "cloudinit.distros.raspberry_pi_os."
 
 
 class TestRaspberryPiOS:
-    @mock.patch("cloudinit.distros.debian.Distro.set_keymap")
+    @mock.patch("cloudinit.distros.raspberry_pi_os.debian.Distro.set_keymap")
     @mock.patch(M_PATH + "subp.subp")
     @mock.patch(M_PATH + "subp.which", return_value=False)
     def test_set_keymap_writes_file_and_runs_basics(
@@ -52,7 +52,7 @@ class TestRaspberryPiOS:
         # No optional tools available, so only the two calls above
         assert m_subp.call_count == 2
 
-    @mock.patch("cloudinit.distros.debian.Distro.set_keymap")
+    @mock.patch("cloudinit.distros.raspberry_pi_os.debian.Distro.set_keymap")
     @mock.patch(M_PATH + "subp.subp")
     def test_set_keymap_triggers_udevadm_when_available(
         self, m_subp, m_set_keymap
@@ -123,7 +123,8 @@ class TestRaspberryPiOS:
         distro = cls("raspberry-pi-os", {}, None)
         # Mock the superclass add_user to return True
         with mock.patch(
-            "cloudinit.distros.debian.Distro.add_user", return_value=True
+            "cloudinit.distros.raspberry_pi_os.debian.Distro.add_user",
+            return_value=True,
         ):
             assert distro.add_user("pi") is True
             m_subp.assert_called_once_with(
@@ -136,7 +137,8 @@ class TestRaspberryPiOS:
         cls = fetch("raspberry_pi_os")
         distro = cls("raspberry-pi-os", {}, None)
         with mock.patch(
-            "cloudinit.distros.debian.Distro.add_user", return_value=False
+            "cloudinit.distros.raspberry_pi_os.debian.Distro.add_user",
+            return_value=False,
         ):
             assert distro.add_user("pi") is False
             m_subp.assert_not_called()
@@ -145,7 +147,10 @@ class TestRaspberryPiOS:
         M_PATH + "subp.subp",
         side_effect=ProcessExecutionError("rename-user failed"),
     )
-    @mock.patch("cloudinit.distros.debian.Distro.add_user", return_value=True)
+    @mock.patch(
+        "cloudinit.distros.raspberry_pi_os.debian.Distro.add_user",
+        return_value=True,
+    )
     def test_add_user_rename_fails_logs_error(
         self, m_super_add_user, m_subp, caplog
     ):

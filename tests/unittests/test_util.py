@@ -876,7 +876,7 @@ class TestBlkid:
             },
         }
 
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.util.subp.subp")
     def test_functional_blkid(self, m_subp):
         m_subp.return_value = SubpResult(self.blkid_out.format(**self.ids), "")
         assert self._get_expected() == util.blkid()
@@ -884,7 +884,7 @@ class TestBlkid:
             ["blkid", "-o", "full"], capture=True, decode="replace"
         )
 
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.util.subp.subp")
     def test_blkid_no_cache_uses_no_cache(self, m_subp):
         """blkid should turn off cache if disable_cache is true."""
         m_subp.return_value = SubpResult(self.blkid_out.format(**self.ids), "")
@@ -1538,7 +1538,7 @@ class TestMountCb:
     @mock.patch(M_PATH + "is_Linux", autospec=True)
     @mock.patch(M_PATH + "is_BSD", autospec=True)
     @mock.patch(M_PATH + "subp.subp")
-    @mock.patch("cloudinit.temp_utils.tempdir", autospec=True)
+    @mock.patch("cloudinit.util.temp_utils.tempdir", autospec=True)
     def test_normalize_mtype_on_bsd(
         self, m_tmpdir, m_subp, m_is_BSD, m_is_Linux, mtype, expected
     ):
@@ -2194,7 +2194,7 @@ class TestMountinfoParsing:
         expected = ("none", "tmpfs", "/run/lock")
         assert expected == util.parse_mount_info("/run/lock", lines)
 
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.util.subp.subp")
     def test_parse_mount_with_ext(self, mount_out):
         mount_out.return_value = (
             helpers.readResource("mount_parse_ext.txt"),
@@ -2213,7 +2213,7 @@ class TestMountinfoParsing:
         ret = util.parse_mount("/var/tmp/cloud-init")
         assert ("/dev/mapper/vg00-lv_var", "ext4", "/var") == ret
 
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.util.subp.subp")
     def test_parse_mount_with_zfs(self, mount_out):
         mount_out.return_value = (
             helpers.readResource("mount_parse_zfs.txt"),
@@ -2954,7 +2954,7 @@ class TestKernelVersion:
 
 
 class TestFindDevs:
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.util.subp.subp")
     def test_find_devs_with(self, m_subp):
         m_subp.return_value = (
             '/dev/sda1: UUID="some-uuid" TYPE="ext4" PARTUUID="some-partid"',
@@ -2970,7 +2970,7 @@ class TestFindDevs:
             '/dev/sda1: UUID="some-uuid" TYPE="ext4" PARTUUID="some-partid"'
         ]
 
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.util.subp.subp")
     def test_find_devs_with_openbsd(self, m_subp):
         m_subp.return_value = SubpResult(
             "cd0:,sd0:630d98d32b5d3759,sd1:,fd0:", ""
@@ -2978,7 +2978,7 @@ class TestFindDevs:
         devlist = util.find_devs_with_openbsd()
         assert devlist == ["/dev/cd0a", "/dev/sd1a", "/dev/sd1i"]
 
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.util.subp.subp")
     def test_find_devs_with_openbsd_with_criteria(self, m_subp):
         m_subp.return_value = SubpResult(
             "cd0:,sd0:630d98d32b5d3759,sd1:,fd0:", ""
@@ -3027,7 +3027,7 @@ class TestFindDevs:
             ),
         ),
     )
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.util.subp.subp")
     def test_find_devs_with_netbsd(self, m_subp, criteria, expected_devlist):
         side_effect_values = [
             SubpResult("ld0 dk0 dk1 cd0", ""),
@@ -3076,7 +3076,7 @@ class TestFindDevs:
             ),
         ),
     )
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.util.subp.subp")
     def test_find_devs_with_dragonflybsd(
         self, m_subp, criteria, expected_devlist
     ):

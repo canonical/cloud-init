@@ -20,7 +20,7 @@ def user_data(tmp_path):
 @pytest.fixture(autouse=True)
 def cfg(tmp_path, mocker):
     # root group doesn't exist everywhere
-    mocker.patch("cloudinit.util.chownbyname")
+    mocker.patch("cloudinit.stages.util.chownbyname")
 
     new_root = str(tmp_path)
     cfg = {

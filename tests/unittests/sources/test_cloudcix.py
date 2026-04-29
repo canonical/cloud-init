@@ -110,13 +110,13 @@ class TestDataSourceCloudCIX:
         self.paths = paths
         self.datasource = self._get_ds()
         self.m_read_dmi_data = mocker.patch(
-            "cloudinit.dmi.read_dmi_data",
+            "cloudinit.sources.dmi.read_dmi_data",
             new_callable=mock.PropertyMock,
         )
         self.m_read_dmi_data.return_value = "CloudCIX"
 
         self._m_find_fallback_nic = mocker.patch(
-            "cloudinit.net.find_fallback_nic",
+            "cloudinit.distros.net.find_fallback_nic",
             new_callable=mock.PropertyMock,
         )
         self._m_find_fallback_nic.return_value = "cixnic0"
@@ -229,7 +229,9 @@ class TestDataSourceCloudCIX:
 
     @responses.activate
     def test_failing_imds_endpoints(self, mocker):
-        sleep = mocker.patch("cloudinit.url_helper.time.sleep")
+        sleep = mocker.patch(
+            "cloudinit.sources.DataSourceCloudCIX.url_helper.time.sleep"
+        )
         base_url = ds_mod.METADATA_URLS[0]
         # Make request before imds is set up
         with pytest.raises(
@@ -324,7 +326,9 @@ class TestDataSourceCloudCIX:
             uh.combine_url(versioned_url, "metadata"),
             callback=bad_response,
         )
-        sleep = mocker.patch("cloudinit.url_helper.time.sleep")
+        sleep = mocker.patch(
+            "cloudinit.sources.DataSourceCloudCIX.url_helper.time.sleep"
+        )
         with pytest.raises(
             InvalidMetaDataException,
             match=f"Failed to fetch IMDS metadata: {versioned_url}",

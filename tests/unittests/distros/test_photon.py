@@ -45,7 +45,7 @@ class TestPhoton:
         self.distro._write_hostname(hostname, None)
         assert "Error while setting hostname" in caplog.text
 
-    @mock.patch("cloudinit.net.generate_fallback_config")
+    @mock.patch("cloudinit.util.net.generate_fallback_config")
     def test_fallback_netcfg(self, m_fallback_cfg, caplog):
 
         key = "disable_fallback_netcfg"

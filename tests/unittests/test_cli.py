@@ -196,7 +196,8 @@ class TestCLI:
                 True,
                 [
                     mock.patch(
-                        "cloudinit.stages.Init._read_cfg", return_value={}
+                        "cloudinit.cmd.main.stages.Init._read_cfg",
+                        return_value={},
                     ),
                     mock.patch("cloudinit.config.schema.handle_schema_args"),
                 ],
@@ -308,7 +309,7 @@ class TestCLI:
         for subcommand in expected_subcommands:
             assert subcommand in err
 
-    @mock.patch("cloudinit.stages.Init._read_cfg", return_value={})
+    @mock.patch("cloudinit.cmd.main.stages.Init._read_cfg", return_value={})
     def test_wb_schema_subcommand_parser(self, m_read_cfg, capsys):
         """The subcommand cloud-init schema calls the correct subparser."""
         exit_code = self._call_main(["cloud-init", "schema"])

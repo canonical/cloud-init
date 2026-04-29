@@ -257,7 +257,7 @@ class TestDataSourceVultr:
         )
 
     # Test the datasource itself
-    @mock.patch("cloudinit.net.get_interfaces_by_mac")
+    @mock.patch("cloudinit.sources.helpers.vultr.net.get_interfaces_by_mac")
     @mock.patch("cloudinit.sources.helpers.vultr.is_vultr")
     @mock.patch("cloudinit.sources.helpers.vultr.get_metadata")
     def test_datasource(self, mock_getmeta, mock_isvultr, mock_netmap, ds):
@@ -282,7 +282,7 @@ class TestDataSourceVultr:
         return vultr_v1_3
 
     # Test the datasource with new network config type
-    @mock.patch("cloudinit.net.get_interfaces_by_mac")
+    @mock.patch("cloudinit.sources.helpers.vultr.net.get_interfaces_by_mac")
     @mock.patch("cloudinit.sources.helpers.vultr.is_vultr")
     @mock.patch("cloudinit.sources.helpers.vultr.get_metadata")
     def test_datasource_cloud_interfaces(
@@ -298,7 +298,7 @@ class TestDataSourceVultr:
         assert EXPECTED_VULTR_NETWORK_2 == ds.network_config
 
     # Test network config generation
-    @mock.patch("cloudinit.net.get_interfaces_by_mac")
+    @mock.patch("cloudinit.sources.helpers.vultr.net.get_interfaces_by_mac")
     def test_network_config(self, mock_netmap):
         mock_netmap.return_value = INTERFACE_MAP
         interf = VULTR_V1_1["interfaces"]
@@ -308,7 +308,7 @@ class TestDataSourceVultr:
         )
 
     # Test Private Networking config generation
-    @mock.patch("cloudinit.net.get_interfaces_by_mac")
+    @mock.patch("cloudinit.sources.helpers.vultr.net.get_interfaces_by_mac")
     def test_private_network_config(self, mock_netmap):
         mock_netmap.return_value = INTERFACE_MAP
         interf = copy.deepcopy(VULTR_V1_2["interfaces"])

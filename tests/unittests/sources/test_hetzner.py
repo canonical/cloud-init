@@ -80,7 +80,7 @@ class TestDataSourceHetzner:
 
     @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
     @mock.patch("cloudinit.sources.DataSourceHetzner.EphemeralIPNetwork")
-    @mock.patch("cloudinit.net.find_fallback_nic")
+    @mock.patch("cloudinit.sources.net.find_fallback_nic")
     @mock.patch("cloudinit.sources.helpers.hetzner.get_metadata")
     @mock.patch("cloudinit.sources.DataSourceHetzner.get_hcloud_data")
     def test_read_data(
@@ -153,7 +153,7 @@ class TestDataSourceHetzner:
         )
 
     @mock.patch("cloudinit.sources.helpers.hetzner.get_metadata")
-    @mock.patch("cloudinit.net.find_fallback_nic")
+    @mock.patch("cloudinit.sources.net.find_fallback_nic")
     @mock.patch("cloudinit.sources.DataSourceHetzner.get_hcloud_data")
     def test_not_on_hetzner_returns_false(
         self, m_get_hcloud_data, m_find_fallback, m_get_metadata, ds

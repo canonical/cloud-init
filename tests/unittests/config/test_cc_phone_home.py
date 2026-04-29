@@ -18,10 +18,13 @@ phone_home = partial(handle, name="test", cloud=get_cloud(), args=[])
 
 @pytest.fixture(autouse=True)
 def common_mocks(mocker):
-    mocker.patch("cloudinit.util.load_text_file", side_effect=count())
+    mocker.patch(
+        "cloudinit.config.cc_phone_home.util.load_text_file",
+        side_effect=count(),
+    )
 
 
-@mock.patch("cloudinit.url_helper.readurl")
+@mock.patch("cloudinit.config.cc_phone_home.url_helper.readurl")
 class TestPhoneHome:
     def test_default_call(self, m_readurl):
         cfg = {"phone_home": {"url": "myurl"}}

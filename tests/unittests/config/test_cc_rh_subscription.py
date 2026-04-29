@@ -147,7 +147,7 @@ class TestHappyPath:
         # to avoid deleting the actual cache files
         # (triggered by the presence of the release_version key)
         # on the host running the tests
-        mocker.patch("cloudinit.util.shutil.rmtree")
+        mocker.patch("cloudinit.config.cc_rh_subscription.util.shutil.rmtree")
 
         cc_rh_subscription.handle(NAME, self.CONFIG_FULL, None, [])
         assert m_sman_cli.call_count == 10
@@ -343,7 +343,10 @@ class TestBadInput:
             caplog,
         )
 
-    @mock.patch("cloudinit.util.shutil.rmtree", side_effect=[PermissionError])
+    @mock.patch(
+        "cloudinit.config.cc_rh_subscription.util.shutil.rmtree",
+        side_effect=[PermissionError],
+    )
     def test_pm_cache_deletion_after_setting_release_version(
         self, m_rmtree, m_sman_cli, caplog
     ):

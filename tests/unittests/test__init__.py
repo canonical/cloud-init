@@ -41,7 +41,7 @@ def walker_data(tmp_path):
 @pytest.fixture
 def m_write_file():
     """Mock the write_file() function."""
-    with mock.patch("cloudinit.util.write_file") as mock_write:
+    with mock.patch("cloudinit.handlers.util.write_file") as mock_write:
         yield mock_write
 
 
@@ -76,7 +76,7 @@ class TestWalkerHandleHandler:
     def test_no_errors(self, walker_data, m_write_file):
         """Payload gets written to file and added to C{pdata}."""
         with mock.patch(
-            "cloudinit.importer.import_module",
+            "cloudinit.handlers.importer.import_module",
             return_value=walker_data.module_fake,
         ) as mockobj:
             handlers.walker_handle_handler(
@@ -94,7 +94,8 @@ class TestWalkerHandleHandler:
     def test_import_error(self, walker_data, m_write_file):
         """Module import errors are logged. No handler added to C{pdata}."""
         with mock.patch(
-            "cloudinit.importer.import_module", side_effect=ImportError
+            "cloudinit.handlers.importer.import_module",
+            side_effect=ImportError,
         ) as mockobj:
             handlers.walker_handle_handler(
                 walker_data.data,
@@ -111,7 +112,7 @@ class TestWalkerHandleHandler:
     def test_attribute_error(self, walker_data, m_write_file):
         """Attribute errors are logged. No handler added to C{pdata}."""
         with mock.patch(
-            "cloudinit.importer.import_module",
+            "cloudinit.handlers.importer.import_module",
             side_effect=AttributeError,
             return_value=walker_data.module_fake,
         ) as mockobj:

@@ -149,7 +149,10 @@ class TestHostname:
                     )
                 ] not in m_subp.call_args_list
 
-    @mock.patch("cloudinit.util.get_hostname", return_value="localhost")
+    @mock.patch(
+        "cloudinit.config.cc_set_hostname.util.get_hostname",
+        return_value="localhost",
+    )
     def test_multiple_calls_skips_unchanged_hostname(
         self, get_hostname, paths, caplog
     ):
@@ -174,7 +177,10 @@ class TestHostname:
             in caplog.text
         )
 
-    @mock.patch("cloudinit.util.get_hostname", return_value="localhost")
+    @mock.patch(
+        "cloudinit.config.cc_set_hostname.util.get_hostname",
+        return_value="localhost",
+    )
     def test_localhost_default_hostname(self, get_hostname, paths):
         """
         No hostname set. Default value returned is localhost,
@@ -187,7 +193,10 @@ class TestHostname:
         contents = util.load_text_file("/etc/hostname")
         assert "" == contents.strip()
 
-    @mock.patch("cloudinit.util.get_hostname", return_value="localhost")
+    @mock.patch(
+        "cloudinit.config.cc_set_hostname.util.get_hostname",
+        return_value="localhost",
+    )
     def test_localhost_user_given_hostname(self, get_hostname, paths):
         """
         User set hostname is localhost. We should write it in /etc/hostname

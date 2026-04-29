@@ -357,7 +357,9 @@ class TestDataSource:
             "variant": "ubuntu",
             "dist": ["ubuntu", "20.04", "focal"],
         }
-        with mock.patch("cloudinit.util.system_info", return_value=sys_info):
+        with mock.patch(
+            "cloudinit.distros.util.system_info", return_value=sys_info
+        ):
             with mock.patch(
                 "cloudinit.sources.canonical_cloud_id",
                 return_value="canonical_cloud_id",
@@ -465,7 +467,9 @@ class TestDataSource:
             "variant": "ubuntu",
             "dist": ["ubuntu", "20.04", "focal"],
         }
-        with mock.patch("cloudinit.util.system_info", return_value=sys_info):
+        with mock.patch(
+            "cloudinit.distros.util.system_info", return_value=sys_info
+        ):
             datasource.get_data()
         json_file = paths.get_runpath("instance_data")
         redacted = util.load_json(util.load_text_file(json_file))
@@ -576,7 +580,9 @@ class TestDataSource:
             ),
             datasource.sensitive_metadata_keys,
         )
-        with mock.patch("cloudinit.util.system_info", return_value=sys_info):
+        with mock.patch(
+            "cloudinit.distros.util.system_info", return_value=sys_info
+        ):
             with mock.patch(
                 "cloudinit.sources.canonical_cloud_id",
                 return_value="canonical-cloud-id",

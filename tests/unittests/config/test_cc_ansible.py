@@ -761,7 +761,10 @@ class TestAnsible:
             get_cloud().distro, ""
         ).get_version() == lifecycle.Version(2, 10, 8)
 
-    @mock.patch("cloudinit.subp.subp", side_effect=[(pip_version, "")])
+    @mock.patch(
+        "cloudinit.config.cc_ansible.subp.subp",
+        side_effect=[(pip_version, "")],
+    )
     def test_parse_version_pip(self, m_subp):
         """Verify that the expected version is returned"""
         distro = get_cloud().distro

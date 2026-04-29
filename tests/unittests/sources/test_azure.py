@@ -3093,7 +3093,9 @@ class TestPreprovisioningHotAttachNics:
     @mock.patch(MOCKPATH + "util.write_file", autospec=True)
     @mock.patch(MOCKPATH + "DataSourceAzure._report_ready")
     @mock.patch(MOCKPATH + "DataSourceAzure.wait_for_link_up")
-    @mock.patch("cloudinit.sources.helpers.netlink.wait_for_nic_attach_event")
+    @mock.patch(
+        "cloudinit.sources.DataSourceAzure.netlink.wait_for_nic_attach_event"
+    )
     @mock.patch(MOCKPATH + "EphemeralDHCPv4", autospec=True)
     @mock.patch(MOCKPATH + "DataSourceAzure._wait_for_nic_detach")
     @mock.patch("os.path.isfile")
@@ -3216,7 +3218,7 @@ class TestPreprovisioningHotAttachNics:
         assert 99 * [mock.call(0.1)] == m_sleep.mock_calls
 
     @mock.patch(
-        "cloudinit.sources.helpers.netlink.create_bound_netlink_socket"
+        "cloudinit.sources.DataSourceAzure.netlink.create_bound_netlink_socket"
     )
     def test_wait_for_all_nics_ready_raises_if_socket_fails(
         self, m_socket, paths
@@ -3233,10 +3235,10 @@ class TestPreprovisioningHotAttachNics:
             dsa._wait_for_pps_savable_reuse()
 
 
-@mock.patch("cloudinit.net.find_fallback_nic", return_value="eth9")
+@mock.patch("cloudinit.util.net.find_fallback_nic", return_value="eth9")
 @mock.patch(MOCKPATH + "EphemeralDHCPv4")
 @mock.patch(
-    "cloudinit.sources.helpers.netlink.wait_for_media_disconnect_connect"
+    "cloudinit.sources.DataSourceAzure.netlink.wait_for_media_disconnect_connect"
 )
 @mock.patch(MOCKPATH + "imds.fetch_reprovision_data")
 class TestPreprovisioningPollIMDS:

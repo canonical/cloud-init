@@ -123,7 +123,8 @@ class TestRebootIfRequired:
 
         caplog.set_level(logging.INFO)
         with mock.patch(
-            "cloudinit.subp.subp", return_value=SubpResult("{}", "fakeerr")
+            "cloudinit.config.cc_package_update_upgrade_install.subp.subp",
+            return_value=SubpResult("{}", "fakeerr"),
         ) as m_subp:
             with mock.patch(f"{M_PATH}os.path.isfile", side_effect=_isfile):
                 with mock.patch(M_PATH + "time.sleep") as m_sleep:
@@ -148,7 +149,8 @@ class TestMultiplePackageManagers:
         cloud = get_cloud("ubuntu")
         cfg = {"packages": [{"apt": ["pkg1", "pkg2"]}]}
         with mock.patch(
-            "cloudinit.subp.subp", side_effect=_new_subp
+            "cloudinit.config.cc_package_update_upgrade_install.subp.subp",
+            side_effect=_new_subp,
         ) as m_subp:
             handle("", cfg, cloud, [])
 
@@ -166,7 +168,8 @@ class TestMultiplePackageManagers:
         cloud = get_cloud("ubuntu")
         cfg = {"packages": [{"apt": ["pkg1", ["pkg2", "1.2.3"]]}]}
         with mock.patch(
-            "cloudinit.subp.subp", side_effect=_new_subp
+            "cloudinit.config.cc_package_update_upgrade_install.subp.subp",
+            side_effect=_new_subp,
         ) as m_subp:
             handle("", cfg, cloud, [])
 
@@ -176,7 +179,7 @@ class TestMultiplePackageManagers:
         for arg in ["apt-get", "install", "pkg1", "pkg2=1.2.3"]:
             assert arg in m_subp.call_args_list[1][1]["args"]
 
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.config.cc_package_update_upgrade_install.subp.subp")
     def test_explicit_snap(self, m_subp, common_mocks):
         cloud = get_cloud("ubuntu")
         cfg = {"packages": [{"snap": ["pkg1", "pkg2"]}]}
@@ -186,7 +189,7 @@ class TestMultiplePackageManagers:
         assert mock.call(["snap", "install", "pkg1"]) in m_subp.call_args_list
         assert mock.call(["snap", "install", "pkg2"]) in m_subp.call_args_list
 
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.config.cc_package_update_upgrade_install.subp.subp")
     def test_explicit_snap_version(self, m_subp, common_mocks):
         cloud = get_cloud("ubuntu")
         cfg = {"packages": [{"snap": ["pkg1", ["pkg2", "--edge"]]}]}
@@ -218,7 +221,8 @@ class TestMultiplePackageManagers:
             ],
         }
         with mock.patch(
-            "cloudinit.subp.subp", side_effect=_new_subp
+            "cloudinit.config.cc_package_update_upgrade_install.subp.subp",
+            side_effect=_new_subp,
         ) as m_subp:
             handle("", cfg, cloud, [])
 
@@ -253,7 +257,10 @@ class TestMultiplePackageManagers:
 
         cloud = get_cloud("ubuntu")
         cfg = {"packages": ["pkg1"]}
-        with mock.patch("cloudinit.subp.subp", side_effect=_new_subp):
+        with mock.patch(
+            "cloudinit.config.cc_package_update_upgrade_install.subp.subp",
+            side_effect=_new_subp,
+        ):
             with pytest.raises(subp.ProcessExecutionError):
                 handle("", cfg, cloud, [])
 
@@ -277,7 +284,10 @@ class TestMultiplePackageManagers:
 
         cloud = get_cloud("ubuntu")
         cfg = {"packages": ["pkg1"]}
-        with mock.patch("cloudinit.subp.subp", side_effect=_new_subp):
+        with mock.patch(
+            "cloudinit.config.cc_package_update_upgrade_install.subp.subp",
+            side_effect=_new_subp,
+        ):
             with pytest.raises(PackageInstallerError):
                 handle("", cfg, cloud, [])
 

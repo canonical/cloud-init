@@ -51,7 +51,7 @@ def available_mocks():
             patch("cloudinit.distros.uses_systemd", return_value=False)
         )
         m_which = mocks_context.enter_context(
-            patch("cloudinit.subp.which", return_value=True)
+            patch("cloudinit.net.activators.subp.which", return_value=True)
         )
         m_file = mocks_context.enter_context(
             patch("os.path.isfile", return_value=True)
@@ -70,7 +70,7 @@ def unavailable_mocks():
             patch("cloudinit.distros.uses_systemd", return_value=False)
         )
         m_which = mocks_context.enter_context(
-            patch("cloudinit.subp.which", return_value=False)
+            patch("cloudinit.net.activators.subp.which", return_value=False)
         )
         m_file = mocks_context.enter_context(
             patch("os.path.isfile", return_value=False)
@@ -260,7 +260,10 @@ NETWORKD_BRING_UP_CALL_LIST: list = [
     ],
 )
 class TestActivatorsBringUp:
-    @patch("cloudinit.subp.subp", return_value=("", "Some warning condition"))
+    @patch(
+        "cloudinit.net.activators.subp.subp",
+        return_value=("", "Some warning condition"),
+    )
     def test_bring_up_interface_log_level_on_stderr(
         self, m_subp, activator, expected_call_list, available_mocks, caplog
     ):
@@ -277,7 +280,7 @@ class TestActivatorsBringUp:
             index += 1
         assert "Received stderr output: Some warning condition" in caplog.text
 
-    @patch("cloudinit.subp.subp", return_value=("", ""))
+    @patch("cloudinit.net.activators.subp.subp", return_value=("", ""))
     def test_bring_up_interface(
         self, m_subp, activator, expected_call_list, available_mocks
     ):
@@ -298,7 +301,10 @@ class TestActivatorsBringUp:
     ],
 )
 class TestActivatorsBringUpAll:
-    @patch("cloudinit.subp.subp", return_value=subp.SubpResult("", ""))
+    @patch(
+        "cloudinit.net.activators.subp.subp",
+        return_value=subp.SubpResult("", ""),
+    )
     def test_bring_up_interfaces(
         self, m_subp, activator, expected_call_list, available_mocks
     ):
@@ -308,7 +314,10 @@ class TestActivatorsBringUpAll:
             assert call == expected_call_list[index]
             index += 1
 
-    @patch("cloudinit.subp.subp", return_value=subp.SubpResult("", ""))
+    @patch(
+        "cloudinit.net.activators.subp.subp",
+        return_value=subp.SubpResult("", ""),
+    )
     def test_bring_up_all_interfaces_v1(
         self, m_subp, activator, expected_call_list, available_mocks
     ):
@@ -317,7 +326,10 @@ class TestActivatorsBringUpAll:
         for call in m_subp.call_args_list:
             assert call in expected_call_list
 
-    @patch("cloudinit.subp.subp", return_value=subp.SubpResult("", ""))
+    @patch(
+        "cloudinit.net.activators.subp.subp",
+        return_value=subp.SubpResult("", ""),
+    )
     def test_bring_up_all_interfaces_v2(
         self, m_subp, activator, expected_call_list, available_mocks
     ):
@@ -353,7 +365,7 @@ NETWORKD_BRING_DOWN_CALL_LIST: list = [
     ],
 )
 class TestActivatorsBringDown:
-    @patch("cloudinit.subp.subp", return_value=("", ""))
+    @patch("cloudinit.net.activators.subp.subp", return_value=("", ""))
     def test_bring_down_interface(
         self, m_subp, activator, expected_call_list, available_mocks
     ):
@@ -363,9 +375,9 @@ class TestActivatorsBringDown:
 
 
 class TestNetworkManagerActivatorBringUp:
-    @patch("cloudinit.subp.subp", return_value=("", ""))
+    @patch("cloudinit.net.activators.subp.subp", return_value=("", ""))
     @patch(
-        "cloudinit.net.network_manager.available_nm_ifcfg_rh",
+        "cloudinit.net.activators.network_manager.available_nm_ifcfg_rh",
         return_value=True,
     )
     @patch("os.path.isfile")
@@ -424,9 +436,9 @@ class TestNetworkManagerActivatorBringUp:
             assert call == expected_call_list[index]
             index += 1
 
-    @patch("cloudinit.subp.subp", return_value=("", ""))
+    @patch("cloudinit.net.activators.subp.subp", return_value=("", ""))
     @patch(
-        "cloudinit.net.network_manager.available_nm_ifcfg_rh",
+        "cloudinit.net.activators.network_manager.available_nm_ifcfg_rh",
         return_value=False,
     )
     @patch("os.path.isfile")
@@ -446,9 +458,9 @@ class TestNetworkManagerActivatorBringUp:
         m_isfile.side_effect = fake_isfile_no_nmconn
         assert not NetworkManagerActivator.bring_up_interface("eth0")
 
-    @patch("cloudinit.subp.subp", return_value=("", ""))
+    @patch("cloudinit.net.activators.subp.subp", return_value=("", ""))
     @patch(
-        "cloudinit.net.network_manager.available_nm_ifcfg_rh",
+        "cloudinit.net.activators.network_manager.available_nm_ifcfg_rh",
         return_value=True,
     )
     @patch("os.path.isfile", return_value=False)

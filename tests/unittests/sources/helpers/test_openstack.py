@@ -6,7 +6,7 @@ from cloudinit.sources.helpers import openstack
 
 
 @mock.patch(
-    "cloudinit.net.is_openvswitch_internal_interface",
+    "cloudinit.sources.helpers.openstack.net.is_openvswitch_internal_interface",
     mock.Mock(return_value=False),
 )
 class TestConvertNetJson:

@@ -44,7 +44,7 @@ class TestDataSourceNWCS:
 
     @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
     @mock.patch("cloudinit.sources.DataSourceNWCS.EphemeralDHCPv4")
-    @mock.patch("cloudinit.net.find_fallback_nic")
+    @mock.patch("cloudinit.sources.net.find_fallback_nic")
     @mock.patch("cloudinit.sources.DataSourceNWCS.read_metadata")
     @mock.patch("cloudinit.sources.DataSourceNWCS.DataSourceNWCS.ds_detect")
     def test_read_data(
@@ -90,7 +90,7 @@ class TestDataSourceNWCS:
         assert ds.get_vendordata_raw() == METADATA.get("vendordata")
 
     @mock.patch("cloudinit.sources.DataSourceNWCS.read_metadata")
-    @mock.patch("cloudinit.net.find_fallback_nic")
+    @mock.patch("cloudinit.sources.net.find_fallback_nic")
     @mock.patch("cloudinit.sources.DataSourceNWCS.DataSourceNWCS.ds_detect")
     def test_not_on_nwcs_returns_false(
         self, m_ds_detect, m_find_fallback, m_read_md, ds

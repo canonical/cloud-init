@@ -27,7 +27,10 @@ CC_APK = "cloudinit.config.cc_apk_configure"
 class TestApkConfigure:
     @pytest.fixture(autouse=True)
     def setup(self, mocker, tmpdir):
-        mocker.patch("cloudinit.temp_utils._ROOT_TMPDIR", str(tmpdir))
+        mocker.patch(
+            "cloudinit.config.cc_apk_configure.temp_utils._ROOT_TMPDIR",
+            str(tmpdir),
+        )
         yield
 
     @pytest.mark.parametrize(

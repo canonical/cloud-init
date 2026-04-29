@@ -62,7 +62,7 @@ class TestHandleRaspberryPi:
         "cloudinit.distros.raspberry_pi_os.Distro.shutdown_command",
         return_value=["shutdown", "-r", "now", cc_rpi.REBOOT_MSG],
     )
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.config.cc_raspberry_pi.subp.subp")
     @mock.patch(M_PATH + "is_pifive", return_value=True)
     def test_trigger_reboot(self, is_pi5, m_subp, m_shutdown):
         keys = list(cc_rpi.SUPPORTED_INTERFACES.keys()) + [
@@ -108,7 +108,7 @@ class TestHandleRaspberryPi:
 
 
 class TestRaspberryPiMethods:
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.config.cc_raspberry_pi.subp.subp")
     def test_configure_usb_gadget_enable(self, m_subp):
         with mock.patch(f"{M_PATH}os.path.exists", return_value=True):
             cc_rpi.configure_usb_gadget(True)
@@ -116,7 +116,7 @@ class TestRaspberryPiMethods:
             [RPI_USB_GADGET_SCRIPT, "on", "-f"], capture=False, timeout=30
         )
 
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.config.cc_raspberry_pi.subp.subp")
     def test_configure_usb_gadget_missing_script(self, m_subp, caplog):
         """If the rpi-usb-gadget script is missing, log an error
         and return False."""
@@ -135,7 +135,7 @@ class TestRaspberryPiMethods:
         # Reboot should not be requested
         assert result is False
 
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.config.cc_raspberry_pi.subp.subp")
     def test_configure_usb_gadget_script_failure(self, m_subp, caplog):
         """If the rpi-usb-gadget script fails, log an error
         and return False."""
@@ -161,18 +161,20 @@ class TestRaspberryPiMethods:
         # Function should return False (no reboot triggered)
         assert result is False
 
-    @mock.patch("cloudinit.subp.subp", return_value=("ok", ""))
+    @mock.patch(
+        "cloudinit.config.cc_raspberry_pi.subp.subp", return_value=("ok", "")
+    )
     def test_is_pifive_true(self, m_subp):
         assert cc_rpi.is_pifive() is True
 
     @mock.patch(
-        "cloudinit.subp.subp",
+        "cloudinit.config.cc_raspberry_pi.subp.subp",
         side_effect=ProcessExecutionError("1", [], "fail"),
     )
     def test_is_pifive_false(self, m_subp):
         assert cc_rpi.is_pifive() is False
 
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.config.cc_raspberry_pi.subp.subp")
     def test_configure_interface_valid(self, m_subp):
         cc_rpi.configure_interface("i2c", True)
         m_subp.assert_called_once_with(
@@ -183,7 +185,7 @@ class TestRaspberryPiMethods:
         with pytest.raises(AssertionError):
             cc_rpi.configure_interface("invalid_iface", True)
 
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.config.cc_raspberry_pi.subp.subp")
     @mock.patch(M_PATH + "is_pifive", return_value=True)
     def test_configure_serial_interface_dict_config(self, m_ispi5, m_subp):
         cfg = {"console": True, "hardware": False}
@@ -211,7 +213,7 @@ class TestRaspberryPiMethods:
         ]
         m_subp.assert_has_calls(expected_calls, any_order=False)
 
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.config.cc_raspberry_pi.subp.subp")
     @mock.patch(M_PATH + "is_pifive", return_value=False)
     def test_configure_serial_interface_boolean_config_non_pi5(
         self, m_ispi5, m_subp

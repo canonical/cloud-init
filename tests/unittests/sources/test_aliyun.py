@@ -242,7 +242,7 @@ class TestAliYunDatasource:
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
     @mock.patch("cloudinit.sources.helpers.aliyun.util.is_resolvable")
     @mock.patch("cloudinit.sources.DataSourceAliYun._is_aliyun")
-    @mock.patch("cloudinit.net.find_fallback_nic")
+    @mock.patch("cloudinit.sources.helpers.aliyun.net.find_fallback_nic")
     @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
     @mock.patch("cloudinit.sources.helpers.aliyun.util.is_FreeBSD")
     @pytest.mark.usefixtures("disable_netdev_info")

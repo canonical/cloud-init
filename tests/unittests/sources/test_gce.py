@@ -86,7 +86,7 @@ class TestDataSourceGCE:
         self.m_is_resolvable_url = mocker.patch(
             M_PATH + "util.is_resolvable_url", return_value=True
         )
-        mocker.patch("cloudinit.url_helper.time.sleep")
+        mocker.patch("cloudinit.sources.DataSourceGCE.url_helper.time.sleep")
 
     def _set_mock_metadata(self, gce_meta=None, *, check_headers=None):
         if gce_meta is None:
@@ -378,7 +378,7 @@ class TestDataSourceGCE:
         )
         assert sorted(found) == sorted(expected)
 
-    @mock.patch("cloudinit.url_helper.readurl")
+    @mock.patch("cloudinit.sources.DataSourceGCE.url_helper.readurl")
     def test_publish_host_keys(self, m_readurl):
         hostkeys = [("ssh-rsa", "asdfasdf"), ("ssh-ed25519", "qwerqwer")]
         readurl_expected_calls = [

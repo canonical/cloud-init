@@ -79,8 +79,8 @@ class TestKeyboardSchema:
 
 @pytest.mark.usefixtures("fake_fs")
 class TestKeyboard:
-    @mock.patch("cloudinit.distros.Distro.uses_systemd")
-    @mock.patch("cloudinit.distros.subp.subp")
+    @mock.patch("cloudinit.config.cc_keyboard.distros.Distro.uses_systemd")
+    @mock.patch("cloudinit.config.cc_keyboard.distros.subp.subp")
     def test_systemd_linux_cmd(self, m_subp, m_uses_systemd):
         """Non-Debian systems run localectl"""
         cfg = {"keyboard": {"layout": "us", "variant": "us"}}
@@ -104,7 +104,7 @@ class TestKeyboard:
         assert m_subp.call_args == locale_call
 
     @mock.patch("cloudinit.util.write_file")
-    @mock.patch("cloudinit.distros.subp.subp")
+    @mock.patch("cloudinit.config.cc_keyboard.distros.subp.subp")
     def test_debian_linux_cmd(self, m_subp, m_write_file):
         """localectl is broken on Debian-based systems so write conf file"""
         cfg = {"keyboard": {"layout": "gb", "variant": "dvorak"}}
@@ -120,7 +120,7 @@ class TestKeyboard:
             ["service", "console-setup", "restart"], capture=True, rcs=None
         )
 
-    @mock.patch("cloudinit.distros.subp.subp")
+    @mock.patch("cloudinit.config.cc_keyboard.distros.subp.subp")
     def test_alpine_linux_cmd(self, m_subp, fake_fs):
         """Alpine Linux runs setup-keymap"""
         cfg = {"keyboard": {"layout": "us", "variant": "us"}}
@@ -137,7 +137,7 @@ class TestKeyboard:
         cc_keyboard.handle("cc_keyboard", cfg, cloud, [])
         m_subp.assert_called_once_with(["setup-keymap", layout, variant])
 
-    @mock.patch("cloudinit.distros.subp.subp")
+    @mock.patch("cloudinit.config.cc_keyboard.distros.subp.subp")
     def test_alpine_linux_ignore_model(self, m_subp, caplog, fake_fs):
         """Alpine Linux ignores model setting"""
         cfg = {

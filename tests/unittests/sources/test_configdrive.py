@@ -879,7 +879,7 @@ class TestConvertNetworkData:
     def test_convert_raises_value_error_on_missing_name(self):
         macs = {"aa:aa:aa:aa:aa:00": "ens1"}
         with mock.patch(
-            "cloudinit.sources.helpers.openstack.util.udevadm_settle"
+            "cloudinit.sources.DataSourceConfigDrive.openstack.util.udevadm_settle"
         ):
             with pytest.raises(ValueError):
                 openstack.convert_net_json(
@@ -887,7 +887,7 @@ class TestConvertNetworkData:
                     known_macs=macs,
                 )
 
-    @mock.patch("cloudinit.subp.which")
+    @mock.patch("cloudinit.sources.DataSourceConfigDrive.subp.which")
     def test_conversion_with_route(self, m_which, tmp_path):
         ncfg = openstack.convert_net_json(
             NETWORK_DATA_2, known_macs=KNOWN_MACS

@@ -409,8 +409,8 @@ class TestNtp:
             cc_ntp.handle("notimportant", cfg, mycloud, [])
             assert 0 == m_select.call_count
 
-    @mock.patch("cloudinit.subp.subp")
-    @mock.patch("cloudinit.subp.which", return_value=True)
+    @mock.patch("cloudinit.config.cc_ntp.subp.subp")
+    @mock.patch("cloudinit.config.cc_ntp.subp.which", return_value=True)
     @mock.patch("cloudinit.config.cc_ntp.select_ntp_client")
     @mock.patch("cloudinit.distros.Distro.uses_systemd")
     def test_ntp_the_whole_package(
@@ -492,7 +492,7 @@ class TestNtp:
 
             assert expected_content == util.load_text_file(confpath)
 
-    @mock.patch("cloudinit.util.system_info")
+    @mock.patch("cloudinit.config.cc_ntp.util.system_info")
     def test_opensuse_picks_chrony(self, m_sysinfo):
         """Test opensuse picks chrony or ntp on certain distro versions"""
         #  < 15.0  => ntp
@@ -585,7 +585,7 @@ class TestNtp:
     @mock.patch("cloudinit.config.cc_ntp.write_ntp_config_template")
     @mock.patch("cloudinit.cloud.Cloud.get_template_filename")
     @mock.patch("cloudinit.config.cc_ntp.subp.which")
-    @mock.patch("cloudinit.util.rename")
+    @mock.patch("cloudinit.config.cc_ntp.util.rename")
     def test_ntp_custom_client_overrides_installed_clients(
         self,
         m_rename,

@@ -15,11 +15,19 @@ from cloudinit.sources.DataSourceEc2 import DataSourceEc2
 
 @pytest.fixture()
 def mocks():
-    m_update_enabled = mock.patch("cloudinit.stages.update_event_enabled")
-    m_write = mock.patch("cloudinit.util.write_file", autospec=True)
-    m_del = mock.patch("cloudinit.util.del_file", autospec=True)
-    m_subp = mock.patch("cloudinit.subp.subp")
-    m_which = mock.patch("cloudinit.subp.which", return_value=None)
+    m_update_enabled = mock.patch(
+        "cloudinit.config.cc_install_hotplug.stages.update_event_enabled"
+    )
+    m_write = mock.patch(
+        "cloudinit.config.cc_install_hotplug.util.write_file", autospec=True
+    )
+    m_del = mock.patch(
+        "cloudinit.config.cc_install_hotplug.util.del_file", autospec=True
+    )
+    m_subp = mock.patch("cloudinit.config.cc_install_hotplug.subp.subp")
+    m_which = mock.patch(
+        "cloudinit.config.cc_install_hotplug.subp.which", return_value=None
+    )
     m_path_exists = mock.patch(
         "cloudinit.config.cc_install_hotplug.os.path.exists",
         return_value=False,

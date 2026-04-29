@@ -15,9 +15,9 @@ from tests.unittests.util import get_cloud
 
 @pytest.fixture(autouse=True)
 def common_mocks(mocker):
-    mocker.patch("cloudinit.util.ensure_dir")
-    mocker.patch("cloudinit.safeyaml.dumps")
-    mocker.patch("cloudinit.util.write_file")
+    mocker.patch("cloudinit.config.cc_salt_minion.util.ensure_dir")
+    mocker.patch("cloudinit.config.cc_salt_minion.safeyaml.dumps")
+    mocker.patch("cloudinit.config.cc_salt_minion.util.write_file")
 
 
 @skipUnlessJsonSchema()
@@ -46,7 +46,7 @@ class TestSaltMinionSchema:
 
 class TestDaemonInstall:
     def test_daemon_install(self, mocker):
-        m_subp = mocker.patch("cloudinit.subp.subp")
+        m_subp = mocker.patch("cloudinit.config.cc_salt_minion.subp.subp")
         m_manage = mocker.patch(
             "tests.unittests.util.MockDistro.manage_service"
         )
@@ -60,7 +60,7 @@ class TestDaemonInstall:
         m_subp.assert_not_called()
 
     def test_file_client_local(self, mocker):
-        m_subp = mocker.patch("cloudinit.subp.subp")
+        m_subp = mocker.patch("cloudinit.config.cc_salt_minion.subp.subp")
         m_manage = mocker.patch(
             "tests.unittests.util.MockDistro.manage_service"
         )

@@ -46,7 +46,7 @@ class TestFreeBSD:
 
 
 class TestDeviceLookUp:
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.distros.freebsd.subp.subp")
     def test_find_freebsd_part_label(self, mock_subp):
         glabel_out = """
 gptid/fa52d426-c337-11e6-8911-00155d4c5e47  N/A  da0p1
@@ -57,7 +57,7 @@ gptid/fa52d426-c337-11e6-8911-00155d4c5e47  N/A  da0p1
         res = find_freebsd_part("/dev/label/rootfs")
         assert "da0p2" == res
 
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.distros.freebsd.subp.subp")
     def test_find_freebsd_part_gpt(self, mock_subp):
         glabel_out = """
                                 gpt/bootfs  N/A  vtbd0p1
@@ -70,7 +70,7 @@ gptid/3f4cbe26-75da-11e8-a8f2-002590ec6166  N/A  vtbd0p1
         res = find_freebsd_part("/dev/gpt/rootfs")
         assert "vtbd0p3" == res
 
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.distros.freebsd.subp.subp")
     def test_find_freebsd_part_gptid(self, mock_subp):
         glabel_out = """
                                 gpt/bootfs  N/A  vtbd0p1
@@ -84,7 +84,7 @@ gptid/4cd084b4-7fb4-11ee-a7ba-002590ec5bf2  N/A  vtbd0p4
         )
         assert "vtbd0p4" == res
 
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.distros.freebsd.subp.subp")
     def test_find_freebsd_part_ufsid(self, mock_subp):
         glabel_out = """
                                 gpt/bootfs  N/A  vtbd0p1

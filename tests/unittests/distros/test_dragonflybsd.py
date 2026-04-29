@@ -40,8 +40,8 @@ def test_find_dragonflybsd_part():
     assert cloudinit.util.find_freebsd_part("/dev/vbd0s3") == "vbd0s3"
 
 
-@mock.patch("cloudinit.util.is_DragonFlyBSD")
-@mock.patch("cloudinit.subp.subp")
+@mock.patch("cloudinit.distros.util.is_DragonFlyBSD")
+@mock.patch("cloudinit.distros.subp.subp")
 def test_parse_mount(mock_subp, m_is_DragonFlyBSD):
     mount_out = """
 vbd0s3 on / (hammer2, local)

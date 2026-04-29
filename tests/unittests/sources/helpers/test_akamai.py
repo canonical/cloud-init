@@ -41,7 +41,7 @@ class TestAkamaiHelper:
             (",;", {}),
         ),
     )
-    @mock.patch("cloudinit.dmi.read_dmi_data")
+    @mock.patch("cloudinit.sources.helpers.akamai.dmi.read_dmi_data")
     def test_get_dmi_config(
         self, read_dmi_data, dmi_config: str, expected_result: Dict[str, Any]
     ):
@@ -68,7 +68,7 @@ class TestAkamaiHelper:
             ("", False),
         ),
     )
-    @mock.patch("cloudinit.dmi.read_dmi_data")
+    @mock.patch("cloudinit.sources.helpers.akamai.dmi.read_dmi_data")
     def test_is_on_akamai(
         self, read_dmi_data, dmi_data: str, expected_result: bool
     ):

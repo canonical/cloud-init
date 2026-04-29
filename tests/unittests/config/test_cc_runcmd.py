@@ -40,7 +40,7 @@ class TestRuncmd:
         )
 
     @pytest.mark.allow_subp_for("/bin/sh")
-    @patch("cloudinit.util.shellify")
+    @patch("cloudinit.config.cc_runcmd.util.shellify")
     def test_runcmd_shellify_fails(self, cls, cloud):
         """When shellify fails throw exception"""
         cls.side_effect = TypeError("patched shellify")

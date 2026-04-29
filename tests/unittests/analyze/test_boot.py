@@ -17,16 +17,16 @@ err_code = (FAIL_CODE, -1, -1, -1)
 
 
 class TestDistroChecker:
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.analyze.show.subp.subp")
     def test_blank_distro(self, m_subp):
         assert err_code == dist_check_timestamp()
 
-    @mock.patch("cloudinit.subp.subp")
-    @mock.patch("cloudinit.util.is_FreeBSD", return_value=True)
+    @mock.patch("cloudinit.analyze.show.subp.subp")
+    @mock.patch("cloudinit.analyze.show.util.is_FreeBSD", return_value=True)
     def test_freebsd_gentoo_cant_find(self, m_is_FreeBSD, m_subp):
         assert err_code == dist_check_timestamp()
 
-    @mock.patch("cloudinit.subp.subp", return_value=(0, 1))
+    @mock.patch("cloudinit.analyze.show.subp.subp", return_value=(0, 1))
     def test_subp_fails(self, m_subp):
         assert err_code == dist_check_timestamp()
 
@@ -41,7 +41,9 @@ class TestSystemCtlReader:
         with pytest.raises(RuntimeError):
             reader.convert_val_to_float()
 
-    @mock.patch("cloudinit.subp.subp", return_value=("U=1000000", None))
+    @mock.patch(
+        "cloudinit.analyze.show.subp.subp", return_value=("U=1000000", None)
+    )
     def test_systemctl_works_correctly_threshold(self, m_subp):
         reader = SystemctlReader("dummyProperty", "dummyParameter")
         assert 1.0 == reader.convert_val_to_float()
@@ -49,20 +51,20 @@ class TestSystemCtlReader:
         assert thresh < 1e-6
         assert thresh > (-1 * 1e-6)
 
-    @mock.patch("cloudinit.subp.subp", return_value=("U=0", None))
+    @mock.patch("cloudinit.analyze.show.subp.subp", return_value=("U=0", None))
     def test_systemctl_succeed_zero(self, m_subp):
         reader = SystemctlReader("dummyProperty", "dummyParameter")
         assert 0.0 == reader.convert_val_to_float()
 
     @mock.patch(
-        "cloudinit.subp.subp",
+        "cloudinit.analyze.show.subp.subp",
         return_value=("U=Fri 1970-01-02 00:01:15.123 UTC", None),
     )
     def test_systemctl_succeed_human_readable_date(self, m_subp):
         reader = SystemctlReader("dummyProperty", "dummyParameter")
         assert 86475.123 == reader.convert_val_to_float()
 
-    @mock.patch("cloudinit.subp.subp", return_value=("U=1", None))
+    @mock.patch("cloudinit.analyze.show.subp.subp", return_value=("U=1", None))
     def test_systemctl_succeed_distinct(self, m_subp):
         reader = SystemctlReader("dummyProperty", "dummyParameter")
         val1 = reader.convert_val_to_float()
@@ -82,7 +84,7 @@ class TestSystemCtlReader:
             ),
         ],
     )
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.analyze.show.subp.subp")
     def test_systemctl_epoch_not_error(self, m_subp, return_value, exception):
         m_subp.return_value = return_value
         reader = SystemctlReader("dummyProperty", "dummyParameter")
@@ -145,8 +147,10 @@ class TestAnalyzeBoot:
             self.remove_dummy_file(path, log_path)
             assert err_string == data
 
-    @mock.patch("cloudinit.util.is_container", return_value=True)
-    @mock.patch("cloudinit.subp.subp", return_value=("U=1000000", None))
+    @mock.patch("cloudinit.analyze.show.util.is_container", return_value=True)
+    @mock.patch(
+        "cloudinit.analyze.show.subp.subp", return_value=("U=1000000", None)
+    )
     def test_container_no_ci_log_line(self, m_is_container, m_subp):
         path = os.path.dirname(os.path.abspath(__file__))
         log_path = path + "/boot-test.log"
@@ -162,8 +166,10 @@ class TestAnalyzeBoot:
         self.remove_dummy_file(path, log_path)
         assert FAIL_CODE == finish_code
 
-    @mock.patch("cloudinit.util.is_container", return_value=True)
-    @mock.patch("cloudinit.subp.subp", return_value=("U=1000000", None))
+    @mock.patch("cloudinit.analyze.show.util.is_container", return_value=True)
+    @mock.patch(
+        "cloudinit.analyze.show.subp.subp", return_value=("U=1000000", None)
+    )
     @mock.patch(
         "cloudinit.analyze._get_events",
         return_value=[
@@ -235,7 +241,7 @@ class TestAnalyzeBoot:
         instance is a container
         """
         mocker.patch(
-            "cloudinit.util.is_container",
+            "cloudinit.analyze.show.util.is_container",
             return_value=is_container_returnvalue,
         )
 
@@ -265,7 +271,7 @@ class TestAnalyzeBoot:
         "cloudinit.analyze.show.SystemctlReader",
         side_effect=Exception("ARandomError"),
     )
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.analyze.show.subp.subp")
     def test_gather_timestamps_using_systemd_with_SystemctlReader_exception(
         self, m_subp, systemctlReader_mock
     ):

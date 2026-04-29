@@ -226,8 +226,10 @@ class TestDatasourceOVF:
             pytest.param(True, False, id="iso9660"),
         ],
     )
-    @mock.patch("cloudinit.subp.subp")
-    @mock.patch("cloudinit.sources.DataSource.persist_instance_data")
+    @mock.patch("cloudinit.sources.DataSourceOVF.subp.subp")
+    @mock.patch(
+        "cloudinit.sources.DataSourceOVF.sources.DataSource.persist_instance_data"
+    )
     def test_get_data_vmware_guestinfo_with_network_config(
         self, m_persist, m_subp, guestinfo, iso, ds, paths
     ):
@@ -287,9 +289,15 @@ class TestDatasourceOVF:
 class TestTransportIso9660:
     @pytest.fixture(autouse=True)
     def fixtures(self, mocker):
-        self.m_find_devs_with = mocker.patch("cloudinit.util.find_devs_with")
-        self.m_mounts = mocker.patch("cloudinit.util.mounts")
-        self.m_mount_cb = mocker.patch("cloudinit.util.mount_cb")
+        self.m_find_devs_with = mocker.patch(
+            "cloudinit.sources.DataSourceOVF.util.find_devs_with"
+        )
+        self.m_mounts = mocker.patch(
+            "cloudinit.sources.DataSourceOVF.util.mounts"
+        )
+        self.m_mount_cb = mocker.patch(
+            "cloudinit.sources.DataSourceOVF.util.mount_cb"
+        )
         self.m_get_ovf_env = mocker.patch(
             "cloudinit.sources.DataSourceOVF.get_ovf_env"
         )

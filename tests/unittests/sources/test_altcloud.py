@@ -106,7 +106,10 @@ class TestGetCloudType:
         with mock.patch.object(dsac, "CLOUD_INFO_FILE", cloud_info):
             assert "OVERRIDDEN CLOUDTYPE" == dsrc.get_cloud_type()
 
-    @mock.patch("cloudinit.dmi.read_dmi_data", side_effect=_dmi_data("RHEV"))
+    @mock.patch(
+        "cloudinit.sources.DataSourceAltCloud.dmi.read_dmi_data",
+        side_effect=_dmi_data("RHEV"),
+    )
     def test_rhev(self, m_read_dmi_data, paths):
         """
         Test method get_cloud_type() for RHEVm systems.
@@ -116,7 +119,7 @@ class TestGetCloudType:
         assert "RHEV" == dsrc.get_cloud_type()
 
     @mock.patch(
-        "cloudinit.dmi.read_dmi_data",
+        "cloudinit.sources.DataSourceAltCloud.dmi.read_dmi_data",
         side_effect=_dmi_data("VMware Virtual Platform"),
     )
     def test_vsphere(self, m_read_dmi_data, paths):
@@ -128,7 +131,7 @@ class TestGetCloudType:
         assert "VSPHERE" == dsrc.get_cloud_type()
 
     @mock.patch(
-        "cloudinit.dmi.read_dmi_data",
+        "cloudinit.sources.DataSourceAltCloud.dmi.read_dmi_data",
         side_effect=_dmi_data("Unrecognized Platform"),
     )
     def test_unknown(self, m_read_dmi_data, paths):
@@ -217,7 +220,8 @@ class TestGetDataNoCloudInfoFile:
     """
 
     @mock.patch(
-        "cloudinit.dmi.read_dmi_data", side_effect=_dmi_data("RHEV Hypervisor")
+        "cloudinit.sources.DataSourceAltCloud.dmi.read_dmi_data",
+        side_effect=_dmi_data("RHEV Hypervisor"),
     )
     def test_rhev_no_cloud_file(self, m_read_dmi_data, paths):
         """Test No cloud info file module get_data() forcing RHEV."""
@@ -226,7 +230,7 @@ class TestGetDataNoCloudInfoFile:
         assert True is dsrc.get_data()
 
     @mock.patch(
-        "cloudinit.dmi.read_dmi_data",
+        "cloudinit.sources.DataSourceAltCloud.dmi.read_dmi_data",
         side_effect=_dmi_data("VMware Virtual Platform"),
     )
     def test_vsphere_no_cloud_file(self, m_read_dmi_data, paths):
@@ -236,7 +240,7 @@ class TestGetDataNoCloudInfoFile:
         assert True is dsrc.get_data()
 
     @mock.patch(
-        "cloudinit.dmi.read_dmi_data",
+        "cloudinit.sources.DataSourceAltCloud.dmi.read_dmi_data",
         side_effect=_dmi_data("Unrecognized Platform"),
     )
     def test_failure_no_cloud_file(self, m_read_dmi_data, paths):

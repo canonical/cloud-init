@@ -22,7 +22,7 @@ from tests.unittests.util import MockDistro
 SOURCES_PATH = "cloudinit.sources"
 MOD_PATH = SOURCES_PATH + ".DataSourceCloudStack"
 DS_PATH = MOD_PATH + ".DataSourceCloudStack"
-DHCP_MOD_PATH = "cloudinit.net.dhcp"
+DHCP_MOD_PATH = MOD_PATH + ".dhcp"
 FAKE_LEASE = {
     "interface": "eth0",
     "fixed-address": "192.168.0.1",
@@ -187,7 +187,7 @@ class TestCloudStackHostname:
         )
 
         mocker.patch(
-            "cloudinit.distros.net.find_fallback_nic",
+            "cloudinit.sources.net.find_fallback_nic",
             return_value="eth0",
         )
 
@@ -236,7 +236,7 @@ class TestCloudStackHostname:
         domain-name."""
         # Mock the helper to return the domain only when the exact key is asked
         with patch(
-            "cloudinit.net.dhcp.networkd_get_option_from_leases"
+            "cloudinit.sources.DataSourceCloudStack.dhcp.networkd_get_option_from_leases"
         ) as m_get:
             m_get.side_effect = lambda key, extra_keys=None: (
                 "example.com   " if key == lease_key else None

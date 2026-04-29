@@ -46,7 +46,7 @@ def mocks():
     )
 
     update_event_enabled = mock.patch(
-        "cloudinit.stages.update_event_enabled",
+        "cloudinit.cmd.devel.hotplug_hook.stages.update_event_enabled",
         return_value=True,
     )
 
@@ -137,7 +137,8 @@ class TestHotplug:
     def test_update_event_disabled(self, mocks, caplog):
         init = mocks.m_init
         with mock.patch(
-            "cloudinit.stages.update_event_enabled", return_value=False
+            "cloudinit.cmd.devel.hotplug_hook.stages.update_event_enabled",
+            return_value=False,
         ):
             handle_hotplug(
                 hotplug_init=init,

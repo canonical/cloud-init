@@ -669,7 +669,7 @@ class TestCreateUser:
         assert "WARNING" not in caplog.text
         assert "DEPRECATED" not in caplog.text
 
-    @mock.patch("cloudinit.ssh_util.setup_user_keys")
+    @mock.patch("cloudinit.distros.ssh_util.setup_user_keys")
     def test_setup_ssh_authorized_keys_with_string(
         self, m_setup_user_keys, m_subp, dist, mocker
     ):
@@ -684,7 +684,7 @@ class TestCreateUser:
         ]
         m_setup_user_keys.assert_called_once_with({"mykey"}, USER)
 
-    @mock.patch("cloudinit.ssh_util.setup_user_keys")
+    @mock.patch("cloudinit.distros.ssh_util.setup_user_keys")
     def test_snappy_setup_ssh_authorized_keys_with_string(
         self, m_setup_user_keys, m_subp, dist, mocker
     ):
@@ -699,7 +699,7 @@ class TestCreateUser:
         ]
         m_setup_user_keys.assert_called_once_with({"mykey"}, USER)
 
-    @mock.patch("cloudinit.ssh_util.setup_user_keys")
+    @mock.patch("cloudinit.distros.ssh_util.setup_user_keys")
     def test_setup_ssh_authorized_keys_with_list(
         self, m_setup_user_keys, m_subp, dist, mocker
     ):
@@ -714,7 +714,7 @@ class TestCreateUser:
         ]
         m_setup_user_keys.assert_called_once_with({"key1", "key2"}, USER)
 
-    @mock.patch("cloudinit.ssh_util.setup_user_keys")
+    @mock.patch("cloudinit.distros.ssh_util.setup_user_keys")
     def test_snappy_setup_ssh_authorized_keys_with_list(
         self, m_setup_user_keys, m_subp, dist, mocker
     ):
@@ -729,7 +729,7 @@ class TestCreateUser:
         ]
         m_setup_user_keys.assert_called_once_with({"key1", "key2"}, USER)
 
-    @mock.patch("cloudinit.ssh_util.setup_user_keys")
+    @mock.patch("cloudinit.distros.ssh_util.setup_user_keys")
     def test_setup_ssh_authorized_keys_with_integer(
         self, m_setup_user_keys, m_subp, dist, caplog
     ):
@@ -742,7 +742,7 @@ class TestCreateUser:
             in caplog.text
         )
 
-    @mock.patch("cloudinit.ssh_util.setup_user_keys")
+    @mock.patch("cloudinit.distros.ssh_util.setup_user_keys")
     def test_create_user_with_ssh_redirect_user_no_cloud_keys(
         self, m_setup_user_keys, m_subp, dist, caplog
     ):
@@ -755,7 +755,7 @@ class TestCreateUser:
         ) in caplog.text
         m_setup_user_keys.assert_not_called()
 
-    @mock.patch("cloudinit.ssh_util.setup_user_keys")
+    @mock.patch("cloudinit.distros.ssh_util.setup_user_keys")
     def test_create_user_with_ssh_redirect_user_with_cloud_keys(
         self, m_setup_user_keys, m_subp, dist
     ):
@@ -770,7 +770,7 @@ class TestCreateUser:
             {"key1"}, USER, options=disable_prefix
         )
 
-    @mock.patch("cloudinit.ssh_util.setup_user_keys")
+    @mock.patch("cloudinit.distros.ssh_util.setup_user_keys")
     def test_create_user_with_ssh_redirect_user_does_not_disable_auth_keys(
         self, m_setup_user_keys, m_subp, dist
     ):

@@ -582,7 +582,9 @@ class TestAptSourceConfig:
         params = self._get_default_params()
         cfg = {self.aptlistfile: {"source": "ppa:smoser/cloud-init-test"}}
 
-        with mock.patch("cloudinit.subp.subp") as mockobj:
+        with mock.patch(
+            "cloudinit.config.cc_apt_configure.subp.subp"
+        ) as mockobj:
             self._add_apt_sources(
                 cfg,
                 cloud=mock.Mock(),
@@ -612,7 +614,9 @@ class TestAptSourceConfig:
             self.aptlistfile3: {"source": "ppa:smoser/cloud-init-test3"},
         }
 
-        with mock.patch("cloudinit.subp.subp") as mockobj:
+        with mock.patch(
+            "cloudinit.config.cc_apt_configure.subp.subp"
+        ) as mockobj:
             self._add_apt_sources(
                 cfg,
                 cloud=mock.Mock(),
@@ -1175,7 +1179,10 @@ deb http://ubuntu.com/ubuntu/ xenial-proposed main"""
 
         assert orig == cc_apt_configure.disable_suites(["proposed"], orig, rel)
 
-    @mock.patch("cloudinit.util.get_hostname", return_value="abc.localdomain")
+    @mock.patch(
+        "cloudinit.config.cc_apt_configure.util.get_hostname",
+        return_value="abc.localdomain",
+    )
     def test_apt_v3_mirror_search_dns(self, m_get_hostname):
         """test_apt_v3_mirror_search_dns - Test searching dns patterns"""
         pmir = "phit"

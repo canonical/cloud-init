@@ -1487,7 +1487,7 @@ class TestGenerateFallbackConfig:
     @pytest.fixture(autouse=True)
     def setup(self, mocker, tmpdir_factory):
         mocker.patch(
-            "cloudinit.util.get_cmdline",
+            "cloudinit.net.util.get_cmdline",
             return_value="root=/dev/sda1",
         )
         self.tmp_dir = lambda: str(tmpdir_factory.mktemp("a", numbered=True))
@@ -1732,8 +1732,8 @@ iface eth1 inet6 dhcp
         ]
         assert ", ".join(expected_rule) + "\n" == contents.lstrip()
 
-    @mock.patch("cloudinit.util.get_cmdline")
-    @mock.patch("cloudinit.util.udevadm_settle")
+    @mock.patch("cloudinit.net.util.get_cmdline")
+    @mock.patch("cloudinit.net.util.udevadm_settle")
     @mock.patch("cloudinit.net.sys_dev_path")
     @mock.patch("cloudinit.net.read_sys_net")
     @mock.patch("cloudinit.net.get_devicelist")
@@ -1781,8 +1781,8 @@ iface eth1 inet6 dhcp
         net.generate_fallback_config(config_driver=True)
         assert 1 == mock_settle.call_count
 
-    @mock.patch("cloudinit.util.get_cmdline")
-    @mock.patch("cloudinit.util.udevadm_settle")
+    @mock.patch("cloudinit.net.util.get_cmdline")
+    @mock.patch("cloudinit.net.util.udevadm_settle")
     @mock.patch("cloudinit.net.sys_dev_path")
     @mock.patch("cloudinit.net.read_sys_net")
     @mock.patch("cloudinit.net.get_devicelist")
@@ -3935,7 +3935,7 @@ class TestNetplanPostcommands:
 
     @mock.patch.object(netplan.Renderer, "_netplan_generate")
     @mock.patch.object(netplan.Renderer, "_net_setup_link")
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.net.subp.subp")
     def test_netplan_render_calls_postcmds(
         self, mock_subp, mock_net_setup_link, mock_netplan_generate
     ):
@@ -3955,10 +3955,10 @@ class TestNetplanPostcommands:
         mock_netplan_generate.assert_called_with(run=True, config_changed=True)
         mock_net_setup_link.assert_called_with(run=True)
 
-    @mock.patch("cloudinit.util.get_cmdline")
-    @mock.patch("cloudinit.util.SeLinuxGuard")
+    @mock.patch("cloudinit.net.util.get_cmdline")
+    @mock.patch("cloudinit.net.util.SeLinuxGuard")
     @mock.patch.object(netplan, "get_devicelist")
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.net.subp.subp")
     def test_netplan_postcmds(
         self, mock_subp, mock_devlist, mock_sel, m_get_cmdline
     ):
@@ -4558,7 +4558,7 @@ class TestEniRoundTrip:
             ("v2-dns-no-dhcp", "yaml"),
         ],
     )
-    @mock.patch("cloudinit.subp.which")
+    @mock.patch("cloudinit.net.subp.which")
     def test_config(self, m_which, expected_name, yaml_version):
         entry = NETWORK_CONFIGS[expected_name]
 
@@ -4580,7 +4580,7 @@ class TestEniRoundTrip:
             == files["/etc/network/interfaces"].splitlines()
         )
 
-    @mock.patch("cloudinit.subp.which")
+    @mock.patch("cloudinit.net.subp.which")
     def test_routes_rendered_ip_cmd(self, m_which):
         # as reported in bug 1649652
         conf = [
@@ -4658,7 +4658,7 @@ class TestEniRoundTrip:
 
         assert expected == [line for line in found if line]
 
-    @mock.patch("cloudinit.subp.which")
+    @mock.patch("cloudinit.net.subp.which")
     def test_routes_rendered_route_cmd(self, m_which):
         # as reported in bug 1649652
         conf = [
@@ -4736,7 +4736,7 @@ class TestEniRoundTrip:
 
         assert expected == [line for line in found if line]
 
-    @mock.patch("cloudinit.subp.which")
+    @mock.patch("cloudinit.net.subp.which")
     def test_ipv6_static_routes_ip_cmd(self, m_which):
         # as reported in bug 1818669
         conf = [
@@ -4816,7 +4816,7 @@ class TestEniRoundTrip:
 
         assert expected == [line for line in found if line]
 
-    @mock.patch("cloudinit.subp.which")
+    @mock.patch("cloudinit.net.subp.which")
     def test_ipv6_static_routes_route_cmd(self, m_which):
         # as reported in bug 1818669
         conf = [
@@ -5239,7 +5239,7 @@ class TestNetRenderers:
         )
 
     @mock.patch("cloudinit.net.sysconfig.available")
-    @mock.patch("cloudinit.util.system_info")
+    @mock.patch("cloudinit.net.util.system_info")
     def test_sysconfig_available_uses_variant_mapping(self, m_info, m_avail):
         m_avail.return_value = True
         variants = [
@@ -5660,7 +5660,9 @@ class TestGetInterfacesByMac:
 
 @pytest.mark.parametrize("driver", ("mscc_felix", "fsl_enetc", "qmi_wwan"))
 @mock.patch("cloudinit.net.get_sys_class_path")
-@mock.patch("cloudinit.util.system_info", return_value={"variant": "ubuntu"})
+@mock.patch(
+    "cloudinit.net.util.system_info", return_value={"variant": "ubuntu"}
+)
 class TestDuplicateMac:
     def test_duplicate_ignored_macs(
         self, _get_system_info, get_sys_class_path, driver, tmpdir, caplog
@@ -5802,7 +5804,7 @@ def _gzip_data(data):
 
 
 class TestRenameInterfaces:
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.net.subp.subp")
     def test_rename_all(self, mock_subp):
         renames = [
             ("00:11:22:33:44:55", "interface0", "virtio_net", "0x3"),
@@ -5838,7 +5840,7 @@ class TestRenameInterfaces:
             ]
         )
 
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.net.subp.subp")
     def test_rename_no_driver_no_device_id(self, mock_subp):
         renames = [
             ("00:11:22:33:44:55", "interface0", None, None),
@@ -5874,7 +5876,7 @@ class TestRenameInterfaces:
             ]
         )
 
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.net.subp.subp")
     def test_rename_all_bounce(self, mock_subp):
         renames = [
             ("00:11:22:33:44:55", "interface0", "virtio_net", "0x3"),
@@ -5914,7 +5916,7 @@ class TestRenameInterfaces:
             ]
         )
 
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.net.subp.subp")
     def test_rename_duplicate_macs(self, mock_subp):
         renames = [
             ("00:11:22:33:44:55", "eth0", "hv_netvsc", "0x3"),
@@ -5945,7 +5947,7 @@ class TestRenameInterfaces:
             ]
         )
 
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.net.subp.subp")
     def test_rename_duplicate_macs_driver_no_devid(self, mock_subp):
         renames = [
             ("00:11:22:33:44:55", "eth0", "hv_netvsc", None),
@@ -5976,7 +5978,7 @@ class TestRenameInterfaces:
             ]
         )
 
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.net.subp.subp")
     def test_rename_multi_mac_dups(self, mock_subp):
         renames = [
             ("00:11:22:33:44:55", "eth0", "hv_netvsc", "0x3"),
@@ -6017,7 +6019,7 @@ class TestRenameInterfaces:
             ]
         )
 
-    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.net.subp.subp")
     def test_rename_macs_case_insensitive(self, mock_subp):
         """_rename_interfaces must support upper or lower case macs."""
         renames = [

@@ -198,7 +198,7 @@ class TestUpCloudNetworkSetup:
 
     @pytest.mark.usefixtures("disable_netdev_info")
     @mock.patch("cloudinit.sources.helpers.upcloud.read_metadata")
-    @mock.patch("cloudinit.net.find_fallback_nic")
+    @mock.patch("cloudinit.sources.net.find_fallback_nic")
     @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
     def test_network_configured_metadata(
@@ -238,7 +238,7 @@ class TestUpCloudNetworkSetup:
         assert UC_METADATA.get("cloud_name") == ds.cloud_name
 
     @mock.patch("cloudinit.sources.helpers.upcloud.read_metadata")
-    @mock.patch("cloudinit.net.get_interfaces_by_mac")
+    @mock.patch("cloudinit.sources.net.get_interfaces_by_mac")
     def test_network_configuration(self, m_get_by_mac, mock_readmd, ds):
         mock_readmd.return_value = UC_METADATA.copy()
 

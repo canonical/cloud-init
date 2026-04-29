@@ -144,14 +144,17 @@ def generate_test_netdev_data(ipv4=None, ipv6=None):
 @pytest.fixture(autouse=True)
 def common_patches():
     mocks = [
-        mock.patch("cloudinit.util.platform.platform", return_value="Linux"),
+        mock.patch(
+            "cloudinit.sources.DataSourceVMware.util.platform.platform",
+            return_value="Linux",
+        ),
         mock.patch.multiple(
             "cloudinit.dmi",
             is_container=mock.Mock(return_value=False),
             is_FreeBSD=mock.Mock(return_value=False),
         ),
         mock.patch(
-            "cloudinit.netinfo.netdev_info",
+            "cloudinit.sources.DataSourceVMware.netinfo.netdev_info",
             return_value={},
         ),
         mock.patch(
@@ -236,8 +239,8 @@ class TestDataSourceVMware:
         assert host_info[DataSourceVMware.LOCAL_IPV6] == "2001:db8::::::8888"
 
     # TODO migrate this entire test suite to pytest then parameterize
-    @mock.patch("cloudinit.netinfo.route_info")
-    @mock.patch("cloudinit.netinfo.netdev_info")
+    @mock.patch("cloudinit.sources.DataSourceVMware.netinfo.route_info")
+    @mock.patch("cloudinit.sources.DataSourceVMware.netinfo.netdev_info")
     def test_get_default_ip_addrs_ipv4only(
         self,
         m_netdev_info,
@@ -255,8 +258,8 @@ class TestDataSourceVMware:
         assert ipv4 == "10.85.130.116"
         assert ipv6 is None
 
-    @mock.patch("cloudinit.netinfo.route_info")
-    @mock.patch("cloudinit.netinfo.netdev_info")
+    @mock.patch("cloudinit.sources.DataSourceVMware.netinfo.route_info")
+    @mock.patch("cloudinit.sources.DataSourceVMware.netinfo.netdev_info")
     def test_get_default_ip_addrs_ipv6only(
         self,
         m_netdev_info,
@@ -273,8 +276,8 @@ class TestDataSourceVMware:
         assert ipv4 is None
         assert ipv6 == "fd42:baa2:3dd:17a:216:3eff:fe16:db54/64"
 
-    @mock.patch("cloudinit.netinfo.route_info")
-    @mock.patch("cloudinit.netinfo.netdev_info")
+    @mock.patch("cloudinit.sources.DataSourceVMware.netinfo.route_info")
+    @mock.patch("cloudinit.sources.DataSourceVMware.netinfo.netdev_info")
     def test_get_default_ip_addrs_dualstack(
         self,
         m_netdev_info,
@@ -292,8 +295,8 @@ class TestDataSourceVMware:
         assert ipv4 == "10.85.130.116"
         assert ipv6 == "fd42:baa2:3dd:17a:216:3eff:fe16:db54/64"
 
-    @mock.patch("cloudinit.netinfo.route_info")
-    @mock.patch("cloudinit.netinfo.netdev_info")
+    @mock.patch("cloudinit.sources.DataSourceVMware.netinfo.route_info")
+    @mock.patch("cloudinit.sources.DataSourceVMware.netinfo.netdev_info")
     def test_get_default_ip_addrs_multiaddr(
         self,
         m_netdev_info,
@@ -325,8 +328,8 @@ class TestDataSourceVMware:
         assert ipv4 is None
         assert ipv6 is None
 
-    @mock.patch("cloudinit.netinfo.route_info")
-    @mock.patch("cloudinit.netinfo.netdev_info")
+    @mock.patch("cloudinit.sources.DataSourceVMware.netinfo.route_info")
+    @mock.patch("cloudinit.sources.DataSourceVMware.netinfo.netdev_info")
     def test_get_default_ip_addrs_nodefault(
         self,
         m_netdev_info,

@@ -125,7 +125,7 @@ class TestConsumeUserData:
         initer.fetch()
         initer.instancify()
         with mock.patch(
-            "cloudinit.util.read_conf_from_cmdline", return_value={}
+            "cloudinit.handlers.util.read_conf_from_cmdline", return_value={}
         ):
             initer.update()
         initer.cloudify().run(
@@ -408,7 +408,7 @@ p: 1
         data = "arbitrary text\n"
         init_tmp.datasource = FakeDataSource(data)
 
-        with mock.patch("cloudinit.util.write_file") as mockobj:
+        with mock.patch("cloudinit.handlers.util.write_file") as mockobj:
             with caplog.at_level(logging.WARNING):
                 init_tmp.fetch()
                 with mock.patch.object(init_tmp, "_reset"):
@@ -461,7 +461,7 @@ c: 4
         message.set_payload("Just text")
         init_tmp.datasource = FakeDataSource(message.as_string().encode())
 
-        with mock.patch("cloudinit.util.write_file") as mockobj:
+        with mock.patch("cloudinit.handlers.util.write_file") as mockobj:
             with caplog.at_level(logging.WARNING):
                 init_tmp.fetch()
                 with mock.patch.object(init_tmp, "_reset"):
@@ -480,7 +480,7 @@ c: 4
             init_tmp.paths.get_ipath_cur("scripts"), "part-001"
         )
 
-        with mock.patch("cloudinit.util.write_file") as mockobj:
+        with mock.patch("cloudinit.handlers.util.write_file") as mockobj:
             with caplog.at_level(logging.WARNING):
                 init_tmp.fetch()
                 with mock.patch.object(init_tmp, "_reset"):
@@ -498,10 +498,10 @@ c: 4
         """Test combined_cloud_config and instance_data_sensitive contents."""
         init_tmp.datasource = FakeDataSource()
 
-        mocker.patch("cloudinit.util.write_file")
+        mocker.patch("cloudinit.handlers.util.write_file")
         mocker.patch.object(init_tmp, "_reset")
         mocker.patch(
-            "cloudinit.features.get_features",
+            "cloudinit.stages.features.get_features",
             return_value={
                 "ERROR_ON_USER_DATA_FAILURE": True,
                 "ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES": False,
@@ -555,7 +555,7 @@ c: 4
             init_tmp.paths.get_ipath_cur("scripts"), "part-001"
         )
 
-        with mock.patch("cloudinit.util.write_file") as mockobj:
+        with mock.patch("cloudinit.handlers.util.write_file") as mockobj:
             with caplog.at_level(logging.WARNING):
                 init_tmp.fetch()
                 with mock.patch.object(init_tmp, "_reset"):
@@ -580,7 +580,7 @@ c: 4
             init_tmp.paths.get_ipath_cur("scripts"), "part-001"
         )
 
-        with mock.patch("cloudinit.util.write_file") as mockobj:
+        with mock.patch("cloudinit.handlers.util.write_file") as mockobj:
             with caplog.at_level(logging.WARNING):
                 init_tmp.fetch()
                 with mock.patch.object(init_tmp, "_reset"):
@@ -601,7 +601,7 @@ c: 4
         encoders.encode_base64(message)
         init_tmp.datasource = FakeDataSource(message.as_string().encode())
 
-        with mock.patch("cloudinit.util.write_file") as mockobj:
+        with mock.patch("cloudinit.handlers.util.write_file") as mockobj:
             with caplog.at_level(logging.WARNING):
                 init_tmp.fetch()
                 with mock.patch.object(init_tmp, "_reset"):
@@ -632,7 +632,7 @@ c: 4
 
         # consuming the user-data provided should write 'cloud_config' file
         # which will have our yaml in it.
-        with mock.patch("cloudinit.util.write_file") as mockobj:
+        with mock.patch("cloudinit.handlers.util.write_file") as mockobj:
             mockobj.side_effect = fsstore
             init_tmp.fetch()
             with mock.patch.object(init_tmp, "_reset"):
@@ -643,7 +643,7 @@ c: 4
         assert cfg.get("locale") == "chicago"
 
     @pytest.mark.usefixtures("fake_filesystem")
-    @mock.patch("cloudinit.util.read_conf_with_confd")
+    @mock.patch("cloudinit.handlers.util.read_conf_with_confd")
     def test_dont_allow_user_data(self, mock_cfg):
         mock_cfg.return_value = {"allow_userdata": False}
 
@@ -687,7 +687,7 @@ c: 4
 
 class TestConsumeUserDataHttp:
     @responses.activate
-    @mock.patch("cloudinit.url_helper.time.sleep")
+    @mock.patch("cloudinit.util.url_helper.time.sleep")
     def test_include(self, mock_sleep, init_tmp):
         """Test #include."""
         included_url = "http://hostname/path"
@@ -706,7 +706,7 @@ class TestConsumeUserDataHttp:
         assert cc.get("included") is True
 
     @responses.activate
-    @mock.patch("cloudinit.url_helper.time.sleep")
+    @mock.patch("cloudinit.util.url_helper.time.sleep")
     def test_include_bad_url(self, mock_sleep, init_tmp):
         """Test #include with a bad URL."""
         bad_url = "http://bad/forbidden"
@@ -730,8 +730,8 @@ class TestConsumeUserDataHttp:
             util.load_text_file(init_tmp.paths.get_ipath("cloud_config"))
 
     @responses.activate
-    @mock.patch("cloudinit.url_helper.time.sleep")
-    @mock.patch("cloudinit.util.is_container")
+    @mock.patch("cloudinit.util.url_helper.time.sleep")
+    @mock.patch("cloudinit.handlers.util.is_container")
     @mock.patch(
         "cloudinit.user_data.features.ERROR_ON_USER_DATA_FAILURE", False
     )

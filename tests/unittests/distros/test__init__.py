@@ -307,7 +307,7 @@ class TestGenericDistro:
         for d_name in ("ubuntu", "rhel"):
             cls = distros.fetch(d_name)
             d = cls(d_name, {}, None)
-            with mock.patch("cloudinit.subp.subp") as m_subp:
+            with mock.patch("cloudinit.distros.subp.subp") as m_subp:
                 d.expire_passwd("myuser")
             m_subp.assert_called_once_with(["passwd", "--expire", "myuser"])
 
@@ -319,7 +319,7 @@ class TestGenericDistro:
             "cloudinit.distros.networking.subp.subp", return_value=("", None)
         ):
             d = cls("freebsd", {}, None)
-        with mock.patch("cloudinit.subp.subp") as m_subp:
+        with mock.patch("cloudinit.distros.subp.subp") as m_subp:
             d.expire_passwd("myuser")
         m_subp.assert_called_once_with(
             ["pw", "usermod", "myuser", "-p", "01-Jan-1970"]
@@ -589,7 +589,7 @@ class TestDistro:
     ],
 )
 class TestDHCP:
-    @mock.patch("cloudinit.net.dhcp.subp.which")
+    @mock.patch("cloudinit.distros.dhcp.subp.which")
     def test_dhcp_configuration(
         self, m_which, chosen_client, config, which_override
     ):

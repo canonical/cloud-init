@@ -74,7 +74,7 @@ locale: en_GB.UTF-8
 
 
 class TestWSLHelperFunctions:
-    @mock.patch("cloudinit.util.subp.subp")
+    @mock.patch("cloudinit.sources.util.subp.subp")
     def test_instance_name(self, m_subp):
         m_subp.return_value = util.subp.SubpResult(
             f"//wsl.localhost/{INSTANCE_NAME}/", ""
@@ -82,7 +82,7 @@ class TestWSLHelperFunctions:
 
         assert INSTANCE_NAME == wsl.instance_name()
 
-    @mock.patch("cloudinit.util.mounts")
+    @mock.patch("cloudinit.sources.util.mounts")
     def test_mounted_drives(self, m_mounts):
         # A good output
         m_mounts.return_value = deepcopy(GOOD_MOUNTS)
@@ -100,7 +100,7 @@ class TestWSLHelperFunctions:
         assert [] == mounts
 
     @mock.patch("cloudinit.sources.DataSourceWSL.os.access")
-    @mock.patch("cloudinit.util.mounts")
+    @mock.patch("cloudinit.sources.util.mounts")
     def test_cmd_exe_ok(self, m_mounts, m_os_access):
         """
         Validates the happy path, when we find the Windows system drive and
@@ -114,7 +114,7 @@ class TestWSLHelperFunctions:
         assert None is not cmd.relative_to(GOOD_MOUNTS["C:\\"]["mountpoint"])
 
     @mock.patch("cloudinit.sources.DataSourceWSL.os.access")
-    @mock.patch("cloudinit.util.mounts")
+    @mock.patch("cloudinit.sources.util.mounts")
     def test_cmd_not_executable(self, m_mounts, m_os_access):
         """
         When the cmd.exe found is not executable, then RuntimeError is raised.
@@ -131,7 +131,7 @@ class TestWSLHelperFunctions:
             wsl.cmd_executable()
 
     @mock.patch("cloudinit.sources.DataSourceWSL.os.access")
-    @mock.patch("cloudinit.util.mounts")
+    @mock.patch("cloudinit.sources.util.mounts")
     def test_cmd_exe_no_win_mounts(self, m_mounts, m_os_access):
         """
         When no Windows drives are found, then RuntimeError is raised.
@@ -145,7 +145,7 @@ class TestWSLHelperFunctions:
             wsl.cmd_executable()
 
     @mock.patch("cloudinit.sources.DataSourceWSL.cmd_executable")
-    @mock.patch("cloudinit.util.subp.subp")
+    @mock.patch("cloudinit.sources.util.subp.subp")
     def test_find_home_raises(self, m_subp, m_cmd):
         # The value really doesn't matter.
         m_cmd.return_value = PurePath("/mnt/c/cmd.exe")
@@ -180,7 +180,7 @@ class TestWSLHelperFunctions:
             ),
         ),
     )
-    @mock.patch("cloudinit.util.get_linux_distro")
+    @mock.patch("cloudinit.sources.util.get_linux_distro")
     def test_candidate_files(self, m_gld, linux_distro_value, files):
         """
         Validate the file names candidate for holding user-data and their
@@ -290,7 +290,7 @@ class TestWSLHelperFunctions:
         else:
             assert "" == error_logs
 
-    @mock.patch("cloudinit.util.subp.subp")
+    @mock.patch("cloudinit.sources.util.subp.subp")
     def test_landscape_supports_field(self, m_subp):
         LANDSCAPE_HELP_OUTPUT = """\
         Usage: landscape-config [options]
@@ -435,7 +435,7 @@ class TestWSLDataSource:
 
         assert ds.get_instance_id() == SAMPLE_ID
 
-    @mock.patch("cloudinit.util.lsb_release")
+    @mock.patch("cloudinit.sources.util.lsb_release")
     def test_get_data_cc(self, m_lsb_release, paths, tmpdir):
         m_lsb_release.return_value = SAMPLE_LINUX_DISTRO
         data_path = tmpdir.join(".cloud-init", f"{INSTANCE_NAME}.user-data")
@@ -456,7 +456,7 @@ class TestWSLDataSource:
         assert userdata is not None
         assert "wsl.conf" in userdata
 
-    @mock.patch("cloudinit.util.lsb_release")
+    @mock.patch("cloudinit.sources.util.lsb_release")
     def test_get_data_sh(self, m_lsb_release, tmpdir, paths):
         m_lsb_release.return_value = SAMPLE_LINUX_DISTRO
         COMMAND = "echo Hello cloud-init on WSL!"
@@ -476,7 +476,7 @@ class TestWSLDataSource:
         )
         assert COMMAND in userdata
 
-    @mock.patch("cloudinit.util.lsb_release")
+    @mock.patch("cloudinit.sources.util.lsb_release")
     def test_get_data_jinja(self, m_lsb_release, paths, tmpdir):
         """Assert we don't mistakenly treat jinja as final cloud-config"""
         m_lsb_release.return_value = SAMPLE_LINUX_DISTRO
@@ -507,7 +507,7 @@ write_files:
         ), "No cloud-config part should exist"
 
     @pytest.mark.parametrize("with_agent_data", [True, False])
-    @mock.patch("cloudinit.util.lsb_release")
+    @mock.patch("cloudinit.sources.util.lsb_release")
     def test_get_data_x(
         self, m_lsb_release, with_agent_data, caplog, paths, tmpdir
     ):
@@ -550,7 +550,7 @@ write_files:
             regex, expected_log_level
         )
 
-    @mock.patch("cloudinit.util.get_linux_distro")
+    @mock.patch("cloudinit.sources.util.get_linux_distro")
     def test_data_precedence(self, m_get_linux_dist, tmpdir, paths):
         """Validates the precedence of user-data files."""
 
@@ -591,7 +591,7 @@ write_files:
 
         assert "" == shell_script
 
-    @mock.patch("cloudinit.util.get_linux_distro")
+    @mock.patch("cloudinit.sources.util.get_linux_distro")
     def test_interaction_with_pro(self, m_get_linux_dist, tmpdir, paths):
         """Validates the interaction of user-data and Pro For WSL agent data"""
 
@@ -644,7 +644,7 @@ ubuntu_pro:
         assert "installation_request_id" in userdata
         assert SAMPLE_ID in userdata
 
-    @mock.patch("cloudinit.util.get_linux_distro")
+    @mock.patch("cloudinit.sources.util.get_linux_distro")
     def test_landscape_vs_local_user(self, m_get_linux_dist, tmpdir, paths):
         """Validates the precedence of Landscape-provided over local data"""
 
@@ -683,7 +683,7 @@ package_update: true"""
             and "package_update" not in userdata
         ), "Landscape data should have overridden user provided data"
 
-    @mock.patch("cloudinit.util.get_linux_distro")
+    @mock.patch("cloudinit.sources.util.get_linux_distro")
     def test_landscape_provided_data(self, m_get_linux_dist, tmpdir, paths):
         """Validates the interaction of Pro For WSL agent and Landscape data"""
 
@@ -746,7 +746,7 @@ package_update: true"""
         ), "User-data should override agent data's Landscape computer tags"
         assert "wsl" not in userdata
 
-    @mock.patch("cloudinit.util.get_linux_distro")
+    @mock.patch("cloudinit.sources.util.get_linux_distro")
     def test_landscape_empty_data(self, m_get_linux_dist, tmpdir, paths):
         """Asserts that Pro for WSL data is present when Landscape is empty"""
 
@@ -792,7 +792,7 @@ ubuntu_pro:
             "agent_test" in userdata and "agent_token" in userdata
         ), "Agent data should be present"
 
-    @mock.patch("cloudinit.util.get_linux_distro")
+    @mock.patch("cloudinit.sources.util.get_linux_distro")
     def test_landscape_shell_script(self, m_get_linux_dist, tmpdir, paths):
         """Asserts that Pro for WSL and Landscape goes multipart"""
 
@@ -845,7 +845,7 @@ ubuntu_pro:
 
         assert COMMAND in shell_script
 
-    @mock.patch("cloudinit.util.get_linux_distro")
+    @mock.patch("cloudinit.sources.util.get_linux_distro")
     def test_with_landscape_no_tags(self, m_get_linux_dist, tmpdir, paths):
         """Validates the Pro For WSL default Landscape tags are applied"""
 
@@ -895,7 +895,7 @@ package_update: true"""
             "tags: wsl" in userdata
         ), "Landscape computer tags should match UP4W agent's data defaults"
 
-    @mock.patch("cloudinit.util.get_linux_distro")
+    @mock.patch("cloudinit.sources.util.get_linux_distro")
     def test_with_no_tags_at_all(self, m_get_linux_dist, tmpdir, paths):
         """Asserts the DS still works if there are no Landscape tags at all"""
 
@@ -941,7 +941,7 @@ package_update: true"""
         assert "up4w_token" in userdata
         assert "tags" not in userdata
 
-    @mock.patch("cloudinit.util.get_linux_distro")
+    @mock.patch("cloudinit.sources.util.get_linux_distro")
     def test_with_no_client_subkey(self, m_get_linux_dist, tmpdir, paths):
         """Validates the DS works without the landscape.client subkey"""
 

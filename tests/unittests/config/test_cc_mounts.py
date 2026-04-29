@@ -203,8 +203,8 @@ class TestSwapFileCreation:
 
         return dev
 
-    @mock.patch("cloudinit.util.get_mount_info")
-    @mock.patch("cloudinit.util.kernel_version")
+    @mock.patch("cloudinit.config.cc_mounts.util.get_mount_info")
+    @mock.patch("cloudinit.config.cc_mounts.util.kernel_version")
     def test_swap_creation_method_fallocate_on_xfs(
         self, m_kernel_version, m_get_mount_info
     ):
@@ -222,8 +222,8 @@ class TestSwapFileCreation:
             ]
         )
 
-    @mock.patch("cloudinit.util.get_mount_info")
-    @mock.patch("cloudinit.util.kernel_version")
+    @mock.patch("cloudinit.config.cc_mounts.util.get_mount_info")
+    @mock.patch("cloudinit.config.cc_mounts.util.kernel_version")
     def test_swap_creation_method_xfs(
         self, m_kernel_version, m_get_mount_info
     ):
@@ -248,8 +248,8 @@ class TestSwapFileCreation:
             ]
         )
 
-    @mock.patch("cloudinit.util.get_mount_info")
-    @mock.patch("cloudinit.util.kernel_version")
+    @mock.patch("cloudinit.config.cc_mounts.util.get_mount_info")
+    @mock.patch("cloudinit.config.cc_mounts.util.kernel_version")
     def test_swap_creation_method_btrfs(
         self, m_kernel_version, m_get_mount_info
     ):
@@ -270,8 +270,8 @@ class TestSwapFileCreation:
             ]
         )
 
-    @mock.patch("cloudinit.util.get_mount_info")
-    @mock.patch("cloudinit.util.kernel_version")
+    @mock.patch("cloudinit.config.cc_mounts.util.get_mount_info")
+    @mock.patch("cloudinit.config.cc_mounts.util.kernel_version")
     def test_swap_creation_method_ext4(
         self, m_kernel_version, m_get_mount_info
     ):
@@ -381,9 +381,13 @@ class TestFstabHandling:
         Different filesystems require different methods.
         """
         mocker.patch(
-            "cloudinit.util.get_mount_info", return_value=["", fstype]
+            "cloudinit.config.cc_mounts.util.get_mount_info",
+            return_value=["", fstype],
         )
-        mocker.patch("cloudinit.util.kernel_version", return_value=(4, 17))
+        mocker.patch(
+            "cloudinit.config.cc_mounts.util.kernel_version",
+            return_value=(4, 17),
+        )
 
         fstab = "/swap.img swap swap defaults 0 0\n"
 
