@@ -189,7 +189,7 @@ class TestNetConvert:
         params = self._replace_path_args(args, tmpdir)
         with mock.patch("sys.argv", ["net-convert"] + params):
             args = net_convert.get_parser().parse_args()
-        with mock.patch("cloudinit.util.chownbyname") as chown:
+        with mock.patch("cloudinit.net.networkd.util.chownbyname") as chown:
             net_convert.handle_args("somename", args)
         for path in outfile_content:
             outfile = tmpdir.join(path)

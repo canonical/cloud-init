@@ -103,7 +103,7 @@ class TestKeyboard:
         )
         assert m_subp.call_args == locale_call
 
-    @mock.patch("cloudinit.util.write_file")
+    @mock.patch("cloudinit.distros.util.write_file")
     @mock.patch("cloudinit.config.cc_keyboard.distros.subp.subp")
     def test_debian_linux_cmd(self, m_subp, m_write_file):
         """localectl is broken on Debian-based systems so write conf file"""
