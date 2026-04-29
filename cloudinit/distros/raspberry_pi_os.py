@@ -78,6 +78,7 @@ class Distro(debian.Distro):
                 ],
                 update_env={"SUDO_USER": name},
             )
+
         except subp.ProcessExecutionError as e:
             LOG.error("Failed to setup user: %s", e)
             raise

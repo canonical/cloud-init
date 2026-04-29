@@ -103,6 +103,7 @@ class Distro(cloudinit.distros.bsd.BSD):
     ) -> Tuple[List[str], List[str]]:
         pw_useradd_cmd = ["pw", "useradd", "-n", name]
         log_pw_useradd_cmd = ["pw", "useradd", "-n", name]
+
         pw_useradd_opts = {
             "homedir": "-d",
             "gecos": "-c",

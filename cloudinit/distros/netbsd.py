@@ -97,6 +97,7 @@ class NetBSD(cloudinit.distros.bsd.BSD):
         for key, val in kwargs.items():
             if key in adduser_opts and val and isinstance(val, str):
                 adduser_cmd.extend([adduser_opts[key], val])
+
             elif key in adduser_flags and val:
                 adduser_cmd.append(adduser_flags[key])
                 log_adduser_cmd.append(adduser_flags[key])

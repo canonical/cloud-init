@@ -277,12 +277,9 @@ class Distro(distros.Distro):
             LOG.debug("Adding user to group %s", addn_group)
             try:
                 subp.subp(["addgroup", name, addn_group])
-            except subp.ProcessExecutionError as e:
-                util.logexc(
-                    LOG,
-                    "Failed to add user %s to group %s",
-                    name,
-                    addn_group,
+            except subp.ProcessExecutionError:
+                LOG.warning(
+                    "Failed to add user %s to group %s", name, addn_group
                 )
                 raise
 
@@ -309,7 +306,7 @@ class Distro(distros.Distro):
         shadow_file = self.shadow_fn
         try:
             shadow_contents = util.load_text_file(shadow_file)
-        except FileNotFoundError as e:
+        except FileNotFoundError:
             LOG.warning("Failed to read %s file, file not found", shadow_file)
             raise
 
@@ -360,7 +357,7 @@ class Distro(distros.Distro):
                 )
             except IOError as e:
                 util.logexc(LOG, "Failed to update %s file", shadow_file)
-                raise
+                raise e
         else:
             util.logexc(
                 LOG, "Failed to update %s for user %s", shadow_file, name
@@ -392,7 +389,7 @@ class Distro(distros.Distro):
                 return True
         except subp.ProcessExecutionError as e:
             util.logexc(LOG, "Failed to disable password for user %s", name)
-            raise
+            raise e
 
     def unlock_passwd(self, name: str):
         """
@@ -422,7 +419,7 @@ class Distro(distros.Distro):
                 return True
         except subp.ProcessExecutionError as e:
             util.logexc(LOG, "Failed to unlock password for user %s", name)
-            raise
+            raise e
 
     def expire_passwd(self, user):
         # Check whether Shadow's or Busybox's version of 'passwd'.
@@ -441,7 +438,7 @@ class Distro(distros.Distro):
             shadow_contents = util.load_text_file(shadow_file)
         except FileNotFoundError as e:
             LOG.warning("Failed to read %s file, file not found", shadow_file)
-            raise
+            raise e
 
         # Find the line in /etc/shadow for the user
         original_line = None
@@ -475,7 +472,7 @@ class Distro(distros.Distro):
                     )
                 except IOError as e:
                     util.logexc(LOG, "Failed to update %s file", shadow_file)
-                    raise
+                    raise e
             else:
                 LOG.debug("Password for user %s is already expired", user)
         else:
