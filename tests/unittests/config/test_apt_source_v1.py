@@ -676,7 +676,9 @@ class TestAptSourceConfig:
         m_subp = mocker.patch.object(
             subp, "subp", return_value=SubpResult("PPID   PID", "")
         )
-        mocker.patch("cloudinit.config.cc_apt_configure.subp.which", return_value=False)
+        mocker.patch(
+            "cloudinit.config.cc_apt_configure.subp.which", return_value=False
+        )
         cfg = {
             "source": "ppa:smoser/cloud-init-test",
             "filename": apt_lists[0],

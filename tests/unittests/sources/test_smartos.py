@@ -440,7 +440,9 @@ def mocks(legacy_user_d, mocker, m_jmc_client_factory):
         DSMOS + ".identify_file",
         return_value="text/plain",
     )
-    mocker.patch("cloudinit.sources.DataSourceSmartOS.subp.subp", return_value=("", ""))
+    mocker.patch(
+        "cloudinit.sources.DataSourceSmartOS.subp.subp", return_value=("", "")
+    )
 
 
 def _get_ds(paths, ds_cfg=None):

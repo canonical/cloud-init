@@ -227,7 +227,8 @@ class TestSetPasswordsHandle:
         m_subp = mocker.patch(f"{MODPATH}subp.subp")
         # patch for ifconfig -a
         with mock.patch(
-            "cloudinit.config.cc_set_passwords.subp.subp", return_values=("", None)
+            "cloudinit.config.cc_set_passwords.subp.subp",
+            return_values=("", None),
         ):
             cloud = get_cloud(distro="freebsd")
         cfg = {"chpasswd": user_cfg}

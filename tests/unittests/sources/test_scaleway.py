@@ -461,7 +461,9 @@ class TestDataSourceScaleway:
         assert self.datasource.get_vendordata_raw() is None
 
     @responses.activate
-    @mock.patch("cloudinit.sources.DataSourceScaleway.time.sleep", lambda x: None)
+    @mock.patch(
+        "cloudinit.sources.DataSourceScaleway.time.sleep", lambda x: None
+    )
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4")
     def test_metadata_connection_errors_legacy_ipv4_url(self, dhcpv4):
         """
