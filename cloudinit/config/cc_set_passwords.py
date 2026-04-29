@@ -11,7 +11,7 @@ import logging
 import random
 import re
 import string
-from typing import List
+from typing import List, Tuple
 
 from cloudinit import features, lifecycle, subp, util
 from cloudinit.cloud import Cloud
@@ -32,7 +32,7 @@ meta: MetaSchema = {
 LOG = logging.getLogger(__name__)
 
 
-def get_users_by_type(users_list: list, pw_type: str) -> list:
+def get_users_by_type(users_list: list, pw_type: str) -> List[Tuple[str, str]]:
     """either password or type: RANDOM is required, user is always required"""
     return (
         []

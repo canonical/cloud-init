@@ -44,6 +44,46 @@ class TestHandleUsersGroups:
         m_user.assert_not_called()
         m_group.assert_not_called()
 
+    @pytest.mark.parametrize(
+        "groups_cfg,normalized_groups,deprecation_log",
+        (
+            pytest.param(
+                {"grp1": True, "grp2 ": True, "    ": True},
+                ["grp1", "grp2"],
+                "The user me2 has a 'groups' config value of type dict is"
+                " deprecated in 22.3",
+                id="groups-as-dict-ignores-whitespace",
+            ),
+            pytest.param(
+                " grp1,  ,grp2",
+                ["grp1", "grp2"],
+                None,
+                id="groups-comma-separated-with-whitespace",
+            ),
+        ),
+    )
+    def test_handle_users_in_cfg_normalizes_group_values(
+        self,
+        m_user,
+        m_group,
+        groups_cfg,
+        normalized_groups,
+        deprecation_log,
+        caplog,
+    ):
+        """Normalize values group config from str, dict and list."""
+        cfg = {"users": [{"name": "me2", "groups": groups_cfg}]}
+        cloud = get_cloud(distro="ubuntu", sys_cfg={}, metadata={})
+        cc_users_groups.handle("modulename", cfg, cloud, None)
+        assert_count_equal(
+            m_user.call_args_list,
+            [
+                mock.call("me2", groups=normalized_groups, default=False),
+            ],
+        )
+        if deprecation_log:
+            assert deprecation_log in caplog.text
+
     def test_handle_users_in_cfg_calls_create_users(self, m_user, m_group):
         """When users in config, create users with distro.create_user."""
         cfg = {"users": ["default", {"name": "me2"}]}  # merged cloud-config
@@ -64,11 +104,11 @@ class TestHandleUsersGroups:
             [
                 mock.call(
                     "ubuntu",
-                    groups="lxd,sudo",
+                    groups=["lxd", "sudo"],
                     lock_passwd=True,
                     shell="/bin/bash",
                 ),
-                mock.call("me2", default=False),
+                mock.call("me2", groups=[], default=False),
             ],
         )
         m_group.assert_not_called()
@@ -110,12 +150,12 @@ class TestHandleUsersGroups:
             [
                 mock.call(
                     "freebsd",
-                    groups="wheel",
+                    groups=["wheel"],
                     lock_passwd=True,
                     shell="/bin/tcsh",
                     homedir="/home/freebsd",
                 ),
-                mock.call("me2", uid=1234, default=False),
+                mock.call("me2", groups=[], uid=1234, default=False),
             ],
         )
         m_fbsd_group.assert_not_called()
@@ -144,13 +184,14 @@ class TestHandleUsersGroups:
             [
                 mock.call(
                     "ubuntu",
-                    groups="lxd,sudo",
+                    groups=["lxd", "sudo"],
                     lock_passwd=True,
                     shell="/bin/bash",
                 ),
                 mock.call(
                     "me2",
                     cloud_public_ssh_keys=["key1"],
+                    groups=[],
                     default=False,
                     ssh_redirect_user="ubuntu",
                 ),
@@ -183,12 +224,13 @@ class TestHandleUsersGroups:
             [
                 mock.call(
                     "ubuntu",
-                    groups="lxd,sudo",
+                    groups=["lxd", "sudo"],
                     lock_passwd=True,
                     shell="/bin/bash",
                 ),
                 mock.call(
                     "me2",
+                    groups=[],
                     cloud_public_ssh_keys=["key1"],
                     default=False,
                     ssh_redirect_user="ubuntu",
@@ -264,11 +306,11 @@ class TestHandleUsersGroups:
             [
                 mock.call(
                     "ubuntu",
-                    groups="lxd,sudo",
+                    groups=["lxd", "sudo"],
                     lock_passwd=True,
                     shell="/bin/bash",
                 ),
-                mock.call("me2", default=False),
+                mock.call("me2", groups=[], default=False),
             ],
         )
         m_group.assert_not_called()
@@ -285,7 +327,7 @@ class TestHandleUsersGroups:
         metadata = {}  # no public-keys defined
         cloud = get_cloud(distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata)
         cc_users_groups.handle("modulename", cfg, cloud, None)
-        m_user.assert_called_once_with("me2", default=False)
+        m_user.assert_called_once_with("me2", groups=[], default=False)
         m_group.assert_not_called()
         assert [
             (
@@ -296,6 +338,34 @@ class TestHandleUsersGroups:
                 " cloud configuration users:  [default, ..].",
             )
         ] == caplog.record_tuples
+
+    @pytest.mark.parametrize(
+        "groups_val", ("group1, group2", {"group1": True, "group2": True})
+    )
+    @mock.patch(MODPATH + ".lifecycle.deprecate")
+    def test_user_groups_normalized_to_list(
+        self, m_deprecate, m_user, m_group, groups_val, caplog, capsys
+    ):
+        cfg = {"users": [{"name": "me2", "groups": groups_val}]}
+        cloud = get_cloud(distro="ubuntu", sys_cfg={}, metadata={})
+
+        cc_users_groups.handle("modulename", cfg, cloud, None)
+
+        m_user.assert_called_once_with(
+            "me2", default=False, groups=["group1", "group2"]
+        )
+        m_group.assert_not_called()
+        if isinstance(groups_val, dict):
+            m_deprecate.assert_called_once_with(
+                deprecated=(
+                    "The user me2 has a 'groups' config value of type dict"
+                ),
+                deprecated_version="22.3",
+                extra_message=(
+                    "Use a comma-delimited string or array instead:"
+                    " group1,group2."
+                ),
+            )
 
 
 class TestUsersGroupsSchema:

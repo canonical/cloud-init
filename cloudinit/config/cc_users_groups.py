@@ -7,7 +7,9 @@
 """Users and Groups: Configure users and groups"""
 
 import logging
+from typing import List, Union
 
+from cloudinit import lifecycle
 from cloudinit.cloud import Cloud
 
 # Ensure this is aliased to a name not 'distros'
@@ -32,6 +34,37 @@ NO_HOME = ("no_create_home", "system")
 NEED_HOME = ("ssh_authorized_keys", "ssh_import_id", "ssh_redirect_user")
 
 
+def _normalize_user_groups(
+    user: str, groups: Union[str, List[str], dict]
+) -> List[str]:
+    if not groups:
+        return []
+
+    if isinstance(groups, str):
+        return [group.strip() for group in groups.split(",") if group.strip()]
+
+    if isinstance(groups, dict):
+        lifecycle.deprecate(
+            deprecated=f"The user {user} has a 'groups' config value "
+            "of type dict",
+            deprecated_version="22.3",
+            extra_message="Use a comma-delimited string or "
+            "array instead: group1,group2.",
+        )
+        return list(group.strip() for group in groups if group.strip())
+
+    if isinstance(groups, list):
+        if not all(isinstance(group, str) for group in groups):
+            raise TypeError(
+                f"Not creating user {user}. 'groups' must contain only "
+                "string values."
+            )
+        return [group.strip() for group in groups if group.strip()]
+    raise TypeError(
+        f"Not creating user {user}. 'groups' must be a string, list, or dict."
+    )
+
+
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     (users, groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
     (default_user, _user_config) = ug_util.extract_default(users)
@@ -41,7 +74,6 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         cloud.distro.create_group(name, members)
 
     for user, config in users.items():
-
         no_home = [key for key in NO_HOME if config.get(key)]
         need_home = [key for key in NEED_HOME if config.get(key)]
         if no_home and need_home:
@@ -77,4 +109,5 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                 config["ssh_redirect_user"] = default_user
                 config["cloud_public_ssh_keys"] = cloud_keys
 
-        cloud.distro.create_user(user, **config)
+        user_groups = _normalize_user_groups(user, config.pop("groups", []))
+        cloud.distro.create_user(user, groups=user_groups, **config)
