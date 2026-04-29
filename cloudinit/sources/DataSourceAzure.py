@@ -295,6 +295,7 @@ BUILTIN_DS_CONFIG = {
     "disk_aliases": {"ephemeral0": RESOURCE_DISK_PATH},
     "apply_network_config": True,  # Use IMDS published network configuration
     "apply_network_config_for_secondary_ips": True,  # Configure secondary ips
+    "experimental_fail_on_missing_customdata": False,
     "experimental_skip_ready_report": False,  # Skip final ready report
 }
 
@@ -735,6 +736,8 @@ class DataSourceAzure(sources.DataSource):
             report_diagnostic_event(msg)
             raise sources.InvalidMetaDataException(msg)
 
+        self.seed = ovf_source or "IMDS"
+
         # Refresh PPS type using metadata.
         pps_type = self._determine_pps_type(cfg, imds_md)
         if pps_type != PPSType.NONE:
@@ -762,6 +765,8 @@ class DataSourceAzure(sources.DataSource):
             if cfg.get("ProvisionGuestProxyAgent"):
                 self._check_azure_proxy_agent_status()
 
+            ovf_source = "IMDS"
+
             # fetch metadata again as it has changed after reprovisioning
             imds_md = self.get_metadata_from_imds(report_failure=True)
 
@@ -777,7 +782,6 @@ class DataSourceAzure(sources.DataSource):
         # Report errors if IMDS network configuration is missing data.
         self.validate_imds_network_metadata(imds_md=imds_md)
 
-        self.seed = ovf_source or "IMDS"
         crawled_data.update(
             {
                 "cfg": cfg,
@@ -816,9 +820,31 @@ class DataSourceAzure(sources.DataSource):
                     logger_func=LOG.debug,
                 )
 
-        # only use userdata from imds if OVF did not provide custom data
-        # userdata provided by IMDS is always base64 encoded
+        # Only use userdata from imds if OVF did not provide custom data.
+        # Userdata provided by IMDS is always base64 encoded.
         if not userdata_raw:
+            # First, check to see if the OVF was supposed to provide custom
+            # data. If it was supposed to and did not, we report failure.
+            has_custom_data = _hascustomdata_from_imds(imds_md)
+            if has_custom_data:
+                if self.ds_cfg.get("experimental_fail_on_missing_customdata"):
+                    self._report_failure(
+                        errors.ReportableErrorMissingCustomData(
+                            pps_type=pps_type.value,
+                            provisioning_media=ovf_source,
+                        )
+                    )
+                else:
+                    report_diagnostic_event(
+                        "Did not find custom data in %s, IMDS returned"
+                        " extended.compute.hasCustomData=%r"
+                        % (
+                            ovf_source,
+                            has_custom_data,
+                        ),
+                        logger_func=LOG.error,
+                    )
+
             imds_userdata = _userdata_from_imds(imds_md)
             if imds_userdata:
                 LOG.debug("Retrieved userdata from IMDS")
@@ -1720,6 +1746,13 @@ def _username_from_imds(imds_data):
 def _userdata_from_imds(imds_data):
     try:
         return imds_data["compute"]["userData"]
+    except KeyError:
+        return None
+
+
+def _hascustomdata_from_imds(imds_data) -> Optional[bool]:
+    try:
+        return imds_data["extended"]["compute"]["hasCustomData"]
     except KeyError:
         return None
 
