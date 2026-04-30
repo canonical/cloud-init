@@ -603,7 +603,7 @@ class TestDHCP:
 
 
 class TestGetElevatedRoles:
-    """Tests for Distro._get_elevated_roles."""
+    """Tests for get_elevated_roles."""
 
     @pytest.mark.parametrize(
         "kwargs,expected",
@@ -624,5 +624,4 @@ class TestGetElevatedRoles:
         ],
     )
     def test_get_elevated_roles(self, kwargs, expected):
-        distro = Distro("ubuntu", {}, None)
-        assert distro._get_elevated_roles(**kwargs) == expected
+        assert distros._get_elevated_roles(**kwargs) == expected

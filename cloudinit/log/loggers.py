@@ -114,7 +114,7 @@ def setup_security_logging(
     handler.setFormatter(SecurityFormatter())
     handler.addFilter(SecurityOnlyFilter())
     handler.setLevel(SECURITY)
-    logging.getLogger().addHandler(handler)
+    root.addHandler(handler)
 
 
 def flush_loggers(root):
@@ -189,6 +189,8 @@ def setup_logging(cfg=None):
 
             # Attempt to load its config.
             logging.config.fileConfig(log_cfg)
+            for h in root_logger.handlers:
+                h.addFilter(NoSecurityFilter())
             setup_security_logging(root_logger)
 
             # Configure warning exporter after loading logging configuration

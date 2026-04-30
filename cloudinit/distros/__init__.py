@@ -10,6 +10,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import abc
+import functools
 import logging
 import os
 import re
@@ -52,6 +53,11 @@ from cloudinit.distros.package_management.utils import known_package_managers
 from cloudinit.distros.parsers import hosts
 from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
 from cloudinit.lifecycle import log_with_downgradable_level
+from cloudinit.log.security_event_log import (
+    OWASPEventLevel,
+    OWASPEventType,
+    log_security_event,
+)
 from cloudinit.net import activators, dhcp, renderers
 from cloudinit.net.netops import NetOps
 from cloudinit.net.network_state import parse_net_config_data
@@ -121,6 +127,97 @@ PackageList = Union[
     List[Union[str, List[str]]],
     List[Union[str, List[str], Mapping]],
 ]
+
+
+def sec_log_user_created(func):
+    """A decorator to log a user creation event and group attributes."""
+
+    @functools.wraps(func)
+    def decorator(
+        self, name: str, *args, groups: Optional[List[str]] = None, **kwargs
+    ):
+        if not name:
+            raise RuntimeError(
+                "sec_log_user_created requires positional param name or kwarg"
+            )
+        params = [name]
+        groups_msg = ""
+        if groups is None:
+            groups = []
+        all_groups = groups + _get_elevated_roles(**kwargs)
+        if all_groups:
+            groups_suffix = ",".join(all_groups)
+            groups_msg = f" in groups: {groups_suffix}"
+            params.append(f"groups:{groups_suffix}")
+
+        response = func(self, name, groups=groups, *args, **kwargs)
+        log_security_event(
+            event_type=OWASPEventType.USER_CREATED,
+            level=OWASPEventLevel.INFO,
+            description=f"User '{name}' was created{groups_msg}",
+            event_params=params,
+        )
+        return response
+
+    return decorator
+
+
+def sec_log_password_changed_batch(func):
+    @functools.wraps(func)
+    def decorator(self, plist_in: List[Tuple[str, str]], *args, **kwargs):
+        response = func(self, plist_in, *args, **kwargs)
+        for userid, _ in plist_in:
+            log_security_event(
+                event_type=OWASPEventType.AUTHN_PASSWORD_CHANGE,
+                level=OWASPEventLevel.INFO,
+                description=f"Password changed for user '{userid}'",
+                event_params=[userid],
+            )
+        return response
+
+    return decorator
+
+
+def sec_log_password_changed(func):
+    """A decorator logging a password change event."""
+
+    @functools.wraps(func)
+    def decorator(self, user: str, *args, **kwargs):
+        response = func(self, user, *args, **kwargs)
+        log_security_event(
+            event_type=OWASPEventType.AUTHN_PASSWORD_CHANGE,
+            level=OWASPEventLevel.INFO,
+            description=f"Password changed for user '{user}'",
+            event_params=[user],
+        )
+        return response
+
+    return decorator
+
+
+def sec_log_system_shutdown(func):
+    """A decorator logging a system shutdown event."""
+
+    @functools.wraps(func)
+    def decorator(cls, mode: str, delay: str, message):
+        if mode == "reboot":
+            event_type = OWASPEventType.SYS_RESTART
+            description = "System restart initiated"
+        else:
+            event_type = OWASPEventType.SYS_SHUTDOWN
+            description = "System shutdown initiated"
+        if message:
+            description += f": {message}"
+
+        log_security_event(
+            event_type=event_type,
+            level=OWASPEventLevel.INFO,
+            description=description,
+            additional_data={"delay": delay, "mode": mode},
+        )
+        return func(cls, mode=mode, delay=delay, message=message)
+
+    return decorator
 
 
 class PackageInstallerError(Exception):
@@ -658,14 +755,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     def get_default_user(self):
         return self.get_option("default_user")
-
-    def _get_elevated_roles(self, **kwargs: Dict[str, Any]) -> List[str]:
-        elevated_roles = []
-        if kwargs.get("sudo"):
-            elevated_roles.append("sudo")
-        if kwargs.get("doas"):
-            elevated_roles.append("doas")
-        return elevated_roles
 
     def add_user(self, name, **kwargs) -> bool:
         """
@@ -1605,6 +1694,21 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         It is called during cloud-init's network stage if it was determined
         that network connectivity is necessary in cloud-init's network stage.
         """
+
+
+def _get_elevated_roles(
+    *,
+    sudo: Optional[str] = None,
+    doas: Optional[List[str]] = None,
+    **kwargs,
+) -> List[str]:
+    """Return a list of elevated roles provided as keyword arguments."""
+    elevated_roles = []
+    if sudo:
+        elevated_roles.append("sudo")
+    if doas:
+        elevated_roles.append("doas")
+    return elevated_roles
 
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):
