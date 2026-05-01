@@ -1750,7 +1750,7 @@ def _userdata_from_imds(imds_data):
         return None
 
 
-def _hascustomdata_from_imds(imds_data) -> Optional[bool]:
+def _hascustomdata_from_imds(imds_data: Dict) -> Optional[bool]:
     try:
         return imds_data["extended"]["compute"]["hasCustomData"]
     except KeyError:
