@@ -820,7 +820,7 @@ class DataSourceAzure(sources.DataSource):
                     logger_func=LOG.debug,
                 )
 
-        # Only use userdata from imds if OVF did not provide custom data.
+        # Only use userdata from IMDS if OVF did not provide custom data.
         # Userdata provided by IMDS is always base64 encoded.
         if not userdata_raw:
             # First, check to see if the OVF was supposed to provide custom
