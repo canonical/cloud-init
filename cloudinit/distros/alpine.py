@@ -513,8 +513,10 @@ class Distro(distros.Distro):
                 subp.subp(["addgroup", member, name])
                 LOG.info("Added user '%s' to group '%s'", member, name)
 
-    def shutdown_command(self, mode="poweroff", delay="now", message=None):
-        # called from cc_power_state_change.load_power_state
+    @classmethod
+    def _build_shutdown_command(
+        cls, mode: str, delay: str, message: str
+    ) -> List[str]:
         # Alpine has halt/poweroff/reboot, with the following specifics:
         # - we use them rather than the generic "shutdown"
         # - delay is given with "-d [integer]"
@@ -529,13 +531,8 @@ class Distro(distros.Distro):
             # Alpine's commands do not understand "now".
             command += ["0"]
         else:
-            try:
-                command.append(str(int(delay) * 60))
-            except ValueError as e:
-                raise TypeError(
-                    "power_state[delay] must be 'now' or '+m' (minutes)."
-                    " found '%s'." % (delay,)
-                ) from e
+            command.append(str(int(delay) * 60))
+
         return command
 
     @staticmethod
