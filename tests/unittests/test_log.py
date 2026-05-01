@@ -173,7 +173,7 @@ class TestDeprecatedLogs:
         assert 2 == len(caplog.records)
 
 
-def test_logger_prints_to_stderr(capsys, caplog):
+def test_logger_prints_to_stderr(capsys):
     message = "to stdout"
     loggers.setup_basic_logging()
     logging.getLogger().warning(message)
