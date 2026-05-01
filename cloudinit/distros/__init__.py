@@ -1332,7 +1332,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 LOG.info("Added user '%s' to group '%s'", member, name)
 
     @classmethod
-    def shutdown_command(cls, *, mode, delay, message):
+    def shutdown_command(
+        cls, *, mode: str, delay: Union[int, str], message: str
+    ) -> List[str]:
         try:
             if delay != "now":
                 delay = "+%d" % int(delay)
@@ -1341,11 +1343,16 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 "power_state[delay] must be 'now' or '+m' (minutes)."
                 " found '%s'." % (delay,)
             ) from e
-        command = ["shutdown", cls.shutdown_options_map[mode]]
-        args = command + [delay]
+        return cls._build_shutdown_command(mode, delay, message)  # type: ignore[arg-type]
+
+    @classmethod
+    def _build_shutdown_command(
+        cls, mode: str, delay: str, message: str
+    ) -> List[str]:
+        command = ["shutdown", cls.shutdown_options_map[mode], delay]
         if message:
-            args.append(message)
-        return args
+            command.append(message)
+        return command
 
     @classmethod
     def reload_init(cls, rcs=None):
