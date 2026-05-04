@@ -7,7 +7,7 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import atomic_helper, util
+from cloudinit import atomic_helper
 from cloudinit.sources import DataSourceOpenNebula as ds
 from tests.unittests.helpers import populate_dir
 
@@ -365,7 +365,6 @@ class TestOpenNebulaDataSource:
             }.get(criteria, [])
 
         m_find_devs_with.side_effect = my_devs_with
-        util.find_devs_with = my_devs_with
         assert ["/dev/sdb", "/dev/sr0", "/dev/vdb"] == ds.find_candidate_devs()
 
 
@@ -567,16 +566,6 @@ class TestOpenNebulaNetwork:
         empty string.
         """
         context = {"ETH9_DUMMY": ""}
-        net = ds.OpenNebulaNetwork(context, mock.Mock())
-        val = net.get_field("eth9", "dummy")
-        assert None is val
-
-    def test_get_field_nonecontext(self):
-        """
-        Verify get_field('device', 'name') returns None if context value is
-        None.
-        """
-        context = {"ETH9_DUMMY": None}
         net = ds.OpenNebulaNetwork(context, mock.Mock())
         val = net.get_field("eth9", "dummy")
         assert None is val

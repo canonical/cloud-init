@@ -20,6 +20,7 @@ import pwd
 import re
 import shlex
 import textwrap
+from typing import Any, Dict, List, Optional, overload
 
 from cloudinit import atomic_helper, net, sources, subp, util
 
@@ -56,8 +57,8 @@ class DataSourceOpenNebula(sources.DataSource):
 
     def _get_data(self):
         defaults = {"instance-id": DEFAULT_IID}
-        results = None
-        seed = None
+        results: Optional[Dict[str, Any]] = None
+        seed: Optional[str] = None
 
         # decide parseuser for context.sh shell reader
         parseuser = DEFAULT_PARSEUSER
@@ -94,7 +95,7 @@ class DataSourceOpenNebula(sources.DataSource):
                 LOG.debug("found datasource in %s", cdev)
                 break
 
-        if not seed:
+        if not seed or results is None:
             return False
 
         # merge fetched metadata with datasource defaults
@@ -115,8 +116,10 @@ class DataSourceOpenNebula(sources.DataSource):
         self.userdata_raw = results.get("userdata")
         return True
 
-    def _get_subplatform(self):
+    def _get_subplatform(self) -> str:
         """Return the subplatform metadata source details."""
+        if self.seed is None:
+            return sources.METADATA_UNKNOWN
         if self.seed_dir in self.seed:
             subplatform_type = "seed-dir"
         else:
@@ -148,33 +151,40 @@ class BrokenContextDiskDir(Exception):
 
 
 class OpenNebulaNetwork:
-    def __init__(self, context, distro, system_nics_by_mac=None):
+    def __init__(
+        self,
+        context: Dict[str, str],
+        distro: Any,
+        system_nics_by_mac: Optional[Dict[str, str]] = None,
+    ) -> None:
         self.context = context
         if system_nics_by_mac is None:
             system_nics_by_mac = get_physical_nics_by_mac(distro)
-        self.ifaces = collections.OrderedDict(
-            [
-                k
-                for k in sorted(
-                    system_nics_by_mac.items(),
-                    key=lambda k: net.natural_sort_key(k[1]),
-                )
-            ]
+        self.ifaces: collections.OrderedDict[str, str] = (
+            collections.OrderedDict(
+                [
+                    k
+                    for k in sorted(
+                        system_nics_by_mac.items(),
+                        key=lambda k: net.natural_sort_key(k[1]),
+                    )
+                ]
+            )
         )
 
         # OpenNebula 4.14+ provide macaddr for ETHX in variable ETH_MAC.
         # context_devname provides {mac.lower():ETHX, mac2.lower():ETHX}
-        self.context_devname = {}
+        self.context_devname: Dict[str, str] = {}
         for k, v in context.items():
             m = re.match(r"^(.+)_MAC$", k)
             if m:
                 self.context_devname[v.lower()] = m.group(1)
 
-    def mac2ip(self, mac):
+    def mac2ip(self, mac: str) -> str:
         return ".".join([str(int(c, 16)) for c in mac.split(":")[2:]])
 
-    def get_nameservers(self, dev):
-        nameservers = {}
+    def get_nameservers(self, dev: str) -> Dict[str, List[str]]:
+        nameservers: Dict[str, List[str]] = {}
         dns = self.get_field(dev, "dns", "").split()
         dns.extend(self.context.get("DNS", "").split())
         if dns:
@@ -184,14 +194,14 @@ class OpenNebulaNetwork:
             nameservers["search"] = search_domain
         return nameservers
 
-    def get_mtu(self, dev):
+    def get_mtu(self, dev: str) -> Optional[str]:
         return self.get_field(dev, "mtu")
 
-    def get_ip(self, dev, mac):
+    def get_ip(self, dev: str, mac: str) -> str:
         return self.get_field(dev, "ip", self.mac2ip(mac))
 
-    def get_ip6(self, dev):
-        addresses6 = []
+    def get_ip6(self, dev: str) -> List[str]:
+        addresses6: List[str] = []
         ip6 = self.get_field(dev, "ip6")
         if ip6:
             addresses6.append(ip6)
@@ -200,24 +210,35 @@ class OpenNebulaNetwork:
             addresses6.append(ip6_ula)
         return addresses6
 
-    def get_ip6_prefix(self, dev):
+    def get_ip6_prefix(self, dev: str) -> str:
         return self.get_field(dev, "ip6_prefix_length", "64")
 
-    def get_gateway(self, dev):
+    def get_gateway(self, dev: str) -> Optional[str]:
         return self.get_field(dev, "gateway")
 
-    def get_gateway6(self, dev):
+    def get_gateway6(self, dev: str) -> Optional[str]:
         # OpenNebula 6.1.80 introduced new context parameter ETHx_IP6_GATEWAY
         # to replace old ETHx_GATEWAY6. Old ETHx_GATEWAY6 will be removed in
         # OpenNebula 6.4.0 (https://github.com/OpenNebula/one/issues/5536).
-        return self.get_field(
-            dev, "ip6_gateway", self.get_field(dev, "gateway6")
-        )
+        ip6_gateway = self.get_field(dev, "ip6_gateway")
+        if ip6_gateway is not None:
+            return ip6_gateway
+        return self.get_field(dev, "gateway6")
 
-    def get_mask(self, dev):
+    def get_mask(self, dev: str) -> str:
         return self.get_field(dev, "mask", "255.255.255.0")
 
-    def get_field(self, dev, name, default=None):
+    @overload
+    def get_field(self, dev: str, name: str) -> Optional[str]: ...
+    @overload
+    def get_field(
+        self, dev: str, name: str, default: None
+    ) -> Optional[str]: ...
+    @overload
+    def get_field(self, dev: str, name: str, default: str) -> str: ...
+    def get_field(
+        self, dev: str, name: str, default: Optional[str] = None
+    ) -> Optional[str]:
         """return the field name in context for device dev.
 
         context stores <dev>_<NAME> (example: eth0_DOMAIN).
@@ -233,12 +254,10 @@ class OpenNebulaNetwork:
         # allow empty string to return the default.
         return default if val in (None, "") else val
 
-    def gen_conf(self):
-        netconf = {}
-        netconf["version"] = 2
-        netconf["ethernets"] = {}
+    def gen_conf(self) -> Dict[str, Any]:
+        netconf: Dict[str, Any] = {"version": 2, "ethernets": {}}
 
-        ethernets = {}
+        ethernets: Dict[str, Dict[str, Any]] = {}
         for mac, dev in self.ifaces.items():
             mac = mac.lower()
 
@@ -246,7 +265,7 @@ class OpenNebulaNetwork:
             # dev stores the current system name.
             c_dev = self.context_devname.get(mac, dev)
 
-            devconf = {}
+            devconf: Dict[str, Any] = {}
 
             # Set MAC address
             devconf["match"] = {"macaddress": mac}
@@ -323,7 +342,9 @@ def varprinter():
     )
 
 
-def parse_shell_config(content, asuser=None):
+def parse_shell_config(
+    content: str, asuser: Optional[str] = None
+) -> Dict[str, str]:
     """run content and return environment variables which changed
 
     WARNING: the special variable _start_ is used to delimit content
@@ -394,13 +415,19 @@ def parse_shell_config(content, asuser=None):
     return ret
 
 
-def read_context_disk_dir(source_dir, distro, asuser=None):
+def read_context_disk_dir(
+    source_dir: str, distro: Any, asuser: Optional[str] = None
+) -> Dict[str, Any]:
+    """Read ``source_dir`` and return a dictionary containing context data.
+
+    The returned dictionary always includes ``"metadata"`` and
+    ``"userdata"`` keys, and may also include ``"network-interfaces"``
+    when network configuration can be generated from the context.
+
+    If ``source_dir`` is not a valid context directory, raise
+    ``NonContextDiskDir``.
     """
-    read_context_disk_dir(source_dir):
-    read source_dir and return a tuple with metadata dict and user-data
-    string populated.  If not a valid dir, raise a NonContextDiskDir
-    """
-    found = {}
+    found: Dict[str, str] = {}
     for af in CONTEXT_DISK_FILES:
         fn = os.path.join(source_dir, af)
         if os.path.isfile(fn):
@@ -409,8 +436,8 @@ def read_context_disk_dir(source_dir, distro, asuser=None):
     if not found:
         raise NonContextDiskDir("%s: %s" % (source_dir, "no files found"))
 
-    context = {}
-    results = {"userdata": None, "metadata": {}}
+    context: Dict[str, str] = {}
+    results: Dict[str, Any] = {"userdata": None, "metadata": {}}
 
     if "context.sh" in found:
         if asuser is not None:
@@ -450,7 +477,7 @@ def read_context_disk_dir(source_dir, distro, asuser=None):
         ssh_key_var = "SSH_PUBLIC_KEY"
 
     if ssh_key_var:
-        lines = context.get(ssh_key_var).splitlines()
+        lines = context[ssh_key_var].splitlines()
         results["metadata"]["public-keys"] = [
             line for line in lines if len(line) and not line.startswith("#")
         ]
@@ -490,7 +517,7 @@ def read_context_disk_dir(source_dir, distro, asuser=None):
     return results
 
 
-def get_physical_nics_by_mac(distro):
+def get_physical_nics_by_mac(distro: Any) -> Dict[str, str]:
     devs = net.get_interfaces_by_mac()
     return dict(
         [(m, n) for m, n in devs.items() if distro.networking.is_physical(n)]
