@@ -663,7 +663,6 @@ class DataSourceAzure(sources.DataSource):
         # it determines the value of ret. More specifically, the first one in
         # the candidate list determines the path to take in order to get the
         # metadata we need.
-        ovf_source = None
         md = {"local-hostname": ""}
         cfg = {"system_info": {"default_user": {"name": ""}}}
         userdata_raw = ""
@@ -685,9 +684,9 @@ class DataSourceAzure(sources.DataSource):
                 else:
                     md, userdata_raw, cfg, files = load_azure_ds_dir(src)
 
-                ovf_source = src
+                self.seed = src
                 report_diagnostic_event(
-                    "Found provisioning metadata in %s" % ovf_source,
+                    "Found provisioning metadata in %s" % self.seed,
                     logger_func=LOG.debug,
                 )
                 break
@@ -715,7 +714,7 @@ class DataSourceAzure(sources.DataSource):
         # not have UDF support.  In either case, require IMDS metadata.
         # If we require IMDS metadata, try harder to obtain networking, waiting
         # for at least 20 minutes.  Otherwise only wait 5 minutes.
-        requires_imds_metadata = bool(self._iso_dev) or ovf_source is None
+        requires_imds_metadata = bool(self._iso_dev) or self.seed is None
         timeout_minutes = 20 if requires_imds_metadata else 5
         try:
             self._setup_ephemeral_networking(timeout_minutes=timeout_minutes)
@@ -731,16 +730,18 @@ class DataSourceAzure(sources.DataSource):
 
             imds_md = self.get_metadata_from_imds(report_failure=True)
 
-        if not imds_md and ovf_source is None:
+        if not imds_md and self.seed is None:
             msg = "No OVF or IMDS available"
             report_diagnostic_event(msg)
             raise sources.InvalidMetaDataException(msg)
 
-        self.seed = ovf_source or "IMDS"
+        self.seed = self.seed or "IMDS"
 
         # Refresh PPS type using metadata.
         pps_type = self._determine_pps_type(cfg, imds_md)
         if pps_type != PPSType.NONE:
+            self.seed = "IMDS"
+
             if util.is_FreeBSD():
                 msg = "Free BSD is not supported for PPS VMs"
                 report_diagnostic_event(msg, logger_func=LOG.error)
@@ -764,8 +765,6 @@ class DataSourceAzure(sources.DataSource):
             md, userdata_raw, cfg, files = self._reprovision()
             if cfg.get("ProvisionGuestProxyAgent"):
                 self._check_azure_proxy_agent_status()
-
-            ovf_source = "IMDS"
 
             # fetch metadata again as it has changed after reprovisioning
             imds_md = self.get_metadata_from_imds(report_failure=True)
@@ -831,7 +830,7 @@ class DataSourceAzure(sources.DataSource):
                     self._report_failure(
                         errors.ReportableErrorMissingCustomData(
                             pps_type=pps_type.value,
-                            provisioning_media=ovf_source,
+                            provisioning_media=self.seed,
                         )
                     )
                 else:
@@ -839,7 +838,7 @@ class DataSourceAzure(sources.DataSource):
                         "Did not find custom data in %s, IMDS returned"
                         " extended.compute.hasCustomData=%r"
                         % (
-                            ovf_source,
+                            self.seed,
                             has_custom_data,
                         ),
                         logger_func=LOG.error,
@@ -857,7 +856,7 @@ class DataSourceAzure(sources.DataSource):
                         "Bad userdata in IMDS", logger_func=LOG.warning
                     )
 
-        if ovf_source == ddir:
+        if self.seed == ddir:
             report_diagnostic_event(
                 "using files cached in %s" % ddir, logger_func=LOG.debug
             )
