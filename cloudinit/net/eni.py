@@ -7,7 +7,7 @@ import logging
 import os
 import re
 from contextlib import suppress
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 from cloudinit import performance, subp, util
 from cloudinit.net import (
@@ -453,7 +453,7 @@ def has_same_ip_version(addr_or_net: str, is_ipv6: bool) -> bool:
 class Renderer(renderer.Renderer):
     """Renders network information in a /etc/network/interfaces format."""
 
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: Optional[Optional[Mapping[str, Any]]] = None):
         if not config:
             config = {}
         self.eni_path = config.get("eni_path", "etc/network/interfaces")
