@@ -975,6 +975,76 @@ class TestOpenNebulaNetwork:
 
         assert expected == net.gen_conf()
 
+    # ------------------------------------------------------------------ #
+    # ETHx_ROUTES                                                          #
+    # ------------------------------------------------------------------ #
+
+    @pytest.mark.parametrize(
+        "context,expected",
+        [
+            pytest.param({}, [], id="absent"),
+            pytest.param({"ETH0_ROUTES": ""}, [], id="empty_string"),
+            pytest.param(
+                {"ETH0_ROUTES": "10.0.0.0/8 via 192.168.1.1"},
+                [{"to": "10.0.0.0/8", "via": "192.168.1.1"}],
+                id="single_entry",
+            ),
+            pytest.param(
+                {
+                    "ETH0_ROUTES": (
+                        "10.0.0.0/8 via 192.168.1.1,"
+                        " 172.16.0.0/12 via 192.168.1.254"
+                    )
+                },
+                [
+                    {"to": "10.0.0.0/8", "via": "192.168.1.1"},
+                    {"to": "172.16.0.0/12", "via": "192.168.1.254"},
+                ],
+                id="multiple_comma_separated_entries",
+            ),
+            pytest.param(
+                {"ETH0_ROUTES": "bad-entry, 10.0.0.0/8 via 192.168.1.1"},
+                [{"to": "10.0.0.0/8", "via": "192.168.1.1"}],
+                id="malformed_entry_skipped",
+            ),
+        ],
+    )
+    def test_get_routes(self, context, expected):
+        net = ds.OpenNebulaNetwork(context, mock.Mock())
+        assert net.get_routes("eth0") == expected
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_routes(self, m_get_phys_by_mac):
+        """Routes from ETHx_ROUTES appear in gen_conf() output."""
+        self.maxDiff = None
+        context = {
+            "ETH0_MAC": "02:00:0a:12:01:01",
+            "ETH0_IP": "10.0.0.5",
+            "ETH0_MASK": "255.255.255.0",
+            "ETH0_GATEWAY": "10.0.0.1",
+            "ETH0_ROUTES": (
+                "192.168.0.0/16 via 10.0.0.1, 172.16.0.0/12 via 10.0.0.1"
+            ),
+        }
+        for nic in self.system_nics:
+            m_get_phys_by_mac.return_value = {MACADDR: nic}
+            net = ds.OpenNebulaNetwork(context, mock.Mock())
+            conf = net.gen_conf()
+            routes = conf["ethernets"][nic].get("routes", [])
+            assert {"to": "192.168.0.0/16", "via": "10.0.0.1"} in routes
+            assert {"to": "172.16.0.0/12", "via": "10.0.0.1"} in routes
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_no_routes_key_when_absent(self, m_get_phys_by_mac):
+        """gen_conf() does not emit 'routes' key when ETHx_ROUTES is unset."""
+        context = {
+            "ETH0_MAC": "02:00:0a:12:01:01",
+        }
+        m_get_phys_by_mac.return_value = {MACADDR: "eth0"}
+        net = ds.OpenNebulaNetwork(context, mock.Mock())
+        conf = net.gen_conf()
+        assert "routes" not in conf["ethernets"]["eth0"]
+
 
 class TestParseShellConfig:
     @pytest.mark.allow_subp_for("bash", "sh")
