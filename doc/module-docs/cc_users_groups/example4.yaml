@@ -1,5 +1,6 @@
 #cloud-config
 users:
 - doas: [permit nopass newsuper, deny newsuper as root]
+  lock_passwd: true
   name: newsuper
-
+  ssh_import_id: ['gh:TheRealFalcon', 'lp:falcojr']

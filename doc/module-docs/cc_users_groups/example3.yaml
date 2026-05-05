@@ -2,3 +2,5 @@
 users:
 - name: newsuper
   shell: /bin/bash
+  lock_passwd: true
+  ssh_import_id: ['gh:TheRealFalcon', 'lp:falcojr']
