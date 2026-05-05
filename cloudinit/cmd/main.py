@@ -19,7 +19,7 @@ import sys
 import traceback
 import logging
 import yaml
-from typing import Optional, Tuple, Callable, Union
+from typing import Any, Optional, Tuple, Callable, Union
 
 from cloudinit import features, netinfo
 from cloudinit import signal_handler
@@ -98,15 +98,22 @@ class SubcommandAwareArgumentParser(argparse.ArgumentParser):
         if not self._raw_args:
             self._raw_args = sys.argv[1:]
         subcommand = None
+        if self._subparsers is None:
+            self.print_help(file=sys.stderr)
+            sys.exit(2)
+        choices = self._subparsers._group_actions[0].choices
+        if not isinstance(choices, dict):
+            self.print_help(file=sys.stderr)
+            sys.exit(2)
         if self._raw_args:
             for arg in self._raw_args:
-                if arg in self._subparsers._group_actions[0].choices:
+                if arg in choices:
                     subcommand = arg
                     break
         # Check if the subcommand exists and show its help
 
         if subcommand:
-            subparser = self._subparsers._group_actions[0].choices[subcommand]
+            subparser = choices[subcommand]
             subparser.print_help(
                 file=sys.stderr
             )  # Print subcommand help to stderr
@@ -546,6 +553,13 @@ def main_init(name, args):
     bring_up_interfaces = _should_bring_up_interfaces(init, args)
     try:
         init.fetch(existing=existing)
+        if init.datasource is None:
+            LOG.debug(
+                "[%s] Exiting. datasource is None after fetch,"
+                " cannot continue.",
+                mode,
+            )
+            return (None, [])
         # if in network mode, and the datasource is local
         # then work was done at that stage.
         if mode == sources.DSMODE_NETWORK and init.datasource.dsmode != mode:
@@ -613,6 +627,13 @@ def main_init(name, args):
                 )
                 util.write_file(init.paths.get_runpath(".skip-network"), "")
 
+        if init.datasource is None:
+            LOG.debug(
+                "[%s] Exiting. datasource is None in local mode,"
+                " cannot check dsmode.",
+                mode,
+            )
+            return (None, [])
         if init.datasource.dsmode != mode:
             LOG.debug(
                 "[%s] Exiting. datasource %s not in local mode.",
@@ -912,13 +933,13 @@ def status_wrapper(name, args):
             "Invalid cloud init mode specified '{0}'".format(mode)
         )
 
-    nullstatus = {
+    nullstatus: dict[str, list[Any] | dict[str, Any] | None] = {
         "errors": [],
         "recoverable_errors": {},
         "start": None,
         "finished": None,
     }
-    status = {
+    status: dict[str, Any] = {
         "v1": {
             "datasource": None,
             "init": nullstatus.copy(),
@@ -955,6 +976,8 @@ def status_wrapper(name, args):
             lambda h: isinstance(h, loggers.LogExporter), root_logger.handlers
         )
     )
+    if not isinstance(handler, loggers.LogExporter):
+        raise RuntimeError("LogExporter handler not found in root logger")
     preexisting_recoverable_errors = handler.export_logs()
 
     # Write status.json prior to running init / module code
@@ -1052,7 +1075,7 @@ def _maybe_set_hostname(init, stage, retry_stage):
     )
     if hostname:  # meta-data or user-data hostname content
         try:
-            cc_set_hostname.handle("set_hostname", init.cfg, cloud, None)
+            cc_set_hostname.handle("set_hostname", init.cfg, cloud, [])
         except cc_set_hostname.SetHostnameError as e:
             LOG.debug(
                 "Failed setting hostname in %s stage. Will"
