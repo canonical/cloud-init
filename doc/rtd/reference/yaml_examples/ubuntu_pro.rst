@@ -64,19 +64,6 @@ Enabling services can be skipped as follows:
    :language: yaml
    :linenos:
 
-Enable beta services
-====================
-
-This example shows how to enable both ESM and the beta real-time kernel
-services. Note that real-time Ubuntu is `available on specific releases`_.
-
-.. literalinclude:: ../../../module-docs/cc_ubuntu_pro/example6.yaml
-   :language: yaml
-   :linenos:
-
-Note that a reboot will be required after the real-time kernel has been
-installed.
-
 Disable auto-attach
 ===================
 
@@ -86,4 +73,3 @@ Disable auto-attach
 
 .. LINKS
 .. _compatibility matrix: https://canonical-ubuntu-pro-client.readthedocs-hosted.com/en/latest/references/compatibility_matrix/
-.. _available on specific releases: https://documentation.ubuntu.com/real-time/en/latest/reference/releases/
