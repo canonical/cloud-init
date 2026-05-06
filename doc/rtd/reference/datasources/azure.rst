@@ -50,16 +50,16 @@ The settings that may be configured are:
 
   Boolean to include ``set-name`` directives in the generated network
   configuration, which renames interfaces to ``ethX`` naming. When set to
-  False, interfaces are matched by MAC address only and retain kernel-assigned
-  names. Default is True.
+  False, interfaces are matched by MAC address (and optionally driver)
+  without renaming, and retain kernel-assigned names. Default is True.
 
   Azure's IMDS does not guarantee the ordering of NICs in the network metadata
   response (see `Azure IMDS documentation
   <https://learn.microsoft.com/azure/virtual-machines/instance-metadata-service>`_).
   Because cloud-init derives ``ethX`` names from the IMDS response order,
   NIC names may change between reboots. Disabling this option avoids that
-  problem by matching interfaces on MAC address only, allowing the kernel or
-  udev to assign and retain stable names.
+  problem by matching interfaces on MAC address (and optionally driver),
+  allowing the kernel or udev to assign and retain stable names.
 
 * :command:`data_dir`
 
