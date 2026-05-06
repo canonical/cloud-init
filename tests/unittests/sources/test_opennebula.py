@@ -5,9 +5,11 @@ import os
 import pwd
 from unittest import mock
 
+import jsonschema
 import pytest
 
 from cloudinit import atomic_helper
+from cloudinit.config.schema import SchemaType, get_schema
 from cloudinit.sources import DataSourceOpenNebula as ds
 from tests.unittests.helpers import populate_dir
 
@@ -370,8 +372,20 @@ class TestOpenNebulaDataSource:
 
 @mock.patch(DS_PATH + ".net.get_interfaces_by_mac", mock.Mock(return_value={}))
 class TestOpenNebulaNetwork:
-
     system_nics = ("eth0", "ens3")
+
+    @pytest.fixture(autouse=True)
+    def _validate_gen_conf_schema(self, monkeypatch):
+        """Wrap gen_conf() to assert schema validity on every test."""
+        schema = get_schema(SchemaType.NETWORK_CONFIG_V2)
+        original = ds.OpenNebulaNetwork.gen_conf
+
+        def validated(self_inner):
+            result = original(self_inner)
+            jsonschema.validate(result, schema)
+            return result
+
+        monkeypatch.setattr(ds.OpenNebulaNetwork, "gen_conf", validated)
 
     def test_context_devname(self):
         """Verify context_devname correctly returns mac and name."""
