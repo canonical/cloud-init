@@ -523,7 +523,7 @@ class TestNetworkConfigFromOpcImds:
             assert 9000 == primary_cfg["mtu"]
             assert 1 == len(primary_cfg["subnets"])
             assert "address" not in primary_cfg["subnets"][0]
-            assert "dhcp6" == primary_cfg["subnets"][0]["type"]
+            assert "manual" == primary_cfg["subnets"][0]["type"]
         secondary_cfg = nic_cfg[secondary_nic_index]
         assert "ens4" == secondary_cfg["name"]
         assert "physical" == secondary_cfg["type"]

@@ -388,7 +388,15 @@ class DataSourceOracle(sources.DataSource):
 
             if is_primary:
                 if is_ipv6_only:
-                    subnets = [{"type": "dhcp6"}]
+                    # If IMDS already configured IPv6 (/64),
+                    # don't enable DHCPv6 on the interface
+                    # in order to avoid conflicts with /128.
+                    if vnic_dict.get("ipv6Addresses"):
+                        subnets = [{"type": "manual"}]
+                    # Otherwise, apply DHCPv6
+                    else:
+                        subnets = [{"type": "dhcp6"}]
+
                 else:
                     subnets = [{"type": "dhcp"}]
             else:
