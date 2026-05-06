@@ -77,8 +77,6 @@ cc_users_groups:
     file: cc_users_groups/example3.yaml
   - comment: >
       Example 4: Skip creation of the ``default`` user and only create
-      ``newsuper``. Password-based login is rejected, but the GitHub user
-      ``TheRealFalcon`` and the Launchpad user ``falcojr`` can SSH as
       ``newsuper``. ``doas``/``opendoas`` is configured to permit this user to
       run commands as other users (without being prompted for a password)
       except not as root.
@@ -97,8 +95,9 @@ cc_users_groups:
   - comment: >
       Example 7: Override any ``default_user`` config in
       ``/etc/cloud/cloud.cfg`` with supplemental config options. This config
-      will make the default user ``mynewdefault`` and change the user to not
-      have ``sudo`` rights.
+      will make the default user ``mynewdefault``, change the user to not
+      have ``sudo`` rights and allow the Launchpad user ``chad.smith`` to
+      SSH as ``mynewdefault``.
     file: cc_users_groups/example7.yaml
   - comment: >
       Example 8: Avoid creating any ``default_user``.
