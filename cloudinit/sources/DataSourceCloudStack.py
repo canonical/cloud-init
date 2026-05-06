@@ -198,6 +198,7 @@ class DataSourceCloudStack(sources.DataSource):
 
     def _get_data(self):
         seed_ret = {}
+        primary_nic = None
         if util.read_optional_seed(seed_ret, base=(self.seed_dir + "/")):
             self.userdata_raw = seed_ret["user-data"]
             self.metadata = seed_ret["meta-data"]
