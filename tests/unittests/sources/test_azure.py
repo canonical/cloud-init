@@ -989,6 +989,91 @@ class TestGenerateNetworkConfig:
             == expected
         )
 
+    @pytest.mark.parametrize(
+        "set_name,expected",
+        [
+            (
+                True,
+                {
+                    "ethernets": {
+                        "eth0": {
+                            "dhcp4": True,
+                            "dhcp4-overrides": {"route-metric": 100},
+                            "dhcp6": True,
+                            "dhcp6-overrides": {"route-metric": 100},
+                            "match": {"macaddress": "00:0d:3a:04:75:98"},
+                            "set-name": "eth0",
+                        },
+                        "eth1": {
+                            "dhcp4": True,
+                            "dhcp4-overrides": {
+                                "route-metric": 200,
+                                "use-dns": False,
+                            },
+                            "dhcp6": False,
+                            "match": {"macaddress": "22:0d:3a:04:75:98"},
+                            "set-name": "eth1",
+                        },
+                    },
+                    "version": 2,
+                },
+            ),
+            (
+                False,
+                {
+                    "ethernets": {
+                        "enx000d3a047598": {
+                            "dhcp4": True,
+                            "dhcp4-overrides": {"route-metric": 100},
+                            "dhcp6": True,
+                            "dhcp6-overrides": {"route-metric": 100},
+                            "match": {"macaddress": "00:0d:3a:04:75:98"},
+                        },
+                        "enx220d3a047598": {
+                            "dhcp4": True,
+                            "dhcp4-overrides": {
+                                "route-metric": 200,
+                                "use-dns": False,
+                            },
+                            "dhcp6": False,
+                            "match": {"macaddress": "22:0d:3a:04:75:98"},
+                        },
+                    },
+                    "version": 2,
+                },
+            ),
+        ],
+    )
+    def test_set_name_config(self, mock_get_interfaces, set_name, expected):
+        """Verify set-name with two NICs (primary with IPv6, secondary)."""
+        two_nic_metadata = {
+            "interface": [
+                {
+                    "macAddress": "000D3A047598",
+                    "ipv6": {
+                        "subnet": [{"prefix": "64", "address": "fd00::"}],
+                        "ipAddress": [{"privateIpAddress": "fd00::4"}],
+                    },
+                    "ipv4": {
+                        "subnet": [{"prefix": "24", "address": "10.0.0.0"}],
+                        "ipAddress": [
+                            {
+                                "privateIpAddress": "10.0.0.4",
+                                "publicIpAddress": "104.46.124.81",
+                            }
+                        ],
+                    },
+                },
+                SECONDARY_INTERFACE,
+            ]
+        }
+        result = dsaz.generate_network_config_from_instance_network_metadata(
+            two_nic_metadata,
+            apply_network_config_for_secondary_ips=True,
+            apply_network_config_set_name=set_name,
+        )
+        assert result == expected
+
 
 class TestNetworkConfig:
     fallback_config = {
@@ -1004,22 +1089,45 @@ class TestNetworkConfig:
         ],
     }
 
-    def test_single_ipv4_nic_configuration(
-        self, azure_ds, mock_get_interfaces
-    ):
-        """Network config emits dhcp on single nic with ipv4"""
-        expected = {
-            "ethernets": {
-                "eth0": {
-                    "dhcp4": True,
-                    "dhcp4-overrides": {"route-metric": 100},
-                    "dhcp6": False,
-                    "match": {"macaddress": "00:0d:3a:04:75:98"},
-                    "set-name": "eth0",
+    @pytest.mark.parametrize(
+        "set_name,expected",
+        [
+            (
+                True,
+                {
+                    "ethernets": {
+                        "eth0": {
+                            "dhcp4": True,
+                            "dhcp4-overrides": {"route-metric": 100},
+                            "dhcp6": False,
+                            "match": {"macaddress": "00:0d:3a:04:75:98"},
+                            "set-name": "eth0",
+                        },
+                    },
+                    "version": 2,
                 },
-            },
-            "version": 2,
-        }
+            ),
+            (
+                False,
+                {
+                    "ethernets": {
+                        "enx000d3a047598": {
+                            "dhcp4": True,
+                            "dhcp4-overrides": {"route-metric": 100},
+                            "dhcp6": False,
+                            "match": {"macaddress": "00:0d:3a:04:75:98"},
+                        },
+                    },
+                    "version": 2,
+                },
+            ),
+        ],
+    )
+    def test_network_config(
+        self, azure_ds, mock_get_interfaces, set_name, expected
+    ):
+        """Verify network_config via ds_cfg for set-name enabled/disabled."""
+        azure_ds.ds_cfg["apply_network_config_set_name"] = set_name
         azure_ds._metadata_imds = NETWORK_METADATA
 
         assert azure_ds.network_config == expected
