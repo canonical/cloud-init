@@ -134,13 +134,14 @@ def _normalize_users(u_cfg, def_user_cfg=None):
             # Now merge the extracted groups with the default config provided
             users_groups = util.uniq_merge_sorted(parsed_groups, def_groups)
             parsed_config["groups"] = ",".join(users_groups)
-            # The real config for the default user is the combination of the
-            # default user config provided by the distro, the default user
-            # config provided by the above merging for the user 'default' and
-            # then the parsed config from the user's 'real name' which does not
-            # have to be 'default' (but could be)
+            # The real config for the default user is the combination of:
+            # - the parsed config from the user's 'real name' which does
+            #   not have to be 'default' (but could be)
+            # - then the default user config provided by the above merging
+            #   for the user 'default'
+            # - then the default user config provided by the distro not
             users[def_user] = util.mergemanydict(
-                [def_user_cfg, def_config, parsed_config]
+                [parsed_config, def_config, def_user_cfg]
             )
 
     # Ensure that only the default user that we found (if any) is actually

@@ -196,6 +196,30 @@ class TestUGNormalize:
         assert users["bob"]["blah"] is True
         assert users["bob"]["default"] is True
 
+    def test_users_dict_override_default_attribute(self):
+        distro = self._make_distro("ubuntu", bcfg)
+        ug_cfg = {
+            "users": ["default", {"name": "bob", "lock_passwd": False}],
+        }
+        users, _ = self._norm(ug_cfg, distro)
+
+        assert "bob" in users
+        assert "name" not in users["bob"]
+
+        for key, val in bcfg.items():
+            if key == "lock_passwd":
+                # Assert that the default user config is True
+                assert val is True
+                # Assert that the resolved value
+                # matches the passed config: False
+                assert users["bob"][key] is False
+            elif key == "groups":
+                assert users["bob"][key] == ",".join(val)
+            elif key != "name":
+                assert users["bob"][key] == val
+
+        assert users["bob"]["default"] is True
+
     def test_users_dict_extract(self):
         distro = self._make_distro("ubuntu", bcfg)
         ug_cfg = {
