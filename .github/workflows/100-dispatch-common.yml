@@ -1,4 +1,4 @@
-# WARNING: This workflow handles repository secrets (PYCLOUDLIB_TOML, SSH keys).
+# WARNING: This workflow handles repository secrets (PYCLOUDLIB_TOML_B64, SSH keys).
 # It MUST NOT be triggered by PR-driven workflows to prevent secret exposure to
 # untrusted code submitted via pull requests.
 name: "Dispatch: Integration"
@@ -53,7 +53,7 @@ on:
         required: false
         type: string
     secrets:
-      PYCLOUDLIB_TOML:
+      PYCLOUDLIB_TOML_B64:
         required: true
       SSH_PRIVATE_KEY:
         required: true
@@ -66,7 +66,7 @@ jobs:
     if: github.repository == 'canonical/cloud-init'
 
     env:
-      REQUIRED_SECRET: ${{ secrets.PYCLOUDLIB_TOML }}
+      REQUIRED_SECRET: ${{ secrets.PYCLOUDLIB_TOML_B64 }}
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
       SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
       CLOUD_INIT_PLATFORM: ${{ inputs.platform }}
@@ -78,7 +78,7 @@ jobs:
       - name: Assert required repo secrets are set
         run: |
           if [ -z "$REQUIRED_SECRET" ]; then
-             echo "ERROR: Missing required repo secrets.PYCLOUDLIB_TOML non-empty value."
+             echo "ERROR: Missing required repo secrets.PYCLOUDLIB_TOML_B64 non-empty value."
              exit 1
           fi
           if [ -z "$SSH_PUBLIC_KEY" ]; then
@@ -112,9 +112,9 @@ jobs:
         env:
           PYCLOUDLIB_CONFIG: ${{ runner.temp }}/pycloudlib.toml
         run: |
-          sh -c 'echo "${{ secrets.PYCLOUDLIB_TOML}}" | base64 -d > "$PYCLOUDLIB_CONFIG"' | true
+          sh -c 'echo "${{ secrets.PYCLOUDLIB_TOML_B64}}" | base64 -d > "$PYCLOUDLIB_CONFIG"' | true
           if [ ! -s $PYCLOUDLIB_CONFIG ]; then
-            echo "PYCLOUDLIB_TOML repo secret is not a base64-encoded string"
+            echo "PYCLOUDLIB_TOML_B64 repo secret is not a base64-encoded string"
             exit 1
           fi
       - name: Install Dependencies
