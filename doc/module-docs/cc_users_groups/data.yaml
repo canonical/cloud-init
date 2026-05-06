@@ -96,8 +96,8 @@ cc_users_groups:
       Example 7: Override any ``default_user`` config in
       ``/etc/cloud/cloud.cfg`` with supplemental config options. This config
       will make the default user ``mynewdefault``, change the user to not
-      have ``sudo`` rights and allow the Launchad user ``chad.smith`` to
-      SSH as ``mynewdefault`.
+      have ``sudo`` rights and allow the Launchpad user ``chad.smith`` to
+      SSH as ``mynewdefault``.
     file: cc_users_groups/example7.yaml
   - comment: >
       Example 8: Avoid creating any ``default_user``.
