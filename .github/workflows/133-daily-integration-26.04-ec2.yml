@@ -18,6 +18,7 @@ jobs:
       release: resolute
       platform: ec2
       install_source: ${{ inputs.install_source || 'ppa:cloud-init-dev/daily' }}
+      image_type: generic
     secrets:
       PYCLOUDLIB_TOML: ${{ secrets.PYCLOUDLIB_TOML }}
       SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
