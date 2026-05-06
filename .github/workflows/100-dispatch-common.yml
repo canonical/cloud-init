@@ -27,6 +27,7 @@ on:
         - generic
         - minimal
         required: false
+        default: generic
       install_source:
         required: false
         type: string
@@ -74,17 +75,26 @@ jobs:
       CLOUD_INIT_CLOUD_INIT_SOURCE: ${{ inputs.install_source }}
 
     steps:
-      - name: Assert repo secrets.PYCLOUDLIB_TOML is set
+      - name: Assert required repo secrets are set
         run: |
-          if [ -z "${{ env.REQUIRED_SECRET }}" ]; then
+          if [ -z "$REQUIRED_SECRET" ]; then
              echo "ERROR: Missing required repo secrets.PYCLOUDLIB_TOML non-empty value."
+             exit 1
+          fi
+          if [ -z "$SSH_PUBLIC_KEY" ]; then
+             echo "ERROR: Missing required repo secrets.SSH_PUBLIC_KEY non-empty value."
+             exit 1
+          fi
+          if [ -z "$SSH_PRIVATE_KEY" ]; then
+             echo "ERROR: Missing required repo secrets.SSH_PRIVATE_KEY non-empty value."
              exit 1
           fi
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       - name: Setup LXD
+        # Avoid unnecessary snap install lxd on non-lxd platforms.
         if: ${{ contains(fromJSON('["lxd_vm", "lxd_container"]'), env.CLOUD_INIT_PLATFORM ) }}
-        uses: canonical/setup-lxd@8c6a87bfb56aa48f3fb9b830baa18562d8bfd4ee # v0.1.2
+        uses: canonical/setup-lxd@8c6a87bfb56aa48f3fb9b830baa18562d8bfd4ee # v1
         with:
           channel: 6/stable
       - name: Clean workspace
@@ -95,13 +105,18 @@ jobs:
           mkdir -p ~/.ssh
           # Dump secrets using a subprocess to avoid accidental leaks while debugging.
           sh -c 'printf "%s\n" "$SSH_PUBLIC_KEY" > ~/.ssh/cloudinit_id_rsa.pub'
+          # Create empty cloudinit_id_rsa with file mode 600.
+          touch ~/.ssh/cloudinit_id_rsa && chmod 600 ~/.ssh/cloudinit_id_rsa
           sh -c 'printf "%s\n" "$SSH_PRIVATE_KEY" > ~/.ssh/cloudinit_id_rsa'
-          chmod 600 ~/.ssh/cloudinit_id_rsa
       - name: Setup pycloudlib
         env:
           PYCLOUDLIB_CONFIG: ${{ runner.temp }}/pycloudlib.toml
         run: |
-          sh -c 'echo "${{ secrets.PYCLOUDLIB_TOML}}" | base64 -d > "$PYCLOUDLIB_CONFIG"'
+          sh -c 'echo "${{ secrets.PYCLOUDLIB_TOML}}" | base64 -d > "$PYCLOUDLIB_CONFIG"' | true
+          if [ ! -s $PYCLOUDLIB_CONFIG ]; then
+            echo "PYCLOUDLIB_TOML repo secret is not a base64-encoded string"
+            exit 1
+          fi
       - name: Install Dependencies
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get -qy update
