@@ -178,9 +178,7 @@ cloud_config_modules:
 {% if variant == "raspberry-pi-os" %}
   - raspberry_pi
 {% endif %}
-{% if variant not in ["azurelinux"] %}
   - disable_ec2_metadata
-{% endif %}
   - runcmd
 {% if variant in ["debian", "ubuntu", "unknown"] %}
   - byobu
@@ -198,17 +196,13 @@ cloud_final_modules:
   - ubuntu_drivers
 {% endif %}
   - write_files_deferred
-{% if variant not in ["azurelinux"] %}
   - puppet
   - chef
-{% endif %}
   - ansible
-{% if variant not in ["azurelinux"] %}
   - mcollective
   - salt_minion
 {% if variant not in ["alpine"] %}
   - reset_rmc
-{% endif %}
 {% endif %}
   - scripts_vendor
   - scripts_per_once
