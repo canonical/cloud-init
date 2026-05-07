@@ -280,6 +280,9 @@ system_info:
 {% if variant == "alpine" %}
   network:
     renderers: ['eni']
+{% elif variant == "azurelinux" %}
+  network:
+    renderers: ['netplan', 'networkd', 'network-manager']
 {% elif variant == "debian" %}
   network:
     renderers: ['netplan', 'eni', 'networkd']
@@ -293,7 +296,7 @@ system_info:
 {% elif variant in ["freebsd", "netbsd", "openbsd"] %}
   network:
     renderers: ['{{ variant }}']
-{% elif variant in ["azurelinux", "mariner", "photon"] %}
+{% elif variant in ["mariner", "photon"] %}
   network:
     renderers: ['networkd']
 {% elif variant == "openmandriva" %}
