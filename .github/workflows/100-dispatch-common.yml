@@ -22,12 +22,11 @@ on:
         - lxd_vm
         - ec2
       image_type:
+        required: true
         type: choice
         options:
         - generic
         - minimal
-        required: false
-        default: generic
       install_source:
         required: false
         type: string
@@ -78,15 +77,15 @@ jobs:
       - name: Assert required repo secrets are set
         run: |
           if [ -z "$REQUIRED_SECRET" ]; then
-             echo "ERROR: Missing required repo secrets.PYCLOUDLIB_TOML_B64 non-empty value."
+             echo "ERROR: Missing required repo secret. Please provide the necessary repo secret at ${{ github.repository }}/settings/secrets/action."
              exit 1
           fi
           if [ -z "$SSH_PUBLIC_KEY" ]; then
-             echo "ERROR: Missing required repo secrets.SSH_PUBLIC_KEY non-empty value."
+             echo "ERROR: Missing required repo secret. Please provide SSH_PUBLIC_KEY repo secret at ${{ github.repository }}/settings/secrets/actions."
              exit 1
           fi
           if [ -z "$SSH_PRIVATE_KEY" ]; then
-             echo "ERROR: Missing required repo secrets.SSH_PRIVATE_KEY non-empty value."
+             echo "ERROR: Missing required repo secret. Please provide SSH_PRIVATE_KEY repo secret at ${{ github.repository }}/settings/secrets/actions."
              exit 1
           fi
       - name: Checkout
@@ -106,17 +105,13 @@ jobs:
           # Dump secrets using a subprocess to avoid accidental leaks while debugging.
           sh -c 'printf "%s\n" "$SSH_PUBLIC_KEY" > ~/.ssh/cloudinit_id_rsa.pub'
           # Create empty cloudinit_id_rsa with file mode 600.
-          touch ~/.ssh/cloudinit_id_rsa && chmod 600 ~/.ssh/cloudinit_id_rsa
+          install -m 600 /dev/null  ~/.ssh/cloudinit_id_rsa
           sh -c 'printf "%s\n" "$SSH_PRIVATE_KEY" > ~/.ssh/cloudinit_id_rsa'
       - name: Setup pycloudlib
         env:
           PYCLOUDLIB_CONFIG: ${{ runner.temp }}/pycloudlib.toml
         run: |
-          sh -c 'echo "${{ secrets.PYCLOUDLIB_TOML_B64}}" | base64 -d > "$PYCLOUDLIB_CONFIG"' | true
-          if [ ! -s $PYCLOUDLIB_CONFIG ]; then
-            echo "PYCLOUDLIB_TOML_B64 repo secret is not a base64-encoded string"
-            exit 1
-          fi
+          sh -c 'echo "${{ secrets.PYCLOUDLIB_TOML_B64}}" | base64 -d > "$PYCLOUDLIB_CONFIG"'
       - name: Install Dependencies
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get -qy update
@@ -126,13 +121,28 @@ jobs:
           PYCLOUDLIB_CONFIG: ${{ runner.temp }}/pycloudlib.toml
           CLOUD_INIT_LOCAL_LOG_PATH: ${{ github.workspace }}/cloud_init_test_logs
         run: |
-          tox -e integration-tests -- --ctrf=${{ github.workspace }}/report.json --color=yes ${{ inputs.filter_tests || 'tests/integration_tests' }}
+          tox -e integration-tests -- --junitxml="${{ github.workspace }}/junit-report.xml" --color=yes ${{ inputs.filter_tests || 'tests/integration_tests' }}
       - name: Publish Test Report with Insights
         if: ${{ always() }}
         uses: ctrf-io/github-test-reporter@024bc4b64d997ca9da86833c6b9548c55c620e40 # v1.0.26
         with:
-          report-path: '${{ github.workspace }}/report.json'
+          report-path: '${{ github.workspace }}/junit-report.xml'
           title: '${{ inputs.platform }}-${{ inputs.release }}-${{ inputs.image_type }}:${{ inputs.install_source }}'
+          integrations-config: |
+            {
+              "junit-to-ctrf": {
+                "enabled": true,
+                "action": "convert",
+                "options": {
+                  "output": "./ctrf-report.json",
+                  "toolname": "junit-to-ctrf",
+                  "useSuiteName": false,
+                  "env": {
+                    "appName": "my-app"
+                  }
+                }
+              }
+            }
           summary-delta-report: true
           insights-report: true
           flaky-rate-report: true

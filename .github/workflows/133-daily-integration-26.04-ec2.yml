@@ -7,6 +7,15 @@ on:
         required: false
         type: string
         default: 'ppa:cloud-init-dev/daily'
+      image_type:
+        required: true
+        type: choice
+        options:
+        - generic
+        - minimal
+      filter_tests:
+        required: false
+        type: string
   schedule:
     # Run Mon & Thurs for high-cost test runs
     - cron: '2 22 * * 1,4'
@@ -18,7 +27,8 @@ jobs:
       release: resolute
       platform: ec2
       install_source: ${{ inputs.install_source || 'ppa:cloud-init-dev/daily' }}
-      image_type: generic
+      image_type: ${{ inputs.image_type || 'generic' }}
+      filter_tests: ${{ inputs.filter_tests }}
     secrets:
       PYCLOUDLIB_TOML_B64: ${{ secrets.PYCLOUDLIB_TOML_B64 }}
       SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
