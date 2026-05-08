@@ -21,8 +21,6 @@ NETWORK_FILE_HEADER = """\
 
 
 class Distro(rhel.Distro):
-    usr_lib_exec = "/usr/lib"
-
     def __init__(self, name, cfg, paths):
         super().__init__(name, cfg, paths)
         self.osfamily = "azurelinux"
