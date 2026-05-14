@@ -168,9 +168,7 @@ class TestParseTimestamp:
         with caplog.at_level(logging.WARNING, logger="cloudinit.analyze.dump"):
             with pytest.raises(ValueError):
                 parse_timestamp_from_date("17:15 08/13")
-        assert [] == [
-            r for r in caplog.records if r.levelname == "WARNING"
-        ]
+        assert [] == [r for r in caplog.records if r.levelname == "WARNING"]
 
 
 class TestParseCILogLine:
@@ -282,15 +280,13 @@ class TestParseCILogLine:
         assert expected == parse_ci_logline(line)
 
 
-SAMPLE_LOGS = dedent(
-    """\
+SAMPLE_LOGS = dedent("""\
 Nov 03 06:51:06.074410 x2 cloud-init[106]: [CLOUDINIT] util.py[DEBUG]:\
  Cloud-init v. 0.7.8 running 'init-local' at Thu, 03 Nov 2016\
  06:51:06 +0000. Up 1.0 seconds.
 2016-08-30 21:53:25.972325+00:00 y1 [CLOUDINIT] handlers.py[DEBUG]: finish:\
  modules-final: SUCCESS: running modules for final
-"""
-)
+""")
 
 
 class TestDumpEvents:
