@@ -1,4 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+# ruff: noqa: ISC001
+# pylint: disable=implicit-str-concat
 
 import copy
 import os
