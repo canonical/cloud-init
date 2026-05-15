@@ -692,3 +692,19 @@ def get_datetime_from_string(
             )
         )
     return converted_datetime
+
+
+def fetch_and_parse_etc_shadow(client):
+    """Fetch /etc/shadow and parse it into Python data structures
+
+    Returns: ({user: password}, [duplicate, users])
+    """
+    shadow_content = client.read_from_file("/etc/shadow")
+    users = {}
+    dupes = []
+    for line in shadow_content.splitlines():
+        user, encpw = line.split(":")[0:2]
+        if user in users:
+            dupes.append(user)
+        users[user] = encpw
+    return users, dupes
