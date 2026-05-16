@@ -139,7 +139,7 @@ def _normalize_users(u_cfg, def_user_cfg=None):
             #   not have to be 'default' (but could be)
             # - then the default user config provided by the above merging
             #   for the user 'default'
-            # - then the default user config provided by the distro not
+            # - then the default user config provided by the distro
             users[def_user] = util.mergemanydict(
                 [parsed_config, def_config, def_user_cfg]
             )
