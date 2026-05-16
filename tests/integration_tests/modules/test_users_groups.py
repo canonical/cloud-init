@@ -17,6 +17,7 @@ from tests.integration_tests.releases import (
     NOBLE,
 )
 from tests.integration_tests.util import (
+    clean_cloud_init_and_restart_instance,
     fetch_and_parse_etc_shadow,
     verify_clean_boot,
 )
@@ -215,6 +216,10 @@ def test_default_user_settings_override(client: IntegrationInstance):
     """
     Test that the default user settings are correctly overridden.
     """
+    # Github CI does not use cloud_init_source in place but rather installs
+    # the cloud-init-base package after the instance boot so default user is
+    # not overriden until cloud-initn is cleaned and the instance rebooted.
+    clean_cloud_init_and_restart_instance(client)
     # Check shell
     shell_set = (
         client.execute(["getent", "passwd", "ubuntu"])
@@ -237,7 +242,8 @@ def test_default_user_settings(client: IntegrationInstance):
     test_default_user_settings_override, confirming the default
     user settings are as expected when not overridden by user-data.
     """
-    # Check shell
+    clean_cloud_init_and_restart_instance(client)
+    # Check shel
     shell_set = (
         client.execute(["getent", "passwd", "ubuntu"])
         .stdout.strip()

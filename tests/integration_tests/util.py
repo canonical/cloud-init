@@ -708,3 +708,15 @@ def fetch_and_parse_etc_shadow(client):
             dupes.append(user)
         users[user] = encpw
     return users, dupes
+
+
+def clean_cloud_init_and_restart_instance(client):
+    """Clean cloud-init and restart the instance
+
+    This function cleans the cloud-init state and restarts the instance,
+    waiting for cloud-init to complete its initialization.
+    """
+    client.instance.clean()
+    client.instance.restart()
+    wait_for_cloud_init(client).stdout.strip()
+    client.execute("cloud-init status --wait")
