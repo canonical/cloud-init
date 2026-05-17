@@ -10,7 +10,6 @@ from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU, JAMMY
 from tests.integration_tests.util import (
-    clean_cloud_init_and_restart_instance,
     push_and_enable_systemd_unit,
     wait_for_cloud_init,
 )
@@ -157,7 +156,10 @@ def test_status_block_through_all_boot_status(client):
     push_and_enable_systemd_unit(
         client, "before-cloud-init-local.service", BEFORE_CLOUD_INIT_LOCAL
     )
-    clean_cloud_init_and_restart_instance(client)
+    client.instance.clean()
+    client.instance.restart()
+    wait_for_cloud_init(client).stdout.strip()
+    client.execute("cloud-init status --wait")
 
     # Assert that before-cloud-init-local.service started before
     # cloud-init-local.service could create status.json
