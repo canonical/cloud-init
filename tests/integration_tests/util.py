@@ -717,6 +717,6 @@ def clean_cloud_init_and_restart_instance(client):
     waiting for cloud-init to complete its initialization.
     """
     client.instance.clean()
-    client.instance.restart()
+    client.restart()
     wait_for_cloud_init(client).stdout.strip()
     client.execute("cloud-init status --wait")
