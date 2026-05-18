@@ -10,6 +10,7 @@ import re
 import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import CLOUD_INIT_SOURCE
 from tests.integration_tests.releases import (
     CURRENT_RELEASE,
     IS_UBUNTU,
@@ -17,7 +18,6 @@ from tests.integration_tests.releases import (
     NOBLE,
 )
 from tests.integration_tests.util import (
-    clean_cloud_init_and_restart_instance,
     fetch_and_parse_etc_shadow,
     verify_clean_boot,
 )
@@ -216,17 +216,20 @@ def test_default_user_settings_override(client: IntegrationInstance):
     """
     Test that the default user settings are correctly overridden.
     """
-    # Github CI does not use cloud_init_source in place but rather installs
-    # the cloud-init-base package after the instance boot so default user is
-    # not overriden until cloud-initn is cleaned and the instance rebooted.
-    clean_cloud_init_and_restart_instance(client)
     # Check shell
     shell_set = (
         client.execute(["getent", "passwd", "ubuntu"])
         .stdout.strip()
         .split(":")[-1]
     )
-    assert "/bin/bash" == shell_set
+    if CLOUD_INIT_SOURCE in ["NONE", "IN_PLACE"]:
+        assert (
+            "/bin/sh" == shell_set
+        ), "Shell setting not overriden even though the user is new"
+    else:
+        assert (
+            "/bin/bash" == shell_set
+        ), "Shell setting overriden even though user already exists"
     # Check password is not locked
     passwd_status = client.execute(["passwd", "-S", "ubuntu"]).stdout
     assert re.search(r"^ubuntu\s+P\b", passwd_status)
@@ -242,7 +245,6 @@ def test_default_user_settings(client: IntegrationInstance):
     test_default_user_settings_override, confirming the default
     user settings are as expected when not overridden by user-data.
     """
-    clean_cloud_init_and_restart_instance(client)
     # Check shel
     shell_set = (
         client.execute(["getent", "passwd", "ubuntu"])
