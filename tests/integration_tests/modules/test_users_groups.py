@@ -205,7 +205,7 @@ users:
   - name: ubuntu
     shell: /bin/sh
     lock_passwd: false
-    passwd: $5$xZ$B2YGGEx2AOf4PeW48KC6.QyT1W2B4rZ9Qbltudtha89
+    hashed_passwd: $5$xZ$B2YGGEx2AOf4PeW48KC6.QyT1W2B4rZ9Qbltudtha89
 """
 
 
@@ -226,7 +226,7 @@ def test_default_user_settings_override(client: IntegrationInstance):
         .stdout.strip()
         .split(":")[-1]
     )
-    assert "/bin/sh" == shell_set
+    assert "/bin/bash" == shell_set
     # Check password is not locked
     passwd_status = client.execute(["passwd", "-S", "ubuntu"]).stdout
     assert re.search(r"^ubuntu\s+P\b", passwd_status)
