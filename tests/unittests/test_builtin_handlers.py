@@ -393,6 +393,26 @@ class TestRenderJinjaPayload:
         )
         assert expected_log in caplog.text
 
+    @skipUnlessJinja()
+    def test_render_jinja_payload_blocks_unsafe_attribute_access(
+        self, caplog
+    ):
+        payload = (
+            "## template: jinja\n"
+            "{{ ''.__class__.__mro__[1].__subclasses__()[:3] }}"
+        )
+
+        assert (
+            render_jinja_payload(
+                payload=payload,
+                payload_fn="myfile",
+                instance_data={"v1": {"hostname": "foo"}},
+            )
+            is None
+        )
+        assert "Ignoring jinja template for myfile" in caplog.text
+        assert "__class__" in caplog.text
+
 
 class TestShellScriptByFrequencyHandlers:
     @pytest.fixture(autouse=True)

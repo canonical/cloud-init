@@ -31,7 +31,7 @@ from cloudinit.atomic_helper import write_file
 JUndefined: Any
 try:
     from jinja2 import DebugUndefined as _DebugUndefined
-    from jinja2 import Template as JTemplate
+    from jinja2.sandbox import SandboxedEnvironment as JSandboxedEnvironment
 
     JINJA_AVAILABLE = True
     JUndefined = _DebugUndefined
@@ -149,13 +149,13 @@ def detect_template(text):
         add = "\n" if content.endswith("\n") else ""
         try:
             with performance.Timed("Rendering jinja2 template"):
+                jinja_env = JSandboxedEnvironment(
+                    undefined=UndefinedJinjaVariable,
+                    trim_blocks=True,
+                    extensions=["jinja2.ext.do"],
+                )
                 return (
-                    JTemplate(
-                        content,
-                        undefined=UndefinedJinjaVariable,
-                        trim_blocks=True,
-                        extensions=["jinja2.ext.do"],
-                    ).render(**params)
+                    jinja_env.from_string(content).render(**params)
                     + add
                 )
         except TemplateSyntaxError as template_syntax_error:

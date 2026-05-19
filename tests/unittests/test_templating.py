@@ -9,6 +9,7 @@ import textwrap
 from unittest import mock
 
 import pytest
+from jinja2.exceptions import SecurityError
 
 from cloudinit import templater
 from cloudinit.templater import JinjaSyntaxParsingException
@@ -170,6 +171,16 @@ class TestTemplates:
             ).strip()
             == expected_result
         )
+
+    @test_helpers.skipUnlessJinja()
+    def test_jinja_blocks_unsafe_attribute_access(self):
+        template = self.add_header(
+            "jinja",
+            "{{ ''.__class__.__mro__[1].__subclasses__()[:3] }}",
+        )
+
+        with pytest.raises(SecurityError):
+            templater.render_string(template, {})
 
 
 class TestJinjaSyntaxParsingException:
