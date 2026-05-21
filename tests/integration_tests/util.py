@@ -137,6 +137,11 @@ def verify_clean_boot(
         ignore_warnings = append_or_create_list(
             ignore_warnings, "No lease found; using default endpoint"
         )
+        # Pro images sometimes hit a single 404 in early provisioning
+        ignore_warnings = append_or_create_list(
+            ignore_warnings,
+            "Polling IMDS failed attempt 1 with exception: UrlError('404",
+        )
     elif "lxd_vm" == PLATFORM:
         # Ubuntu lxd storage
         ignore_warnings = append_or_create_list(
