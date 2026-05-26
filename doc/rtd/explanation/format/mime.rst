@@ -89,8 +89,8 @@ shell script runs:
     storage or refreshing dynamic configuration.
 
 ``text/x-shellscript-per-instance``
-    The script runs **once per instance** (on first boot only). Useful
-    for one-time instance setup tasks.
+    The script runs **once per instance-id** (typically on first boot
+    for that instance). Useful for one-time instance setup tasks.
 
 ``text/x-shellscript-per-once``
     The script runs **once per cloud-init state**, using the cloud-level
