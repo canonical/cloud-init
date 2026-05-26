@@ -93,9 +93,12 @@ shell script runs:
     for one-time instance setup tasks.
 
 ``text/x-shellscript-per-once``
-    The script runs **exactly once**, even across different instances
-    created from the same image. Useful for tasks that should never
-    repeat regardless of instance lifecycle.
+    The script runs **once per cloud-init state**, using the cloud-level
+    semaphore directory (:file:`/var/lib/cloud/sem`). A freshly
+    provisioned instance will normally run it once, but an instance
+    created from an image that preserves existing cloud-init state may
+    not. To allow it to run again, clean cloud-init state (for example,
+    remove :file:`/var/lib/cloud` or run :command:`cloud-init clean`).
 
 Scripts are stored on disk under the following directories:
 
