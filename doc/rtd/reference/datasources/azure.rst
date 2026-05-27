@@ -83,7 +83,7 @@ An example configuration with the default values is provided below:
      Azure:
        apply_network_config: true
        apply_network_config_for_secondary_ips: true
-       apply_network_config_set_name: false
+       apply_network_config_set_name: true
        data_dir: /var/lib/waagent
        disk_aliases:
          ephemeral0: /dev/disk/cloud/azure_resource

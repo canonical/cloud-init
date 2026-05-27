@@ -363,10 +363,12 @@ class DataSourceAzure(sources.DataSource):
         self._system_uuid = None
         self._vm_id = None
         self._wireserver_endpoint = DEFAULT_WIRESERVER_ENDPOINT
-        self.ds_cfg.setdefault(
+        for key in (
+            "apply_network_config_for_secondary_ips",
             "apply_network_config_set_name",
-            BUILTIN_DS_CONFIG["apply_network_config_set_name"],
-        )
+            "experimental_skip_ready_report",
+        ):
+            self.ds_cfg.setdefault(key, BUILTIN_DS_CONFIG[key])
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -1621,12 +1623,12 @@ class DataSourceAzure(sources.DataSource):
             try:
                 return generate_network_config_from_instance_network_metadata(
                     self._metadata_imds["network"],
-                    apply_network_config_for_secondary_ips=self.ds_cfg.get(
+                    apply_network_config_for_secondary_ips=self.ds_cfg[
                         "apply_network_config_for_secondary_ips"
-                    ),
-                    apply_network_config_set_name=self.ds_cfg.get(
+                    ],
+                    apply_network_config_set_name=self.ds_cfg[
                         "apply_network_config_set_name"
-                    ),
+                    ],
                 )
             except Exception as e:
                 LOG.error(
@@ -2103,7 +2105,7 @@ def generate_network_config_from_instance_network_metadata(
     network_metadata: dict,
     *,
     apply_network_config_for_secondary_ips: bool,
-    apply_network_config_set_name: bool = True,
+    apply_network_config_set_name: bool,
 ) -> dict:
     """Convert imds network metadata dictionary to network v2 configuration.
 
