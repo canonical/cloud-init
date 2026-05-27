@@ -100,15 +100,4 @@ shell script runs:
     not. To allow it to run again, clean cloud-init state (for example,
     remove :file:`/var/lib/cloud` or run :command:`cloud-init clean`).
 
-Scripts are stored on disk under the following directories:
-
-- ``/var/lib/cloud/scripts/per-boot/``
-- ``/var/lib/cloud/scripts/per-instance/``
-- ``/var/lib/cloud/scripts/per-once/``
-
-These are handled by :ref:`cc_scripts_per_boot<mod_cc_scripts_per_boot>`,
-:ref:`cc_scripts_per_instance<mod_cc_scripts_per_instance>`, and
-:ref:`cc_scripts_per_once<mod_cc_scripts_per_once>` respectively, via
-``cloudinit/handlers/shell_script_by_frequency.py``.
-
 .. _make-mime: https://github.com/canonical/cloud-init/blob/main/cloudinit/cmd/devel/make_mime.py
