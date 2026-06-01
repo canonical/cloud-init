@@ -77,7 +77,7 @@ rsyslog:
         input(type="imtcp" port="514")
         $template RemoteLogs,"/var/spool/rsyslog/cloudinit.log"
         *.* ?RemoteLogs
-        & ~
+        & stop
   remotes:
     me: "127.0.0.1"
 runcmd:
@@ -85,7 +85,7 @@ runcmd:
   - echo '💩' > /var/tmp/unicode_data
 
   - #
-  - logger "My test log"
+  - logger --server localhost --tcp --port 514 "My test log"
 snap:
   commands:
     - snap install hello-world
