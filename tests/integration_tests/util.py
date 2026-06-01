@@ -16,10 +16,7 @@ import pytest
 
 from cloudinit.subp import subp
 from tests.integration_tests.decorators import retry
-from tests.integration_tests.integration_settings import (
-    OS_IMAGE_TYPE,
-    PLATFORM,
-)
+from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, NOBLE
 
 LOG = logging.getLogger("integration_testing.util")
@@ -584,19 +581,14 @@ def get_console_log(client: "IntegrationInstance"):
 
 
 @retry(tries=5, delay=1)  # Retry on get_console_log failures
-def get_syslog_or_console(client: "IntegrationInstance") -> str:
-    """minimal OS_IMAGE_TYPE does not contain rsyslog"""
-    if OS_IMAGE_TYPE == "minimal" and HAS_CONSOLE_LOG:
-        return get_console_log(client)
-    else:
-        # Prefer syslog transport categorized messages over presence of
-        # /var/log/syslog as recent versions of rsyslog will avoid mirroring
-        # /dev/console to syslog.
-        if client.execute(["which", "journalctl"]).ok:
-            return client.execute(
-                ["journalctl", "_TRANSPORT=syslog", "-b", "0"]
-            )
-        return client.read_from_file("/var/log/syslog")
+def get_journal_syslog(client: "IntegrationInstance") -> str:
+    """Syslog events are categorized _TRANSPORT=syslog from systemd v205."""
+    # Prefer syslog transport categorized messages over presence of
+    # /var/log/syslog as systemd v255 introduced systemd-executor
+    # which sandboxes unit processes resulting in direct writes to
+    # /dev/console being logged directly to journal binary instead
+    # of mirrored as rsyslog events.
+    return client.execute(["journalctl", "_TRANSPORT=syslog", "-b", "0"])
 
 
 @lru_cache()
