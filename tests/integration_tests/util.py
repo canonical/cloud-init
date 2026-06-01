@@ -589,6 +589,13 @@ def get_syslog_or_console(client: "IntegrationInstance") -> str:
     if OS_IMAGE_TYPE == "minimal" and HAS_CONSOLE_LOG:
         return get_console_log(client)
     else:
+        # Prefer syslog transport categorized messages over presence of
+        # /var/log/syslog as recent versions of rsyslog will avoid mirroring
+        # /dev/console to syslog.
+        if client.execute(["which", "journalctl"]).ok:
+            return client.execute(
+                ["journalctl", "_TRANSPORT=syslog", "-b", "0"]
+            )
         return client.read_from_file("/var/log/syslog")
 
 
