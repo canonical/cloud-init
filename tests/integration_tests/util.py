@@ -10,7 +10,7 @@ from datetime import datetime
 from functools import lru_cache
 from itertools import chain
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional, Set, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple, Union
 
 import pytest
 
@@ -694,7 +694,9 @@ def get_datetime_from_string(
     return converted_datetime
 
 
-def fetch_and_parse_etc_shadow(client):
+def fetch_and_parse_etc_shadow(
+    client: "IntegrationInstance",
+) -> Tuple[Dict[str, str], List[str]]:
     """Fetch /etc/shadow and parse it into Python data structures
 
     Returns: ({user: password}, [duplicate, users])

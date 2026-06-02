@@ -233,9 +233,9 @@ def test_default_user_settings_override(client: IntegrationInstance):
     # Check password is not locked
     passwd_status = client.execute(["passwd", "-S", "ubuntu"]).stdout
     assert re.search(r"^ubuntu\s+P\b", passwd_status)
-    exepected_passwd_hash = "$5$xZ$B2YGGEx2AOf4PeW48KC6.QyT1W2B4rZ9Qbltudtha89"
+    expected_passwd_hash = "$5$xZ$B2YGGEx2AOf4PeW48KC6.QyT1W2B4rZ9Qbltudtha89"
     parsed_shadow, _ = fetch_and_parse_etc_shadow(client)
-    assert parsed_shadow["ubuntu"] == exepected_passwd_hash
+    assert parsed_shadow["ubuntu"] == expected_passwd_hash
 
 
 @pytest.mark.skipif(not IS_UBUNTU, reason="Test is Ubuntu specific")
