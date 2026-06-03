@@ -967,7 +967,11 @@ def status_wrapper(name, args):
 
     v1[mode]["start"] = float(util.uptime())
     handler = next(
-        (h for h in root_logger.handlers if isinstance(h, loggers.LogExporter)),
+        (
+            h
+            for h in root_logger.handlers
+            if isinstance(h, loggers.LogExporter)
+        ),
         None,
     )
     if not isinstance(handler, loggers.LogExporter):
