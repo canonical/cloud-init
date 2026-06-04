@@ -55,10 +55,10 @@ class TestSshAuthkeyFingerprints:
         reason=f"No console_log available for minimal images on {PLATFORM}",
     )
     def test_ssh_authkey_fingerprints_enable(self, client):
-        syslog_output = get_journal_syslog(client)
-        assert re.search(r"256 SHA256:.*(ECDSA)", syslog_output) is not None
-        assert re.search(r"256 SHA256:.*(ED25519)", syslog_output) is not None
-        assert re.search(r"2048 SHA256:.*(RSA)", syslog_output) is None
+        log_output = get_journal_syslog(client)
+        assert re.search(r"256 SHA256:.*(ECDSA)", log_output) is not None
+        assert re.search(r"256 SHA256:.*(ED25519)", log_output) is not None
+        assert re.search(r"2048 SHA256:.*(RSA)", log_output) is None
 
 
 @pytest.mark.user_data(
