@@ -17,7 +17,7 @@ on:
         required: false
         type: string
   schedule:
-    # Run Mon & Thurs for high-cost test runs
+    # Run Mon & Thurs to reduce additional cost on shared external tokens
     - cron: '2 22 * * 1,4'
 
 jobs:
