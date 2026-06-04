@@ -55,7 +55,7 @@ class TestKeysToConsoleBlacklist:
         assert "({})".format(key_type) not in get_journal_syslog(class_client)
 
     # retry decorator here because it can take some time to be reflected
-    # in syslog
+    # in the journal
     @retry(tries=60, delay=1)
     @pytest.mark.parametrize("key_type", ["ED25519", "RSA"])
     def test_included_keys(self, class_client, key_type):

@@ -580,7 +580,7 @@ def get_console_log(client: "IntegrationInstance"):
     return console_log
 
 
-@retry(tries=5, delay=1)  # Retry on get_console_log failures
+@retry(tries=5, delay=1)  # Retry on transient journalctl failures
 def get_journal_syslog(client: "IntegrationInstance") -> str:
     """Syslog events are categorized _TRANSPORT=syslog from systemd v205."""
     # Prefer syslog transport categorized messages over presence of
