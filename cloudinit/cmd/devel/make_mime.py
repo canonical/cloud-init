@@ -33,7 +33,7 @@ def create_mime_message(files):
         content_type = sub_message.get_content_type().lower()
         if content_type not in get_content_types():
             err_msg = (
-                f"content type {content_type} for attachment"
+                f"content type {content_type!r} for attachment"
                 f" {i + 1} may be incorrect!"
             )
             errors.append(err_msg)
