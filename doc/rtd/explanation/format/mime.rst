@@ -81,7 +81,8 @@ Per-frequency shell scripts
 ---------------------------
 
 Cloud-init supports three MIME content types for controlling how often a
-shell script runs:
+shell script runs, corresponding to the run frequencies described in
+:ref:`module_frequency`:
 
 ``text/x-shellscript-per-boot``
     The script runs on **every boot**. Useful for tasks that must be
@@ -89,15 +90,14 @@ shell script runs:
     storage or refreshing dynamic configuration.
 
 ``text/x-shellscript-per-instance``
-    The script runs **once per instance-id** (typically on first boot
-    for that instance). Useful for one-time instance setup tasks.
+    The script runs **once per instance-id**. A new instance-id is
+    assigned each time a new instance is provisioned.
 
 ``text/x-shellscript-per-once``
-    The script runs **once per cloud-init state**, using the cloud-level
-    semaphore directory (:file:`/var/lib/cloud/sem`). A freshly
-    provisioned instance will normally run it once, but an instance
-    created from an image that preserves existing cloud-init state may
-    not. To allow it to run again, clean cloud-init state (for example,
-    remove :file:`/var/lib/cloud` or run :command:`cloud-init clean`).
+    The script runs **once**, tracked by a semaphore in
+    :file:`/var/lib/cloud/sem`. If cloud-init state is preserved — for
+    example, when an image is created from a running instance — the
+    semaphore persists and the script will not run again on instances
+    booted from that image.
 
 .. _make-mime: https://github.com/canonical/cloud-init/blob/main/cloudinit/cmd/devel/make_mime.py
