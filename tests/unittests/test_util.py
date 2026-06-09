@@ -409,15 +409,23 @@ OS_RELEASE_MARINER = dedent(
 
 OS_RELEASE_AZURELINUX = dedent(
     """\
-    NAME="Microsoft Azure Linux"
-    VERSION="3.0.20240206"
+    NAME="Azure Linux"
+    VERSION="4.0 (Cloud Variant)"
+    RELEASE_TYPE=stable
     ID=azurelinux
-    VERSION_ID="3.0"
-    PRETTY_NAME="Microsoft Azure Linux 3.0"
-    ANSI_COLOR="1;34"
+    ID_LIKE=fedora
+    VERSION_ID=4.0
+    VERSION_CODENAME=""
+    PRETTY_NAME="Azure Linux 4.0 (Cloud Variant)"
+    ANSI_COLOR="0;38;2;60;110;180"
+    LOGO=azurelinux-logo-icon
+    CPE_NAME="cpe:/o:microsoft:azurelinux:4.0"
     HOME_URL="https://aka.ms/azurelinux"
-    BUG_REPORT_URL="https://aka.ms/azurelinux"
+    DOCUMENTATION_URL="https://aka.ms/azurelinux"
     SUPPORT_URL="https://aka.ms/azurelinux"
+    BUG_REPORT_URL="https://aka.ms/azurelinux"
+    VARIANT="Cloud Variant"
+    VARIANT_ID=cloud
 """
 )
 
@@ -1276,7 +1284,7 @@ class TestGetLinuxDistro:
         m_os_release.return_value = OS_RELEASE_AZURELINUX
         m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
         dist = util.get_linux_distro()
-        assert ("azurelinux", "3.0", "") == dist
+        assert ("azurelinux", "4.0", "Cloud Variant") == dist
 
     @mock.patch(M_PATH + "load_text_file")
     def test_get_linux_openmandriva(self, m_os_release, m_path_exists):
