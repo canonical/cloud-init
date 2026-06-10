@@ -1,4 +1,4 @@
-cloud-init (26.2~2g5a5bca15-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (26.2~2g5a5bca15-0ubuntu1) stonking; urgency=medium
 
   * d/control: add python3-pyfakefs for testing
   * drop the following cherry-picks now included:
@@ -6,7 +6,7 @@ cloud-init (26.2~2g5a5bca15-0ubuntu1) UNRELEASED; urgency=medium
   * Upstream snapshot based on upstream/main at 5a5bca15.
     - Bugs fixed in this snapshot: (LP: #2147101)
 
- -- Chad Smith <chad.smith@canonical.com>  Wed, 10 Jun 2026 07:13:42 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 10 Jun 2026 07:13:45 -0600
 
 cloud-init (26.1-0ubuntu2) resolute; urgency=medium
 
