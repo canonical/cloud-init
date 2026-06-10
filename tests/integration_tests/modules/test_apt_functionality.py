@@ -22,6 +22,7 @@ from tests.integration_tests.releases import (
 from tests.integration_tests.util import (
     get_feature_flag_value,
     verify_clean_boot,
+    wait_for_cloud_init,
 )
 
 logger = logging.getLogger(__name__)
@@ -597,6 +598,7 @@ def test_install_missing_deps(session_cloud: IntegrationCloud):
         user_data=INSTALL_ANY_MISSING_RECOMMENDED_DEPENDENCIES,
         launch_kwargs={"image_id": snapshot_id},
     ) as minimal_client:
+        wait_for_cloud_init(minimal_client)
         log = minimal_client.read_from_file("/var/log/cloud-init.log")
         assert re.search(RE_GPG_SW_PROPERTIES_INSTALLED, log)
         gpg_installed = re.search(

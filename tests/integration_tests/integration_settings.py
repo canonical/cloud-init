@@ -56,6 +56,10 @@ OS_IMAGE_TYPE = "generic"
 # creating a new one. The exact contents will be platform dependent
 EXISTING_INSTANCE_ID: Optional[str] = None
 
+# Username to use when launching the instance.
+# If not set, the default username for the platform will be used.
+LAUNCH_USERNAME: Optional[str] = None
+
 ##################################################################
 # IMAGE GENERATION SETTINGS
 ##################################################################

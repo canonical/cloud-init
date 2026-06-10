@@ -29,7 +29,7 @@ def find_root():
 if "avoid-pep8-E402-import-not-top-of-file":
     # Use the util functions from cloudinit
     sys.path.insert(0, find_root())
-    from cloudinit import subp, templater, util
+    from cloudinit import subp, templater, temp_utils, util
 
 
 # Subdirectories of the ~/rpmbuild dir
@@ -83,7 +83,7 @@ def read_version_from_meson():
             [
                 "meson",
                 "setup",
-                "builddir",
+                builddir,
                 "-Dinit_system=systemd",
                 "-Ddisable_sshd_keygen=true",
             ]
