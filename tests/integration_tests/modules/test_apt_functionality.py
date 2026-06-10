@@ -18,6 +18,7 @@ from tests.integration_tests.releases import (
     CURRENT_RELEASE,
     IS_UBUNTU,
     MANTIC,
+    QUESTING,
 )
 from tests.integration_tests.util import (
     get_feature_flag_value,
@@ -523,11 +524,17 @@ RE_GPG_SW_PROPERTIES_INSTALLED = (
     r"software-properties-common', 'gnupg)"
 )
 
-REMOVE_GPG_USERDATA = """
+GPG_PACKAGES = "gpg software-properties-common"
+# On Ubuntu Mantic and newer, gpg-from-sq replaces gpg metapackage
+# if gpg package is removed. Remove other packages which rdepend on gpg to
+# avoid gpg-from-sq being installs as an alternative to gpg.
+GPG_PACKAGES_NO_GPG_SQ = (
+    GPG_PACKAGES + " python3-software-properties libgpgme45"
+)
+REMOVE_GPG_USERDATA_TMPL = """
 #cloud-config
 runcmd:
-  - DEBIAN_FRONTEND=noninteractive apt-get remove gpg -y
-  - DEBIAN_FRONTEND=noninteractive apt-get remove software-properties-common -y
+  - DEBIAN_FRONTEND=noninteractive apt-get remove {packages} -y
 """
 
 
@@ -570,9 +577,13 @@ def test_install_missing_deps(session_cloud: IntegrationCloud):
       'software-properties-common' are installed successfully.
     """
     # Two stage install: First stage:  remove gpg noninteractively from image
-    instance1 = session_cloud.launch(
-        user_data=_do_oci_customization(REMOVE_GPG_USERDATA)
-    )
+    if CURRENT_RELEASE <= QUESTING:
+        userdata = REMOVE_GPG_USERDATA_TMPL.format(packages=GPG_PACKAGES)
+    else:
+        userdata = REMOVE_GPG_USERDATA_TMPL.format(
+            packages=GPG_PACKAGES_NO_GPG_SQ
+        )
+    instance1 = session_cloud.launch(user_data=_do_oci_customization(userdata))
 
     # look for r"un  gpg" using regex ('un' means uninstalled)
     for package in ["gpg", "software-properties-common"]:
