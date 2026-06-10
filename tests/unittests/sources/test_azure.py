@@ -2212,7 +2212,7 @@ scbus-1 on xpt0 bus 0
         dsrc.get_data()
 
         distro.networking.get_interfaces_by_mac()
-        m_net_get_interfaces.assert_called_with()
+        m_net_get_interfaces.assert_called_with(filter_without_own_mac=False)
 
     @mock.patch(
         "cloudinit.sources.helpers.azure.OpenSSLManager.parse_certificates"

@@ -5657,6 +5657,28 @@ class TestGetInterfacesByMac:
         }
         assert expected == result
 
+    def test_real_device_preferred_over_stolen_mac(self, mocks):
+        """When a real device and a stolen-mac device share the same MAC,
+        the real device should win regardless of enumeration order."""
+        shared_mac = "aa:aa:aa:aa:aa:ff"
+        self.data["macs"]["real0"] = shared_mac
+        self.data["macs"]["stolen0"] = shared_mac
+        self.data["devices"].update({"real0", "stolen0"})
+        self.data["own_macs"].append("real0")
+        # stolen0 is intentionally NOT added to own_macs
+        ret = net.get_interfaces_by_mac()
+        assert ret[shared_mac] == "real0"
+
+    def test_stolen_mac_only_device_is_included(self, mocks):
+        """A device with a stolen MAC should still appear in the map when
+        it is the only device with that MAC address."""
+        stolen_mac = "aa:aa:aa:aa:aa:dd"
+        self.data["macs"]["stolen_only"] = stolen_mac
+        self.data["devices"].add("stolen_only")
+        # stolen_only is intentionally NOT added to own_macs
+        ret = net.get_interfaces_by_mac()
+        assert ret[stolen_mac] == "stolen_only"
+
 
 @pytest.mark.parametrize("driver", ("mscc_felix", "fsl_enetc", "qmi_wwan"))
 @mock.patch("cloudinit.net.get_sys_class_path")
