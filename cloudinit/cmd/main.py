@@ -928,7 +928,7 @@ def status_wrapper(name, args):
             "Invalid cloud init mode specified '{0}'".format(mode)
         )
 
-    nullstatus: dict[str, Union[list[Any], dict[str, Any], None]] = {
+    nullstatus: dict[str, Union[list[Any], dict[str, Any], float, None]] = {
         "errors": [],
         "recoverable_errors": {},
         "start": None,
