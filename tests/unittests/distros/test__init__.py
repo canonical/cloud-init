@@ -600,3 +600,28 @@ class TestDHCP:
         distro = Distro("", {}, {})
         distro._cfg = config
         assert isinstance(distro.dhcp_client, chosen_client)
+
+
+class TestGetElevatedRoles:
+    """Tests for get_elevated_roles."""
+
+    @pytest.mark.parametrize(
+        "kwargs,expected",
+        [
+            pytest.param({}, [], id="no_kwargs_returns_empty"),
+            pytest.param({"sudo": True}, ["sudo"], id="sudo_only"),
+            pytest.param({"doas": True}, ["doas"], id="doas_only"),
+            pytest.param(
+                {"sudo": True, "doas": True},
+                ["sudo", "doas"],
+                id="sudo_and_doas",
+            ),
+            pytest.param({"sudo": False}, [], id="falsy_sudo_excluded"),
+            pytest.param({"doas": False}, [], id="falsy_doas_excluded"),
+            pytest.param(
+                {"shell": "/bin/bash"}, [], id="unrelated_kwargs_ignored"
+            ),
+        ],
+    )
+    def test_get_elevated_roles(self, kwargs, expected):
+        assert distros._get_elevated_roles(**kwargs) == expected
