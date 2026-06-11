@@ -21,7 +21,7 @@ from urllib3.poolmanager import PoolManager
 
 from cloudinit import dmi, performance, sources, url_helper, util
 from cloudinit.event import EventScope, EventType
-from cloudinit.net.dhcp import NoDHCPLeaseError
+from cloudinit.net.dhcp import InvalidDHCPLeaseFileError, NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralDHCPv4, EphemeralIPv6Network
 from cloudinit.sources import DataSourceHostname
 from cloudinit.subp import ProcessExecutionError
@@ -279,118 +279,117 @@ class DataSourceScaleway(sources.DataSource):
                     self.ephemeral_fixed_address = ipv4["fixed-address"]
                     self.metadata["net_in_use"] = "ipv4"
             except (
+                InvalidDHCPLeaseFileError,
                 NoDHCPLeaseError,
                 ConnectionError,
                 ProcessExecutionError,
             ) as e:
-                util.logexc(LOG, str(e))
-                # DHCPv4 timeout means that there is no DHCPv4 on the NIC.
-                # Flag it so we do not try to crawl on IPv4 again.
+                LOG.debug(
+                    "Unable to get metadata from IPv4: %s. Trying IPv6...", e
+                )
                 self.has_ipv4 = False
 
-        # Only crawl metadata on IPv6 if it has not been done on IPv4
-        if not self.has_ipv4:
+        if not self.has_ipv4 or not self.metadata:
             try:
                 with EphemeralIPv6Network(
                     self.distro,
                     self.distro.fallback_interface,
-                ):
+                ) as ipv6:
                     with performance.Timed(
-                        "Setting api-metadata URL depending on "
-                        "IPv6 availability",
+                        "Setting api-metadata URL "
+                        "depending on IPv6 availability"
                     ):
                         self._set_metadata_url(self.metadata_urls)
                     self._crawl_metadata()
+                    self.ephemeral_fixed_address = ipv6["fixed-address"]
                     self.metadata["net_in_use"] = "ipv6"
-            except ConnectionError:
+            except (
+                ConnectionError,
+                ProcessExecutionError,
+            ) as e:
+                LOG.debug(
+                    "Unable to get metadata from IPv6: %s", e
+                )
                 return False
         return True
 
-    @property
-    def network_config(self):
-        """
-        Configure networking according to data received from the
-        metadata API.
-        """
-        if self._network_config is None:
-            LOG.warning(
-                "Found None as cached _network_config. Resetting to %s",
-                sources.UNSET,
-            )
-            self._network_config = sources.UNSET
-
-        if self._network_config != sources.UNSET:
-            return self._network_config
-
-        netcfg = {}
-        ip_cfg = {}
-        for ip in self.metadata["public_ips"]:
-            # Use DHCP for primary address
-            if ip["address"] == self.ephemeral_fixed_address:
-                ip_cfg["dhcp4"] = True
-                # Force addition of a route to the metadata API
-                route = {
-                    "on-link": True,
-                    "to": "169.254.42.42/32",
-                    "via": "62.210.0.1",
-                }
-                if "routes" in ip_cfg.keys():
-                    ip_cfg["routes"] += [route]
-                else:
-                    ip_cfg["routes"] = [route]
-            else:
-                if "addresses" in ip_cfg.keys():
-                    ip_cfg["addresses"] += (
-                        f'{ip["address"]}/{ip["netmask"]}',
-                    )
-                else:
-                    ip_cfg["addresses"] = (f'{ip["address"]}/{ip["netmask"]}',)
-                if ip["family"] == "inet6":
-                    route = {"via": ip["gateway"], "to": "::/0"}
-                    if "routes" in ip_cfg.keys():
-                        ip_cfg["routes"] += [route]
-                    else:
-                        ip_cfg["routes"] = [route]
-        netcfg[self.distro.fallback_interface] = ip_cfg
-        self._network_config = {"version": 2, "ethernets": netcfg}
-
-        return self._network_config
-
-    @property
-    def launch_index(self):
-        return None
-
+    # Methods required by the DataSource base class
     def get_instance_id(self):
-        return self.metadata["id"]
+        if not self.metadata:
+            return None
+        return self.metadata.get("id")
+
+    def get_hostname(self, fqdn=False, resolve_ip=True, metadata_only=False):
+        if not self.metadata:
+            return DataSourceHostname(None, True)
+        hostname = self.metadata.get("hostname")
+        if hostname:
+            return DataSourceHostname(hostname, False)
+        return DataSourceHostname(None, True)
 
     def get_public_ssh_keys(self):
-        ssh_keys = [key["key"] for key in self.metadata["ssh_public_keys"]]
-
-        akeypre = "AUTHORIZED_KEY="
-        plen = len(akeypre)
+        if not self.metadata:
+            return []
+        keys = []
+        for entry in self.metadata.get("ssh_public_keys", []):
+            if isinstance(entry, dict):
+                keys.append(entry["key"])
         for tag in self.metadata.get("tags", []):
-            if not tag.startswith(akeypre):
-                continue
-            ssh_keys.append(tag[plen:].replace("_", " "))
-
-        return ssh_keys
-
-    def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
-        return DataSourceHostname(self.metadata["hostname"], False)
+            if tag.startswith("AUTHORIZED_KEY="):
+                key = tag.split("=", 1)[1].replace("_", " ")
+                keys.append(key)
+        return keys
 
     @property
     def availability_zone(self):
-        return self.metadata["zone"]
+        if not self.metadata:
+            return None
+        zone = self.metadata.get("zone")
+        if zone:
+            return zone
+        return None
 
     @property
     def region(self):
-        return self.metadata["zone"].rpartition("-")[0]
+        if not self.metadata:
+            return None
+        zone = self.availability_zone
+        if zone:
+            # zone format: "fr-par-1"
+            return "-".join(zone.split("-")[:-1])
+        return None
+
+    @property
+    def network_config(self):
+        if self._network_config != sources.UNSET:
+            return self._network_config
+        self._network_config = sources.UNSET
+        return self._network_config
 
 
+# Used to match classes to dependencies
 datasources = [
     (DataSourceScaleway, (sources.DEP_FILESYSTEM,)),
 ]
 
 
+# Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
+
+
+if __name__ == "__main__":
+    import sys
+
+    if not DataSourceScaleway.ds_detect():
+        print("Machine is not a Scaleway instance")
+        sys.exit(1)
+
+    distro = sources.MockDistro()
+    ds = DataSourceScaleway({}, distro, None)
+    ds.get_data()
+    print("Instance ID: %s" % ds.get_instance_id())
+    print("Hostname: %s" % ds.get_hostname())
+    print("SSH Keys: %s" % ds.get_public_ssh_keys())
+    print("Availability Zone: %s" % ds.availability_zone)
+    print("Region: %s" % ds.region)
