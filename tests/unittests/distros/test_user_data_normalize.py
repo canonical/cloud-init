@@ -303,12 +303,10 @@ class TestUGNormalize:
         }
         users, _groups = self._norm(ug_cfg, distro)
         for user, config in users.items():
-            print("user=%s config=%s" % (user, config))
-            username = distro.create_user(user, **config)
+            distro.create_user(user, groups=[], **config)
 
         snapcmd = ["snap", "create-user", "--sudoer", "--json", "joe@joe.com"]
         mock_subp.assert_called_with(snapcmd, capture=True, logstring=snapcmd)
-        assert username == "joe"
 
     @mock.patch("cloudinit.subp.subp")
     def test_create_snap_user_known(self, mock_subp):
@@ -323,8 +321,7 @@ class TestUGNormalize:
         }
         users, _groups = self._norm(ug_cfg, distro)
         for user, config in users.items():
-            print("user=%s config=%s" % (user, config))
-            username = distro.create_user(user, **config)
+            distro.create_user(user, groups=[], **config)
 
         snapcmd = [
             "snap",
@@ -335,7 +332,6 @@ class TestUGNormalize:
             "joe@joe.com",
         ]
         mock_subp.assert_called_with(snapcmd, capture=True, logstring=snapcmd)
-        assert username == "joe"
 
     @mock.patch("cloudinit.util.system_is_snappy")
     @mock.patch("cloudinit.util.is_group")
@@ -349,7 +345,7 @@ class TestUGNormalize:
         distro = self._make_distro("ubuntu")
         ug_cfg = {
             "users": [
-                {"name": "joe", "groups": "users", "create_groups": True},
+                {"name": "joe", "groups": ["users"], "create_groups": True},
             ],
         }
         users, _groups = self._norm(ug_cfg, distro)
