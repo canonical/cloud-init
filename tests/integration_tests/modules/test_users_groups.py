@@ -119,6 +119,10 @@ class TestUsersGroups:
             )
         )
 
+    @pytest.mark.skipif(
+        not IS_UBUNTU,
+        reason="Warning expectations are Ubuntu-specific",
+    )
     def test_initial_warnings(self, class_client):
         """Check for initial warnings."""
         warnings = (
@@ -126,6 +130,7 @@ class TestUsersGroups:
             if CURRENT_RELEASE > NOBLE
             else []
         )
+
         verify_clean_boot(
             class_client,
             require_warnings=warnings,
@@ -138,6 +143,10 @@ class TestUsersGroups:
         groups = groups_str.split()
         assert "secret" in groups
 
+    @pytest.mark.skipif(
+        not IS_UBUNTU,
+        reason="Password unlock warning behavior differs across distros",
+    )
     def test_nopassword_unlock_warnings(self, class_client):
         """Verify warnings for empty passwords for new and existing users."""
         # Fake admin clearing and unlocking and empty unlocked password foobar
@@ -146,6 +155,7 @@ class TestUsersGroups:
         class_client.execute("passwd -d foobar")
         class_client.instance.clean()
         class_client.restart()
+
         warnings = (
             [
                 EXISTING_USER_EMPTY_PASSWD_WARNING.format(
@@ -165,8 +175,8 @@ class TestUsersGroups:
 
 @pytest.mark.user_data(USER_DATA)
 @pytest.mark.skipif(
-    CURRENT_RELEASE < JAMMY,
-    reason="Requires version of sudo not available in older releases",
+    IS_UBUNTU and CURRENT_RELEASE < JAMMY,
+    reason="Requires version of sudo not available in older Ubuntu releases",
 )
 def test_sudoers_includedir(client: IntegrationInstance):
     """Ensure we don't add additional #includedir to sudoers.
@@ -182,11 +192,15 @@ def test_sudoers_includedir(client: IntegrationInstance):
     sudoers_content_before = client.read_from_file(
         "/etc/sudoers.d/90-cloud-init-users"
     ).splitlines()[1:]
+
     sudoers = client.read_from_file("/etc/sudoers")
+
     if "@includedir /etc/sudoers.d" not in sudoers:
         client.execute("echo '@includedir /etc/sudoers.d' >> /etc/sudoers")
+
     client.instance.clean()
     client.restart()
+
     sudoers = client.read_from_file("/etc/sudoers")
 
     assert "#includedir" not in sudoers
@@ -195,6 +209,7 @@ def test_sudoers_includedir(client: IntegrationInstance):
     sudoers_content_after = client.read_from_file(
         "/etc/sudoers.d/90-cloud-init-users"
     ).splitlines()[1:]
+
     assert sudoers_content_before == sudoers_content_after
 
 
