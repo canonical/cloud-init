@@ -1,0 +1,11 @@
+/var/log/cloud-init*.log
+{
+    su root root
+    missingok
+    nocreate
+    notifempty
+    rotate 6
+    compress
+    delaycompress
+    size 1M
+}

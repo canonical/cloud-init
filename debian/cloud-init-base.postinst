@@ -1,0 +1,186 @@
+#!/bin/sh
+
+set -e
+
+# shellcheck source=/dev/null
+. /usr/share/debconf/confmodule
+
+set -f # disable pathname expansion
+db_capb escape # to support carriage return / multi-line values
+
+debug() {
+   [ "${_CI_UPGRADE_DEBUG:-0}" = "0" ] && return 0
+   echo "$@" 1>&2 || :
+}
+
+update_cfg() {
+   # takes filename, header, new object (in yaml), optionally 'remover'
+   # and merges new into existing object in filename, and then updates file
+   # remover a string that means "delete existing entry"
+   python3 -c '
+import sys, yaml
+
+def update(src, cand):
+    if not (isinstance(src, dict) and isinstance(cand, dict)):
+        return cand
+    for k, v in cand.items():
+        # if the candidate has _ as value, delete source
+        if v == REMOVER:
+            if k in src:
+                del src[k]
+            continue
+        if k not in src:
+            src[k] = v
+        else:
+            src[k] = update(src[k], v)
+    return src
+
+(fname, header, newyaml) = sys.argv[1:4]
+REMOVER = object
+if len(sys.argv) == 5:
+   REMOVER = sys.argv[4]
+newcfg = yaml.safe_load(newyaml)
+
+with open(fname, "r") as fp:
+    cfg = yaml.safe_load(fp)
+if not cfg: cfg = {}
+
+cfg = update(cfg, newcfg)
+
+with open(fname, "w") as fp:
+    fp.write(header + "\n")
+    fp.write(yaml.dump(cfg))' "$@"
+}
+
+# MAAS 3.6 no longer provides debconf settings, but instead uses curtin to
+# write /etc/cloud/cloud.cfg,d/95-cloudconfig-* files directly. When 3.6 is out
+# of support, cloud-init-base can drop support for handling any debconf values.
+handle_preseed_maas() {
+   local cfg_file="/etc/cloud/cloud.cfg.d/90_dpkg_maas.cfg"
+   local md_url="" creds_all="" c_key="" t_key="" t_sec="";
+
+   if process_debconf_setting maas-metadata-url; then
+       md_url="$RET"
+   fi
+   if process_debconf_setting maas-metadata-credentials; then
+       creds_all="$RET"
+   fi
+
+   # nothing to do
+   [ -n "$md_url" ] || [ -n "$creds_all" ] || return 0
+
+   # change a url query string format into : delimited
+   if [ -n "$creds_all" ] && [ "${creds_all#*&}" != "${creds_all}" ]; then
+      # the command here ends up looking like:
+      # python3 -c '...' 'oauth_consumer_key=v1&oauth_token_key=v2...' \
+      #   oauth_consumer_key oauth_token_key oauth_token_secret
+      creds_all=$(python3 -c 'from six.moves.urllib.parse import parse_qs;
+import sys;
+keys = parse_qs(sys.argv[1])
+for k in sys.argv[2:]:
+   sys.stdout.write("%s:" % keys.get(k,[""])[0])' "$creds_all" \
+   oauth_consumer_key oauth_token_key oauth_token_secret
+)
+   fi
+
+   # now, if non-empty creds_all is: consumer_key:token_key:token_secret
+   # shellcheck disable=SC2086
+   if [ -n "$creds_all" ]; then
+      OIFS="$IFS"; IFS=:; set -- $creds_all; IFS="$OIFS"
+      c_key=$1; t_key=$2; t_sec=$3
+   fi
+
+   if [ "$md_url" = "_" ] && [ "${c_key}:${t_key}:${t_sec}" = "_:_:_" ]; then
+      # if all these values were '_', the delete value, just delete the file.
+      rm -f "$cfg_file"
+   else
+      local header="# written by cloud-init-base debian package per preseed entries
+# cloud-init-base/{maas-metadata-url,/maas-metadata-credentials}"
+
+      local pair="" k="" v="" pload="" orig_umask=""
+      for pair in "metadata_url:$md_url" "consumer_key:${c_key}" \
+         "token_key:${t_key}" "token_secret:$t_sec"; do
+         k=${pair%%:*}
+         v=${pair#"${k}":}
+         [ -n "$v" ] && pload="${pload} $k: \"$v\","
+      done
+
+      # '_' would indicate "delete", otherwise, existing entries are left
+      orig_umask=$(umask)
+      umask 066
+      : >> "$cfg_file" && chmod 600 "$cfg_file"
+      update_cfg "$cfg_file" "$header" "datasource: { MAAS: { ${pload%,} } }" _
+      umask "${orig_umask}"
+   fi
+}
+
+handle_preseed_local_cloud_config() {
+   local ccfg=""
+   local cfg_file="/etc/cloud/cloud.cfg.d/90_dpkg_local_cloud_config.cfg"
+   local header="# written by cloud-init-base debian package per preseed entry
+# cloud-init-base/local-cloud-config"
+
+   if process_debconf_setting local-cloud-config; then
+      ccfg="$RET"
+   fi
+
+   if [ "$ccfg" = "_" ]; then
+      rm -f "$cfg_file"
+   elif [ -n "$ccfg" ]; then
+      { echo "$header"; echo "$ccfg"; } > "$cfg_file"
+   fi
+}
+
+# This handles the upgrade path from cloud-init to cloud-init-base.
+# 24.04 is the last LTS series to be released with cloud-init, so this code
+# can be removed in 26.10, to ensure the upgrade path from 24.04->26.04 is
+# not broken. 
+process_debconf_setting() {
+    local old="cloud-init/$1" new="cloud-init-base/$1" old_val="" new_val=""
+    if db_get "$old" && [ -n "${RET}" ]; then
+       old_val="$RET"
+    fi
+    if db_get "$new" && [ -n "${RET}" ]; then
+       new_val="$RET"
+    fi
+    if [ -n "$new_val" ]; then
+        echo "Encountered debconf setting for $new."
+        if [ -n "$old_val" ]; then
+            echo "Ignoring debconf $old setting due to $new."
+            db_set "$old" "" || :
+        fi
+        # now clear the database of the values, as they've been consumed
+        db_unregister "$new" || :
+        RET="$new_val"
+        return 0
+    fi
+    if [ -n "$old_val" ]; then
+        echo "Encountered debconf setting for $old."
+        # We set empty string as cloud-init-base can't db_unregister cloud-init
+        # debconf settings. Instead, set this value empty which is ignored.
+        db_set "$old" "" || :
+        RET="$old_val"
+        return 0
+    fi
+    return 1
+}
+
+if [ "$1" = "configure" ]; then
+   if process_debconf_setting datasources; then
+      datasources="$RET"
+   fi
+   if [ -n "$datasources" ]; then
+      cat > /etc/cloud/cloud.cfg.d/90_dpkg.cfg <<EOF
+# to update this file, run dpkg-reconfigure cloud-init-base
+datasource_list: [ $datasources ]
+EOF
+   fi
+
+   # if there are maas settings pre-seeded apply them
+   handle_preseed_maas
+
+   # if there is generic cloud-config preseed, apply them
+   handle_preseed_local_cloud_config
+fi
+
+#DEBHELPER#

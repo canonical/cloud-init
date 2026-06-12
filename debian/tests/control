@@ -1,0 +1,2 @@
+Tests: commandline_status.sh
+Restrictions: needs-root, needs-reboot, breaks-testbed

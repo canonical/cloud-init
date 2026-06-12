@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+# Simple changelog entry formatter
+#
+# It simply uses the built in formatter and linewraps the text
+#
+# Use git-dch --customizations=/<uss_tableflip>/scripts/gbp_format_changelog
+# or set it via gbp.conf
+
+import re
+import textwrap
+
+import gbp.dch
+
+# FILTER_UPSTREAM_COMMMITERS are authors for which to redact [author name]
+# suffix per changelog message. The reason we redact those names as they
+# will be repeated for most changelog entries.
+
+# To override this default filter behavior, copy this file into your project's
+# ./debian/ directory and adapt as needed.
+
+FILTER_UPSTREAM_COMMITERS = (  # cloud-init upstream author names
+    "Chad Smith",
+    "James Falcon",
+    "Brett Holman",
+    "Alberto Contreras",
+)
+
+FILTER_NOISY_COMMIT_REGEX = (
+    r"update changelog.*",
+    r"refresh patches against.*",
+)
+
+# To filter Jira tickets from "SC" project out of potential changelog comments
+JIRA_PROJECT_KEY = "SC"
+
+UNWRAPPABLE_DELIMITERS = {
+    "]": "[",
+    ")": "(",
+}
+
+
+def _wrap_on_delimiter(text, prefix="", max_length=70) -> list:
+    """Break lines at specific UNWRAPPABLE_DELIMITERS.
+
+    When a line ends with either (LP: #XXX) or [Author Name] avoid using
+    textwrap.wrap which breaks at the last whitespace.
+
+    Instead break at the leading ( or [ special delimiter to ensure entire
+    author name or LP bug reference remains on the same line.
+
+    Fallback to use textwrap.wrap if special conditions don't apply.
+
+    Return a list of individual lines.
+    """
+    if len(text) <= max_length:
+        return [prefix + text]
+    if text[-1] in UNWRAPPABLE_DELIMITERS:
+        delimiter = UNWRAPPABLE_DELIMITERS[text[-1]]
+        part1, sep, part2 = text.rpartition(delimiter)
+        lines = []
+        for part in (part1.rstrip(), f"{sep}{part2}"):
+            if lines:
+                if len(lines[-1] + " " + part) < 70:
+                    # Then the previous part plus current part should be joined
+                    part = lines.pop() + " " + part
+                part = f" {part}"
+            lines.extend(_wrap_on_delimiter(part, prefix="" if lines else "+"))
+        return lines
+    return textwrap.wrap(prefix + text)
+
+
+def format_changelog_entry(commit_info, options, last_commit=False):
+    entry = gbp.dch.format_changelog_entry(commit_info, options, last_commit)
+    if re.search(rf"\({JIRA_PROJECT_KEY}-\d+\)", entry[0]):
+        # Remove JIRA card references from debian/changelog comments
+        entry[0] = re.sub(r"\({JIRA_PROJECT_KEY}-\d+\)", "", entry[0])
+    if commit_info["author"].name not in FILTER_UPSTREAM_COMMITERS:
+        # Only append non-upstream authors since most committers are upstream
+        entry.append(f"[{commit_info['author'].name}]")
+    if entry:
+        combined_entry = " ".join(entry)
+        for filter_re in FILTER_NOISY_COMMIT_REGEX:
+            if re.match(filter_re, combined_entry):
+                return None
+        return _wrap_on_delimiter(combined_entry, prefix="+")
