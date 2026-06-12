@@ -531,10 +531,39 @@ class TestNetworkConfigFromOpcImds:
         assert 9000 == secondary_cfg["mtu"]
         assert 1 == len(secondary_cfg["subnets"])
         assert (
-            "2603:c020:400d:5d7e:aacc:8e5f:3b1b:3a4a/128"
+            "2603:c020:400d:5d7e:aacc:8e5f:3b1b:3a4a/64"
             == secondary_cfg["subnets"][0]["address"]
         )
         assert "static" == secondary_cfg["subnets"][0]["type"]
+
+    def test_imds_dual_stack_secondary_uses_ipv6_prefix(self, oracle_ds):
+        oracle_ds._vnics_data = json.loads(
+            OPC_VM_DUAL_STACK_SECONDARY_VNIC_RESPONSE
+        )
+        oracle_ds._network_config = {
+            "version": 1,
+            "config": [{"primary": "nic"}],
+        }
+        with mock.patch(
+            f"{DS_PATH}.get_interfaces_by_mac",
+            return_value={
+                "02:00:17:0d:6b:be": "ens3",
+                "02:00:17:18:f6:ff": "ens4",
+            },
+        ):
+            oracle_ds._add_network_config_from_opc_imds(set_primary=False)
+
+        nic_cfg = oracle_ds.network_config["config"]
+        secondary_cfg = nic_cfg[1]
+        assert 2 == len(secondary_cfg["subnets"])
+        assert (
+            "10.0.0.183/24"
+            == secondary_cfg["subnets"][0]["address"]
+        )
+        assert (
+            "2603:c020:400d:5dbb:e94a:a85d:26e3:e0d4/64"
+            == secondary_cfg["subnets"][1]["address"]
+        )
 
     @pytest.mark.parametrize("error_add_network", [None, Exception])
     @pytest.mark.parametrize(
