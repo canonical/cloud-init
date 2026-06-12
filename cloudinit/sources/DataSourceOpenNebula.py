@@ -185,11 +185,22 @@ class OpenNebulaNetwork:
 
     def get_nameservers(self, dev: str) -> Dict[str, List[str]]:
         nameservers: Dict[str, List[str]] = {}
-        dns = self.get_field(dev, "dns", "").split()
-        dns.extend(self.context.get("DNS", "").split())
+        dns: List[str] = []
+        for server in (
+            self.get_field(dev, "dns", "").split()
+            + self.context.get("DNS", "").split()
+        ):
+            if server not in dns:
+                dns.append(server)
         if dns:
             nameservers["addresses"] = dns
-        search_domain = self.get_field(dev, "search_domain", "").split()
+        search_domain: List[str] = []
+        for domain in (
+            self.get_field(dev, "search_domain", "").split()
+            + self.context.get("SEARCH_DOMAIN", "").split()
+        ):
+            if domain not in search_domain:
+                search_domain.append(domain)
         if search_domain:
             nameservers["search"] = search_domain
         return nameservers

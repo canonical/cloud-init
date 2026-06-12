@@ -59,6 +59,7 @@ the OpenNebula documentation.
 ::
 
     DNS
+    SEARCH_DOMAIN
     ETH<x>_IP
     ETH<x>_NETWORK
     ETH<x>_MASK
@@ -74,7 +75,12 @@ the OpenNebula documentation.
     ETH<x>_IP6_GATEWAY
     ETH<x>_ROUTES
 
-Static `network configuration`_.
+Static `network configuration`_. ``DNS`` and ``SEARCH_DOMAIN`` are global
+values applied to every interface. Per-interface ``ETH<x>_DNS`` and
+``ETH<x>_SEARCH_DOMAIN`` (defined in `context-linux`_) take precedence;
+duplicate entries across both levels are suppressed.
+
+.. _context-linux: https://github.com/OpenNebula/one-apps/blob/v7.0.0/context-linux/src/etc/one-context.d/loc-10-network.d/functions#L463-L466
 
 ``ETH<x>_ROUTES`` is a comma-separated list of static routes in the form
 ``NETWORK via GATEWAY``. For example::
