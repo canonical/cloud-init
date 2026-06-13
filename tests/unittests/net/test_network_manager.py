@@ -64,14 +64,14 @@ class TestNetworkManagerRenderNetworkState:
                 """
             ),
         }
-        
+
         with mock.patch("cloudinit.net.get_interfaces_by_mac"):
             ns = self._parse_network_state_from_config(config)
             target = str(tmpdir)
             network_manager.Renderer().render_network_state(ns, target=target)
             rendered_content = dir2dict(target)
             assert_equal_dict(expected_config, rendered_content)
-    
+
     def test_bond_dns_baseline(self, tmpdir):
 
         config = textwrap.dedent(
