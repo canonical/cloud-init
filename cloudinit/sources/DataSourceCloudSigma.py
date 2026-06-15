@@ -64,7 +64,7 @@ class DataSourceCloudSigma(sources.DataSource):
         self.dsmode = self._determine_dsmode(
             [server_meta.get("cloudinit-dsmode")]
         )
-        if dsmode == sources.DSMODE_DISABLED:
+        if self.dsmode == sources.DSMODE_DISABLED:
             return False
 
         base64_fields = server_meta.get("base64_fields", "").split(",")

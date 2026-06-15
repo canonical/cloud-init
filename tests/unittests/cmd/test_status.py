@@ -233,7 +233,7 @@ class TestStatus:
         ensured_file: Optional[Callable],
         uses_systemd: bool,
         get_cmdline: str,
-        expected_bootstatus: bool,
+        expected_bootstatus: status.EnabledStatus,
         failure_msg: str,
         expected_reason: Union[str, Callable],
         config: Config,
