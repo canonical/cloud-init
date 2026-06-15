@@ -50,8 +50,6 @@ class DataSourceCloudSigma(sources.DataSource):
         Metadata is the whole server context and /meta/cloud-config is used
         as userdata.
         """
-        dsmode = None
-
         try:
             server_context = self.cepko.all().result
             server_meta = server_context["meta"]
