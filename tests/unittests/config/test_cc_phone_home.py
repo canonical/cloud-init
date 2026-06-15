@@ -54,7 +54,7 @@ class TestPhoneHome:
             (0, -1),
             (1, 0),
             (2, 1),
-            ("2", 1),
+            pytest.param("2", 1, id="tries-str-2"),
             ("two", 9),
             (None, 9),
             ({}, 9),
