@@ -2229,13 +2229,7 @@ USERCTL=no
         "expected_name,yaml_version",
         [
             ("bond_v1", "yaml"),
-            pytest.param(
-                "bond_v2",
-                "yaml",
-                marks=pytest.mark.xfail(
-                    reason="Bond MAC address not rendered"
-                ),
-            ),
+            ("bond_v2", "yaml"),
             ("vlan_v1", "yaml"),
             ("vlan_v2", "yaml"),
             ("bridge", "yaml_v1"),
@@ -2884,13 +2878,7 @@ STARTMODE=auto
         "expected_name,yaml_name",
         [
             ("bond_v1", "yaml"),
-            pytest.param(
-                "bond_v2",
-                "yaml",
-                marks=pytest.mark.xfail(
-                    reason="Bond MAC address not rendered"
-                ),
-            ),
+            ("bond_v2", "yaml"),
             ("vlan_v1", "yaml"),
             ("vlan_v2", "yaml"),
             ("bridge", "yaml_v1"),
@@ -5141,8 +5129,8 @@ class TestRenderersSelect:
             ("eni", False, True, False, False, False),
             # +netplan +ifupdown -sys -nm -networkd selects eni
             ("eni", True, True, False, False, False),
-            # +netplan -ifupdown -sys -nm -networkd selects netplan
-            ("netplan", True, False, False, False, False),
+            # +netplan -ifupdown -sys +nm -networkd selects netplan
+            ("netplan", True, False, False, True, False),
             # +netplan -ifupdown -sys -nm -networkd selects netplan
             ("netplan", True, False, False, False, False),
             # -netplan -ifupdown +sys -nm -networkd selects sysconfig
