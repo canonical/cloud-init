@@ -42,9 +42,6 @@ no_implicit_optional = true
 # See GH-5445
 [[tool.mypy.overrides]]
 module = [
-    "cloudinit.cmd.devel.make_mime",
-    "cloudinit.cmd.devel.net_convert",
-    "cloudinit.cmd.main",
     "cloudinit.config.cc_apt_configure",
     "cloudinit.config.cc_ca_certs",
     "cloudinit.config.cc_growpart",
@@ -76,7 +73,6 @@ module = [
     "cloudinit.sources.DataSourceHetzner",
     "cloudinit.sources.DataSourceNoCloud",
     "cloudinit.sources.DataSourceOVF",
-    "cloudinit.sources.DataSourceOpenNebula",
     "cloudinit.sources.DataSourceOpenStack",
     "cloudinit.sources.DataSourceOracle",
     "cloudinit.sources.DataSourceRbxCloud",
@@ -144,7 +140,6 @@ module = [
     "tests.unittests.sources.test_gce",
     "tests.unittests.sources.test_init",
     "tests.unittests.sources.test_nocloud",
-    "tests.unittests.sources.test_opennebula",
     "tests.unittests.sources.test_openstack",
     "tests.unittests.sources.test_oracle",
     "tests.unittests.sources.test_scaleway",
