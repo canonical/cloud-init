@@ -295,6 +295,7 @@ BUILTIN_DS_CONFIG = {
     "disk_aliases": {"ephemeral0": RESOURCE_DISK_PATH},
     "apply_network_config": True,  # Use IMDS published network configuration
     "apply_network_config_for_secondary_ips": True,  # Configure secondary ips
+    "experimental_fail_on_missing_customdata": False,
     "experimental_skip_ready_report": False,  # Skip final ready report
 }
 
@@ -662,7 +663,6 @@ class DataSourceAzure(sources.DataSource):
         # it determines the value of ret. More specifically, the first one in
         # the candidate list determines the path to take in order to get the
         # metadata we need.
-        ovf_source = None
         md = {"local-hostname": ""}
         cfg = {"system_info": {"default_user": {"name": ""}}}
         userdata_raw = ""
@@ -684,9 +684,9 @@ class DataSourceAzure(sources.DataSource):
                 else:
                     md, userdata_raw, cfg, files = load_azure_ds_dir(src)
 
-                ovf_source = src
+                self.seed = src
                 report_diagnostic_event(
-                    "Found provisioning metadata in %s" % ovf_source,
+                    "Found provisioning metadata in %s" % self.seed,
                     logger_func=LOG.debug,
                 )
                 break
@@ -714,7 +714,7 @@ class DataSourceAzure(sources.DataSource):
         # not have UDF support.  In either case, require IMDS metadata.
         # If we require IMDS metadata, try harder to obtain networking, waiting
         # for at least 20 minutes.  Otherwise only wait 5 minutes.
-        requires_imds_metadata = bool(self._iso_dev) or ovf_source is None
+        requires_imds_metadata = bool(self._iso_dev) or self.seed is None
         timeout_minutes = 20 if requires_imds_metadata else 5
         try:
             self._setup_ephemeral_networking(timeout_minutes=timeout_minutes)
@@ -730,14 +730,18 @@ class DataSourceAzure(sources.DataSource):
 
             imds_md = self.get_metadata_from_imds(report_failure=True)
 
-        if not imds_md and ovf_source is None:
+        if not imds_md and self.seed is None:
             msg = "No OVF or IMDS available"
             report_diagnostic_event(msg)
             raise sources.InvalidMetaDataException(msg)
 
+        self.seed = self.seed or "IMDS"
+
         # Refresh PPS type using metadata.
         pps_type = self._determine_pps_type(cfg, imds_md)
         if pps_type != PPSType.NONE:
+            self.seed = "IMDS"
+
             if util.is_FreeBSD():
                 msg = "Free BSD is not supported for PPS VMs"
                 report_diagnostic_event(msg, logger_func=LOG.error)
@@ -777,7 +781,6 @@ class DataSourceAzure(sources.DataSource):
         # Report errors if IMDS network configuration is missing data.
         self.validate_imds_network_metadata(imds_md=imds_md)
 
-        self.seed = ovf_source or "IMDS"
         crawled_data.update(
             {
                 "cfg": cfg,
@@ -816,9 +819,31 @@ class DataSourceAzure(sources.DataSource):
                     logger_func=LOG.debug,
                 )
 
-        # only use userdata from imds if OVF did not provide custom data
-        # userdata provided by IMDS is always base64 encoded
+        # Only use userdata from IMDS if OVF did not provide custom data.
+        # Userdata provided by IMDS is always base64 encoded.
         if not userdata_raw:
+            # First, check to see if the OVF was supposed to provide custom
+            # data. If it was supposed to and did not, we report failure.
+            has_custom_data = _hascustomdata_from_imds(imds_md)
+            if has_custom_data:
+                if self.ds_cfg.get("experimental_fail_on_missing_customdata"):
+                    self._report_failure(
+                        errors.ReportableErrorMissingCustomData(
+                            pps_type=pps_type.value,
+                            provisioning_media=self.seed,
+                        )
+                    )
+                else:
+                    report_diagnostic_event(
+                        "Did not find custom data in %s, IMDS returned"
+                        " extended.compute.hasCustomData=%r"
+                        % (
+                            self.seed,
+                            has_custom_data,
+                        ),
+                        logger_func=LOG.error,
+                    )
+
             imds_userdata = _userdata_from_imds(imds_md)
             if imds_userdata:
                 LOG.debug("Retrieved userdata from IMDS")
@@ -831,7 +856,7 @@ class DataSourceAzure(sources.DataSource):
                         "Bad userdata in IMDS", logger_func=LOG.warning
                     )
 
-        if ovf_source == ddir:
+        if self.seed == ddir:
             report_diagnostic_event(
                 "using files cached in %s" % ddir, logger_func=LOG.debug
             )
@@ -1720,6 +1745,13 @@ def _username_from_imds(imds_data):
 def _userdata_from_imds(imds_data):
     try:
         return imds_data["compute"]["userData"]
+    except KeyError:
+        return None
+
+
+def _hascustomdata_from_imds(imds_data: Dict) -> Optional[bool]:
+    try:
+        return imds_data["extended"]["compute"]["hasCustomData"]
     except KeyError:
         return None
 
