@@ -41,6 +41,10 @@ cc_mounts:
     of the swap file if using an ``size: auto`` with ``maxsize``. By default,
     no swap file is created.
 
+    For overlay mounts, cloud-init creates the directories referenced by
+    ``upperdir=`` and ``workdir=`` before mounting so the overlay mount can
+    succeed on first boot.
+
     .. note::
        If multiple mounts are specified, where a subsequent mount's mount point
        is inside of a previously-declared mount's mount point, (i.e. the 1st
