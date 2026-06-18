@@ -587,7 +587,16 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     cfg_lines = ["\t".join(entry) for entry in updated_cfg]
 
     dirs = [d[1] for d in updated_cfg if d[1].startswith("/")]
+    for entry in updated_cfg:
+        fstype = entry[2]
+        options = entry[3]
 
+        if fstype == "overlay" or "overlay" in options:
+            for opt in options.split(","):
+                if opt.startswith("upperdir="):
+                    util.ensure_dir(opt.split("=", 1)[1])
+                elif opt.startswith("workdir="):
+                    util.ensure_dir(opt.split("=", 1)[1])
     for d in dirs:
         try:
             util.ensure_dir(d)
