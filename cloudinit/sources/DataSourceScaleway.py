@@ -257,7 +257,6 @@ class DataSourceScaleway(sources.DataSource):
         return False
 
     def _get_data(self):
-
         # The DataSource uses EventType.BOOT so we are called more than once.
         # Try to crawl metadata on IPv4 first and set has_ipv4 to False if we
         # timeout so we do not try to crawl on IPv4 more than once.
@@ -284,32 +283,26 @@ class DataSourceScaleway(sources.DataSource):
                 ConnectionError,
                 ProcessExecutionError,
             ) as e:
-                LOG.debug(
-                    "Unable to get metadata from IPv4: %s. Trying IPv6...", e
-                )
+                util.logexc(LOG, str(e))
+                # DHCPv4 timeout means that there is no DHCPv4 on the NIC.
+                # Flag it so we do not try to crawl on IPv4 again.
                 self.has_ipv4 = False
 
-        if not self.has_ipv4 or not self.metadata:
+        # Only crawl metadata on IPv6 if it has not been done on IPv4
+        if not self.has_ipv4:
             try:
                 with EphemeralIPv6Network(
                     self.distro,
                     self.distro.fallback_interface,
-                ) as ipv6:
+                ):
                     with performance.Timed(
-                        "Setting api-metadata URL "
-                        "depending on IPv6 availability"
+                        "Setting api-metadata URL depending on "
+                        "IPv6 availability",
                     ):
                         self._set_metadata_url(self.metadata_urls)
                     self._crawl_metadata()
-                    self.ephemeral_fixed_address = ipv6["fixed-address"]
                     self.metadata["net_in_use"] = "ipv6"
-            except (
-                ConnectionError,
-                ProcessExecutionError,
-            ) as e:
-                LOG.debug(
-                    "Unable to get metadata from IPv6: %s", e
-                )
+            except ConnectionError:
                 return False
         return True
 
@@ -319,7 +312,7 @@ class DataSourceScaleway(sources.DataSource):
             return None
         return self.metadata.get("id")
 
-    def get_hostname(self, fqdn=False, resolve_ip=True, metadata_only=False):
+    def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
         if not self.metadata:
             return DataSourceHostname(None, True)
         hostname = self.metadata.get("hostname")
@@ -361,10 +354,57 @@ class DataSourceScaleway(sources.DataSource):
 
     @property
     def network_config(self):
+        """
+        Configure networking according to data received from the
+        metadata API.
+        """
+        if self._network_config is None:
+            LOG.warning(
+                "Found None as cached _network_config. Resetting to %s",
+                sources.UNSET,
+            )
+            self._network_config = sources.UNSET
+
         if self._network_config != sources.UNSET:
             return self._network_config
-        self._network_config = sources.UNSET
+
+        netcfg = {}
+        ip_cfg = {}
+        for ip in self.metadata["public_ips"]:
+            # Use DHCP for primary address
+            if ip["address"] == self.ephemeral_fixed_address:
+                ip_cfg["dhcp4"] = True
+                # Force addition of a route to the metadata API
+                route = {
+                    "on-link": True,
+                    "to": "169.254.42.42/32",
+                    "via": "62.210.0.1",
+                }
+                if "routes" in ip_cfg.keys():
+                    ip_cfg["routes"] += [route]
+                else:
+                    ip_cfg["routes"] = [route]
+            else:
+                if "addresses" in ip_cfg.keys():
+                    ip_cfg["addresses"] += (
+                        f'{ip["address"]}/{ip["netmask"]}',
+                    )
+                else:
+                    ip_cfg["addresses"] = (f'{ip["address"]}/{ip["netmask"]}',)
+                if ip["family"] == "inet6":
+                    route = {"via": ip["gateway"], "to": "::/0"}
+                    if "routes" in ip_cfg.keys():
+                        ip_cfg["routes"] += [route]
+                    else:
+                        ip_cfg["routes"] = [route]
+        netcfg[self.distro.fallback_interface] = ip_cfg
+        self._network_config = {"version": 2, "ethernets": netcfg}
+
         return self._network_config
+
+    @property
+    def launch_index(self):
+        return None
 
 
 # Used to match classes to dependencies
@@ -385,7 +425,7 @@ if __name__ == "__main__":
         print("Machine is not a Scaleway instance")
         sys.exit(1)
 
-    distro = sources.MockDistro()
+    distro = sources.MockDistro()  # pylint: disable=no-member
     ds = DataSourceScaleway({}, distro, None)
     ds.get_data()
     print("Instance ID: %s" % ds.get_instance_id())
