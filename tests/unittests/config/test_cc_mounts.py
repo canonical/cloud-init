@@ -535,6 +535,70 @@ class TestFstabHandling:
             ).strip()
         )
 
+    def test_fstab_mountpoint_with_spaces(self):
+        """Mount points with spaces are octal-escaped when written to fstab.
+
+        Reproduces GH-3603: an unescaped space in the mount point breaks
+        `mount -a` parsing of /etc/fstab.
+        """
+        cfg = {
+            "mounts": [
+                [
+                    "/dev/sr0",
+                    "/mnt/Cdrom Drive",
+                    "auto",
+                    "uid=1000,gid=1000",
+                    "0",
+                    "0",
+                ],
+            ]
+        }
+        cc_mounts.handle("", cfg, self.mock_cloud, [])
+        with open(cc_mounts.FSTAB_PATH, "r") as fd:
+            fstab_new_content = fd.read()
+        assert (
+            "/dev/sr0\t/mnt/Cdrom\\040Drive\tauto\t"
+            "uid=1000,gid=1000,comment=cloudconfig\t0\t0\n"
+        ) in fstab_new_content
+
+    def test_fstab_mountpoint_with_spaces_idempotent(self):
+        """A second run must not duplicate an escaped mount entry."""
+        cfg = {
+            "mounts": [
+                [
+                    "/dev/sr0",
+                    "/mnt/Cdrom Drive",
+                    "auto",
+                    "uid=1000,gid=1000",
+                    "0",
+                    "0",
+                ],
+            ]
+        }
+        cc_mounts.handle("", cfg, self.mock_cloud, [])
+        cc_mounts.handle("", cfg, self.mock_cloud, [])
+        with open(cc_mounts.FSTAB_PATH, "r") as fd:
+            fstab_new_content = fd.read()
+        assert fstab_new_content.count("/mnt/Cdrom\\040Drive") == 1
+
+
+class TestFstabEscaping:
+    @pytest.mark.parametrize(
+        "raw, escaped",
+        [
+            ("/mnt/Cdrom Drive", "/mnt/Cdrom\\040Drive"),
+            ("/mnt/a\tb", "/mnt/a\\011b"),
+            ("/mnt/a\nb", "/mnt/a\\012b"),
+            ("/mnt/a\\b", "/mnt/a\\134b"),
+            # backslash escaped first so existing escapes aren't doubled
+            ("/mnt/a \\b", "/mnt/a\\040\\134b"),
+            ("/mnt/plain", "/mnt/plain"),
+        ],
+    )
+    def test_escape_unescape_roundtrip(self, raw, escaped):
+        assert cc_mounts.escape_fstab_field(raw) == escaped
+        assert cc_mounts.unescape_fstab_field(escaped) == raw
+
 
 class TestCreateSwapfile:
     @pytest.mark.parametrize("fstype", ("xfs", "btrfs", "ext4", "other"))
