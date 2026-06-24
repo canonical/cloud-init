@@ -842,13 +842,8 @@ class TestEphemeralDhcpNoNetworkSetup:
 @pytest.mark.parametrize(
     "error_class",
     [
-        pytest.param(
-            NoDHCPLeaseInterfaceError, id="no-dhcp-lease-interface-error"
-        ),
-        pytest.param(
-            NoDHCPLeaseMissingDhclientError,
-            id="no-dhcp-lease-missing-dhclient-error",
-        ),
+        NoDHCPLeaseInterfaceError,
+        NoDHCPLeaseMissingDhclientError,
     ],
 )
 @pytest.mark.usefixtures("disable_netdev_info")

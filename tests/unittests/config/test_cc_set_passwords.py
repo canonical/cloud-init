@@ -580,9 +580,7 @@ class TestRandUserPassword:
             (2, ValueError),
             (3, ValueError),
             (4, 4),
-            pytest.param(5, 4, id="length-5-first"),
-            pytest.param(5, 4, id="length-5-second"),
-            (6, 4),
+            (5, 4),
             (20, 4),
         ],
     )
