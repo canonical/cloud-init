@@ -2263,6 +2263,112 @@ scbus-1 on xpt0 bus 0
         assert ssh_keys == []
         assert m_parse_certificates.call_count == 0
 
+    @mock.patch(
+        "cloudinit.sources.helpers.azure.OpenSSLManager.parse_certificates"
+    )
+    @mock.patch(
+        "cloudinit.sources.DataSourceAzure.certs.convert_x509_to_openssh"
+    )
+    @mock.patch("cloudinit.sources.DataSourceAzure.certs.is_x509_certificate")
+    def test_get_public_ssh_keys_with_x509_from_imds(
+        self, m_is_x509, m_convert, m_parse_certificates, get_ds
+    ):
+        m_is_x509.return_value = True
+        m_convert.return_value = "ssh-rsa converted-from-x509\n"
+        imds_data = copy.deepcopy(NETWORK_METADATA)
+        imds_data["compute"]["publicKeys"][0]["keyData"] = (
+            "-----BEGIN CERTIFICATE-----\n"
+            "MIIBcert\n"
+            "-----END CERTIFICATE-----"
+        )
+        self.m_fetch.return_value = imds_data
+        sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
+        data = {
+            "ovfcontent": construct_ovf_env(),
+            "sys_cfg": sys_cfg,
+        }
+        dsrc = get_ds(data)
+        dsrc.get_data()
+        dsrc.setup(True)
+        ssh_keys = dsrc.get_public_ssh_keys()
+        assert ssh_keys == ["ssh-rsa converted-from-x509"]
+        assert m_convert.called
+        assert m_parse_certificates.call_count == 0
+
+    @mock.patch(
+        "cloudinit.sources.helpers.azure.OpenSSLManager.parse_certificates"
+    )
+    @mock.patch(
+        "cloudinit.sources.DataSourceAzure.certs.convert_x509_to_openssh"
+    )
+    @mock.patch("cloudinit.sources.DataSourceAzure.certs.is_x509_certificate")
+    def test_get_public_ssh_keys_with_mixed_x509_and_openssh_from_imds(
+        self, m_is_x509, m_convert, m_parse_certificates, get_ds
+    ):
+        m_is_x509.return_value = True
+        m_convert.return_value = "ssh-rsa converted-from-x509\n"
+        imds_data = copy.deepcopy(NETWORK_METADATA)
+        imds_data["compute"]["publicKeys"] = [
+            {"keyData": "ssh-rsa openssh-key", "path": "path1"},
+            {
+                "keyData": (
+                    "-----BEGIN CERTIFICATE-----\n"
+                    "MIIBcert\n"
+                    "-----END CERTIFICATE-----"
+                ),
+                "path": "path2",
+            },
+        ]
+        self.m_fetch.return_value = imds_data
+        sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
+        data = {
+            "ovfcontent": construct_ovf_env(),
+            "sys_cfg": sys_cfg,
+        }
+        dsrc = get_ds(data)
+        dsrc.get_data()
+        dsrc.setup(True)
+        ssh_keys = dsrc.get_public_ssh_keys()
+        assert ssh_keys == [
+            "ssh-rsa openssh-key",
+            "ssh-rsa converted-from-x509",
+        ]
+        # The OpenSSH key is returned verbatim (not routed through
+        # conversion); only the x509 cert is converted.
+        assert m_convert.called
+        assert m_parse_certificates.call_count == 0
+
+    @mock.patch(
+        "cloudinit.sources.helpers.azure.OpenSSLManager.parse_certificates"
+    )
+    @mock.patch(
+        "cloudinit.sources.DataSourceAzure.certs.convert_x509_to_openssh"
+    )
+    @mock.patch("cloudinit.sources.DataSourceAzure.certs.is_x509_certificate")
+    def test_get_public_ssh_keys_with_x509_conversion_failure_falls_back(
+        self, m_is_x509, m_convert, m_parse_certificates, get_ds
+    ):
+        m_is_x509.return_value = True
+        m_convert.side_effect = subp.ProcessExecutionError("conversion failed")
+        imds_data = copy.deepcopy(NETWORK_METADATA)
+        imds_data["compute"]["publicKeys"][0]["keyData"] = (
+            "-----BEGIN CERTIFICATE-----\n"
+            "MIIBcert\n"
+            "-----END CERTIFICATE-----"
+        )
+        self.m_fetch.return_value = imds_data
+        sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
+        data = {
+            "ovfcontent": construct_ovf_env(),
+            "sys_cfg": sys_cfg,
+        }
+        dsrc = get_ds(data)
+        dsrc.get_data()
+        dsrc.setup(True)
+        ssh_keys = dsrc.get_public_ssh_keys()
+        assert ssh_keys == []
+        assert m_convert.called
+
     def test_get_public_ssh_keys_without_imds(self, get_ds):
         self.m_fetch.return_value = dict()
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
