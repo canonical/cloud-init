@@ -283,7 +283,16 @@ class TestReadFileOrUrl:
 class TestReadFileOrUrlParameters:
     @mock.patch(M_PATH + "readurl")
     @pytest.mark.parametrize(
-        "timeout", [1, 1.2, "1", (1, None), (1, 1), (None, None)]
+        "timeout",
+        [1, 1.2, "1", (1, None), (1, 1), (None, None)],
+        ids=[
+            "timeout-int",
+            "timeout-float",
+            "timeout-str-int",
+            "timeout-tuple-write-default",
+            "timeout-tuple-read-write",
+            "timeout-tuple-none",
+        ],
     )
     def test_read_file_or_url_passes_params_to_readurl(
         self, m_readurl, timeout
@@ -321,6 +330,17 @@ class TestReadFileOrUrlParameters:
             ((1, None), (1, None)),
             ((1, 1), (1, 1)),
             ((None, None), (None, None)),
+        ],
+        ids=[
+            "negative-int-defaults-to-zero",
+            "negative-str-defaults-to-zero",
+            "none-timeout",
+            "int-timeout",
+            "float-timeout",
+            "str-int-timeout",
+            "tuple-read-timeout-only",
+            "tuple-read-write-timeout",
+            "tuple-none-timeout",
         ],
     )
     def test_readurl_timeout(self, readurl_timeout, request_timeout):

@@ -54,7 +54,9 @@ class TestPhoneHome:
             (0, -1),
             (1, 0),
             (2, 1),
-            ("2", 1),
+            # override parametrized id to differentiate str "2" from int 2 in former test
+            # GH pytest-dev/pytest#14650.
+            pytest.param("2", 1, id="retries-as-int-str"),
             ("two", 9),
             (None, 9),
             ({}, 9),
