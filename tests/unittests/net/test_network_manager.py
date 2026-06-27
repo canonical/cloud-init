@@ -23,7 +23,7 @@ class TestNetworkManagerRenderNetworkState:
             return network_state.parse_net_config_data(config)
 
     def test_subnet_route_metric(self, tmpdir):
-        """Test that a subnet metric correctly renders as route-metric in NM config."""
+        """Test subnet metric renders as route-metric in NM config."""
         config = textwrap.dedent(
             """\
             version: 1
