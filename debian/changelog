@@ -1,8 +1,12 @@
-cloud-init (26.2~1g275e0e03-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (26.2~2g5a5bca15-0ubuntu1) stonking; urgency=medium
 
   * d/control: add python3-pyfakefs for testing
+  * drop the following cherry-picks now included:
+    - cpick-d4566b1a-fix-ubuntu-Configure-arm64-to-use-archive.ubuntu.com
+  * Upstream snapshot based on upstream/main at 5a5bca15.
+    - Bugs fixed in this snapshot: (LP: #2147101)
 
- -- Chad Smith <chad.smith@canonical.com>  Tue, 14 Apr 2026 09:55:08 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 10 Jun 2026 07:13:45 -0600
 
 cloud-init (26.1-0ubuntu2) resolute; urgency=medium
 

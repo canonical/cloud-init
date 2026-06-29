@@ -3,12 +3,12 @@
 import logging
 import os
 from types import SimpleNamespace
+from unittest import mock
 
 import pytest
 
 from cloudinit import handlers, helpers, settings, url_helper, util
 from cloudinit.cmd import main
-from tests.unittests.helpers import mock
 
 
 @pytest.fixture

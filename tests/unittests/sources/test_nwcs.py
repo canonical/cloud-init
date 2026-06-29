@@ -1,10 +1,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+from unittest import mock
+
 import pytest
 
 from cloudinit import settings, util
 from cloudinit.sources import DataSourceNWCS
-from tests.unittests.helpers import mock
 
 METADATA = util.load_yaml(
     """

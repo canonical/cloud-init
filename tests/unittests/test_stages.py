@@ -5,6 +5,7 @@
 import json
 import os
 import stat
+from unittest import mock
 
 import pytest
 
@@ -13,7 +14,6 @@ from cloudinit.event import EventScope, EventType
 from cloudinit.helpers import Paths
 from cloudinit.sources import DataSource, NetworkConfigSource
 from cloudinit.util import sym_link, write_file
-from tests.unittests.helpers import mock
 from tests.unittests.util import TEST_INSTANCE_ID, FakeDataSource
 
 M_PATH = "cloudinit.stages."

@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from io import StringIO
+from unittest import mock
 
 import pytest
 
@@ -8,7 +9,6 @@ from cloudinit.cmd.devel import render
 from cloudinit.helpers import Paths
 from cloudinit.templater import JinjaSyntaxParsingException
 from cloudinit.util import ensure_dir, write_file
-from tests.unittests.helpers import mock, skipUnlessJinja
 
 M_PATH = "cloudinit.cmd.devel.render."
 
@@ -87,7 +87,6 @@ class TestRender:
                 assert render.render_template(user_data, None, False) == 0
         assert "rendering: jinja worked" in m_stdout.getvalue()
 
-    @skipUnlessJinja()
     def test_renders_instance_data_vars_in_template(self, caplog, tmpdir):
         """If user_data file is a jinja template render instance-data vars."""
         user_data = tmpdir.join("user-data")
@@ -103,7 +102,6 @@ class TestRender:
         )
         assert "rendering: jinja worked" == m_stdout.getvalue()
 
-    @skipUnlessJinja()
     def test_render_warns_and_gives_up_on_invalid_jinja_operation(
         self, caplog, tmpdir
     ):
@@ -119,7 +117,6 @@ class TestRender:
             ' "my_var"?' % user_data
         ) in caplog.text
 
-    @skipUnlessJinja()
     def test_jinja_load_error(self, caplog, tmpdir):
         user_data = tmpdir.join("user-data")
         write_file(user_data, "##template: jinja\nrendering: {{ my-var }}")
@@ -130,7 +127,6 @@ class TestRender:
             "Cannot render from instance data due to exception" in caplog.text
         )
 
-    @skipUnlessJinja()
     def test_not_jinja_error(self, caplog, tmpdir):
         user_data = tmpdir.join("user-data")
         write_file(user_data, "{{ my-var }}")
@@ -141,7 +137,6 @@ class TestRender:
             "Cannot render from instance data due to exception" in caplog.text
         )
 
-    @skipUnlessJinja()
     def test_no_user_data(self, caplog, tmpdir):
         user_data = tmpdir.join("user-data")
         write_file(user_data, "##template: jinja")
@@ -150,7 +145,6 @@ class TestRender:
         render.render_template(user_data, instance_data, False)
         assert "Unable to render user-data file" in caplog.text
 
-    @skipUnlessJinja()
     def test_invalid_jinja_syntax(self, caplog, tmpdir):
         user_data = tmpdir.join("user-data")
         write_file(user_data, "##template: jinja\nrendering: {{ my_var } }")

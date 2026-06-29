@@ -1,6 +1,7 @@
 """Tests for cc_keys_to_console."""
 
 import re
+from unittest import mock
 
 import pytest
 
@@ -10,7 +11,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import mock, skipUnlessJsonSchema
+from tests.unittests.helpers import skipUnlessJsonSchema
 
 
 class TestHandle:

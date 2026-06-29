@@ -7,14 +7,13 @@ import logging
 import os
 import sys
 from collections import namedtuple
+from unittest import mock
 
 import pytest
 
 from cloudinit import helpers
 from cloudinit.cmd import main as cli
 from tests.unittests import helpers as test_helpers
-
-mock = test_helpers.mock
 
 M_PATH = "cloudinit.cmd.main."
 Tmpdir = namedtuple("Tmpdir", ["tmpdir", "link_d", "data_d"])

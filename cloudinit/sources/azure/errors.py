@@ -168,6 +168,13 @@ class ReportableErrorImdsMetadataParsingException(ReportableError):
         self.supporting_data["exception"] = repr(exception)
 
 
+class ReportableErrorImportError(ReportableError):
+    def __init__(self, *, error: ImportError) -> None:
+        super().__init__(f"error importing {error.name} library")
+
+        self.supporting_data["error"] = repr(error)
+
+
 class ReportableErrorOsDiskPpsFailure(ReportableError):
     def __init__(self) -> None:
         super().__init__("error waiting for host shutdown")
