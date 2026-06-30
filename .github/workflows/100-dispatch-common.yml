@@ -10,8 +10,8 @@ on:
         required: true
         type: choice
         options:
+        - stonking
         - resolute
-        - questing
         - jammy
         - noble
       platform:
