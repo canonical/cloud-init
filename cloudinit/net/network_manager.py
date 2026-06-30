@@ -519,6 +519,13 @@ class NMConnection:
             if "ethernet" not in self.config:
                 self.config["ethernet"] = {}
             self.config["ethernet"]["mtu"] = str(ipv4_mtu)
+        if if_type == "bond":
+            if iface.get("mac_address") is not None:
+                if not self.config.has_section("ethernet"):
+                    self.config["ethernet"] = {}
+                self.config["ethernet"]["cloned-mac-address"] = self.mac_addr(
+                    iface["mac_address"]
+                )
         if if_type == "bridge":
             # Bridge is ass-backwards compared to bond
             for port in iface["bridge_ports"]:
