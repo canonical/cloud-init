@@ -71,6 +71,7 @@ PATH_ROOT=${PATH_ROOT:-""}
 PATH_SYS_CLASS_DMI_ID=${PATH_SYS_CLASS_DMI_ID:-${PATH_ROOT}/sys/class/dmi/id}
 PATH_SYS_HYPERVISOR=${PATH_SYS_HYPERVISOR:-${PATH_ROOT}/sys/hypervisor}
 PATH_SYS_CLASS_BLOCK=${PATH_SYS_CLASS_BLOCK:-${PATH_ROOT}/sys/class/block}
+PATH_SYS_FWCFG=${PATH_SYS_FWCFG:-${PATH_ROOT}/sys/firmware/qemu_fw_cfg/by_name/opt/io.cloud-init/cloud-init}
 PATH_DEV_DISK="${PATH_DEV_DISK:-${PATH_ROOT}/dev/disk}"
 PATH_VAR_LIB_CLOUD="${PATH_VAR_LIB_CLOUD:-${PATH_ROOT}/var/lib/cloud}"
 PATH_DI_CONFIG="${PATH_DI_CONFIG:-${PATH_ROOT}/etc/cloud/ds-identify.cfg}"
@@ -128,7 +129,7 @@ DI_SYSTEMD_VIRTUALIZATION=${SYSTEMD_VIRTUALIZATION:-}
 DI_DSNAME=""
 # this has to match the builtin list in cloud-init, it is what will
 # be searched if there is no setting found in config.
-DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
+DI_DSLIST_DEFAULT="MAAS QemuFwCfg ConfigDrive NoCloud AltCloud Azure Bigstep \
 CloudSigma CloudStack DigitalOcean Vultr AliYun Ec2 GCE OpenNebula OpenStack \
 VMware OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale RbxCloud UpCloud \
 LXD NWCS Akamai WSL CloudCIX"
@@ -1013,6 +1014,11 @@ dscheck_LXD() {
             return ${DS_FOUND}
         fi
     done
+    return ${DS_NOT_FOUND}
+}
+
+dscheck_QemuFwCfg() {
+    [ -d "${PATH_SYS_FWCFG}" ] && return ${DS_FOUND}
     return ${DS_NOT_FOUND}
 }
 
