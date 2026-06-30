@@ -11,7 +11,7 @@ on:
         type: choice
         options:
         - resolute
-        - questing
+        - stonking
         - jammy
         - noble
       platform:
