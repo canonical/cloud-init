@@ -16,20 +16,18 @@ from cloudinit.distros.parsers import chop_comment
 class HostsConf:
     def __init__(self, text: str) -> None:
         self._text = text
-        self._parsed: bool = False
         self._contents: List[Tuple[str, List[Any]]] = []
 
     def parse(self) -> None:
-        if not self._parsed:
+        if not self._contents:
             self._contents = self._parse(self._text)
-            self._parsed = True
 
     def get_entry(self, ip: str) -> List[List[str]]:
         self.parse()
         options: List[List[str]] = []
         for line_type, components in self._contents:
             if line_type == "option":
-                (pieces, _tail) = components
+                pieces, _tail = components
                 if len(pieces) and pieces[0] == ip:
                     options.append(pieces[1:])
         return options
@@ -42,7 +40,7 @@ class HostsConf:
                 n_entries.append((line_type, components))
                 continue
             else:
-                (pieces, _tail) = components
+                pieces, _tail = components
                 if len(pieces) and pieces[0] == ip:
                     pass
                 elif len(pieces):
@@ -63,7 +61,7 @@ class HostsConf:
             if not len(line.strip()):
                 entries.append(("blank", [line]))
                 continue
-            (head, tail) = chop_comment(line.strip(), "#")
+            head, tail = chop_comment(line.strip(), "#")
             if not len(head):
                 entries.append(("all_comment", [line]))
                 continue
@@ -75,11 +73,12 @@ class HostsConf:
         contents = StringIO()
         for line_type, components in self._contents:
             if line_type == "blank":
-                contents.write("%s\n" % (components[0]))
+                contents.write("%s\n" % components[0])
             elif line_type == "all_comment":
-                contents.write("%s\n" % (components[0]))
+                contents.write("%s\n" % components[0])
             elif line_type == "option":
-                (raw_pieces, tail) = components
+                raw_pieces, tail = components
                 str_pieces = [str(p) for p in raw_pieces]
-                contents.write("%s%s\n" % ("\t".join(str_pieces), tail))
+                joined = "\t".join(str_pieces)
+                contents.write(f"{joined}{tail}\n")
         return contents.getvalue()
