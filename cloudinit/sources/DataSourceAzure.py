@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 
-from cloudinit import net, performance, sources, ssh_util, subp, util
+from cloudinit import net, performance, sources, subp, util
 from cloudinit.config import cc_mounts
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import device_driver
@@ -30,7 +30,7 @@ from cloudinit.net.dhcp import (
 )
 from cloudinit.net.ephemeral import EphemeralDHCPv4, EphemeralIPv4Network
 from cloudinit.reporting import events
-from cloudinit.sources.azure import errors, identity, imds, kvp
+from cloudinit.sources.azure import certs, errors, identity, imds, kvp
 from cloudinit.sources.helpers import netlink
 from cloudinit.sources.helpers.azure import (
     DEFAULT_WIRESERVER_ENDPOINT,
@@ -1062,13 +1062,16 @@ class DataSourceAzure(sources.DataSource):
     def _get_public_keys_from_imds(self, imds_md: dict) -> List[str]:
         """Get SSH keys from IMDS metadata.
 
+        Keys provided by IMDS may be in OpenSSH format or as x509
+        certificates. x509 certificates are converted to OpenSSH format.
+
         :raises KeyError: if IMDS metadata is malformed/missing.
         :raises ValueError: if key format is not supported.
 
         :returns: List of keys.
         """
         try:
-            ssh_keys = [
+            raw_keys = [
                 public_key["keyData"]
                 for public_key in imds_md["compute"]["publicKeys"]
             ]
@@ -1077,10 +1080,24 @@ class DataSourceAzure(sources.DataSource):
             report_diagnostic_event(log_msg, logger_func=LOG.debug)
             raise
 
-        if any(not _key_is_openssh_formatted(key=key) for key in ssh_keys):
-            log_msg = "Key(s) not in OpenSSH format"
-            report_diagnostic_event(log_msg, logger_func=LOG.debug)
-            raise ValueError(log_msg)
+        ssh_keys = []
+        for key in raw_keys:
+            sanitized = certs.sanitize_openssh_key(key)
+            if certs.is_openssh_formatted(sanitized):
+                ssh_keys.append(sanitized)
+            elif certs.is_x509_certificate(key):
+                log_msg = "Converting x509 certificate from IMDS to OpenSSH"
+                report_diagnostic_event(log_msg, logger_func=LOG.debug)
+                try:
+                    ssh_keys.append(certs.convert_x509_to_openssh(key).strip())
+                except subp.ProcessExecutionError as error:
+                    log_msg = "Failed to convert x509 certificate from IMDS"
+                    report_diagnostic_event(log_msg, logger_func=LOG.warning)
+                    raise ValueError(log_msg) from error
+            else:
+                log_msg = "Key(s) not in a supported format"
+                report_diagnostic_event(log_msg, logger_func=LOG.debug)
+                raise ValueError(log_msg)
 
         log_msg = "Retrieved {} keys from IMDS".format(len(ssh_keys))
         report_diagnostic_event(log_msg, logger_func=LOG.debug)
@@ -1782,23 +1799,6 @@ def _disable_password_from_imds(imds_data):
         )
     except KeyError:
         return None
-
-
-def _key_is_openssh_formatted(key):
-    """
-    Validate whether or not the key is OpenSSH-formatted.
-    """
-    # See https://bugs.launchpad.net/cloud-init/+bug/1910835
-    if "\r\n" in key.strip():
-        return False
-
-    parser = ssh_util.AuthKeyLineParser()
-    try:
-        akl = parser.parse(key)
-    except TypeError:
-        return False
-
-    return akl.keytype is not None
 
 
 def _partitions_on_device(devpath, maxnum=16):
