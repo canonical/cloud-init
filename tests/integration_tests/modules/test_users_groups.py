@@ -119,6 +119,10 @@ class TestUsersGroups:
             )
         )
 
+    @pytest.mark.skipif(
+        not IS_UBUNTU,
+        reason="Warning expectations are Ubuntu-specific",
+    )
     def test_initial_warnings(self, class_client):
         """Check for initial warnings."""
         warnings = (
@@ -138,6 +142,10 @@ class TestUsersGroups:
         groups = groups_str.split()
         assert "secret" in groups
 
+    @pytest.mark.skipif(
+        not IS_UBUNTU,
+        reason="Password unlock warning behavior differs across distros",
+    )
     def test_nopassword_unlock_warnings(self, class_client):
         """Verify warnings for empty passwords for new and existing users."""
         # Fake admin clearing and unlocking and empty unlocked password foobar
@@ -165,8 +173,8 @@ class TestUsersGroups:
 
 @pytest.mark.user_data(USER_DATA)
 @pytest.mark.skipif(
-    CURRENT_RELEASE < JAMMY,
-    reason="Requires version of sudo not available in older releases",
+    IS_UBUNTU and CURRENT_RELEASE < JAMMY,
+    reason="Requires version of sudo not available in older Ubuntu releases",
 )
 def test_sudoers_includedir(client: IntegrationInstance):
     """Ensure we don't add additional #includedir to sudoers.
