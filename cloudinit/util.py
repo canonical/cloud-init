@@ -607,6 +607,7 @@ def _get_variant(info):
             "centos",
             "cloudlinux",
             "debian",
+            "eln",
             "eurolinux",
             "fedora",
             "mariner",

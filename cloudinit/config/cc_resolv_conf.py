@@ -28,6 +28,8 @@ meta: MetaSchema = {
     "distros": [
         "alpine",
         "azurelinux",
+        "centos",
+        "eln",
         "fedora",
         "mariner",
         "opensuse",

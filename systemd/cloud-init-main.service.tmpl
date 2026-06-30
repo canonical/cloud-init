@@ -11,7 +11,7 @@ Description=Cloud-init: Single Process
 {% if variant in ["almalinux", "azurelinux", "cloudlinux", "ubuntu", "unknown", "debian", "raspberry-pi-os", "rhel"] %}
 DefaultDependencies=no
 {% endif %}
-{% if variant in ["almalinux", "azurelinux", "cloudlinux", "rhel"] %}
+{% if variant in ["almalinux", "azurelinux", "cloudlinux", "centos", "eln", "rhel"] %}
 Requires=dbus.socket
 After=dbus.socket
 {% endif %}

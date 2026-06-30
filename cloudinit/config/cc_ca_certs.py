@@ -58,6 +58,7 @@ DISTRO_FAMILY = {
     "amazon": "rhel",
     "centos": "rhel",
     "cloudlinux": "rhel",
+    "eln": "rhel",
     "fedora": "rhel",
     "opensuse-microos": "opensuse",
     "opensuse-tumbleweed": "opensuse",
