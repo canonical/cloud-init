@@ -161,15 +161,12 @@ def close_stdin(logger: Callable[[str], None] = LOG.debug):
 
 
 def extract_fns(args):
-    # Files are already opened so lets just pass that along
-    # since it would of broke if it couldn't have
-    # read that file already...
     fn_cfgs = []
     if args.files:
-        for fh in args.files:
+        for filepath in args.files:
             # The realpath is more useful in logging
             # so lets resolve to that...
-            fn_cfgs.append(os.path.realpath(fh.name))
+            fn_cfgs.append(os.path.realpath(filepath))
     return fn_cfgs
 
 
@@ -1151,7 +1148,7 @@ def main(sysv_args=None):
         action="append",
         dest="files",
         help="Use additional yaml configuration files.",
-        type=argparse.FileType("rb"),
+        type=str,
     )
     # This is used so that we can know which action is selected +
     # the functor to use to run this subcommand
@@ -1184,7 +1181,7 @@ def main(sysv_args=None):
         action="append",
         dest="files",
         help="Use additional yaml configuration files.",
-        type=argparse.FileType("rb"),
+        type=str,
     )
     parser_mod.set_defaults(action=("modules", main_modules))
 
@@ -1224,7 +1221,7 @@ def main(sysv_args=None):
         action="append",
         dest="files",
         help="Use additional yaml configuration files.",
-        type=argparse.FileType("rb"),
+        type=str,
     )
     parser_single.set_defaults(action=("single", main_single))
 
