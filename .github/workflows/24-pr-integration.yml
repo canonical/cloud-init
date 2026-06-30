@@ -19,7 +19,7 @@ defaults:
     shell: sh -ex {0}
 
 env:
-  RELEASE: questing
+  RELEASE: resolute
 
 jobs:
   build-package-and-run-tests:
