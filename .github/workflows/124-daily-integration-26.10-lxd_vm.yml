@@ -1,4 +1,4 @@
-name: "Daily 25.10: lxd_container"
+name: "Daily 26.10: lxd_vm"
 
 on:
   workflow_dispatch:
@@ -17,14 +17,14 @@ on:
         required: false
         type: string
   schedule:
-    - cron: '2 22 * * *'
+    - cron: '2 23 * * *'
 
 jobs:
-  questing-lxd_container:
+  stonking-lxd_vm:
     uses: ./.github/workflows/100-dispatch-common.yml
     with:
-      release: questing
-      platform: lxd_container
+      release: stonking
+      platform: lxd_vm
       install_source: ${{ inputs.install_source || 'ppa:cloud-init-dev/daily' }}
       image_type: ${{ inputs.image_type || 'generic' }}
       filter_tests: ${{ inputs.filter_tests }}
