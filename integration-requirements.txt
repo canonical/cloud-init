@@ -2,7 +2,9 @@
 # PyPI requirements for cloud-init integration testing
 # https://docs.cloud-init.io/en/latest/development/integration_tests.html
 #
-pycloudlib>=1!10.0.2,<1!11
+# 1!10.18.1 imports ResourceManagementClient from azure.mgmt.resource.resources,
+# which is required for compatibility with azure-mgmt-resource >= 26.0.0.
+pycloudlib>=1!10.18.1,<1!11
 
 pytest-timeout
 
