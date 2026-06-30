@@ -157,6 +157,7 @@ def handle_args(name, args):
         pre_ns = azure.generate_network_config_from_instance_network_metadata(
             json.loads(net_data)["network"],
             apply_network_config_for_secondary_ips=True,
+            apply_network_config_set_name=True,
         )
     elif args.kind == "vmware-imc":
         vmware_config = guestcust_util.Config(
