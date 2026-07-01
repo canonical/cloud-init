@@ -38,7 +38,35 @@ MNT_COMMENT = "comment=cloudconfig"
 MB = 2**20
 GB = 2**30
 
+# Per fstab(5), fstab fields are whitespace-separated, so these characters
+# must be octal-escaped when they appear inside a field. Backslash must come
+# first so we don't double-escape the escapes we introduce.
+FSTAB_ESCAPES = (
+    ("\\", "\\134"),
+    (" ", "\\040"),
+    ("\t", "\\011"),
+    ("\n", "\\012"),
+)
+
 LOG = logging.getLogger(__name__)
+
+
+def escape_fstab_field(value: str) -> str:
+    """Octal-escape special characters for safe writing to fstab."""
+    for char, escaped in FSTAB_ESCAPES:
+        value = value.replace(char, escaped)
+    return value
+
+
+def unescape_fstab_field(value: str) -> str:
+    """Reverse escape_fstab_field.
+
+    Iterate FSTAB_ESCAPES in reverse so backslash is decoded last; this
+    avoids mis-decoding a field whose original value contained a backslash.
+    """
+    for char, escaped in reversed(FSTAB_ESCAPES):
+        value = value.replace(escaped, char)
+    return value
 
 
 def is_meta_device_name(name):
@@ -369,7 +397,7 @@ def parse_fstab() -> Tuple[List[str], Dict[str, str], List[str]]:
                 continue
             toks = line.split()
             if toks:
-                fstab_devs[toks[0]] = line
+                fstab_devs[unescape_fstab_field(toks[0])] = line
                 fstab_lines.append(line)
     return fstab_lines, fstab_devs, fstab_removed
 
@@ -584,7 +612,10 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         LOG.debug("No modifications to fstab needed")
         return
 
-    cfg_lines = ["\t".join(entry) for entry in updated_cfg]
+    cfg_lines = [
+        "\t".join(escape_fstab_field(field) for field in entry)
+        for entry in updated_cfg
+    ]
 
     dirs = [d[1] for d in updated_cfg if d[1].startswith("/")]
 
