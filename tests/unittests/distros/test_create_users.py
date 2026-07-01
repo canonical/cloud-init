@@ -750,8 +750,9 @@ class TestCreateUser:
         dist.create_user(USER, ssh_redirect_user="someuser")
         assert caplog.records[1].levelname in ["WARNING", "DEPRECATED"]
         assert (
-            "Unable to disable SSH logins for foo_user given "
-            "ssh_redirect_user: someuser. No cloud public-keys present.\n"
+            "Unable to disable SSH logins for foo_user."
+            " ssh_redirect_user was set to redirect logins to"
+            " someuser, but no cloud public-keys are present.\n"
         ) in caplog.text
         m_setup_user_keys.assert_not_called()
 

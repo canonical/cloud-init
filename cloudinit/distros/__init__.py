@@ -1008,8 +1008,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             cloud_keys = kwargs.get("cloud_public_ssh_keys", [])
             if not cloud_keys:
                 LOG.warning(
-                    "Unable to disable SSH logins for %s given"
-                    " ssh_redirect_user: %s. No cloud public-keys present.",
+                    "Unable to disable SSH logins for %s."
+                    " ssh_redirect_user was set to redirect logins to"
+                    " %s, but no cloud public-keys are present.",
                     name,
                     kwargs["ssh_redirect_user"],
                 )

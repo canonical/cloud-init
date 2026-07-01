@@ -258,6 +258,7 @@ class TestQuery:
             (_gzip_data(b"ud"), "ud", _gzip_data(b"vd"), "vd"),
             (_gzip_data("ud".encode("utf-8")), "ud", _gzip_data(b"vd"), "vd"),
         ),
+        ids=("plain-text", "bytes", "gzip-bytes", "gzip-encoded-bytes"),
     )
     def test_handle_args_root_processes_user_data(
         self, ud_src, ud_expected, vd_src, vd_expected, capsys, tmpdir

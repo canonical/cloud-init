@@ -984,10 +984,97 @@ class TestGenerateNetworkConfig:
     ):
         assert (
             dsaz.generate_network_config_from_instance_network_metadata(
-                metadata, apply_network_config_for_secondary_ips=ip_config
+                metadata,
+                apply_network_config_for_secondary_ips=ip_config,
+                apply_network_config_set_name=True,
             )
             == expected
         )
+
+    @pytest.mark.parametrize(
+        "set_name,expected",
+        [
+            (
+                True,
+                {
+                    "ethernets": {
+                        "eth0": {
+                            "dhcp4": True,
+                            "dhcp4-overrides": {"route-metric": 100},
+                            "dhcp6": True,
+                            "dhcp6-overrides": {"route-metric": 100},
+                            "match": {"macaddress": "00:0d:3a:04:75:98"},
+                            "set-name": "eth0",
+                        },
+                        "eth1": {
+                            "dhcp4": True,
+                            "dhcp4-overrides": {
+                                "route-metric": 200,
+                                "use-dns": False,
+                            },
+                            "dhcp6": False,
+                            "match": {"macaddress": "22:0d:3a:04:75:98"},
+                            "set-name": "eth1",
+                        },
+                    },
+                    "version": 2,
+                },
+            ),
+            (
+                False,
+                {
+                    "ethernets": {
+                        "enx000d3a047598": {
+                            "dhcp4": True,
+                            "dhcp4-overrides": {"route-metric": 100},
+                            "dhcp6": True,
+                            "dhcp6-overrides": {"route-metric": 100},
+                            "match": {"macaddress": "00:0d:3a:04:75:98"},
+                        },
+                        "enx220d3a047598": {
+                            "dhcp4": True,
+                            "dhcp4-overrides": {
+                                "route-metric": 200,
+                                "use-dns": False,
+                            },
+                            "dhcp6": False,
+                            "match": {"macaddress": "22:0d:3a:04:75:98"},
+                        },
+                    },
+                    "version": 2,
+                },
+            ),
+        ],
+    )
+    def test_set_name_config(self, mock_get_interfaces, set_name, expected):
+        """Verify set-name with two NICs (primary with IPv6, secondary)."""
+        two_nic_metadata = {
+            "interface": [
+                {
+                    "macAddress": "000D3A047598",
+                    "ipv6": {
+                        "subnet": [{"prefix": "64", "address": "fd00::"}],
+                        "ipAddress": [{"privateIpAddress": "fd00::4"}],
+                    },
+                    "ipv4": {
+                        "subnet": [{"prefix": "24", "address": "10.0.0.0"}],
+                        "ipAddress": [
+                            {
+                                "privateIpAddress": "10.0.0.4",
+                                "publicIpAddress": "104.46.124.81",
+                            }
+                        ],
+                    },
+                },
+                SECONDARY_INTERFACE,
+            ]
+        }
+        result = dsaz.generate_network_config_from_instance_network_metadata(
+            two_nic_metadata,
+            apply_network_config_for_secondary_ips=True,
+            apply_network_config_set_name=set_name,
+        )
+        assert result == expected
 
 
 class TestNetworkConfig:
@@ -1004,22 +1091,45 @@ class TestNetworkConfig:
         ],
     }
 
-    def test_single_ipv4_nic_configuration(
-        self, azure_ds, mock_get_interfaces
-    ):
-        """Network config emits dhcp on single nic with ipv4"""
-        expected = {
-            "ethernets": {
-                "eth0": {
-                    "dhcp4": True,
-                    "dhcp4-overrides": {"route-metric": 100},
-                    "dhcp6": False,
-                    "match": {"macaddress": "00:0d:3a:04:75:98"},
-                    "set-name": "eth0",
+    @pytest.mark.parametrize(
+        "set_name,expected",
+        [
+            (
+                True,
+                {
+                    "ethernets": {
+                        "eth0": {
+                            "dhcp4": True,
+                            "dhcp4-overrides": {"route-metric": 100},
+                            "dhcp6": False,
+                            "match": {"macaddress": "00:0d:3a:04:75:98"},
+                            "set-name": "eth0",
+                        },
+                    },
+                    "version": 2,
                 },
-            },
-            "version": 2,
-        }
+            ),
+            (
+                False,
+                {
+                    "ethernets": {
+                        "enx000d3a047598": {
+                            "dhcp4": True,
+                            "dhcp4-overrides": {"route-metric": 100},
+                            "dhcp6": False,
+                            "match": {"macaddress": "00:0d:3a:04:75:98"},
+                        },
+                    },
+                    "version": 2,
+                },
+            ),
+        ],
+    )
+    def test_network_config(
+        self, azure_ds, mock_get_interfaces, set_name, expected
+    ):
+        """Verify network_config via ds_cfg for set-name enabled/disabled."""
+        azure_ds.ds_cfg["apply_network_config_set_name"] = set_name
         azure_ds._metadata_imds = NETWORK_METADATA
 
         assert azure_ds.network_config == expected
@@ -5481,6 +5591,84 @@ class TestProvisioning:
         assert len(self.mock_kvp_report_via_kvp.mock_calls) == 1
         assert not self.mock_kvp_report_success_to_host.mock_calls
 
+    @pytest.mark.parametrize(
+        "flag_enabled",
+        [False, True],
+    )
+    @pytest.mark.parametrize(
+        "has_custom_data,custom_data",
+        [
+            (True, None),
+            (True, "myCustomData"),
+            (True, ""),
+            (False, None),
+        ],
+    )
+    def test_missing_customdata_reporting(
+        self,
+        caplog,
+        flag_enabled,
+        has_custom_data,
+        custom_data,
+    ):
+        """Test failure reporting behavior based on custom data fields.
+
+        Failure is reported only when
+        experimental_fail_on_missing_customdata is True,
+        IMDS reports hasCustomData=True, and OVF has no custom data.
+        When the flag is not enabled but IMDS reports custom data
+        should be present, a diagnostic event is logged.
+        """
+        self.azure_ds.ds_cfg["experimental_fail_on_missing_customdata"] = (
+            flag_enabled
+        )
+
+        imds_md = copy.deepcopy(self.imds_md)
+        imds_md["extended"]["compute"]["hasCustomData"] = has_custom_data
+
+        ovf = construct_ovf_env(
+            custom_data=custom_data,
+            provision_guest_proxy_agent=False,
+        )
+        md, ud, cfg = dsaz.read_azure_ovf(ovf)
+        self.mock_util_mount_cb.return_value = (md, ud, cfg, {})
+        self.mock_readurl.side_effect = [
+            mock.MagicMock(contents=json.dumps(imds_md).encode()),
+        ]
+        self.mock_azure_get_metadata_from_fabric.return_value = []
+
+        self.azure_ds._check_and_get_data()
+
+        expect_failure = flag_enabled and has_custom_data and not custom_data
+        if expect_failure:
+            assert len(self.mock_kvp_report_via_kvp.mock_calls) == 1
+            assert (
+                len(self.mock_azure_report_failure_to_fabric.mock_calls) == 1
+            )
+            assert not self.mock_kvp_report_success_to_host.mock_calls
+        else:
+            assert not self.mock_kvp_report_via_kvp.mock_calls
+            assert not self.mock_azure_report_failure_to_fabric.mock_calls
+            assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
+
+        if custom_data:
+            assert self.azure_ds.userdata_raw == custom_data.encode("utf-8")
+        else:
+            assert self.azure_ds.userdata_raw == ""
+
+        # Verify diagnostic event for missing custom data when
+        # the experimental flag is not enabled.
+        expect_diagnostic = (
+            not flag_enabled and has_custom_data and not custom_data
+        )
+        if expect_diagnostic:
+            assert (
+                "Did not find custom data in /dev/sr0, IMDS returned"
+                " extended.compute.hasCustomData=True"
+            ) in caplog.text
+        else:
+            assert "Did not find custom data in" not in caplog.text
+
 
 class TestCheckAzureProxyAgent:
     @pytest.fixture(autouse=True)
@@ -5918,6 +6106,23 @@ class TestQueryVmId:
 
         mock_query_system_uuid.assert_called_once()
         mock_convert_uuid.assert_called_once_with("test-system-uuid")
+
+
+class TestHasCustomDataFromImds:
+    """Unit tests for the _hascustomdata_from_imds helper."""
+
+    @pytest.mark.parametrize(
+        "imds_data,expected",
+        [
+            ({"extended": {"compute": {"hasCustomData": True}}}, True),
+            ({"extended": {"compute": {"hasCustomData": False}}}, False),
+            ({}, None),
+            ({"extended": {}}, None),
+            ({"extended": {"compute": {}}}, None),
+        ],
+    )
+    def test_hascustomdata_from_imds(self, imds_data, expected):
+        assert dsaz._hascustomdata_from_imds(imds_data) is expected
 
 
 class TestHashPassword:

@@ -19,7 +19,7 @@ import sys
 import traceback
 import logging
 import yaml
-from typing import Optional, Tuple, Callable, Union
+from typing import Any, Optional, Tuple, Callable, Union
 
 from cloudinit import features, netinfo
 from cloudinit import signal_handler
@@ -98,18 +98,20 @@ class SubcommandAwareArgumentParser(argparse.ArgumentParser):
         if not self._raw_args:
             self._raw_args = sys.argv[1:]
         subcommand = None
+        subparsers_action = (
+            self._subparsers._group_actions[0] if self._subparsers else None
+        )
+        choices = getattr(subparsers_action, "choices", None) or {}
         if self._raw_args:
             for arg in self._raw_args:
-                if arg in self._subparsers._group_actions[0].choices:
+                if arg in choices:
                     subcommand = arg
                     break
         # Check if the subcommand exists and show its help
 
         if subcommand:
-            subparser = self._subparsers._group_actions[0].choices[subcommand]
-            subparser.print_help(
-                file=sys.stderr
-            )  # Print subcommand help to stderr
+            subparser = choices[subcommand]
+            subparser.print_help(file=sys.stderr)
         else:
             self.print_help(file=sys.stderr)
         sys.exit(2)
@@ -159,15 +161,12 @@ def close_stdin(logger: Callable[[str], None] = LOG.debug):
 
 
 def extract_fns(args):
-    # Files are already opened so lets just pass that along
-    # since it would of broke if it couldn't have
-    # read that file already...
     fn_cfgs = []
     if args.files:
-        for fh in args.files:
+        for filepath in args.files:
             # The realpath is more useful in logging
             # so lets resolve to that...
-            fn_cfgs.append(os.path.realpath(fh.name))
+            fn_cfgs.append(os.path.realpath(filepath))
     return fn_cfgs
 
 
@@ -546,6 +545,13 @@ def main_init(name, args):
     bring_up_interfaces = _should_bring_up_interfaces(init, args)
     try:
         init.fetch(existing=existing)
+        if init.datasource is None:
+            LOG.debug(
+                "[%s] Exiting. datasource is None after fetch,"
+                " cannot continue.",
+                mode,
+            )
+            return (None, [])
         # if in network mode, and the datasource is local
         # then work was done at that stage.
         if mode == sources.DSMODE_NETWORK and init.datasource.dsmode != mode:
@@ -613,6 +619,13 @@ def main_init(name, args):
                 )
                 util.write_file(init.paths.get_runpath(".skip-network"), "")
 
+        if init.datasource is None:
+            LOG.debug(
+                "[%s] Exiting. datasource is None in local mode,"
+                " cannot check dsmode.",
+                mode,
+            )
+            return (None, [])
         if init.datasource.dsmode != mode:
             LOG.debug(
                 "[%s] Exiting. datasource %s not in local mode.",
@@ -912,13 +925,13 @@ def status_wrapper(name, args):
             "Invalid cloud init mode specified '{0}'".format(mode)
         )
 
-    nullstatus = {
+    nullstatus: dict[str, Union[list[Any], dict[str, Any], float, None]] = {
         "errors": [],
         "recoverable_errors": {},
         "start": None,
         "finished": None,
     }
-    status = {
+    status: dict[str, Any] = {
         "v1": {
             "datasource": None,
             "init": nullstatus.copy(),
@@ -951,10 +964,15 @@ def status_wrapper(name, args):
 
     v1[mode]["start"] = float(util.uptime())
     handler = next(
-        filter(
-            lambda h: isinstance(h, loggers.LogExporter), root_logger.handlers
-        )
+        (
+            h
+            for h in root_logger.handlers
+            if isinstance(h, loggers.LogExporter)
+        ),
+        None,
     )
+    if not isinstance(handler, loggers.LogExporter):
+        raise RuntimeError("LogExporter handler not found in root logger")
     preexisting_recoverable_errors = handler.export_logs()
 
     # Write status.json prior to running init / module code
@@ -1052,7 +1070,7 @@ def _maybe_set_hostname(init, stage, retry_stage):
     )
     if hostname:  # meta-data or user-data hostname content
         try:
-            cc_set_hostname.handle("set_hostname", init.cfg, cloud, None)
+            cc_set_hostname.handle("set_hostname", init.cfg, cloud, [])
         except cc_set_hostname.SetHostnameError as e:
             LOG.debug(
                 "Failed setting hostname in %s stage. Will"
@@ -1130,7 +1148,7 @@ def main(sysv_args=None):
         action="append",
         dest="files",
         help="Use additional yaml configuration files.",
-        type=argparse.FileType("rb"),
+        type=str,
     )
     # This is used so that we can know which action is selected +
     # the functor to use to run this subcommand
@@ -1163,7 +1181,7 @@ def main(sysv_args=None):
         action="append",
         dest="files",
         help="Use additional yaml configuration files.",
-        type=argparse.FileType("rb"),
+        type=str,
     )
     parser_mod.set_defaults(action=("modules", main_modules))
 
@@ -1203,7 +1221,7 @@ def main(sysv_args=None):
         action="append",
         dest="files",
         help="Use additional yaml configuration files.",
-        type=argparse.FileType("rb"),
+        type=str,
     )
     parser_single.set_defaults(action=("single", main_single))
 
