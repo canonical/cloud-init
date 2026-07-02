@@ -42,9 +42,6 @@ no_implicit_optional = true
 # See GH-5445
 [[tool.mypy.overrides]]
 module = [
-    "cloudinit.cmd.devel.make_mime",
-    "cloudinit.cmd.devel.net_convert",
-    "cloudinit.cmd.main",
     "cloudinit.config.cc_apt_configure",
     "cloudinit.config.cc_ca_certs",
     "cloudinit.config.cc_growpart",
@@ -55,7 +52,6 @@ module = [
     "cloudinit.distros.bsd",
     "cloudinit.distros.opensuse",
     "cloudinit.distros.parsers.hostname",
-    "cloudinit.distros.parsers.hosts",
     "cloudinit.distros.parsers.resolv_conf",
     "cloudinit.distros.ug_util",
     "cloudinit.helpers",
@@ -78,7 +74,6 @@ module = [
     "cloudinit.sources.DataSourceHetzner",
     "cloudinit.sources.DataSourceNoCloud",
     "cloudinit.sources.DataSourceOVF",
-    "cloudinit.sources.DataSourceOpenNebula",
     "cloudinit.sources.DataSourceOpenStack",
     "cloudinit.sources.DataSourceOracle",
     "cloudinit.sources.DataSourceRbxCloud",
@@ -118,7 +113,6 @@ module = [
     "tests.unittests.config.test_cc_zypper_add_repo",
     "tests.unittests.config.test_modules",
     "tests.unittests.config.test_schema",
-    "tests.unittests.distros.test_hosts",
     "tests.unittests.distros.test_ifconfig",
     "tests.unittests.distros.test_netbsd",
     "tests.unittests.distros.test_netconfig",
@@ -146,7 +140,6 @@ module = [
     "tests.unittests.sources.test_gce",
     "tests.unittests.sources.test_init",
     "tests.unittests.sources.test_nocloud",
-    "tests.unittests.sources.test_opennebula",
     "tests.unittests.sources.test_openstack",
     "tests.unittests.sources.test_oracle",
     "tests.unittests.sources.test_scaleway",
@@ -211,6 +204,7 @@ lint.ignore = [
     "D403", # docstring: capitalized first line
     "E731", # Do not assign a `lambda` expression, use a `def`
 ]
+extend-include = ["*read-dependencies", "*bddeb", "*brpm"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "pep257"

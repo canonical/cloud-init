@@ -5,7 +5,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import base64
-import functools
 import logging
 import os
 import os.path
@@ -49,31 +48,6 @@ from cloudinit.sources.helpers.azure import (
     report_failure_to_fabric,
 )
 from cloudinit.url_helper import UrlError
-
-try:
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", category=DeprecationWarning)
-        import crypt  # pylint: disable=W4901
-
-    blowfish_hash: Any = functools.partial(
-        crypt.crypt, salt=f"$6${util.rand_str(strlen=16)}"
-    )
-except (ImportError, AttributeError):
-    try:
-        import passlib.hash
-
-        blowfish_hash = passlib.hash.sha512_crypt.hash
-    except ImportError:
-
-        def blowfish_hash(_):
-            """Raise when called so that importing this module doesn't throw
-            ImportError when ds_detect() returns false. In this case, crypt
-            and passlib are not needed.
-            """
-            raise ImportError(
-                "crypt and passlib not found, missing dependency"
-            )
-
 
 LOG = logging.getLogger(__name__)
 
@@ -164,6 +138,35 @@ def find_dev_from_busdev(camcontrol_out: str, busdev: str) -> Optional[str]:
                 dev_pass = items[1].split(",")
                 return dev_pass[0]
     return None
+
+
+def hash_password(password: str) -> str:
+    """Hash a password using SHA-512 crypt.
+
+    Try to use crypt, falling back to passlib.
+
+    If neither are available, raise ReportableErrorImportError.
+
+    :param password: plaintext password to hash.
+    :return: The hashed password string.
+    :raises ReportableErrorImportError: If crypt and passlib are unavailable.
+    """
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=DeprecationWarning)
+            import crypt  # pylint: disable=W4901
+
+        salt = crypt.mksalt(crypt.METHOD_SHA512)
+        return crypt.crypt(password, salt)
+    except (ImportError, AttributeError):
+        pass
+
+    try:
+        import passlib.hash
+
+        return passlib.hash.sha512_crypt.hash(password)
+    except ImportError as error:
+        raise errors.ReportableErrorImportError(error=error) from error
 
 
 def normalize_mac_address(mac: str) -> str:
@@ -292,6 +295,9 @@ BUILTIN_DS_CONFIG = {
     "disk_aliases": {"ephemeral0": RESOURCE_DISK_PATH},
     "apply_network_config": True,  # Use IMDS published network configuration
     "apply_network_config_for_secondary_ips": True,  # Configure secondary ips
+    "experimental_fail_on_missing_customdata": False,
+    "apply_network_config_set_name": True,  # Use set-name for NICs
+    "experimental_skip_ready_report": False,  # Skip final ready report
 }
 
 BUILTIN_CLOUD_EPHEMERAL_DISK_CONFIG = {
@@ -358,6 +364,13 @@ class DataSourceAzure(sources.DataSource):
         self._system_uuid = None
         self._vm_id = None
         self._wireserver_endpoint = DEFAULT_WIRESERVER_ENDPOINT
+        for key in (
+            "apply_network_config_for_secondary_ips",
+            "experimental_fail_on_missing_customdata",
+            "apply_network_config_set_name",
+            "experimental_skip_ready_report",
+        ):
+            self.ds_cfg.setdefault(key, BUILTIN_DS_CONFIG[key])
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -658,7 +671,6 @@ class DataSourceAzure(sources.DataSource):
         # it determines the value of ret. More specifically, the first one in
         # the candidate list determines the path to take in order to get the
         # metadata we need.
-        ovf_source = None
         md = {"local-hostname": ""}
         cfg = {"system_info": {"default_user": {"name": ""}}}
         userdata_raw = ""
@@ -680,9 +692,9 @@ class DataSourceAzure(sources.DataSource):
                 else:
                     md, userdata_raw, cfg, files = load_azure_ds_dir(src)
 
-                ovf_source = src
+                self.seed = src
                 report_diagnostic_event(
-                    "Found provisioning metadata in %s" % ovf_source,
+                    "Found provisioning metadata in %s" % self.seed,
                     logger_func=LOG.debug,
                 )
                 break
@@ -710,7 +722,7 @@ class DataSourceAzure(sources.DataSource):
         # not have UDF support.  In either case, require IMDS metadata.
         # If we require IMDS metadata, try harder to obtain networking, waiting
         # for at least 20 minutes.  Otherwise only wait 5 minutes.
-        requires_imds_metadata = bool(self._iso_dev) or ovf_source is None
+        requires_imds_metadata = bool(self._iso_dev) or self.seed is None
         timeout_minutes = 20 if requires_imds_metadata else 5
         try:
             self._setup_ephemeral_networking(timeout_minutes=timeout_minutes)
@@ -726,14 +738,18 @@ class DataSourceAzure(sources.DataSource):
 
             imds_md = self.get_metadata_from_imds(report_failure=True)
 
-        if not imds_md and ovf_source is None:
+        if not imds_md and self.seed is None:
             msg = "No OVF or IMDS available"
             report_diagnostic_event(msg)
             raise sources.InvalidMetaDataException(msg)
 
+        self.seed = self.seed or "IMDS"
+
         # Refresh PPS type using metadata.
         pps_type = self._determine_pps_type(cfg, imds_md)
         if pps_type != PPSType.NONE:
+            self.seed = "IMDS"
+
             if util.is_FreeBSD():
                 msg = "Free BSD is not supported for PPS VMs"
                 report_diagnostic_event(msg, logger_func=LOG.error)
@@ -773,7 +789,6 @@ class DataSourceAzure(sources.DataSource):
         # Report errors if IMDS network configuration is missing data.
         self.validate_imds_network_metadata(imds_md=imds_md)
 
-        self.seed = ovf_source or "IMDS"
         crawled_data.update(
             {
                 "cfg": cfg,
@@ -812,9 +827,31 @@ class DataSourceAzure(sources.DataSource):
                     logger_func=LOG.debug,
                 )
 
-        # only use userdata from imds if OVF did not provide custom data
-        # userdata provided by IMDS is always base64 encoded
+        # Only use userdata from IMDS if OVF did not provide custom data.
+        # Userdata provided by IMDS is always base64 encoded.
         if not userdata_raw:
+            # First, check to see if the OVF was supposed to provide custom
+            # data. If it was supposed to and did not, we report failure.
+            has_custom_data = _hascustomdata_from_imds(imds_md)
+            if has_custom_data:
+                if self.ds_cfg.get("experimental_fail_on_missing_customdata"):
+                    self._report_failure(
+                        errors.ReportableErrorMissingCustomData(
+                            pps_type=pps_type.value,
+                            provisioning_media=self.seed,
+                        )
+                    )
+                else:
+                    report_diagnostic_event(
+                        "Did not find custom data in %s, IMDS returned"
+                        " extended.compute.hasCustomData=%r"
+                        % (
+                            self.seed,
+                            has_custom_data,
+                        ),
+                        logger_func=LOG.error,
+                    )
+
             imds_userdata = _userdata_from_imds(imds_md)
             if imds_userdata:
                 LOG.debug("Retrieved userdata from IMDS")
@@ -827,7 +864,7 @@ class DataSourceAzure(sources.DataSource):
                         "Bad userdata in IMDS", logger_func=LOG.warning
                     )
 
-        if ovf_source == ddir:
+        if self.seed == ddir:
             report_diagnostic_event(
                 "using files cached in %s" % ddir, logger_func=LOG.debug
             )
@@ -838,21 +875,28 @@ class DataSourceAzure(sources.DataSource):
         crawled_data["metadata"]["instance-id"] = self._iid()
 
         if self._negotiated is False and self._is_ephemeral_networking_up():
-            # Report ready and fetch public-keys from Wireserver, if required.
-            pubkey_info = self._determine_wireserver_pubkey_info(
-                cfg=cfg, imds_md=imds_md
-            )
-            try:
-                ssh_keys = self._report_ready(pubkey_info=pubkey_info)
-            except Exception:
-                # Failed to report ready, but continue with best effort.
-                pass
+            if self.ds_cfg.get("experimental_skip_ready_report", False):
+                LOG.debug(
+                    "Skipping final health report as "
+                    "experimental_skip_ready_report is enabled."
+                )
             else:
-                LOG.debug("negotiating returned %s", ssh_keys)
-                if ssh_keys:
-                    crawled_data["metadata"]["public-keys"] = ssh_keys
+                # Report ready and fetch public-keys from Wireserver,
+                # if required.
+                pubkey_info = self._determine_wireserver_pubkey_info(
+                    cfg=cfg, imds_md=imds_md
+                )
+                try:
+                    ssh_keys = self._report_ready(pubkey_info=pubkey_info)
+                except Exception:
+                    # Failed to report ready, but continue with best effort.
+                    pass
+                else:
+                    LOG.debug("negotiating returned %s", ssh_keys)
+                    if ssh_keys:
+                        crawled_data["metadata"]["public-keys"] = ssh_keys
 
-                self._cleanup_markers()
+            self._cleanup_markers()
 
         return crawled_data
 
@@ -1605,9 +1649,12 @@ class DataSourceAzure(sources.DataSource):
             try:
                 return generate_network_config_from_instance_network_metadata(
                     self._metadata_imds["network"],
-                    apply_network_config_for_secondary_ips=self.ds_cfg.get(
+                    apply_network_config_for_secondary_ips=self.ds_cfg[
                         "apply_network_config_for_secondary_ips"
-                    ),
+                    ],
+                    apply_network_config_set_name=self.ds_cfg[
+                        "apply_network_config_set_name"
+                    ],
                 )
             except Exception as e:
                 LOG.error(
@@ -1709,6 +1756,13 @@ def _username_from_imds(imds_data):
 def _userdata_from_imds(imds_data):
     try:
         return imds_data["compute"]["userData"]
+    except KeyError:
+        return None
+
+
+def _hascustomdata_from_imds(imds_data: Dict) -> Optional[bool]:
+    try:
+        return imds_data["extended"]["compute"]["hasCustomData"]
     except KeyError:
         return None
 
@@ -1984,7 +2038,7 @@ def read_azure_ovf(contents):
     if ovf_env.password:
         defuser["lock_passwd"] = False
         if DEF_PASSWD_REDACTION != ovf_env.password:
-            defuser["hashed_passwd"] = encrypt_pass(ovf_env.password)
+            defuser["hashed_passwd"] = hash_password(ovf_env.password)
 
     if defuser:
         cfg["system_info"] = {"default_user": defuser}
@@ -2007,10 +2061,6 @@ def read_azure_ovf(contents):
         logger_func=LOG.info,
     )
     return (md, ud, cfg)
-
-
-def encrypt_pass(password):
-    return blowfish_hash(password)
 
 
 def find_primary_nic():
@@ -2088,6 +2138,7 @@ def generate_network_config_from_instance_network_metadata(
     network_metadata: dict,
     *,
     apply_network_config_for_secondary_ips: bool,
+    apply_network_config_set_name: bool,
 ) -> dict:
     """Convert imds network metadata dictionary to network v2 configuration.
 
@@ -2101,7 +2152,11 @@ def generate_network_config_from_instance_network_metadata(
         # First IPv4 and/or IPv6 address will be obtained via DHCP.
         # Any additional IPs of each type will be set as static
         # addresses.
-        nicname = "eth{idx}".format(idx=idx)
+        mac = normalize_mac_address(intf["macAddress"])
+        if apply_network_config_set_name:
+            nicname = "eth{idx}".format(idx=idx)
+        else:
+            nicname = "enx{mac}".format(mac=mac.replace(":", ""))
         dhcp_override = {"route-metric": (idx + 1) * 100}
         # DNS resolution through secondary NICs is not supported, disable it.
         if idx > 0:
@@ -2145,10 +2200,9 @@ def generate_network_config_from_instance_network_metadata(
                     "{ip}/{prefix}".format(ip=privateIp, prefix=netPrefix)
                 )
         if dev_config and has_ip_address:
-            mac = normalize_mac_address(intf["macAddress"])
-            dev_config.update(
-                {"match": {"macaddress": mac.lower()}, "set-name": nicname}
-            )
+            dev_config["match"] = {"macaddress": mac.lower()}
+            if apply_network_config_set_name:
+                dev_config["set-name"] = nicname
             driver = determine_device_driver_for_mac(mac)
             if driver:
                 dev_config["match"]["driver"] = driver

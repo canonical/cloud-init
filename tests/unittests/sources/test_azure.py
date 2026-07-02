@@ -1,16 +1,21 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 # pylint: disable=attribute-defined-outside-init
 
+import builtins
 import copy
 import datetime
 import json
 import logging
 import os
 import stat
+import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-import passlib.hash
+try:
+    import passlib.hash
+except ImportError:
+    passlib = None  # type: ignore
 import pytest
 import requests
 
@@ -979,10 +984,97 @@ class TestGenerateNetworkConfig:
     ):
         assert (
             dsaz.generate_network_config_from_instance_network_metadata(
-                metadata, apply_network_config_for_secondary_ips=ip_config
+                metadata,
+                apply_network_config_for_secondary_ips=ip_config,
+                apply_network_config_set_name=True,
             )
             == expected
         )
+
+    @pytest.mark.parametrize(
+        "set_name,expected",
+        [
+            (
+                True,
+                {
+                    "ethernets": {
+                        "eth0": {
+                            "dhcp4": True,
+                            "dhcp4-overrides": {"route-metric": 100},
+                            "dhcp6": True,
+                            "dhcp6-overrides": {"route-metric": 100},
+                            "match": {"macaddress": "00:0d:3a:04:75:98"},
+                            "set-name": "eth0",
+                        },
+                        "eth1": {
+                            "dhcp4": True,
+                            "dhcp4-overrides": {
+                                "route-metric": 200,
+                                "use-dns": False,
+                            },
+                            "dhcp6": False,
+                            "match": {"macaddress": "22:0d:3a:04:75:98"},
+                            "set-name": "eth1",
+                        },
+                    },
+                    "version": 2,
+                },
+            ),
+            (
+                False,
+                {
+                    "ethernets": {
+                        "enx000d3a047598": {
+                            "dhcp4": True,
+                            "dhcp4-overrides": {"route-metric": 100},
+                            "dhcp6": True,
+                            "dhcp6-overrides": {"route-metric": 100},
+                            "match": {"macaddress": "00:0d:3a:04:75:98"},
+                        },
+                        "enx220d3a047598": {
+                            "dhcp4": True,
+                            "dhcp4-overrides": {
+                                "route-metric": 200,
+                                "use-dns": False,
+                            },
+                            "dhcp6": False,
+                            "match": {"macaddress": "22:0d:3a:04:75:98"},
+                        },
+                    },
+                    "version": 2,
+                },
+            ),
+        ],
+    )
+    def test_set_name_config(self, mock_get_interfaces, set_name, expected):
+        """Verify set-name with two NICs (primary with IPv6, secondary)."""
+        two_nic_metadata = {
+            "interface": [
+                {
+                    "macAddress": "000D3A047598",
+                    "ipv6": {
+                        "subnet": [{"prefix": "64", "address": "fd00::"}],
+                        "ipAddress": [{"privateIpAddress": "fd00::4"}],
+                    },
+                    "ipv4": {
+                        "subnet": [{"prefix": "24", "address": "10.0.0.0"}],
+                        "ipAddress": [
+                            {
+                                "privateIpAddress": "10.0.0.4",
+                                "publicIpAddress": "104.46.124.81",
+                            }
+                        ],
+                    },
+                },
+                SECONDARY_INTERFACE,
+            ]
+        }
+        result = dsaz.generate_network_config_from_instance_network_metadata(
+            two_nic_metadata,
+            apply_network_config_for_secondary_ips=True,
+            apply_network_config_set_name=set_name,
+        )
+        assert result == expected
 
 
 class TestNetworkConfig:
@@ -999,22 +1091,45 @@ class TestNetworkConfig:
         ],
     }
 
-    def test_single_ipv4_nic_configuration(
-        self, azure_ds, mock_get_interfaces
-    ):
-        """Network config emits dhcp on single nic with ipv4"""
-        expected = {
-            "ethernets": {
-                "eth0": {
-                    "dhcp4": True,
-                    "dhcp4-overrides": {"route-metric": 100},
-                    "dhcp6": False,
-                    "match": {"macaddress": "00:0d:3a:04:75:98"},
-                    "set-name": "eth0",
+    @pytest.mark.parametrize(
+        "set_name,expected",
+        [
+            (
+                True,
+                {
+                    "ethernets": {
+                        "eth0": {
+                            "dhcp4": True,
+                            "dhcp4-overrides": {"route-metric": 100},
+                            "dhcp6": False,
+                            "match": {"macaddress": "00:0d:3a:04:75:98"},
+                            "set-name": "eth0",
+                        },
+                    },
+                    "version": 2,
                 },
-            },
-            "version": 2,
-        }
+            ),
+            (
+                False,
+                {
+                    "ethernets": {
+                        "enx000d3a047598": {
+                            "dhcp4": True,
+                            "dhcp4-overrides": {"route-metric": 100},
+                            "dhcp6": False,
+                            "match": {"macaddress": "00:0d:3a:04:75:98"},
+                        },
+                    },
+                    "version": 2,
+                },
+            ),
+        ],
+    )
+    def test_network_config(
+        self, azure_ds, mock_get_interfaces, set_name, expected
+    ):
+        """Verify network_config via ds_cfg for set-name enabled/disabled."""
+        azure_ds.ds_cfg["apply_network_config_set_name"] = set_name
         azure_ds._metadata_imds = NETWORK_METADATA
 
         assert azure_ds.network_config == expected
@@ -1732,12 +1847,13 @@ scbus-1 on xpt0 bus 0
 
         assert "ssh_pwauth" not in dsrc.cfg
 
+    @pytest.mark.skipif(passlib is None, reason="passlib not installed")
     def test_password_given(self, get_ds, mocker):
         # The crypt module has platform-specific behavior and the purpose of
         # this test isn't to verify the differences between crypt and passlib,
         # so hardcode passlib usage as crypt is deprecated.
         mocker.patch.object(
-            dsaz, "blowfish_hash", passlib.hash.sha512_crypt.hash
+            dsaz, "hash_password", passlib.hash.sha512_crypt.hash
         )
         data = {
             "ovfcontent": construct_ovf_env(
@@ -2433,6 +2549,19 @@ class TestLoadAzureDsDir:
             "error parsing ovf-env.xml: syntax error: line 1, column 0"
             == cm.value.reason
         )
+
+    def test_import_error_from_failed_import(self):
+        """Attempt to import a module that is not present"""
+        try:
+            import nonexistent_module_that_will_never_exist  # type: ignore[import-not-found] # noqa: F401 # isort:skip
+        except ImportError as error:
+            reportable_error = errors.ReportableErrorImportError(error=error)
+
+            assert (
+                reportable_error.reason == "error importing "
+                "nonexistent_module_that_will_never_exist library"
+            )
+            assert reportable_error.supporting_data["error"] == repr(error)
 
 
 class TestReadAzureOvf:
@@ -5212,6 +5341,213 @@ class TestProvisioning:
         assert len(self.mock_kvp_report_via_kvp.mock_calls) == 1
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
+    @pytest.mark.parametrize("pps_type", ["None", "Running", "Savable"])
+    def test_skip_ready_report(self, pps_type):
+        """Verify ready report is skipped when configured to."""
+        self.azure_ds.ds_cfg["experimental_skip_ready_report"] = True
+
+        is_pps = pps_type in ("Running", "Savable")
+
+        imds_md_source = copy.deepcopy(self.imds_md)
+        imds_md_source["extended"]["compute"]["ppsType"] = pps_type
+
+        nl_sock = mock.MagicMock()
+        self.mock_netlink.create_bound_netlink_socket.return_value = nl_sock
+        if pps_type == "Savable":
+            self.mock_netlink.wait_for_nic_detach_event.return_value = "eth9"
+            self.mock_netlink.wait_for_nic_attach_event.return_value = (
+                "ethAttached1"
+            )
+
+        if is_pps:
+            self.mock_readurl.side_effect = [
+                mock.MagicMock(contents=json.dumps(imds_md_source).encode()),
+                mock.MagicMock(
+                    contents=construct_ovf_env(
+                        provision_guest_proxy_agent=False
+                    ).encode()
+                ),
+                mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
+            ]
+        else:
+            ovf = construct_ovf_env(provision_guest_proxy_agent=False)
+            md, ud, cfg = dsaz.read_azure_ovf(ovf)
+            self.mock_util_mount_cb.return_value = (md, ud, cfg, {})
+            self.mock_readurl.side_effect = [
+                mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
+            ]
+
+        self.mock_azure_get_metadata_from_fabric.return_value = []
+
+        self.azure_ds._check_and_get_data()
+
+        assert self.mock_subp_subp.mock_calls == []
+
+        # Verify IMDS calls.
+        if is_pps:
+            assert self.mock_readurl.mock_calls == [
+                mock.call(
+                    "http://169.254.169.254/metadata/instance?"
+                    "api-version=2021-08-01&extended=true",
+                    exception_cb=mock.ANY,
+                    headers_cb=imds.headers_cb,
+                    infinite=True,
+                    log_req_resp=True,
+                    timeout=30,
+                ),
+                mock.call(
+                    "http://169.254.169.254/metadata/reprovisiondata?"
+                    "api-version=2019-06-01",
+                    exception_cb=mock.ANY,
+                    headers_cb=imds.headers_cb,
+                    log_req_resp=False,
+                    infinite=True,
+                    timeout=30,
+                ),
+                mock.call(
+                    "http://169.254.169.254/metadata/instance?"
+                    "api-version=2021-08-01&extended=true",
+                    exception_cb=mock.ANY,
+                    headers_cb=imds.headers_cb,
+                    infinite=True,
+                    log_req_resp=True,
+                    timeout=30,
+                ),
+            ]
+        else:
+            assert self.mock_readurl.mock_calls == [
+                mock.call(
+                    "http://169.254.169.254/metadata/instance?"
+                    "api-version=2021-08-01&extended=true",
+                    timeout=30,
+                    headers_cb=imds.headers_cb,
+                    exception_cb=mock.ANY,
+                    infinite=True,
+                    log_req_resp=True,
+                ),
+            ]
+
+        # Verify DHCP setup.
+        if pps_type == "Running":
+            assert (
+                self.mock_wrapping_setup_ephemeral_networking.mock_calls
+                == [
+                    mock.call(timeout_minutes=20),
+                    mock.call(timeout_minutes=5),
+                ]
+            )
+            assert (
+                self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls
+                == [
+                    mock.call(self.azure_ds.distro, None, dsaz.dhcp_log_cb),
+                    mock.call(self.azure_ds.distro, None, dsaz.dhcp_log_cb),
+                ]
+            )
+        elif pps_type == "Savable":
+            assert (
+                self.mock_wrapping_setup_ephemeral_networking.mock_calls
+                == [
+                    mock.call(timeout_minutes=20),
+                    mock.call(
+                        iface="ethAttached1",
+                        timeout_minutes=20,
+                        report_failure_if_not_primary=False,
+                    ),
+                ]
+            )
+            assert (
+                self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls
+                == [
+                    mock.call(self.azure_ds.distro, None, dsaz.dhcp_log_cb),
+                    mock.call(
+                        self.azure_ds.distro,
+                        "ethAttached1",
+                        dsaz.dhcp_log_cb,
+                    ),
+                ]
+            )
+        else:
+            assert (
+                self.mock_wrapping_setup_ephemeral_networking.mock_calls
+                == [mock.call(timeout_minutes=20)]
+            )
+            assert (
+                self.mock_net_dhcp_maybe_perform_dhcp_discovery.mock_calls
+                == [
+                    mock.call(self.azure_ds.distro, None, dsaz.dhcp_log_cb),
+                ]
+            )
+
+        assert self.azure_ds._wireserver_endpoint == "10.11.12.13"
+        assert self.azure_ds._is_ephemeral_networking_up() is False
+
+        # Verify DMI usage.
+        assert self.mock_dmi_read_dmi_data.mock_calls == [
+            mock.call("chassis-asset-tag"),
+            mock.call("system-uuid"),
+        ]
+        assert (
+            self.azure_ds.metadata["instance-id"]
+            == "50109936-ef07-47fe-ac82-890c853f60d5"
+        )
+
+        # Verify IMDS metadata.
+        assert self.azure_ds.metadata["imds"] == self.imds_md
+
+        # PPS types still report ready once (source), no-PPS skips entirely.
+        if is_pps:
+            assert self.mock_azure_get_metadata_from_fabric.mock_calls == [
+                mock.call(
+                    endpoint="10.11.12.13",
+                    distro=self.azure_ds.distro,
+                    iso_dev="/dev/sr0",
+                    pubkey_info=None,
+                ),
+            ]
+        else:
+            assert self.mock_azure_get_metadata_from_fabric.mock_calls == []
+
+        # Verify netlink operations.
+        if pps_type == "Running":
+            assert self.mock_netlink.mock_calls == [
+                mock.call.create_bound_netlink_socket(),
+                mock.call.wait_for_media_disconnect_connect(
+                    mock.ANY, "ethBoot0"
+                ),
+                mock.call.create_bound_netlink_socket().close(),
+            ]
+        elif pps_type == "Savable":
+            assert self.mock_netlink.mock_calls == [
+                mock.call.create_bound_netlink_socket(),
+                mock.call.wait_for_nic_detach_event(nl_sock),
+                mock.call.wait_for_nic_attach_event(nl_sock, ["ethAttached1"]),
+                mock.call.create_bound_netlink_socket().close(),
+            ]
+        else:
+            assert self.mock_netlink.mock_calls == []
+
+        # Verify reported_ready marker cleaned up.
+        if is_pps:
+            assert self.wrapped_util_write_file.mock_calls[0] == mock.call(
+                self.patched_reported_ready_marker_path.as_posix(),
+                mock.ANY,
+            )
+        else:
+            assert self.wrapped_util_write_file.mock_calls == []
+        assert self.patched_reported_ready_marker_path.exists() is False
+
+        # Verify KVP reports.
+        assert not self.mock_kvp_report_via_kvp.mock_calls
+        assert not self.mock_azure_report_failure_to_fabric.mock_calls
+        expected_kvp_count = 1 if is_pps else 0
+        assert (
+            len(self.mock_kvp_report_success_to_host.mock_calls)
+            == expected_kvp_count
+        )
+        assert (
+            len(self.mock_report_dmesg_to_kvp.mock_calls) == expected_kvp_count
+        )
+
     def test_imds_failure_results_in_provisioning_failure(self):
         self.mock_readurl.side_effect = url_helper.UrlError(
             requests.ConnectionError(
@@ -5254,6 +5590,84 @@ class TestProvisioning:
         # Verify reports via KVP.
         assert len(self.mock_kvp_report_via_kvp.mock_calls) == 1
         assert not self.mock_kvp_report_success_to_host.mock_calls
+
+    @pytest.mark.parametrize(
+        "flag_enabled",
+        [False, True],
+    )
+    @pytest.mark.parametrize(
+        "has_custom_data,custom_data",
+        [
+            (True, None),
+            (True, "myCustomData"),
+            (True, ""),
+            (False, None),
+        ],
+    )
+    def test_missing_customdata_reporting(
+        self,
+        caplog,
+        flag_enabled,
+        has_custom_data,
+        custom_data,
+    ):
+        """Test failure reporting behavior based on custom data fields.
+
+        Failure is reported only when
+        experimental_fail_on_missing_customdata is True,
+        IMDS reports hasCustomData=True, and OVF has no custom data.
+        When the flag is not enabled but IMDS reports custom data
+        should be present, a diagnostic event is logged.
+        """
+        self.azure_ds.ds_cfg["experimental_fail_on_missing_customdata"] = (
+            flag_enabled
+        )
+
+        imds_md = copy.deepcopy(self.imds_md)
+        imds_md["extended"]["compute"]["hasCustomData"] = has_custom_data
+
+        ovf = construct_ovf_env(
+            custom_data=custom_data,
+            provision_guest_proxy_agent=False,
+        )
+        md, ud, cfg = dsaz.read_azure_ovf(ovf)
+        self.mock_util_mount_cb.return_value = (md, ud, cfg, {})
+        self.mock_readurl.side_effect = [
+            mock.MagicMock(contents=json.dumps(imds_md).encode()),
+        ]
+        self.mock_azure_get_metadata_from_fabric.return_value = []
+
+        self.azure_ds._check_and_get_data()
+
+        expect_failure = flag_enabled and has_custom_data and not custom_data
+        if expect_failure:
+            assert len(self.mock_kvp_report_via_kvp.mock_calls) == 1
+            assert (
+                len(self.mock_azure_report_failure_to_fabric.mock_calls) == 1
+            )
+            assert not self.mock_kvp_report_success_to_host.mock_calls
+        else:
+            assert not self.mock_kvp_report_via_kvp.mock_calls
+            assert not self.mock_azure_report_failure_to_fabric.mock_calls
+            assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
+
+        if custom_data:
+            assert self.azure_ds.userdata_raw == custom_data.encode("utf-8")
+        else:
+            assert self.azure_ds.userdata_raw == ""
+
+        # Verify diagnostic event for missing custom data when
+        # the experimental flag is not enabled.
+        expect_diagnostic = (
+            not flag_enabled and has_custom_data and not custom_data
+        )
+        if expect_diagnostic:
+            assert (
+                "Did not find custom data in /dev/sr0, IMDS returned"
+                " extended.compute.hasCustomData=True"
+            ) in caplog.text
+        else:
+            assert "Did not find custom data in" not in caplog.text
 
 
 class TestCheckAzureProxyAgent:
@@ -5630,14 +6044,6 @@ class TestValidateIMDSMetadata:
         assert azure_ds.validate_imds_network_metadata(imds_md) is False
 
 
-class TestDependencyFallback:
-    def test_dependency_fallback(self):
-        """Ensure that crypt/passlib import failover gets exercised on all
-        Python versions
-        """
-        assert dsaz.encrypt_pass("`")
-
-
 class TestQueryVmId:
     @mock.patch.object(
         identity, "query_system_uuid", side_effect=["test-system-uuid"]
@@ -5700,3 +6106,119 @@ class TestQueryVmId:
 
         mock_query_system_uuid.assert_called_once()
         mock_convert_uuid.assert_called_once_with("test-system-uuid")
+
+
+class TestHasCustomDataFromImds:
+    """Unit tests for the _hascustomdata_from_imds helper."""
+
+    @pytest.mark.parametrize(
+        "imds_data,expected",
+        [
+            ({"extended": {"compute": {"hasCustomData": True}}}, True),
+            ({"extended": {"compute": {"hasCustomData": False}}}, False),
+            ({}, None),
+            ({"extended": {}}, None),
+            ({"extended": {"compute": {}}}, None),
+        ],
+    )
+    def test_hascustomdata_from_imds(self, imds_data, expected):
+        assert dsaz._hascustomdata_from_imds(imds_data) is expected
+
+
+class TestHashPassword:
+    """Tests for the hash_password function."""
+
+    def test_dependency_fallback(self):
+        """Ensure that crypt/passlib import failover gets exercised on all
+        Python versions
+        """
+        result = dsaz.hash_password("`")
+        assert result
+        assert result.startswith("$6$")
+
+    def test_crypt_working(self):
+        """Test that hash_password uses crypt when available."""
+        mock_crypt = mock.MagicMock()
+        mock_crypt.METHOD_SHA512 = "sha512"
+        mock_crypt.mksalt.return_value = "$6$saltvalue"
+        mock_crypt.crypt.return_value = "$6$saltvalue$hashedpassword"
+
+        with mock.patch.dict("sys.modules", {"crypt": mock_crypt}):
+            result = dsaz.hash_password("testpassword")
+
+        mock_crypt.mksalt.assert_called_once_with("sha512")
+        mock_crypt.crypt.assert_called_once_with(
+            "testpassword", "$6$saltvalue"
+        )
+        assert result == "$6$saltvalue$hashedpassword"
+
+    def test_crypt_not_installed_passlib_fallback(self):
+        """Test that hash_password falls back to passlib when missing crypt."""
+        real_import = builtins.__import__
+        passlib_available = True
+        try:
+            import passlib.hash as _passlib_hash
+        except ImportError:
+            passlib_available = False
+
+        if passlib_available:
+            # passlib is installed; block crypt and let passlib work normally
+            def mock_import(name, *args, **kwargs):
+                if name == "crypt":
+                    raise ImportError("No module named 'crypt'")
+                return real_import(name, *args, **kwargs)
+
+            with mock.patch.object(
+                builtins, "__import__", side_effect=mock_import
+            ):
+                result = dsaz.hash_password("testpassword")
+
+            # Verify we got a valid SHA-512 hash from passlib
+            assert result.startswith("$6$")
+            assert _passlib_hash.sha512_crypt.verify("testpassword", result)
+        else:
+            # passlib is not installed; mock it to return a known hash
+            mock_passlib_hash = mock.MagicMock()
+            mock_passlib_hash.sha512_crypt.hash.return_value = (
+                "$6$mocksalt$mockedhash"
+            )
+
+            def mock_import(name, *args, **kwargs):
+                if name == "crypt":
+                    raise ImportError("No module named 'crypt'")
+                if name == "passlib.hash":
+                    mod = mock.MagicMock()
+                    mod.hash = mock_passlib_hash
+                    sys.modules["passlib"] = mod
+                    sys.modules["passlib.hash"] = mock_passlib_hash
+                    return mod
+                return real_import(name, *args, **kwargs)
+
+            with mock.patch.object(
+                builtins, "__import__", side_effect=mock_import
+            ):
+                result = dsaz.hash_password("testpassword")
+
+            assert result == "$6$mocksalt$mockedhash"
+            mock_passlib_hash.sha512_crypt.hash.assert_called_once_with(
+                "testpassword"
+            )
+
+    def test_crypt_and_passlib_unavailable_raises_error(self):
+        """Test that hash_password raises ReportableErrorImportError."""
+        real_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "crypt":
+                raise ImportError("No module named 'crypt'")
+            if name == "passlib.hash":
+                raise ImportError("No module named 'passlib'", name="passlib")
+            return real_import(name, *args, **kwargs)
+
+        with mock.patch.object(
+            builtins, "__import__", side_effect=mock_import
+        ):
+            with pytest.raises(errors.ReportableErrorImportError) as exc_info:
+                dsaz.hash_password("testpassword")
+
+            assert "passlib" in exc_info.value.reason

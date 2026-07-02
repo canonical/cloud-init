@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
+from unittest import mock
 
 import pytest
 
@@ -10,7 +11,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import mock, skipUnlessJsonSchema, wrap_and_call
+from tests.unittests.helpers import skipUnlessJsonSchema, wrap_and_call
 from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)

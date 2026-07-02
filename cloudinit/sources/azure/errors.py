@@ -161,11 +161,31 @@ class ReportableErrorImdsInvalidMetadata(ReportableError):
         self.supporting_data["type"] = type(value).__name__
 
 
+class ReportableErrorMissingCustomData(ReportableError):
+    def __init__(
+        self,
+        *,
+        pps_type: str,
+        provisioning_media: str,
+    ) -> None:
+        super().__init__("failure to read customData while hasCustomData=true")
+
+        self.supporting_data["pps_type"] = pps_type
+        self.supporting_data["provisioning_media"] = provisioning_media
+
+
 class ReportableErrorImdsMetadataParsingException(ReportableError):
     def __init__(self, *, exception: ValueError) -> None:
         super().__init__("error parsing IMDS metadata")
 
         self.supporting_data["exception"] = repr(exception)
+
+
+class ReportableErrorImportError(ReportableError):
+    def __init__(self, *, error: ImportError) -> None:
+        super().__init__(f"error importing {error.name} library")
+
+        self.supporting_data["error"] = repr(error)
 
 
 class ReportableErrorOsDiskPpsFailure(ReportableError):

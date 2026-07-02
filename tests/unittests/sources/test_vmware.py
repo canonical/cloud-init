@@ -11,6 +11,7 @@ import os
 from contextlib import ExitStack
 from logging import DEBUG
 from textwrap import dedent
+from unittest import mock
 
 import pytest
 
@@ -19,7 +20,7 @@ from cloudinit.event import EventScope
 from cloudinit.sources import DataSourceVMware
 from cloudinit.sources.helpers.vmware.imc import guestcust_util
 from cloudinit.subp import ProcessExecutionError
-from tests.unittests.helpers import mock, populate_dir, wrap_and_call
+from tests.unittests.helpers import populate_dir, wrap_and_call
 
 MPATH = "cloudinit.sources.DataSourceVMware."
 PRODUCT_NAME_FILE_PATH = "/sys/class/dmi/id/product_name"

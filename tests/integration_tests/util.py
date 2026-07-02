@@ -10,16 +10,13 @@ from datetime import datetime
 from functools import lru_cache
 from itertools import chain
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional, Set, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple, Union
 
 import pytest
 
 from cloudinit.subp import subp
 from tests.integration_tests.decorators import retry
-from tests.integration_tests.integration_settings import (
-    OS_IMAGE_TYPE,
-    PLATFORM,
-)
+from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, NOBLE
 
 LOG = logging.getLogger("integration_testing.util")
@@ -136,6 +133,11 @@ def verify_clean_boot(
         # Consistently on all Azure launches:
         ignore_warnings = append_or_create_list(
             ignore_warnings, "No lease found; using default endpoint"
+        )
+        # Pro images sometimes hit a single 404 in early provisioning
+        ignore_warnings = append_or_create_list(
+            ignore_warnings,
+            "Polling IMDS failed attempt 1 with exception: UrlError('404",
         )
     elif "lxd_vm" == PLATFORM:
         # Ubuntu lxd storage
@@ -578,13 +580,15 @@ def get_console_log(client: "IntegrationInstance"):
     return console_log
 
 
-@retry(tries=5, delay=1)  # Retry on get_console_log failures
-def get_syslog_or_console(client: "IntegrationInstance") -> str:
-    """minimal OS_IMAGE_TYPE does not contain rsyslog"""
-    if OS_IMAGE_TYPE == "minimal" and HAS_CONSOLE_LOG:
-        return get_console_log(client)
-    else:
-        return client.read_from_file("/var/log/syslog")
+@retry(tries=5, delay=1)  # Retry on transient journalctl failures
+def get_journal_syslog(client: "IntegrationInstance") -> str:
+    """Syslog events are categorized _TRANSPORT=syslog from systemd v205."""
+    # Prefer syslog transport categorized messages over presence of
+    # /var/log/syslog as systemd v255 introduced systemd-executor
+    # which sandboxes unit processes resulting in direct writes to
+    # /dev/console being logged directly to journal binary instead
+    # of mirrored as rsyslog events.
+    return client.execute(["journalctl", "_TRANSPORT=syslog", "-b", "0"])
 
 
 @lru_cache()
@@ -692,3 +696,21 @@ def get_datetime_from_string(
             )
         )
     return converted_datetime
+
+
+def fetch_and_parse_etc_shadow(
+    client: "IntegrationInstance",
+) -> Tuple[Dict[str, str], List[str]]:
+    """Fetch /etc/shadow and parse it into Python data structures
+
+    Returns: ({user: password}, [duplicate, users])
+    """
+    shadow_content = client.read_from_file("/etc/shadow")
+    users = {}
+    dupes = []
+    for line in shadow_content.splitlines():
+        user, encpw = line.split(":")[0:2]
+        if user in users:
+            dupes.append(user)
+        users[user] = encpw
+    return users, dupes

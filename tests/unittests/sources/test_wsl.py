@@ -144,6 +144,19 @@ class TestWSLHelperFunctions:
         with pytest.raises(IOError):
             wsl.cmd_executable()
 
+    @mock.patch("cloudinit.sources.DataSourceWSL.cmd_executable")
+    @mock.patch("cloudinit.util.subp.subp")
+    def test_find_home_raises(self, m_subp, m_cmd):
+        # The value really doesn't matter.
+        m_cmd.return_value = PurePath("/mnt/c/cmd.exe")
+        m_subp.return_value = util.subp.SubpResult(
+            "I am UTF-8 🦄 !".encode("utf-8"), "\r\n".encode("utf-8")
+        )
+        # Checking for ValueError instead of UnicodeDecodeError because
+        # that's what we catch at the call sites.
+        with pytest.raises(ValueError):
+            wsl.find_home()
+
     @pytest.mark.parametrize(
         "linux_distro_value,files",
         (

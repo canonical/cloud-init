@@ -42,7 +42,7 @@ jobs:
           lxc exec alpine -- ping -c 1 dl-cdn.alpinelinux.org || true
 
       - name: Install dependencies
-        run: lxc exec alpine -- apk add py3-tox git tzdata
+        run: lxc exec alpine -- apk add py3-tox py3-python-discovery git tzdata
 
       - name: Mount source into container directory
         run: lxc config device add alpine gitdir disk source=$(pwd) path=/root/cloud-init-ro

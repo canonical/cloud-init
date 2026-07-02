@@ -5,7 +5,9 @@ import logging
 import os
 import re
 from errno import EACCES
-from typing import Optional, Type
+from typing import Optional
+
+from jinja2 import exceptions, lexer
 
 from cloudinit import handlers
 from cloudinit.atomic_helper import b64d, json_dumps
@@ -18,15 +20,6 @@ from cloudinit.templater import (
     render_string,
 )
 from cloudinit.util import load_json, load_text_file
-
-JUndefinedError: Type[Exception]
-try:
-    from jinja2.exceptions import UndefinedError as JUndefinedError
-    from jinja2.lexer import operator_re
-except ImportError:
-    # No jinja2 dependency
-    JUndefinedError = Exception
-    operator_re = re.compile(r"[-.]")
 
 LOG = logging.getLogger(__name__)
 
@@ -147,7 +140,7 @@ def render_jinja_payload(payload, payload_fn, instance_data, debug=False):
         )
     try:
         rendered_payload = render_string(payload, instance_jinja_vars)
-    except (TypeError, JUndefinedError) as e:
+    except (TypeError, exceptions.UndefinedError) as e:
         LOG.warning("Ignoring jinja template for %s: %s", payload_fn, str(e))
         return None
     warnings = [
@@ -180,7 +173,7 @@ def get_jinja_variable_alias(orig_name: str) -> Optional[str]:
     :return: A string with any jinja operators replaced if needed. Otherwise,
         none if no alias required.
     """
-    alias_name = re.sub(operator_re, "_", orig_name)
+    alias_name = re.sub(lexer.operator_re, "_", orig_name)
     if alias_name != orig_name:
         return alias_name
     return None

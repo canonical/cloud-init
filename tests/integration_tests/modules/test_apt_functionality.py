@@ -18,10 +18,12 @@ from tests.integration_tests.releases import (
     CURRENT_RELEASE,
     IS_UBUNTU,
     MANTIC,
+    QUESTING,
 )
 from tests.integration_tests.util import (
     get_feature_flag_value,
     verify_clean_boot,
+    wait_for_cloud_init,
 )
 
 logger = logging.getLogger(__name__)
@@ -522,11 +524,16 @@ RE_GPG_SW_PROPERTIES_INSTALLED = (
     r"software-properties-common', 'gnupg)"
 )
 
-REMOVE_GPG_USERDATA = """
+GPG_PACKAGES = "gpg software-properties-common"
+# On Ubuntu Resolute and newer, gpg-from-sq can replace the gpg metapackage
+# when gpg is removed. Remove other packages which rdepend on gpg to avoid
+# gpg-from-sq being installed as an alternative to gpg.
+GPG_PACKAGES_SQ = f"{GPG_PACKAGES}  python3-software-properties libgpgme45"
+
+REMOVE_GPG_USERDATA_TMPL = """
 #cloud-config
 runcmd:
-  - DEBIAN_FRONTEND=noninteractive apt-get remove gpg -y
-  - DEBIAN_FRONTEND=noninteractive apt-get remove software-properties-common -y
+  - DEBIAN_FRONTEND=noninteractive apt-get remove {packages} -y
 """
 
 
@@ -569,9 +576,11 @@ def test_install_missing_deps(session_cloud: IntegrationCloud):
       'software-properties-common' are installed successfully.
     """
     # Two stage install: First stage:  remove gpg noninteractively from image
-    instance1 = session_cloud.launch(
-        user_data=_do_oci_customization(REMOVE_GPG_USERDATA)
-    )
+    if CURRENT_RELEASE <= QUESTING:
+        userdata = REMOVE_GPG_USERDATA_TMPL.format(packages=GPG_PACKAGES)
+    else:
+        userdata = REMOVE_GPG_USERDATA_TMPL.format(packages=GPG_PACKAGES_SQ)
+    instance1 = session_cloud.launch(user_data=_do_oci_customization(userdata))
 
     # look for r"un  gpg" using regex ('un' means uninstalled)
     for package in ["gpg", "software-properties-common"]:
@@ -597,6 +606,7 @@ def test_install_missing_deps(session_cloud: IntegrationCloud):
         user_data=INSTALL_ANY_MISSING_RECOMMENDED_DEPENDENCIES,
         launch_kwargs={"image_id": snapshot_id},
     ) as minimal_client:
+        wait_for_cloud_init(minimal_client)
         log = minimal_client.read_from_file("/var/log/cloud-init.log")
         assert re.search(RE_GPG_SW_PROPERTIES_INSTALLED, log)
         gpg_installed = re.search(

@@ -67,4 +67,12 @@ jobs:
           echo "[lxd]" > /home/$USER/.config/pycloudlib.toml
       - name: Run integration Tests
         run: |
-          CLOUD_INIT_CLOUD_INIT_SOURCE="$(ls ${{ runner.temp }}/cloud-init-base*.deb)" CLOUD_INIT_OS_IMAGE=${{ env.RELEASE }} tox -e integration-tests-ci -- --color=yes tests/integration_tests/
+          CLOUD_INIT_CLOUD_INIT_SOURCE="$(ls ${{ runner.temp }}/cloud-init-base*.deb)" CLOUD_INIT_OS_IMAGE=${{ env.RELEASE }} CLOUD_INIT_LOCAL_LOG_PATH=./cloudinit_logs tox -e integration-tests-ci -- --color=yes tests/integration_tests/
+      - name: Upload cloudinit logs on failure
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
+        with:
+          name: 'cloudinit-logs'
+          path: './cloudinit_logs'
+          retention-days: 3
+          if-no-files-found: ignore

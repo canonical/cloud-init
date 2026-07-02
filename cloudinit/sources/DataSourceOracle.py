@@ -63,8 +63,8 @@ class KlibcOracleNetworkConfigSource(cmdline.KlibcNetworkConfigSource):
     `/run/initramfs/open-iscsi.interface` does not exist.
     """
 
-    def is_applicable(self) -> bool:
-        """Override is_applicable"""
+    def _is_applicable(self) -> bool:
+        """Override _is_applicable"""
         return bool(self._files)
 
 

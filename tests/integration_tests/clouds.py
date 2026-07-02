@@ -39,7 +39,23 @@ log = logging.getLogger("integration_testing")
 
 DISTRO_TO_USERNAME = {
     "ubuntu": "ubuntu",
+    "rhel": "cloud-user",
+    "centos": "cloud-user",
 }
+
+# Platform specific username overrides: (distro, platform) -> username
+# Only list entries where the platform differs from the distro default.
+DISTRO_PLATFORM_TO_USERNAME = {
+    ("rhel", "ec2"): integration_settings.LAUNCH_USERNAME or "ec2-user",
+    ("rhel", "azure"): integration_settings.LAUNCH_USERNAME or "azureuser",
+}
+
+
+def get_launch_username(os: str, platform: str) -> str:
+    key = (os, platform)
+    if key in DISTRO_PLATFORM_TO_USERNAME:
+        return DISTRO_PLATFORM_TO_USERNAME[key]
+    return DISTRO_TO_USERNAME[os]
 
 
 def _get_ubuntu_series() -> list:
@@ -135,7 +151,9 @@ class IntegrationCloud(ABC):
         default_launch_kwargs = {
             "image_id": self.image_id,
             "user_data": user_data,
-            "username": DISTRO_TO_USERNAME[CURRENT_RELEASE.os],
+            "username": get_launch_username(
+                CURRENT_RELEASE.os, self.datasource
+            ),
         }
         if self.settings.INSTANCE_TYPE:
             default_launch_kwargs["instance_type"] = (
@@ -259,9 +277,10 @@ class GceCloud(IntegrationCloud):
 class AzureCloud(IntegrationCloud):
     datasource = "azure"
     cloud_instance: Azure
+    username = get_launch_username(CURRENT_RELEASE.os, datasource)
 
     def _get_cloud_instance(self) -> Azure:
-        return Azure(tag="azure-integration-test")
+        return Azure(tag="azure-integration-test", username=self.username)
 
     def _get_initial_image(self, **kwargs) -> str:
         return super()._get_initial_image(

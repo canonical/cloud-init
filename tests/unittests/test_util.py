@@ -35,7 +35,7 @@ from cloudinit.log import log_util
 from cloudinit.sources import DataSourceHostname
 from cloudinit.subp import SubpResult
 from tests.unittests import helpers
-from tests.unittests.helpers import random_string, skipUnlessJinja
+from tests.unittests.helpers import random_string
 
 LOG = logging.getLogger(__name__)
 M_PATH = "cloudinit.util."
@@ -409,15 +409,23 @@ OS_RELEASE_MARINER = dedent(
 
 OS_RELEASE_AZURELINUX = dedent(
     """\
-    NAME="Microsoft Azure Linux"
-    VERSION="3.0.20240206"
+    NAME="Azure Linux"
+    VERSION="4.0 (Cloud Variant)"
+    RELEASE_TYPE=stable
     ID=azurelinux
-    VERSION_ID="3.0"
-    PRETTY_NAME="Microsoft Azure Linux 3.0"
-    ANSI_COLOR="1;34"
+    ID_LIKE=fedora
+    VERSION_ID=4.0
+    VERSION_CODENAME=""
+    PRETTY_NAME="Azure Linux 4.0 (Cloud Variant)"
+    ANSI_COLOR="0;38;2;60;110;180"
+    LOGO=azurelinux-logo-icon
+    CPE_NAME="cpe:/o:microsoft:azurelinux:4.0"
     HOME_URL="https://aka.ms/azurelinux"
-    BUG_REPORT_URL="https://aka.ms/azurelinux"
+    DOCUMENTATION_URL="https://aka.ms/azurelinux"
     SUPPORT_URL="https://aka.ms/azurelinux"
+    BUG_REPORT_URL="https://aka.ms/azurelinux"
+    VARIANT="Cloud Variant"
+    VARIANT_ID=cloud
 """
 )
 
@@ -470,7 +478,6 @@ class TestUtil:
         )
         assert util.read_conf("any") == {"a": "b"}
 
-    @skipUnlessJinja()
     def test_read_conf_with_template(self, mocker, caplog):
         mocker.patch("os.path.exists", return_value=True)
         mocker.patch(
@@ -489,7 +496,6 @@ class TestUtil:
             "from 'cfg_path'"
         ) in caplog.text
 
-    @skipUnlessJinja()
     def test_read_conf_with_failed_config_json(self, mocker, caplog):
         mocker.patch("os.path.exists", return_value=True)
         mocker.patch(
@@ -504,7 +510,6 @@ class TestUtil:
         assert "Failed loading yaml blob" in caplog.text
         assert conf == {}
 
-    @skipUnlessJinja()
     def test_read_conf_with_failed_instance_data_json(self, mocker, caplog):
         mocker.patch("os.path.exists", return_value=True)
         mocker.patch(
@@ -527,7 +532,6 @@ class TestUtil:
             "{% if c %} C is present {% else % } C is NOT present {% endif %}",
         ],
     )
-    @skipUnlessJinja()
     def test_read_conf_with_config_invalid_jinja_syntax(
         self, mocker, caplog, template
     ):
@@ -1280,7 +1284,7 @@ class TestGetLinuxDistro:
         m_os_release.return_value = OS_RELEASE_AZURELINUX
         m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
         dist = util.get_linux_distro()
-        assert ("azurelinux", "3.0", "") == dist
+        assert ("azurelinux", "4.0", "Cloud Variant") == dist
 
     @mock.patch(M_PATH + "load_text_file")
     def test_get_linux_openmandriva(self, m_os_release, m_path_exists):
@@ -3173,6 +3177,12 @@ class TestVersion:
 
 @pytest.mark.allow_dns_lookup
 class TestResolvable:
+    @pytest.fixture(autouse=True)
+    def reset_dns_redirect_ip(self):
+        util._DNS_REDIRECT_IP = None
+        yield  # Test runs here
+        util._DNS_REDIRECT_IP = None
+
     @mock.patch.object(util, "_DNS_REDIRECT_IP", return_value=True)
     @mock.patch.object(util.socket, "getaddrinfo")
     def test_ips_need_not_be_resolved(self, m_getaddr, m_dns):
@@ -3183,7 +3193,44 @@ class TestResolvable:
         """
         assert util.is_resolvable("http://169.254.169.254/") is True
         assert util.is_resolvable("http://[fd00:ec2::254]/") is True
+        assert util.is_resolvable("http://169.254.169.254:80") is True
+        assert util.is_resolvable("http://[fd00:ec2::254]:80/") is True
         assert not m_getaddr.called
+
+    @mock.patch.object(util.net, "is_ip_address")
+    @mock.patch.object(util.socket, "getaddrinfo")
+    def test_hostnames_require_dns_resolution(self, m_getaddr, m_is_ip):
+        """Hostnames should go through DNS resolution."""
+        m_is_ip.return_value = False
+
+        def mock_getaddrinfo(host, port, *args, **kwargs):
+            badnames = (
+                "does-not-exist.example.com.",
+                "example.invalid.",
+                "__cloud_init_expected_not_found__",
+            )
+            if host in badnames:
+                return [(None, None, None, "badname", ("192.0.2.1", 0))]
+            return [(None, None, None, "example.com", ("10.2.3.4", 0))]
+
+        m_getaddr.side_effect = mock_getaddrinfo
+
+        assert util.is_resolvable("http://example.com/") is True
+        assert util.is_resolvable("http://example.com/:80") is True
+        assert m_getaddr.called
+
+        assert m_getaddr.call_args_list[0] == mock.call("example.com", None)
+
+        badnames = (
+            "does-not-exist.example.com.",
+            "example.invalid.",
+            "__cloud_init_expected_not_found__",
+        )
+        called_hosts = [call[0][0] for call in m_getaddr.call_args_list[1:]]
+        for badname in badnames:
+            assert (
+                badname in called_hosts
+            ), f"Expected badname {badname} to be checked"
 
 
 class TestMaybeB64Decode:
