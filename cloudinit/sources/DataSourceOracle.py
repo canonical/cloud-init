@@ -80,11 +80,13 @@ def _ibft_has_iscsi_boot_target() -> bool:
     for flags_path in glob.glob(IBFT_TARGET_FLAGS_GLOB):
         try:
             flags = int(util.load_text_file(flags_path).strip())
+            if flags & TGT_BLOCK_VALID and flags & TGT_FIRMWARE_BOOT_SELECTED:
+                LOG.debug(
+                    "Detected iSCSI boot target via iBFT: %s", flags_path
+                )
+                return True
         except (OSError, ValueError):
             continue
-        if flags & TGT_BLOCK_VALID and flags & TGT_FIRMWARE_BOOT_SELECTED:
-            LOG.debug("Detected iSCSI boot target via iBFT: %s", flags_path)
-            return True
     return False
 
 
@@ -296,10 +298,7 @@ class DataSourceOracle(sources.DataSource):
 
     def _is_iscsi_root(self) -> bool:
         """Return whether we are on a iscsi machine."""
-        return (
-            _ibft_has_iscsi_boot_target()
-            or self._network_config_source.is_applicable()
-        )
+        return _ibft_has_iscsi_boot_target()
 
     def _get_iscsi_config(self) -> dict:
         return self._network_config_source.render_config()
@@ -318,8 +317,7 @@ class DataSourceOracle(sources.DataSource):
             return self._network_config
 
         set_primary = False
-        is_iscsi = self._is_iscsi_root()
-        if is_iscsi:
+        if self._network_config_source.is_applicable():
             self._network_config = self._get_iscsi_config()
         if not self._has_network_config():
             LOG.debug(
@@ -345,7 +343,7 @@ class DataSourceOracle(sources.DataSource):
 
         # On iSCSI root, mark the primary NIC as critical so it is not torn
         # down on shutdown, whether config came from initramfs or IMDS.
-        if is_iscsi and self._has_network_config():
+        if self._is_iscsi_root() and self._has_network_config():
             LOG.debug(
                 "Instance is using iSCSI root, setting primary NIC as critical"
             )
