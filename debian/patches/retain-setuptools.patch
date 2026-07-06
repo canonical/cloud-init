@@ -435,5 +435,5 @@ Last-Update: 2025-08-25
  responses
 -packaging
  passlib
+ pyfakefs
  
- # This one is currently used only by the CloudSigma and SmartOS datasources.

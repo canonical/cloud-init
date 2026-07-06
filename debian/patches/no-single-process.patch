@@ -103,7 +103,7 @@ Last-Update: 2024-08-02
 +After=systemd-remount-fs.service
  Before=network-pre.target
  Before=shutdown.target
- {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
+ {% if variant in ["almalinux", "azurelinux", "cloudlinux", "rhel"] %}
 @@ -16,6 +17,7 @@ Before=firewalld.target
  Before=sysinit.target
  {% endif %}
@@ -113,7 +113,7 @@ Last-Update: 2024-08-02
  ConditionKernelCommandLine=!cloud-init=disabled
  ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
 @@ -25,14 +27,7 @@ Type=oneshot
- {% if variant in ["almalinux", "cloudlinux", "rhel"] %}
+ {% if variant in ["almalinux", "azurelinux", "cloudlinux", "rhel"] %}
  ExecStartPre=/sbin/restorecon /run/cloud-init
  {% endif %}
 -# This service is a shim which preserves systemd ordering while allowing a
@@ -141,10 +141,10 @@ Last-Update: 2024-08-02
 -# https://www.freedesktop.org/software/systemd/man/latest/systemd-remount-fs.service.html
 -[Unit]
 -Description=Cloud-init: Single Process
--{% if variant in ["almalinux", "cloudlinux", "ubuntu", "unknown", "debian", "raspberry-pi-os", "rhel"] %}
+-{% if variant in ["almalinux", "azurelinux", "cloudlinux", "ubuntu", "unknown", "debian", "raspberry-pi-os", "rhel"] %}
 -DefaultDependencies=no
 -{% endif %}
--{% if variant in ["almalinux", "cloudlinux", "rhel"] %}
+-{% if variant in ["almalinux", "azurelinux", "cloudlinux", "rhel"] %}
 -Requires=dbus.socket
 -After=dbus.socket
 -{% endif %}
@@ -164,7 +164,7 @@ Last-Update: 2024-08-02
 -KillMode=process
 -TasksMax=infinity
 -TimeoutStartSec=infinity
--{% if variant in ["almalinux", "cloudlinux", "rhel"] %}
+-{% if variant in ["almalinux", "azurelinux", "cloudlinux", "rhel"] %}
 -ExecStartPre=/sbin/restorecon /run/cloud-init
 -{% endif %}
 -
@@ -180,7 +180,7 @@ Last-Update: 2024-08-02
 -[Unit]
 -# https://docs.cloud-init.io/en/latest/explanation/boot.html
 -Description=Cloud-init: Network Stage
--{% if variant not in ["almalinux", "cloudlinux", "photon", "rhel"] %}
+-{% if variant not in ["almalinux", "azurelinux", "cloudlinux", "photon", "rhel"] %}
 -DefaultDependencies=no
 -{% endif %}
 -Wants=cloud-init-local.service
@@ -193,7 +193,7 @@ Last-Update: 2024-08-02
 -{% if variant in ["ubuntu", "unknown", "debian", "raspberry-pi-os"] %}
 -After=networking.service
 -{% endif %}
--{% if variant in ["almalinux", "centos", "cloudlinux", "eurolinux", "fedora",
+-{% if variant in ["almalinux", "azurelinux", "centos", "cloudlinux", "eurolinux", "fedora",
 -                  "miraclelinux", "openeuler", "OpenCloudOS", "openmandriva",
 -                  "rhel", "rocky", "suse", "TencentOS", "virtuozzo"] %}
 -After=NetworkManager.service
@@ -304,7 +304,7 @@ Last-Update: 2024-08-02
 +WantedBy=cloud-init.target
 --- a/tests/unittests/config/test_cc_mounts.py
 +++ b/tests/unittests/config/test_cc_mounts.py
-@@ -566,9 +566,9 @@ class TestFstabHandling:
+@@ -527,9 +527,9 @@ class TestFstabHandling:
              LABEL=keepme	none	ext4	defaults	0	0
              LABEL=UEFI
              /dev/sda4	/mnt2	auto	nofail,comment=cloudconfig	1	2
