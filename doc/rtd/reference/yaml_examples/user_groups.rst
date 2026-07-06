@@ -35,9 +35,14 @@ and ``'sys'``, and the empty group ``cloud-users``.
 Add users to the system
 =======================
 
-Users are added after groups. Note that most of these configuration options
-will not be honored if the user already exists. The following options are
-exceptions and can be applied to already-existing users:
+Users are added after groups. If you provide a ``users`` list and still want
+cloud-init to create the default distribution user, keep ``default`` as the
+first item in the list. Omitting ``default`` skips creation of the default user
+and can prevent cloud-provided SSH keys from being installed for that user.
+
+Note that most of these configuration options will not be honored if the user
+already exists. The following options are exceptions and can be applied to
+already-existing users:
 
 - ``plain_text_passwd``
 - ``hashed_passwd``

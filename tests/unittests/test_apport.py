@@ -1,11 +1,11 @@
 import os
 import sys
 from importlib import reload
+from unittest import mock
 
 import pytest
 
 from cloudinit import apport
-from tests.unittests.helpers import mock
 
 M_PATH = "cloudinit.apport."
 

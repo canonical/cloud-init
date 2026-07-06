@@ -1,8 +1,8 @@
 # cloud-init
 
-![Unit Tests](https://github.com/canonical/cloud-init/actions/workflows/unit.yml/badge.svg?branch=main)
-![Integration Tests](https://github.com/canonical/cloud-init/actions/workflows/integration.yml/badge.svg?branch=main)
-![Documentation](https://github.com/canonical/cloud-init/actions/workflows/check_format.yml/badge.svg?branch=main)
+![Unit Tests](https://github.com/canonical/cloud-init/actions/workflows/22-pr-unit-python.yml/badge.svg?branch=main)
+![Integration Tests](https://github.com/canonical/cloud-init/actions/workflows/24-pr-integration.yml/badge.svg?branch=main)
+![Documentation](https://github.com/canonical/cloud-init/actions/workflows/21-pr-check-format.yml/badge.svg?branch=main)
 
 Cloud-init is the *industry standard* multi-distribution method for
 cross-platform cloud instance initialization. It is supported across all

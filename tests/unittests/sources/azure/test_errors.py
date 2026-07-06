@@ -211,6 +211,15 @@ def test_imds_metadata_parsing_exception():
     assert error.supporting_data["exception"] == repr(exception)
 
 
+def test_import_error():
+    exception = ImportError("No module named 'foobar'", name="foobar")
+
+    error = errors.ReportableErrorImportError(error=exception)
+
+    assert error.reason == "error importing foobar library"
+    assert error.supporting_data["error"] == repr(exception)
+
+
 def test_ovf_parsing_exception():
     error = None
     try:
@@ -257,6 +266,7 @@ def test_unhandled_exception():
         "None",
         None,
     ],
+    ids=["running", "string-none", "none-value"],
 )
 def test_imds_invalid_metadata(value):
     key = "compute"

@@ -8,13 +8,13 @@
 # pylint: disable=attribute-defined-outside-init
 
 import json
+from unittest import mock
 
 import pytest
 
 from cloudinit import settings
 from cloudinit.sources import DataSourceDigitalOcean
 from cloudinit.sources.helpers import digitalocean
-from tests.unittests.helpers import mock
 
 DO_MULTIPLE_KEYS = [
     "ssh-rsa AAAAB3NzaC1yc2EAAAA... test1@do.co",

@@ -5,14 +5,13 @@ import base64
 import copy
 import json
 from textwrap import dedent
+from unittest import mock
 
 import pytest
 
 from cloudinit import util
 from cloudinit.sources import DataSourceIBMCloud as ibm
 from tests.unittests import helpers as test_helpers
-
-mock = test_helpers.mock
 
 D_PATH = "cloudinit.sources.DataSourceIBMCloud."
 

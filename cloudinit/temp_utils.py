@@ -20,7 +20,10 @@ def get_tmp_ancestor(odir=None, needs_exe: bool = False):
     if needs_exe:
         return _EXE_ROOT_TMPDIR
     if os.getuid() == 0:
-        return _ROOT_TMPDIR
+        if util.is_BSD():
+            return "/var/" + _ROOT_TMPDIR
+        else:
+            return _ROOT_TMPDIR
     return os.environ.get("TMPDIR", "/tmp")
 
 

@@ -663,7 +663,7 @@ class TestDsIdentify(DsIdentifyBase):
             # Launched by os code always has config-2 disk.
             pytest.param("IBMCloud-config-2", True, id="ibmcloud_os_code"),
             # Test that Aliyun cloud is identified by product id.
-            pytest.param("AliYun", True, id="ibmcloud_os_code"),
+            pytest.param("AliYun", True, id="aliyun_found_by_product_id"),
             # On Intel, openstack must be identified.
             pytest.param(
                 "OpenStack", True, id="default_openstack_intel_is_found"

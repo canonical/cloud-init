@@ -805,7 +805,11 @@ def check_partition_gpt_layout_sfdisk(device, layout):
     # Use sfdisk's JSON output for reliability
     prt_cmd = ["sfdisk", "-l", "-J", device]
     try:
-        out, _err = subp.subp(prt_cmd, update_env=LANG_C_ENV)
+        out, _err = subp.subp(prt_cmd, update_env=LANG_C_ENV, rcs=[0, 1])
+        # Device has no partition table or other error, return empty list
+        if not out:
+            return []
+        # Try to parse JSON output
         ptable = json.loads(out)["partitiontable"]
         if "partitions" in ptable:
             partitions = ptable["partitions"]
