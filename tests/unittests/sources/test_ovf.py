@@ -9,12 +9,12 @@ import base64
 import os
 from collections import OrderedDict
 from textwrap import dedent
+from unittest import mock
 
 import pytest
 
 from cloudinit import subp, util
 from cloudinit.sources import DataSourceOVF as dsovf
-from tests.unittests.helpers import mock
 
 MPATH = "cloudinit.sources.DataSourceOVF."
 

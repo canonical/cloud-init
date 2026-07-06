@@ -18,6 +18,7 @@ from cloudinit.net import (
     network_manager,
     network_state,
     networkd,
+    renderer,
     sysconfig,
 )
 
@@ -156,15 +157,17 @@ def handle_args(name, args):
         pre_ns = azure.generate_network_config_from_instance_network_metadata(
             json.loads(net_data)["network"],
             apply_network_config_for_secondary_ips=True,
+            apply_network_config_set_name=True,
         )
     elif args.kind == "vmware-imc":
-        config = guestcust_util.Config(
+        vmware_config = guestcust_util.Config(
             guestcust_util.ConfigFile(args.network_data.name)
         )
         pre_ns = guestcust_util.get_network_data_from_vmware_cust_cfg(
-            config, False
+            vmware_config, False
         )
 
+    r_cls: type[renderer.Renderer]
     distro_cls = distros.fetch(args.distro)
     distro = distro_cls(args.distro, {}, None)
     if args.output_kind == "eni":

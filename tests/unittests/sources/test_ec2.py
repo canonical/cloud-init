@@ -1411,7 +1411,7 @@ class TestBuildNicOrder:
                     "0a:0d:dd:44:cd:7b": 1,
                     "0a:f7:8d:96:f2:a2": 2,
                 },
-                id="no-device-number-info-subset-sort-by-nic-name",
+                id="no-device-number-info-extra-mac-sort-by-nic-name",
             ),
         ],
     )

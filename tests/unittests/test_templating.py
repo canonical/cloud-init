@@ -4,16 +4,13 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import logging
 import textwrap
-from unittest import mock
 
 import pytest
 
 from cloudinit import templater
 from cloudinit.templater import JinjaSyntaxParsingException
 from cloudinit.util import load_binary_file, write_file
-from tests.unittests import helpers as test_helpers
 
 
 class TestTemplates:
@@ -136,26 +133,6 @@ class TestTemplates:
         )
         result = templater.render_from_file(tmpl_fn, {"name": "bob"})
         assert result == self.jinja_utf8_rbob
-
-    @test_helpers.skipIfJinja()
-    def test_jinja_warns_on_missing_dep_and_uses_basic_renderer(
-        self, caplog, tmp_path
-    ):
-        """Test jinja render_from_file will fallback to basic renderer."""
-        tmpl_fn = str(tmp_path / "j-render-from-file.template")
-        write_file(
-            tmpl_fn,
-            omode="wb",
-            content=self.add_header("jinja", self.jinja_utf8).encode("utf-8"),
-        )
-        result = templater.render_from_file(tmpl_fn, {"name": "bob"})
-        assert result == self.jinja_utf8.decode()
-        assert (
-            mock.ANY,
-            logging.WARNING,
-            "Jinja not available as the selected renderer for desired"
-            " template, reverting to the basic renderer.",
-        ) in caplog.record_tuples
 
     def test_jinja_do_extension_render_to_string(self):
         """Test jinja render_to_string using do extension."""

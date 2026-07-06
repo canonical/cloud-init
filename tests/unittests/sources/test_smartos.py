@@ -24,6 +24,7 @@ import stat
 import uuid
 from binascii import crc32
 from collections import namedtuple
+from unittest import mock
 
 import pytest
 import serial
@@ -44,7 +45,6 @@ from cloudinit.sources.DataSourceSmartOS import (
 )
 from cloudinit.subp import ProcessExecutionError, subp, which
 from cloudinit.util import write_file
-from tests.unittests.helpers import mock
 
 DSMOS = "cloudinit.sources.DataSourceSmartOS"
 SDC_NICS = json.loads(

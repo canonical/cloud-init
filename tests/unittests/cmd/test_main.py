@@ -116,7 +116,7 @@ class TestMain:
             supplemental_config_file.write(
                 EXTRA_CLOUD_CONFIG.format(tmpdir=tmpdir)
             )
-            files = [open(supplemental_config_file)]
+            files = [supplemental_config_file]
         else:
             files = None
         cmdargs = MyArgs(
