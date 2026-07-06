@@ -1,8 +1,8 @@
 cloud-init (26.2-0ubuntu1~26.04.1) UNRELEASED; urgency=medium
 
-  * placeholder for snapshot 
+  * Upstream snapshot based on upstream/main at 399cc042.
 
- -- Chad Smith <chad.smith@canonical.com>  Mon, 06 Jul 2026 07:58:32 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 06 Jul 2026 07:59:10 -0600
 
 cloud-init (26.1-0ubuntu2) resolute; urgency=medium
 
