@@ -238,6 +238,13 @@ def test_ovf_invalid_metadata_exception():
     assert error.reason == "unexpected metadata parsing ovf-env.xml: foobar"
 
 
+def test_ovf_invalid_base64():
+    error = errors.ReportableErrorOvfInvalidBase64(field="customData")
+
+    assert error.reason == "failure to decode ovf-env.xml field=customData"
+    assert error.supporting_data["field"] == "customData"
+
+
 def test_unhandled_exception():
     source_error = None
     try:

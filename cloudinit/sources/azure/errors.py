@@ -198,6 +198,13 @@ class ReportableErrorOvfInvalidMetadata(ReportableError):
         super().__init__(f"unexpected metadata parsing ovf-env.xml: {message}")
 
 
+class ReportableErrorOvfInvalidBase64(ReportableError):
+    def __init__(self, field: str) -> None:
+        super().__init__(f"failure to decode ovf-env.xml field={field}")
+
+        self.supporting_data["field"] = field
+
+
 class ReportableErrorOvfParsingException(ReportableError):
     def __init__(self, *, exception: ET.ParseError) -> None:
         message = exception.msg

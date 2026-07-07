@@ -3,6 +3,7 @@
 # TODO: Importing this file without first importing
 # cloudinit.sources.azure.errors will result in a circular import.
 import base64
+import binascii
 import json
 import logging
 import os
@@ -1110,12 +1111,17 @@ class OvfEnvXml:
             required=True,
         )
 
-        self.custom_data = self._parse_property(
-            config_set,
-            "CustomData",
-            decode_base64=True,
-            required=False,
-        )
+        try:
+            self.custom_data = self._parse_property(
+                config_set,
+                "CustomData",
+                decode_base64=True,
+                required=False,
+            )
+        except binascii.Error as error:
+            raise errors.ReportableErrorOvfInvalidBase64(
+                field="customData"
+            ) from error
         self.username = self._parse_property(
             config_set, "UserName", required=False
         )
