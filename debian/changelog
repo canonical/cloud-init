@@ -1,5 +1,6 @@
 cloud-init (26.2-0ubuntu1~26.04.1) UNRELEASED; urgency=medium
 
+  * d/control: add python3-pyfakfes dependency
   * Upstream snapshot based on upstream/main at 399cc042.
 
  -- Chad Smith <chad.smith@canonical.com>  Mon, 06 Jul 2026 07:59:10 -0600
