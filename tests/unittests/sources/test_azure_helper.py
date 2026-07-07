@@ -1483,8 +1483,16 @@ class TestOvfEnvXml:
 
         assert parsed.custom_data is None
 
-    def test_invalid_base64_custom_data_fails(self):
-        ovf = """\
+    @pytest.mark.parametrize(
+        "custom_data",
+        [
+            "ABCDE",        # invalid length
+            "ab",           # incorrect padding
+            "not_base64",   # bad character stripped away
+        ],
+    )
+    def test_invalid_base64_custom_data_fails(self, custom_data):
+        ovf = f"""\
             <ns0:Environment xmlns="http://schemas.dmtf.org/ovf/environment/1"
              xmlns:ns0="http://schemas.dmtf.org/ovf/environment/1"
              xmlns:ns1="http://schemas.microsoft.com/windowsazure"
@@ -1497,7 +1505,7 @@ class TestOvfEnvXml:
             </ns1:ConfigurationSetType>
             <ns1:HostName>test-host</ns1:HostName>
             <ns1:UserName>test-user</ns1:UserName>
-            <ns1:CustomData>aaaaa</ns1:CustomData>
+            <ns1:CustomData>{custom_data}</ns1:CustomData>
             </ns1:LinuxProvisioningConfigurationSet>
             </ns1:ProvisioningSection>
             <ns1:PlatformSettingsSection>
