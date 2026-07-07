@@ -1,5 +1,6 @@
 cloud-init (26.1-0ubuntu1~24.04.2) UNRELEASED; urgency=medium
 
+  * d/control: add python3-pyfakefs dependency
   * refresh patches:
     - d/p/0001-Revert-fix-DNS-resolution-performance-regression-dur.patch
     - d/p/no-nocloud-network.patch
