@@ -20,7 +20,7 @@ NETWORK_CONFIGS = {
                 subnets:
                   - type: static
                     address: 192.168.2.175/24
-            """
+            """  # noqa: E501
         ),
         "expected_netplan": textwrap.dedent(
             """\
@@ -40,7 +40,7 @@ NETWORK_CONFIGS = {
                             macaddress: "00:00:10:48:fe:80:00:00:00:00:00:00:a0:88:c2:03:00:f7:f0:b4"
                         mtu: 2044
                         set-name: ib0
-            """
+            """  # noqa: E501
         ),
     },
     "small_suse_dhcp6": {
@@ -2453,7 +2453,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                         routes:
                         -   to: default
                             via: 192.168.0.1
-        """
+        """  # noqa: E501
         ).rstrip(" "),
         "expected_sysconfig_opensuse": {
             "ifcfg-bond0": textwrap.dedent(
