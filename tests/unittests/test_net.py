@@ -4366,6 +4366,7 @@ class TestNetplanRoundTrip:
             ("wakeonlan_enabled", "yaml_v2"),
             ("large_v1", "yaml"),
             ("manual", "yaml"),
+            ("infiniband", "yaml"),
             pytest.param(
                 "v1-dns",
                 "yaml",

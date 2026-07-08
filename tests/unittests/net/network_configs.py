@@ -3,6 +3,46 @@
 import textwrap
 
 NETWORK_CONFIGS = {
+    "infiniband": {
+        "yaml": textwrap.dedent(
+            """\
+            version: 1
+            config:
+              - type: physical
+                name: eth0
+                mac_address: "a0:88:c2:79:8d:54"
+                subnets:
+                  - type: dhcp4
+              - type: infiniband
+                name: ib0
+                mac_address: "00:00:10:48:fe:80:00:00:00:00:00:00:a0:88:c2:03:00:f7:f0:b4"
+                mtu: 2044
+                subnets:
+                  - type: static
+                    address: 192.168.2.175/24
+            """
+        ),
+        "expected_netplan": textwrap.dedent(
+            """\
+            network:
+                version: 2
+                ethernets:
+                    eth0:
+                        dhcp4: true
+                        match:
+                            macaddress: "a0:88:c2:79:8d:54"
+                        set-name: eth0
+                    ib0:
+                        addresses:
+                        - 192.168.2.175/24
+                        infiniband-mode: datagram
+                        match:
+                            macaddress: "00:00:10:48:fe:80:00:00:00:00:00:00:a0:88:c2:03:00:f7:f0:b4"
+                        mtu: 2044
+                        set-name: ib0
+            """
+        ),
+    },
     "small_suse_dhcp6": {
         "expected_sysconfig_opensuse": {
             "ifcfg-eth1": textwrap.dedent(
@@ -2327,6 +2367,23 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                         match:
                             macaddress: 98:bb:9f:2c:e8:8a
                         set-name: eth5
+                    ib0:
+                        addresses:
+                        - 192.168.200.7/24
+                        infiniband-mode: datagram
+                        match:
+                            macaddress: a0:00:02:20:fe:80:00:00:00:00:00:00:ec:0d:9a:03:00:15:e2:c1
+                        mtu: 9000
+                        nameservers:
+                            addresses:
+                            - 8.8.8.8
+                            - 4.4.4.4
+                            - 8.8.4.4
+                            search:
+                            - barley.maas
+                            - wark.maas
+                            - foobar.maas
+                        set-name: ib0
                 bonds:
                     bond0:
                         dhcp6: true
