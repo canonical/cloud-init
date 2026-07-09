@@ -327,13 +327,23 @@ class OpenNebulaNetwork:
             # can be attached to it. Otherwise use the simpler gateway4 key.
             gateway = self.get_gateway(c_dev)
             metric: Optional[str] = self.get_metric(c_dev)
+            metric_int: Optional[int] = None
+            if metric is not None:
+                try:
+                    metric_int = int(metric)
+                except ValueError:
+                    LOG.warning(
+                        "Ignoring unparseable %s_METRIC: %r",
+                        c_dev.upper(),
+                        metric,
+                    )
             if gateway:
-                if metric is not None:
+                if metric_int is not None:
                     devconf.setdefault("routes", []).append(
                         {
                             "to": "default",
                             "via": gateway,
-                            "metric": int(metric),
+                            "metric": metric_int,
                         }
                     )
                 else:

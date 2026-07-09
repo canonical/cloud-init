@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 # pylint: disable=attribute-defined-outside-init
 
+import logging
 import os
 import pwd
 from unittest import mock
@@ -1207,6 +1208,28 @@ class TestOpenNebulaNetwork:
         eth0 = conf["ethernets"]["eth0"]
         assert eth0["gateway4"] == "10.0.0.1"
         assert "routes" not in eth0
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_unparseable_metric_falls_back_to_gateway4(
+        self, m_get_phys_by_mac, caplog
+    ):
+        """Non-integer ETHx_METRIC is ignored with a warning, falling back
+        to gateway4 instead of aborting config generation."""
+        context = {
+            "ETH0_MAC": MACADDR,
+            "ETH0_IP": PUBLIC_IP,
+            "ETH0_GATEWAY": "10.0.0.1",
+            "ETH0_METRIC": "not-a-number",
+        }
+        m_get_phys_by_mac.return_value = {MACADDR: "eth0"}
+        net = ds.OpenNebulaNetwork(context, mock.Mock())
+        conf = net.gen_conf()
+        eth0 = conf["ethernets"]["eth0"]
+        assert eth0["gateway4"] == "10.0.0.1"
+        assert "routes" not in eth0
+        warnings = [r for r in caplog.record_tuples if r[1] == logging.WARNING]
+        assert len(warnings) == 1
+        assert "ETH0_METRIC" in warnings[0][2]
 
     @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
     def test_gen_conf_metric_without_gateway(self, m_get_phys_by_mac):
