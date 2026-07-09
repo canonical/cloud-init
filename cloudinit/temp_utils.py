@@ -44,7 +44,7 @@ def _tempfile_dir_arg(odir=None, needs_exe: bool = False):
     tdir = get_tmp_ancestor(odir, needs_exe)
     if not os.path.isdir(tdir):
         os.makedirs(tdir)
-        os.chmod(tdir, 0o1777)
+        os.chmod(tdir, 0o700)
 
     if needs_exe:
         if util.has_mount_opt(tdir, "noexec"):
