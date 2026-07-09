@@ -294,7 +294,9 @@ class OpenNebulaNetwork:
 
         Scans context for ETHx_ALIASn_IP / ETHx_ALIASn_MASK keys, where x
         matches c_dev (e.g. 'ETH0').  Missing MASK defaults to /32.
-        Stops at the first gap in the alias index sequence.
+        Stops at the first gap in the alias index sequence and warns if
+        further alias indices exist beyond that gap, since that likely
+        indicates a misconfigured context.
         """
         aliases: List[str] = []
         prefix = c_dev.upper() + "_ALIAS"
@@ -309,6 +311,19 @@ class OpenNebulaNetwork:
             net_prefix = str(net.ipv4_mask_to_net_prefix(mask))
             aliases.append("%s/%s" % (ip, net_prefix))
             idx += 1
+
+        key_re = re.compile(r"^%s(\d+)_IP$" % re.escape(prefix))
+        skipped = sorted(
+            int(m.group(1)) for m in map(key_re.match, self.context) if m
+        )
+        skipped = [i for i in skipped if i >= idx]
+        if skipped:
+            LOG.warning(
+                "Ignoring %s: found gap at %s%d_IP",
+                ", ".join("%s%d_IP" % (prefix, i) for i in skipped),
+                prefix,
+                idx,
+            )
         return aliases
 
     def gen_conf(self) -> Dict[str, Any]:

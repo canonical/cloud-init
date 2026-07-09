@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 # pylint: disable=attribute-defined-outside-init
 
+import logging
 import os
 import pwd
 from unittest import mock
@@ -1186,6 +1187,23 @@ class TestOpenNebulaNetwork:
         net = ds.OpenNebulaNetwork(context, mock.Mock())
         aliases = net.get_alias_addresses("ETH0")
         assert aliases == ["10.0.0.5/32"]
+
+    def test_get_alias_addresses_gap_ignored_and_warned(self, caplog):
+        """A gap in the alias index stops the scan and logs a warning
+        naming the alias index(es) beyond the gap that were ignored."""
+        context = {
+            "ETH0_ALIAS0_IP": "192.168.1.10",
+            "ETH0_ALIAS0_MASK": "255.255.255.0",
+            "ETH0_ALIAS2_IP": "192.168.1.12",
+            "ETH0_ALIAS2_MASK": "255.255.255.0",
+        }
+        net = ds.OpenNebulaNetwork(context, mock.Mock())
+        aliases = net.get_alias_addresses("ETH0")
+        assert aliases == ["192.168.1.10/24"]
+        warnings = [r for r in caplog.record_tuples if r[1] == logging.WARNING]
+        assert len(warnings) == 1
+        assert "ETH0_ALIAS2_IP" in warnings[0][2]
+        assert "ETH0_ALIAS1_IP" in warnings[0][2]
 
     @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
     def test_gen_conf_aliases_in_addresses(self, m_get_phys_by_mac):
