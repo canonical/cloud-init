@@ -1,0 +1,41 @@
+Description: Backport importlib.util fixes
+ Avoid AttributeError tacebacks from cloudinit.importer.py for
+ ua-auto-attach functionality which calls importlib.util.find_spec.
+ 
+ Fixes GH-6924
+Author: chad.smith@canonical.com
+Origin: backport
+Forwarded: not-needed
+Last-Update: 2023-01-09
+---
+From a97e74661b12f16d1f8554d572698494e62d4fd9 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Chlo=C3=A9=20E=2EM=2E=20Smith?= <chloe.smith@canonical.com>
+Date: Fri, 10 Jul 2026 17:52:34 +0100
+Subject: [PATCH] feat: Fix import error (#6926)
+
+`importer.py` calls `importlib.util.find_spec()`
+but the file only actually imports `importlib`
+by itself.
+
+Up until now we've gotten away with it as something
+else has always imported `importlib.util` for us
+"by accident", but if an end consumer imports
+`cloud-init` as a library (i.e. `ubuntu-pro-client`)
+there's no guarantee that will happen. It happened
+in #6924 so let's fix it now.
+
+Fixes GH-6924
+---
+ cloudinit/importer.py | 12 +++---------
+ 1 file changed, 3 insertions(+), 9 deletions(-)
+
+--- a/cloudinit/importer.py
++++ b/cloudinit/importer.py
+@@ -9,6 +9,7 @@
+ # This file is part of cloud-init. See LICENSE file for license information.
+ 
+ import importlib
++import importlib.util
+ from types import ModuleType
+ from typing import Optional, Sequence
+ 
