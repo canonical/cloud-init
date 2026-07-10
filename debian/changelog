@@ -1,3 +1,10 @@
+cloud-init (23.1.2-0ubuntu0~18.04.1+esm2) bionic-security; urgency=medium
+
+  * d/p/backport-a97e7466-feat-Fix-import-error-6926: fix libimport.util
+    import error in ua-auto-attach.service on minimal cloud images (GH-6924)
+
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 10 Jul 2026 12:03:35 -0600
+
 cloud-init (23.1.2-0ubuntu0~18.04.1+esm1) bionic-security; urgency=medium
 
   * d/cloud-init.postinst: move existing hotplug-cmd fifo to root-only
