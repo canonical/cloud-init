@@ -13,13 +13,14 @@ import logging
 import re
 from copy import copy, deepcopy
 from ipaddress import IPv4Network
-from typing import Dict, List, TypedDict
+from typing import Dict, Iterable, List, TypedDict
 
 from cloudinit import lifecycle, subp, util
 from cloudinit.net.network_state import net_prefix_to_ipv4_mask
 from cloudinit.simpletable import SimpleTable
 
 LOG = logging.getLogger(__name__)
+
 
 # Example netdev format:
 # {'eth0': {'hwaddr': '00:16:3e:16:db:54',
@@ -38,14 +39,19 @@ LOG = logging.getLogger(__name__)
 #                   'scope': 'host'}],
 #         'ipv6': [{'ip': '::1/128', 'scope6': 'host'}],
 #         'up': True}}
-DEFAULT_NETDEV_INFO = {"ipv4": [], "ipv6": [], "hwaddr": "", "up": False}
-
-
 class Interface(TypedDict):
     up: bool
     hwaddr: str
     ipv4: List[dict]
     ipv6: List[dict]
+
+
+DEFAULT_NETDEV_INFO: Interface = {
+    "ipv4": [],
+    "ipv6": [],
+    "hwaddr": "",
+    "up": False,
+}
 
 
 def _netdev_info_iproute_json(ipaddr_json):
@@ -59,12 +65,12 @@ def _netdev_info_iproute_json(ipaddr_json):
     Raises json.JSONDecodeError if json could not be decoded
     """
     ipaddr_data = json.loads(ipaddr_json)
-    devs = {}
+    devs: Dict[str, Interface] = {}
 
     for dev in ipaddr_data:
         flags = dev["flags"] if "flags" in dev else []
         address = dev["address"] if dev.get("link_type") == "ether" else ""
-        dev_info = {
+        dev_info: Interface = {
             "hwaddr": address,
             "up": bool("UP" in flags and "LOWER_UP" in flags),
             "ipv4": [],
@@ -115,7 +121,7 @@ def _netdev_info_iproute(ipaddr_out):
               device configuration values.
     @raise: TypeError if ipaddr_out isn't a string.
     """
-    devs = {}
+    devs: Dict[str, Interface] = {}
     dev_name = None
     for num, line in enumerate(ipaddr_out.splitlines()):
         m = re.match(r"^\d+:\s(?P<dev>[^:]+):\s+<(?P<flags>\S+)>\s+.*", line)
@@ -128,6 +134,9 @@ def _netdev_info_iproute(ipaddr_out):
                 "hwaddr": "",
                 "up": bool("UP" in flags and "LOWER_UP" in flags),
             }
+        elif dev_name is None:
+            # Skip any address lines appearing before the first device header
+            continue
         elif "inet6" in line:
             m = re.match(
                 r"\s+inet6\s(?P<ip>\S+)"
@@ -187,7 +196,7 @@ def _netdev_info_iproute(ipaddr_out):
 
 def _netdev_info_ifconfig_netbsd(ifconfig_data):
     # fields that need to be returned in devs for each dev
-    devs = {}
+    devs: Dict[str, Interface] = {}
     for line in ifconfig_data.splitlines():
         if not line:
             continue
@@ -235,7 +244,7 @@ def _netdev_info_ifconfig_netbsd(ifconfig_data):
 
 def _netdev_info_ifconfig(ifconfig_data):
     # fields that need to be returned in devs for each dev
-    devs = {}
+    devs: Dict[str, Interface] = {}
     for line in ifconfig_data.splitlines():
         if not line:
             continue
@@ -292,7 +301,7 @@ def _netdev_info_ifconfig(ifconfig_data):
 
 def netdev_info(
     empty="",
-) -> Dict[str, Dict[str, Interface]]:
+) -> Dict[str, Interface]:
     """return the instance's interfaces and interface data
 
     includes, interface name, link state, hardware address, and lists of ipv4
@@ -329,7 +338,7 @@ def netdev_info(
     }
 
     """
-    devs = {}
+    devs: Dict[str, Interface] = {}
     if util.is_NetBSD():
         (ifcfg_out, _err) = subp.subp(["ifconfig", "-a"], rcs=[0, 1])
         devs = _netdev_info_ifconfig_netbsd(ifcfg_out)
@@ -359,6 +368,7 @@ def netdev_info(
     def fill(data, new_val="", empty_vals=("", b"")):
         """Recursively replace 'empty_vals' in data (dict, tuple, list)
         with new_val"""
+        myiter: Iterable
         if isinstance(data, dict):
             myiter = data.items()
         elif isinstance(data, (tuple, list)):
@@ -387,7 +397,7 @@ def _netdev_route_info_iproute(iproute_data):
               gateway, flags, genmask and interface information.
     """
 
-    routes = {}
+    routes: Dict[str, list] = {}
     routes["ipv4"] = []
     routes["ipv6"] = []
     entries = iproute_data.splitlines()
@@ -465,7 +475,7 @@ def _netdev_route_info_iproute(iproute_data):
 
 
 def _netdev_route_info_netstat(route_data):
-    routes = {}
+    routes: Dict[str, list] = {}
     routes["ipv4"] = []
     routes["ipv6"] = []
 
@@ -587,7 +597,7 @@ def netdev_pformat():
         fields = ["Device", "Up", "Address", "Mask", "Scope", "Hw-Address"]
         tbl = SimpleTable(fields)
         for dev, data in sorted(netdev.items()):
-            ipv4_addrs = data.get("ipv4")
+            ipv4_addrs = data["ipv4"]
             for addr in ipv4_addrs:
                 tbl.add_row(
                     (
@@ -600,7 +610,7 @@ def netdev_pformat():
                     )
                 )
 
-            ipv6_addrs = data.get("ipv6")
+            ipv6_addrs = data["ipv6"]
             for addr in ipv6_addrs:
                 tbl.add_row(
                     (
