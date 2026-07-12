@@ -61,6 +61,8 @@ class TestAptSourceConfig:
         self.aptlistfile = tmpdir.join("src1.list").strpath
         self.aptlistfile2 = tmpdir.join("src2.list").strpath
         self.aptlistfile3 = tmpdir.join("src3.list").strpath
+        self.aptsourcesfile4 = tmpdir.join("src4.sources").strpath
+        self.aptsourcesfile5 = tmpdir.join("src5.sources").strpath
         self.matcher = re.compile(ADD_APT_REPO_MATCH).search
 
     @staticmethod
@@ -177,6 +179,61 @@ class TestAptSourceConfig:
             contents,
             flags=re.IGNORECASE,
         ), f"Unexpected APT format of {self.aptlistfile3}: contents"
+
+    def test_apt_v3_src_deb822(self, tmpdir, m_gpg):
+        """test_apt_v3_src_deb822 - Test source string in deb822 format"""
+        source3_name = os.path.splitext(self.aptlistfile3)[0]
+        source4_name = os.path.splitext(self.aptsourcesfile4)[0]
+        source5_name = self.aptsourcesfile5
+        cfg = {
+            source3_name: {
+                "source": (
+                    "deb http://test.ubuntu.com/ubuntu"
+                    " lucid-backports"
+                    " main universe multiverse restricted"
+                )
+            },
+            source4_name: {
+                "source": (
+                    "Types: deb"
+                    "\nURIs: http//test.ubuntu.com/ubuntu"
+                    "\nSuites: karmic-backports"
+                    "\nComponents: main universe multiverse restricted"
+                )
+            },
+            source5_name: {
+                "source": (
+                    "Types: deb"
+                    "\nURIs: http//test.ubuntu.com/ubuntu"
+                    "\nSuites: precise-backports"
+                    "\nComponents: main universe multiverse restricted"
+                )
+            },
+        }
+
+        params = self._get_default_params()
+
+        self._add_apt_sources(
+            cfg,
+            cloud=mock.Mock(),
+            gpg=m_gpg,
+            template_params=params,
+            aa_repo_match=self.matcher,
+        )
+
+        for source_name, file_path in [
+            (source5_name, self.aptsourcesfile5),
+            (source4_name, self.aptsourcesfile4),
+            (source3_name, self.aptlistfile3),
+        ]:
+            assert (
+                os.path.isfile(file_path) is True
+            ), f"Missing expected file {file_path}"
+
+            contents = util.load_text_file(file_path)
+            assert re.search(
+                cfg[source_name]["source"], contents, flags=re.IGNORECASE
+            ), f"Unexpected APT config in {file_path}: {contents}"
 
     def _apt_src_replacement(self, filename, cfg, tmpdir, gpg):
         """apt_src_replace
