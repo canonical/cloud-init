@@ -1,0 +1,51 @@
+From 8b45006c4765fd75f20ce244571b563dbc49d4f2 Mon Sep 17 00:00:00 2001
+From: James Falcon <therealfalcon@gmail.com>
+Date: Wed, 11 Jun 2025 16:22:32 -0500
+Subject: [PATCH] fix: Make hotplug socket writable only by root (#25)
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/cloud-init/+bug/2114229
+
+The 'hook-hotplug-cmd' was writable by all users, allowing any user
+to trigger the hotplug hook script. This script should only be run
+by root via a udev trigger.
+
+Also move socket into 'share' directory and update references
+accordingly. Since the 'share' directory is only readable by root,
+this adds another layer of security while also being in a consistent
+location with the other sockets used by cloud-init.
+
+CVE-2024-11584
+---
+ cloudinit/cmd/devel/logs.py         | 2 +-
+ systemd/cloud-init-hotplugd.service | 2 +-
+ systemd/cloud-init-hotplugd.socket  | 5 +++--
+ tools/cloud-init-hotplugd           | 2 +-
+ tools/hook-hotplug                  | 2 +-
+ 5 files changed, 7 insertions(+), 6 deletions(-)
+
+Index: cloud-init-23.1.2/systemd/cloud-init-hotplugd.socket
+===================================================================
+--- cloud-init-23.1.2.orig/systemd/cloud-init-hotplugd.socket
++++ cloud-init-23.1.2/systemd/cloud-init-hotplugd.socket
+@@ -7,7 +7,8 @@
+ Description=cloud-init hotplug hook socket
+ 
+ [Socket]
+-ListenFIFO=/run/cloud-init/hook-hotplug-cmd
++ListenFIFO=/run/cloud-init/share/hook-hotplug-cmd
++SocketMode=0600
+ 
+ [Install]
+ WantedBy=cloud-init.target
+Index: cloud-init-23.1.2/tools/hook-hotplug
+===================================================================
+--- cloud-init-23.1.2.orig/tools/hook-hotplug
++++ cloud-init-23.1.2/tools/hook-hotplug
+@@ -10,7 +10,7 @@ is_finished() {
+ 
+ if is_finished; then
+     # open cloud-init's hotplug-hook fifo rw
+-    exec 3<>/run/cloud-init/hook-hotplug-cmd
++    exec 3<>/run/cloud-init/share/hook-hotplug-cmd
+     env_params=(
+         --subsystem="${SUBSYSTEM}"
+         handle
