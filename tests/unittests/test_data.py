@@ -297,9 +297,8 @@ run:
         assert "vendor_data" in cfg
         assert cfg["a"] == "c"
         assert cfg["name"] == "user"
-        assert "x" not in cfg["run"]
-        assert "y" not in cfg["run"]
-        assert "z" in cfg["run"]
+        # Vendor list entries are appended after user entries
+        assert cfg["run"] == ["z", "x", "y"]
 
     @pytest.mark.usefixtures("fake_filesystem")
     def test_vendordata_script(self):

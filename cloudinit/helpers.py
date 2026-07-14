@@ -220,7 +220,20 @@ class ConfigMerger:
             cc_fn = self._paths.get_ipath_cur(cc_p)
             if cc_fn and os.path.isfile(cc_fn):
                 try:
-                    i_cfgs.append(util.read_conf(cc_fn))
+                    cfg = util.read_conf(cc_fn)
+                    # Vendor configs should append list values (like
+                    # write_files, runcmd) rather than being silently
+                    # dropped when user-data defines the same key.
+                    if cc_p in (
+                        "vendor_cloud_config",
+                        "vendor2_cloud_config",
+                    ):
+                        cfg.setdefault(
+                            "merge_how",
+                            "list(append)+dict(no_replace,recurse_list)"
+                            "+str()",
+                        )
+                    i_cfgs.append(cfg)
                 except PermissionError:
                     LOG.debug(
                         "Skipped loading cloud-config from %s due to"
