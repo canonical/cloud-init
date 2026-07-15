@@ -24,6 +24,7 @@ KNOWN_DISTROS = [
     "almalinux",
     "centos",
     "cloudlinux",
+    "eln",
     "eurolinux",
     "fedora",
     "miraclelinux",

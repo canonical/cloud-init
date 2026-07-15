@@ -140,6 +140,7 @@ USER_DATA_BY_DISTRO = {
     "ubuntu": USER_DATA_UBUNTU,
     "rhel": USER_DATA_RHEL,
     "centos": USER_DATA_RHEL,
+    "eln": USER_DATA_RHEL,
 }
 
 if CURRENT_RELEASE.os not in USER_DATA_BY_DISTRO:

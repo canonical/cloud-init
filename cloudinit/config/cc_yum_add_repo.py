@@ -25,6 +25,7 @@ meta: MetaSchema = {
         "azurelinux",
         "centos",
         "cloudlinux",
+        "eln",
         "eurolinux",
         "fedora",
         "mariner",

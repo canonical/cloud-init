@@ -76,6 +76,7 @@ OSFAMILIES = {
         "azurelinux",
         "centos",
         "cloudlinux",
+        "eln",
         "eurolinux",
         "fedora",
         "mariner",
