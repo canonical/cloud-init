@@ -163,7 +163,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     # their lease file name format
     dhclient_lease_file_regex: Optional[str] = None
 
-    def __init__(self, name, cfg, paths):
+    def __init__(self, name: str, cfg: Dict[str, Any], paths: helpers.Paths):
         self._paths = paths
         self._cfg = cfg
         self.name = name
@@ -194,7 +194,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         if not hasattr(self, "is_linux"):
             self.is_linux = True
 
-    def _validate_entry(self, entry):
+    def _validate_entry(self, entry: str | List | Tuple) -> str | Tuple:
         if isinstance(entry, str):
             return entry
         elif isinstance(entry, (list, tuple)):
