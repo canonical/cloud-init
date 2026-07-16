@@ -197,7 +197,7 @@ def get_id_from_ds_cfg(ds_cfg):
 def read_maas_seed_dir(seed_d):
     if seed_d.startswith("file://"):
         seed_d = seed_d[7:]
-    if not os.path.isdir(seed_d) or len(os.listdir(seed_d)) == 0:
+    if not os.path.isdir(seed_d) or not os.listdir(seed_d):
         raise MAASSeedDirNone("%s: not a directory")
 
     # seed_dir looks in seed_dir, not seed_dir/VERSION
@@ -267,7 +267,7 @@ def check_seed_contents(content, seed):
     Either return a (userdata, metadata, vendordata) tuple or
     Raise MAASSeedDirMalformed or MAASSeedDirNone
     """
-    ret = {}
+    ret: dict = {}
     missing = []
     for spath, dpath, _binary, optional in DS_FIELDS:
         if spath not in content:
@@ -283,7 +283,7 @@ def check_seed_contents(content, seed):
         else:
             ret[dpath] = content[spath]
 
-    if len(ret) == 0:
+    if not ret:
         raise MAASSeedDirNone("%s: no data files found" % seed)
 
     if missing:

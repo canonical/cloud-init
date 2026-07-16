@@ -1,0 +1,9 @@
+#!/usr/bin/env python3
+
+# Python wrapper for cloud-id command
+
+import sys
+
+from cloudinit.cmd import cloud_id
+
+sys.exit(cloud_id.main())

@@ -5,7 +5,6 @@ from unittest import mock
 import pytest
 
 from cloudinit import distros, util
-from tests.unittests.helpers import TestCase
 
 
 class TestAlpineBusyboxUserGroup:
@@ -50,7 +49,7 @@ class TestAlpineBusyboxUserGroup:
         assert contents == expected
 
 
-class TestAlpineShadowUserGroup(TestCase):
+class TestAlpineShadowUserGroup:
     distro = distros.fetch("alpine")("alpine", {}, None)
 
     @mock.patch("cloudinit.distros.alpine.subp.subp")

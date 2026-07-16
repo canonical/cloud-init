@@ -2,6 +2,7 @@
 import logging
 import os
 import re
+import time
 import uuid
 from enum import Enum
 from pathlib import Path
@@ -67,6 +68,7 @@ class IntegrationInstance:
         self.cloud = cloud
         self.instance = instance
         self.settings = settings
+        self.test_failed = False
         self._ip = ""
 
     def destroy(self):
@@ -163,7 +165,7 @@ class IntegrationInstance:
 
         # Update and install coverage from pip
         # We use pip because the versions between distros are incompatible
-        self._apt_update()
+        self.update_package_cache()
         self.execute("apt-get install -qy python3-pip")
         self.execute(f"pip3 install coverage=={coverage_version}")
         self.push_file(
@@ -184,7 +186,11 @@ class IntegrationInstance:
         source: CloudInitSource,
         clean=True,
         pkg: str = integration_settings.CLOUD_INIT_PKG,
+        update=True,
     ):
+        if update:
+            log.info("Updating package cache")
+            self.update_package_cache()
         if source == CloudInitSource.DEB_PACKAGE:
             self.install_deb()
         elif source == CloudInitSource.PPA:
@@ -211,7 +217,7 @@ class IntegrationInstance:
             '$(lsb_release -sc)-proposed main" >> '
             "/etc/apt/sources.list.d/proposed.list"
         ).ok
-        self._apt_update()
+        assert self.execute("apt-get update").ok
         assert self.execute(
             f"apt-get install -qy {pkg} -t=$(lsb_release -sc)-proposed"
         ).ok
@@ -220,7 +226,6 @@ class IntegrationInstance:
         log.info("Installing %s from PPA", pkg)
         if self.execute("which add-apt-repository").failed:
             log.info("Installing missing software-properties-common package")
-            self._apt_update()
             assert self.execute(
                 "apt install -qy software-properties-common"
             ).ok
@@ -246,15 +251,33 @@ Pin-Priority: 1001"""
             "/etc/apt/preferences.d/cloud-init-integration-testing",
             preferences,
         )
-        assert self.execute(
-            "add-apt-repository {} -y".format(self.settings.CLOUD_INIT_SOURCE)
-        ).ok
-        # PIN this PPA as priority for cloud-init installs regardless of ver
-        r = self.execute(
-            f"DEBIAN_FRONTEND=noninteractive"
-            f" apt-get install -qy {pkg} --allow-downgrades"
-        )
-        assert r.ok, r.stderr
+        # wait up to 5 minutes for lock to be released
+        for _ in range(60):
+            r = self.execute(
+                "add-apt-repository {} -y".format(
+                    self.settings.CLOUD_INIT_SOURCE
+                )
+            )
+            if not r.ok and "Could not get lock" in r.stderr:
+                log.info("Waiting for lock to be released")
+                time.sleep(5)
+                continue
+            assert r.ok, r.stderr
+            # PIN this PPA as priority for cloud-init installs
+            r = self.execute(
+                f"DEBIAN_FRONTEND=noninteractive"
+                f" apt-get install -qy {pkg} --allow-downgrades"
+            )
+            if not r.ok and "Could not get lock" in r.stderr:
+                log.info("Waiting for lock to be released")
+                time.sleep(5)
+                continue
+            assert r.ok, r.stderr
+            break
+        else:
+            raise RuntimeError(
+                "Failed to install cloud-init from PPA after 5 minutes",
+            )
 
     @retry(tries=30, delay=1)
     def install_deb(self):
@@ -266,22 +289,22 @@ Pin-Priority: 1001"""
             local_path=integration_settings.CLOUD_INIT_SOURCE,
             remote_path=remote_path,
         )
-        # Update APT cache so all package data is recent to avoid inability
-        # to install missing dependency errors due to stale cache.
-        self.execute("apt update")
         # Use apt install instead of dpkg -i to pull in any changed pkg deps
-        assert self.execute(
-            f"apt install {remote_path} --yes --allow-downgrades"
-        ).ok
+        apt_result = self.execute(
+            f"apt install -qy {remote_path} --allow-downgrades"
+        )
+        if not apt_result.ok:
+            raise RuntimeError(
+                f"Failed to install {deb_name}: stdout: {apt_result.stdout}. "
+                f"stderr: {apt_result.stderr}"
+            )
 
     @retry(tries=30, delay=1)
-    def upgrade_cloud_init(self, pkg: str):
-        log.info("Upgrading %s to latest version in archive", pkg)
-        self._apt_update()
+    def upgrade_cloud_init(self, pkg: str, update=True):
         assert self.execute(f"apt-get install -qy {pkg}").ok
 
-    def _apt_update(self):
-        """Run an apt update.
+    def update_package_cache(self):
+        """Update the package cache using apt.
 
         `cloud-init single` allows us to ensure apt update is only run once
         for this instance. It could be done with an lru_cache too, but
@@ -326,7 +349,9 @@ Pin-Priority: 1001"""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if not self.settings.KEEP_INSTANCE:
-            self.destroy()
-        else:
+        if self.settings.KEEP_INSTANCE is True or (
+            self.settings.KEEP_INSTANCE == "ON_ERROR" and self.test_failed
+        ):
             log.info("Keeping Instance, public ip: %s", self.ip())
+        else:
+            self.cloud.reaper.reap(self)

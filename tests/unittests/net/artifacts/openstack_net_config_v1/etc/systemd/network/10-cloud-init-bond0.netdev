@@ -1,0 +1,8 @@
+[Bond]
+Mode=active-backup
+
+[NetDev]
+Kind=bond
+MACAddress=01:00:00:00:00:01
+MTUBytes=1500
+Name=bond0

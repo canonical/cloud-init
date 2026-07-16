@@ -5,6 +5,7 @@
 import json
 import os
 import stat
+from unittest import mock
 
 import pytest
 
@@ -13,7 +14,6 @@ from cloudinit.event import EventScope, EventType
 from cloudinit.helpers import Paths
 from cloudinit.sources import DataSource, NetworkConfigSource
 from cloudinit.util import sym_link, write_file
-from tests.unittests.helpers import mock
 from tests.unittests.util import TEST_INSTANCE_ID, FakeDataSource
 
 M_PATH = "cloudinit.stages."
@@ -52,6 +52,32 @@ class TestUpdateEventEnabled:
         assert enabled is stages.update_event_enabled(
             m_datasource, cfg, EventType.HOTPLUG, EventScope.NETWORK
         )
+
+
+class TestNetworkConfigWithoutDS:
+    @pytest.fixture(autouse=True)
+    def setup(self, tmpdir):
+        self.tmpdir = tmpdir
+        self.init = stages.Init()
+        self.init._cfg = {
+            "system_info": {
+                "distro": "ubuntu",
+                "paths": {"cloud_dir": self.tmpdir, "run_dir": self.tmpdir},
+            }
+        }
+        tmpdir.mkdir("instance-uuid")
+        sym_link(tmpdir.join("instance-uuid"), tmpdir.join("instance"))
+
+    @mock.patch(
+        M_PATH + "cmdline.read_initramfs_config",
+        return_value={"config": "disabled"},
+    )
+    @mock.patch(
+        M_PATH + "cmdline.read_kernel_cmdline_config",
+        return_value={"config": "disabled"},
+    )
+    def test_network_config(self, m_cmdline, m_initramfs):
+        self.init.apply_network_config(False)
 
 
 class TestInit:

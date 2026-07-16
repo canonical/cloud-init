@@ -166,7 +166,7 @@ The default configuration is to emit events to the cloud-init log file
 at ``DEBUG`` level.
 
 Event reporting can be configured using the ``reporting`` key in cloud-config
-user data.
+user-data.
 
 Configuration
 -------------

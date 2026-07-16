@@ -7,7 +7,7 @@ import re
 import string
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Type
+from typing import Callable, Optional
 from uuid import UUID
 
 from pycloudlib import (
@@ -21,15 +21,17 @@ from pycloudlib import (
     Openstack,
     Qemu,
 )
-from pycloudlib.cloud import ImageType
+from pycloudlib.cloud import BaseCloud, ImageType
 from pycloudlib.ec2.instance import EC2Instance
+from pycloudlib.instance import BaseInstance
 from pycloudlib.lxd.cloud import _BaseLXD
-from pycloudlib.lxd.instance import BaseInstance, LXDInstance
+from pycloudlib.lxd.instance import LXDInstance
 
 import cloudinit
 from cloudinit.subp import ProcessExecutionError, subp
 from tests.integration_tests import integration_settings
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.reaper import Reaper
 from tests.integration_tests.releases import CURRENT_RELEASE
 from tests.integration_tests.util import emit_dots_on_travis
 
@@ -37,7 +39,23 @@ log = logging.getLogger("integration_testing")
 
 DISTRO_TO_USERNAME = {
     "ubuntu": "ubuntu",
+    "rhel": "cloud-user",
+    "centos": "cloud-user",
 }
+
+# Platform specific username overrides: (distro, platform) -> username
+# Only list entries where the platform differs from the distro default.
+DISTRO_PLATFORM_TO_USERNAME = {
+    ("rhel", "ec2"): integration_settings.LAUNCH_USERNAME or "ec2-user",
+    ("rhel", "azure"): integration_settings.LAUNCH_USERNAME or "azureuser",
+}
+
+
+def get_launch_username(os: str, platform: str) -> str:
+    key = (os, platform)
+    if key in DISTRO_PLATFORM_TO_USERNAME:
+        return DISTRO_PLATFORM_TO_USERNAME[key]
+    return DISTRO_TO_USERNAME[os]
 
 
 def _get_ubuntu_series() -> list:
@@ -58,14 +76,17 @@ class IntegrationCloud(ABC):
 
     def __init__(
         self,
+        reaper: Reaper,
         image_type: ImageType = ImageType.GENERIC,
         settings=integration_settings,
     ):
+        self.reaper = reaper
         self._image_type = image_type
         self.settings = settings
         self.cloud_instance = self._get_cloud_instance()
         self.initial_image_id = self._get_initial_image()
-        self.snapshot_id = None
+        self.snapshot_id: Optional[str] = None
+        self.has_failed_test = False
 
     @property
     def image_id(self):
@@ -83,7 +104,7 @@ class IntegrationCloud(ABC):
         )
 
     @abstractmethod
-    def _get_cloud_instance(self):
+    def _get_cloud_instance(self) -> BaseCloud:
         raise NotImplementedError
 
     def _get_initial_image(self, **kwargs) -> str:
@@ -130,12 +151,18 @@ class IntegrationCloud(ABC):
         default_launch_kwargs = {
             "image_id": self.image_id,
             "user_data": user_data,
-            "username": DISTRO_TO_USERNAME[CURRENT_RELEASE.os],
+            "username": get_launch_username(
+                CURRENT_RELEASE.os, self.datasource
+            ),
         }
+        if self.settings.INSTANCE_TYPE:
+            default_launch_kwargs["instance_type"] = (
+                self.settings.INSTANCE_TYPE
+            )
         launch_kwargs = {**default_launch_kwargs, **launch_kwargs}
         display_launch_kwargs = deepcopy(launch_kwargs)
         if display_launch_kwargs.get("user_data") is not None:
-            if "token" in display_launch_kwargs.get("user_data"):
+            if "token" in display_launch_kwargs["user_data"]:
                 display_launch_kwargs["user_data"] = re.sub(
                     r"token: .*", "token: REDACTED", launch_kwargs["user_data"]
                 )
@@ -169,7 +196,14 @@ class IntegrationCloud(ABC):
         return IntegrationInstance(self, cloud_instance, settings)
 
     def destroy(self):
-        if self.settings.KEEP_IMAGE or self.settings.KEEP_INSTANCE:
+        if (
+            self.settings.KEEP_IMAGE
+            or self.settings.KEEP_INSTANCE is True
+            or (
+                self.settings.KEEP_INSTANCE == "ON_ERROR"
+                and self.has_failed_test
+            )
+        ):
             log.info(
                 "NOT cleaning cloud instance because KEEP_IMAGE or "
                 "KEEP_INSTANCE is True"
@@ -182,7 +216,7 @@ class IntegrationCloud(ABC):
 
     def delete_snapshot(self):
         if self.snapshot_id:
-            if self.settings.KEEP_IMAGE:  # type: ignore
+            if self.settings.KEEP_IMAGE:
                 log.info(
                     "NOT deleting snapshot image created for this testrun "
                     "because KEEP_IMAGE is True: %s",
@@ -198,6 +232,7 @@ class IntegrationCloud(ABC):
 
 class Ec2Cloud(IntegrationCloud):
     datasource = "ec2"
+    cloud_instance: EC2
 
     def _get_cloud_instance(self) -> EC2:
         return EC2(tag="ec2-integration-test")
@@ -226,6 +261,7 @@ class Ec2Cloud(IntegrationCloud):
 
 class GceCloud(IntegrationCloud):
     datasource = "gce"
+    cloud_instance: GCE
 
     def _get_cloud_instance(self) -> GCE:
         return GCE(
@@ -241,9 +277,10 @@ class GceCloud(IntegrationCloud):
 class AzureCloud(IntegrationCloud):
     datasource = "azure"
     cloud_instance: Azure
+    username = get_launch_username(CURRENT_RELEASE.os, datasource)
 
     def _get_cloud_instance(self) -> Azure:
-        return Azure(tag="azure-integration-test")
+        return Azure(tag="azure-integration-test", username=self.username)
 
     def _get_initial_image(self, **kwargs) -> str:
         return super()._get_initial_image(
@@ -263,6 +300,7 @@ class AzureCloud(IntegrationCloud):
 
 class OciCloud(IntegrationCloud):
     datasource = "oci"
+    cloud_instance: OCI
 
     def _get_cloud_instance(self) -> OCI:
         return OCI(
@@ -271,7 +309,6 @@ class OciCloud(IntegrationCloud):
 
 
 class _LxdIntegrationCloud(IntegrationCloud):
-    pycloudlib_instance_cls: Type[_BaseLXD]
     instance_tag: str
     cloud_instance: _BaseLXD
 
@@ -280,7 +317,7 @@ class _LxdIntegrationCloud(IntegrationCloud):
             image_type=self._image_type, **kwargs
         )
 
-    def _get_or_set_profile_list(self, release):
+    def _get_or_set_profile_list(self, release) -> Optional[list]:
         return None
 
     @staticmethod
@@ -316,8 +353,14 @@ class _LxdIntegrationCloud(IntegrationCloud):
             ).format(**format_variables)
             subp(command.split())
 
+    # pylint: disable=assignment-from-none
     def _perform_launch(
-        self, *, launch_kwargs, wait=True, **kwargs
+        self,
+        *,
+        launch_kwargs,
+        wait=True,
+        lxd_setup: Optional[Callable] = None,
+        **kwargs,
     ) -> LXDInstance:
         instance_kwargs = deepcopy(launch_kwargs)
         instance_kwargs["inst_type"] = instance_kwargs.pop(
@@ -330,7 +373,9 @@ class _LxdIntegrationCloud(IntegrationCloud):
         except KeyError:
             profile_list = self._get_or_set_profile_list(release)
 
-        prefix = datetime.datetime.utcnow().strftime("cloudinit-%m%d-%H%M%S")
+        prefix = datetime.datetime.now(datetime.timezone.utc).strftime(
+            "cloudinit-%m%d-%H%M%S"
+        )
         default_name = prefix + "".join(
             random.choices(string.ascii_lowercase + string.digits, k=8)
         )
@@ -342,9 +387,9 @@ class _LxdIntegrationCloud(IntegrationCloud):
         )
         if self.settings.CLOUD_INIT_SOURCE == "IN_PLACE":
             self._mount_source(pycloudlib_instance)
-        if "lxd_setup" in kwargs:
+        if lxd_setup is not None:
             log.info("Running callback specified by 'lxd_setup' mark")
-            kwargs["lxd_setup"](pycloudlib_instance)
+            lxd_setup(pycloudlib_instance)
         pycloudlib_instance.start(wait=wait)
         return pycloudlib_instance
 
@@ -352,22 +397,20 @@ class _LxdIntegrationCloud(IntegrationCloud):
 class LxdContainerCloud(_LxdIntegrationCloud):
     datasource = "lxd_container"
     cloud_instance: LXDContainer
-    pycloudlib_instance_cls = LXDContainer
     instance_tag = "lxd-container-integration-test"
 
     def _get_cloud_instance(self) -> LXDContainer:
-        return self.pycloudlib_instance_cls(tag=self.instance_tag)
+        return LXDContainer(tag=self.instance_tag)
 
 
 class LxdVmCloud(_LxdIntegrationCloud):
     datasource = "lxd_vm"
     cloud_instance: LXDVirtualMachine
-    pycloudlib_instance_cls = LXDVirtualMachine
     instance_tag = "lxd-vm-integration-test"
     _profile_list: list = []
 
     def _get_cloud_instance(self) -> LXDVirtualMachine:
-        return self.pycloudlib_instance_cls(tag=self.instance_tag)
+        return LXDVirtualMachine(tag=self.instance_tag)
 
     def _get_or_set_profile_list(self, release) -> list:
         if self._profile_list:
@@ -380,6 +423,7 @@ class LxdVmCloud(_LxdIntegrationCloud):
 
 class OpenstackCloud(IntegrationCloud):
     datasource = "openstack"
+    cloud_instance: Openstack
 
     def _get_cloud_instance(self):
         return Openstack(
@@ -412,7 +456,7 @@ class IbmCloud(IntegrationCloud):
 
 class QemuCloud(IntegrationCloud):
     datasource = "qemu"
-    cloud_instance = Qemu
+    cloud_instance: Qemu
 
     def _get_cloud_instance(self):
         return Qemu(tag="qemu-integration-test")

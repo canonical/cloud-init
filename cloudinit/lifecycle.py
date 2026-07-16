@@ -128,7 +128,7 @@ def log_with_downgradable_level(
     version: str,
     requested_level: int,
     msg: str,
-    args,
+    args: tuple,
 ):
     """Log a message at the requested level, if that is acceptable.
 
@@ -145,9 +145,9 @@ def log_with_downgradable_level(
     :return: True if the message should be logged, else False.
     """
     if should_log_deprecation(version, features.DEPRECATION_INFO_BOUNDARY):
-        logger.log(requested_level, msg, args)
+        logger.log(requested_level, msg, *args)
     else:
-        logger.debug(msg, args)
+        logger.debug(msg, *args)
 
 
 def deprecate(

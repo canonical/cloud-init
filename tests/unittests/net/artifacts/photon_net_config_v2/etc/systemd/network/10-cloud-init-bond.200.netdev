@@ -1,0 +1,8 @@
+[NetDev]
+Kind=vlan
+MACAddress=00:11:22:33:44:99
+MTUBytes=111
+Name=bond.200
+
+[VLAN]
+Id=200

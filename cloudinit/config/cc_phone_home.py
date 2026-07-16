@@ -47,7 +47,7 @@ LOG = logging.getLogger(__name__)
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
-    if len(args) != 0:
+    if args:
         ph_cfg = util.read_conf(args[0])
     else:
         if "phone_home" not in cfg:
@@ -123,7 +123,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         else:
             real_submit_keys[k] = str(v)
 
-    # Incase the url is parameterized
+    # In case the url is parameterized
     url_params = {
         "INSTANCE_ID": all_keys["instance_id"],
     }

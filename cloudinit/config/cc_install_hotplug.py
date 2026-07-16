@@ -27,7 +27,7 @@ LOG = logging.getLogger(__name__)
 HOTPLUG_UDEV_PATH = "/etc/udev/rules.d/90-cloud-init-hook-hotplug.rules"
 HOTPLUG_UDEV_RULES_TEMPLATE = """\
 # Installed by cloud-init due to network hotplug userdata
-ACTION!="add|remove", GOTO="cloudinit_end"{extra_rules}
+ACTION!="add", GOTO="cloudinit_end"{extra_rules}
 LABEL="cloudinit_hook"
 SUBSYSTEM=="net", RUN+="{libexecdir}/hook-hotplug"
 LABEL="cloudinit_end"

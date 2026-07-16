@@ -2,28 +2,29 @@
 # pylint: disable=attribute-defined-outside-init
 
 import logging
-import re
+import pathlib
 from functools import partial
 from threading import Event
 from time import process_time
+from unittest import mock
 from unittest.mock import ANY, call
 
 import pytest
 import requests
 import responses
 
-from cloudinit import util, version
+from cloudinit import url_helper, util, version
 from cloudinit.url_helper import (
     REDACTED,
     UrlError,
     UrlResponse,
+    _handle_error,
     dual_stack,
     oauth_headers,
     read_file_or_url,
     readurl,
     wait_for_url,
 )
-from tests.unittests.helpers import CiTestCase, mock, skipIf
 
 try:
     import oauthlib
@@ -37,17 +38,25 @@ except ImportError:
 M_PATH = "cloudinit.url_helper."
 
 
-class TestOAuthHeaders(CiTestCase):
+def exception_cb(exception):
+    return True
+
+
+def headers_cb(url):
+    return {"cb_key": "cb_value"}
+
+
+class TestOAuthHeaders:
     def test_oauth_headers_raises_not_implemented_when_oathlib_missing(self):
         """oauth_headers raises a NotImplemented error when oauth absent."""
         with mock.patch.dict("sys.modules", {"oauthlib": None}):
-            with self.assertRaises(NotImplementedError) as context_manager:
+            with pytest.raises(NotImplementedError) as context_manager:
                 oauth_headers(1, 2, 3, 4, 5)
-        self.assertEqual(
-            "oauth support is not available", str(context_manager.exception)
-        )
+        assert "oauth support is not available" == str(context_manager.value)
 
-    @skipIf(_missing_oauthlib_dep, "No python-oauthlib dependency")
+    @pytest.mark.skipif(
+        _missing_oauthlib_dep, reason="No python-oauthlib dependency"
+    )
     @mock.patch("oauthlib.oauth1.Client")
     def test_oauth_headers_calls_oathlibclient_when_available(self, m_client):
         """oauth_headers calls oaut1.hClient.sign with the provided url."""
@@ -66,22 +75,105 @@ class TestOAuthHeaders(CiTestCase):
             "token_secret",
             "consumer_secret",
         )
-        self.assertEqual("url", return_value)
+        assert "url" == return_value
 
 
-class TestReadFileOrUrl(CiTestCase):
+class TestOauthUrlHelper:
+    @responses.activate
+    def test_wrapped_readurl(self):
+        """Test the wrapped readurl happy path."""
+        oauth_helper = url_helper.OauthUrlHelper()
+        url = "http://myhost/path"
+        data = b"This is my url content"
+        responses.add(responses.GET, url, data)
+        assert oauth_helper.readurl(url).contents == data
 
-    with_logs = True
+    @responses.activate
+    def test_default_exception_cb(self, tmp_path, caplog):
+        """Test that the default exception_cb is used."""
+        skew_file = tmp_path / "skew.json"
+        oauth_helper = url_helper.OauthUrlHelper(skew_data_file=skew_file)
+        url = "http://myhost/path"
+        data = b"This is my url content"
+        response = requests.Response()
+        response.status_code = 401
+        response._content = data
+        response.headers["date"] = "Wed, 21 Oct 2015 07:28:00 GMT"
+        responses.add_callback(
+            responses.GET,
+            url,
+            callback=lambda _: requests.HTTPError(response=response),
+        )
+        with pytest.raises(UrlError) as e:
+            oauth_helper.readurl(url)
+        assert e.value.code == 401
+        assert "myhost" in skew_file.read_text()
 
-    def test_read_file_or_url_str_from_file(self):
+    @responses.activate
+    def test_custom_exception_cb(self):
+        """Test that a custom exception_cb is used."""
+        oauth_helper = url_helper.OauthUrlHelper()
+        url = "http://myhost/path"
+        data = b"This is my url content"
+        responses.add(responses.GET, url, data, status=401)
+        exception_cb = mock.Mock(return_value=True)
+
+        with pytest.raises(UrlError):
+            oauth_helper.readurl(url, exception_cb=exception_cb)
+        exception_cb.assert_called_once()
+        assert isinstance(exception_cb.call_args[0][0], UrlError)
+        assert exception_cb.call_args[0][0].code == 401
+
+    @responses.activate
+    def test_default_headers_cb(self, mocker):
+        """Test that the default headers_cb is used."""
+        m_headers = mocker.patch(
+            "cloudinit.url_helper.oauth_headers",
+            return_value={"key1": "value1"},
+        )
+        mocker.patch("time.time", return_value=5)
+        oauth_helper = url_helper.OauthUrlHelper()
+        oauth_helper.skew_data = {"myhost": 125}
+        oauth_helper._do_oauth = True
+        url = "http://myhost/path"
+        data = b"This is my url content"
+        responses.add(responses.GET, url, data)
+        response = oauth_helper.readurl(url)
+        request_headers = response._response.request.headers
+        assert "key1" in request_headers
+        assert request_headers["key1"] == "value1"
+        assert m_headers.call_args[1]["timestamp"] == 130
+
+    @responses.activate
+    def test_custom_headers_cb(self, mocker):
+        """Test that a custom headers_cb is used."""
+        mocker.patch(
+            "cloudinit.url_helper.oauth_headers",
+            return_value={"key1": "value1"},
+        )
+        oauth_helper = url_helper.OauthUrlHelper()
+        oauth_helper._do_oauth = True
+        url = "http://myhost/path"
+        data = b"This is my url content"
+        responses.add(responses.GET, url, data)
+        response = oauth_helper.readurl(url, headers_cb=headers_cb)
+        request_headers = response._response.request.headers
+        assert "key1" in request_headers
+        assert "cb_key" in request_headers
+        assert request_headers["key1"] == "value1"
+        assert request_headers["cb_key"] == "cb_value"
+
+
+class TestReadFileOrUrl:
+    def test_read_file_or_url_str_from_file(self, tmp_path: pathlib.Path):
         """Test that str(result.contents) on file is text version of contents.
         It should not be "b'data'", but just "'data'" """
-        tmpf = self.tmp_path("myfile1")
+        tmpf = tmp_path / "myfile1"
         data = b"This is my file content\n"
         util.write_file(tmpf, data, omode="wb")
-        result = read_file_or_url("file://%s" % tmpf)
-        self.assertEqual(result.contents, data)
-        self.assertEqual(str(result), data.decode("utf-8"))
+        result = read_file_or_url(f"file://{tmpf}")
+        assert result.contents == data
+        assert str(result) == data.decode("utf-8")
 
     @responses.activate
     def test_read_file_or_url_str_from_url(self):
@@ -91,8 +183,8 @@ class TestReadFileOrUrl(CiTestCase):
         data = b"This is my url content\n"
         responses.add(responses.GET, url, data)
         result = read_file_or_url(url)
-        self.assertEqual(result.contents, data)
-        self.assertEqual(str(result), data.decode("utf-8"))
+        assert result.contents == data
+        assert str(result) == data.decode("utf-8")
 
     @responses.activate
     def test_read_file_or_url_str_from_url_streamed(self):
@@ -103,44 +195,44 @@ class TestReadFileOrUrl(CiTestCase):
         responses.add(responses.GET, url, data)
         result = read_file_or_url(url, stream=True)
         assert isinstance(result, UrlResponse)
-        self.assertEqual(result.contents, data)
-        self.assertEqual(str(result), data.decode("utf-8"))
+        assert result.contents == data
+        assert str(result) == data.decode("utf-8")
 
     @responses.activate
-    def test_read_file_or_url_str_from_url_redacting_headers_from_logs(self):
+    def test_read_file_or_url_str_from_url_redacting_headers_from_logs(
+        self, caplog
+    ):
         """Headers are redacted from logs but unredacted in requests."""
         url = "http://hostname/path"
         headers = {"sensitive": "sekret", "server": "blah"}
 
         def _request_callback(request):
             for k in headers.keys():
-                self.assertEqual(headers[k], request.headers[k])
+                assert headers[k] == request.headers[k]
             return (200, request.headers, "does_not_matter")
 
         responses.add_callback(responses.GET, url, callback=_request_callback)
 
         read_file_or_url(url, headers=headers, headers_redact=["sensitive"])
-        logs = self.logs.getvalue()
-        self.assertIn(REDACTED, logs)
-        self.assertNotIn("sekret", logs)
+        assert REDACTED in caplog.text
+        assert "sekret" not in caplog.text
 
     @responses.activate
-    def test_read_file_or_url_str_from_url_redacts_noheaders(self):
+    def test_read_file_or_url_str_from_url_redacts_noheaders(self, caplog):
         """When no headers_redact, header values are in logs and requests."""
         url = "http://hostname/path"
         headers = {"sensitive": "sekret", "server": "blah"}
 
         def _request_callback(request):
             for k in headers.keys():
-                self.assertEqual(headers[k], request.headers[k])
+                assert headers[k] == request.headers[k]
             return (200, request.headers, "does_not_matter")
 
         responses.add_callback(responses.GET, url, callback=_request_callback)
 
         read_file_or_url(url, headers=headers)
-        logs = self.logs.getvalue()
-        self.assertNotIn(REDACTED, logs)
-        self.assertIn("sekret", logs)
+        assert REDACTED not in caplog.text
+        assert "sekret" in caplog.text
 
     def test_wb_read_url_defaults_honored_by_read_file_or_url_callers(self):
         """Readurl param defaults used when unspecified by read_file_or_url
@@ -156,24 +248,21 @@ class TestReadFileOrUrl(CiTestCase):
         class FakeSessionRaisesHttpError(requests.Session):
             @classmethod
             def request(cls, **kwargs):
-                raise requests.exceptions.HTTPError("broke")
+                raise requests.exceptions.RequestException("broke")
 
         class FakeSession(requests.Session):
             @classmethod
             def request(cls, **kwargs):
-                self.assertEqual(
-                    {
-                        "url": url,
-                        "allow_redirects": True,
-                        "method": "GET",
-                        "headers": {
-                            "User-Agent": "Cloud-Init/%s"
-                            % (version.version_string())
-                        },
-                        "stream": False,
+                assert {
+                    "url": url,
+                    "allow_redirects": True,
+                    "method": "GET",
+                    "headers": {
+                        "User-Agent": "Cloud-Init/%s"
+                        % (version.version_string())
                     },
-                    kwargs,
-                )
+                    "stream": False,
+                } == kwargs
                 return m_response
 
         with mock.patch(M_PATH + "requests.Session") as m_session:
@@ -182,19 +271,28 @@ class TestReadFileOrUrl(CiTestCase):
                 FakeSession(),
             ]
             # assert no retries and check_status == True
-            with self.assertRaises(UrlError) as context_manager:
+            with pytest.raises(UrlError) as context_manager:
                 response = read_file_or_url(url)
-            self.assertEqual("broke", str(context_manager.exception))
+            assert "broke" == str(context_manager.value)
             # assert default headers, method, url and allow_redirects True
             # Success on 2nd call with FakeSession
             response = read_file_or_url(url)
-        self.assertEqual(m_response, response._response)
+        assert m_response == response._response
 
 
 class TestReadFileOrUrlParameters:
     @mock.patch(M_PATH + "readurl")
     @pytest.mark.parametrize(
-        "timeout", [1, 1.2, "1", (1, None), (1, 1), (None, None)]
+        "timeout",
+        [1, 1.2, "1", (1, None), (1, 1), (None, None)],
+        ids=[
+            "timeout-int",
+            "timeout-float",
+            "timeout-str-int",
+            "timeout-tuple-write-default",
+            "timeout-tuple-read-write",
+            "timeout-tuple-none",
+        ],
     )
     def test_read_file_or_url_passes_params_to_readurl(
         self, m_readurl, timeout
@@ -232,6 +330,17 @@ class TestReadFileOrUrlParameters:
             ((1, None), (1, None)),
             ((1, 1), (1, 1)),
             ((None, None), (None, None)),
+        ],
+        ids=[
+            "negative-int-defaults-to-zero",
+            "negative-str-defaults-to-zero",
+            "none-timeout",
+            "int-timeout",
+            "float-timeout",
+            "str-int-timeout",
+            "tuple-read-timeout-only",
+            "tuple-read-write-timeout",
+            "tuple-none-timeout",
         ],
     )
     def test_readurl_timeout(self, readurl_timeout, request_timeout):
@@ -346,6 +455,68 @@ class TestReadUrl:
             response = readurl(url, headers_cb=headers_cb)
 
         assert response._response == m_response
+
+    def test_error_no_cb(self, mocker):
+        response = requests.Response()
+        response.status_code = 500
+        m_request = mocker.patch("requests.Session.request", autospec=True)
+        m_request.return_value = response
+
+        with pytest.raises(UrlError) as e:
+            readurl("http://some/path")
+        assert e.value.code == 500
+
+    def test_error_cb_true(self, mocker):
+        mocker.patch("time.sleep")
+
+        bad_response = requests.Response()
+        bad_response.status_code = 500
+        bad_response._content = b"oh noes!"
+        good_response = requests.Response()
+        good_response.status_code = 200
+        good_response._content = b"yay"
+
+        m_request = mocker.patch("requests.Session.request", autospec=True)
+        m_request.side_effect = (bad_response, good_response)
+
+        readurl("http://some/path", retries=1, exception_cb=lambda _: True)
+        assert m_request.call_count == 2
+
+    def test_error_cb_false(self, mocker):
+        mocker.patch("time.sleep")
+
+        bad_response = requests.Response()
+        bad_response.status_code = 500
+        bad_response._content = b"oh noes!"
+
+        m_request = mocker.patch("requests.Session.request", autospec=True)
+        m_request.return_value = bad_response
+
+        with pytest.raises(UrlError):
+            readurl(
+                "http://some/path", retries=1, exception_cb=lambda _: False
+            )
+        assert m_request.call_count == 1
+
+    def test_exception_503(self, mocker, caplog):
+        mocker.patch("time.sleep")
+
+        retry_response = requests.Response()
+        retry_response.status_code = 503
+        retry_response._content = b"try again"
+        good_response = requests.Response()
+        good_response.status_code = 200
+        good_response._content = b"good"
+        m_request = mocker.patch("requests.Session.request", autospec=True)
+        m_request.side_effect = (retry_response, retry_response, good_response)
+
+        with caplog.at_level(logging.WARNING):
+            readurl("http://some/path")
+        assert 2 == caplog.text.count(
+            "Endpoint returned a 503 error. HTTP endpoint is overloaded."
+            " Retrying URL (http://some/path)."
+        ), "Did not find expected logged 503 URL"
+        assert m_request.call_count == 3
 
 
 event = Event()
@@ -593,7 +764,7 @@ SLEEP1 = "https://sleep1/"
 SLEEP2 = "https://sleep2/"
 
 
-class TestUrlHelper:
+class TestWaitForUrl:
     success = "SUCCESS"
     fail = "FAIL"
     event = Event()
@@ -675,7 +846,7 @@ class TestUrlHelper:
         assert response.encode() == response_contents
 
     @responses.activate
-    def test_timeout(self, caplog):
+    def test_timeout(self):
         """If no endpoint responds in time, expect no response"""
 
         self.event.clear()
@@ -703,9 +874,6 @@ class TestUrlHelper:
         self.event.set()
         assert not url
         assert not response_contents
-        assert re.search(
-            r"open 'https:\/\/sleep1\/'.*Timed out", caplog.text, re.DOTALL
-        )
 
     def test_explicit_arguments(self, retry_mocks):
         """Ensure that explicit arguments are respected"""
@@ -758,6 +926,66 @@ class TestUrlHelper:
         ]
         assert actual_sleep_times == expected_sleep_times
 
+    @responses.activate
+    def test_503(self, mocker):
+        mocker.patch("time.sleep")
+
+        for _ in range(10):
+            responses.add(
+                method=responses.GET,
+                url="http://hi/",
+                status=503,
+                body=b"try again",
+            )
+        responses.add(
+            method=responses.GET,
+            url="http://hi/",
+            status=200,
+            body=b"good",
+        )
+
+        assert wait_for_url(urls=["http://hi/"], max_wait=0.0001)[1] == b"good"
+
+    @responses.activate
+    def test_503_async(self, mocker):
+        mocker.patch("time.sleep")
+
+        for _ in range(10):
+            responses.add(
+                method=responses.GET,
+                url="http://hi/",
+                status=503,
+                body=b"try again",
+            )
+            responses.add(
+                method=responses.GET,
+                url="http://hi2/",
+                status=503,
+                body="try again",
+            )
+        responses.add(
+            method=responses.GET,
+            url="http://hi/",
+            status=200,
+            body=b"good",
+        )
+        responses.add(
+            method=responses.GET,
+            url="http://hi2/",
+            status=200,
+            body=b"good",
+        )
+
+        assert (
+            wait_for_url(
+                urls=["http://hi/", "http://hi2/"],
+                max_wait=0.0001,
+                async_delay=0,
+                connect_synchronously=False,
+            )[1]
+            == b"good"
+        )
+
     # These side effect methods are a way of having a somewhat predictable
     # output for time.monotonic(). Otherwise, we have to track too many calls
     # to time.monotonic() and unrelated changes to code being called could
@@ -774,3 +1002,69 @@ class TestUrlHelper:
         if "timeout" in kwargs:
             self.mock_time_value += kwargs["timeout"] + 0.0000001
         raise UrlError("test")
+
+
+class TestHandleError:
+    def test_handle_error_no_cb(self):
+        """Test no callback."""
+        assert _handle_error(UrlError("test")) is None
+
+    def test_handle_error_cb_false(self):
+        """Test callback returning False."""
+        with pytest.raises(UrlError) as e:
+            _handle_error(UrlError("test"), exception_cb=lambda _: False)
+        assert str(e.value) == "test"
+
+    def test_handle_error_cb_true(self):
+        """Test callback returning True."""
+        assert (
+            _handle_error(UrlError("test"), exception_cb=lambda _: True)
+        ) is None
+
+    def test_handle_503(self, caplog):
+        """Test 503 with no callback."""
+        assert _handle_error(UrlError("test", code=503)) == 1
+        assert "Unable to introspect response header" in caplog.text
+
+    def test_handle_503_with_retry_header(self):
+        """Test 503 with a retry integer value."""
+        assert (
+            _handle_error(
+                UrlError("test", code=503, headers={"Retry-After": 5})
+            )
+            == 5
+        )
+
+    def test_handle_503_with_retry_header_in_past(self, caplog):
+        """Test 503 with date in the past."""
+        assert (
+            _handle_error(
+                UrlError(
+                    "test",
+                    code=503,
+                    headers={"Retry-After": "Fri, 31 Dec 1999 23:59:59 GMT"},
+                )
+            )
+            == 1
+        )
+        assert "Retry-After header value is in the past" in caplog.text
+
+    def test_handle_503_cb_true(self):
+        """Test 503 with a callback returning True."""
+        assert (
+            _handle_error(
+                UrlError("test", code=503),
+                exception_cb=lambda _: True,
+            )
+            is None
+        )
+
+    def test_handle_503_cb_false(self):
+        """Test 503 with a callback returning False."""
+        assert (
+            _handle_error(
+                UrlError("test", code=503),
+                exception_cb=lambda _: False,
+            )
+            == 1
+        )

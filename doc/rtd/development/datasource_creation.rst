@@ -82,8 +82,8 @@ and/or unused may be considered for eventual removal.
 Adding cloud-init support
 =========================
 
-There are multiple ways to provide `user data`, `metadata`, and
-`vendor data`, and each cloud solution prefers its own way. A datasource
+There are multiple ways to provide `user-data`, `meta-data`, and
+`vendor-data`, and each cloud solution prefers its own way. A datasource
 abstract base class defines a single interface to interact with the different
 clouds. Each cloud implementation must inherit from this base class to use this
 shared functionality and interface. See :file:`cloud-init/sources/__init__.py`

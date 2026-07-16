@@ -15,8 +15,7 @@ import pytest
 
 from cloudinit import util
 from cloudinit.sources import DataSourceWSL as wsl
-from tests.unittests.distros import _get_distro
-from tests.unittests.helpers import does_not_raise, mock
+from tests.unittests.helpers import does_not_raise, get_distro, mock
 
 INSTANCE_NAME = "Noble-MLKit"
 GOOD_MOUNTS = {
@@ -30,11 +29,7 @@ GOOD_MOUNTS = {
         "mountpoint": "/",
         "opts": "rw,relatime,...",
     },
-    "sysfs": {
-        "fstype": "sysfs",
-        "mountpoint": "/sys",
-        "opts": "rw,nosuid...",
-    },
+    "sysfs": {"fstype": "sysfs", "mountpoint": "/sys", "opts": "rw,nosuid..."},
     "C:\\": {
         "fstype": "9p",
         "mountpoint": "/mnt/c",
@@ -149,6 +144,19 @@ class TestWSLHelperFunctions:
         with pytest.raises(IOError):
             wsl.cmd_executable()
 
+    @mock.patch("cloudinit.sources.DataSourceWSL.cmd_executable")
+    @mock.patch("cloudinit.util.subp.subp")
+    def test_find_home_raises(self, m_subp, m_cmd):
+        # The value really doesn't matter.
+        m_cmd.return_value = PurePath("/mnt/c/cmd.exe")
+        m_subp.return_value = util.subp.SubpResult(
+            "I am UTF-8 🦄 !".encode("utf-8"), "\r\n".encode("utf-8")
+        )
+        # Checking for ValueError instead of UnicodeDecodeError because
+        # that's what we catch at the call sites.
+        with pytest.raises(ValueError):
+            wsl.find_home()
+
     @pytest.mark.parametrize(
         "linux_distro_value,files",
         (
@@ -182,10 +190,11 @@ class TestWSLHelperFunctions:
         assert files == wsl.candidate_user_data_file_names(INSTANCE_NAME)
 
     @pytest.mark.parametrize(
-        "md_content,raises,errors,warnings,md_expected",
+        "md_content,is_from_pro,raises,errors,warnings,md_expected",
         (
             pytest.param(
                 None,
+                False,
                 does_not_raise(),
                 [],
                 [],
@@ -193,7 +202,17 @@ class TestWSLHelperFunctions:
                 id="default_md_on_no_md_file",
             ),
             pytest.param(
+                '{"instance-id":"iid-load-from-pro"}',
+                True,
+                does_not_raise(),
+                [],
+                [],
+                {"instance-id": "iid-load-from-pro"},
+                id="metadata_from_pro",
+            ),
+            pytest.param(
                 "{}",
+                False,
                 pytest.raises(
                     ValueError,
                     match=(
@@ -207,6 +226,7 @@ class TestWSLHelperFunctions:
             ),
             pytest.param(
                 "{",
+                True,
                 pytest.raises(
                     ValueError,
                     match=(
@@ -221,15 +241,29 @@ class TestWSLHelperFunctions:
         ),
     )
     def test_load_instance_metadata(
-        self, md_content, raises, errors, warnings, md_expected, tmpdir, caplog
+        self,
+        md_content,
+        is_from_pro,
+        raises,
+        errors,
+        warnings,
+        md_expected,
+        tmpdir,
+        caplog,
     ):
         """meta-data file is optional. Errors are raised on invalid content."""
+        path = ".cloud-init"
+        if is_from_pro:
+            path = ".ubuntupro/.cloud-init"
+
         if md_content is not None:
-            tmpdir.join("myinstance.meta-data").write(md_content)
+            dir = tmpdir.join(path)
+            os.makedirs(dir)
+            dir.join("myinstance.meta-data").write(md_content)
         with caplog.at_level(logging.WARNING):
             with raises:
                 assert md_expected == wsl.load_instance_metadata(
-                    PurePath(tmpdir), "myinstance"
+                    tmpdir, "myinstance"
                 )
             warning_logs = "\n".join(
                 [
@@ -255,6 +289,28 @@ class TestWSLHelperFunctions:
                 assert error in error_logs
         else:
             assert "" == error_logs
+
+    @mock.patch("cloudinit.util.subp.subp")
+    def test_landscape_supports_field(self, m_subp):
+        LANDSCAPE_HELP_OUTPUT = """\
+        Usage: landscape-config [options]
+
+        Options:
+          --version             show program's version number and exit
+          -h, --help            show this help message and exit
+          --installation-request-id Only set this value if this computer is a
+                                    instance managed by Landscape, in which
+                                    it to be the request id that Landscape
+                                    to the installation activity for the host
+          --access-group=ACCESS_GROUP
+                                Suggested access group for this computer.
+          --tags=TAGS           Comma separated list of tag names to be sent
+                                to the server.
+        """
+        m_subp.return_value = util.subp.SubpResult(LANDSCAPE_HELP_OUTPUT, "")
+        assert wsl.landscape_supports_field("non_sense") is False
+        assert wsl.landscape_supports_field("tags") is True
+        assert wsl.landscape_supports_field("installation-request-id") is True
 
 
 SAMPLE_CFG = {"datasource_list": ["NoCloud", "WSL"]}
@@ -317,11 +373,11 @@ class TestMergeAgentLandscapeData:
         if agent_yaml is not None:
             agent_path = tmpdir.join("agent.yaml")
             agent_path.write(agent_yaml)
-            agent_data = wsl.ConfigData(agent_path)
+            agent_data = wsl.ConfigData(agent_path, "")
         if landscape_user_data is not None:
             landscape_ud_path = tmpdir.join("instance_name.user_data")
             landscape_ud_path.write(landscape_user_data)
-            user_data = wsl.ConfigData(landscape_ud_path)
+            user_data = wsl.ConfigData(landscape_ud_path, "")
         assert expected == wsl.merge_agent_landscape_data(
             agent_data, user_data
         )
@@ -342,17 +398,19 @@ class TestWSLDataSource:
             "cloudinit.sources.DataSourceWSL.subp.which",
             return_value="/usr/bin/wslpath",
         )
+        mocker.patch(
+            "cloudinit.sources.DataSourceWSL.landscape_supports_field",
+            return_value=True,
+        )
 
     def test_metadata_id_default(self, tmpdir, paths):
         """
-        Validates that instance-id is properly set, indepedent of the existence
-        of user-data.
+        Validates that instance-id is properly set, independent of the
+        existence of user-data.
         """
 
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
         ds.get_data()
 
@@ -360,22 +418,18 @@ class TestWSLDataSource:
 
     def test_metadata_id(self, tmpdir, paths):
         """
-        Validates that instance-id is properly set, indepedent of the existence
-        of user-data.
+        Validates that instance-id is properly set, independent of the
+        existence of user-data.
         """
         SAMPLE_ID = "Nice-ID"
         metadata_path = tmpdir.join(
             ".cloud-init", f"{INSTANCE_NAME}.meta-data"
         )
         metadata_path.dirpath().mkdir()
-        metadata_path.write(
-            f'{{"instance-id":"{SAMPLE_ID}"}}',
-        )
+        metadata_path.write(f'{{"instance-id":"{SAMPLE_ID}"}}')
 
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
         ds.get_data()
 
@@ -389,9 +443,7 @@ class TestWSLDataSource:
         data_path.write("#cloud-config\nwrite_files:\n- path: /etc/wsl.conf")
 
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
 
         assert ds.get_data() is True
@@ -402,7 +454,7 @@ class TestWSLDataSource:
             cast(MIMEMultipart, ud), "text/cloud-config"
         )
         assert userdata is not None
-        assert "wsl.conf" in cast(str, userdata)
+        assert "wsl.conf" in userdata
 
     @mock.patch("cloudinit.util.lsb_release")
     def test_get_data_sh(self, m_lsb_release, tmpdir, paths):
@@ -412,20 +464,15 @@ class TestWSLDataSource:
         data_path.dirpath().mkdir()
         data_path.write(f"#!/bin/sh\n{COMMAND}\n")
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
 
         assert ds.get_data() is True
         ud = ds.get_userdata()
 
         assert ud is not None
-        userdata = cast(
-            str,
-            join_payloads_from_content_type(
-                cast(MIMEMultipart, ud), "text/x-shellscript"
-            ),
+        userdata = join_payloads_from_content_type(
+            cast(MIMEMultipart, ud), "text/x-shellscript"
         )
         assert COMMAND in userdata
 
@@ -444,9 +491,7 @@ write_files:
         )
 
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
 
         assert ds.get_data() is True
@@ -480,9 +525,7 @@ write_files:
             agent_path.write(AGENT_SAMPLE)
 
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
 
         assert ds.get_data() is with_agent_data
@@ -529,9 +572,7 @@ write_files:
 
         # Run the datasource
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
 
         # Assert user data is properly loaded
@@ -539,19 +580,13 @@ write_files:
         ud = ds.get_userdata()
 
         assert ud is not None
-        userdata = cast(
-            str,
-            join_payloads_from_content_type(
-                cast(MIMEMultipart, ud), "text/cloud-config"
-            ),
+        userdata = join_payloads_from_content_type(
+            cast(MIMEMultipart, ud), "text/cloud-config"
         )
         assert "wsl.conf" in userdata
         assert "packages" not in userdata
-        shell_script = cast(
-            str,
-            join_payloads_from_content_type(
-                cast(MIMEMultipart, ud), "text/x-shellscript"
-            ),
+        shell_script = join_payloads_from_content_type(
+            cast(MIMEMultipart, ud), "text/x-shellscript"
         )
 
         assert "" == shell_script
@@ -560,9 +595,9 @@ write_files:
     def test_interaction_with_pro(self, m_get_linux_dist, tmpdir, paths):
         """Validates the interaction of user-data and Pro For WSL agent data"""
 
-        m_get_linux_dist.return_value = SAMPLE_LINUX_DISTRO
+        m_get_linux_dist.return_value = ("ubuntu", "25.10", "plucky")
 
-        user_file = tmpdir.join(".cloud-init", "ubuntu-24.04.user-data")
+        user_file = tmpdir.join(".cloud-init", "ubuntu-25.10.user-data")
         user_file.dirpath().mkdir()
         user_file.write("#cloud-config\nwrite_files:\n- path: /etc/wsl.conf")
 
@@ -584,12 +619,13 @@ landscape:
 ubuntu_pro:
     token: testtoken"""
         )
+        SAMPLE_ID = "Nice-ID"
+        agent_metadata_path = ubuntu_pro_tmp.join(f"{INSTANCE_NAME}.meta-data")
+        agent_metadata_path.write(f'{{"instance-id":"{SAMPLE_ID}"}}')
 
         # Run the datasource
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
 
         # Assert agent combines with existing user data
@@ -597,21 +633,20 @@ ubuntu_pro:
         ud = ds.get_userdata()
 
         assert ud is not None
-        userdata = cast(
-            str,
-            join_payloads_from_content_type(
-                cast(MIMEMultipart, ud), "text/cloud-config"
-            ),
+        userdata = join_payloads_from_content_type(
+            cast(MIMEMultipart, ud), "text/cloud-config"
         )
         assert "wsl.conf" in userdata
         assert "packages" not in userdata
         assert "ubuntu_pro" in userdata
         assert "landscape" in userdata
         assert "agenttest" in userdata
+        assert "installation_request_id" in userdata
+        assert SAMPLE_ID in userdata
 
     @mock.patch("cloudinit.util.get_linux_distro")
     def test_landscape_vs_local_user(self, m_get_linux_dist, tmpdir, paths):
-        """Validates the precendence of Landscape-provided over local data"""
+        """Validates the precedence of Landscape-provided over local data"""
 
         m_get_linux_dist.return_value = SAMPLE_LINUX_DISTRO
 
@@ -631,19 +666,14 @@ package_update: true"""
 
         # Run the datasource
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
 
         assert ds.get_data() is True
         ud = ds.get_userdata()
         assert ud is not None
-        userdata = cast(
-            str,
-            join_payloads_from_content_type(
-                cast(MIMEMultipart, ud), "text/cloud-config"
-            ),
+        userdata = join_payloads_from_content_type(
+            cast(MIMEMultipart, ud), "text/cloud-config"
         )
 
         assert (
@@ -651,7 +681,7 @@ package_update: true"""
             and "landscapetest" in userdata
             and "ubuntu_pro" not in userdata
             and "package_update" not in userdata
-        ), "Landscape data should have overriden user provided data"
+        ), "Landscape data should have overridden user provided data"
 
     @mock.patch("cloudinit.util.get_linux_distro")
     def test_landscape_provided_data(self, m_get_linux_dist, tmpdir, paths):
@@ -690,9 +720,7 @@ package_update: true"""
 
         # Run the datasource
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
 
         # Assert Landscape and Agent combine, with Agent taking precedence
@@ -700,21 +728,18 @@ package_update: true"""
         ud = ds.get_userdata()
 
         assert ud is not None
-        userdata = cast(
-            str,
-            join_payloads_from_content_type(
-                cast(MIMEMultipart, ud), "text/cloud-config"
-            ),
+        userdata = join_payloads_from_content_type(
+            cast(MIMEMultipart, ud), "text/cloud-config"
         )
 
         assert "ubuntu_pro" in userdata, "Agent data should be present"
         assert "package_update" in userdata, (
-            "package_update entry should not be overriden by agent data"
+            "package_update entry should not be overridden by agent data"
             " nor ignored"
         )
         assert (
             "landscapetest" not in userdata and "agenttest" in userdata
-        ), "Landscape account name should have been overriden by agent data"
+        ), "Landscape account name should have been overridden by agent data"
         # Make sure we have tags from Landscape data, not agent's
         assert (
             "tag_aiml" in userdata and "tag_dev" in userdata
@@ -751,9 +776,7 @@ ubuntu_pro:
 
         # Run the datasource
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
 
         # Assert Landscape and Agent combine, with Agent taking precedence
@@ -761,11 +784,8 @@ ubuntu_pro:
         ud = ds.get_userdata()
 
         assert ud is not None
-        userdata = cast(
-            str,
-            join_payloads_from_content_type(
-                cast(MIMEMultipart, ud), "text/cloud-config"
-            ),
+        userdata = join_payloads_from_content_type(
+            cast(MIMEMultipart, ud), "text/cloud-config"
         )
 
         assert (
@@ -803,9 +823,7 @@ ubuntu_pro:
 
         # Run the datasource
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
 
         # Assert Landscape and Agent combine, with Agent taking precedence
@@ -813,22 +831,16 @@ ubuntu_pro:
         ud = ds.get_userdata()
 
         assert ud is not None
-        userdata = cast(
-            str,
-            join_payloads_from_content_type(
-                cast(MIMEMultipart, ud), "text/cloud-config"
-            ),
+        userdata = join_payloads_from_content_type(
+            cast(MIMEMultipart, ud), "text/cloud-config"
         )
 
         assert (
             "agent_test" in userdata and "agent_token" in userdata
         ), "Agent data should be present"
 
-        shell_script = cast(
-            str,
-            join_payloads_from_content_type(
-                cast(MIMEMultipart, ud), "text/x-shellscript"
-            ),
+        shell_script = join_payloads_from_content_type(
+            cast(MIMEMultipart, ud), "text/x-shellscript"
         )
 
         assert COMMAND in shell_script
@@ -868,20 +880,15 @@ package_update: true"""
 
         # Run the datasource
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
 
         assert ds.get_data() is True
         ud = ds.get_userdata()
 
         assert ud is not None
-        userdata = cast(
-            str,
-            join_payloads_from_content_type(
-                cast(MIMEMultipart, ud), "text/cloud-config"
-            ),
+        userdata = join_payloads_from_content_type(
+            cast(MIMEMultipart, ud), "text/cloud-config"
         )
 
         assert (
@@ -920,20 +927,15 @@ package_update: true"""
 
         # Run the datasource
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
 
         assert ds.get_data() is True
         ud = ds.get_userdata()
 
         assert ud is not None
-        userdata = cast(
-            str,
-            join_payloads_from_content_type(
-                cast(MIMEMultipart, ud), "text/cloud-config"
-            ),
+        userdata = join_payloads_from_content_type(
+            cast(MIMEMultipart, ud), "text/cloud-config"
         )
         assert "landscapetest" in userdata
         assert "up4w_token" in userdata
@@ -971,20 +973,15 @@ package_update: true"""
         )
         # Run the datasource
         ds = wsl.DataSourceWSL(
-            sys_cfg=SAMPLE_CFG,
-            distro=_get_distro("ubuntu"),
-            paths=paths,
+            sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
         )
 
         assert ds.get_data() is True
         ud = ds.get_userdata()
 
         assert ud is not None
-        userdata = cast(
-            str,
-            join_payloads_from_content_type(
-                cast(MIMEMultipart, ud), "text/cloud-config"
-            ),
+        userdata = join_payloads_from_content_type(
+            cast(MIMEMultipart, ud), "text/cloud-config"
         )
         assert "landscapetest" not in userdata
         assert (

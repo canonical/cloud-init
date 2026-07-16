@@ -30,107 +30,87 @@ M_PATH = "cloudinit.config.cc_mounts."
 
 
 class TestSanitizeDevname:
-    def _touch(self, path, new_root):
-        path = os.path.join(new_root, path.lstrip("/"))
-        basedir = os.path.dirname(path)
-        if not os.path.exists(basedir):
-            os.makedirs(basedir)
-        open(path, "a").close()
-
-    def _makedirs(self, directory, new_root):
-        directory = os.path.join(new_root, directory.lstrip("/"))
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-
     def mock_existence_of_disk(self, disk_path, new_root):
-        self._touch(disk_path, new_root)
-        self._makedirs(
-            os.path.join("/sys/block", disk_path.split("/")[-1]), new_root
-        )
+        # E.g., /sys/block/sda
+        path = "/sys/block/" + disk_path.split("/")[-1]
+        new_root.create_dir(path)
 
     def mock_existence_of_partition(
         self, disk_path, partition_number, new_root
     ):
         self.mock_existence_of_disk(disk_path, new_root)
-        self._touch(disk_path + str(partition_number), new_root)
+        # E.g., /dev/sda1
+        dev_path = disk_path + str(partition_number)
+        new_root.create_file(dev_path)
         disk_name = disk_path.split("/")[-1]
-        self._makedirs(
-            os.path.join(
-                "/sys/block", disk_name, disk_name + str(partition_number)
-            ),
-            new_root,
+        # E.g., /sys/block/sda/sda1
+        block_path = os.path.join(
+            "/sys/block", disk_name, disk_name + str(partition_number)
         )
+        new_root.create_dir(block_path)
 
-    def test_existent_full_disk_path_is_returned(self, fake_filesystem):
+    def test_existent_full_disk_path_is_returned(self, fake_fs):
         disk_path = "/dev/sda"
-        self.mock_existence_of_disk(disk_path, fake_filesystem)
+        self.mock_existence_of_disk(disk_path, fake_fs)
         assert disk_path == cc_mounts.sanitize_devname(
             disk_path, lambda x: None
         )
 
-    def test_existent_disk_name_returns_full_path(self, fake_filesystem):
+    def test_existent_disk_name_returns_full_path(self, fake_fs):
         disk_name = "sda"
         disk_path = "/dev/" + disk_name
-        self.mock_existence_of_disk(disk_path, fake_filesystem)
+        self.mock_existence_of_disk(disk_path, fake_fs)
         assert disk_path == cc_mounts.sanitize_devname(
             disk_name, lambda x: None
         )
 
-    def test_existent_meta_disk_is_returned(self, fake_filesystem):
+    def test_existent_meta_disk_is_returned(self, fake_fs):
         actual_disk_path = "/dev/sda"
-        self.mock_existence_of_disk(actual_disk_path, fake_filesystem)
+        self.mock_existence_of_disk(actual_disk_path, fake_fs)
         assert actual_disk_path == cc_mounts.sanitize_devname(
             "ephemeral0",
             lambda x: actual_disk_path,
         )
 
-    def test_existent_meta_partition_is_returned(self, fake_filesystem):
+    def test_existent_meta_partition_is_returned(self, fake_fs):
         disk_name, partition_part = "/dev/sda", "1"
         actual_partition_path = disk_name + partition_part
-        self.mock_existence_of_partition(
-            disk_name, partition_part, fake_filesystem
-        )
+        self.mock_existence_of_partition(disk_name, partition_part, fake_fs)
         assert actual_partition_path == cc_mounts.sanitize_devname(
             "ephemeral0.1",
             lambda x: disk_name,
         )
 
-    def test_existent_meta_partition_with_p_is_returned(self, fake_filesystem):
+    def test_existent_meta_partition_with_p_is_returned(self, fake_fs):
         disk_name, partition_part = "/dev/sda", "p1"
         actual_partition_path = disk_name + partition_part
-        self.mock_existence_of_partition(
-            disk_name, partition_part, fake_filesystem
-        )
+        self.mock_existence_of_partition(disk_name, partition_part, fake_fs)
         assert actual_partition_path == cc_mounts.sanitize_devname(
             "ephemeral0.1",
             lambda x: disk_name,
         )
 
     def test_first_partition_returned_if_existent_disk_is_partitioned(
-        self, fake_filesystem
+        self, fake_fs
     ):
         disk_name, partition_part = "/dev/sda", "1"
         actual_partition_path = disk_name + partition_part
-        self.mock_existence_of_partition(
-            disk_name, partition_part, fake_filesystem
-        )
+        self.mock_existence_of_partition(disk_name, partition_part, fake_fs)
         assert actual_partition_path == cc_mounts.sanitize_devname(
             "ephemeral0",
             lambda x: disk_name,
         )
 
-    def test_nth_partition_returned_if_requested(self, fake_filesystem):
+    def test_nth_partition_returned_if_requested(self, fake_fs):
         disk_name, partition_part = "/dev/sda", "3"
         actual_partition_path = disk_name + partition_part
-        self.mock_existence_of_partition(
-            disk_name, partition_part, fake_filesystem
-        )
+        self.mock_existence_of_partition(disk_name, partition_part, fake_fs)
         assert actual_partition_path == cc_mounts.sanitize_devname(
             "ephemeral0.3",
             lambda x: disk_name,
         )
 
-    def test_transformer_returning_none_returns_none(self, fake_filesystem):
+    def test_transformer_returning_none_returns_none(self, fake_fs):
         assert (
             cc_mounts.sanitize_devname(
                 "ephemeral0",
@@ -139,7 +119,7 @@ class TestSanitizeDevname:
             is None
         )
 
-    def test_missing_device_returns_none(self, fake_filesystem):
+    def test_missing_device_returns_none(self, fake_fs):
         assert (
             cc_mounts.sanitize_devname(
                 "/dev/sda",
@@ -148,9 +128,9 @@ class TestSanitizeDevname:
             is None
         )
 
-    def test_missing_sys_returns_none(self, fake_filesystem):
+    def test_missing_sys_returns_none(self, fake_fs):
         disk_path = "/dev/sda"
-        self._makedirs(disk_path, fake_filesystem)
+        fake_fs.create_dir(disk_path)
         assert (
             cc_mounts.sanitize_devname(
                 disk_path,
@@ -159,11 +139,9 @@ class TestSanitizeDevname:
             is None
         )
 
-    def test_existent_disk_but_missing_partition_returns_none(
-        self, fake_filesystem
-    ):
+    def test_existent_disk_but_missing_partition_returns_none(self, fake_fs):
         disk_path = "/dev/sda"
-        self.mock_existence_of_disk(disk_path, fake_filesystem)
+        self.mock_existence_of_disk(disk_path, fake_fs)
         assert (
             cc_mounts.sanitize_devname(
                 "ephemeral0.1",
@@ -172,16 +150,16 @@ class TestSanitizeDevname:
             is None
         )
 
-    def test_network_device_returns_network_device(self, fake_filesystem):
+    def test_network_device_returns_network_device(self, fake_fs):
         disk_path = "netdevice:/path"
         assert disk_path == cc_mounts.sanitize_devname(
             disk_path,
             None,
         )
 
-    def test_device_aliases_remapping(self, fake_filesystem):
+    def test_device_aliases_remapping(self, fake_fs):
         disk_path = "/dev/sda"
-        self.mock_existence_of_disk(disk_path, fake_filesystem)
+        self.mock_existence_of_disk(disk_path, fake_fs)
         assert disk_path == cc_mounts.sanitize_devname(
             "mydata", lambda x: None, {"mydata": disk_path}
         )
@@ -189,13 +167,10 @@ class TestSanitizeDevname:
 
 class TestSwapFileCreation:
     @pytest.fixture(autouse=True)
-    def setup(self, mocker, fake_filesystem: str):
-        self.new_root = fake_filesystem
-        self.swap_path = os.path.join(fake_filesystem, "swap.img")
-        fstab_path = os.path.join(fake_filesystem, "etc/fstab")
-        self._makedirs("/etc")
+    def setup(self, mocker, fake_fs):
+        self.swap_path = "/swap.img"
+        fake_fs.create_dir("/etc")
 
-        self.m_fstab = mocker.patch(f"{M_PATH}FSTAB_PATH", fstab_path)
         self.m_subp = mocker.patch(f"{M_PATH}subp.subp")
         self.m_mounts = mocker.patch(
             f"{M_PATH}util.mounts",
@@ -220,11 +195,6 @@ class TestSwapFileCreation:
             }
         }
 
-    def _makedirs(self, directory):
-        directory = os.path.join(self.new_root, directory.lstrip("/"))
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-
     def device_name_to_device(self, path):
         if path == "swap":
             return self.swap_path
@@ -241,7 +211,7 @@ class TestSwapFileCreation:
         m_kernel_version.return_value = (4, 20)
         m_get_mount_info.return_value = ["", "xfs"]
 
-        cc_mounts.handle(None, self.cc, self.mock_cloud, [])
+        cc_mounts.handle("", self.cc, self.mock_cloud, [])
         self.m_subp.assert_has_calls(
             [
                 mock.call(
@@ -260,7 +230,7 @@ class TestSwapFileCreation:
         m_kernel_version.return_value = (3, 18)
         m_get_mount_info.return_value = ["", "xfs"]
 
-        cc_mounts.handle(None, self.cc, self.mock_cloud, [])
+        cc_mounts.handle("", self.cc, self.mock_cloud, [])
         self.m_subp.assert_has_calls(
             [
                 mock.call(
@@ -286,7 +256,7 @@ class TestSwapFileCreation:
         m_kernel_version.return_value = (4, 20)
         m_get_mount_info.return_value = ["", "btrfs"]
 
-        cc_mounts.handle(None, self.cc, self.mock_cloud, [])
+        cc_mounts.handle("", self.cc, self.mock_cloud, [])
         self.m_subp.assert_has_calls(
             [
                 mock.call(["truncate", "-s", "0", self.swap_path]),
@@ -308,7 +278,7 @@ class TestSwapFileCreation:
         m_kernel_version.return_value = (5, 14)
         m_get_mount_info.return_value = ["", "ext4"]
 
-        cc_mounts.handle(None, self.cc, self.mock_cloud, [])
+        cc_mounts.handle("", self.cc, self.mock_cloud, [])
         self.m_subp.assert_has_calls(
             [
                 mock.call(
@@ -324,13 +294,9 @@ class TestFstabHandling:
     swap_path = "/dev/sdb1"
 
     @pytest.fixture(autouse=True)
-    def setup(self, mocker, fake_filesystem: str):
-        self.new_root = fake_filesystem
+    def setup(self, mocker, fake_fs):
+        fake_fs.create_dir("/etc")
 
-        self.fstab_path = os.path.join(self.new_root, "etc/fstab")
-        self._makedirs("/etc")
-
-        self.m_fstab = mocker.patch(f"{M_PATH}FSTAB_PATH", self.fstab_path)
         self.m_subp = mocker.patch(f"{M_PATH}subp.subp")
         self.m_mounts = mocker.patch(
             f"{M_PATH}util.mounts",
@@ -351,11 +317,6 @@ class TestFstabHandling:
         self.mock_log = mock.Mock()
         self.mock_cloud.device_name_to_device = self.device_name_to_device
 
-    def _makedirs(self, directory):
-        directory = os.path.join(self.new_root, directory.lstrip("/"))
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-
     def device_name_to_device(self, path):
         if path == "swap":
             return self.swap_path
@@ -371,7 +332,7 @@ class TestFstabHandling:
             "%s\tnone\tswap\tsw,comment=cloudconfig\t0\t0\n"
             % (self.swap_path,)
         )
-        cc_mounts.handle(None, {}, self.mock_cloud, [])
+        cc_mounts.handle("", {}, self.mock_cloud, [])
         with open(cc_mounts.FSTAB_PATH, "r") as fd:
             fstab_new_content = fd.read()
             assert fstab_expected_content == fstab_new_content
@@ -431,7 +392,7 @@ class TestFstabHandling:
         cc = {
             "swap": {"filename": "/swap.img", "size": "512", "maxsize": "512"}
         }
-        cc_mounts.handle(None, cc, self.mock_cloud, [])
+        cc_mounts.handle("", cc, self.mock_cloud, [])
         assert self.m_subp.call_args_list == expected + [
             mock.call(["mkswap", "/swap.img"]),
             mock.call(["swapon", "-a"]),
@@ -452,7 +413,7 @@ class TestFstabHandling:
         with open(cc_mounts.FSTAB_PATH, "w") as fd:
             fd.write(fstab_original_content)
 
-        cc_mounts.handle(None, {}, self.mock_cloud, [])
+        cc_mounts.handle("", {}, self.mock_cloud, [])
 
         with open(cc_mounts.FSTAB_PATH, "r") as fd:
             fstab_new_content = fd.read()
@@ -470,7 +431,7 @@ class TestFstabHandling:
         with open(cc_mounts.FSTAB_PATH, "w") as fd:
             fd.write(fstab_original_content)
 
-        cc_mounts.handle(None, {}, self.mock_cloud, [])
+        cc_mounts.handle("", {}, self.mock_cloud, [])
 
         with open(cc_mounts.FSTAB_PATH, "r") as fd:
             fstab_new_content = fd.read()
@@ -491,7 +452,7 @@ class TestFstabHandling:
         with open(cc_mounts.FSTAB_PATH, "w") as fd:
             fd.write(fstab_original_content)
 
-        cc_mounts.handle(None, {}, self.mock_cloud, [])
+        cc_mounts.handle("", {}, self.mock_cloud, [])
 
         with open(cc_mounts.FSTAB_PATH, "r") as fd:
             fstab_new_content = fd.read()
@@ -510,7 +471,7 @@ class TestFstabHandling:
         cc = {"mounts": [["/dev/vdb", "/mnt", "auto", "defaults,noexec"]]}
         with open(cc_mounts.FSTAB_PATH, "w") as fd:
             fd.write(fstab_original_content)
-        cc_mounts.handle(None, cc, self.mock_cloud, [])
+        cc_mounts.handle("", cc, self.mock_cloud, [])
         with open(cc_mounts.FSTAB_PATH, "r") as fd:
             fstab_new_content = fd.read()
             assert fstab_original_content == fstab_new_content.strip()
@@ -555,7 +516,7 @@ class TestFstabHandling:
                 ["/dev/sda3", "/mnt4", "btrfs"],
             ]
         }
-        cc_mounts.handle(None, cfg, self.mock_cloud, [])
+        cc_mounts.handle("", cfg, self.mock_cloud, [])
         with open(cc_mounts.FSTAB_PATH, "r") as fd:
             fstab_new_content = fd.read()
 
@@ -573,6 +534,52 @@ class TestFstabHandling:
             """  # noqa: E501
             ).strip()
         )
+
+    def test_fstab_mountpoint_with_spaces(self):
+        """Spaces in the fs_spec and fs_file fields are octal-escaped.
+
+        Reproduces GH-3603: an unescaped space in the device or mount point
+        breaks `mount -a` parsing of /etc/fstab.
+        """
+        cfg = {
+            "mounts": [
+                [
+                    "/dev/sr0 spaced",
+                    "/mnt/Cdrom Drive",
+                    "auto",
+                    "uid=1000,gid=1000",
+                    "0",
+                    "0",
+                ],
+            ]
+        }
+        cc_mounts.handle("", cfg, self.mock_cloud, [])
+        with open(cc_mounts.FSTAB_PATH, "r") as fd:
+            fstab_new_content = fd.read()
+        assert (
+            "/dev/sr0\\040spaced\t/mnt/Cdrom\\040Drive\tauto\t"
+            "uid=1000,gid=1000,comment=cloudconfig\t0\t0\n"
+        ) in fstab_new_content
+
+    def test_fstab_mountpoint_with_spaces_idempotent(self):
+        """A second run must not duplicate an escaped mount entry."""
+        cfg = {
+            "mounts": [
+                [
+                    "/dev/sr0",
+                    "/mnt/Cdrom Drive",
+                    "auto",
+                    "uid=1000,gid=1000",
+                    "0",
+                    "0",
+                ],
+            ]
+        }
+        cc_mounts.handle("", cfg, self.mock_cloud, [])
+        cc_mounts.handle("", cfg, self.mock_cloud, [])
+        with open(cc_mounts.FSTAB_PATH, "r") as fd:
+            fstab_new_content = fd.read()
+        assert fstab_new_content.count("/mnt/Cdrom\\040Drive") == 1
 
 
 class TestCreateSwapfile:

@@ -5,11 +5,13 @@
 import os
 from tempfile import gettempdir
 
+import pytest
+
 from cloudinit.temp_utils import mkdtemp, mkstemp, tempdir
-from tests.unittests.helpers import CiTestCase, wrap_and_call
+from tests.unittests.helpers import wrap_and_call
 
 
-class TestTempUtils(CiTestCase):
+class TestTempUtils:
     prefix = gettempdir()
 
     def test_mkdtemp_default_non_root(self):
@@ -29,8 +31,10 @@ class TestTempUtils(CiTestCase):
             },
             mkdtemp,
         )
-        self.assertEqual("/fake/return/path", retval)
-        self.assertEqual([{"dir": self.prefix}], calls)
+        assert "/fake/return/path" == retval
+        assert os.path.abspath(self.prefix) == os.path.abspath(
+            calls.pop(0).get("dir", "")
+        )
 
     def test_mkdtemp_default_non_root_needs_exe(self):
         """mkdtemp creates a dir under /var/tmp/cloud-init when needs_exe."""
@@ -51,8 +55,8 @@ class TestTempUtils(CiTestCase):
             mkdtemp,
             needs_exe=True,
         )
-        self.assertEqual("/fake/return/path", retval)
-        self.assertEqual([{"dir": "/var/tmp/cloud-init"}], calls)
+        assert "/fake/return/path" == retval
+        assert [{"dir": "/var/tmp/cloud-init"}] == calls
 
     def test_mkdtemp_default_root(self):
         """mkdtemp creates a dir under /run/cloud-init for the privileged."""
@@ -71,8 +75,8 @@ class TestTempUtils(CiTestCase):
             },
             mkdtemp,
         )
-        self.assertEqual("/fake/return/path", retval)
-        self.assertEqual([{"dir": "/run/cloud-init/tmp"}], calls)
+        assert "/fake/return/path" == retval
+        assert [{"dir": "/run/cloud-init/tmp"}] == calls
 
     def test_mkstemp_default_non_root(self):
         """mkstemp creates secure tempfile under /tmp for the unprivileged."""
@@ -91,8 +95,10 @@ class TestTempUtils(CiTestCase):
             },
             mkstemp,
         )
-        self.assertEqual("/fake/return/path", retval)
-        self.assertEqual([{"dir": self.prefix}], calls)
+        assert "/fake/return/path" == retval
+        assert os.path.abspath(self.prefix) == os.path.abspath(
+            calls.pop(0).get("dir", "")
+        )
 
     def test_mkstemp_default_root(self):
         """mkstemp creates a secure tempfile in /run/cloud-init for root."""
@@ -111,13 +117,13 @@ class TestTempUtils(CiTestCase):
             },
             mkstemp,
         )
-        self.assertEqual("/fake/return/path", retval)
-        self.assertEqual([{"dir": "/run/cloud-init/tmp"}], calls)
+        assert "/fake/return/path" == retval
+        assert [{"dir": "/run/cloud-init/tmp"}] == calls
 
     def test_tempdir_error_suppression(self):
         """test tempdir suppresses errors during directory removal."""
 
-        with self.assertRaises(OSError):
+        with pytest.raises(OSError):
             with tempdir(prefix="cloud-init-dhcp-") as tdir:
                 os.rmdir(tdir)
                 # As a result, the directory is already gone,

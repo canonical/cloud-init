@@ -3,6 +3,8 @@
 """Tests cc_disable_ec2_metadata handler"""
 
 
+from unittest import mock
+
 import pytest
 
 import cloudinit.config.cc_disable_ec2_metadata as ec2_meta
@@ -11,18 +13,18 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
+from tests.unittests.helpers import skipUnlessJsonSchema
 
 DISABLE_CFG = {"disable_ec2_metadata": "true"}
 
 
-class TestEC2MetadataRoute(CiTestCase):
+class TestEC2MetadataRoute:
     @mock.patch("cloudinit.config.cc_disable_ec2_metadata.subp.which")
     @mock.patch("cloudinit.config.cc_disable_ec2_metadata.subp.subp")
     def test_disable_ifconfig(self, m_subp, m_which):
         """Set the route if ifconfig command is available"""
         m_which.side_effect = lambda x: x if x == "ifconfig" else None
-        ec2_meta.handle("foo", DISABLE_CFG, None, None)
+        ec2_meta.handle("foo", DISABLE_CFG, mock.MagicMock(), [])
         m_subp.assert_called_with(
             ["route", "add", "-host", "169.254.169.254", "reject"],
             capture=False,
@@ -33,7 +35,7 @@ class TestEC2MetadataRoute(CiTestCase):
     def test_disable_ip(self, m_subp, m_which):
         """Set the route if ip command is available"""
         m_which.side_effect = lambda x: x if x == "ip" else None
-        ec2_meta.handle("foo", DISABLE_CFG, None, None)
+        ec2_meta.handle("foo", DISABLE_CFG, mock.MagicMock(), [])
         m_subp.assert_called_with(
             ["ip", "route", "add", "prohibit", "169.254.169.254"],
             capture=False,
@@ -44,10 +46,11 @@ class TestEC2MetadataRoute(CiTestCase):
     def test_disable_no_tool(self, m_subp, m_which):
         """Log error when neither route nor ip commands are available"""
         m_which.return_value = None  # Find neither ifconfig nor ip
-        ec2_meta.handle("foo", DISABLE_CFG, None, None)
-        self.assertEqual(
-            [mock.call("ip"), mock.call("ifconfig")], m_which.call_args_list
-        )
+        ec2_meta.handle("foo", DISABLE_CFG, mock.MagicMock(), [])
+        assert [
+            mock.call("ip"),
+            mock.call("ifconfig"),
+        ] == m_which.call_args_list
         m_subp.assert_not_called()
 
 

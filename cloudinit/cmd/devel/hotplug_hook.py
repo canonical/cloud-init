@@ -68,7 +68,7 @@ def get_parser(parser=None):
         "--udevaction",
         required=True,
         help="Specify action to take.",
-        choices=["add", "remove"],
+        choices=["add"],
     )
 
     subparsers.add_parser(
@@ -103,8 +103,6 @@ class UeventHandler(abc.ABC):
         detect_presence = None
         if self.action == "add":
             detect_presence = True
-        elif self.action == "remove":
-            detect_presence = False
         else:
             raise ValueError("Unknown action: %s" % self.action)
 
@@ -145,11 +143,6 @@ class NetHandler(UeventHandler):
             if not activator.bring_up_interface(interface_name):
                 raise RuntimeError(
                     "Failed to bring up device: {}".format(self.devpath)
-                )
-        elif self.action == "remove":
-            if not activator.bring_down_interface(interface_name):
-                raise RuntimeError(
-                    "Failed to bring down device: {}".format(self.devpath)
                 )
 
     @property
@@ -204,7 +197,7 @@ def initialize_datasource(hotplug_init: Init, subsystem: str):
     return datasource
 
 
-def handle_hotplug(hotplug_init: Init, devpath, subsystem, udevaction):
+def handle_hotplug(hotplug_init: Init, devpath, subsystem, udevaction) -> None:
     datasource = initialize_datasource(hotplug_init, subsystem)
     if not datasource:
         return
@@ -216,6 +209,19 @@ def handle_hotplug(hotplug_init: Init, devpath, subsystem, udevaction):
         action=udevaction,
         success_fn=hotplug_init._write_to_cache,
     )
+    start = time.time()
+    if not datasource.hotplug_retry_settings.force_retry:
+        try_hotplug(subsystem, event_handler, datasource)
+        return
+    while time.time() - start < datasource.hotplug_retry_settings.sleep_total:
+        try_hotplug(subsystem, event_handler, datasource)
+        LOG.debug(
+            "Gathering network configuration again due to IMDS limitations."
+        )
+        time.sleep(datasource.hotplug_retry_settings.sleep_period)
+
+
+def try_hotplug(subsystem, event_handler, datasource) -> None:
     wait_times = [1, 3, 5, 10, 30]
     last_exception = Exception("Bug while processing hotplug event.")
     for attempt, wait in enumerate(wait_times):

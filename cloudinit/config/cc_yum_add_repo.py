@@ -17,23 +17,11 @@ from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
 from cloudinit.settings import PER_INSTANCE
 
-COPR_BASEURL = (
-    "https://download.copr.fedorainfracloud.org/results/@cloud-init/"
-    "cloud-init-dev/epel-8-$basearch/"
-)
-COPR_GPG_URL = (
-    "https://download.copr.fedorainfracloud.org/results/@cloud-init/"
-    "cloud-init-dev/pubkey.gpg"
-)
-EPEL_TESTING_BASEURL = (
-    "https://download.copr.fedorainfracloud.org/results/@cloud-init/"
-    "cloud-init-dev/pubkey.gpg"
-)
-
 meta: MetaSchema = {
     "id": "cc_yum_add_repo",
     "distros": [
         "almalinux",
+        "amazon",
         "azurelinux",
         "centos",
         "cloudlinux",
@@ -148,7 +136,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
         if missing_required == len(req_fields):
             LOG.warning(
-                "Repository %s should contain atleast one of the"
+                "Repository %s should contain at least one of the"
                 " following configuration entries: %s, skipping!",
                 repo_id,
                 ", ".join(req_fields),

@@ -15,7 +15,7 @@ and to realign on the direction and goals of the project.
 The event was generously hosted by Microsoft this year at their Redmond campus
 in Seattle, Washington, and we are grateful to the Microsoft community members
 "on the ground" who coordinated with Canonical's cloud-init development team to
-help organise and run the event. Big thanks go as well to the Canonical
+help organize and run the event. Big thanks go as well to the Canonical
 community team for helping us to set up the event site, as well as for their
 support and guidance with all the planning involved.
 
@@ -29,7 +29,7 @@ our newer contributors in person.
 The first hybrid summit
 =======================
 
-This summit was organised as a hybrid event for the first time, and despite
+This summit was organized as a hybrid event for the first time, and despite
 some initial uncertainties about how to implement that, it worked very well.
 In-person attendees included developers and contributors from Microsoft,
 Google, Amazon, Oracle, openSUSE and we had remote presentations provided by
@@ -85,8 +85,8 @@ Presentation takeaways
   spelunking".
 
   This aligns well with Brett’s ongoing roadmap work to raise warnings from the
-  CLI and some of the strict JSON schema validation on network-config and user
-  data/vendor data.
+  CLI and some of the strict JSON schema validation on network-config and
+  user-data/vendor-data.
 
 * Good lessons from both AlpineLinux (Dermot Bradley), who investigated SSH
   alternatives like dropbearSSH and tinySSH, and FreeBSD (Mina Galić), who
@@ -124,7 +124,7 @@ Round-table discussions
 * **Shared test frameworks**: Azure intends to invest in integration testing
   with the cloud-init community, to develop distribution-agnostic best
   practices for verification of distribution releases, and boot-speed and image
-  health analysis. If there are ways we want to collaborate on generalised
+  health analysis. If there are ways we want to collaborate on generalized
   testing and verification of images, they may provide some development toward
   this cause.
 
@@ -132,7 +132,7 @@ Breakout sessions
 -----------------
 
 * **Private reviews of partner engagements** with Oracle and AWS, and Fabio
-  Martins, Kyler Horner, and James to prioritise ongoing work and plan for the
+  Martins, Kyler Horner, and James to prioritize ongoing work and plan for the
   future development of IPv6-only datasource support - as well as other
   features.
 
@@ -166,7 +166,7 @@ Thank you!
 ==========
 
 This event could not have taken place without the hard work and preparation of
-all our presenters, organisers, and the voices of our community members in
+all our presenters, organizers, and the voices of our community members in
 attendance. So, thank you again to everyone who participated, and we very much
 hope to see you again at the next cloud-init summit!
 

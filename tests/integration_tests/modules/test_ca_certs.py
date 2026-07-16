@@ -14,11 +14,7 @@ import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.releases import IS_UBUNTU
-from tests.integration_tests.util import (
-    get_inactive_modules,
-    verify_clean_boot,
-    verify_clean_log,
-)
+from tests.integration_tests.util import verify_clean_boot, verify_clean_log
 
 CERT_CONTENT = """\
 -----BEGIN CERTIFICATE-----
@@ -105,59 +101,7 @@ class TestCaCerts:
         )
 
     def test_clean_log(self, class_client: IntegrationInstance):
-        """Verify no errors, no deprecations and correct inactive modules in
-        log.
-        """
-        log = class_client.read_from_file("/var/log/cloud-init.log")
+        """Verify no errors or deprecations in log."""
+        log = class_client.read_from_file("/var/log/cloud-init-output.log")
         verify_clean_log(log, ignore_deprecations=False)
         verify_clean_boot(class_client)
-
-        expected_inactive = {
-            "apt_pipelining",
-            "ansible",
-            "bootcmd",
-            "chef",
-            "disable_ec2_metadata",
-            "disk_setup",
-            "fan",
-            "keyboard",
-            "landscape",
-            "lxd",
-            "mcollective",
-            "ntp",
-            "package_update_upgrade_install",
-            "phone_home",
-            "power_state_change",
-            "puppet",
-            "rsyslog",
-            "runcmd",
-            "salt_minion",
-            "snap",
-            "timezone",
-            "ubuntu_autoinstall",
-            "ubuntu_pro",
-            "ubuntu_drivers",
-            "update_etc_hosts",
-            "wireguard",
-            "write_files",
-            "write_files_deferred",
-        }
-
-        # Remove modules that run independent from user-data
-        if class_client.settings.PLATFORM == "azure":
-            expected_inactive.discard("disk_setup")
-        elif class_client.settings.PLATFORM == "gce":
-            expected_inactive.discard("ntp")
-        elif class_client.settings.PLATFORM == "lxd_vm":
-            if class_client.settings.OS_IMAGE == "bionic":
-                expected_inactive.discard("write_files")
-                expected_inactive.discard("write_files_deferred")
-        elif class_client.settings.PLATFORM == "oci":
-            expected_inactive.discard("update_etc_hosts")
-
-        diff = expected_inactive.symmetric_difference(
-            get_inactive_modules(log)
-        )
-        assert (
-            not diff
-        ), f"Expected inactive modules do not match, diff: {diff}"

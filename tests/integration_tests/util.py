@@ -6,14 +6,16 @@ import re
 import time
 from collections import namedtuple
 from contextlib import contextmanager
+from datetime import datetime
 from functools import lru_cache
 from itertools import chain
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional, Set, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple, Union
 
 import pytest
 
 from cloudinit.subp import subp
+from tests.integration_tests.decorators import retry
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, NOBLE
 
@@ -28,6 +30,14 @@ key_pair = namedtuple("key_pair", "public_key private_key")
 
 ASSETS_DIR = Path("tests/integration_tests/assets")
 KEY_PATH = ASSETS_DIR / "keys"
+
+HAS_CONSOLE_LOG = PLATFORM in (
+    "ec2",
+    "lxd_container",
+    "oci",
+    "openstack",
+    "qemu",
+)
 
 
 def verify_ordered_items_in_text(to_verify: list, text: str):
@@ -73,6 +83,7 @@ def verify_clean_boot(
     require_deprecations: Optional[list] = None,
     require_warnings: Optional[list] = None,
     require_errors: Optional[list] = None,
+    verify_schema: Optional[bool] = True,
 ):
     """Raise exception if the client experienced unexpected conditions.
 
@@ -100,6 +111,7 @@ def verify_clean_boot(
         require
     :param require_warnings: list of expected warning messages to require
     :param require_errors: list of expected error messages to require
+    :param verify_schema: bool set True to validate cloud-init schema --system
     """
 
     def append_or_create_list(
@@ -114,12 +126,18 @@ def verify_clean_boot(
             maybe_list = [value]
         return maybe_list
 
-    traceback_texts = []
+    if ignore_tracebacks is None:
+        ignore_tracebacks = []
     # Define exceptions by matrix of platform and Ubuntu release
     if "azure" == PLATFORM:
         # Consistently on all Azure launches:
         ignore_warnings = append_or_create_list(
             ignore_warnings, "No lease found; using default endpoint"
+        )
+        # Pro images sometimes hit a single 404 in early provisioning
+        ignore_warnings = append_or_create_list(
+            ignore_warnings,
+            "Polling IMDS failed attempt 1 with exception: UrlError('404",
         )
     elif "lxd_vm" == PLATFORM:
         # Ubuntu lxd storage
@@ -130,22 +148,28 @@ def verify_clean_boot(
             ignore_warnings,
             "Could not match supplied host pattern, ignoring:",
         )
-    elif "oracle" == PLATFORM:
+    elif "oci" == PLATFORM:
         # LP: #1842752
         ignore_errors = append_or_create_list(
             ignore_warnings, "Stderr: RTNETLINK answers: File exists"
         )
-        traceback_texts.append("Stderr: RTNETLINK answers: File exists")
+        if isinstance(ignore_tracebacks, list):
+            ignore_tracebacks.append("Stderr: RTNETLINK answers: File exists")
+        # Ubuntu lxd storage
+        ignore_warnings = append_or_create_list(
+            ignore_warnings, "thinpool by default on Ubuntu due to LP #1982780"
+        )
         # LP: #1833446
         ignore_warnings = append_or_create_list(
             ignore_warnings,
             "UrlError: 404 Client Error: Not Found for url: "
             "http://169.254.169.254/latest/meta-data/",
         )
-        traceback_texts.append(
-            "UrlError: 404 Client Error: Not Found for url: "
-            "http://169.254.169.254/latest/meta-data/"
-        )
+        if isinstance(ignore_tracebacks, list):
+            ignore_tracebacks.append(
+                "UrlError: 404 Client Error: Not Found for url: "
+                "http://169.254.169.254/latest/meta-data/"
+            )
         # Oracle has a file in /etc/cloud/cloud.cfg.d that contains
         # users:
         # - default
@@ -156,7 +180,7 @@ def verify_clean_boot(
             ignore_warnings,
             "Unable to disable SSH logins for opc given ssh_redirect_user",
         )
-
+    # Preserve platform-specific tracebacks expected
     _verify_clean_boot(
         instance,
         ignore_deprecations=ignore_deprecations,
@@ -166,6 +190,7 @@ def verify_clean_boot(
         require_deprecations=require_deprecations,
         require_warnings=require_warnings,
         require_errors=require_errors,
+        verify_schema=verify_schema,
     )
 
 
@@ -178,6 +203,7 @@ def _verify_clean_boot(
     require_deprecations: Optional[list] = None,
     require_warnings: Optional[list] = None,
     require_errors: Optional[list] = None,
+    verify_schema: Optional[bool] = True,
 ):
     ignore_deprecations = ignore_deprecations or []
     ignore_errors = ignore_errors or []
@@ -287,6 +313,9 @@ def _verify_clean_boot(
             "Required warnings not found", list(required_warnings_not_found)
         )
         message += _format_found(
+            "Found unexpected deprecations", list(unexpected_deprecations)
+        )
+        message += _format_found(
             "Required deprecations not found",
             list(required_deprecations_not_found),
         )
@@ -352,39 +381,34 @@ def _verify_clean_boot(
             f"{out.stdout}\nstderr:\n{out.stderr}"
         )
     else:
-        # we know that we should have a return code of 2
+        # Look at the commit history before making changes here.
+        # Behavior on Jenkins, GH CI, and local runs must be considered
+        # for all series.
         out = instance.execute("cloud-init status --long")
         rc = 2
-        # CI on main doesn't patch out this behavior so despite running on
-        # old releases it behaves as tip of main does
-        #
-        # GITHUB_BASE_REF is not defined if
-        #  1. The event that triggers a workflow run on GH CI is not
-        #     pull_request or pull_request_target.
-        #  2. The integration tests aren't run on GH but on Jenkins or locally
-        #     on a developer's machine.
-        #
-        # On Jenkins, rc should be 0. But, on GH CI on runs that are not
-        # not triggered from a pr event, we still want rc 2.
         if CURRENT_RELEASE < NOBLE:
-            if os.environ.get("ON_JENKINS"):
-                # We are on Jenkins testing against full packages
-                # Old releases return 0 for backwards compatibility
-                rc = 0
-            elif os.environ.get("GITHUB_ACTION"):
-                # On GH actions, integrations tests run on LXD without quilt
-                # patches
-                rc = 2
+            rc = 0
         assert rc == out.return_code, (
             f"Unexpected return code from `cloud-init status`. "
             f"Expected rc={rc}, received rc={out.return_code}\nstdout: "
             f"{out.stdout}\nstderr: {out.stderr}"
         )
+    if not verify_schema:
+        return
     schema = instance.execute("cloud-init schema --system --annotate")
-    assert schema.ok, (
-        f"Schema validation failed\nstdout:{schema.stdout}"
-        f"\nstderr:\n{schema.stderr}"
-    )
+    if "ibm" == PLATFORM:
+        # IBM provides invalid vendor-data resulting in schema errors
+        assert "Invalid schema: vendor-data" in schema.stderr
+        assert not schema.ok, (
+            f"Expected IBM schema validation errors due to vendor-data, did "
+            f"IBM images resolve this?\nstdout: {schema.stdout}\n"
+            f"stderr:\n{schema.stderr}"
+        )
+    else:
+        assert schema.ok, (
+            f"Schema validation failed\nstdout:{schema.stdout}"
+            f"\nstderr:\n{schema.stderr}"
+        )
 
 
 def verify_clean_log(log: str, ignore_deprecations: bool = True):
@@ -539,11 +563,32 @@ def get_console_log(client: "IntegrationInstance"):
         console_log = client.instance.console_log()
     except NotImplementedError:
         pytest.skip("NotImplementedError when requesting console log")
+    except RuntimeError as e:
+        if "open : no such file or directory" in str(e):
+            if hasattr(client, "lxc_log"):
+                return client.lxc_log
+        raise e
     if console_log is None:
         pytest.skip("Console log has not been setup")
     if console_log.lower().startswith("no console output"):
         pytest.fail("no console output")
+    if PLATFORM in ("lxd_vm", "lxd_container"):
+        # Preserve non empty console log on lxc platforms because
+        # lxc console --show-log can be called once and the log is flushed.
+        # Multiple calls to --show-log error on "no such file or directory".
+        client.lxc_log = console_log  # type: ignore[attr-defined]
     return console_log
+
+
+@retry(tries=5, delay=1)  # Retry on transient journalctl failures
+def get_journal_syslog(client: "IntegrationInstance") -> str:
+    """Syslog events are categorized _TRANSPORT=syslog from systemd v205."""
+    # Prefer syslog transport categorized messages over presence of
+    # /var/log/syslog as systemd v255 introduced systemd-executor
+    # which sandboxes unit processes resulting in direct writes to
+    # /dev/console being logged directly to journal binary instead
+    # of mirrored as rsyslog events.
+    return client.execute(["journalctl", "_TRANSPORT=syslog", "-b", "0"])
 
 
 @lru_cache()
@@ -563,6 +608,11 @@ def get_feature_flag_value(client: "IntegrationInstance", key):
     if "NameError" in value:
         raise NameError(f"name '{key}' is not defined")
     return value
+
+
+def has_netplanlib(client: "IntegrationInstance") -> bool:
+    """Return True if netplan python3 pkg is installed on the instance."""
+    return client.execute("dpkg-query -W python3-netplan").ok
 
 
 def override_kernel_command_line(ds_str: str, instance: "IntegrationInstance"):
@@ -611,3 +661,56 @@ def push_and_enable_systemd_unit(
     client.write_to_file(service_filename, content)
     client.execute(f"chmod 0644 {service_filename}", use_sudo=True)
     client.execute(f"systemctl enable {unit_name}", use_sudo=True)
+
+
+def network_wait_logged(log: str) -> bool:
+    return (
+        "Running command "
+        "['systemctl', 'start', 'systemd-networkd-wait-online.service']"
+    ) in log
+
+
+def get_datetime_from_string(
+    str, regex, datetime_strformat="%Y-%m-%d %H:%M:%S.%f%z"
+):
+    """
+    Extract datetime from a given line in a string
+    """
+    matched = re.search(regex, str, re.M)
+    assert matched, (
+        f"Unable to find the datetime using the regex {regex}",
+        f"inside the string {str}",
+    )
+
+    try:
+        converted_datetime = datetime.strptime(
+            matched.group(1), datetime_strformat
+        )
+    except ValueError:
+        pytest.fail(
+            " ".join(
+                (
+                    f"Unable to parse the datetime {matched.group(1)}",
+                    f"using the format {datetime_strformat}",
+                )
+            )
+        )
+    return converted_datetime
+
+
+def fetch_and_parse_etc_shadow(
+    client: "IntegrationInstance",
+) -> Tuple[Dict[str, str], List[str]]:
+    """Fetch /etc/shadow and parse it into Python data structures
+
+    Returns: ({user: password}, [duplicate, users])
+    """
+    shadow_content = client.read_from_file("/etc/shadow")
+    users = {}
+    dupes = []
+    for line in shadow_content.splitlines():
+        user, encpw = line.split(":")[0:2]
+        if user in users:
+            dupes.append(user)
+        users[user] = encpw
+    return users, dupes

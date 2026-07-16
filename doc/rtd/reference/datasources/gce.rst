@@ -3,17 +3,17 @@
 Google Compute Engine
 *********************
 
-The GCE datasource gets its data from the internal compute metadata server.
-Metadata can be queried at the URL
-:file:`http://metadata.google.internal/computeMetadata/v1/`
+The GCE datasource gets its data from the internal compute meta-data server.
+The instance metadata service can be queried at the URL
+:file:`http://meta-data.google.internal/computeMetadata/v1/`
 from within an instance. For more information see the `GCE metadata docs`_.
 
-Currently, the default project and instance level metadata keys
+Currently, the default project and instance level meta-data keys
 ``project/attributes/sshKeys`` and ``instance/attributes/ssh-keys`` are merged
 to provide ``public-keys``.
 
 ``user-data`` and ``user-data-encoding`` can be provided to ``cloud-init`` by
-setting those custom metadata keys for an *instance*.
+setting those custom meta-data keys for an *instance*.
 
 Configuration
 =============
@@ -33,7 +33,8 @@ The settings that may be configured are:
 
 * ``sec_between_retries``
 
-  The amount of wait time between retries when crawling the metadata service.
+  The amount of wait time between retries when crawling the instance metadata
+  service.
 
   Default: 1
 

@@ -5,6 +5,7 @@ import re
 import shutil
 from os.path import dirname
 from typing import Any, Dict, List
+from unittest import mock
 
 import pytest
 
@@ -15,7 +16,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import mock, skipUnlessJsonSchema
+from tests.unittests.helpers import skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
 NTP_TEMPLATE = """\
@@ -543,7 +544,7 @@ class TestNtp:
 
     @mock.patch("cloudinit.config.cc_ntp.subp.which")
     def test_ntp_distro_searches_all_preferred_clients(self, m_which):
-        """Test select_ntp_client search all distro perferred clients"""
+        """Test select_ntp_client search all distro preferred clients"""
         # nothing is installed
         m_which.return_value = None
         for distro in cc_ntp.distros:
@@ -577,14 +578,25 @@ class TestNtp:
             m_which.assert_has_calls(expected_calls)
             assert sorted(expected_cfg) == sorted(cfg)
 
+    @pytest.mark.parametrize(
+        "client,command,installed_package",
+        (("ntpdate", "ntpdate", "ntpdate"), ("ntp", "ntpd", "ntpsec")),
+    )
     @mock.patch("cloudinit.config.cc_ntp.write_ntp_config_template")
     @mock.patch("cloudinit.cloud.Cloud.get_template_filename")
     @mock.patch("cloudinit.config.cc_ntp.subp.which")
+    @mock.patch("cloudinit.util.rename")
     def test_ntp_custom_client_overrides_installed_clients(
-        self, m_which, m_tmpfn, m_write
+        self,
+        m_rename,
+        m_which,
+        m_tmpfn,
+        m_write,
+        client,
+        command,
+        installed_package,
     ):
         """Test user client is installed despite other clients present"""
-        client = "ntpdate"
         cfg = {"ntp": {"ntp_client": client}}
         for distro in cc_ntp.distros:
             # client is not installed
@@ -596,8 +608,16 @@ class TestNtp:
                 mycloud.distro, "manage_service"
             ):
                 cc_ntp.handle("notimportant", cfg, mycloud, [])
-            m_install.assert_called_with([client])
-            m_which.assert_called_with(client)
+            distro_client_packages = (
+                cc_ntp.DISTRO_CLIENT_CONFIG.get(distro, {})
+                .get(client, {})
+                .get("packages")
+            )
+            if distro_client_packages is None:
+                m_install.assert_called_with([installed_package])
+            else:
+                m_install.assert_called_with(distro_client_packages)
+            m_which.assert_called_with(command)
 
     @mock.patch("cloudinit.config.cc_ntp.subp.which")
     def test_ntp_system_config_overrides_distro_builtin_clients(self, m_which):

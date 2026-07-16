@@ -43,6 +43,7 @@
         "power-state-change",
         "power_state_change",
         "puppet",
+        "raspberry_pi",
         "reset-rmc",
         "reset_rmc",
         "resizefs",
@@ -444,7 +445,7 @@
         "ssh_redirect_user": {
           "type": "boolean",
           "default": false,
-          "description": "Boolean set to true to disable SSH logins for this user. When specified, all cloud meta-data public SSH keys will be set up in a disabled state for this username. Any SSH login as this username will timeout and prompt with a message to login instead as the **default_username** for this instance. Default: ``false``. This key can not be combined with **ssh_import_id** or **ssh_authorized_keys**."
+          "description": "Boolean set to true to disable SSH logins for this user. When specified, all cloud-provided public SSH keys will be set up in a disabled state for this username. Any SSH login as this username will timeout and prompt with a message to login instead as the **default_username** for this instance. Default: ``false``. This key can not be combined with **ssh_import_id** or **ssh_authorized_keys**."
         },
         "system": {
           "description": "Optional. Create user as system user with no home directory. Default: ``false``.",
@@ -490,6 +491,108 @@
               "changed_version": "22.3"
             }
           ]
+        }
+      }
+    },
+    "ansible.pull": {
+      "oneOf": [
+        {
+          "required": [
+            "url",
+            "playbook_name"
+          ]
+        },
+        {
+          "required": [
+            "url",
+            "playbook_names"
+          ]
+        }
+      ],
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "accept_host_key": {
+          "type": "boolean",
+          "default": false
+        },
+        "clean": {
+          "type": "boolean",
+          "default": false
+        },
+        "full": {
+          "type": "boolean",
+          "default": false
+        },
+        "diff": {
+          "type": "boolean",
+          "default": false
+        },
+        "ssh_common_args": {
+          "type": "string"
+        },
+        "scp_extra_args": {
+          "type": "string"
+        },
+        "sftp_extra_args": {
+          "type": "string"
+        },
+        "private_key": {
+          "type": "string"
+        },
+        "checkout": {
+          "type": "string"
+        },
+        "module_path": {
+          "type": "string"
+        },
+        "timeout": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "connection": {
+          "type": "string"
+        },
+        "vault_id": {
+          "type": "string"
+        },
+        "vault_password_file": {
+          "type": "string"
+        },
+        "verify_commit": {
+          "type": "boolean",
+          "default": false
+        },
+        "inventory": {
+          "type": "string"
+        },
+        "module_name": {
+          "type": "string"
+        },
+        "sleep": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "string"
+        },
+        "skip_tags": {
+          "type": "string"
+        },
+        "playbook_name": {
+          "deprecated": true,
+          "deprecated_version": "25.2",
+          "deprecated_description": "Use **playbook_names** key instead.",
+          "description": "Single playbook_name to run with ansible-pull",
+          "type": "string"
+        },
+        "playbook_names": {
+          "type": "array",
+          "description": "List of playbook_names to run with ansible-pull",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
@@ -562,6 +665,47 @@
         }
       },
       "minProperties": 1
+    },
+    "rh_subscription_activation_key": {
+      "type": "string",
+      "description": "The activation key to use. Must be used with **org**. Should not be used with **username** or **password**."
+    },
+    "rh_subscription_auto_attach": {
+      "type": "boolean",
+      "description": "Whether to attach subscriptions automatically."
+    },
+    "rh_subscription_service_level": {
+      "type": "string",
+      "description": "The service level to use when subscribing to RH repositories. ``auto_attach`` must be true for this to be used."
+    },
+    "rh_subscription_add_pool": {
+      "type": "array",
+      "description": "A list of pool IDs add to the subscription.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "rh_subscription_enable_repo": {
+      "type": "array",
+      "description": "A list of repositories to enable.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "rh_subscription_disable_repo": {
+      "type": "array",
+      "description": "A list of repositories to disable.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "rh_subscription_rhsm_baseurl": {
+      "type": "string",
+      "description": "Sets the baseurl in ``/etc/rhsm/rhsm.conf``."
+    },
+    "rh_subscription_server_hostname": {
+      "type": "string",
+      "description": "Sets the serverurl in ``/etc/rhsm/rhsm.conf``."
     },
     "modules_definition": {
       "type": "array",
@@ -662,7 +806,7 @@
           "type": "object",
           "deprecated": true,
           "deprecated_version": "24.2",
-          "deprecated_description": "System and/or distro specific settings. This is not intended to be overridden by user data or vendor data."
+          "deprecated_description": "System and/or distro specific settings. This is not intended to be overridden by user-data or vendor-data."
         }
       }
     },
@@ -670,7 +814,7 @@
       "type": "object",
       "properties": {
         "autoinstall": {
-          "description": "Opaque autoinstall schema definition for Ubuntu autoinstall. Full schema processed by live-installer. See: https://ubuntu.com/server/docs/install/autoinstall-reference.",
+          "description": "Cloud-init ignores this key and its values. It is used by Subiquity, the Ubuntu Autoinstaller. See: https://ubuntu.com/server/docs/install/autoinstall-reference.",
           "type": "object",
           "properties": {
             "version": {
@@ -866,85 +1010,21 @@
               "default": "ansible"
             },
             "pull": {
-              "required": [
-                "url",
-                "playbook_name"
-              ],
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "accept_host_key": {
-                  "type": "boolean",
-                  "default": false
+              "description": "pull playbooks from a VCS repo and run them on the host",
+              "oneOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/ansible.pull"
+                  }
                 },
-                "clean": {
-                  "type": "boolean",
-                  "default": false
-                },
-                "full": {
-                  "type": "boolean",
-                  "default": false
-                },
-                "diff": {
-                  "type": "boolean",
-                  "default": false
-                },
-                "ssh_common_args": {
-                  "type": "string"
-                },
-                "scp_extra_args": {
-                  "type": "string"
-                },
-                "sftp_extra_args": {
-                  "type": "string"
-                },
-                "private_key": {
-                  "type": "string"
-                },
-                "checkout": {
-                  "type": "string"
-                },
-                "module_path": {
-                  "type": "string"
-                },
-                "timeout": {
-                  "type": "string"
-                },
-                "url": {
-                  "type": "string"
-                },
-                "connection": {
-                  "type": "string"
-                },
-                "vault_id": {
-                  "type": "string"
-                },
-                "vault_password_file": {
-                  "type": "string"
-                },
-                "verify_commit": {
-                  "type": "boolean",
-                  "default": false
-                },
-                "inventory": {
-                  "type": "string"
-                },
-                "module_name": {
-                  "type": "string"
-                },
-                "sleep": {
-                  "type": "string"
-                },
-                "tags": {
-                  "type": "string"
-                },
-                "skip_tags": {
-                  "type": "string"
-                },
-                "playbook_name": {
-                  "type": "string"
+                {
+                  "$ref": "#/$defs/ansible.pull",
+                  "deprecated": true,
+                  "deprecated_version": "25.2",
+                  "deprecated_description": "Expect **ansible.pull** as list of objects instead of a single object."
                 }
-              }
+              ]
             }
           }
         }
@@ -1219,7 +1299,12 @@
               },
               "minItems": 1,
               "uniqueItems": true,
-              "description": "Create the necessary directories for chef to run. By default, it creates the following directories:\n- ``/etc/chef``\n- ``/var/log/chef``\n- ``/var/lib/chef``\n- ``/var/cache/chef``\n- ``/var/backups/chef``\n- ``/var/run/chef``"
+              "description": "Create the necessary directories for chef to run. By default, it creates the following directories:\n- ``/etc/chef``\n- ``/var/log/chef``\n- ``/var/lib/chef``\n- ``/var/chef/backup``\n- ``/var/chef/cache``\n- ``/var/run/chef``"
+            },
+            "config_path": {
+              "type": "string",
+              "default": "/etc/chef/client.rb",
+              "description": "Optional path for Chef configuration file. Default: ``/etc/chef/client.rb``"
             },
             "validation_cert": {
               "type": "string",
@@ -1257,13 +1342,13 @@
             },
             "file_backup_path": {
               "type": "string",
-              "default": "/var/backups/chef",
-              "description": "Specifies the location in which backup files are stored. By default, it uses the ``/var/backups/chef`` location."
+              "default": "/var/chef/backup",
+              "description": "Specifies the location in which backup files are stored. By default, it uses the ``/var/chef/backup`` location."
             },
             "file_cache_path": {
               "type": "string",
-              "default": "/var/cache/chef",
-              "description": "Specifies the location in which chef cache files will be saved. By default, it uses the ``/var/cache/chef`` location."
+              "default": "/var/chef/cache",
+              "description": "Specifies the location in which chef cache files will be saved. By default, it uses the ``/var/chef/cache`` location."
             },
             "json_attribs": {
               "type": "string",
@@ -1611,8 +1696,8 @@
           "properties": {
             "enabled": {
               "type": "boolean",
-              "default": true,
-              "description": "Whether to configure which device is used as the target for grub installation. Default: ``true``."
+              "default": false,
+              "description": "Whether to configure which device is used as the target for grub installation. Default: ``false``."
             },
             "grub-pc/install_devices": {
               "type": "string",
@@ -2024,7 +2109,7 @@
             "minItems": 1,
             "maxItems": 6
           },
-          "description": "List of lists. Each inner list entry is a list of ``/etc/fstab`` mount declarations of the format: [ fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno ]. A mount declaration with less than 6 items will get remaining values from **mount_default_fields**. A mount declaration with only `fs_spec` and no `fs_file` mountpoint will be skipped.",
+          "description": "List of lists. Each inner list entry is a list of ``/etc/fstab`` mount declarations of the format: [ fs_spec, fs_file, fs_vfstype, fs_mntops, fs_freq, fs_passno ]. A mount declaration with less than 6 items will get remaining values from **mount_default_fields**. A mount declaration with only `fs_spec` and no `fs_file` mountpoint will be skipped.",
           "minItems": 1
         },
         "mount_default_fields": {
@@ -2536,18 +2621,23 @@
           "properties": {
             "username": {
               "type": "string",
-              "description": "The username to use. Must be used with password. Should not be used with **activation-key** or **org**."
+              "description": "The username to use. Must be used with password. Should not be used with **activation_key** or **org**."
             },
             "password": {
               "type": "string",
-              "description": "The password to use. Must be used with username. Should not be used with **activation-key** or **org**."
+              "description": "The password to use. Must be used with username. Should not be used with **activation_key** or **org**."
+            },
+            "activation_key": {
+              "$ref": "#/$defs/rh_subscription_activation_key"
             },
             "activation-key": {
-              "type": "string",
-              "description": "The activation key to use. Must be used with **org**. Should not be used with **username** or **password**."
+              "$ref": "#/$defs/rh_subscription_activation_key",
+              "deprecated": true,
+              "deprecated_version": "25.3",
+              "deprecated_description": "Use **activation_key** instead."
             },
             "org": {
-              "description": "The organization to use. Must be used with **activation-key**. Should not be used with **username** or **password**.",
+              "description": "The organization to use. Must be used with **activation_key**. Should not be used with **username** or **password**.",
               "oneOf": [
                 {
                   "type": "string"
@@ -2560,42 +2650,197 @@
                 }
               ]
             },
+            "auto_attach": {
+              "$ref": "#/$defs/rh_subscription_auto_attach"
+            },
             "auto-attach": {
-              "type": "boolean",
-              "description": "Whether to attach subscriptions automatically."
+              "$ref": "#/$defs/rh_subscription_auto_attach",
+              "deprecated": true,
+              "deprecated_version": "25.3",
+              "deprecated_description": "Use **auto_attach** instead."
+            },
+            "service_level": {
+              "$ref": "#/$defs/rh_subscription_service_level"
             },
             "service-level": {
-              "type": "string",
-              "description": "The service level to use when subscribing to RH repositories. ``auto-attach`` must be true for this to be used."
+              "$ref": "#/$defs/rh_subscription_service_level",
+              "deprecated": true,
+              "deprecated_version": "25.3",
+              "deprecated_description": "Use **service_level** instead."
+            },
+            "add_pool": {
+              "$ref": "#/$defs/rh_subscription_add_pool"
             },
             "add-pool": {
-              "type": "array",
-              "description": "A list of pools ids add to the subscription.",
-              "items": {
-                "type": "string"
-              }
+              "$ref": "#/$defs/rh_subscription_add_pool",
+              "deprecated": true,
+              "deprecated_version": "25.3",
+              "deprecated_description": "Use **add_pool** instead."
+            },
+            "enable_repo": {
+              "$ref": "#/$defs/rh_subscription_enable_repo"
             },
             "enable-repo": {
-              "type": "array",
-              "description": "A list of repositories to enable.",
-              "items": {
-                "type": "string"
-              }
+              "$ref": "#/$defs/rh_subscription_enable_repo",
+              "deprecated": true,
+              "deprecated_version": "25.3",
+              "deprecated_description": "Use **enable_repo** instead."
+            },
+            "disable_repo": {
+              "$ref": "#/$defs/rh_subscription_disable_repo"
             },
             "disable-repo": {
-              "type": "array",
-              "description": "A list of repositories to disable.",
-              "items": {
-                "type": "string"
-              }
+              "$ref": "#/$defs/rh_subscription_disable_repo",
+              "deprecated": true,
+              "deprecated_version": "25.3",
+              "deprecated_description": "Use **disable_repo** instead."
+            },
+            "release_version": {
+              "type": "string",
+              "description": "Sets the release_version via``subscription-manager release --set=<release_version>`` then deletes the package manager cache ``/var/cache/{dnf,yum}`` . These steps are applied after any pool attachment and/or enabling/disabling repos. For more information about this key, check https://access.redhat.com/solutions/238533 ."
+            },
+            "rhsm_baseurl": {
+              "$ref": "#/$defs/rh_subscription_rhsm_baseurl"
             },
             "rhsm-baseurl": {
-              "type": "string",
-              "description": "Sets the baseurl in ``/etc/rhsm/rhsm.conf``."
+              "$ref": "#/$defs/rh_subscription_rhsm_baseurl",
+              "deprecated": true,
+              "deprecated_version": "25.3",
+              "deprecated_description": "Use **rhsm_baseurl** instead."
+            },
+            "server_hostname": {
+              "$ref": "#/$defs/rh_subscription_server_hostname"
             },
             "server-hostname": {
-              "type": "string",
-              "description": "Sets the serverurl in ``/etc/rhsm/rhsm.conf``."
+              "$ref": "#/$defs/rh_subscription_server_hostname",
+              "deprecated": true,
+              "deprecated_version": "25.3",
+              "deprecated_description": "Use **server_hostname** instead."
+            }
+          },
+          "allOf": [
+            {
+              "not": {
+                "required": [
+                  "activation_key",
+                  "activation-key"
+                ]
+              }
+            },
+            {
+              "not": {
+                "required": [
+                  "auto_attach",
+                  "auto-attach"
+                ]
+              }
+            },
+            {
+              "not": {
+                "required": [
+                  "service_level",
+                  "service-level"
+                ]
+              }
+            },
+            {
+              "not": {
+                "required": [
+                  "add_pool",
+                  "add-pool"
+                ]
+              }
+            },
+            {
+              "not": {
+                "required": [
+                  "enable_repo",
+                  "enable-repo"
+                ]
+              }
+            },
+            {
+              "not": {
+                "required": [
+                  "disable_repo",
+                  "disable-repo"
+                ]
+              }
+            },
+            {
+              "not": {
+                "required": [
+                  "rhsm_baseurl",
+                  "rhsm-baseurl"
+                ]
+              }
+            },
+            {
+              "not": {
+                "required": [
+                  "server_hostname",
+                  "server-hostname"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "cc_raspberry_pi": {
+      "type": "object",
+      "properties": {
+        "rpi": {
+          "type": "object",
+          "properties": {
+            "interfaces": {
+              "type": "object",
+              "properties": {
+                "spi": {
+                  "type": "boolean",
+                  "description": "Enable SPI interface. Default: ``false``.",
+                  "default": false
+                },
+                "i2c": {
+                  "type": "boolean",
+                  "description": "Enable I2C interface. Default: ``false``.",
+                  "default": false
+                },
+                "serial": {
+                  "default": false,
+                  "description": "Enable serial console. Default: ``false``.",
+                  "oneOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "console": {
+                          "type": "boolean",
+                          "description": "Enable login shell to be accessible over serial. Default: ``false``.",
+                          "default": false
+                        },
+                        "hardware": {
+                          "type": "boolean",
+                          "description": "Enable serial port hardware. Default: ``false``.",
+                          "default": false
+                        }
+                      }
+                    }
+                  ]
+                },
+                "onewire": {
+                  "type": "boolean",
+                  "description": "Enable 1-Wire interface. Default: ``false``.",
+                  "default": false
+                }
+              }
+            },
+            "enable_usb_gadget": {
+              "type": "boolean",
+              "default": false,
+              "description": "Enable Raspberry Pi USB Gadget mode. Default: ``false``."
             }
           }
         }
@@ -2759,7 +3004,7 @@
           "additionalProperties": false,
           "properties": {
             "enabled": {
-              "description": "Whether vendor data is enabled or not. Default: ``true``.",
+              "description": "Whether vendor-data is enabled or not. Default: ``true``.",
               "oneOf": [
                 {
                   "type": "boolean",
@@ -3220,7 +3465,7 @@
       "properties": {
         "manage_etc_hosts": {
           "default": false,
-          "description": "Whether to manage ``/etc/hosts`` on the system. If ``true``, render the hosts file using ``/etc/cloud/templates/hosts.tmpl`` replacing ``$hostname`` and ``$fdqn``. If ``localhost``, append a ``127.0.1.1`` entry that resolves from FQDN and hostname every boot. Default: ``false``.",
+          "description": "Whether to manage ``/etc/hosts`` on the system. If ``true``, render the hosts file using ``/etc/cloud/templates/hosts.tmpl`` replacing ``$hostname`` and ``$fqdn``. If ``localhost``, append a ``127.0.1.1`` entry that resolves from FQDN and hostname every boot. Default: ``false``.",
           "oneOf": [
             {
               "enum": [
@@ -3857,6 +4102,9 @@
       "$ref": "#/$defs/cc_puppet"
     },
     {
+      "$ref": "#/$defs/cc_raspberry_pi"
+    },
+    {
       "$ref": "#/$defs/cc_resizefs"
     },
     {
@@ -4006,6 +4254,7 @@
     "resize_rootfs": {},
     "resolv_conf": {},
     "rh_subscription": {},
+    "rpi": {},
     "rsyslog": {},
     "runcmd": {},
     "salt_minion": {},

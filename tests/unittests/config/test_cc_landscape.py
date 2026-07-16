@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
+from unittest import mock
 
 import pytest
 
@@ -10,7 +11,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import mock, skipUnlessJsonSchema, wrap_and_call
+from tests.unittests.helpers import skipUnlessJsonSchema, wrap_and_call
 from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
@@ -24,16 +25,16 @@ class TestLandscape:
         """Empty landscape cloud-config section does no work."""
         mycloud = get_cloud()
         mycloud.distro = mock.MagicMock()
-        cfg = {"landscape": {}}
-        cc_landscape.handle("notimportant", cfg, mycloud, None)
+        cfg: dict[str, dict] = {"landscape": {}}
+        cc_landscape.handle("notimportant", cfg, mycloud, [])
         assert mycloud.distro.install_packages.called is False
 
     def test_handler_error_on_invalid_landscape_type(self, m_subp):
-        """Raise an error when landscape configuraiton option is invalid."""
+        """Raise an error when landscape configuration option is invalid."""
         mycloud = get_cloud("ubuntu")
         cfg = {"landscape": "wrongtype"}
         with pytest.raises(RuntimeError) as exc:
-            cc_landscape.handle("notimportant", cfg, mycloud, None)
+            cc_landscape.handle("notimportant", cfg, mycloud, [])
         assert "'landscape' key existed in config, but not a dict" in str(
             exc.value
         )
@@ -42,15 +43,13 @@ class TestLandscape:
         """handler restarts landscape-client after install."""
         mycloud = get_cloud("ubuntu")
         mycloud.distro = mock.MagicMock()
-        cfg = {"landscape": {"client": {}}}
-        default_fn = tmpdir.join("default")
+        cfg: dict[str, dict[str, dict]] = {"landscape": {"client": {}}}
         wrap_and_call(
             "cloudinit.config.cc_landscape",
             {
                 "LSC_CLIENT_CFG_FILE": {
                     "new": tmpdir.join("client.conf").strpath
                 },
-                "LS_DEFAULT_FILE": {"new": default_fn.strpath},
             },
             cc_landscape.handle,
             "notimportant",
@@ -87,7 +86,6 @@ class TestLandscape:
         """Call landscape-config with any filesystem overrides."""
         mycloud = get_cloud("ubuntu")
         mycloud.distro = mock.MagicMock()
-        default_fn = tmpdir.join("default")
         client_fn = tmpdir.join("client.conf")
         client_fn.write("[client]\ndata_path = /var/lib/data\n")
         cfg = {
@@ -119,7 +117,6 @@ class TestLandscape:
             "cloudinit.config.cc_landscape",
             {
                 "LSC_CLIENT_CFG_FILE": {"new": client_fn.strpath},
-                "LS_DEFAULT_FILE": {"new": default_fn.strpath},
             },
             cc_landscape.handle,
             "notimportant",
@@ -139,10 +136,9 @@ class TestLandscape:
         # Write existing sparse client.conf file
         client_fn = tmpdir.join("client.conf")
         client_fn.write("[client]\ncomputer_title = My PC\n")
-        default_fn = tmpdir.join("default")
         mycloud = get_cloud("ubuntu")
         mycloud.distro = mock.MagicMock()
-        cfg = {"landscape": {"client": {}}}
+        cfg: dict[str, dict[str, dict]] = {"landscape": {"client": {}}}
         expected_calls = [
             mock.call(
                 ["landscape-config", "--silent", "--is-registered"], rcs=[5]
@@ -168,7 +164,6 @@ class TestLandscape:
             "cloudinit.config.cc_landscape",
             {
                 "LSC_CLIENT_CFG_FILE": {"new": client_fn.strpath},
-                "LS_DEFAULT_FILE": {"new": default_fn.strpath},
             },
             cc_landscape.handle,
             "notimportant",
@@ -185,7 +180,6 @@ class TestLandscape:
         # Write empty sparse client.conf file
         client_fn = tmpdir.join("client.conf")
         client_fn.write("")
-        default_fn = tmpdir.join("default")
         mycloud = get_cloud("ubuntu")
         mycloud.distro = mock.MagicMock()
         cfg = {"landscape": {"client": {"computer_title": 'My" PC'}}}
@@ -214,7 +208,6 @@ class TestLandscape:
             "cloudinit.config.cc_landscape",
             {
                 "LSC_CLIENT_CFG_FILE": {"new": client_fn.strpath},
-                "LS_DEFAULT_FILE": {"new": default_fn.strpath},
             },
             cc_landscape.handle,
             "notimportant",
@@ -239,7 +232,7 @@ class TestLandscape:
             "Stdout: Could not register client\nStderr: -"
         )
         with pytest.raises(RuntimeError, match=match):
-            cc_landscape.handle("notimportant", cfg, mycloud, None)
+            cc_landscape.handle("notimportant", cfg, mycloud, [])
 
     @mock.patch(f"{MPATH}.merge_together")
     def test_handler_client_is_already_registered(
@@ -252,7 +245,7 @@ class TestLandscape:
         m_subp.side_effect = subp.ProcessExecutionError(
             "Client already registered to Landscape", exit_code=0
         )
-        cc_landscape.handle("notimportant", cfg, mycloud, None)
+        cc_landscape.handle("notimportant", cfg, mycloud, [])
         assert "Client already registered to Landscape" in caplog.text
 
 

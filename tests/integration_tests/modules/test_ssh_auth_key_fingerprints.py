@@ -15,6 +15,11 @@ import pytest
 
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import (
+    OS_IMAGE_TYPE,
+    PLATFORM,
+)
+from tests.integration_tests.util import HAS_CONSOLE_LOG, get_journal_syslog
 
 USER_DATA_SSH_AUTHKEY_DISABLE = """\
 #cloud-config
@@ -45,12 +50,15 @@ class TestSshAuthkeyFingerprints:
     # in syslog
     @retry(tries=30, delay=1)
     @pytest.mark.user_data(USER_DATA_SSH_AUTHKEY_ENABLE)
+    @pytest.mark.skipif(
+        OS_IMAGE_TYPE == "minimal" and not HAS_CONSOLE_LOG,
+        reason=f"No console_log available for minimal images on {PLATFORM}",
+    )
     def test_ssh_authkey_fingerprints_enable(self, client):
-        syslog_output = client.read_from_file("/var/log/syslog")
-
-        assert re.search(r"256 SHA256:.*(ECDSA)", syslog_output) is not None
-        assert re.search(r"256 SHA256:.*(ED25519)", syslog_output) is not None
-        assert re.search(r"2048 SHA256:.*(RSA)", syslog_output) is None
+        log_output = get_journal_syslog(client)
+        assert re.search(r"256 SHA256:.*(ECDSA)", log_output) is not None
+        assert re.search(r"256 SHA256:.*(ED25519)", log_output) is not None
+        assert re.search(r"2048 SHA256:.*(RSA)", log_output) is None
 
 
 @pytest.mark.user_data(

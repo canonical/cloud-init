@@ -36,7 +36,7 @@ users:
   - name: newsuper
     gecos: Big Stuff
     groups: users, admin
-    sudo: ALL=(ALL) NOPASSWD:ALL
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
     hashed-password: asdfasdf
     shell: /bin/bash
     lock_passwd: true
@@ -51,7 +51,11 @@ class TestValidUserData:
         PR #575
         """
         result = class_client.execute("cloud-init schema --system")
-        assert result.ok
+        if PLATFORM == "ibm":
+            assert "Invalid schema: vendor-data" in result.stderr
+            assert not result.ok
+        else:
+            assert result.ok
         assert "Valid schema user-data" in result.stdout.strip()
         result = class_client.execute("cloud-init status --long")
         assert 0 == result.return_code, (
@@ -117,7 +121,7 @@ def test_invalid_userdata_schema(client: IntegrationInstance):
 
 @pytest.mark.user_data(FAILING_USER_DATA)
 def test_failing_userdata_modules_exit_codes(client: IntegrationInstance):
-    """Test failing in modules representd in exit status.
+    """Test failing in modules represented in exit status.
 
     To ensure we don't miss any errors or warnings if a service happens
     to be restarted, any further module invocations will exit with error

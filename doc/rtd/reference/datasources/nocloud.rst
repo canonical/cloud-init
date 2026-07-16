@@ -22,26 +22,28 @@ discovery configuration can be delivered to cloud-init in different ways, but
 is different from the configurations that cloud-init uses to configure the
 instance at runtime.
 
-user data
+user-data
 ---------
 
-User data is a :ref:`configuration format<user_data_formats>` that allows a
+User-data is a :ref:`configuration format<user_data_formats>` that allows a
 user to configure an instance.
 
-metadata
---------
+meta-data
+---------
 
-The ``meta-data`` file is a YAML-formatted file.
+The ``meta-data`` file is a YAML-formatted file which contains cloud-provided
+information to the instance. This is required to contain an ``instance-id``,
+with other cloud-specific keys available.
 
-vendor data
+vendor-data
 -----------
 
-Vendor data may be used to provide default cloud-specific configurations which
-may be overriden by user data. This may be useful, for example, to configure an
-instance with a cloud provider's repository mirror for faster package
+Vendor-data may be used to provide default cloud-specific configurations which
+may be overridden by user-data. This may be useful, for example, to configure
+an instance with a cloud provider's repository mirror for faster package
 installation.
 
-network config
+network-config
 --------------
 
 Network configuration typically comes from the cloud provider to set
@@ -49,7 +51,7 @@ cloud-specific network configurations, or a reasonable default is set by
 cloud-init (typically cloud-init brings up an interface using DHCP).
 
 Since NoCloud is a generic datasource, network configuration may be set the
-same way as user data, metadata, vendor data.
+same way as user-data, meta-data, vendor-data.
 
 See the :ref:`network configuration<network_config>` documentation for
 information on network configuration formats.
@@ -85,7 +87,7 @@ configuration.
 .. note::
 
    If using kernel command line arguments with GRUB, note that an
-   unescaped semicolon is intepreted as the end of a statement.
+   unescaped semicolon is interpreted as the end of a statement.
    See: `GRUB quoting`_
 
 Method 2: System configuration
@@ -116,13 +118,13 @@ that downstream distributions often use them to set reasonable default
 behaviors for cloud-init. This includes things such as which distro to behave
 as and which networking backend to use.
 
-The default values in :file:`/etc/cloud/cloud.cfg` may be overriden by drop-in
+The default values in :file:`/etc/cloud/cloud.cfg` may be overridden by drop-in
 files which are stored in :file:`/etc/cloud/cloud.cfg.d`.
 
 Configuration sources
 =====================
 
-User-data, metadata, network config, and vendor data may be sourced from one
+User-data, meta-data, network config, and vendor-data may be sourced from one
 of several possible locations, either locally or remotely.
 
 Source 1: Local filesystem
@@ -148,7 +150,7 @@ filesystem path for those that require more flexibility. This may be
 done with a line configuration: ::
 
 
-  ds=nocloud;s=file://path/to/directory/
+  ds=nocloud;s=file:///path/to/directory/
 
 Or a system configuration:
 
@@ -156,7 +158,7 @@ Or a system configuration:
 
    datasource:
      NoCloud:
-       seedfrom: file://path/to/directory
+       seedfrom: file:///path/to/directory
 
 Source 2: Drive with labeled filesystem
 ---------------------------------------
@@ -342,10 +344,10 @@ For example, you can pass this line configuration to QEMU: ::
 
   -smbios type=1,serial=ds=nocloud;s=http://10.10.0.1:8000/__dmi.chassis-serial-number__/
 
-This will cause NoCloud to fetch the full metadata from a URL based on
+This will cause NoCloud to fetch all data from a URL based on
 YOUR_SERIAL_NUMBER as seen in :file:`/sys/class/dmi/id/chassis_serial_number`
-(kenv on FreeBSD) from http://10.10.0.1:8000/YOUR_SERIAL_NUMBER/meta-data after
-the network initialisation is complete.
+(kenv on FreeBSD) from http://10.10.0.1:8000/YOUR_SERIAL_NUMBER/ after
+the network initialization is complete.
 
 
 Example: Creating a disk
@@ -364,7 +366,7 @@ sufficient disk by following the following example.
 
 2. At this stage you have three options:
 
-   a. Create a disk to attach with some user data and metadata:
+   a. Create a disk to attach with some user-data and meta-data:
 
       .. code-block:: sh
 
@@ -408,13 +410,13 @@ sufficient disk by following the following example.
       -drive driver=raw,file=seed.iso,if=virtio
 
 .. note::
-   Note that "passw0rd" was set as password through the user data above. There
+   Note that "passw0rd" was set as password through the user-data above. There
    is no password set on these images.
 
 .. note::
    The ``instance-id`` provided (``iid-local01`` above) is what is used to
    determine if this is "first boot". So, if you are making updates to
-   user data you will also have to change the ``instance-id``, or start the
+   user-data you will also have to change the ``instance-id``, or start the
    disk fresh.
 
 Example ``meta-data``

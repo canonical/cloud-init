@@ -1,17 +1,17 @@
 .. _check_user_data_cloud_config:
 
-How to validate user data cloud config
+How to validate user-data cloud config
 ======================================
 
-The two most common issues with cloud config user data are:
+The two most common issues with cloud config user-data are:
 
 1. Incorrectly formatted YAML
 2. The first line does not start with ``#cloud-config``
 
-Static user data validation
+Static user-data validation
 ---------------------------
 
-Cloud-init is capable of validating cloud config user data directly from
+Cloud-init is capable of validating cloud config user-data directly from
 its datasource (i.e. on a running cloud instance). To do this, you can run:
 
 .. code-block:: shell-session
@@ -52,5 +52,4 @@ command, but you are still having issues, then please refer to our
 To report any bugs you find, :ref:`refer to this guide <reporting_bugs>`.
 
 .. LINKS
-.. _validate-yaml.py: https://github.com/canonical/cloud-init/blob/main/tools/validate-yaml.py
 .. _validation service: https://github.com/aciba90/cloud-config-validator

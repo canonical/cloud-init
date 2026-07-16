@@ -42,7 +42,7 @@ class TestPhoneHome:
         )
 
     def test_no_url(self, m_readurl, caplog):
-        cfg = {"phone_home": {}}
+        cfg: dict[str, dict] = {"phone_home": {}}
         phone_home(cfg=cfg)
         assert "Skipping module named" in caplog.text
         assert m_readurl.call_count == 0
@@ -54,7 +54,9 @@ class TestPhoneHome:
             (0, -1),
             (1, 0),
             (2, 1),
-            ("2", 1),
+            # override parametrized id to differentiate str "2" from int 2 in
+            # former test GH pytest-dev/pytest#14650.
+            pytest.param("2", 1, id="retries-as-int-str"),
             ("two", 9),
             (None, 9),
             ({}, 9),

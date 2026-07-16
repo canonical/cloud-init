@@ -1,18 +1,21 @@
 cc_ubuntu_autoinstall:
   description: |
-    The ``autoinstall`` key indicates a configuration for the Ubuntu installer.
-    It is not acted on by cloud-init other than to ensure that the
-    configuration is schema compliant and that the installer package is
-    present on the system.
+    Cloud-init is used by the Ubuntu installer in two stages.
+    The ``autoinstall`` key may contain a configuration for the Ubuntu
+    installer.
+
+    Cloud-init verifies that an ``autoinstall`` key contains a ``version`` key
+    and that the installer package is present on the system.
 
     .. note::
-      The installer may use the provided configuration to instrument
-      cloud-init on the target system. See
-      `the Ubuntu installer documentation <https://canonical-subiquity.readthedocs-hosted.com/en/latest/reference/autoinstall-reference.html#user-data>`_
-      for more information.
+      The Ubuntu installer might pass part of this configuration to cloud-init
+      during a later boot as part of the install process.
+      See `the Ubuntu installer documentation <https://canonical-subiquity.readthedocs-hosted.com/en/latest/reference/autoinstall-reference.html#user-data>`_
+      for more information. Please direct Ubuntu installer questions to
+      their IRC channel (#ubuntu-server on Libera).
   examples:
     - comment: |
         Example 1:
       file: cc_ubuntu_autoinstall/example1.yaml
   name: Ubuntu Autoinstall
-  title: Support Ubuntu live-server install syntax
+  title: Autoinstall configuration is ignored (but validated) by cloud-init.

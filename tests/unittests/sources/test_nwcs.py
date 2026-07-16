@@ -1,8 +1,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import helpers, settings, util
+from unittest import mock
+
+import pytest
+
+from cloudinit import settings, util
 from cloudinit.sources import DataSourceNWCS
-from tests.unittests.helpers import CiTestCase, mock
 
 METADATA = util.load_yaml(
     """
@@ -26,22 +29,18 @@ vendordata: "test"
 )
 
 
-class TestDataSourceNWCS(CiTestCase):
+class TestDataSourceNWCS:
     """
     Test reading the metadata
     """
 
-    def setUp(self):
-        super(TestDataSourceNWCS, self).setUp()
-        self.tmp = self.tmp_dir()
-
-    def get_ds(self):
+    @pytest.fixture
+    def ds(self, paths, tmp_path):
         distro = mock.MagicMock()
-        distro.get_tmp_exec_path = self.tmp_dir
-        ds = DataSourceNWCS.DataSourceNWCS(
-            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": self.tmp})
+        distro.get_tmp_exec_path = str(tmp_path)
+        return DataSourceNWCS.DataSourceNWCS(
+            settings.CFG_BUILTIN, distro, paths
         )
-        return ds
 
     @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
     @mock.patch("cloudinit.sources.DataSourceNWCS.EphemeralDHCPv4")
@@ -55,6 +54,7 @@ class TestDataSourceNWCS(CiTestCase):
         m_fallback_nic,
         m_net,
         m_dhcp,
+        ds,
     ):
         m_ds_detect.return_value = True
         m_readmd.return_value = METADATA.copy()
@@ -69,41 +69,37 @@ class TestDataSourceNWCS(CiTestCase):
             }
         ]
 
-        ds = self.get_ds()
-        ret = ds.get_data()
-        self.assertTrue(ret)
+        assert ds.get_data()
 
         m_net.assert_called_once_with(
             ds.distro,
             iface="eth0",
-            connectivity_url_data={
-                "url": "http://169.254.169.254/api/v1/metadata/instance-id"
-            },
+            connectivity_urls_data=[
+                {"url": "http://169.254.169.254/api/v1/metadata/instance-id"}
+            ],
         )
 
-        self.assertTrue(m_readmd.called)
+        assert m_readmd.called
 
-        self.assertEqual(METADATA.get("hostname"), ds.get_hostname().hostname)
+        assert METADATA.get("hostname") == ds.get_hostname().hostname
 
-        self.assertEqual(METADATA.get("public-keys"), ds.get_public_ssh_keys())
+        assert METADATA.get("public-keys") == ds.get_public_ssh_keys()
 
-        self.assertIsInstance(ds.get_public_ssh_keys(), list)
-        self.assertEqual(ds.get_userdata_raw(), METADATA.get("userdata"))
-        self.assertEqual(ds.get_vendordata_raw(), METADATA.get("vendordata"))
+        assert isinstance(ds.get_public_ssh_keys(), list)
+        assert ds.get_userdata_raw() == METADATA.get("userdata")
+        assert ds.get_vendordata_raw() == METADATA.get("vendordata")
 
     @mock.patch("cloudinit.sources.DataSourceNWCS.read_metadata")
     @mock.patch("cloudinit.net.find_fallback_nic")
     @mock.patch("cloudinit.sources.DataSourceNWCS.DataSourceNWCS.ds_detect")
     def test_not_on_nwcs_returns_false(
-        self, m_ds_detect, m_find_fallback, m_read_md
+        self, m_ds_detect, m_find_fallback, m_read_md, ds
     ):
         """If 'ds_detect' returns False,
         return False from get_data."""
         m_ds_detect.return_value = False
-        ds = self.get_ds()
-        ret = ds.get_data()
+        assert not ds.get_data()
 
-        self.assertFalse(ret)
         # These are a white box attempt to ensure it did not search.
         m_find_fallback.assert_not_called()
         m_read_md.assert_not_called()
@@ -112,6 +108,6 @@ class TestDataSourceNWCS(CiTestCase):
     def test_get_interface_name(self, m_ifname):
         m_ifname.return_value = "eth0"
 
-        self.assertEqual(
-            m_ifname.return_value, METADATA["network"]["config"][0]["name"]
+        assert (
+            m_ifname.return_value == METADATA["network"]["config"][0]["name"]
         )

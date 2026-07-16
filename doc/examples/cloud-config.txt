@@ -22,7 +22,7 @@ packages:
 # set up mount points
 # 'mounts' contains a list of lists
 #  the inner list are entries for an /etc/fstab line
-#  ie : [ fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno ]
+#  ie : [ fs_spec, fs_file, fs_vfstype, fs_mntops, fs_freq, fs_passno ]
 #
 # default:
 # mounts:
@@ -109,7 +109,7 @@ runcmd:
  # Note: Don't write files to /tmp from cloud-init use /run/somedir instead.
  # Early boot environments can race systemd-tmpfiles-clean LP: #1707222.
  - mkdir /run/mydir
- - [ wget, "http://slashdot.org", -O, /run/mydir/index.html ]
+ - [ wcurl, "http://slashdot.org", -O, /run/mydir/index.html ]
 
 
 # boot commands
@@ -360,9 +360,9 @@ timezone: US/Eastern
 #    - name: user1
 #      password: password1
 #      type: text
-#    - user2
+#    - name: user2
 #      type: RANDOM
-#    - user3
+#    - name: user3
 #      password: $5$eriogqzq$Dg7PxHsKGzziuEGkZgkLvacjuEFeljJ.rLf.hZqKQLA
 #      type: hash
 #   expire: True
@@ -411,10 +411,10 @@ ssh_pwauth: True
 # syslog being taken down while cloud-init is running.
 #
 # delay: form accepted by shutdown.  default is 'now'. other format
-#        accepted is '+m' (m in minutes)
+#        accepted is an integer for the number of minutes to delay
 # mode: required. must be one of 'poweroff', 'halt', 'reboot'
 # message: provided as the message argument to 'shutdown'. default is none.
 power_state:
-  delay: '+30'
+  delay: 30
   mode: poweroff
   message: Bye Bye

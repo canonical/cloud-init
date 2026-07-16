@@ -3,6 +3,7 @@
 import glob
 import os
 import pathlib
+import sys
 import tarfile
 from datetime import datetime, timezone
 
@@ -140,8 +141,12 @@ class TestCollectLogs:
         )
         extract_to = tmp_path / "extracted"
         extract_to.mkdir()
+
+        tar_kwargs = {}
+        if sys.version_info > (3, 11):
+            tar_kwargs = {"filter": "fully_trusted"}
         with tarfile.open(tmp_path / "cloud-init.tar.gz") as tar:
-            tar.extractall(extract_to)
+            tar.extractall(extract_to, **tar_kwargs)  # type: ignore[arg-type]
         extracted_dir = extract_to / f"cloud-init-logs-{today}"
 
         for name in to_collect:

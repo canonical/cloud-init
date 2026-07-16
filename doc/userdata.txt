@@ -5,7 +5,7 @@ way or another.
 
 In EC2, the data is provided by the user via the '--user-data' or
 'user-data-file' argument to ec2-run-instances.  The EC2 cloud makes the
-data available to the instance via its meta-data service at
+data available to the instance via its instance metadata service at
 http://169.254.169.254/latest/user-data
 
 cloud-init can read this input and act on it in different ways.

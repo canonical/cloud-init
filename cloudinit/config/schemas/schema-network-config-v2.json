@@ -103,6 +103,10 @@
         "gateway6": {
           "$ref": "#/$defs/gateway"
         },
+        "optional": {
+          "type": "boolean",
+          "description": "Not required for online, false by default"
+        },
         "mtu": {
           "type": "integer",
           "description": "The MTU key represents a device\u2019s Maximum Transmission Unit, the largest size packet or frame, specified in octets (eight-bit bytes), that can be sent in a packet- or frame-based network. Specifying mtu is optional."

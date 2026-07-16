@@ -361,7 +361,7 @@ def is_skippable(part):
     return False
 
 
-# Coverts a raw string into a mime message
+# Converts a raw string into a mime message
 def convert_string(raw_data, content_type=NOT_MULTIPART_TYPE):
     """convert a string (more likely bytes) or a message into
     a mime message."""

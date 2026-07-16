@@ -11,8 +11,8 @@ from cloudinit import features
 class TestGetFeatures:
     def test_feature_without_override(self):
         # Since features are intended to be overridden downstream, mock them
-        # all here so new feature flags don't require a new change to this
-        # unit test.
+        # all here so that downstream changes to features do not require
+        # changes to this test.
         with mock.patch.multiple(
             "cloudinit.features",
             ERROR_ON_USER_DATA_FAILURE=True,
@@ -22,6 +22,8 @@ class TestGetFeatures:
             DEPRECATION_INFO_BOUNDARY="devel",
             NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH=False,
             APT_DEB822_SOURCE_LIST_FILE=True,
+            MANUAL_NETWORK_WAIT=False,
+            STRIP_INVALID_MTU=False,
         ):
             assert {
                 "ERROR_ON_USER_DATA_FAILURE": True,
@@ -31,4 +33,6 @@ class TestGetFeatures:
                 "NOCLOUD_SEED_URL_APPEND_FORWARD_SLASH": False,
                 "APT_DEB822_SOURCE_LIST_FILE": True,
                 "DEPRECATION_INFO_BOUNDARY": "devel",
+                "MANUAL_NETWORK_WAIT": False,
+                "STRIP_INVALID_MTU": False,
             } == features.get_features()

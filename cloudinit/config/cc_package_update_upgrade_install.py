@@ -106,8 +106,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             break
     if (upgrade or pkglist) and reboot_if_required and reboot_fn_exists:
         try:
-            LOG.warning(
-                "Rebooting after upgrade or install per %s", reboot_marker
+            LOG.info(
+                "***WARNING*** Rebooting after upgrade or install per %s",
+                reboot_marker,
             )
             # Flush the above warning + anything else out...
             flush_loggers(LOG)

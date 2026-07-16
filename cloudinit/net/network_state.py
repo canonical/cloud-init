@@ -16,6 +16,7 @@ from cloudinit.net import (
     ipv4_mask_to_net_prefix,
     ipv6_mask_to_net_prefix,
     is_ip_network,
+    is_ipv4_address,
     is_ipv4_network,
     is_ipv6_address,
     is_ipv6_network,
@@ -47,21 +48,26 @@ NETWORK_V2_KEY_FILTER = [
     "set-name",
     "wakeonlan",
     "accept-ra",
+    "optional",
 ]
 
 NET_CONFIG_TO_V2: Dict[str, Dict[str, Any]] = {
     "bond": {
         "bond-ad-select": "ad-select",
+        "bond-all-slaves-active": "all-slaves-active",
+        "bond-arp-all-targets": "arp-all-targets",
         "bond-arp-interval": "arp-interval",
         "bond-arp-ip-target": "arp-ip-target",
         "bond-arp-validate": "arp-validate",
         "bond-downdelay": "down-delay",
         "bond-fail-over-mac": "fail-over-mac-policy",
         "bond-lacp-rate": "lacp-rate",
+        "bond-learn-packet-interval": "learn-packet-interval",
         "bond-miimon": "mii-monitor-interval",
         "bond-min-links": "min-links",
         "bond-mode": "mode",
         "bond-num-grat-arp": "gratuitous-arp",
+        "bond-packets-per-slave": "packets-per-slave",
         "bond-primary": "primary",
         "bond-primary-reselect": "primary-reselect-policy",
         "bond-updelay": "up-delay",
@@ -409,8 +415,12 @@ class NetworkStateInterpreter:
         wakeonlan = command.get("wakeonlan", None)
         if wakeonlan is not None:
             wakeonlan = util.is_true(wakeonlan)
+        optional = command.get("optional", None)
+        if optional is not None:
+            optional = util.is_true(optional)
         iface.update(
             {
+                "config_id": command.get("config_id"),
                 "name": command.get("name"),
                 "type": command.get("type"),
                 "mac_address": command.get("mac_address"),
@@ -422,9 +432,16 @@ class NetworkStateInterpreter:
                 "subnets": subnets,
                 "accept-ra": accept_ra,
                 "wakeonlan": wakeonlan,
+                "optional": optional,
+                "keep_configuration": command.get("keep_configuration"),
             }
         )
-        self._network_state["interfaces"].update({command.get("name"): iface})
+
+        if iface["mac_address"]:
+            iface["mac_address"] = iface["mac_address"].lower()
+
+        iface_key = command.get("config_id", command.get("name"))
+        self._network_state["interfaces"].update({iface_key: iface})
         self.dump_network_state()
 
     @ensure_command_keys(["name", "vlan_id", "vlan_link"])
@@ -712,6 +729,7 @@ class NetworkStateInterpreter:
 
         for eth, cfg in command.items():
             phy_cmd = {
+                "config_id": eth,
                 "type": "physical",
             }
             match = cfg.get("match", {})
@@ -744,7 +762,7 @@ class NetworkStateInterpreter:
             driver = match.get("driver", None)
             if driver:
                 phy_cmd["params"] = {"driver": driver}
-            for key in ["mtu", "match", "wakeonlan", "accept-ra"]:
+            for key in ["mtu", "match", "wakeonlan", "accept-ra", "optional"]:
                 if key in cfg:
                     phy_cmd[key] = cfg[key]
 
@@ -781,6 +799,7 @@ class NetworkStateInterpreter:
                 "name": vlan,
                 "vlan_id": cfg.get("id"),
                 "vlan_link": cfg.get("link"),
+                "mac_address": cfg.get("macaddress"),
             }
             if "mtu" in cfg:
                 vlan_cmd["mtu"] = cfg["mtu"]
@@ -800,26 +819,14 @@ class NetworkStateInterpreter:
     def _v2_common(self, cfg) -> None:
         LOG.debug("v2_common: handling config:\n%s", cfg)
         for iface, dev_cfg in cfg.items():
-            if "set-name" in dev_cfg:
-                set_name_iface = dev_cfg.get("set-name")
-                if set_name_iface:
-                    iface = set_name_iface
             if "nameservers" in dev_cfg:
-                search = dev_cfg.get("nameservers").get("search", [])
-                dns = dev_cfg.get("nameservers").get("addresses", [])
+                search = dev_cfg.get("nameservers").get("search")
+                dns = dev_cfg.get("nameservers").get("addresses")
                 name_cmd = {"type": "nameserver"}
-                if len(search) > 0:
-                    name_cmd.update({"search": search})
-                if len(dns) > 0:
-                    name_cmd.update({"address": dns})
-
-                mac_address: Optional[str] = dev_cfg.get("match", {}).get(
-                    "macaddress"
-                )
-                if mac_address:
-                    real_if_name = find_interface_name_from_mac(mac_address)
-                    if real_if_name:
-                        iface = real_if_name
+                if search:
+                    name_cmd["search"] = search
+                if dns:
+                    name_cmd["address"] = dns
 
                 self._handle_individual_nameserver(name_cmd, iface)
 
@@ -850,8 +857,11 @@ class NetworkStateInterpreter:
                 cmd_type + "_interfaces": item_cfg.get("interfaces"),
                 "params": dict((v2key_to_v1[k], v) for k, v in params.items()),
             }
+
             if "mtu" in item_cfg:
                 v1_cmd["mtu"] = item_cfg["mtu"]
+            if "macaddress" in item_cfg:
+                v1_cmd["mac_address"] = item_cfg["macaddress"]
 
             warn_deprecated_all_devices(item_cfg)
             subnets = self._v2_to_v1_ipcfg(item_cfg)
@@ -926,6 +936,7 @@ class NetworkStateInterpreter:
                         "gateway": route.get("via"),
                         "metric": route.get("metric"),
                         "mtu": route.get("mtu"),
+                        "table": route.get("table"),
                     }
                 )
             )
@@ -993,6 +1004,22 @@ def _normalize_net_keys(network, address_keys=()):
         raise ValueError(message)
 
     addr = str(net.get(addr_key))
+    if addr == "default":
+        gw_ip = str(net.get("gateway"))
+        if not gw_ip:
+            message = "Gateway IP is empty"
+            LOG.error(message)
+            raise ValueError(message)
+
+        if is_ipv4_address(gw_ip):
+            addr = "0.0.0.0/0"
+        elif is_ipv6_address(gw_ip):
+            addr = "::/0"
+        else:
+            message = f"Invalid Gateway IP: '{gw_ip}'"
+            LOG.error(message)
+            raise ValueError(message)
+
     if not is_ip_network(addr):
         LOG.error("Address %s is not a valid ip network", addr)
         raise ValueError(f"Address {addr} is not a valid ip address")

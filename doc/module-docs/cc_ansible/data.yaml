@@ -9,8 +9,10 @@ cc_ansible:
   - comment: |
       Example 1:
     file: cc_ansible/example1.yaml
-  - comment: |
-      Example 2:
+  - comment: >
+      Example 2: Multiple ansible-pull URLs can be provided by providing a list
+      of pull objects. Additionally, multiple playbooks can be provided as a
+      space-separated playbook_name value.
     file: cc_ansible/example2.yaml
   name: Ansible
   title: Configure Ansible for instance

@@ -2,40 +2,28 @@
 [Unit]
 # https://docs.cloud-init.io/en/latest/explanation/boot.html
 Description=Cloud-init: Local Stage (pre-network)
-{% if variant in ["almalinux", "cloudlinux", "ubuntu", "unknown", "debian", "rhel"] %}
+{% if variant in ["almalinux", "azurelinux", "cloudlinux", "ubuntu", "unknown", "debian", "raspberry-pi-os", "rhel"] %}
 DefaultDependencies=no
 {% endif %}
 Wants=network-pre.target
 After=hv_kvp_daemon.service
-{% if variant in ["almalinux", "cloudlinux", "rhel"] %}
-Requires=dbus.socket
-After=dbus.socket
-{% endif %}
-Before=NetworkManager.service
-{% if variant in ["almalinux", "cloudlinux", "rhel"] %}
-Before=network.service
-{% endif %}
 Before=network-pre.target
 Before=shutdown.target
-{% if variant in ["almalinux", "cloudlinux", "rhel"] %}
+{% if variant in ["almalinux", "azurelinux", "cloudlinux", "rhel"] %}
 Before=firewalld.target
-Conflicts=shutdown.target
 {% endif %}
-{% if variant in ["ubuntu", "unknown", "debian"] %}
+{% if variant in ["ubuntu", "unknown", "debian", "raspberry-pi-os"] %}
 Before=sysinit.target
-Conflicts=shutdown.target
 {% endif %}
-RequiresMountsFor=/var/lib/cloud
+Conflicts=shutdown.target
 ConditionPathExists=!/etc/cloud/cloud-init.disabled
 ConditionKernelCommandLine=!cloud-init=disabled
 ConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled
 
 [Service]
 Type=oneshot
-{% if variant in ["almalinux", "cloudlinux", "rhel"] %}
-ExecStartPre=/bin/mkdir -p /run/cloud-init
+{% if variant in ["almalinux", "azurelinux", "cloudlinux", "rhel"] %}
 ExecStartPre=/sbin/restorecon /run/cloud-init
-ExecStartPre=/usr/bin/touch /run/cloud-init/enabled
 {% endif %}
 # This service is a shim which preserves systemd ordering while allowing a
 # single Python process to run cloud-init's logic. This works by communicating
@@ -44,7 +32,7 @@ ExecStartPre=/usr/bin/touch /run/cloud-init/enabled
 # process has completed this stage. The output from the return socket is piped
 # into a shell so that the process can send a completion message (defaults to
 # "done", otherwise includes an error message) and an exit code to systemd.
-ExecStart=sh -c 'echo "start" | netcat -Uu -W1 /run/cloud-init/share/local.sock -s /run/cloud-init/share/local-return.sock | sh'
+ExecStart=sh -c 'echo "start" | nc -U /run/cloud-init/share/local.sock | sh'
 RemainAfterExit=yes
 TimeoutSec=0
 

@@ -30,13 +30,6 @@ DISTRO_OVERRIDES = {
         "ca_cert_config": "/etc/ca-certificates/conf.d/cloud-init.conf",
         "ca_cert_update_cmd": ["update-ca-bundle"],
     },
-    "fedora": {
-        "ca_cert_path": "/etc/pki/ca-trust/",
-        "ca_cert_local_path": "/usr/share/pki/ca-trust-source/",
-        "ca_cert_filename": "anchors/cloud-init-ca-cert-{cert_index}.crt",
-        "ca_cert_config": None,
-        "ca_cert_update_cmd": ["update-ca-trust"],
-    },
     "rhel": {
         "ca_cert_path": "/etc/pki/ca-trust/",
         "ca_cert_local_path": "/usr/share/pki/ca-trust-source/",
@@ -60,37 +53,28 @@ DISTRO_OVERRIDES = {
     },
 }
 
-for distro in (
-    "opensuse-microos",
-    "opensuse-tumbleweed",
-    "opensuse-leap",
-    "sle_hpc",
-    "sle-micro",
-    "sles",
-):
-    DISTRO_OVERRIDES[distro] = DISTRO_OVERRIDES["opensuse"]
+DISTRO_FAMILY = {
+    "almalinux": "rhel",
+    "amazon": "rhel",
+    "centos": "rhel",
+    "cloudlinux": "rhel",
+    "fedora": "rhel",
+    "opensuse-microos": "opensuse",
+    "opensuse-tumbleweed": "opensuse",
+    "opensuse-leap": "opensuse",
+    "rocky": "rhel",
+    "sle_hpc": "opensuse",
+    "sle-micro": "opensuse",
+    "sles": "opensuse",
+}
 
-for distro in (
-    "almalinux",
-    "cloudlinux",
-):
-    DISTRO_OVERRIDES[distro] = DISTRO_OVERRIDES["rhel"]
-
-distros = [
-    "almalinux",
+distros = list(DISTRO_FAMILY.keys()) + [
     "aosc",
-    "cloudlinux",
     "alpine",
     "debian",
-    "fedora",
+    "raspberry-pi-os",
     "rhel",
     "opensuse",
-    "opensuse-microos",
-    "opensuse-tumbleweed",
-    "opensuse-leap",
-    "sle_hpc",
-    "sle-micro",
-    "sles",
     "ubuntu",
     "photon",
 ]
@@ -109,6 +93,8 @@ def _distro_ca_certs_configs(distro_name):
     @param distro_name: String providing the distro class name.
     @returns: Dict of distro configurations for ca_cert.
     """
+    if distro_name in DISTRO_FAMILY:
+        distro_name = DISTRO_FAMILY[distro_name]
     cfg = DISTRO_OVERRIDES.get(distro_name, DEFAULT_CONFIG)
     cfg["ca_cert_full_path"] = os.path.join(
         cfg["ca_cert_local_path"], cfg["ca_cert_filename"]
@@ -155,12 +141,18 @@ def disable_default_ca_certs(distro_name, distro_cfg):
     @param distro_name: String providing the distro class name.
     @param distro_cfg: A hash providing _distro_ca_certs_configs function.
     """
-    if distro_name in ["rhel", "photon"]:
+    if distro_name in ["rhel", "photon", "amazon"]:
         remove_default_ca_certs(distro_cfg)
-    elif distro_name in ["alpine", "aosc", "debian", "ubuntu"]:
+    elif distro_name in [
+        "alpine",
+        "aosc",
+        "debian",
+        "raspberry-pi-os",
+        "ubuntu",
+    ]:
         disable_system_ca_certs(distro_cfg)
 
-        if distro_name in ["debian", "ubuntu"]:
+        if distro_name in ["debian", "raspberry-pi-os", "ubuntu"]:
             debconf_sel = (
                 "ca-certificates ca-certificates/trust_new_crts " + "select no"
             )
@@ -249,6 +241,8 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             " Ignoring ca-certs."
         )
     ca_cert_cfg = cfg.get("ca_certs", cfg.get("ca-certs"))
+    if not isinstance(ca_cert_cfg, dict):
+        raise TypeError("unexpected type: {ca_cert_cfg}")
     distro_cfg = _distro_ca_certs_configs(cloud.distro.name)
 
     # If there is a remove_defaults option set to true, disable the system

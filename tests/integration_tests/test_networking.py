@@ -8,17 +8,20 @@ import yaml
 
 from cloudinit.subp import subp
 from tests.integration_tests import random_mac_address
-from tests.integration_tests.clouds import IntegrationCloud
+from tests.integration_tests.clouds import Ec2Cloud, IntegrationCloud
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import (
     CURRENT_RELEASE,
     IS_UBUNTU,
     JAMMY,
-    MANTIC,
     NOBLE,
 )
-from tests.integration_tests.util import verify_clean_boot, verify_clean_log
+from tests.integration_tests.util import (
+    has_netplanlib,
+    verify_clean_boot,
+    verify_clean_log,
+)
 
 # Older Ubuntu series didn't read cloud-init.* config keys
 LXD_NETWORK_CONFIG_KEY = (
@@ -67,13 +70,13 @@ class TestNetplanGenerateBehaviorOnReboot:
         client.execute(
             "mv /var/log/cloud-init.log /var/log/cloud-init.log.bak"
         )
-        if CURRENT_RELEASE < MANTIC:
+        if has_netplanlib(client):
+            assert "Rendered netplan config using netplan python API" in log
+        else:
             assert (
                 "No netplan python module. Fallback to write"
                 " /etc/netplan/50-cloud-init.yaml" in log
             )
-        else:
-            assert "Rendered netplan config using netplan python API" in log
         netplan = yaml.safe_load(
             client.execute("cat /etc/netplan/50-cloud-init.yaml")
         )
@@ -183,9 +186,7 @@ ethernets:
         pytest.param(NET_V2_MATCH_CONFIG, id="v2"),
     ),
 )
-def test_netplan_rendering(
-    net_config, session_cloud: IntegrationCloud, setup_image
-):
+def test_netplan_rendering(net_config, session_cloud: IntegrationCloud):
     mac_addr = random_mac_address()
     launch_kwargs = {
         "config_dict": {
@@ -199,10 +200,10 @@ def test_netplan_rendering(
     }
     with session_cloud.launch(launch_kwargs=launch_kwargs) as client:
         result = client.execute("cat /etc/netplan/50-cloud-init.yaml")
-        if CURRENT_RELEASE < MANTIC:
-            assert result.stdout.startswith(EXPECTED_NETPLAN_HEADER)
-        else:
+        if has_netplanlib(client):
             assert EXPECTED_NETPLAN_HEADER not in result.stdout
+        else:
+            assert result.stdout.startswith(EXPECTED_NETPLAN_HEADER)
         assert expected == yaml.safe_load(result.stdout)
 
 
@@ -223,9 +224,7 @@ version: 1
     reason="Test requires custom networking provided by LXD",
 )
 @pytest.mark.parametrize("net_config", (NET_V1_NAME_TOO_LONG,))
-def test_schema_warnings(
-    net_config, session_cloud: IntegrationCloud, setup_image
-):
+def test_schema_warnings(net_config, session_cloud: IntegrationCloud):
     # TODO: This test takes a lot more time than it needs to.
     # The default launch wait will wait until cloud-init done, but the
     # init network stage will wait 2 minutes for network timeout.
@@ -267,9 +266,7 @@ def test_schema_warnings(
     PLATFORM not in ("lxd_vm", "lxd_container"),
     reason="Test requires lxc exec feature due to broken network config",
 )
-def test_invalid_network_v2_netplan(
-    session_cloud: IntegrationCloud, setup_image
-):
+def test_invalid_network_v2_netplan(session_cloud: IntegrationCloud):
     mac_addr = random_mac_address()
 
     if PLATFORM == "lxd_vm":
@@ -292,16 +289,7 @@ def test_invalid_network_v2_netplan(
             "config_dict": config_dict,
         }
     ) as client:
-        # Netplan python API only available on MANTIC and later
-        if CURRENT_RELEASE < MANTIC:
-            assert (
-                "Skipping netplan schema validation. No netplan API available"
-            ) in client.read_from_file("/var/log/cloud-init.log")
-            assert (
-                "Skipping network-config schema validation for version: 2."
-                " No netplan API available."
-            ) in client.execute("cloud-init schema --system")
-        else:
+        if has_netplanlib(client):
             assert (
                 "network-config failed schema validation! You may run "
                 "'sudo cloud-init schema --system' to check the details."
@@ -314,10 +302,18 @@ def test_invalid_network_v2_netplan(
                 "# E1: Invalid netplan schema. Error in network definition:"
                 " invalid boolean value 'badval"
             ) in client.execute("cloud-init schema --system --annotate")
+        else:
+            assert (
+                "Skipping netplan schema validation. No netplan API available"
+            ) in client.read_from_file("/var/log/cloud-init.log")
+            assert (
+                "Skipping network-config schema validation for version: 2."
+                " No netplan API available."
+            ) in client.execute("cloud-init schema --system")
 
 
 @pytest.mark.skipif(PLATFORM != "ec2", reason="test is ec2 specific")
-def test_ec2_multi_nic_reboot(setup_image, session_cloud: IntegrationCloud):
+def test_ec2_multi_nic_reboot(session_cloud: IntegrationCloud):
     """Tests that additional secondary NICs and secondary IPs on them are
     routable from non-local networks after a reboot event when network updates
     are configured on every boot."""
@@ -348,7 +344,7 @@ def test_ec2_multi_nic_reboot(setup_image, session_cloud: IntegrationCloud):
 
 @pytest.mark.adhoc  # costly instance not available in all regions / azs
 @pytest.mark.skipif(PLATFORM != "ec2", reason="test is ec2 specific")
-def test_ec2_multi_network_cards(setup_image, session_cloud: IntegrationCloud):
+def test_ec2_multi_network_cards(session_cloud: Ec2Cloud):
     """
     Tests that with an interface type with multiple network cards (non unique
     device indexes).

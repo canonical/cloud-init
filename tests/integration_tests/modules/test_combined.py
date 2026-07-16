@@ -20,16 +20,26 @@ from pycloudlib.gce.instance import GceInstance
 import cloudinit.config
 from cloudinit import lifecycle
 from cloudinit.util import is_true
+from tests.integration_tests.clouds import Ec2Cloud
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.integration_settings import PLATFORM
-from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU, MANTIC
+from tests.integration_tests.integration_settings import (
+    OS_IMAGE_TYPE,
+    PLATFORM,
+)
+from tests.integration_tests.releases import (
+    CURRENT_RELEASE,
+    IS_RHEL,
+    IS_UBUNTU,
+    NOBLE,
+)
 from tests.integration_tests.util import (
     get_feature_flag_value,
     get_inactive_modules,
+    has_netplanlib,
     lxd_has_nocloud,
+    network_wait_logged,
     verify_clean_boot,
-    verify_clean_log,
     verify_ordered_items_in_text,
 )
 
@@ -53,7 +63,7 @@ UNWANTED_WORDS_WARNING_EXPECTED = [
     "ERROR",
 ]
 
-USER_DATA = """\
+USER_DATA_UBUNTU = """\
 #cloud-config
 users:
 - default
@@ -88,6 +98,52 @@ rsyslog:
         input(type="imtcp" port="514")
         $template RemoteLogs,"/var/spool/rsyslog/cloudinit.log"
         *.* ?RemoteLogs
+        & stop
+  remotes:
+    me: "127.0.0.1"
+runcmd:
+  - echo 'hello world' > /var/tmp/runcmd_output
+  - echo '💩' > /var/tmp/unicode_data
+
+  - #
+  - logger --server localhost --tcp --port 514 "My test log"
+snap:
+  commands:
+    - snap install hello-world
+ssh_import_id:
+  - gh:blackboxsw
+
+timezone: Europe/Madrid
+"""
+
+USER_DATA_RHEL = """\
+#cloud-config
+users:
+- default
+- name: craig
+  sudo: false  # make sure craig doesn't get elevated perms
+final_message: |
+  This is my final message!
+  $version
+  $timestamp
+  $datasource
+  $uptime
+locale: en_GB.UTF-8
+locale_configfile: /etc/locale.conf
+package_update: true
+random_seed:
+  data: 'MYUb34023nD:LFDK10913jk;dfnk:Df'
+  encoding: raw
+  file: /root/seed
+rsyslog:
+  configs:
+    - "*.* @@127.0.0.1"
+    - filename: 0-basic-config.conf
+      content: |
+        module(load="imtcp")
+        input(type="imtcp" port="514")
+        $template RemoteLogs,"/var/log/rsyslog-cloudinit.log"
+        *.* ?RemoteLogs
         & ~
   remotes:
     me: "127.0.0.1"
@@ -97,14 +153,23 @@ runcmd:
 
   - #
   - logger "My test log"
-snap:
-  commands:
-    - snap install hello-world
-ssh_import_id:
-  - lp:smoser
 
 timezone: Europe/Madrid
 """
+# Update this dict with proper user data to support new distros
+USER_DATA_BY_DISTRO = {
+    "ubuntu": USER_DATA_UBUNTU,
+    "rhel": USER_DATA_RHEL,
+    "centos": USER_DATA_RHEL,
+}
+
+if CURRENT_RELEASE.os not in USER_DATA_BY_DISTRO:
+    raise KeyError(
+        f"No USER_DATA for distro {CURRENT_RELEASE.os!r}. "
+        f"Add an entry to USER_DATA_BY_DISTRO for this distro."
+    )
+
+USER_DATA = USER_DATA_BY_DISTRO[CURRENT_RELEASE.os]
 
 
 @pytest.mark.ci
@@ -116,13 +181,13 @@ class TestCombined:
         Test that netplan config file is generated with proper permissions
         """
         log = class_client.read_from_file("/var/log/cloud-init.log")
-        if CURRENT_RELEASE < MANTIC:
+        if has_netplanlib(class_client):
+            assert "Rendered netplan config using netplan python API" in log
+        else:
             assert (
                 "No netplan python module. Fallback to write"
                 " /etc/netplan/50-cloud-init.yaml" in log
             )
-        else:
-            assert "Rendered netplan config using netplan python API" in log
         file_perms = class_client.execute(
             "stat -c %a /etc/netplan/50-cloud-init.yaml"
         )
@@ -168,18 +233,18 @@ class TestCombined:
         # user-data. Pass 22.2 in against the client's version_boundary.
         if lifecycle.should_log_deprecation("22.2", version_boundary):
             deprecated_messages.append(boundary_message)
-            verify_clean_boot(
-                class_client, require_deprecations=deprecated_messages
-            )
         else:
             # Expect the distros deprecated call to be redacted.
             # jsonschema still emits deprecation log due to changed_version
             # instead of deprecated_version
-            verify_clean_boot(
-                class_client, require_deprecations=deprecated_messages
-            )
             assert f"[INFO]: {boundary_message}" in log
+        verify_clean_boot(
+            class_client,
+            require_deprecations=deprecated_messages,
+            ignore_warnings=True,
+        )
 
+    @pytest.mark.skipif(IS_RHEL, reason="rhel does not support ntp module")
     def test_ntp_with_apt(self, class_client: IntegrationInstance):
         """LP #1628337.
 
@@ -192,6 +257,9 @@ class TestCombined:
         assert "W: Some index files failed to download" not in log
         assert "E: Unable to locate package ntp" not in log
 
+    @pytest.mark.skipif(
+        IS_RHEL, reason="rhel does not enable byobu by default"
+    )
     def test_byobu(self, class_client: IntegrationInstance):
         """Test byobu configured as enabled by default."""
         client = class_client
@@ -200,18 +268,24 @@ class TestCombined:
     def test_configured_locale(self, class_client: IntegrationInstance):
         """Test locale can be configured correctly."""
         client = class_client
-        default_locale = client.read_from_file("/etc/default/locale")
+        default_locale_file = (
+            "/etc/locale.conf" if IS_RHEL else "/etc/default/locale"
+        )
+        default_locale = client.read_from_file(default_locale_file)
         assert "LANG=en_GB.UTF-8" in default_locale
-
+        if IS_RHEL:
+            return
         locale_a = client.execute("locale -a")
-        verify_ordered_items_in_text(["en_GB.utf8", "en_US.utf8"], locale_a)
-
-        locale_gen = client.execute(
-            "cat /etc/locale.gen | grep -v '^#' | uniq"
-        )
-        verify_ordered_items_in_text(
-            ["en_GB.UTF-8", "en_US.UTF-8"], locale_gen
-        )
+        locale_gen = client.execute("grep -v '^#' /etc/locale.gen | uniq")
+        if OS_IMAGE_TYPE == "minimal":
+            # Minimal images don't have a en_US.utf8 locale
+            expected_locales = ["C.utf8", "en_GB.utf8"]
+            expected_locale_gen = ["en_GB.UTF-8", "UTF-8"]
+        else:
+            expected_locales = ["en_GB.utf8", "en_US.utf8"]
+            expected_locale_gen = ["en_GB.UTF-8", "en_US.UTF-8"]
+        verify_ordered_items_in_text(expected_locales, locale_a)
+        verify_ordered_items_in_text(expected_locale_gen, locale_gen)
 
     def test_random_seed_data(self, class_client: IntegrationInstance):
         """Integration test for the random seed module.
@@ -228,17 +302,22 @@ class TestCombined:
         assert result.startswith("MYUb34023nD:LFDK10913jk;dfnk:Df")
 
     def test_rsyslog(self, class_client: IntegrationInstance):
-        """Test rsyslog is configured correctly."""
-        client = class_client
-        assert "My test log" in client.read_from_file(
-            "/var/spool/rsyslog/cloudinit.log"
+        """Test rsyslog is configured correctly when applicable."""
+        # /var/spool/rsylog is not created on rhel by default
+        log_file = (
+            "/var/log/rsyslog-cloudinit.log"
+            if IS_RHEL
+            else "/var/spool/rsyslog/cloudinit.log"
         )
+        if class_client.execute("command -v rsyslogd").ok:
+            assert "My test log" in class_client.read_from_file(log_file)
 
     def test_runcmd(self, class_client: IntegrationInstance):
         """Test runcmd works as expected"""
         client = class_client
         assert "hello world" == client.read_from_file("/var/tmp/runcmd_output")
 
+    @pytest.mark.skipif(IS_RHEL, reason="rhel does not support snap module")
     def test_snap(self, class_client: IntegrationInstance):
         """Integration test for the snap module.
 
@@ -258,14 +337,12 @@ class TestCombined:
         """
         client = class_client
         timezone_output = client.execute(
-            'date "+%Z" --date="Thu, 03 Nov 2016 00:47:00 -0400"'
+            'date --date="Thu, 03 Nov 2016 00:47:00 -0400" "+%Z"'
         )
         assert timezone_output.strip() == "CET"
 
     def test_no_problems(self, class_client: IntegrationInstance):
-        """Test no errors, warnings, deprecations, tracebacks or
-        inactive modules.
-        """
+        """Test no errors, warnings, tracebacks or inactive modules."""
         client = class_client
         status_file = client.read_from_file("/run/cloud-init/status.json")
         status_json = json.loads(status_file)["v1"]
@@ -276,20 +353,49 @@ class TestCombined:
         assert result_json["errors"] == []
 
         log = client.read_from_file("/var/log/cloud-init.log")
-        verify_clean_log(log, ignore_deprecations=False)
-        requested_modules = {
-            "apt_configure",
-            "byobu",
-            "final_message",
-            "locale",
-            "ntp",
-            "seed_random",
-            "rsyslog",
-            "runcmd",
-            "snap",
-            "ssh_import_id",
-            "timezone",
-        }
+        require_warnings = []
+        if class_client.execute("command -v rsyslogd").failed:
+            # Some minimal images may not have an installed rsyslog package
+            # Test user-data doesn't provide install_rsyslog: true so expect
+            # warnings when not installed.
+            if CURRENT_RELEASE < NOBLE:
+                operation_name = "reload-or-try-restart"
+            else:
+                operation_name = "try-reload-or-restart"
+            require_warnings.append(
+                f"Failed to {operation_name} rsyslog.service: Unit"
+                " rsyslog.service not found."
+            )
+        # Set ignore_deprecations=True as test_deprecated_message covers this
+        verify_clean_boot(
+            client, ignore_deprecations=True, require_warnings=require_warnings
+        )
+        # remove modules that are not supported on rhel
+        requested_modules = (
+            {
+                "byobu",
+                "final_message",
+                "locale",
+                "seed_random",
+                "rsyslog",
+                "runcmd",
+                "timezone",
+            }
+            if IS_RHEL
+            else {
+                "apt_configure",
+                "byobu",
+                "final_message",
+                "locale",
+                "ntp",
+                "seed_random",
+                "rsyslog",
+                "runcmd",
+                "snap",
+                "ssh_import_id",
+                "timezone",
+            }
+        )
         inactive_modules = get_inactive_modules(log)
         assert not requested_modules.intersection(inactive_modules), (
             f"Expected active modules:"
@@ -315,6 +421,7 @@ class TestCombined:
                 "azure": "DataSourceAzure [seed=/dev/sr0]",
                 "ec2": "DataSourceEc2Local",
                 "gce": "DataSourceGCELocal",
+                "ibm": "DataSourceNoCloud [seed=/dev/vdb]",
                 "oci": "DataSourceOracle",
                 "openstack": "DataSourceOpenStackLocal [net,ver=2]",
                 "qemu": "DataSourceNoCloud [seed=/dev/vda][dsmode=net]",
@@ -326,12 +433,13 @@ class TestCombined:
 
     def test_cloud_id_file_symlink(self, class_client: IntegrationInstance):
         cloud_id = class_client.execute("cloud-id").stdout
-        expected_link_output = (
-            "'/run/cloud-init/cloud-id' -> "
-            f"'/run/cloud-init/cloud-id-{cloud_id}'"
+        expected_link_regex = (
+            r"['\"]/run/cloud-init/cloud-id['\"] -> "
+            f"['\"]/run/cloud-init/cloud-id-{cloud_id}['\"]"
         )
-        assert expected_link_output == str(
-            class_client.execute("stat -c %N /run/cloud-init/cloud-id")
+        assert re.match(
+            expected_link_regex,
+            class_client.execute("stat -c %N /run/cloud-init/cloud-id"),
         )
 
     def test_run_frequency(self, class_client: IntegrationInstance):
@@ -491,7 +599,11 @@ class TestCombined:
         assert v1_data["region"] is None
 
     @pytest.mark.skipif(PLATFORM != "ec2", reason="Test is ec2 specific")
-    def test_instance_json_ec2(self, class_client: IntegrationInstance):
+    def test_instance_json_ec2(
+        self,
+        class_client: IntegrationInstance,
+        session_cloud: Ec2Cloud,
+    ):
         client = class_client
         instance_json_file = client.read_from_file(
             "/run/cloud-init/instance-data.json"
@@ -514,7 +626,7 @@ class TestCombined:
         )
         assert v1_data["instance_id"] == client.instance.name
         assert v1_data["local_hostname"].startswith("ip-")
-        assert v1_data["region"] == client.cloud.cloud_instance.region
+        assert v1_data["region"] == session_cloud.cloud_instance.region
 
     @pytest.mark.skipif(PLATFORM != "gce", reason="Test is GCE specific")
     def test_instance_json_gce(self, class_client: IntegrationInstance):
@@ -722,10 +834,18 @@ class TestCombined:
 # cloud-init devel make-mime
 # cloud-init devel net-convert
 
+    @pytest.mark.skipif(not IS_UBUNTU, reason="Ubuntu-only behavior")
+    def test_networkd_wait_online(self, class_client: IntegrationInstance):
+        client = class_client
+        assert not network_wait_logged(
+            client.read_from_file("/var/log/cloud-init.log")
+        )
+
 
 @pytest.mark.user_data(USER_DATA)
 class TestCombinedNoCI:
     @retry(tries=30, delay=1)
+    @pytest.mark.skipif(IS_RHEL, reason="rhel skips ssh_import_id module")
     def test_ssh_import_id(self, class_client: IntegrationInstance):
         """Integration test for the ssh_import_id module.
 
@@ -738,8 +858,6 @@ class TestCombinedNoCI:
         """
         client = class_client
         ssh_output = client.read_from_file("/home/ubuntu/.ssh/authorized_keys")
-
-        assert "# ssh-import-id lp:smoser" in ssh_output
 
 
 def check_for_unwanted(

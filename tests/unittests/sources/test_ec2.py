@@ -297,7 +297,7 @@ def disable_is_resolvable():
 def _register_ssh_keys(rfunc, base_url, keys_data):
     r"""handle ssh key inconsistencies.
 
-    public-keys in the ec2 metadata is inconsistently formated compared
+    public-keys in the ec2 metadata is inconsistently formatted compared
     to other entries.
     Given keys_data of {name1: pubkey1, name2: pubkey2}
 
@@ -401,7 +401,7 @@ class TestEc2:
         mocker,
         tmpdir,
         md_version=None,
-        distro=None
+        distro=None,
     ):
         self.uris = []
         distro = distro or mock.MagicMock()
@@ -756,6 +756,33 @@ class TestEc2:
             assert log in caplog.record_tuples
 
     @responses.activate
+    def test_aws_token_503_success_after_retries(self, mocker, tmpdir):
+        """Verify that 503s fetching AWS tokens are retried.
+
+        GH-5577: Cloud-init fails on AWS if IMDSv2 returns a 503 error.
+        """
+        ds = self._setup_ds(
+            platform_data=self.valid_platform_data,
+            sys_cfg={
+                "datasource": {
+                    "Ec2": {
+                        "strict_id": False,
+                    }
+                }
+            },
+            md=None,
+            mocker=mocker,
+            tmpdir=tmpdir,
+        )
+
+        token_url = self.data_url("latest", data_item="api/token")
+        responses.add(responses.PUT, token_url, status=503)
+        responses.add(responses.PUT, token_url, status=503)
+        responses.add(responses.PUT, token_url, status=200, body="response")
+        assert ds.wait_for_metadata_service() is True
+        assert 3 == len(responses.calls)
+
+    @responses.activate
     def test_aws_token_redacted(self, caplog, mocker, tmpdir):
         """Verify that aws tokens are redacted when logged."""
         ds = self._setup_ds(
@@ -891,14 +918,14 @@ class TestEc2:
     @pytest.mark.usefixtures("disable_netdev_info")
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv6Network")
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
-    @mock.patch("cloudinit.distros.net.find_fallback_nic")
+    @mock.patch("cloudinit.distros.net.find_candidate_nics")
     @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
     @mock.patch("cloudinit.sources.DataSourceEc2.util.is_FreeBSD")
     def test_ec2_local_performs_dhcp_on_non_bsd(
         self,
         m_is_bsd,
         m_dhcp,
-        m_fallback_nic,
+        m_candidate_nics,
         m_net4,
         m_net6,
         caplog,
@@ -913,7 +940,7 @@ class TestEc2:
         When the platform data is valid, return True.
         """
 
-        m_fallback_nic.return_value = "eth9"
+        m_candidate_nics.return_value = ["eth9"]
         m_is_bsd.return_value = False
         m_dhcp.return_value = {
             "interface": "eth9",
@@ -945,6 +972,73 @@ class TestEc2:
             router="192.168.2.1",
             static_routes=None,
         )
+
+    @responses.activate
+    @pytest.mark.usefixtures("disable_netdev_info")
+    @mock.patch("cloudinit.net.ephemeral.EphemeralIPv6Network")
+    @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
+    @mock.patch("cloudinit.distros.net.find_candidate_nics")
+    @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
+    @mock.patch("cloudinit.sources.DataSourceEc2.util.is_FreeBSD")
+    def test_ec2_local_get_metadata_via_iterating_nics(
+        self,
+        m_is_bsd,
+        m_dhcp,
+        m_candidate_nics,
+        m_net4,
+        m_net6,
+        caplog,
+        mocker,
+        tmpdir,
+        disable_netdev_info,
+    ):
+        """DataSourceEc2Local iterates over candidate NICs and fetches metadata
+        until successful"""
+
+        m_candidate_nics.return_value = ["eth0", "eth1", "eth2"]
+        m_is_bsd.return_value = False
+        m_dhcp.side_effect = (
+            {
+                "interface": "eth0",
+                "fixed-address": "10.0.2.6",
+                "routers": "10.0.2.1",
+                "subnet-mask": "255.255.255.0",
+                "broadcast-address": "10.0.2.255",
+            },
+            {
+                "interface": "eth1",
+                "fixed-address": "192.168.2.7",
+                "routers": "192.168.2.1",
+                "subnet-mask": "255.255.255.0",
+                "broadcast-address": "192.168.2.255",
+            },
+            {
+                "interface": "eth2",
+                "fixed-address": "10.0.2.8",
+                "routers": "10.0.2.1",
+                "subnet-mask": "255.255.255.0",
+                "broadcast-address": "10.0.2.255",
+            },
+        )
+        self.datasource = ec2.DataSourceEc2Local
+        ds = self._setup_ds(
+            platform_data=self.valid_platform_data,
+            sys_cfg={"datasource": {"Ec2": {"strict_id": False}}},
+            md={"md": DEFAULT_METADATA},
+            distro=MockDistro("", {}, {}),
+            mocker=mocker,
+            tmpdir=tmpdir,
+        )
+        crawled_metadata = ds.crawl_metadata()
+        mocker.patch.object(
+            ds, "crawl_metadata", side_effect=[{}, crawled_metadata]
+        )
+
+        ret = ds.get_data()
+        assert True is ret
+        assert 2 == m_dhcp.call_count
+        assert 2 == m_net4.call_count
+        assert "eth1" == ds.distro.fallback_interface
 
     @responses.activate
     def test_get_instance_tags(self, mocker, tmpdir):
@@ -1317,7 +1411,7 @@ class TestBuildNicOrder:
                     "0a:0d:dd:44:cd:7b": 1,
                     "0a:f7:8d:96:f2:a2": 2,
                 },
-                id="no-device-number-info-subset-sort-by-nic-name",
+                id="no-device-number-info-extra-mac-sort-by-nic-name",
             ),
         ],
     )
@@ -1701,6 +1795,18 @@ class TestIdentifyPlatform:
         )
         assert ec2.CloudNames.AWS == ec2.identify_platform()
 
+    @pytest.mark.parametrize(
+        "vendor, expected",
+        (("Tilaa", ec2.CloudNames.TILAA), ("NOTilaa", ec2.CloudNames.UNKNOWN)),
+    )
+    def test_identify_tilaa(self, vendor, expected, mocker):
+        """positively identify Tilaa"""
+        mocker.patch(
+            "cloudinit.sources.DataSourceEc2._collect_platform_data",
+            return_value=self.collmock(vendor=vendor),
+        )
+        assert expected == ec2.identify_platform()
+
     @mock.patch("cloudinit.sources.DataSourceEc2._collect_platform_data")
     def test_identify_aws_endian(self, m_collect):
         """aws should be identified if uuid starts with ec2"""
@@ -1708,16 +1814,6 @@ class TestIdentifyPlatform:
             uuid="45E12AEC-DCD1-B213-94ED-012345ABCDEF"
         )
         assert ec2.CloudNames.AWS == ec2.identify_platform()
-
-    @mock.patch("cloudinit.sources.DataSourceEc2._collect_platform_data")
-    def test_identify_aliyun(self, m_collect):
-        """aliyun should be identified if product name equals to
-        Alibaba Cloud ECS
-        """
-        m_collect.return_value = self.collmock(
-            product_name="Alibaba Cloud ECS"
-        )
-        assert ec2.CloudNames.ALIYUN == ec2.identify_platform()
 
     @mock.patch("cloudinit.sources.DataSourceEc2._collect_platform_data")
     def test_identify_zstack(self, m_collect):
@@ -1774,3 +1870,56 @@ class TestIdentifyPlatform:
             product_name="Not 3DS Outscale VM".lower(),
         )
         assert ec2.CloudNames.UNKNOWN == ec2.identify_platform()
+
+
+class TestPreferElasticNics:
+    """Tests to ensure we are sorting NICs with Amazon drivers ahead of other
+    candidate NICs.
+
+    If a NIC is present with an Amazon driver, it is more likely to be the
+    interface which can reach the metadata server. Sorting it first speeds
+    up boot due to minimizing wait time in DataSourceEc2.wait_for_metadata.
+
+    See Also
+    =========
+    cloudinit.sources.DataSourceEc2._prefer_elastic_drivers
+    """
+
+    @pytest.fixture
+    def nics(self):
+        return ["eth0", "eth1", "eth2"]
+
+    @mock.patch(
+        "cloudinit.sources.DataSourceEc2.device_driver",
+        mock.MagicMock(return_value="device"),
+    )
+    def test_is_stable_when_no_elastic(self, nics):
+        assert nics == sorted(nics, key=ec2._prefer_elastic_drivers)
+
+    @mock.patch(
+        "cloudinit.sources.DataSourceEc2.device_driver",
+        mock.MagicMock(return_value="ena"),
+    )
+    def test_is_stable_when_all_elastic(self, nics):
+        assert nics == sorted(nics, key=ec2._prefer_elastic_drivers)
+
+    def test_prefers_elastic_interfaces(self):
+        non_elastic_nics = ["eth0", "eth1", "eth2"]
+        elastic_nics = ["eth3", "eth4", "eth5"]
+
+        def mock_driver_fn(nic):
+            if nic in non_elastic_nics:
+                return "driver"
+            elif nic in elastic_nics:
+                return "ena"
+            else:
+                raise ValueError(f"Unknown NIC: {nic}")
+
+        with mock.patch(
+            "cloudinit.sources.DataSourceEc2.device_driver",
+            wraps=mock_driver_fn,
+        ):
+            assert elastic_nics + non_elastic_nics == sorted(
+                non_elastic_nics + elastic_nics,
+                key=ec2._prefer_elastic_drivers,
+            )

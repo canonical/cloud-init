@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Series of integration tests covering apt functionality."""
+import logging
 import re
 from textwrap import dedent
 
@@ -9,13 +10,23 @@ from cloudinit.config import cc_apt_configure
 from cloudinit.util import is_true
 from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.integration_settings import PLATFORM
-from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU
+from tests.integration_tests.integration_settings import (
+    KEEP_INSTANCE,
+    PLATFORM,
+)
+from tests.integration_tests.releases import (
+    CURRENT_RELEASE,
+    IS_UBUNTU,
+    MANTIC,
+    QUESTING,
+)
 from tests.integration_tests.util import (
     get_feature_flag_value,
     verify_clean_boot,
-    verify_clean_log,
+    wait_for_cloud_init,
 )
+
+logger = logging.getLogger(__name__)
 
 DEB822_SOURCES_FILE = "/etc/apt/sources.list.d/ubuntu.sources"
 ORIG_SOURCES_FILE = "/etc/apt/sources.list"
@@ -54,7 +65,7 @@ apt:
       # Hard-code noble as devel releases may not see new packages for some time
       source: "deb http://ppa.launchpad.net/curtin-dev/daily/ubuntu noble main"
     test_ppa:
-      keyid: 441614D8
+      keyid: 3552C902B4DDF7BD38421821015D28D7441614D8
       keyserver: keyserver.ubuntu.com
       source: "ppa:simplestreams-dev/trunk"
     test_signed_by:
@@ -190,7 +201,7 @@ class TestApt:
                 CURRENT_RELEASE.series
             )
         )
-        if CURRENT_RELEASE.series < "mantic":
+        if CURRENT_RELEASE < MANTIC:
             ppa_path += ".list"
         else:
             ppa_path += ".sources"
@@ -303,6 +314,8 @@ apt:
       - default
 """
 DEFAULT_DATA = _DEFAULT_DATA.format(uri="")
+# IBM sets sources_list in vendordata. Unset it
+IBM_DEFAULT_DATA = DEFAULT_DATA + "\n  sources_list: ''\n"
 
 
 @pytest.mark.skipif(not IS_UBUNTU, reason="Apt usage")
@@ -324,13 +337,17 @@ class TestDefaults:
         sources_list = class_client.read_from_file(src_file)
         assert "{}.clouds.archive.ubuntu.com".format(zone) in sources_list
 
+    @pytest.mark.skipif(
+        PLATFORM == "ibm",
+        reason="IBM has apt.sources_list in vendor-data overriding defaults",
+    )
     def test_security(self, class_client: IntegrationInstance):
         """Test apt default security sources."""
         series = CURRENT_RELEASE.series
         feature_deb822 = is_true(
             get_feature_flag_value(class_client, "APT_DEB822_SOURCE_LIST_FILE")
         )
-        if class_client.settings.PLATFORM == "azure":
+        if PLATFORM == "azure":
             sec_url = "http://azure.archive.ubuntu.com/ubuntu/"
         else:
             sec_url = "http://security.ubuntu.com/ubuntu"
@@ -370,21 +387,58 @@ class TestDefaults:
             )
 
 
+@pytest.mark.skipif(not IS_UBUNTU, reason="Apt usage")
+@pytest.mark.skipif(
+    PLATFORM != "ibm",
+    reason="Overrides IBM-specific apt.sources_list in vendor-data",
+)
+@pytest.mark.user_data(IBM_DEFAULT_DATA)
+def test_security_ibm(client: IntegrationInstance):
+    """Test IBM APT default security sources."""
+    series = CURRENT_RELEASE.series
+    feature_deb822 = is_true(
+        get_feature_flag_value(client, "APT_DEB822_SOURCE_LIST_FILE")
+    )
+    sec_url = "http://mirrors.adn.networklayer.com/ubuntu"
+    if feature_deb822:
+        expected_cfg = dedent(
+            f"""\
+            Types: deb
+            URIs: {sec_url}
+            Suites: {series}-security
+            """
+        )
+        sources_list = client.read_from_file(DEB822_SOURCES_FILE)
+        assert expected_cfg in sources_list
+    else:
+        sources_list = client.read_from_file(ORIG_SOURCES_FILE)
+        # 3 lines from main, universe, and multiverse
+        sec_deb_line = f"deb {sec_url} {series}-security"
+        sec_src_deb_line = sec_deb_line.replace("deb ", "# deb-src ")
+        assert 3 == sources_list.count(sec_deb_line)
+        assert 3 == sources_list.count(sec_src_deb_line)
+
+
 DEFAULT_DATA_WITH_URI = _DEFAULT_DATA.format(
     uri='uri: "http://something.random.invalid/ubuntu"'
 )
 
 
-@pytest.mark.user_data(DEFAULT_DATA_WITH_URI)
-def test_default_primary_with_uri(client: IntegrationInstance):
+@pytest.mark.skipif(not IS_UBUNTU, reason="Apt usage")
+def test_default_primary_with_uri(session_cloud: IntegrationCloud):
     """Test apt default primary sources."""
-    feature_deb822 = is_true(
-        get_feature_flag_value(client, "APT_DEB822_SOURCE_LIST_FILE")
-    )
-    src_file = DEB822_SOURCES_FILE if feature_deb822 else ORIG_SOURCES_FILE
-    sources_list = client.read_from_file(src_file)
-    assert "archive.ubuntu.com" not in sources_list
-    assert "something.random.invalid" in sources_list
+    userdata = DEFAULT_DATA_WITH_URI
+    if PLATFORM == "ibm":
+        # IBM provides apt.sources_list in vendordata. Unset it
+        userdata += "\n  sources_list: ''\n"
+    with session_cloud.launch(user_data=userdata) as client:
+        feature_deb822 = is_true(
+            get_feature_flag_value(client, "APT_DEB822_SOURCE_LIST_FILE")
+        )
+        src_file = DEB822_SOURCES_FILE if feature_deb822 else ORIG_SOURCES_FILE
+        sources_list = client.read_from_file(src_file)
+        assert "archive.ubuntu.com" not in sources_list
+        assert "something.random.invalid" in sources_list
 
 
 DISABLED_DATA = """\
@@ -459,7 +513,7 @@ apt:
       # Hard-code noble as devel releases may not see new packages for some time
       source: "deb http://ppa.launchpad.net/curtin-dev/daily/ubuntu noble main"
     test_ppa:
-      keyid: 441614D8
+      keyid: 3552C902B4DDF7BD38421821015D28D7441614D8
       keyserver: keyserver.ubuntu.com
       source: "ppa:simplestreams-dev/trunk"
 """  # noqa: E501
@@ -470,25 +524,114 @@ RE_GPG_SW_PROPERTIES_INSTALLED = (
     r"software-properties-common', 'gnupg)"
 )
 
-REMOVE_GPG_USERDATA = """
+GPG_PACKAGES = "gpg software-properties-common"
+# On Ubuntu Resolute and newer, gpg-from-sq can replace the gpg metapackage
+# when gpg is removed. Remove other packages which rdepend on gpg to avoid
+# gpg-from-sq being installed as an alternative to gpg.
+GPG_PACKAGES_SQ = f"{GPG_PACKAGES}  python3-software-properties libgpgme45"
+
+REMOVE_GPG_USERDATA_TMPL = """
 #cloud-config
 runcmd:
-  - DEBIAN_FRONTEND=noninteractive apt-get remove gpg -y
+  - DEBIAN_FRONTEND=noninteractive apt-get remove {packages} -y
 """
 
 
+def _do_oci_customization(cloud_config: str):
+    """
+    Add a snap disable command to the cloud-config for OCI.
+
+    This is necessary to disable the oracle-cloud-agent snap on Oracle Cloud
+    in order to prevent it from interfering with apt during tests.
+    """
+    addition = "  - snap disable oracle-cloud-agent"
+    if PLATFORM == "oci":
+        logger.info(
+            "Running on Oracle Cloud, adding snap disable command to "
+            "cloud-config to disable the oracle-cloud-agent snap."
+        )
+        return cloud_config.replace("runcmd:", f"runcmd:\n{addition}")
+    return cloud_config
+
+
 @pytest.mark.skipif(not IS_UBUNTU, reason="Apt usage")
-def test_install_missing_deps(setup_image, session_cloud: IntegrationCloud):
+def test_install_missing_deps(session_cloud: IntegrationCloud):
+    """
+    Test the installation of missing dependencies using apt on an Ubuntu
+    system. This test is divided into two stages:
+    Stage 1 (Remove existing packages):
+    - Launch an instance with user-data that removes the 'gpg' and
+      'software-properties-common' packages.
+      - If on Oracle Cloud, add a command to the user-data to disable the
+        oracle-cloud-agent snap to prevent it from interfering with apt.
+    - Verify that the cloud-init log is clean and the boot process is clean.
+    - Verify the packages are actually uninstalled using dpkg.
+    - Create a snapshot of the instance after 'gpg' has been removed.
+    - If KEEP_INSTANCE is False, destroy the instance after snapshotting.
+    Stage 2 (re-install packages with user-data):
+    - Launch a new instance from the snapshot created in Stage 1 with
+      user-data that installs any missing recommended dependencies.
+    - Verify that the cloud-init log is clean and the boot process is clean.
+    - Check the cloud-init log to ensure that 'gpg' and
+      'software-properties-common' are installed successfully.
+    """
     # Two stage install: First stage:  remove gpg noninteractively from image
-    instance1 = session_cloud.launch(user_data=REMOVE_GPG_USERDATA)
+    if CURRENT_RELEASE <= QUESTING:
+        userdata = REMOVE_GPG_USERDATA_TMPL.format(packages=GPG_PACKAGES)
+    else:
+        userdata = REMOVE_GPG_USERDATA_TMPL.format(packages=GPG_PACKAGES_SQ)
+    instance1 = session_cloud.launch(user_data=_do_oci_customization(userdata))
+
+    # look for r"un  gpg" using regex ('un' means uninstalled)
+    for package in ["gpg", "software-properties-common"]:
+        dpkg_output = instance1.execute(
+            "dpkg-query --show --showformat='${db:Status-Status}' " + package
+        )
+        assert dpkg_output.stdout in ("not-installed", "config-files"), (
+            f"{package} package is still installed state {dpkg_output.stdout}."
+            " It should have been removed by the user-data."
+        )
+
     snapshot_id = instance1.snapshot()
-    instance1.destroy()
+    if not KEEP_INSTANCE:
+        logger.info("Destroying instance1 after snapshotting.")
+        instance1.destroy()
+    else:
+        logger.info(
+            "Not destroying instance1 after snapshotting because KEEP_INSTANCE"
+            " is True."
+        )
     # Second stage: provide active apt user-data which will install missing gpg
     with session_cloud.launch(
         user_data=INSTALL_ANY_MISSING_RECOMMENDED_DEPENDENCIES,
         launch_kwargs={"image_id": snapshot_id},
     ) as minimal_client:
+        wait_for_cloud_init(minimal_client)
         log = minimal_client.read_from_file("/var/log/cloud-init.log")
-        verify_clean_log(log)
-        verify_clean_boot(minimal_client)
         assert re.search(RE_GPG_SW_PROPERTIES_INSTALLED, log)
+        gpg_installed = re.search(
+            r"ii\s+gpg", minimal_client.execute("dpkg -l gpg").stdout
+        )
+        software_properties_common_installed = re.search(
+            r"ii\s+software-properties-common",
+            minimal_client.execute(
+                "dpkg -l software-properties-common"
+            ).stdout,
+        )
+        assert gpg_installed is not None, "gpg package is not installed."
+        assert (
+            software_properties_common_installed is not None
+        ), "software-properties-common package is not installed."
+
+        # It's a little weird that we're ignoring apt errors when testing apt,
+        # but we've already verified that we install the missing dependencies.
+        # To ensure `software-properties-common` is installed, we need to
+        # specify a ppa in our user data, and `apt update` can fail if no ppa
+        # has been uploaded for the release being tested. This isn't uncommon
+        # for the devel release and newer releases in general.
+        # Ignoring apt update errors seems preferable to playing whack-a-mole
+        # with ppas that may or may not be available.
+        verify_clean_boot(
+            minimal_client,
+            ignore_errors=["Failed to update package using apt"],
+        )

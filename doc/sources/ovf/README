@@ -26,7 +26,7 @@ box, follow the steps below.
 
   $ burl="http://cloud-images.ubuntu.com/releases/"
   $ disk="ubuntu-11.10-server-cloudimg-i386-disk1"
-  $ wget "$burl/11.10/release/$disk.img" -O "$disk.img"
+  $ wcurl "$burl/11.10/release/$disk.img" -O "$disk.img"
 
 - If you're going to use virtual box, you will need to convert the image
   from qcow2 format into a virtual-box friendly VHD format.  

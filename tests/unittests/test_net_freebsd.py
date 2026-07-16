@@ -1,10 +1,12 @@
 import os
+from unittest import mock
 
+import pytest
 import yaml
 
 import cloudinit.net
 import cloudinit.net.network_state
-from tests.unittests.helpers import CiTestCase, dir2dict, mock, readResource
+from tests.unittests.helpers import dir2dict, readResource
 
 SAMPLE_FREEBSD_IFCONFIG_OUT = readResource("netinfo/freebsd-ifconfig-output")
 V1 = """
@@ -29,7 +31,7 @@ version: 1
 """
 
 
-class TestInterfacesByMac(CiTestCase):
+class TestInterfacesByMac:
     @mock.patch("cloudinit.subp.subp")
     @mock.patch("cloudinit.util.is_FreeBSD")
     def test_get_interfaces_by_mac(self, mock_is_FreeBSD, mock_subp):
@@ -44,30 +46,18 @@ class TestInterfacesByMac(CiTestCase):
         }
 
 
-class TestFreeBSDRoundTrip(CiTestCase):
-    def _render_and_read(
-        self, network_config=None, state=None, netplan_path=None, target=None
-    ):
-        if target is None:
-            target = self.tmp_dir()
-            os.mkdir("%s/etc" % target)
-            with open("%s/etc/rc.conf" % target, "a") as fd:
-                fd.write("# dummy rc.conf\n")
-            with open("%s/etc/resolv.conf" % target, "a") as fd:
-                fd.write("# dummy resolv.conf\n")
-
-        if network_config:
-            ns = cloudinit.net.network_state.parse_net_config_data(
-                network_config
-            )
-        elif state:
-            ns = state
-        else:
-            raise ValueError("Expected data or state, got neither")
+@pytest.mark.usefixtures("fake_filesystem")
+class TestFreeBSDRoundTrip:
+    def _render_and_read(self, ns):
+        os.mkdir("/etc")
+        with open("/etc/rc.conf", "a") as fd:
+            fd.write("# dummy rc.conf\n")
+        with open("/etc/resolv.conf", "a") as fd:
+            fd.write("# dummy resolv.conf\n")
 
         renderer = cloudinit.net.freebsd.Renderer()
-        renderer.render_network_state(ns, target=target)
-        return dir2dict(target)
+        renderer.render_network_state(ns)
+        return dir2dict("/")
 
     @mock.patch(
         "cloudinit.subp.subp", return_value=(SAMPLE_FREEBSD_IFCONFIG_OUT, 0)
@@ -79,10 +69,10 @@ class TestFreeBSDRoundTrip(CiTestCase):
         }
         network_config = yaml.safe_load(entry["yaml"])
         ns = cloudinit.net.network_state.parse_net_config_data(network_config)
-        files = self._render_and_read(state=ns)
+        files = self._render_and_read(ns)
         assert files == {
-            "/etc/resolv.conf": "# dummy resolv.conf\n",
-            "/etc/rc.conf": (
+            "etc/resolv.conf": "# dummy resolv.conf\n",
+            "etc/rc.conf": (
                 "# dummy rc.conf\n"
                 "ifconfig_eno1="
                 "'inet 172.20.80.129 netmask 255.255.255.128 mtu 1470'\n"

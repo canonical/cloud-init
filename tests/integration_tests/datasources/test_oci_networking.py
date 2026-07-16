@@ -157,3 +157,50 @@ def test_oci_networking_system_cfg(client: IntegrationInstance, tmpdir):
     netplan_cfg = yaml.safe_load(netplan_yaml)
     expected_netplan_cfg = yaml.safe_load(SYSTEM_CFG)
     assert expected_netplan_cfg == netplan_cfg
+
+
+@pytest.mark.skipif(PLATFORM != "oci", reason="Test is OCI specific")
+def test_oci_keep_configuration_networking_config(
+    session_cloud: IntegrationCloud,
+):
+    """
+    Test to ensure the keep_configuration is applied on Oracle ISCSI instances.
+
+    This test launches a Baremetal OCI instance so that ISCSI is used, and
+    checks that the primary systemd network configuration file contains the
+    'KeepConfiguration=true' directive, which indicates that the network
+    configuration is preserved as expected.
+
+    Assertions:
+    - At least one netplan file exists under '/run/systemd/network'.
+    - The primary systemd network configuration file includes the
+        'KeepConfiguration=true' directive.
+    - The netplan configuration includes the 'critical: true' directive.
+    """
+    with session_cloud.launch(
+        launch_kwargs={
+            "instance_type": "BM.Optimized3.36",
+        },
+    ) as client:
+        r = client.execute("ls /run/systemd/network/10-netplan-*.network")
+        assert r.ok, (
+            "No netplan files found under /run/systemd/network. We are looking"
+            " for netplan files here to check that the underlying "
+            "'KeepConfiguration=true' directive is actually being applied to "
+            "the systemd network configuration."
+        )
+        primary_systemd_file: str = r.stdout.strip().splitlines()[0]
+        systemd_config = client.read_from_file(primary_systemd_file)
+        assert (
+            "KeepConfiguration=true" in systemd_config
+            or "CriticalConnection=true" in systemd_config
+        ), (
+            f"Neither 'KeepConfiguration=true' nor 'CriticalConnection=true' "
+            f"found in '{primary_systemd_file}':\n{primary_systemd_file}"
+        )
+        netplan_config = client.read_from_file(
+            "/etc/netplan/50-cloud-init.yaml",
+        )
+        assert (
+            "critical: true" in netplan_config
+        ), "critical: true not found in netplan config"

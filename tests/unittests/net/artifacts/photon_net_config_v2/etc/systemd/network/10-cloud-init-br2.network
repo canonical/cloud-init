@@ -1,0 +1,13 @@
+[Address]
+Address=192.168.50.10/24
+
+[Link]
+MACAddress=00:11:22:33:44:bb
+MTUBytes=1600
+
+[Match]
+Name=br2
+
+[Network]
+DHCP=no
+DNS=8.8.4.4

@@ -267,7 +267,6 @@ categories:
 
   * ``ParserError``
   * ``RendererNotFoundError``
-  * ``has_url_connectivity``
   * ``is_ip_address``
   * ``is_ipv4_address``
   * ``natural_sort_key``

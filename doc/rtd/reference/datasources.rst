@@ -4,28 +4,25 @@ Datasources
 ***********
 
 Datasources are sources of configuration data for ``cloud-init`` that typically
-come from the user (i.e., user data) or come from the cloud that created the
-configuration drive (i.e., metadata). Typical user data includes files,
-YAML, and shell scripts whereas typical metadata includes server name,
+come from the user (i.e., user-data) or come from the cloud that created the
+configuration drive (i.e., meta-data). Typical user-data includes files,
+YAML, and shell scripts whereas typical meta-data includes server name,
 instance id, display name, and other cloud specific details.
 
-Any metadata processed by ``cloud-init``'s datasources is persisted as
-:file:`/run/cloud-init/instance-data.json`. ``Cloud-init`` provides tooling to
-quickly introspect some of that data. See :ref:`instance_metadata` for more
-information.
+Any meta-data processed by ``cloud-init``'s datasources can be inspected. See
+:ref:`instance-data` for more information.
 
 How to configure which datasource to use
 ========================================
 
-By default ``cloud-init`` should automatically determine which datasource it is
-running on. Therefore, in most cases, users of ``cloud-init`` should not
-have to configure ``cloud-init`` to specify which datasource cloud-init is
-running on; ``cloud-init`` should "figure it out".
+In most cases, users of ``cloud-init`` should not have to configure
+``cloud-init`` to specify which datasource cloud-init is running on;
+``cloud-init`` should be able to identify the platform.
 
 There are exceptions, however, when the :ref:`datasource does not
-identify<datasource_ironic>` itself to ``cloud-init``. For these
-exceptions, one can override datasource detection either by configuring a
-single datasource in the :ref:`datasource_list<base_config_datasource_list>`,
+identify<datasource_ironic>` itself to ``cloud-init``. In this case, the
+datasource detection may be overridden by configuring a single datasource
+in the :ref:`datasource_list<base_config_datasource_list>`
 or by using :ref:`kernel command line arguments<kernel_datasource_override>`.
 
 .. _datasources_supported:
@@ -33,7 +30,7 @@ or by using :ref:`kernel command line arguments<kernel_datasource_override>`.
 Datasources:
 ============
 
-The following is a list of documentation for each supported datasource:
+The following is a page for each supported datasource:
 
 .. toctree::
    :titlesonly:
@@ -48,7 +45,6 @@ The following is a list of documentation for each supported datasource:
    datasources/cloudstack.rst
    datasources/configdrive.rst
    datasources/digitalocean.rst
-   datasources/e24cloud.rst
    datasources/exoscale.rst
    datasources/fallback.rst
    datasources/gce.rst
@@ -68,4 +64,3 @@ The following is a list of documentation for each supported datasource:
    datasources/vmware.rst
    datasources/vultr.rst
    datasources/wsl.rst
-   datasources/zstack.rst

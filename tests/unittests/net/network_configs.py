@@ -115,7 +115,30 @@ NETWORK_CONFIGS = {
             DNS=1.2.3.4 5.6.7.8
         """
         ).rstrip(" "),
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+                dns-nameservers 1.2.3.4 5.6.7.8
+                dns-search wark.maas
+
+            iface eth1 inet manual
+
+            auto eth99
+            iface eth99 inet dhcp
+
+            # control-alias eth99
+            iface eth99 inet static
+                address 192.168.21.3/24
+                dns-nameservers 8.8.8.8 8.8.4.4
+                dns-search barley.maas sach.maas
+                post-up ip route add default via 65.61.151.37 metric 10000 \
+|| true
+                pre-down ip route del default via 65.61.151.37 metric 10000 \
+|| true
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
@@ -249,6 +272,7 @@ NETWORK_CONFIGS = {
                 method=auto
                 may-fail=false
                 address1=192.168.21.3/24
+                route-metric=10000
                 route1=0.0.0.0/0,65.61.151.37
                 dns=8.8.8.8;8.8.4.4;
                 dns-search=barley.maas;sach.maas;
@@ -318,7 +342,28 @@ NETWORK_CONFIGS = {
             DHCP=no
         """
         ).rstrip(" "),
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            iface eth1 inet manual
+
+            auto eth99
+            iface eth99 inet dhcp
+
+            # control-alias eth99
+            iface eth99 inet static
+                address 192.168.21.3/24
+                dns-nameservers 8.8.8.8 8.8.4.4
+                dns-search barley.maas sach.maas
+                post-up ip route add default via 65.61.151.37 metric 10000 \
+|| true
+                pre-down ip route del default via 65.61.151.37 metric 10000 \
+|| true
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
@@ -420,6 +465,7 @@ NETWORK_CONFIGS = {
                 [ipv4]
                 method=auto
                 may-fail=false
+                route-metric=10000
                 route1=0.0.0.0/0,65.61.151.37
                 address1=192.168.21.3/24
                 dns=8.8.8.8;8.8.4.4;
@@ -466,7 +512,19 @@ NETWORK_CONFIGS = {
             DHCP=yes
         """
         ).rstrip(" "),
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet dhcp
+
+            # control-alias iface0
+            iface iface0 inet6 dhcp
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
@@ -560,7 +618,23 @@ NETWORK_CONFIGS = {
             Address=2001:1::1/64
         """
         ).rstrip(" "),
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+                mtu 1500
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
@@ -694,7 +768,22 @@ NETWORK_CONFIGS = {
             Address=2001:1::1/64
         """
         ).rstrip(" "),
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
@@ -783,6 +872,453 @@ NETWORK_CONFIGS = {
             ),
         },
     },
+    "v1_eni_ipv4_and_ipv6_static_dnsnameservers_only": {
+        "yaml_v1": textwrap.dedent(
+            """\
+            version: 1
+            config:
+                - type: physical
+                  name: iface0
+                  mac_address: c0:d6:9f:2c:e8:80
+                  mtu: 9000
+                  subnets:
+                      - type: static
+                        address: 192.168.14.2/24
+                        dns_nameservers: 8.8.8.8
+                      - type: static6
+                        address: 2001:1::1/64
+                        dns_nameservers: 2001:1::1f
+                - type: nameserver
+                  address:
+                    - 9.9.9.9
+        """
+        ).rstrip(" "),
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+                dns-nameservers 9.9.9.9
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                dns-nameservers 8.8.8.8
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+                dns-nameservers 2001:1::1f
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+                dns-nameservers 9.9.9.9
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                dns-nameservers 8.8.8.8
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+                dns-nameservers 2001:1::1f
+        """
+        ).rstrip(" "),
+    },
+    "v2_eni_ipv4_and_ipv6_static_dnsnameservers_only": {
+        "yaml_v2": textwrap.dedent(
+            """\
+            version: 2
+            ethernets:
+                iface0:
+                    addresses:
+                    - 192.168.14.2/24
+                    - 2001:1::1/64
+                    nameservers:
+                      addresses: [8.8.8.8, 2001:1::1f]
+                    mtu: 9000
+        """
+        ).rstrip(" "),
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                dns-nameservers 8.8.8.8
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+                dns-nameservers 2001:1::1f
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                dns-nameservers 8.8.8.8
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+                dns-nameservers 2001:1::1f
+        """
+        ).rstrip(" "),
+    },
+    "v1_eni_ipv4_and_ipv6_static_dns_only_ipv4": {
+        "yaml_v1": textwrap.dedent(
+            """\
+            version: 1
+            config:
+                - type: physical
+                  name: iface0
+                  mac_address: c0:d6:9f:2c:e8:80
+                  mtu: 9000
+                  subnets:
+                      - type: static
+                        address: 192.168.14.2/24
+                        dns_nameservers:
+                          - 8.8.8.8
+                        dns_search: [lab, home]
+                      - type: static6
+                        address: 2001:1::1/64
+                - type: nameserver
+                  address: 9.9.9.9
+                  search: [cafe]
+        """
+        ).rstrip(" "),
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+                dns-nameservers 9.9.9.9
+                dns-search cafe
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                dns-nameservers 8.8.8.8
+                dns-search lab home
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+                dns-nameservers 9.9.9.9
+                dns-search cafe
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                dns-nameservers 8.8.8.8
+                dns-search lab home
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+        """
+        ).rstrip(" "),
+    },
+    "v2_eni_ipv4_and_ipv6_static_dns_only_ipv4": {
+        "yaml_v2": textwrap.dedent(
+            """\
+            version: 2
+            ethernets:
+                iface0:
+                    addresses:
+                    - 192.168.14.2/24
+                    - 2001:1::1/64
+                    nameservers:
+                      search: [lab, home]
+                      addresses: 8.8.8.8
+                    mtu: 9000
+        """
+        ).rstrip(" "),
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                dns-nameservers 8.8.8.8
+                dns-search lab home
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                dns-nameservers 8.8.8.8
+                dns-search lab home
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+        """
+        ).rstrip(" "),
+    },
+    "v1_eni_ipv4_and_ipv6_static_dns_only_ipv6": {
+        "yaml_v1": textwrap.dedent(
+            """\
+            version: 1
+            config:
+                - type: physical
+                  name: iface0
+                  mac_address: c0:d6:9f:2c:e8:80
+                  mtu: 9000
+                  subnets:
+                      - type: static
+                        address: 192.168.14.2/24
+                      - type: static6
+                        address: 2001:1::1/64
+                        dns_nameservers:
+                          - 2001:1::1f
+                        dns_search: [lab, home]
+                - type: nameserver
+                  address: 2001:3db::2a
+                  search: [cafe]
+        """
+        ).rstrip(" "),
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+                dns-nameservers 2001:1::1f
+                dns-search lab home
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+                dns-nameservers 2001:1::1f
+                dns-search lab home
+        """
+        ).rstrip(" "),
+    },
+    "v2_eni_ipv4_and_ipv6_static_dns_only_ipv6": {
+        "yaml_v2": textwrap.dedent(
+            """\
+            version: 2
+            ethernets:
+                iface0:
+                    addresses:
+                    - 192.168.14.2/24
+                    - 2001:1::1/64
+                    nameservers:
+                      search: [lab, home]
+                      addresses: ["2001:1::1f"]
+                    mtu: 9000
+        """
+        ).rstrip(" "),
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+                dns-nameservers 2001:1::1f
+                dns-search lab home
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+                dns-nameservers 2001:1::1f
+                dns-search lab home
+        """
+        ).rstrip(" "),
+    },
+    "v1_eni_ipv4_and_ipv6_static_dns_both_ipv4_ipv6": {
+        "yaml_v1": textwrap.dedent(
+            """\
+            version: 1
+            config:
+                - type: physical
+                  name: iface0
+                  mac_address: c0:d6:9f:2c:e8:80
+                  mtu: 9000
+                  subnets:
+                      - type: static
+                        address: 192.168.14.2/24
+                        dns_nameservers:
+                          - 8.8.8.8
+                        dns_search: [lab, home]
+                      - type: static6
+                        address: 2001:1::1/64
+                        dns_nameservers:
+                          - 2001:1::1f
+                        dns_search: [lab, home]
+                - type: nameserver
+                  address: [9.9.9.9, 2001:3db::2a]
+                  search: [cafe]
+        """
+        ).rstrip(" "),
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+                dns-nameservers 9.9.9.9
+                dns-search cafe
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                dns-nameservers 8.8.8.8
+                dns-search lab home
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+                dns-nameservers 2001:1::1f
+                dns-search lab home
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+                dns-nameservers 9.9.9.9
+                dns-search cafe
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                dns-nameservers 8.8.8.8
+                dns-search lab home
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+                dns-nameservers 2001:1::1f
+                dns-search lab home
+        """
+        ).rstrip(" "),
+    },
+    "v2_eni_ipv4_and_ipv6_static_dns_both_ipv4_ipv6": {
+        "yaml_v2": textwrap.dedent(
+            """\
+            version: 2
+            ethernets:
+                iface0:
+                    addresses:
+                    - 192.168.14.2/24
+                    - 2001:1::1/64
+                    nameservers:
+                      search: [lab, home]
+                      addresses: [8.8.8.8, "2001:1::1f"]
+                    mtu: 9000
+        """
+        ).rstrip(" "),
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                dns-nameservers 8.8.8.8
+                dns-search lab home
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+                dns-nameservers 2001:1::1f
+                dns-search lab home
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                dns-nameservers 8.8.8.8
+                dns-search lab home
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+                dns-nameservers 2001:1::1f
+                dns-search lab home
+        """
+        ).rstrip(" "),
+    },
     "v6_and_v4": {
         "expected_sysconfig_opensuse": {
             "ifcfg-iface0": textwrap.dedent(
@@ -843,7 +1379,16 @@ NETWORK_CONFIGS = {
             DHCP=ipv6
         """
         ).rstrip(" "),
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet6 dhcp
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
@@ -928,14 +1473,24 @@ NETWORK_CONFIGS = {
         },
     },
     "dhcpv6_accept_ra": {
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
 
             auto iface0
             iface iface0 inet6 dhcp
-                accept_ra 1
+                accept-ra 1
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet6 dhcp
+                accept-ra 1
         """
         ).rstrip(" "),
         "expected_netplan": textwrap.dedent(
@@ -998,19 +1553,29 @@ NETWORK_CONFIGS = {
                 Name=iface0
                 [Network]
                 DHCP=ipv6
-                IPv6AcceptRA=True
+                IPv6AcceptRA=yes
             """
         ).rstrip(" "),
     },
     "dhcpv6_reject_ra": {
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
 
             auto iface0
             iface iface0 inet6 dhcp
-                accept_ra 0
+                accept-ra 0
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet6 dhcp
+                accept-ra 0
         """
         ).rstrip(" "),
         "expected_netplan": textwrap.dedent(
@@ -1073,12 +1638,22 @@ NETWORK_CONFIGS = {
                 Name=iface0
                 [Network]
                 DHCP=ipv6
-                IPv6AcceptRA=False
+                IPv6AcceptRA=no
             """
         ).rstrip(" "),
     },
     "ipv6_slaac": {
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet6 auto
+                dhcp 0
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
@@ -1201,7 +1776,17 @@ NETWORK_CONFIGS = {
         },
     },
     "dhcpv6_stateless": {
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+        auto lo
+        iface lo inet loopback
+
+        auto iface0
+        iface iface0 inet6 auto
+            dhcp 1
+    """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
         auto lo
         iface lo inet loopback
@@ -1286,7 +1871,16 @@ NETWORK_CONFIGS = {
         },
     },
     "dhcpv6_stateful": {
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+        auto lo
+        iface lo inet loopback
+
+        auto iface0
+        iface iface0 inet6 dhcp
+    """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
         auto lo
         iface lo inet loopback
@@ -1346,7 +1940,16 @@ NETWORK_CONFIGS = {
         },
     },
     "wakeonlan_disabled": {
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet dhcp
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
@@ -1419,7 +2022,17 @@ NETWORK_CONFIGS = {
         ).rstrip(" "),
     },
     "wakeonlan_enabled": {
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet dhcp
+                ethernet-wol g
+        """
+        ).rstrip(" "),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
@@ -1496,7 +2109,7 @@ NETWORK_CONFIGS = {
         ).rstrip(" "),
     },
     "large_v1": {
-        "expected_eni": """\
+        "expected_eni_ip_cmd": """\
 auto lo
 iface lo inet loopback
     dns-nameservers 8.8.8.8 4.4.4.4 8.8.4.4
@@ -1507,16 +2120,16 @@ iface eth0 inet manual
 auto eth1
 iface eth1 inet manual
     bond-master bond0
+    bond-miimon 100
     bond-mode active-backup
     bond-xmit-hash-policy layer3+4
-    bond_miimon 100
 
 auto eth2
 iface eth2 inet manual
     bond-master bond0
+    bond-miimon 100
     bond-mode active-backup
     bond-xmit-hash-policy layer3+4
-    bond_miimon 100
 
 iface eth3 inet manual
 
@@ -1533,29 +2146,124 @@ iface ib0 inet static
 
 auto bond0
 iface bond0 inet6 dhcp
+    bond-miimon 100
     bond-mode active-backup
     bond-slaves none
     bond-xmit-hash-policy layer3+4
-    bond_miimon 100
     hwaddress aa:bb:cc:dd:ee:ff
 
 auto br0
 iface br0 inet static
     address 192.168.14.2/24
-    bridge_ageing 250
-    bridge_bridgeprio 22
-    bridge_fd 1
-    bridge_gcint 2
-    bridge_hello 1
-    bridge_maxage 10
-    bridge_pathcost eth3 50
-    bridge_pathcost eth4 75
-    bridge_portprio eth3 28
-    bridge_portprio eth4 14
-    bridge_ports eth3 eth4
-    bridge_stp off
-    bridge_waitport 1 eth3
-    bridge_waitport 2 eth4
+    bridge-ageing 250
+    bridge-bridgeprio 22
+    bridge-fd 1
+    bridge-gcint 2
+    bridge-hello 1
+    bridge-maxage 10
+    bridge-pathcost eth3 50
+    bridge-pathcost eth4 75
+    bridge-portprio eth3 28
+    bridge-portprio eth4 14
+    bridge-ports eth3 eth4
+    bridge-stp off
+    bridge-waitport 1 eth3
+    bridge-waitport 2 eth4
+    hwaddress bb:bb:bb:bb:bb:aa
+
+# control-alias br0
+iface br0 inet6 static
+    address 2001:1::1/64
+    post-up ip -family inet6 route add default via 2001:4800:78ff:1b::1 \
+|| true
+    pre-down ip -family inet6 route del default via 2001:4800:78ff:1b::1 \
+|| true
+
+auto bond0.200
+iface bond0.200 inet dhcp
+    vlan-id 200
+    vlan-raw-device bond0
+
+auto eth0.101
+iface eth0.101 inet static
+    address 192.168.0.2/24
+    dns-nameservers 192.168.0.10 10.23.23.134
+    dns-search barley.maas sacchromyces.maas brettanomyces.maas
+    gateway 192.168.0.1
+    mtu 1500
+    hwaddress aa:bb:cc:dd:ee:11
+    vlan-id 101
+    vlan-raw-device eth0
+
+# control-alias eth0.101
+iface eth0.101 inet static
+    address 192.168.2.10/24
+    dns-nameservers 192.168.0.10 10.23.23.134
+    dns-search barley.maas sacchromyces.maas brettanomyces.maas
+
+post-up ip route add 10.0.0.0/8 via 11.0.0.1 metric 3 || true
+pre-down ip route del 10.0.0.0/8 via 11.0.0.1 metric 3 || true
+""",
+        "expected_eni_route_cmd": """\
+auto lo
+iface lo inet loopback
+    dns-nameservers 8.8.8.8 4.4.4.4 8.8.4.4
+    dns-search barley.maas wark.maas foobar.maas
+
+iface eth0 inet manual
+
+auto eth1
+iface eth1 inet manual
+    bond-master bond0
+    bond-miimon 100
+    bond-mode active-backup
+    bond-xmit-hash-policy layer3+4
+
+auto eth2
+iface eth2 inet manual
+    bond-master bond0
+    bond-miimon 100
+    bond-mode active-backup
+    bond-xmit-hash-policy layer3+4
+
+iface eth3 inet manual
+
+iface eth4 inet manual
+
+# control-manual eth5
+iface eth5 inet dhcp
+
+auto ib0
+iface ib0 inet static
+    address 192.168.200.7/24
+    mtu 9000
+    hwaddress a0:00:02:20:fe:80:00:00:00:00:00:00:ec:0d:9a:03:00:15:e2:c1
+
+auto bond0
+iface bond0 inet6 dhcp
+    bond-miimon 100
+    bond-mode active-backup
+    bond-slaves none
+    bond-xmit-hash-policy layer3+4
+    hwaddress aa:bb:cc:dd:ee:ff
+
+auto br0
+iface br0 inet static
+    address 192.168.14.2/24
+    bridge-ageing 250
+    bridge-bridgeprio 22
+    bridge-fd 1
+    bridge-gcint 2
+    bridge-hello 1
+    bridge-maxage 10
+    bridge-pathcost eth3 50
+    bridge-pathcost eth4 75
+    bridge-portprio eth3 28
+    bridge-portprio eth4 14
+    bridge-ports eth3 eth4
+    bridge-stp off
+    bridge-waitport 1 eth3
+    bridge-waitport 2 eth4
     hwaddress bb:bb:bb:bb:bb:aa
 
 # control-alias br0
@@ -1566,8 +2274,8 @@ iface br0 inet6 static
 
 auto bond0.200
 iface bond0.200 inet dhcp
+    vlan-id 200
     vlan-raw-device bond0
-    vlan_id 200
 
 auto eth0.101
 iface eth0.101 inet static
@@ -1577,12 +2285,14 @@ iface eth0.101 inet static
     gateway 192.168.0.1
     mtu 1500
     hwaddress aa:bb:cc:dd:ee:11
+    vlan-id 101
     vlan-raw-device eth0
-    vlan_id 101
 
 # control-alias eth0.101
 iface eth0.101 inet static
     address 192.168.2.10/24
+    dns-nameservers 192.168.0.10 10.23.23.134
+    dns-search barley.maas sacchromyces.maas brettanomyces.maas
 
 post-up route add -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
 pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
@@ -2337,7 +3047,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
         ).lstrip(),
     },
     "large_v2": {
-        "expected_eni": """\
+        "expected_eni_ip_cmd": """\
 auto lo
 iface lo inet loopback
     dns-nameservers 8.8.8.8 4.4.4.4 8.8.4.4
@@ -2348,16 +3058,16 @@ iface eth0 inet manual
 auto eth1
 iface eth1 inet manual
     bond-master bond0
+    bond-miimon 100
     bond-mode active-backup
     bond-xmit-hash-policy layer3+4
-    bond_miimon 100
 
 auto eth2
 iface eth2 inet manual
     bond-master bond0
+    bond-miimon 100
     bond-mode active-backup
     bond-xmit-hash-policy layer3+4
-    bond_miimon 100
 
 iface eth3 inet manual
 
@@ -2374,29 +3084,122 @@ iface ib0 inet static
 
 auto bond0
 iface bond0 inet6 dhcp
+    bond-miimon 100
     bond-mode active-backup
     bond-slaves none
     bond-xmit-hash-policy layer3+4
-    bond_miimon 100
     hwaddress aa:bb:cc:dd:ee:ff
 
 auto br0
 iface br0 inet static
     address 192.168.14.2/24
-    bridge_ageing 250
-    bridge_bridgeprio 22
-    bridge_fd 1
-    bridge_gcint 2
-    bridge_hello 1
-    bridge_maxage 10
-    bridge_pathcost eth3 50
-    bridge_pathcost eth4 75
-    bridge_portprio eth3 28
-    bridge_portprio eth4 14
-    bridge_ports eth3 eth4
-    bridge_stp off
-    bridge_waitport 1 eth3
-    bridge_waitport 2 eth4
+    bridge-ageing 250
+    bridge-bridgeprio 22
+    bridge-fd 1
+    bridge-gcint 2
+    bridge-hello 1
+    bridge-maxage 10
+    bridge-pathcost eth3 50
+    bridge-pathcost eth4 75
+    bridge-portprio eth3 28
+    bridge-portprio eth4 14
+    bridge-ports eth3 eth4
+    bridge-stp off
+    bridge-waitport 1 eth3
+    bridge-waitport 2 eth4
+    hwaddress bb:bb:bb:bb:bb:aa
+
+# control-alias br0
+iface br0 inet6 static
+    address 2001:1::1/64
+    post-up ip -family inet6 route add default via 2001:4800:78ff:1b::1 \
+|| true
+    pre-down ip -family inet6 route del default via 2001:4800:78ff:1b::1 \
+|| true
+
+auto bond0.200
+iface bond0.200 inet dhcp
+    vlan-id 200
+    vlan-raw-device bond0
+
+auto eth0.101
+iface eth0.101 inet static
+    address 192.168.0.2/24
+    dns-nameservers 192.168.0.10 10.23.23.134
+    dns-search barley.maas sacchromyces.maas brettanomyces.maas
+    gateway 192.168.0.1
+    mtu 1500
+    hwaddress aa:bb:cc:dd:ee:11
+    vlan-id 101
+    vlan-raw-device eth0
+
+# control-alias eth0.101
+iface eth0.101 inet static
+    address 192.168.2.10/24
+
+post-up ip route add 10.0.0.0/8 via 11.0.0.1 metric 3 || true
+pre-down ip route del 10.0.0.0/8 via 11.0.0.1 metric 3 || true
+""",
+        "expected_eni_route_cmd": """\
+auto lo
+iface lo inet loopback
+    dns-nameservers 8.8.8.8 4.4.4.4 8.8.4.4
+    dns-search barley.maas wark.maas foobar.maas
+
+iface eth0 inet manual
+
+auto eth1
+iface eth1 inet manual
+    bond-master bond0
+    bond-miimon 100
+    bond-mode active-backup
+    bond-xmit-hash-policy layer3+4
+
+auto eth2
+iface eth2 inet manual
+    bond-master bond0
+    bond-miimon 100
+    bond-mode active-backup
+    bond-xmit-hash-policy layer3+4
+
+iface eth3 inet manual
+
+iface eth4 inet manual
+
+# control-manual eth5
+iface eth5 inet dhcp
+
+auto ib0
+iface ib0 inet static
+    address 192.168.200.7/24
+    mtu 9000
+    hwaddress a0:00:02:20:fe:80:00:00:00:00:00:00:ec:0d:9a:03:00:15:e2:c1
+
+auto bond0
+iface bond0 inet6 dhcp
+    bond-miimon 100
+    bond-mode active-backup
+    bond-slaves none
+    bond-xmit-hash-policy layer3+4
+    hwaddress aa:bb:cc:dd:ee:ff
+
+auto br0
+iface br0 inet static
+    address 192.168.14.2/24
+    bridge-ageing 250
+    bridge-bridgeprio 22
+    bridge-fd 1
+    bridge-gcint 2
+    bridge-hello 1
+    bridge-maxage 10
+    bridge-pathcost eth3 50
+    bridge-pathcost eth4 75
+    bridge-portprio eth3 28
+    bridge-portprio eth4 14
+    bridge-ports eth3 eth4
+    bridge-stp off
+    bridge-waitport 1 eth3
+    bridge-waitport 2 eth4
     hwaddress bb:bb:bb:bb:bb:aa
 
 # control-alias br0
@@ -2407,8 +3210,8 @@ iface br0 inet6 static
 
 auto bond0.200
 iface bond0.200 inet dhcp
+    vlan-id 200
     vlan-raw-device bond0
-    vlan_id 200
 
 auto eth0.101
 iface eth0.101 inet static
@@ -2418,8 +3221,8 @@ iface eth0.101 inet static
     gateway 192.168.0.1
     mtu 1500
     hwaddress aa:bb:cc:dd:ee:11
+    vlan-id 101
     vlan-raw-device eth0
-    vlan_id 101
 
 # control-alias eth0.101
 iface eth0.101 inet static
@@ -3128,7 +3931,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                          via: 3001:67c:15::1
         """
         ),
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
             """\
 auto lo
 iface lo inet loopback
@@ -3136,43 +3939,110 @@ iface lo inet loopback
 auto bond0s0
 iface bond0s0 inet manual
     bond-downdelay 10
-    bond-fail_over_mac active
+    bond-fail-over-mac active
     bond-master bond0
+    bond-miimon 100
     bond-mode active-backup
-    bond-num_grat_arp 5
+    bond-num-grat-arp 5
     bond-primary bond0s0
-    bond-primary_reselect always
+    bond-primary-reselect always
     bond-updelay 20
-    bond-xmit_hash_policy layer3+4
-    bond_miimon 100
+    bond-xmit-hash-policy layer3+4
 
 auto bond0s1
 iface bond0s1 inet manual
     bond-downdelay 10
-    bond-fail_over_mac active
+    bond-fail-over-mac active
     bond-master bond0
+    bond-miimon 100
     bond-mode active-backup
-    bond-num_grat_arp 5
+    bond-num-grat-arp 5
     bond-primary bond0s0
-    bond-primary_reselect always
+    bond-primary-reselect always
     bond-updelay 20
-    bond-xmit_hash_policy layer3+4
-    bond_miimon 100
+    bond-xmit-hash-policy layer3+4
 
 auto bond0
 iface bond0 inet static
     address 192.168.0.2/24
     gateway 192.168.0.1
     bond-downdelay 10
-    bond-fail_over_mac active
+    bond-fail-over-mac active
+    bond-miimon 100
     bond-mode active-backup
-    bond-num_grat_arp 5
+    bond-num-grat-arp 5
     bond-primary bond0s0
-    bond-primary_reselect always
+    bond-primary-reselect always
     bond-slaves none
     bond-updelay 20
-    bond-xmit_hash_policy layer3+4
-    bond_miimon 100
+    bond-xmit-hash-policy layer3+4
+    hwaddress aa:bb:cc:dd:e8:ff
+    mtu 9000
+    post-up ip route add 10.1.3.0/24 via 192.168.0.3 || true
+    pre-down ip route del 10.1.3.0/24 via 192.168.0.3 || true
+
+# control-alias bond0
+iface bond0 inet static
+    address 192.168.1.2/24
+
+# control-alias bond0
+iface bond0 inet6 static
+    address 2001:1::1/92
+    post-up ip -family inet6 route add 2001:67c::/32 via 2001:67c:1562::1 \
+|| true
+    pre-down ip -family inet6 route del 2001:67c::/32 via 2001:67c:1562::1 \
+|| true
+    post-up ip -family inet6 route add 3001:67c::/32 via 3001:67c:15::1 \
+metric 10000 || true
+    pre-down ip -family inet6 route del 3001:67c::/32 via 3001:67c:15::1 \
+metric 10000 || true
+        """
+        ),
+        "expected_eni_route_cmd": textwrap.dedent(
+            """\
+auto lo
+iface lo inet loopback
+
+auto bond0s0
+iface bond0s0 inet manual
+    bond-downdelay 10
+    bond-fail-over-mac active
+    bond-master bond0
+    bond-miimon 100
+    bond-mode active-backup
+    bond-num-grat-arp 5
+    bond-primary bond0s0
+    bond-primary-reselect always
+    bond-updelay 20
+    bond-xmit-hash-policy layer3+4
+
+auto bond0s1
+iface bond0s1 inet manual
+    bond-downdelay 10
+    bond-fail-over-mac active
+    bond-master bond0
+    bond-miimon 100
+    bond-mode active-backup
+    bond-num-grat-arp 5
+    bond-primary bond0s0
+    bond-primary-reselect always
+    bond-updelay 20
+    bond-xmit-hash-policy layer3+4
+
+auto bond0
+iface bond0 inet static
+    address 192.168.0.2/24
+    gateway 192.168.0.1
+    bond-downdelay 10
+    bond-fail-over-mac active
+    bond-miimon 100
+    bond-mode active-backup
+    bond-num-grat-arp 5
+    bond-primary bond0s0
+    bond-primary-reselect always
+    bond-slaves none
+    bond-updelay 20
+    bond-xmit-hash-policy layer3+4
     hwaddress aa:bb:cc:dd:e8:ff
     mtu 9000
     post-up route add -net 10.1.3.0/24 gw 192.168.0.3 || true
@@ -3372,7 +4242,7 @@ iface bond0 inet6 static
                 may-fail=false
                 address1=2001:1::1/92
                 route1=2001:67c::/32,2001:67c:1562::1
-                route2=3001:67c::/32,3001:67c:15::1
+                route2=3001:67c::/32,3001:67c:15::1,10000
 
                 [ethernet]
                 mtu=9000
@@ -3477,7 +4347,74 @@ iface bond0 inet6 static
                          via: 3001:67c:15::1
         """
         ),
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+auto lo
+iface lo inet loopback
+
+auto bond0s0
+iface bond0s0 inet manual
+    bond-downdelay 10
+    bond-fail-over-mac active
+    bond-master bond0
+    bond_miimon 100
+    bond-mode active-backup
+    bond-num-grat-arp 5
+    bond-primary bond0s0
+    bond-primary-reselect always
+    bond-updelay 20
+    bond-xmit-hash-policy layer3+4
+
+auto bond0s1
+iface bond0s1 inet manual
+    bond-downdelay 10
+    bond-fail-over-mac active
+    bond-master bond0
+    bond_miimon 100
+    bond-mode active-backup
+    bond-num-grat-arp 5
+    bond-primary bond0s0
+    bond-primary-reselect always
+    bond-updelay 20
+    bond-xmit-hash-policy layer3+4
+
+auto bond0
+iface bond0 inet static
+    address 192.168.0.2/24
+    gateway 192.168.0.1
+    bond-downdelay 10
+    bond-fail-over-mac active
+    bond_miimon 100
+    bond-mode active-backup
+    bond-num-grat-arp 5
+    bond-primary bond0s0
+    bond-primary-reselect always
+    bond-slaves none
+    bond-updelay 20
+    bond-xmit-hash-policy layer3+4
+    hwaddress aa:bb:cc:dd:e8:ff
+    mtu 9000
+    post-up ip route add 10.1.3.0/24 via 192.168.0.3 || true
+    pre-down ip route del 10.1.3.0/24 via 192.168.0.3 || true
+
+# control-alias bond0
+iface bond0 inet static
+    address 192.168.1.2/24
+
+# control-alias bond0
+iface bond0 inet6 static
+    address 2001:1::1/92
+    post-up ip -family inet6 route add 2001:67c::/32 via 2001:67c:1562::1 \
+|| true
+    pre-down ip -family inet6 route del 2001:67c::/32 via 2001:67c:1562::1 \
+|| true
+    post-up ip -family inet6 route add 3001:67c::/32 via 3001:67c:15::1 \
+metric 10000 || true
+    pre-down ip -family inet6 route del 3001:67c::/32 via 3001:67c:15::1 \
+metric 10000 || true
+        """
+        ),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
 auto lo
 iface lo inet loopback
@@ -3725,7 +4662,7 @@ iface bond0 inet6 static
 
                 [ipv6]
                 route1=2001:67c::/32,2001:67c:1562::1
-                route2=3001:67c::/32,3001:67c:15::1
+                route2=3001:67c::/32,3001:67c:15::1,10000
                 method=manual
                 may-fail=false
                 address1=2001:1::1/92
@@ -4242,7 +5179,24 @@ iface bond0 inet6 static
                     control: manual
                   """
         ),
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            # control-manual eth0
+            iface eth0 inet static
+                address 192.168.1.2/24
+
+            auto eth1
+            iface eth1 inet manual
+                mtu 1480
+
+            # control-manual eth2
+            iface eth2 inet manual
+            """
+        ),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             auto lo
             iface lo inet loopback
@@ -4433,7 +5387,31 @@ iface bond0 inet6 static
             Gateway=192.168.1.1
         """
         ),
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            # This file is generated from information provided by the datasource.  Changes
+            # to it will not persist across an instance reboot.  To disable cloud-init's
+            # network configuration capabilities, write a file
+            # /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:
+            # network: {config: disabled}
+            auto lo
+            iface lo inet loopback
+                dns-nameservers 2.2.2.2
+                dns-search bbbb
+
+            iface lo inet6 loopback
+                dns-nameservers FEDC::1
+                dns-search bbbb
+
+            auto interface0
+            iface interface0 inet static
+                address 192.168.1.20/16
+                dns-nameservers 1.1.1.1 3.3.3.3
+                dns-search aaaa cccc
+                gateway 192.168.1.1
+        """  # noqa: E501
+        ),
+        "expected_eni_route_cmd": textwrap.dedent(
             """\
             # This file is generated from information provided by the datasource.  Changes
             # to it will not persist across an instance reboot.  To disable cloud-init's
@@ -4600,6 +5578,72 @@ iface bond0 inet6 static
         ),
     },
     "v2-mixed-routes": {
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto eth0
+            iface eth0 inet dhcp
+                mtu 500
+                post-up ip route add 169.254.42.42/32 via 62.210.0.1 || true
+                pre-down ip route del 169.254.42.42/32 via 62.210.0.1 || true
+                post-up ip route add 169.254.42.43/32 via 62.210.0.2 || true
+                pre-down ip route del 169.254.42.43/32 via 62.210.0.2 || true
+
+            # control-alias eth0
+            iface eth0 inet6 dhcp
+                post-up ip -family inet6 route add default via fe80::dc00:ff:fe20:186 || true
+                pre-down ip -family inet6 route del default via fe80::dc00:ff:fe20:186 || true
+                post-up ip -family inet6 route add fe80::dc00:ff:fe20:188/64 via fe80::dc00:ff:fe20:187 || true
+                pre-down ip -family inet6 route del fe80::dc00:ff:fe20:188/64 via fe80::dc00:ff:fe20:187 || true
+
+            # control-alias eth0
+            iface eth0 inet static
+                address 192.168.1.20/16
+                dns-nameservers 8.8.8.8
+                dns-search lab home
+
+            # control-alias eth0
+            iface eth0 inet6 static
+                address 2001:bc8:1210:232:dc00:ff:fe20:185/64
+                dns-nameservers FEDC::1
+                dns-search lab home
+        """  # noqa: E501
+        ),
+        "expected_eni_route_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto eth0
+            iface eth0 inet dhcp
+                mtu 500
+                post-up route add -host 169.254.42.42/32 gw 62.210.0.1 || true
+                pre-down route del -host 169.254.42.42/32 gw 62.210.0.1 || true
+                post-up route add -host 169.254.42.43/32 gw 62.210.0.2 || true
+                pre-down route del -host 169.254.42.43/32 gw 62.210.0.2 || true
+
+            # control-alias eth0
+            iface eth0 inet6 dhcp
+                post-up route add -A inet6 default gw fe80::dc00:ff:fe20:186 || true
+                pre-down route del -A inet6 default gw fe80::dc00:ff:fe20:186 || true
+                post-up route add -A inet6 fe80::dc00:ff:fe20:188/64 gw fe80::dc00:ff:fe20:187 || true
+                pre-down route del -A inet6 fe80::dc00:ff:fe20:188/64 gw fe80::dc00:ff:fe20:187 || true
+
+            # control-alias eth0
+            iface eth0 inet static
+                address 192.168.1.20/16
+                dns-nameservers 8.8.8.8
+                dns-search lab home
+
+            # control-alias eth0
+            iface eth0 inet6 static
+                address 2001:bc8:1210:232:dc00:ff:fe20:185/64
+                dns-nameservers FEDC::1
+                dns-search lab home
+        """  # noqa: E501
+        ),
         "expected_network_manager": {
             "cloud-init-eth0.nmconnection": textwrap.dedent(
                 """\
@@ -4673,6 +5717,247 @@ iface bond0 inet6 static
         """
         ),
     },
+    "v2-mixed-routes-reversed": {
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto eth0
+            iface eth0 inet dhcp
+                mtu 500
+                post-up ip route add 169.254.42.42/32 via 62.210.0.1 || true
+                pre-down ip route del 169.254.42.42/32 via 62.210.0.1 || true
+                post-up ip route add 169.254.42.43/32 via 62.210.0.2 || true
+                pre-down ip route del 169.254.42.43/32 via 62.210.0.2 || true
+
+            # control-alias eth0
+            iface eth0 inet6 dhcp
+                post-up ip -family inet6 route add default via fe80::dc00:ff:fe20:186 || true
+                pre-down ip -family inet6 route del default via fe80::dc00:ff:fe20:186 || true
+                post-up ip -family inet6 route add fe80::dc00:ff:fe20:188/64 via fe80::dc00:ff:fe20:187 || true
+                pre-down ip -family inet6 route del fe80::dc00:ff:fe20:188/64 via fe80::dc00:ff:fe20:187 || true
+
+            # control-alias eth0
+            iface eth0 inet6 static
+                address 2001:bc8:1210:232:dc00:ff:fe20:185/64
+                dns-nameservers FEDC::1
+                dns-search home lab
+
+            # control-alias eth0
+            iface eth0 inet static
+                address 192.168.1.20/16
+                dns-nameservers 8.8.8.8
+                dns-search home lab
+        """  # noqa: E501
+        ),
+        "expected_eni_route_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto eth0
+            iface eth0 inet dhcp
+                mtu 500
+                post-up route add -host 169.254.42.42/32 gw 62.210.0.1 || true
+                pre-down route del -host 169.254.42.42/32 gw 62.210.0.1 || true
+                post-up route add -host 169.254.42.43/32 gw 62.210.0.2 || true
+                pre-down route del -host 169.254.42.43/32 gw 62.210.0.2 || true
+
+            # control-alias eth0
+            iface eth0 inet6 dhcp
+                post-up route add -A inet6 default gw fe80::dc00:ff:fe20:186 || true
+                pre-down route del -A inet6 default gw fe80::dc00:ff:fe20:186 || true
+                post-up route add -A inet6 fe80::dc00:ff:fe20:188/64 gw fe80::dc00:ff:fe20:187 || true
+                pre-down route del -A inet6 fe80::dc00:ff:fe20:188/64 gw fe80::dc00:ff:fe20:187 || true
+
+            # control-alias eth0
+            iface eth0 inet6 static
+                address 2001:bc8:1210:232:dc00:ff:fe20:185/64
+                dns-nameservers FEDC::1
+                dns-search home lab
+
+            # control-alias eth0
+            iface eth0 inet static
+                address 192.168.1.20/16
+                dns-nameservers 8.8.8.8
+                dns-search home lab
+        """  # noqa: E501
+        ),
+        "expected_network_manager": {
+            "cloud-init-eth0.nmconnection": textwrap.dedent(
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init eth0
+                uuid=1dd9a779-d327-56e1-8454-c65e2556c12c
+                autoconnect-priority=120
+                type=ethernet
+                interface-name=eth0
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [ethernet]
+                mtu=500
+
+                [ipv4]
+                method=auto
+                may-fail=true
+                route1=169.254.42.42/32,62.210.0.1
+                route1_options=mtu=400
+                route2=169.254.42.43/32,62.210.0.2
+                route2_options=mtu=200
+                address1=192.168.1.20/16
+                dns=8.8.8.8;
+                dns-search=home;lab;
+
+                [ipv6]
+                route1=::/0,fe80::dc00:ff:fe20:186
+                route1_options=mtu=300
+                route2=fe80::dc00:ff:fe20:188/64,fe80::dc00:ff:fe20:187
+                route2_options=mtu=100
+                method=auto
+                may-fail=true
+                address1=2001:bc8:1210:232:dc00:ff:fe20:185/64
+                dns=FEDC::1;
+                dns-search=home;lab;
+
+            """
+            )
+        },
+        "yaml": textwrap.dedent(
+            """\
+            version: 2
+            ethernets:
+              eth0:
+                dhcp6: true
+                dhcp4: true
+                mtu: 500
+                nameservers:
+                  search: [home, lab]
+                  addresses: ["FEDC::1", 8.8.8.8]
+                routes:
+                  - via: fe80::dc00:ff:fe20:186
+                    to: ::/0
+                    mtu: 300
+                  - to: 169.254.42.42/32
+                    via: 62.210.0.1
+                    mtu: 400
+                  - via: fe80::dc00:ff:fe20:187
+                    to: fe80::dc00:ff:fe20:188
+                    mtu: 100
+                  - to: 169.254.42.43/32
+                    via: 62.210.0.2
+                    mtu: 200
+                addresses:
+                  - 2001:bc8:1210:232:dc00:ff:fe20:185/64
+                  - 192.168.1.20/16
+        """
+        ),
+    },
+    "v2-mixed-routes-no-ipv6-addr": {
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto eth0
+            iface eth0 inet dhcp
+                post-up ip route add 169.254.42.42/32 via 62.210.0.1 || true
+                pre-down ip route del 169.254.42.42/32 via 62.210.0.1 || true
+
+            # control-alias eth0
+            iface eth0 inet static
+                address 192.168.1.20/16
+                dns-nameservers 8.8.8.8
+                dns-search lab home
+
+            # control-alias eth0
+            iface eth0 inet6 static
+                dns-nameservers FEDC::1
+                dns-search lab home
+                post-up ip -family inet6 route add default via fe80::dc00:ff:fe20:186 || true
+                pre-down ip -family inet6 route del default via fe80::dc00:ff:fe20:186 || true
+        """  # noqa: E501
+        ),
+        "expected_eni_route_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto eth0
+            iface eth0 inet dhcp
+                post-up route add -host 169.254.42.42/32 gw 62.210.0.1 || true
+                pre-down route del -host 169.254.42.42/32 gw 62.210.0.1 || true
+
+            # control-alias eth0
+            iface eth0 inet static
+                address 192.168.1.20/16
+                dns-nameservers 8.8.8.8
+                dns-search lab home
+
+            # control-alias eth0
+            iface eth0 inet6 static
+                dns-nameservers FEDC::1
+                dns-search lab home
+                post-up route add -A inet6 default gw fe80::dc00:ff:fe20:186 || true
+                pre-down route del -A inet6 default gw fe80::dc00:ff:fe20:186 || true
+        """  # noqa: E501
+        ),
+        "expected_network_manager": {
+            "cloud-init-eth0.nmconnection": textwrap.dedent(
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init eth0
+                uuid=1dd9a779-d327-56e1-8454-c65e2556c12c
+                autoconnect-priority=120
+                type=ethernet
+                interface-name=eth0
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [ethernet]
+
+                [ipv4]
+                method=auto
+                may-fail=false
+                route1=169.254.42.42/32,62.210.0.1
+                address1=192.168.1.20/16
+                dns=8.8.8.8;
+                dns-search=lab;home;
+
+                [ipv6]
+                route1=::/0,fe80::dc00:ff:fe20:186
+                dns=FEDC::1;
+                dns-search=lab;home;
+
+            """
+            )
+        },
+        "yaml": textwrap.dedent(
+            """\
+            version: 2
+            ethernets:
+              eth0:
+                dhcp4: true
+                nameservers:
+                  search: [lab, home]
+                  addresses: [8.8.8.8, "FEDC::1"]
+                routes:
+                  - to: 169.254.42.42/32
+                    via: 62.210.0.1
+                  - via: fe80::dc00:ff:fe20:186
+                    to: ::/0
+                addresses:
+                  - 192.168.1.20/16
+        """
+        ),
+    },
     "v2-dns": {
         "expected_networkd": textwrap.dedent(
             """\
@@ -4691,13 +5976,26 @@ iface bond0 inet6 static
             Domains=lab home
         """
         ),
-        "expected_eni": textwrap.dedent(
+        "expected_eni_ip_cmd": textwrap.dedent(
             """\
-            # This file is generated from information provided by the datasource.  Changes
-            # to it will not persist across an instance reboot.  To disable cloud-init's
-            # network configuration capabilities, write a file
-            # /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:
-            # network: {config: disabled}
+            auto lo
+            iface lo inet loopback
+
+            auto eth0
+            iface eth0 inet static
+                address 192.168.1.20/16
+                dns-nameservers 8.8.8.8
+                dns-search lab home
+
+            # control-alias eth0
+            iface eth0 inet6 static
+                address 2001:bc8:1210:232:dc00:ff:fe20:185/64
+                dns-nameservers FEDC::1
+                dns-search lab home
+        """  # noqa: E501
+        ),
+        "expected_eni_route_cmd": textwrap.dedent(
+            """\
             auto lo
             iface lo inet loopback
 
@@ -4798,6 +6096,30 @@ iface bond0 inet6 static
         ),
     },
     "v2-dns-no-if-ips": {
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto eth0
+            iface eth0 inet dhcp
+
+            # control-alias eth0
+            iface eth0 inet6 dhcp
+        """  # noqa: E501
+        ),
+        "expected_eni_route_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            auto eth0
+            iface eth0 inet dhcp
+
+            # control-alias eth0
+            iface eth0 inet6 dhcp
+        """  # noqa: E501
+        ),
         "expected_network_manager": {
             "cloud-init-eth0.nmconnection": textwrap.dedent(
                 """\
@@ -4844,6 +6166,22 @@ iface bond0 inet6 static
         ),
     },
     "v2-dns-no-dhcp": {
+        "expected_eni_ip_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            iface eth0 inet manual
+        """  # noqa: E501
+        ),
+        "expected_eni_route_cmd": textwrap.dedent(
+            """\
+            auto lo
+            iface lo inet loopback
+
+            iface eth0 inet manual
+        """  # noqa: E501
+        ),
         "expected_network_manager": {
             "cloud-init-eth0.nmconnection": textwrap.dedent(
                 """\
@@ -4911,5 +6249,178 @@ iface bond0 inet6 static
                 - to: "0.0.0.0/0"
             """
         ),
+    },
+    "v2-bridges-set-name": {
+        "yaml": textwrap.dedent(
+            """\
+            version: 2
+            ethernets:
+              baremetalport:
+                match:
+                  macaddress: 52:54:00:bd:8f:cb
+                set-name: baremetal0
+              provisioningport:
+                match:
+                  macaddress: 52:54:00:25:ae:12
+                set-name: provisioning0
+            bridges:
+              baremetal:
+                addresses:
+                  - fc00:1:1::2/64
+                interfaces:
+                  - baremetalport
+              provisioning:
+                addresses:
+                  - fc00:1:2::2/64
+                interfaces:
+                  - provisioningport
+            """
+        ),
+        "expected_sysconfig_rhel": {
+            "ifcfg-baremetal": textwrap.dedent(
+                """\
+                # Created by cloud-init automatically, do not edit.
+                #
+                BOOTPROTO=none
+                DEVICE=baremetal
+                IPV6ADDR=fc00:1:1::2/64
+                IPV6INIT=yes
+                IPV6_AUTOCONF=no
+                IPV6_FORCE_ACCEPT_RA=no
+                ONBOOT=yes
+                TYPE=Bridge
+                USERCTL=no
+                """
+            ),
+            "ifcfg-baremetal0": textwrap.dedent(
+                """\
+                # Created by cloud-init automatically, do not edit.
+                #
+                BOOTPROTO=none
+                BRIDGE=baremetal
+                DEVICE=baremetal0
+                HWADDR=52:54:00:bd:8f:cb
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no
+                """
+            ),
+            "ifcfg-provisioning": textwrap.dedent(
+                """\
+                # Created by cloud-init automatically, do not edit.
+                #
+                BOOTPROTO=none
+                DEVICE=provisioning
+                IPV6ADDR=fc00:1:2::2/64
+                IPV6INIT=yes
+                IPV6_AUTOCONF=no
+                IPV6_FORCE_ACCEPT_RA=no
+                ONBOOT=yes
+                TYPE=Bridge
+                USERCTL=no
+                """
+            ),
+            "ifcfg-provisioning0": textwrap.dedent(
+                """\
+                # Created by cloud-init automatically, do not edit.
+                #
+                BOOTPROTO=none
+                BRIDGE=provisioning
+                DEVICE=provisioning0
+                HWADDR=52:54:00:25:ae:12
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no
+                """
+            ),
+        },
+        "expected_network_manager": {
+            "cloud-init-baremetal.nmconnection": textwrap.dedent(
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init baremetal
+                uuid=e63eed9a-cd1c-55de-8d5e-1e80b756a482
+                autoconnect-priority=120
+                type=bridge
+                interface-name=baremetal
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [bridge]
+
+                [ipv6]
+                method=manual
+                may-fail=false
+                address1=fc00:1:1::2/64
+
+                """
+            ),
+            "cloud-init-baremetalport.nmconnection": textwrap.dedent(
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init baremetal0
+                uuid=8e326690-51d6-5157-ab84-e4e822b06503
+                autoconnect-priority=120
+                type=ethernet
+                slave-type=bridge
+                master=e63eed9a-cd1c-55de-8d5e-1e80b756a482
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [ethernet]
+                mac-address=52:54:00:BD:8F:CB
+
+                """
+            ),
+            "cloud-init-provisioning.nmconnection": textwrap.dedent(
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init provisioning
+                uuid=e5bd3f1a-cdcc-55d3-a6d8-88f1ba73bd0e
+                autoconnect-priority=120
+                type=bridge
+                interface-name=provisioning
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [bridge]
+
+                [ipv6]
+                method=manual
+                may-fail=false
+                address1=fc00:1:2::2/64
+
+                """
+            ),
+            "cloud-init-provisioningport.nmconnection": textwrap.dedent(
+                """\
+                # Generated by cloud-init. Changes will be lost.
+
+                [connection]
+                id=cloud-init provisioning0
+                uuid=d79b7b70-e9df-596f-ace7-89537db45684
+                autoconnect-priority=120
+                type=ethernet
+                slave-type=bridge
+                master=e5bd3f1a-cdcc-55d3-a6d8-88f1ba73bd0e
+
+                [user]
+                org.freedesktop.NetworkManager.origin=cloud-init
+
+                [ethernet]
+                mac-address=52:54:00:25:AE:12
+
+                """
+            ),
+        },
     },
 }

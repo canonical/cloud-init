@@ -1,0 +1,14 @@
+[Address]
+Address=192.168.200.10/24
+
+[Link]
+MACAddress=00:11:22:33:44:99
+MTUBytes=111
+
+[Match]
+Name=bond.200
+
+[Network]
+DHCP=ipv6
+DNS=1.1.1.1 8.8.4.4
+Domains=bond.vlan.test

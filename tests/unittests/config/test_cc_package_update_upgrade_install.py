@@ -121,7 +121,7 @@ class TestRebootIfRequired:
                     # subp and not really rebooting the system
                     subp_call = ["/sbin/reboot"]
 
-        caplog.set_level(logging.WARNING)
+        caplog.set_level(logging.INFO)
         with mock.patch(
             "cloudinit.subp.subp", return_value=SubpResult("{}", "fakeerr")
         ) as m_subp:
@@ -326,5 +326,7 @@ class TestPackageUpdateUpgradeSchema:
     )
     @skipUnlessJsonSchema()
     def test_schema_validation(self, config, error_msg):
-        with pytest.raises(SchemaValidationError, match=error_msg):
+        with pytest.raises(
+            SchemaValidationError, match=error_msg if error_msg else None
+        ):
             validate_cloudconfig_schema(config, get_schema(), strict=True)

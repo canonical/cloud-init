@@ -27,8 +27,6 @@ from cloudinit.config.schema import MetaSchema
 from cloudinit.distros import ALL_DISTROS, Distro
 from cloudinit.settings import PER_ALWAYS
 
-MODULE_DESCRIPTION = """\
-"""
 frequency = PER_ALWAYS
 meta: MetaSchema = {
     "id": "cc_growpart",

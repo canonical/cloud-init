@@ -1,10 +1,11 @@
+import os
 import sys
 from importlib import reload
+from unittest import mock
 
 import pytest
 
 from cloudinit import apport
-from tests.unittests.helpers import mock
 
 M_PATH = "cloudinit.apport."
 
@@ -90,7 +91,9 @@ class TestApport:
         apport.attach_ubuntu_pro_info(report)
 
         assert [
-            mock.call(report, "/var/log/ubuntu-advantage.log"),
+            mock.call(
+                report, os.path.realpath("/var/log/ubuntu-advantage.log")
+            ),
         ] == m_hookutils.attach_file_if_exists.call_args_list
         assert report.get("Tags", "") == "ubuntu-pro"
 
@@ -102,6 +105,8 @@ class TestApport:
         apport.attach_ubuntu_pro_info(report)
 
         assert [
-            mock.call(report, "/var/log/ubuntu-advantage.log"),
+            mock.call(
+                report, os.path.realpath("/var/log/ubuntu-advantage.log")
+            ),
         ] == m_hookutils.attach_file_if_exists.call_args_list
         assert report.get("Tags", "") == ""

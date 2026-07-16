@@ -9,6 +9,8 @@
 
 import logging
 import pwd
+import time
+from contextlib import suppress
 
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
@@ -23,7 +25,7 @@ SSH_IMPORT_ID_BINARY = "ssh-import-id"
 
 meta: MetaSchema = {
     "id": "cc_ssh_import_id",
-    "distros": ["alpine", "cos", "debian", "ubuntu"],
+    "distros": ["alpine", "cos", "debian", "raspberry-pi-os", "ubuntu"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": [],
 }
@@ -47,7 +49,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         return
 
     # import for "user: XXXXX"
-    if len(args) != 0:
+    if args:
         user = args[0]
         ids = []
         if len(args) > 1:
@@ -105,7 +107,7 @@ def import_ssh_ids(ids, user):
     except KeyError as exc:
         raise exc
 
-    # TODO: We have a use case that involes setting a proxy value earlier
+    # TODO: We have a use case that involves setting a proxy value earlier
     # in boot and the user wants this env used when using ssh-import-id.
     # E.g.,:
     # bootcmd:
@@ -148,13 +150,16 @@ def import_ssh_ids(ids, user):
     else:
         LOG.error("Neither sudo nor doas available! Unable to import SSH ids.")
         return
-    LOG.debug("Importing SSH ids for user %s.", user)
+    retry_ssh_import(cmd, 0.5)
 
-    try:
+
+def retry_ssh_import(cmd: list, delay: float) -> None:
+    """Retry ssh-import-id once if it exits in error."""
+    with suppress(subp.ProcessExecutionError):
         subp.subp(cmd, capture=False)
-    except subp.ProcessExecutionError as exc:
-        util.logexc(LOG, "Failed to run command to import %s SSH ids", user)
-        raise exc
+        return
+    time.sleep(delay)
+    subp.subp(cmd, capture=False)
 
 
 def is_key_in_nested_dict(config: dict, search_key: str) -> bool:

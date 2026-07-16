@@ -1,7 +1,7 @@
 .. _testing:
 
-Testing
-*******
+Develop Test Code
+*****************
 
 ``Cloud-init`` has both unit tests and integration tests. Unit tests can
 be found at :file:`tests/unittests`. Integration tests can be found at
@@ -9,8 +9,12 @@ be found at :file:`tests/unittests`. Integration tests can be found at
 tests can be found on the :ref:`integration_tests` page, but
 the guidelines specified below apply to both types of tests.
 
-``Cloud-init`` uses `pytest`_ to run its tests, and has tests written both
-as ``unittest.TestCase`` sub-classes and as un-subclassed ``pytest`` tests.
+``Cloud-init`` uses `pytest`_ to write and run its tests.
+
+.. note::
+  While there are a subset of tests written as ``unittest.TestCase``
+  sub-classes, this is due to historical reasons. Their use is discouraged and
+  they are tracked to be removed in `#6427`_.
 
 Guidelines
 ==========
@@ -20,59 +24,49 @@ The following guidelines should be followed.
 Test layout
 -----------
 
-* For ease of organisation and greater accessibility for developers unfamiliar
-  with ``pytest``, all ``cloud-init`` unit tests must be contained within test
-  classes. In other words, module-level test functions should not be used.
+* For consistency, unit test files should have a matching name and
+  directory location under :file:`tests/unittests`.
 
-* Since all tests are contained within classes, it is acceptable to mix
-  ``TestCase`` test classes and ``pytest`` test classes within the same
-  test file.
+* E.g., the expected test file for code in :file:`cloudinit/path/to/file.py`
+  is :file:`tests/unittests/path/to/test_file.py`.
 
-  * These can be easily distinguished by their definition: ``pytest``
-    classes will not use inheritance at all (e.g.,
-    `TestGetPackageMirrorInfo`_), whereas ``TestCase`` classes will
-    subclass (indirectly) from ``TestCase`` (e.g.,
-    `TestPrependBaseCommands`_).
+``pytest`` guidelines
+---------------------
 
-* Unit tests and integration tests are located under :file:`cloud-init/tests`.
+* Use `pytest fixtures`_ to share functionality instead of inheritance.
 
-  * For consistency, unit test files should have a matching name and
-    directory location under :file:`tests/unittests`.
+* Use bare ``assert`` statements, to take advantage of ``pytest``'s
+  `assertion introspection`_.
 
-  * E.g., the expected test file for code in :file:`cloudinit/path/to/file.py`
-    is :file:`tests/unittests/path/to/test_file.py`.
+* Prefer ``pytest``'s
+  `parametrized tests <https://docs.pytest.org/en/stable/example/parametrize.html>`__
+  over test repetition.
 
-``pytest`` tests
-----------------
+In-house fixtures
+-----------------
 
-* ``pytest`` test classes should use `pytest fixtures`_ to share
-  functionality instead of inheritance.
+Before implementing your own fixture do search in :file:`*/conftest.py` files
+as it could be already implemented. Another source to look for test helpers is
+:file:`tests/*/helpers.py`.
 
-* ``pytest`` tests should use bare ``assert`` statements, to take advantage
-  of ``pytest``'s `assertion introspection`_.
+Relevant fixtures:
 
-``pytest`` version "gotchas"
-----------------------------
+* `disable_subp_usage`_ auto-disables call to subprocesses. See its
+  documentation to disable it.
 
-As we still support Ubuntu 18.04 (Bionic Beaver), we can only use ``pytest``
-features that are available in v3.3.2. This is an inexhaustive list of
-ways in which this may catch you out:
+* `fake_filesystem`_ makes tests run on a temporary filesystem.
 
-  * Only the following built-in fixtures are available [#fixture-list]_:
+* `paths`_  provides an instance of `cloudinit.helper.Paths` pointing to a
+  temporary filesystem.
 
-    * ``cache``
-    * ``capfd``
-    * ``capfdbinary``
-    * ``caplog``
-    * ``capsys``
-    * ``capsysbinary``
-    * ``doctest_namespace``
-    * ``monkeypatch``
-    * ``pytestconfig``
-    * ``record_xml_property``
-    * ``recwarn``
-    * ``tmpdir_factory``
-    * ``tmpdir``
+Dependency versions
+-------------------
+
+Cloud-init supports a range of versions for each of its test dependencies, as
+well as runtime dependencies. If you are unsure whether a specific feature is
+supported for a particular dependency, check the ``lowest-supported``
+environment in ``tox.ini``. This can be run using ``tox -e lowest-supported``.
+This runs as a GitHub Actions job when a pull request is submitted or updated.
 
 Mocking and assertions
 ----------------------
@@ -139,14 +133,8 @@ Test argument ordering
   * ``pytest.mark.parametrize``
   * ``mock.patch``
 
-.. [#fixture-list] This list of fixtures (with markup) can be
-   reproduced by running::
-
-     python3 -m pytest  --fixtures -q | grep "^[^ -]" | grep -v 'no tests ran in' | sort | sed 's/ \[session scope\]//g;s/.*/* ``\0``/g'
-
-   in an ubuntu lxd container with python3-pytest installed.
-
 .. LINKS:
+.. include:: ../links.txt
 .. _pytest: https://docs.pytest.org/
 .. _pytest fixtures: https://docs.pytest.org/en/latest/fixture.html
 .. _TestGetPackageMirrorInfo: https://github.com/canonical/cloud-init/blob/42f69f410ab8850c02b1f53dd67c132aa8ef64f5/cloudinit/distros/tests/test_init.py\#L15
@@ -155,3 +143,7 @@ Test argument ordering
 .. _pytest 3.0: https://docs.pytest.org/en/latest/changelog.html#id1093
 .. _pytest.param: https://docs.pytest.org/en/6.2.x/reference.html#pytest-param
 .. _autospecced: https://docs.python.org/3.8/library/unittest.mock.html#autospeccing
+.. _#6427: https://github.com/canonical/cloud-init/issues/6427
+.. _disable_subp_usage: https://github.com/canonical/cloud-init/blob/16f2039d0705ee9873ace98c967a34e6da6d0b87/conftest.py#L92
+.. _fake_filesystem: https://github.com/canonical/cloud-init/blob/16f2039d0705ee9873ace98c967a34e6da6d0b87/tests/unittests/conftest.py#L114
+.. _paths: https://github.com/canonical/cloud-init/blob/16f2039d0705ee9873ace98c967a34e6da6d0b87/tests/unittests/conftest.py#L224

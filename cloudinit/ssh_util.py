@@ -150,7 +150,7 @@ class AuthKeyLineParser:
             # return ketype, key, [comment]
             toks = ent.split(None, 2)
             if len(toks) < 2:
-                raise TypeError("To few fields: %s" % len(toks))
+                raise TypeError("Too few fields: %s" % len(toks))
             if toks[0] not in VALID_KEY_TYPES:
                 raise TypeError("Invalid keytype %s" % toks[0])
 
@@ -166,7 +166,9 @@ class AuthKeyLineParser:
             (keytype, base64, comment) = parse_ssh_key(ent)
         except TypeError:
             (keyopts, remain) = self._extract_options(ent)
-            if options is None:
+            # If the options parameter is falsy, use options from the key line
+            # (no override)
+            if not options:
                 options = keyopts
 
             try:
@@ -312,7 +314,7 @@ def check_permissions(username, current_path, full_path, is_file, strictmodes):
 
     # 3. no write permission (w) is given to group and world users (022)
     # Group and world user can still have +rx.
-    if strictmodes and parent_permission & 0o022 != 0:
+    if strictmodes and (parent_permission & 0o022):
         LOG.debug(
             "Path %s in %s must not give write"
             "permission to group or world users. Ignoring key.",
@@ -544,6 +546,10 @@ def parse_ssh_config_map(fname):
 
 
 def _includes_dconf(fname: str) -> bool:
+    # Handle cases where sshd_config is handled in /usr/etc/ssh/sshd_config
+    # so /etc/ssh/sshd_config.d/ exists but /etc/ssh/sshd_config doesn't
+    if not os.path.exists(fname) and os.path.exists(f"{fname}.d"):
+        return True
     if not os.path.isfile(fname):
         return False
     for line in util.load_text_file(fname).splitlines():

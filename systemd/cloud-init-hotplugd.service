@@ -1,5 +1,5 @@
 # Paired with cloud-init-hotplugd.socket to read from the FIFO
-# /run/cloud-init/hook-hotplug-cmd which is created during a udev network
+# hook-hotplug-cmd which is created during a udev network
 # add or remove event as processed by 90-cloud-init-hook-hotplug.rules.
 
 # On start, read args from the FIFO, process and provide structured arguments

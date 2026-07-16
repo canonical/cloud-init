@@ -4,10 +4,13 @@ Base configuration
 ******************
 
 .. warning::
+
     This documentation is intended for custom image creators, such as distros
-    and cloud providers, not end users. Modifying the base configuration
-    should not be necessary for end users and can result in a system that may
-    be unreachable or may no longer boot.
+    and cloud providers, not end users. To learn how to configure an instance,
+    :ref:`start here <user_data_formats>`.
+
+    Modifying the base configuration should not be necessary for most end users
+    and can result in a system that may be unreachable or may no longer boot.
 
 ``Cloud-init`` base config is primarily defined in two places:
 
@@ -22,7 +25,7 @@ Generation
 ==========
 
 :file:`cloud.cfg` isn't present in any of ``cloud-init``'s source files. The
-`configuration is templated`_ and customised for each
+`configuration is templated`_ and customized for each
 distribution supported by ``cloud-init``.
 
 Base configuration keys
@@ -54,7 +57,7 @@ more information on ``frequency`` and ``args``.
 
 .. note::
     Most modules won't run at all if they're not triggered via a
-    respective user data key, so removing modules or changing the run
+    respective user-data key, so removing modules or changing the run
     frequency is **not** a recommended way to reduce instance boot time.
 
 Examples
@@ -75,7 +78,7 @@ To change the frequency from the default of ``ALWAYS`` to ``ONCE``:
     - [final_message, once]
 
 To include default arguments to the module (that may be overridden by
-user data):
+user-data):
 
 .. code-block:: yaml
 
@@ -88,25 +91,85 @@ Datasource keys
 ---------------
 
 Many datasources allow configuration of the datasource for use in
-querying the datasource for metadata using the ``datasource`` key.
+querying the datasource for meta-data using the ``datasource`` key.
 This configuration is datasource dependent and can be found under
-each datasource's respective :ref:`documentation<datasources>`. It will
-generally take the form of:
+each datasource's respective :ref:`documentation<datasources>`. Example:
 
 .. code-block:: yaml
 
     datasource:
-      <datasource_name>:
-        ...
+      Ec2:
+        # timeout: the timeout value for a request at metadata service
+        timeout: 50
+        # The length in seconds to wait before giving up on the metadata
+        # service.  The actual total wait could be up to
+        #   len(resolvable_metadata_urls)*timeout
+        max_wait: 240
+
+        # metadata_url: a list of URLs to check for metadata services
+        metadata_urls:
+         - http://169.254.169.254:80
+         - http://instance-data:8773
+
+      MAAS:
+        timeout: 50
+        max_wait: 120
+
+        # there are no default values for metadata_url or oauth credentials
+        # If no credentials are present, non-authed attempts will be made.
+        metadata_url: http://mass-host.localdomain/source
+        consumer_key: Xh234sdkljf
+        token_key: kjfhgb3n
+        token_secret: 24uysdfx1w4
+
+      NoCloud:
+        # default seedfrom is None
+        # if found, then it should contain a url with:
+        #    <url>/user-data and <url>/meta-data
+        # seedfrom: http://my.example.com/i-abcde/
+        seedfrom: None
+
+        # fs_label: the label on filesystems to be searched for NoCloud source
+        fs_label: cidata
+
+        # these are optional, but allow you to provide configuration
+        user-data: |
+          # This is the user-data verbatim
+        meta-data: |
+          instance-id: i-87018aed
+          local-hostname: myhost.internal
+
+      SmartOS:
+        # For KVM guests:
+        # Smart OS datasource works over a serial console interacting with
+        # a server on the other end. By default, the second serial console is the
+        # device. SmartOS also uses a serial timeout of 60 seconds.
+        serial_device: /dev/ttyS1
+        serial_timeout: 60
+
+        # For LX-Brand Zones guests:
+        # Smart OS datasource works over a socket interacting with
+        # the host on the other end. By default, the socket file is in
+        # the native .zoncontrol directory.
+        metadata_sockfile: /native/.zonecontrol/metadata.sock
+
+        # a list of keys that will not be base64 decoded even if base64_all
+        no_base64_decode: ['root_authorized_keys', 'motd_sys_info',
+                           'iptables_disable']
+        # a plaintext, comma delimited list of keys whose values are b64 encoded
+        base64_keys: []
+        # a boolean indicating that all keys not in 'no_base64_decode' are encoded
+        base64_all: False
+
 
 System info keys
 ----------------
 
 These keys are used for setup of ``cloud-init`` itself, or the datasource
-or distro. Anything under ``system_info`` cannot be overridden by vendor data,
-user data, or any other handlers or transforms. In some cases there may be a
+or distro. Anything under ``system_info`` cannot be overridden by vendor-data,
+user-data, or any other handlers or transforms. In some cases there may be a
 ``system_info`` key used for the distro, while the same key is used outside of
-``system_info`` for a user data module.
+``system_info`` for a user-data module.
 Both keys will be processed independently.
 
 * ``system_info``: Top-level key.
@@ -128,7 +191,7 @@ Both keys will be processed independently.
     either ``ssh`` or ``sshd``.
   - ``network``: Top-level key for distro-specific networking configuration.
 
-    + ``renderers``: Prioritised list of networking configurations to try
+    + ``renderers``: Prioritized list of networking configurations to try
       on this system. The first valid entry found will be used.
       Options are:
 
@@ -140,7 +203,7 @@ Both keys will be processed independently.
       * ``netbsd``
       * ``openbsd``
 
-    + ``activators``: Prioritised list of networking tools to try to activate
+    + ``activators``: Prioritized list of networking tools to try to activate
       network on this system. The first valid entry found will be used.
       Options are:
 
@@ -228,7 +291,7 @@ instance.
 ``datasource_pkg_list``
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-Prioritised list of python packages to search when finding a datasource.
+Prioritized list of python packages to search when finding a datasource.
 Automatically includes ``cloudinit.sources``.
 
 .. _base_config_datasource_list:
@@ -236,24 +299,12 @@ Automatically includes ``cloudinit.sources``.
 ``datasource_list``
 ^^^^^^^^^^^^^^^^^^^
 
-This key contains a prioritised list of datasources that ``cloud-init``
-attempts to discover on boot. By default, this is defined in
-:file:`/etc/cloud/cloud.cfg.d`.
-
-There are a few reasons to modify the ``datasource_list``:
-
-1. Override default datasource discovery priority order
-2. Force cloud-init to use a specific datasource: A single entry in
-   the list (or a single entry and ``None``) will override datasource
-   discovery, which will force the specified datasource to run.
-3. Remove known invalid datasources: this might improve boot speed on distros
-   that do not use ``ds-identify`` to detect and select the datasource,
+This key contains a list of datasources that are checked on boot.
+``cloud-init`` skips checks if the list contains a single datasource.
 
 .. warning::
 
-   This key is unique in that it uses a subset of YAML syntax. It **requires**
-   that the key and its contents, a list, must share a single line - no
-   newlines.
+   This key and its values **must** be on a single line - no newlines.
 
 ``vendor_data``/``vendor_data2``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -270,10 +321,10 @@ Format is a dict with ``enabled`` and ``prefix`` keys:
 ``allow_userdata``
 ^^^^^^^^^^^^^^^^^^
 
-A boolean value to disable the use of user data.
+A boolean value to disable the use of user-data.
 This allows custom images to prevent users from accidentally breaking closed
 appliances. Setting ``allow_userdata: false`` in the configuration will disable
-``cloud-init`` from processing user data.
+``cloud-init`` from processing user-data.
 
 ``manual_cache_clean``
 ^^^^^^^^^^^^^^^^^^^^^^

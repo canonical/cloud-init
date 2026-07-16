@@ -8,6 +8,7 @@ from collections import namedtuple
 from io import BytesIO
 from pathlib import Path
 from textwrap import dedent
+from unittest import mock
 
 import pytest
 
@@ -17,7 +18,6 @@ from cloudinit.helpers import Paths
 from cloudinit.sources import REDACT_SENSITIVE_VALUE
 from cloudinit.templater import JinjaSyntaxParsingException
 from cloudinit.util import write_file
-from tests.unittests.helpers import mock
 
 M_PATH = "cloudinit.cmd.query."
 
@@ -258,6 +258,7 @@ class TestQuery:
             (_gzip_data(b"ud"), "ud", _gzip_data(b"vd"), "vd"),
             (_gzip_data("ud".encode("utf-8")), "ud", _gzip_data(b"vd"), "vd"),
         ),
+        ids=("plain-text", "bytes", "gzip-bytes", "gzip-encoded-bytes"),
     )
     def test_handle_args_root_processes_user_data(
         self, ud_src, ud_expected, vd_src, vd_expected, capsys, tmpdir
@@ -614,7 +615,7 @@ class TestQuery:
             "Failed to render templated data. "
             + JinjaSyntaxParsingException.format_error_message(
                 syntax_error="unexpected '}'",
-                line_number=2,
+                line_number="2",
                 line_content="v1_1: {{ v1.v1_1 } }",
             )
         )

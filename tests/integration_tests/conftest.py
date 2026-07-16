@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import datetime
+import fcntl
 import functools
 import logging
 import os
@@ -33,10 +34,16 @@ from tests.integration_tests.instances import (
     CloudInitSource,
     IntegrationInstance,
 )
+from tests.integration_tests.reaper import Reaper
 
 log = logging.getLogger("integration_testing")
 log.addHandler(logging.StreamHandler(sys.stdout))
 log.setLevel(logging.INFO)
+
+# set log level INFO instead of DEBUG for boto3 and botocore
+# to prevent 1000s of lines of DEBUG log spam that occur during some tests
+logging.getLogger("botocore").setLevel(logging.INFO)
+logging.getLogger("boto3").setLevel(logging.INFO)
 
 platforms: Dict[str, Type[IntegrationCloud]] = {
     "ec2": Ec2Cloud,
@@ -74,8 +81,62 @@ def disable_subp_usage(request):
     pass
 
 
+def setup_image_or_die(cloud: IntegrationCloud):
+    try:
+        setup_image(cloud)
+    except Exception as e:
+        if cloud.snapshot_id:
+            # if a snapshot id was set, then snapshot succeeded, teardown
+            cloud.delete_snapshot()
+        cloud.destroy()
+        pytest.exit(
+            f"{type(e).__name__} in session setup: {str(e)}", returncode=2
+        )
+
+
+def setup_image_once(
+    worker_id: str,
+    cloud: IntegrationCloud,
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    """Setup image to be used for (almost) all tests.
+
+    Since pytest-xdist runs tests in parallel, we need to ensure that
+    the image setup is only done once, and not multiple times in parallel.
+    """
+    if worker_id == "master":
+        # We're running single-threaded, so no synchronization needed
+        setup_image_or_die(cloud)
+        return
+
+    # We're an xdist worker, so we need to synchronize.
+    # Whoever gets the lock first will do the setup, writing the
+    # image id into the image path. The other workers will
+    # wait for file access, read the image id from image path and use it.
+    image_path = Path(
+        tmp_path_factory.getbasetemp().parent,
+        f"session_image_id_{worker_id}",
+    )
+    lock_path = image_path.with_suffix(".lock")
+
+    with open(lock_path, "w") as lock_file:
+        # Use a lock to ensure only one worker does the setup
+        fcntl.lockf(lock_file, fcntl.LOCK_EX)
+        try:
+            if not image_path.exists():
+                setup_image_or_die(cloud)
+                image_path.write_text(cloud.image_id)
+            else:
+                cloud.snapshot_id = image_path.read_text().strip()
+        finally:
+            fcntl.lockf(lock_file, fcntl.LOCK_UN)
+
+
 @pytest.fixture(scope="session")
-def session_cloud() -> Generator[IntegrationCloud, None, None]:
+def session_cloud(
+    worker_id, reaper: Reaper, tmp_path_factory
+) -> Generator[IntegrationCloud, None, None]:
+    """get_session_cloud() creates a session from configuration"""
     if integration_settings.PLATFORM not in platforms.keys():
         raise ValueError(
             f"{integration_settings.PLATFORM} is an invalid PLATFORM "
@@ -84,14 +145,29 @@ def session_cloud() -> Generator[IntegrationCloud, None, None]:
     image_types = [member.value for member in ImageType.__members__.values()]
     try:
         image_type = ImageType(integration_settings.OS_IMAGE_TYPE)
-    except ValueError:
+    except ValueError as e:
         raise ValueError(
             f"{integration_settings.OS_IMAGE_TYPE} is an invalid OS_IMAGE_TYPE"
             f" specified in settings. Must be one of {image_types}"
-        )
-    cloud = platforms[integration_settings.PLATFORM](image_type=image_type)
+        ) from e
+
+    cloud: IntegrationCloud = platforms[integration_settings.PLATFORM](
+        reaper=reaper, image_type=image_type
+    )
     cloud.emit_settings_to_log()
+
+    setup_image_once(worker_id, cloud, tmp_path_factory)
+
     yield cloud
+    log.info("Tearing down session cloud")
+    try:
+        cloud.delete_snapshot()
+    except Exception as e:
+        log.warning(
+            "Could not delete snapshot. Leaked snapshot id %s: %s",
+            cloud.snapshot_id,
+            e,
+        )
     cloud.destroy()
 
 
@@ -118,12 +194,8 @@ def get_validated_source(
     raise ValueError(f"Invalid value for CLOUD_INIT_SOURCE setting: {source}")
 
 
-@pytest.fixture(scope="session")
-def setup_image(session_cloud: IntegrationCloud, request):
-    """Setup the target environment with the correct version of cloud-init.
-
-    So we can launch instances / run tests with the correct image
-    """
+def setup_image(session_cloud: IntegrationCloud) -> None:
+    """create image with correct version of cloud-init, then make a snapshot"""
     source = get_validated_source(session_cloud)
     if not (
         source.installs_new_version()
@@ -141,7 +213,8 @@ def setup_image(session_cloud: IntegrationCloud, request):
         and integration_settings.INCLUDE_COVERAGE
     ):
         log.error(
-            "Invalid configuration, cannot enable both profile and coverage."
+            "Invalid configuration, cannot enable both profile and "
+            "coverage."
         )
         raise ValueError()
     if integration_settings.INCLUDE_COVERAGE:
@@ -157,11 +230,6 @@ def setup_image(session_cloud: IntegrationCloud, request):
     # one around as it was just for image creation
     client.destroy()
     log.info("Done with environment setup")
-
-    # For some reason a yield here raises a
-    # ValueError: setup_image did not yield a value
-    # during setup so use a finalizer instead.
-    request.addfinalizer(session_cloud.delete_snapshot)
 
 
 def _collect_logs(instance: IntegrationInstance, log_dir: Path):
@@ -274,15 +342,7 @@ def _collect_artifacts(
         _collect_profile(instance, log_dir)
 
 
-@contextmanager
-def _client(
-    request, fixture_utils, session_cloud: IntegrationCloud
-) -> Iterator[IntegrationInstance]:
-    """Fixture implementation for the client fixtures.
-
-    Launch the dynamic IntegrationClient instance using any provided
-    userdata, yield to the test, then cleanup
-    """
+def get_session_args(request, fixture_utils, session_cloud: IntegrationCloud):
     getter = functools.partial(
         fixture_utils.closest_marker_first_arg_or, request, default=None
     )
@@ -304,31 +364,53 @@ def _client(
         if not isinstance(session_cloud, _LxdIntegrationCloud):
             pytest.skip("lxd_use_exec requires LXD")
         launch_kwargs["execute_via_ssh"] = False
-    local_launch_kwargs = {}
     if lxd_setup is not None:
         if not isinstance(session_cloud, _LxdIntegrationCloud):
             pytest.skip("lxd_setup requires LXD")
-        local_launch_kwargs["lxd_setup"] = lxd_setup
+    return user_data, launch_kwargs, lxd_setup, lxd_use_exec
+
+
+@contextmanager
+def _client(
+    request, fixture_utils, session_cloud: IntegrationCloud
+) -> Iterator[IntegrationInstance]:
+    """Fixture implementation for the client fixtures.
+
+    Launch the dynamic IntegrationClient instance using any provided
+    userdata, yield to the test, then cleanup
+    """
+    user_data, launch_kwargs, lxd_setup, lxd_use_exec = get_session_args(
+        request, fixture_utils, session_cloud
+    )
 
     with session_cloud.launch(
-        user_data=user_data, launch_kwargs=launch_kwargs, **local_launch_kwargs
+        user_data=user_data,
+        launch_kwargs=launch_kwargs,
+        lxd_setup=lxd_setup,
     ) as instance:
         if lxd_use_exec is not None and isinstance(
             instance.instance, LXDInstance
         ):
             # Existing instances are not affected by the launch kwargs, so
-            # ensure it here; we still need the launch kwarg so waiting works
+            # ensure it here; we still need the launch kwarg so waiting
+            # works
             instance.instance.execute_via_ssh = False
         previous_failures = request.session.testsfailed
         yield instance
         test_failed = request.session.testsfailed - previous_failures > 0
         _collect_artifacts(instance, request.node.nodeid, test_failed)
+        instance.test_failed = test_failed
+        if test_failed:
+            session_cloud.has_failed_test = True
+
     # conflicting requirements:
     # - pytest thinks that it can cleanup loggers after tests run
-    # - pycloudlib thinks that at garbage collection is a good place to tear
-    #   down sftp connections
-    # After the final test runs, pytest might clean up loggers which will cause
-    # paramiko to barf when it logs that the connection is being closed.
+    # - pycloudlib thinks that at garbage collection is a good place to
+    # tear down sftp connections
+    #
+    # After the final test runs, pytest might clean up loggers which will
+    # cause paramiko to barf when it logs that the connection is being
+    # closed.
     #
     # Manually run __del__() to prevent this teardown mess.
     instance.instance.__del__()
@@ -336,7 +418,7 @@ def _client(
 
 @pytest.fixture
 def client(  # pylint: disable=W0135
-    request, fixture_utils, session_cloud, setup_image
+    request, fixture_utils, session_cloud
 ) -> Iterator[IntegrationInstance]:
     """Provide a client that runs for every test."""
     with _client(request, fixture_utils, session_cloud) as client:
@@ -345,7 +427,7 @@ def client(  # pylint: disable=W0135
 
 @pytest.fixture(scope="module")
 def module_client(  # pylint: disable=W0135
-    request, fixture_utils, session_cloud, setup_image
+    request, fixture_utils, session_cloud
 ) -> Iterator[IntegrationInstance]:
     """Provide a client that runs once per module."""
     with _client(request, fixture_utils, session_cloud) as client:
@@ -354,7 +436,7 @@ def module_client(  # pylint: disable=W0135
 
 @pytest.fixture(scope="class")
 def class_client(  # pylint: disable=W0135
-    request, fixture_utils, session_cloud, setup_image
+    request, fixture_utils, session_cloud
 ) -> Iterator[IntegrationInstance]:
     """Provide a client that runs once per class."""
     with _client(request, fixture_utils, session_cloud) as client:
@@ -459,8 +541,29 @@ def _generate_profile_report() -> None:
     log.info(command, "final.stats")
 
 
+@pytest.fixture(scope="session")
+def reaper():
+    """Fixture to provide a reaper instance for cleaning up instances."""
+    reaper_instance = Reaper()
+    reaper_instance.start()
+
+    yield reaper_instance
+
+    try:
+        reaper_instance.stop()
+    except Exception as e:
+        log.warning(
+            "Could not tear down instance reaper thread: %s(%s)",
+            type(e).__name__,
+            e,
+        )
+
+
 def pytest_sessionfinish(session, exitstatus) -> None:
-    if integration_settings.INCLUDE_COVERAGE:
-        _generate_coverage_report()
-    elif integration_settings.INCLUDE_PROFILE:
-        _generate_profile_report()
+    try:
+        if integration_settings.INCLUDE_COVERAGE:
+            _generate_coverage_report()
+        elif integration_settings.INCLUDE_PROFILE:
+            _generate_profile_report()
+    except Exception as e:
+        log.warning("Could not generate report during session finish: %s", e)

@@ -21,7 +21,7 @@ def _check_password(instance, unhashed_password):
 
 
 @pytest.mark.skipif(PLATFORM != "azure", reason="Test is Azure specific")
-def test_update_default_password(setup_image, session_cloud: IntegrationCloud):
+def test_update_default_password(session_cloud: IntegrationCloud):
     os_profile = {
         "os_profile": {
             "admin_password": "",

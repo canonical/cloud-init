@@ -174,7 +174,6 @@ class Apt(PackageManager):
         full_command.extend(pkglist)
 
         self._wait_for_apt_command(
-            short_cmd=command,
             subp_kwargs={
                 "args": full_command,
                 "update_env": self.environment,
@@ -199,11 +198,10 @@ class Apt(PackageManager):
         return True
 
     def _wait_for_apt_command(
-        self, short_cmd, subp_kwargs, timeout=APT_LOCK_WAIT_TIMEOUT
+        self, subp_kwargs, timeout=APT_LOCK_WAIT_TIMEOUT
     ):
         """Wait for apt install to complete.
 
-        short_cmd: Name of command like "upgrade" or "install"
         subp_kwargs: kwargs to pass to subp
         """
         start_time = time.monotonic()

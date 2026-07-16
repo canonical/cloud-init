@@ -10,13 +10,13 @@ By default, ``cloud-init`` *always* considers this source to be a
 fully-fledged datasource. Instead, the typical behavior is to assume it is
 really only present to provide networking information. ``Cloud-init`` will
 copy the network information, apply it to the system, and then continue on.
-The "full" datasource could then be found in the EC2 metadata service. If
-this is not the case then the files contained on the located drive must
-provide equivalents to what the EC2 metadata service would provide (which is
-typical of the version 2 support listed below).
+The "full" datasource could then be found in the EC2 instance metadata service.
+If this is not the case then the files contained on the located drive must
+provide equivalents to what the EC2 instance metadata service would provide
+(which is typical of the version 2 support listed below).
 
 .. note::
-   See `the config drive extension`_ and `metadata introduction`_ in the
+   See `the config drive extension`_ and `meta-data introduction`_ in the
    public documentation for more information.
 
 .. dropdown:: Version 1 (deprecated)
@@ -105,7 +105,7 @@ networking to be up before user-data actions are run.
    instance-id:
      default: iid-dsconfigdrive
 
-This is utilised as the metadata's instance-id. It should generally
+This is utilized as the meta-data's instance-id. It should generally
 be unique, as it is what is used to determine "is this a new instance?".
 
 ``public-keys``
@@ -120,7 +120,7 @@ If present, these keys will be used as the public keys for the
 instance. This value overrides the content in ``authorized_keys``.
 
 .. note::
-   It is likely preferable to provide keys via user data.
+   It is likely preferable to provide keys via user-data.
 
 ``user-data``
 -------------
@@ -130,11 +130,11 @@ instance. This value overrides the content in ``authorized_keys``.
    user-data:
      default: None
 
-This provides ``cloud-init`` user data. See :ref:`examples <yaml_examples>`
+This provides ``cloud-init`` user-data. See :ref:`examples <yaml_examples>`
 for details of what needs to be present here.
 
 .. _OpenStack: http://www.openstack.org/
-.. _metadata introduction: https://docs.openstack.org/nova/latest/user/metadata.html#config-drives
+.. _meta-data introduction: https://docs.openstack.org/nova/latest/user/metadata.html#config-drives
 .. _python-novaclient: https://github.com/openstack/python-novaclient
 .. _iso9660: https://en.wikipedia.org/wiki/ISO_9660
 .. _vfat: https://en.wikipedia.org/wiki/File_Allocation_Table

@@ -20,19 +20,15 @@ def agent_string():
 
 @pytest.fixture()
 def fake_utcnow():
-    timestamp = datetime.datetime.utcnow()
+    timestamp = datetime.datetime.now(datetime.timezone.utc)
     with mock.patch.object(errors, "datetime", autospec=True) as m:
-        m.utcnow.return_value = timestamp
+        m.now.return_value = timestamp
         yield timestamp
 
 
-@pytest.fixture(autouse=True)
-def fake_vm_id(mocker):
-    vm_id = "foo"
-    mocker.patch(
-        "cloudinit.sources.azure.identity.query_vm_id", return_value=vm_id
-    )
-    yield vm_id
+@pytest.fixture
+def fake_vm_id():
+    yield "00000000-0000-0000-0000-000000000000"
 
 
 def quote_csv_value(value: str) -> str:
@@ -120,15 +116,22 @@ def test_reportable_errors(
         "documentation_url=https://aka.ms/linuxprovisioningerror",
     ]
 
-    assert error.as_encoded_report() == "|".join(data)
+    assert error.as_encoded_report(vm_id=fake_vm_id) == "|".join(data)
 
 
 def test_dhcp_lease(mocker):
-    error = errors.ReportableErrorDhcpLease(duration=5.6, interface="foo")
+    error = errors.ReportableErrorDhcpLease(
+        duration=5.6,
+        interface="foo",
+        mac_address="00:11:22:33:44:55",
+        driver="mock_driver",
+    )
 
     assert error.reason == "failure to obtain DHCP lease"
     assert error.supporting_data["duration"] == 5.6
     assert error.supporting_data["interface"] == "foo"
+    assert error.supporting_data["mac_address"] == "00:11:22:33:44:55"
+    assert error.supporting_data["driver"] == "mock_driver"
 
 
 def test_dhcp_interface_not_found(mocker):
@@ -208,6 +211,15 @@ def test_imds_metadata_parsing_exception():
     assert error.supporting_data["exception"] == repr(exception)
 
 
+def test_import_error():
+    exception = ImportError("No module named 'foobar'", name="foobar")
+
+    error = errors.ReportableErrorImportError(error=exception)
+
+    assert error.reason == "error importing foobar library"
+    assert error.supporting_data["error"] == repr(exception)
+
+
 def test_ovf_parsing_exception():
     error = None
     try:
@@ -239,19 +251,41 @@ def test_unhandled_exception():
     assert isinstance(traceback_base64, str)
 
     trace = base64.b64decode(traceback_base64).decode("utf-8")
-    assert trace.startswith("Traceback")
+    assert trace.startswith("\nValueError: my value error\n")
     assert "raise ValueError" in trace
-    assert trace.endswith("ValueError: my value error\n")
+    assert trace.endswith("Traceback (most recent call last):")
 
     quoted_value = quote_csv_value(f"exception={source_error!r}")
-    assert f"|{quoted_value}|" in error.as_encoded_report()
+    assert f"|{quoted_value}|" in error.as_encoded_report(vm_id="test-vm-id")
 
 
-def test_imds_invalid_metadata():
+@pytest.mark.parametrize(
+    "value",
+    [
+        "Running",
+        "None",
+        None,
+    ],
+    ids=["running", "string-none", "none-value"],
+)
+def test_imds_invalid_metadata(value):
     key = "compute"
-    value = "Running"
     error = errors.ReportableErrorImdsInvalidMetadata(key=key, value=value)
 
     assert error.reason == "invalid IMDS metadata for key=compute"
     assert error.supporting_data["key"] == key
-    assert error.supporting_data["value"] == repr(value)
+    assert error.supporting_data["value"] == value
+    assert error.supporting_data["type"] == type(value).__name__
+
+
+def test_vm_identification_exception():
+    exception = ValueError("foobar")
+    system_uuid = "1234-5678-90ab-cdef"
+
+    error = errors.ReportableErrorVmIdentification(
+        exception=exception, system_uuid=system_uuid
+    )
+
+    assert error.reason == "failure to identify Azure VM ID"
+    assert error.supporting_data["exception"] == repr(exception)
+    assert error.supporting_data["system_uuid"] == system_uuid

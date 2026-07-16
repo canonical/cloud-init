@@ -1,8 +1,9 @@
+from unittest import mock
+
 import pytest
 
 from cloudinit import sources
 from cloudinit.sources import DataSourceOpenStack as ds
-from tests.unittests.helpers import mock
 
 openstack_ds_name = ds.DataSourceOpenStack.dsname.lower()
 

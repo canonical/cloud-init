@@ -1,0 +1,10 @@
+[Bridge]
+Cost=30
+Priority=32
+
+[Match]
+Name=eth3
+
+[Network]
+Bridge=br0
+DHCP=no

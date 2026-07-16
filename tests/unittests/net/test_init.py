@@ -4,14 +4,13 @@
 import copy
 import errno
 import ipaddress
+import logging
 import os
 from pathlib import Path
 from typing import Optional
 from unittest import mock
 
 import pytest
-import requests
-import responses
 
 import cloudinit.net as net
 from cloudinit import subp
@@ -19,8 +18,7 @@ from cloudinit.net.ephemeral import EphemeralIPv4Network, EphemeralIPv6Network
 from cloudinit.subp import ProcessExecutionError
 from cloudinit.util import ensure_file, write_file
 from tests.unittests.helpers import (
-    CiTestCase,
-    ResponsesTestCase,
+    assert_count_equal,
     example_netdev,
     random_string,
 )
@@ -45,7 +43,7 @@ class TestSysDevPath:
 class TestReadSysNet:
     @pytest.fixture(autouse=True)
     def setup(self, tmpdir_factory):
-        # We mock invididual numbered tmpdirs here because these tests write
+        # We mock individual numbered tmpdirs here because these tests write
         # to the sysfs directory and stale test artifacts break later tests.
         mock_sysfs = f"{tmpdir_factory.mktemp('sysfs', numbered=True)}/"
         with mock.patch(
@@ -229,26 +227,20 @@ class TestReadSysNet:
         assert net.is_vlan("eth0")
 
 
-class TestGenerateFallbackConfig(CiTestCase):
-    def setUp(self):
-        super(TestGenerateFallbackConfig, self).setUp()
-        sys_mock = mock.patch("cloudinit.net.get_sys_class_path")
-        self.m_sys_path = sys_mock.start()
-        self.sysdir = self.tmp_dir() + "/"
-        self.m_sys_path.return_value = self.sysdir
-        self.addCleanup(sys_mock.stop)
-        self.add_patch(
-            "cloudinit.net.util.is_container",
-            "m_is_container",
-            return_value=False,
+class TestGenerateFallbackConfig:
+    @pytest.fixture(autouse=True)
+    def fixtures(self, mocker, tmp_path):
+        self.sysdir = str(tmp_path) + "/"
+        mocker.patch(
+            "cloudinit.net.get_sys_class_path", return_value=self.sysdir
         )
-        self.add_patch("cloudinit.net.util.udevadm_settle", "m_settle")
-        self.add_patch(
-            "cloudinit.net.is_netfailover", "m_netfail", return_value=False
+        mocker.patch("cloudinit.net.util.is_container", return_value=False)
+        mocker.patch("cloudinit.net.util.udevadm_settle")
+        self.m_is_netfail = mocker.patch(
+            "cloudinit.net.is_netfailover", return_value=False
         )
-        self.add_patch(
+        mocker.patch(
             "cloudinit.net.is_netfail_master",
-            "m_netfail_master",
             return_value=False,
         )
 
@@ -269,7 +261,7 @@ class TestGenerateFallbackConfig(CiTestCase):
             },
             "version": 2,
         }
-        self.assertEqual(expected, net.generate_fallback_config())
+        assert expected == net.generate_fallback_config()
 
     def test_generate_fallback_finds_dormant_eth_with_mac(self):
         """generate_fallback_config finds any dormant device with a mac."""
@@ -287,7 +279,7 @@ class TestGenerateFallbackConfig(CiTestCase):
             },
             "version": 2,
         }
-        self.assertEqual(expected, net.generate_fallback_config())
+        assert expected == net.generate_fallback_config()
 
     def test_generate_fallback_finds_eth_by_operstate(self):
         """generate_fallback_config finds any dormant device with a mac."""
@@ -307,15 +299,15 @@ class TestGenerateFallbackConfig(CiTestCase):
         valid_operstates = ["dormant", "down", "lowerlayerdown", "unknown"]
         for state in valid_operstates:
             write_file(os.path.join(self.sysdir, "eth0", "operstate"), state)
-            self.assertEqual(expected, net.generate_fallback_config())
+            assert expected == net.generate_fallback_config()
         write_file(os.path.join(self.sysdir, "eth0", "operstate"), "noworky")
-        self.assertIsNone(net.generate_fallback_config())
+        assert net.generate_fallback_config() is None
 
     def test_generate_fallback_config_skips_veth(self):
         """generate_fallback_config will skip any veth interfaces."""
         # A connected veth which gets ignored
         write_file(os.path.join(self.sysdir, "veth0", "carrier"), "1")
-        self.assertIsNone(net.generate_fallback_config())
+        assert net.generate_fallback_config() is None
 
     def test_generate_fallback_config_skips_bridges(self):
         """generate_fallback_config will skip any bridges interfaces."""
@@ -324,7 +316,7 @@ class TestGenerateFallbackConfig(CiTestCase):
         mac = "aa:bb:cc:aa:bb:cc"
         write_file(os.path.join(self.sysdir, "eth0", "address"), mac)
         ensure_file(os.path.join(self.sysdir, "eth0", "bridge"))
-        self.assertIsNone(net.generate_fallback_config())
+        assert net.generate_fallback_config() is None
 
     def test_generate_fallback_config_skips_bonds(self):
         """generate_fallback_config will skip any bonded interfaces."""
@@ -333,9 +325,12 @@ class TestGenerateFallbackConfig(CiTestCase):
         mac = "aa:bb:cc:aa:bb:cc"
         write_file(os.path.join(self.sysdir, "eth0", "address"), mac)
         ensure_file(os.path.join(self.sysdir, "eth0", "bonding"))
-        self.assertIsNone(net.generate_fallback_config())
+        assert net.generate_fallback_config() is None
 
-    def test_generate_fallback_config_skips_netfail_devs(self):
+    @mock.patch("cloudinit.net.is_netfail_master")
+    def test_generate_fallback_config_skips_netfail_devs(
+        self, m_is_netfail_master
+    ):
         """gen_fallback_config ignores netfail primary,sby no mac on master."""
         mac = "aa:bb:cc:aa:bb:cc"  # netfailover devs share the same mac
         for iface in ["ens3", "ens3sby", "enP0s1f3"]:
@@ -351,7 +346,7 @@ class TestGenerateFallbackConfig(CiTestCase):
                 return False
             return True
 
-        self.m_netfail.side_effect = is_netfail
+        self.m_is_netfail.side_effect = is_netfail
 
         def is_netfail_master(iface, _driver=None):
             # ens3 is the master
@@ -359,7 +354,7 @@ class TestGenerateFallbackConfig(CiTestCase):
                 return True
             return False
 
-        self.m_netfail_master.side_effect = is_netfail_master
+        m_is_netfail_master.side_effect = is_netfail_master
         expected = {
             "ethernets": {
                 "ens3": {
@@ -372,23 +367,21 @@ class TestGenerateFallbackConfig(CiTestCase):
             "version": 2,
         }
         result = net.generate_fallback_config()
-        self.assertEqual(expected, result)
+        assert expected == result
 
 
-class TestNetFindFallBackNic(CiTestCase):
-    def setUp(self):
-        super(TestNetFindFallBackNic, self).setUp()
-        sys_mock = mock.patch("cloudinit.net.get_sys_class_path")
-        self.m_sys_path = sys_mock.start()
-        self.sysdir = self.tmp_dir() + "/"
-        self.m_sys_path.return_value = self.sysdir
-        self.addCleanup(sys_mock.stop)
-        self.add_patch(
+class TestNetFindFallBackNic:
+    @pytest.fixture(autouse=True)
+    def fixtures(self, mocker, tmp_path):
+        self.sysdir = str(tmp_path) + "/"
+        mocker.patch(
+            "cloudinit.net.get_sys_class_path", return_value=self.sysdir
+        )
+        mocker.patch(
             "cloudinit.net.util.is_container",
-            "m_is_container",
             return_value=False,
         )
-        self.add_patch("cloudinit.net.util.udevadm_settle", "m_settle")
+        mocker.patch("cloudinit.net.util.udevadm_settle")
 
     def test_generate_fallback_finds_first_connected_eth_with_mac(self):
         """find_fallback_nic finds any connected device with a mac."""
@@ -396,7 +389,7 @@ class TestNetFindFallBackNic(CiTestCase):
         write_file(os.path.join(self.sysdir, "eth1", "carrier"), "1")
         mac = "aa:bb:cc:aa:bb:cc"
         write_file(os.path.join(self.sysdir, "eth1", "address"), mac)
-        self.assertEqual("eth1", net.find_fallback_nic())
+        assert "eth1" == net.find_fallback_nic()
 
 
 class TestNetFindCandidateNics:
@@ -411,6 +404,7 @@ class TestNetFindCandidateNics:
         bridge: bool = False,
         failover_standby: bool = False,
         operstate: Optional[str] = None,
+        renamed: bool = True,
     ):
         interface_path = self.sys_path / name
         interface_path.mkdir(parents=True)
@@ -448,8 +442,14 @@ class TestNetFindCandidateNics:
             (device_path / driver).write_text(driver)
             (device_path / "driver").symlink_to(driver)
 
+        if renamed:
+            (interface_path / "name_assign_type").write_text("4")
+        else:
+            (interface_path / "name_assign_type").write_text("0")
+
     @pytest.fixture(autouse=True)
     def setup(self, monkeypatch, tmpdir):
+        """Fixture to set up the test environment."""
         self.sys_path = Path(tmpdir) / "sys"
         monkeypatch.setattr(
             net, "get_sys_class_path", lambda: str(self.sys_path) + "/"
@@ -459,7 +459,11 @@ class TestNetFindCandidateNics:
             "is_container",
             lambda: False,
         )
-        monkeypatch.setattr(net.util, "udevadm_settle", lambda: None)
+
+        self.m_settle = mock.Mock(return_value=None)
+        self.m_cmdline = mock.Mock(return_value="")
+        monkeypatch.setattr("cloudinit.net.util.udevadm_settle", self.m_settle)
+        monkeypatch.setattr("cloudinit.net.util.get_cmdline", self.m_cmdline)
 
     def test_ignored_interfaces(self):
         self.create_fake_interface(
@@ -569,67 +573,105 @@ class TestNetFindCandidateNics:
     def test_no_nics(self):
         assert net.find_candidate_nics_on_linux() == []
 
+    def test_udevadm_settle_called_for_predictable_names(self):
+        self.create_fake_interface(name="eth0", renamed=False)
 
-class TestGetDeviceList(CiTestCase):
-    def setUp(self):
-        super(TestGetDeviceList, self).setUp()
-        sys_mock = mock.patch("cloudinit.net.get_sys_class_path")
-        self.m_sys_path = sys_mock.start()
-        self.sysdir = self.tmp_dir() + "/"
-        self.m_sys_path.return_value = self.sysdir
-        self.addCleanup(sys_mock.stop)
+        result = net.find_candidate_nics_on_linux()
+
+        assert result == ["eth0"]
+        self.m_settle.assert_called_once()
+
+    def test_udevadm_settle_not_called_for_unpredictable_names(self):
+        self.create_fake_interface(name="eth0", renamed=False)
+        self.m_cmdline.return_value = "net.ifnames=0 biosdevname=0"
+
+        result = net.find_candidate_nics_on_linux()
+
+        assert result == ["eth0"]
+        self.m_settle.assert_not_called()
+
+    def test_udevadm_settle_not_called_for_renamed_interface(self):
+        self.create_fake_interface(name="eth0", renamed=True)
+
+        result = net.find_candidate_nics_on_linux()
+
+        assert result == ["eth0"]
+        self.m_settle.assert_not_called()
+
+    def test_udevadm_settle_failure_handled_gracefully(self, caplog):
+        self.create_fake_interface(name="eth0", renamed=False)
+
+        self.m_settle.side_effect = subp.ProcessExecutionError(
+            cmd="xcmd", stderr="xstderr", stdout="xstdout", exit_code=1
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = net.find_candidate_nics_on_linux()
+            assert (
+                "udevadm failed to settle: cmd='xcmd' "
+                "stderr='xstderr' stdout='xstdout' exit_code=1" in caplog.text
+            )
+
+        assert result == ["eth0"]
+        self.m_settle.assert_called_once()
+
+
+class TestGetDeviceList:
+    @pytest.fixture(autouse=True)
+    def fixtures(self, mocker, tmp_path):
+        self.sysdir = str(tmp_path) + "/"
+        self.m_sys_path = mocker.patch(
+            "cloudinit.net.get_sys_class_path", return_value=self.sysdir
+        )
 
     def test_get_devicelist_raise_oserror(self):
         """get_devicelist raise any non-ENOENT OSerror."""
         error = OSError("Can not do it")
         error.errno = errno.EPERM  # Set non-ENOENT
         self.m_sys_path.side_effect = error
-        with self.assertRaises(OSError) as context_manager:
+        with pytest.raises(OSError, match="Can not do it"):
             net.get_devicelist()
-        exception = context_manager.exception
-        self.assertEqual("Can not do it", str(exception))
 
     def test_get_devicelist_empty_without_sys_net(self):
         """get_devicelist returns empty list when missing SYS_CLASS_NET."""
         self.m_sys_path.return_value = "idontexist"
-        self.assertEqual([], net.get_devicelist())
+        assert [] == net.get_devicelist()
 
     def test_get_devicelist_empty_with_no_devices_in_sys_net(self):
-        """get_devicelist returns empty directoty listing for SYS_CLASS_NET."""
-        self.assertEqual([], net.get_devicelist())
+        """get_devicelist returns empty directory listing for SYS_CLASS_NET."""
+        assert [] == net.get_devicelist()
 
     def test_get_devicelist_lists_any_subdirectories_in_sys_net(self):
         """get_devicelist returns a directory listing for SYS_CLASS_NET."""
         write_file(os.path.join(self.sysdir, "eth0", "operstate"), "up")
         write_file(os.path.join(self.sysdir, "eth1", "operstate"), "up")
-        self.assertCountEqual(["eth0", "eth1"], net.get_devicelist())
+        assert_count_equal(["eth0", "eth1"], net.get_devicelist())
 
 
 @mock.patch(
     "cloudinit.net.is_openvswitch_internal_interface",
     mock.Mock(return_value=False),
 )
-class TestGetInterfaceMAC(CiTestCase):
-    def setUp(self):
-        super(TestGetInterfaceMAC, self).setUp()
-        sys_mock = mock.patch("cloudinit.net.get_sys_class_path")
-        self.m_sys_path = sys_mock.start()
-        self.sysdir = self.tmp_dir() + "/"
-        self.m_sys_path.return_value = self.sysdir
-        self.addCleanup(sys_mock.stop)
+class TestGetInterfaceMAC:
+    @pytest.fixture(autouse=True)
+    def fixtures(self, mocker, tmp_path):
+        self.sysdir = str(tmp_path) + "/"
+        self.m_sys_path = mocker.patch(
+            "cloudinit.net.get_sys_class_path", return_value=self.sysdir
+        )
 
     def test_get_interface_mac_false_with_no_mac(self):
         """get_device_list returns False when no mac is reported."""
         ensure_file(os.path.join(self.sysdir, "eth0", "bonding"))
         mac_path = os.path.join(self.sysdir, "eth0", "address")
-        self.assertFalse(os.path.exists(mac_path))
-        self.assertFalse(net.get_interface_mac("eth0"))
+        assert not os.path.exists(mac_path)
+        assert net.get_interface_mac("eth0") is False
 
     def test_get_interface_mac(self):
         """get_interfaces returns the mac from SYS_CLASS_NET/dev/address."""
         mac = "aa:bb:cc:aa:bb:cc"
         write_file(os.path.join(self.sysdir, "eth1", "address"), mac)
-        self.assertEqual(mac, net.get_interface_mac("eth1"))
+        assert mac == net.get_interface_mac("eth1")
 
     def test_get_interface_mac_grabs_bonding_address(self):
         """get_interfaces returns the source device mac for bonded devices."""
@@ -640,12 +682,12 @@ class TestGetInterfaceMAC(CiTestCase):
             os.path.join(self.sysdir, "eth1", "bonding_slave", "perm_hwaddr"),
             source_dev_mac,
         )
-        self.assertEqual(source_dev_mac, net.get_interface_mac("eth1"))
+        assert source_dev_mac == net.get_interface_mac("eth1")
 
     def test_get_interfaces_empty_list_without_sys_net(self):
         """get_interfaces returns an empty list when missing SYS_CLASS_NET."""
         self.m_sys_path.return_value = "idontexist"
-        self.assertEqual([], net.get_interfaces())
+        assert [] == net.get_interfaces()
 
     def test_get_interfaces_by_mac_skips_empty_mac(self):
         """Ignore 00:00:00:00:00:00 addresses from get_interfaces_by_mac."""
@@ -656,18 +698,18 @@ class TestGetInterfaceMAC(CiTestCase):
         write_file(os.path.join(self.sysdir, "eth2", "addr_assign_type"), "0")
         write_file(os.path.join(self.sysdir, "eth2", "address"), mac)
         expected = [("eth2", "aa:bb:cc:aa:bb:cc", None, None)]
-        self.assertEqual(expected, net.get_interfaces())
+        assert expected == net.get_interfaces()
 
     def test_get_interfaces_by_mac_skips_missing_mac(self):
         """Ignore interfaces without an address from get_interfaces_by_mac."""
         write_file(os.path.join(self.sysdir, "eth1", "addr_assign_type"), "0")
         address_path = os.path.join(self.sysdir, "eth1", "address")
-        self.assertFalse(os.path.exists(address_path))
+        assert not os.path.exists(address_path)
         mac = "aa:bb:cc:aa:bb:cc"
         write_file(os.path.join(self.sysdir, "eth2", "addr_assign_type"), "0")
         write_file(os.path.join(self.sysdir, "eth2", "address"), mac)
         expected = [("eth2", "aa:bb:cc:aa:bb:cc", None, None)]
-        self.assertEqual(expected, net.get_interfaces())
+        assert expected == net.get_interfaces()
 
     def test_get_interfaces_by_mac_skips_master_devs(self):
         """Ignore interfaces with a master device which would have dup mac."""
@@ -678,7 +720,7 @@ class TestGetInterfaceMAC(CiTestCase):
         write_file(os.path.join(self.sysdir, "eth2", "addr_assign_type"), "0")
         write_file(os.path.join(self.sysdir, "eth2", "address"), mac2)
         expected = [("eth2", mac2, None, None)]
-        self.assertEqual(expected, net.get_interfaces())
+        assert expected == net.get_interfaces()
 
     @mock.patch("cloudinit.net.is_netfailover")
     def test_get_interfaces_by_mac_skips_netfailvoer(self, m_netfail):
@@ -699,7 +741,7 @@ class TestGetInterfaceMAC(CiTestCase):
 
         m_netfail.side_effect = is_netfail
         expected = [("ens3", mac, None, None)]
-        self.assertEqual(expected, net.get_interfaces())
+        assert expected == net.get_interfaces()
 
     def test_get_interfaces_does_not_skip_phys_members_of_bridges_and_bonds(
         self,
@@ -732,24 +774,23 @@ class TestGetInterfaceMAC(CiTestCase):
         )
 
         interface_names = [interface[0] for interface in net.get_interfaces()]
-        self.assertEqual(
-            ["eth1", "eth2", "eth3", "ovs-system"], sorted(interface_names)
+        assert ["eth1", "eth2", "eth3", "ovs-system"] == sorted(
+            interface_names
         )
 
 
-class TestInterfaceHasOwnMAC(CiTestCase):
-    def setUp(self):
-        super(TestInterfaceHasOwnMAC, self).setUp()
-        sys_mock = mock.patch("cloudinit.net.get_sys_class_path")
-        self.m_sys_path = sys_mock.start()
-        self.sysdir = self.tmp_dir() + "/"
-        self.m_sys_path.return_value = self.sysdir
-        self.addCleanup(sys_mock.stop)
+class TestInterfaceHasOwnMAC:
+    @pytest.fixture(autouse=True)
+    def fixtures(self, mocker, tmp_path):
+        self.sysdir = str(tmp_path) + "/"
+        mocker.patch(
+            "cloudinit.net.get_sys_class_path", return_value=self.sysdir
+        )
 
     def test_interface_has_own_mac_false_when_stolen(self):
         """Return False from interface_has_own_mac when address is stolen."""
         write_file(os.path.join(self.sysdir, "eth1", "addr_assign_type"), "2")
-        self.assertFalse(net.interface_has_own_mac("eth1"))
+        assert net.interface_has_own_mac("eth1") is False
 
     def test_interface_has_own_mac_true_when_not_stolen(self):
         """Return False from interface_has_own_mac when mac isn't stolen."""
@@ -757,27 +798,23 @@ class TestInterfaceHasOwnMAC(CiTestCase):
         assign_path = os.path.join(self.sysdir, "eth1", "addr_assign_type")
         for _type in valid_assign_types:
             write_file(assign_path, _type)
-            self.assertTrue(net.interface_has_own_mac("eth1"))
+            assert net.interface_has_own_mac("eth1") is True
 
     def test_interface_has_own_mac_strict_errors_on_absent_assign_type(self):
         """When addr_assign_type is absent, interface_has_own_mac errors."""
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             net.interface_has_own_mac("eth1", strict=True)
 
 
 @mock.patch("cloudinit.net.subp.subp")
 @pytest.mark.usefixtures("disable_netdev_info")
-class TestEphemeralIPV4Network(CiTestCase):
-
-    with_logs = True
-
-    def setUp(self):
-        super(TestEphemeralIPV4Network, self).setUp()
-        sys_mock = mock.patch("cloudinit.net.get_sys_class_path")
-        self.m_sys_path = sys_mock.start()
-        self.sysdir = self.tmp_dir() + "/"
-        self.m_sys_path.return_value = self.sysdir
-        self.addCleanup(sys_mock.stop)
+class TestEphemeralIPV4Network:
+    @pytest.fixture(autouse=True)
+    def fixtures(self, mocker, tmp_path):
+        self.sysdir = str(tmp_path) + "/"
+        mocker.patch(
+            "cloudinit.net.get_sys_class_path", return_value=self.sysdir
+        )
 
     def test_ephemeral_ipv4_network_errors_on_missing_params(self, m_subp):
         """No required params for EphemeralIPv4Network can be None."""
@@ -790,15 +827,13 @@ class TestEphemeralIPV4Network(CiTestCase):
         for key in required_params.keys():
             params = copy.deepcopy(required_params)
             params[key] = None
-            with self.assertRaises(ValueError) as context_manager:
+            with pytest.raises(ValueError, match="Cannot init network on"):
                 EphemeralIPv4Network(
                     MockDistro(),
                     interface_addrs_before_dhcp=example_netdev,
                     **params,
                 )
-            error = context_manager.exception
-            self.assertIn("Cannot init network on", str(error))
-            self.assertEqual(0, m_subp.call_count)
+            assert 0 == m_subp.call_count
 
     def test_ephemeral_ipv4_network_errors_invalid_mask_prefix(self, m_subp):
         """Raise an error when prefix_or_mask is not a netmask or prefix."""
@@ -811,14 +846,13 @@ class TestEphemeralIPV4Network(CiTestCase):
         invalid_masks = ("invalid", "invalid.", "123.123.123")
         for error_val in invalid_masks:
             params["prefix_or_mask"] = error_val
-            with self.assertRaises(ValueError) as context_manager:
+            with pytest.raises(
+                ValueError,
+                match="Cannot setup network, invalid prefix or netmask: ",
+            ):
                 with EphemeralIPv4Network(MockDistro(), **params):
                     pass
-            error = context_manager.exception
-            self.assertIn(
-                "Cannot setup network, invalid prefix or netmask: ", str(error)
-            )
-            self.assertEqual(0, m_subp.call_count)
+            assert 0 == m_subp.call_count
 
     def test_ephemeral_ipv4_network_performs_teardown(self, m_subp):
         """EphemeralIPv4Network performs teardown on the device if setup."""
@@ -860,7 +894,7 @@ class TestEphemeralIPV4Network(CiTestCase):
             "interface_addrs_before_dhcp": example_netdev,
         }
         with EphemeralIPv4Network(MockDistro(), **params):
-            self.assertEqual(expected_setup_calls, m_subp.call_args_list)
+            assert expected_setup_calls == m_subp.call_args_list
         m_subp.assert_has_calls(expected_teardown_calls)
 
     def test_teardown_on_enter_exception(self, m_subp):
@@ -922,7 +956,7 @@ class TestEphemeralIPV4Network(CiTestCase):
         for teardown in expected_teardown_calls:
             assert teardown in m_subp.call_args_list
 
-    def test_ephemeral_ipv4_network_noop_when_configured(self, m_subp):
+    def test_ephemeral_ipv4_network_noop_when_configured(self, m_subp, caplog):
         """EphemeralIPv4Network handles exception when address is setup.
 
         It performs no cleanup as the interface was already setup.
@@ -941,8 +975,8 @@ class TestEphemeralIPV4Network(CiTestCase):
         with EphemeralIPv4Network(MockDistro(), **params):
             pass
         assert expected_calls == m_subp.call_args_list
-        assert "Skip bringing up network link" in self.logs.getvalue()
-        assert "Skip adding ip address" in self.logs.getvalue()
+        assert "Skip bringing up network link" in caplog.text
+        assert "Skip adding ip address" in caplog.text
 
     def test_ephemeral_ipv4_network_with_prefix(self, m_subp):
         """EphemeralIPv4Network takes a valid prefix to setup the network."""
@@ -1069,7 +1103,7 @@ class TestEphemeralIPV4Network(CiTestCase):
         ]
 
         with EphemeralIPv4Network(MockDistro(), **params):
-            self.assertEqual(expected_setup_calls, m_subp.call_args_list)
+            assert expected_setup_calls == m_subp.call_args_list
         m_subp.assert_has_calls(expected_teardown_calls)
 
     def test_ephemeral_ipv4_network_with_rfc3442_static_routes(self, m_subp):
@@ -1183,7 +1217,7 @@ class TestEphemeralIPV4Network(CiTestCase):
             ),
         ]
         with EphemeralIPv4Network(MockDistro(), **params):
-            self.assertEqual(expected_setup_calls, m_subp.call_args_list)
+            assert expected_setup_calls == m_subp.call_args_list
         m_subp.assert_has_calls(expected_setup_calls + expected_teardown_calls)
 
 
@@ -1199,44 +1233,6 @@ class TestEphemeralIPV6Network:
         ]
         with EphemeralIPv6Network(MockDistro(), interface="eth0"):
             assert expected_setup_calls == m_subp.call_args_list
-
-
-class TestHasURLConnectivity(ResponsesTestCase):
-    def setUp(self):
-        super(TestHasURLConnectivity, self).setUp()
-        self.url = "http://fake/"
-        self.kwargs = {"allow_redirects": True, "timeout": 5.0}
-
-    @mock.patch("cloudinit.net.readurl")
-    def test_url_timeout_on_connectivity_check(self, m_readurl):
-        """A timeout of 5 seconds is provided when reading a url."""
-        self.assertTrue(
-            net.has_url_connectivity({"url": self.url}),
-            "Expected True on url connect",
-        )
-
-    def test_true_on_url_connectivity_success(self):
-        self.responses.add(responses.GET, self.url)
-        self.assertTrue(
-            net.has_url_connectivity({"url": self.url}),
-            "Expected True on url connect",
-        )
-
-    @mock.patch("requests.Session.request")
-    def test_true_on_url_connectivity_timeout(self, m_request):
-        """A timeout raised accessing the url will return False."""
-        m_request.side_effect = requests.Timeout("Fake Connection Timeout")
-        self.assertFalse(
-            net.has_url_connectivity({"url": self.url}),
-            "Expected False on url timeout",
-        )
-
-    def test_true_on_url_connectivity_failure(self):
-        self.responses.add(responses.GET, self.url, body=b"", status=404)
-        self.assertFalse(
-            net.has_url_connectivity({"url": self.url}),
-            "Expected False on url fail",
-        )
 
 
 def _mk_v1_phys(mac, name, driver, device_id):
@@ -1263,11 +1259,13 @@ def _mk_v2_phys(mac, name, driver=None, device_id=None):
     return v2_cfg
 
 
-class TestExtractPhysdevs(CiTestCase):
-    def setUp(self):
-        super(TestExtractPhysdevs, self).setUp()
-        self.add_patch("cloudinit.net.device_driver", "m_driver")
-        self.add_patch("cloudinit.net.device_devid", "m_devid")
+class TestExtractPhysdevs:
+    @pytest.fixture(autouse=True)
+    def fixtures(self, mocker):
+        self.m_driver = mocker.patch("cloudinit.net.device_driver")
+        self.m_devid = mocker.patch(
+            "cloudinit.net.device_devid",
+        )
 
     def test_extract_physdevs_looks_up_driver_v1(self):
         driver = "virtio"
@@ -1281,9 +1279,7 @@ class TestExtractPhysdevs(CiTestCase):
         }
         # insert the driver value for verification
         physdevs[0][2] = driver
-        self.assertEqual(
-            sorted(physdevs), sorted(net.extract_physdevs(netcfg))
-        )
+        assert sorted(physdevs) == sorted(net.extract_physdevs(netcfg))
         self.m_driver.assert_called_with("eth0")
 
     def test_extract_physdevs_looks_up_driver_v2(self):
@@ -1298,9 +1294,7 @@ class TestExtractPhysdevs(CiTestCase):
         }
         # insert the driver value for verification
         physdevs[0][2] = driver
-        self.assertEqual(
-            sorted(physdevs), sorted(net.extract_physdevs(netcfg))
-        )
+        assert sorted(physdevs) == sorted(net.extract_physdevs(netcfg))
         self.m_driver.assert_called_with("eth0")
 
     def test_extract_physdevs_looks_up_devid_v1(self):
@@ -1315,9 +1309,7 @@ class TestExtractPhysdevs(CiTestCase):
         }
         # insert the driver value for verification
         physdevs[0][3] = devid
-        self.assertEqual(
-            sorted(physdevs), sorted(net.extract_physdevs(netcfg))
-        )
+        assert sorted(physdevs) == sorted(net.extract_physdevs(netcfg))
         self.m_devid.assert_called_with("eth0")
 
     def test_extract_physdevs_looks_up_devid_v2(self):
@@ -1332,9 +1324,7 @@ class TestExtractPhysdevs(CiTestCase):
         }
         # insert the driver value for verification
         physdevs[0][3] = devid
-        self.assertEqual(
-            sorted(physdevs), sorted(net.extract_physdevs(netcfg))
-        )
+        assert sorted(physdevs) == sorted(net.extract_physdevs(netcfg))
         self.m_devid.assert_called_with("eth0")
 
     def test_get_v1_type_physical(self):
@@ -1347,9 +1337,7 @@ class TestExtractPhysdevs(CiTestCase):
             "version": 1,
             "config": [_mk_v1_phys(*args) for args in physdevs],
         }
-        self.assertEqual(
-            sorted(physdevs), sorted(net.extract_physdevs(netcfg))
-        )
+        assert sorted(physdevs) == sorted(net.extract_physdevs(netcfg))
 
     def test_get_v2_type_physical(self):
         physdevs = [
@@ -1361,9 +1349,7 @@ class TestExtractPhysdevs(CiTestCase):
             "version": 2,
             "ethernets": {args[1]: _mk_v2_phys(*args) for args in physdevs},
         }
-        self.assertEqual(
-            sorted(physdevs), sorted(net.extract_physdevs(netcfg))
-        )
+        assert sorted(physdevs) == sorted(net.extract_physdevs(netcfg))
 
     def test_get_v2_type_physical_skips_if_no_set_name(self):
         netcfg = {
@@ -1374,10 +1360,10 @@ class TestExtractPhysdevs(CiTestCase):
                 }
             },
         }
-        self.assertEqual([], net.extract_physdevs(netcfg))
+        assert [] == net.extract_physdevs(netcfg)
 
     def test_runtime_error_on_unknown_netcfg_version(self):
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             net.extract_physdevs({"version": 3, "awesome_config": []})
 
 
@@ -1744,6 +1730,13 @@ class TestIsIpAddress:
             (lambda _: ipaddress.IPv4Address("192.168.0.1/24"), False),
             (lambda _: ipaddress.IPv6Address("2001:db8::"), True),
             (lambda _: ipaddress.IPv6Address("2001:db8::/48"), False),
+        ),
+        ids=(
+            "value-error",
+            "ipv4-address",
+            "ipv4-network",
+            "ipv6-address",
+            "ipv6-network",
         ),
     )
     def test_is_ip_address(self, ip_address_side_effect, expected_return):

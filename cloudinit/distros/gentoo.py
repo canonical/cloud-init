@@ -1,8 +1,10 @@
 # Copyright (C) 2014 Rackspace, US Inc.
 # Copyright (C) 2016 Matthew Thode.
+# Copyright (C) 2024 Andreas K. Huettel
 #
 # Author: Nate House <nathan.house@rackspace.com>
 # Author: Matthew Thode <prometheanfire@gentoo.org>
+# Author: Andreas K. Huettel <dilfridge@gentoo.org>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
@@ -18,7 +20,6 @@ LOG = logging.getLogger(__name__)
 
 class Distro(distros.Distro):
     locale_gen_fn = "/etc/locale.gen"
-    hostname_conf_fn = "/etc/conf.d/hostname"
     default_locale = "en_US.UTF-8"
 
     # C.UTF8 makes sense to generate, but is not selected
@@ -27,20 +28,20 @@ class Distro(distros.Distro):
 
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
+
+        if distros.uses_systemd():
+            self.hostname_conf_fn = "/etc/hostname"
+        else:
+            self.hostname_conf_fn = "/etc/conf.d/hostname"
+
         # This will be used to restrict certain
         # calls from repeatedly happening (when they
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
         self.osfamily = "gentoo"
-        # Fix sshd restarts
-        cfg["ssh_svcname"] = "/etc/init.d/sshd"
-        if distros.uses_systemd():
-            LOG.error("Cloud-init does not support systemd with gentoo")
 
     def apply_locale(self, _, out_fn=None):
-        """rc-only - not compatible with systemd
-
-        Locales need to be added to /etc/locale.gen and generated prior
+        """Locales need to be added to /etc/locale.gen and generated prior
         to selection. Default to en_US.UTF-8 for simplicity.
         """
         util.write_file(self.locale_gen_fn, "\n".join(self.locales), mode=644)
@@ -48,7 +49,7 @@ class Distro(distros.Distro):
         # generate locales
         subp.subp(["locale-gen"], capture=False)
 
-        # select locale
+        # select locale, works for both openrc and systemd
         subp.subp(
             ["eselect", "locale", "set", self.default_locale], capture=False
         )
@@ -77,10 +78,17 @@ class Distro(distros.Distro):
         if not conf:
             conf = HostnameConf("")
 
-        # Many distro's format is the hostname by itself, and that is the
-        # way HostnameConf works but gentoo expects it to be in
-        #     hostname="the-actual-hostname"
-        conf.set_hostname('hostname="%s"' % hostname)
+        if distros.uses_systemd():
+            # Gentoo uses the same format for /etc/hostname as everyone else-
+            # only the hostname by itself. Works for openrc and systemd, but
+            # openrc has its own config file and /etc/hostname is generated.
+            conf.set_hostname(hostname)
+        else:
+            # Openrc generates /etc/hostname from /etc/conf.d/hostname with the
+            # differing format
+            #     hostname="the-actual-hostname"
+            conf.set_hostname('hostname="%s"' % hostname)
+
         util.write_file(filename, str(conf), 0o644)
 
     def _read_system_hostname(self):

@@ -16,13 +16,7 @@ precedence; each item overriding the previous.
 - **Kernel command line**: ``ip=`` or
   ``network-config=<Base64 encoded YAML config string>``
 
-Cloud-init will write out the following files representing the network-config
-processed:
-
-- :file:`/run/cloud-init/network-config.json`: world-readable JSON containing
-  the selected source network-config JSON used by cloud-init network renderers.
-
-User data cannot change an instance's network configuration. In the absence
+User-data cannot change an instance's network configuration. In the absence
 of network configuration in any of the above sources, ``cloud-init`` will
 write out a network configuration that will issue a DHCP request on a "first"
 network interface.
@@ -39,7 +33,7 @@ Disabling network configuration
 Users may disable ``cloud-init``'s network configuration capability and rely
 on other methods, such as embedded configuration or other customisations.
 
-``cloud-init`` supports the following methods for disabling ``cloud-init``.
+``cloud-init`` supports the following methods for disabling networking.
 
 Kernel command line
 -------------------
@@ -67,9 +61,9 @@ networking configuration.
 Disabling network activation
 ============================
 
-Some datasources may not be initialised until after the network has been
+Some datasources may not be initialized until after the network has been
 brought up. In this case, ``cloud-init`` will attempt to bring up the
-interfaces specified by the datasource metadata using a network activator
+interfaces specified by the datasource meta-data using a network activator
 discovered by `cloudinit.net.activators.select_activator`_.
 
 This behaviour can be disabled in the ``cloud-init`` configuration dictionary,
@@ -106,10 +100,10 @@ Finally, after selecting the "right" interface, a configuration is generated
 and applied to the system.
 
 .. note::
-   PhotonOS disables fallback networking configuration by default, leaving
-   network unrendered when no other network config is provided.
-   If fallback config is still desired on PhotonOS, it can be enabled by
-   providing ``disable_fallback_netcfg: false`` in
+   PhotonOS and Raspberry Pi OS disable fallback networking configuration by
+   default, leaving network unrendered when no other network config is
+   provided. If fallback config is still desired, it can be
+   enabled by providing ``disable_fallback_netcfg: false`` in
    :file:`/etc/cloud/cloud.cfg:sys_config` settings.
 
 Network configuration sources
@@ -125,11 +119,11 @@ The following datasources optionally provide network configuration:
 
 - :ref:`datasource_config_drive`
 
-  - `OpenStack Metadata Service Network`_
+  - `OpenStack Instance Metadata Service Network`_
 
 - :ref:`datasource_digital_ocean`
 
-  - `DigitalOcean JSON metadata`_
+  - `DigitalOcean JSON meta-data`_
 
 - :ref:`datasource_lxd`
 
@@ -142,19 +136,19 @@ The following datasources optionally provide network configuration:
 
 - :ref:`datasource_openstack`
 
-  - `OpenStack Metadata Service Network`_
+  - `OpenStack Instance Metadata Service Network`_
 
 - :ref:`datasource_smartos`
 
-  - `SmartOS JSON Metadata`_
+  - `SmartOS JSON Instance Metadata`_
 
 - :ref:`datasource_upcloud`
 
-  - `UpCloud JSON metadata`_
+  - `UpCloud JSON meta-data`_
 
 - :ref:`datasource_vultr`
 
-  - `Vultr JSON metadata`_
+  - `Vultr JSON meta-data`_
 
 For more information on network configuration formats:
 
@@ -182,13 +176,13 @@ supports a wide range of networking setups. Configuration is typically stored
 in :file:`/etc/NetworkManager`.
 
 It is the default for a number of Linux distributions; notably Fedora,
-CentOS/RHEL, and their derivatives.
+CentOS/RHEL, Raspberry Pi OS, and their derivatives.
 
 ENI
 ---
 
 :file:`/etc/network/interfaces` or ``ENI`` is supported by the ``ifupdown``
-package found in Alpine Linux, Debian and Ubuntu.
+package found in Alpine Linux, Debian, Raspberry Pi OS and Ubuntu.
 
 Netplan
 -------
@@ -270,7 +264,7 @@ Example output:
 .. code-block::
 
    usage: /usr/bin/cloud-init devel net-convert [-h] -p PATH -k {eni,network_data.json,yaml,azure-imds,vmware-imc} -d PATH -D
-                                                  {alpine,arch,azurelinux,debian,ubuntu,freebsd,dragonfly,gentoo,cos,netbsd,openbsd,almalinux,amazon,centos,cloudlinux,eurolinux,fedora,mariner,miraclelinux,openmandriva,photon,rhel,rocky,virtuozzo,opensuse,sles,openEuler}
+                                                  {alpine,arch,azurelinux,debian,ubuntu,freebsd,dragonfly,gentoo,cos,netbsd,openbsd,almalinux,amazon,centos,cloudlinux,eurolinux,fedora,mariner,miraclelinux,openmandriva,photon,rhel,rocky,virtuozzo,opensuse,sles,openEuler,raspberry-pi-os}
                                                   [-m name,mac] [--debug] -O {eni,netplan,networkd,sysconfig,network-manager}
 
    options:
@@ -281,7 +275,7 @@ Example output:
                            The format of the given network config
      -d PATH, --directory PATH
                            directory to place output in
-     -D {alpine,arch,azurelinux,debian,ubuntu,freebsd,dragonfly,gentoo,cos,netbsd,openbsd,almalinux,amazon,centos,cloudlinux,eurolinux,fedora,mariner,miraclelinux,openmandriva,photon,rhel,rocky,virtuozzo,opensuse,sles,openeuler}, --distro {alpine,arch,azurelinux,debian,ubuntu,freebsd,dragonfly,gentoo,cos,netbsd,openbsd,almalinux,amazon,centos,cloudlinux,eurolinux,fedora,mariner,miraclelinux,openmandriva,photon,rhel,rocky,virtuozzo,opensuse,sles,openEuler}
+     -D {alpine,arch,azurelinux,debian,ubuntu,freebsd,dragonfly,gentoo,cos,netbsd,openbsd,almalinux,amazon,centos,cloudlinux,eurolinux,fedora,mariner,miraclelinux,openmandriva,photon,rhel,rocky,virtuozzo,opensuse,sles,openeuler}, --distro {alpine,arch,azurelinux,debian,ubuntu,freebsd,dragonfly,gentoo,cos,netbsd,openbsd,almalinux,amazon,centos,cloudlinux,eurolinux,fedora,mariner,miraclelinux,openmandriva,photon,rhel,rocky,virtuozzo,opensuse,sles,openEuler,raspberry-pi-os}
      -m name,mac, --mac name,mac
                            interface name to mac mapping
      --debug               enable debug logging to stderr.
@@ -320,10 +314,10 @@ Example output:
 .. _LXD: https://documentation.ubuntu.com/lxd/en/latest/cloud-init/#how-to-specify-network-configuration-data
 .. _NetworkManager: https://networkmanager.dev
 .. _Netplan: https://netplan.io/
-.. _DigitalOcean JSON metadata: https://developers.digitalocean.com/documentation/metadata/
-.. _OpenStack Metadata Service Network: https://specs.openstack.org/openstack/nova-specs/specs/liberty/implemented/metadata-service-network-info.html
-.. _SmartOS JSON Metadata: https://eng.joyent.com/mdata/datadict.html
-.. _UpCloud JSON metadata: https://developers.upcloud.com/1.3/8-servers/#metadata-service
-.. _Vultr JSON metadata: https://www.vultr.com/metadata/
+.. _DigitalOcean JSON meta-data: https://developers.digitalocean.com/documentation/metadata/
+.. _OpenStack Instance Metadata Service Network: https://specs.openstack.org/openstack/nova-specs/specs/liberty/implemented/metadata-service-network-info.html
+.. _SmartOS JSON Instance Metadata: https://web.archive.org/web/20210101000000/https://eng.joyent.com/mdata/datadict.html
+.. _UpCloud JSON meta-data: https://developers.upcloud.com/1.3/8-servers/#metadata-service
+.. _Vultr JSON meta-data: https://www.vultr.com/metadata/
 .. _cloudinit.net.activators.select_activator: https://github.com/canonical/cloud-init/blob/main/cloudinit/net/activators.py#L249
 .. _FreeBSD.start_services: https://github.com/canonical/cloud-init/blob/main/cloudinit/net/freebsd.py#L46

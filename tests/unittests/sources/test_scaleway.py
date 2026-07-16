@@ -1,18 +1,20 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+# pylint: disable=attribute-defined-outside-init
 
 import json
 import socket
-import sys
+from unittest import mock
 from urllib.parse import SplitResult, urlsplit
 
+import pytest
 import requests
 import responses
 from requests.exceptions import ConnectionError, ConnectTimeout
 
-from cloudinit import helpers, settings, sources
+from cloudinit import settings
 from cloudinit.distros import ubuntu
 from cloudinit.sources import DataSourceScaleway
-from tests.unittests.helpers import CiTestCase, ResponsesTestCase, mock
+from tests.unittests.helpers import responses_assert_call_count
 
 
 class DataResponses:
@@ -66,6 +68,7 @@ class MetadataResponses:
                 "fingerprint": "2048 06:ff:...  login2 (RSA)",
             },
         ],
+        "zone": "fr-par-1",
     }
 
     @classmethod
@@ -73,11 +76,7 @@ class MetadataResponses:
         return 200, response.headers, json.dumps(cls.FAKE_METADATA)
 
 
-class TestOnScaleway(CiTestCase):
-    def setUp(self):
-        super(TestOnScaleway, self).setUp()
-        self.tmp = self.tmp_dir()
-
+class TestOnScaleway:
     def install_mocks(self, fake_dmi, fake_file_exists, fake_cmdline):
         mock, faked = fake_dmi
         mock.return_value = "Scaleway" if faked else "Whatever"
@@ -96,20 +95,20 @@ class TestOnScaleway(CiTestCase):
     @mock.patch("os.path.exists")
     @mock.patch("cloudinit.dmi.read_dmi_data")
     def test_not_ds_detect(
-        self, m_read_dmi_data, m_file_exists, m_get_cmdline
+        self, m_read_dmi_data, m_file_exists, m_get_cmdline, paths
     ):
         self.install_mocks(
             fake_dmi=(m_read_dmi_data, False),
             fake_file_exists=(m_file_exists, False),
             fake_cmdline=(m_get_cmdline, False),
         )
-        self.assertFalse(DataSourceScaleway.DataSourceScaleway.ds_detect())
+        assert False is DataSourceScaleway.DataSourceScaleway.ds_detect()
 
         # When not on Scaleway, get_data() returns False.
         datasource = DataSourceScaleway.DataSourceScaleway(
-            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
+            settings.CFG_BUILTIN, None, paths
         )
-        self.assertFalse(datasource.get_data())
+        assert False is datasource.get_data()
 
     @mock.patch("cloudinit.util.get_cmdline")
     @mock.patch("os.path.exists")
@@ -126,7 +125,7 @@ class TestOnScaleway(CiTestCase):
             fake_file_exists=(m_file_exists, False),
             fake_cmdline=(m_get_cmdline, False),
         )
-        self.assertTrue(DataSourceScaleway.DataSourceScaleway.ds_detect())
+        assert True is DataSourceScaleway.DataSourceScaleway.ds_detect()
 
     @mock.patch("cloudinit.util.get_cmdline")
     @mock.patch("os.path.exists")
@@ -142,7 +141,7 @@ class TestOnScaleway(CiTestCase):
             fake_file_exists=(m_file_exists, True),
             fake_cmdline=(m_get_cmdline, False),
         )
-        self.assertTrue(DataSourceScaleway.DataSourceScaleway.ds_detect())
+        assert True is DataSourceScaleway.DataSourceScaleway.ds_detect()
 
     @mock.patch("cloudinit.util.get_cmdline")
     @mock.patch("os.path.exists")
@@ -158,7 +157,7 @@ class TestOnScaleway(CiTestCase):
             fake_file_exists=(m_file_exists, False),
             fake_cmdline=(m_get_cmdline, True),
         )
-        self.assertTrue(DataSourceScaleway.DataSourceScaleway.ds_detect())
+        assert True is DataSourceScaleway.DataSourceScaleway.ds_detect()
 
 
 def get_source_address_adapter(*args, **kwargs):
@@ -188,15 +187,14 @@ def _fix_mocking_url(url: str) -> str:
     ).geturl()
 
 
-class TestDataSourceScaleway(ResponsesTestCase):
-    def setUp(self):
-        tmp = self.tmp_dir()
+class TestDataSourceScaleway:
+    @pytest.fixture(autouse=True)
+    def fixtures(self, mocker, paths, tmp_path):
         distro = ubuntu.Distro("", {}, {})
-        distro.get_tmp_exec_path = self.tmp_dir
+        distro.get_tmp_exec_path = str(tmp_path)
         self.datasource = DataSourceScaleway.DataSourceScaleway(
-            settings.CFG_BUILTIN, distro, helpers.Paths({"run_dir": tmp})
+            settings.CFG_BUILTIN, distro, paths
         )
-        super(TestDataSourceScaleway, self).setUp()
 
         self.base_urls = DataSourceScaleway.DS_BASE_URLS
         for url in self.base_urls:
@@ -204,37 +202,37 @@ class TestDataSourceScaleway(ResponsesTestCase):
             # The trailing / at the end of the URL is needed to
             # workaround a bug in responses 3.6 which does not match
             # the URL otherwise.
-            self.responses.add_callback(
+            responses.add_callback(
                 responses.GET,
                 f"{url}/",
                 callback=MetadataResponses.get_ok,
             )
             # Define the metadata URLS
 
-        self.add_patch(
-            "cloudinit.sources.DataSourceScaleway."
-            "DataSourceScaleway.ds_detect",
-            "_m_ds_detect",
+        mocker.patch(
+            "cloudinit.sources.DataSourceScaleway.DataSourceScaleway.ds_detect",
             return_value=True,
         )
-        self.add_patch(
+        mocker.patch(
             "cloudinit.distros.net.find_fallback_nic",
-            "_m_find_fallback_nic",
             return_value="scalewaynic0",
         )
 
+    @responses.activate
     def test_set_metadata_url_ipv4_ok(self):
 
         self.datasource._set_metadata_url([self.base_urls[0]])
 
-        self.assertTrue(self.base_urls[0] in self.datasource.metadata_url)
+        assert self.base_urls[0] in self.datasource.metadata_url
 
+    @responses.activate
     def test_set_metadata_url_ipv6_ok(self):
 
         self.datasource._set_metadata_url([self.base_urls[1]])
 
-        self.assertTrue(self.base_urls[1] in self.datasource.metadata_url)
+        assert self.base_urls[1] in self.datasource.metadata_url
 
+    @responses.activate
     @mock.patch(
         "cloudinit.sources.DataSourceScaleway.DataSourceScaleway"
         ".override_ds_detect"
@@ -248,67 +246,66 @@ class TestDataSourceScaleway(ResponsesTestCase):
 
         self.datasource._set_metadata_url([self.base_urls[0]])
 
-        self.responses.reset()
-        self.responses.add_callback(
+        responses.reset()
+        responses.add_callback(
             responses.GET,
             f"{self.base_urls[0]}/",
             callback=MetadataResponses.get_ok,
         )
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             f"{self.base_urls[1]}/",
             callback=MetadataResponses.get_ok,
         )
         # Use _fix_mocking_url to workaround py3.6 bug in responses
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             _fix_mocking_url(f"{self.base_urls[0]}/conf?format=json"),
             callback=MetadataResponses.get_ok,
         )
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             _fix_mocking_url(f"{self.base_urls[1]}/conf?format=json"),
             callback=MetadataResponses.get_ok,
         )
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             f"{self.base_urls[0]}/user_data/cloud-init",
             callback=DataResponses.get_ok,
         )
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             f"{self.base_urls[0]}/vendor_data/cloud-init",
             callback=DataResponses.get_ok,
         )
-        self.assertTrue(self.datasource.get_data())
+        assert self.datasource.get_data()
 
-        self.assertEqual(
-            self.datasource.get_instance_id(),
-            MetadataResponses.FAKE_METADATA["id"],
+        assert (
+            self.datasource.get_instance_id()
+            == MetadataResponses.FAKE_METADATA["id"]
         )
         ssh_keys = self.datasource.get_public_ssh_keys()
         ssh_keys.sort()
-        self.assertEqual(
-            ssh_keys,
-            [
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA",
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC",
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD",
-            ],
+        assert ssh_keys == [
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA",
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC",
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD",
+        ]
+        assert (
+            self.datasource.get_hostname().hostname
+            == MetadataResponses.FAKE_METADATA["hostname"]
         )
-        self.assertEqual(
-            self.datasource.get_hostname().hostname,
-            MetadataResponses.FAKE_METADATA["hostname"],
+        assert (
+            self.datasource.get_userdata_raw() == DataResponses.FAKE_USER_DATA
         )
-        self.assertEqual(
-            self.datasource.get_userdata_raw(), DataResponses.FAKE_USER_DATA
+        assert (
+            self.datasource.get_vendordata_raw()
+            == DataResponses.FAKE_USER_DATA
         )
-        self.assertEqual(
-            self.datasource.get_vendordata_raw(), DataResponses.FAKE_USER_DATA
-        )
-        self.assertIsNone(self.datasource.availability_zone)
-        self.assertIsNone(self.datasource.region)
+        assert self.datasource.availability_zone == "fr-par-1"
+        assert self.datasource.region == "fr-par"
 
+    @responses.activate
     @mock.patch(
         "cloudinit.sources.DataSourceScaleway.DataSourceScaleway"
         ".override_ds_detect"
@@ -324,74 +321,72 @@ class TestDataSourceScaleway(ResponsesTestCase):
 
         self.datasource._set_metadata_url([self.base_urls[0]])
 
-        self.responses.reset()
-        self.responses.add_callback(
+        responses.reset()
+        responses.add_callback(
             responses.GET,
             f"{self.base_urls[0]}/",
             callback=ConnectTimeout,
         )
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             f"{self.base_urls[1]}/",
             callback=MetadataResponses.get_ok,
         )
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             _fix_mocking_url(f"{self.base_urls[1]}/conf?format=json"),
             callback=MetadataResponses.get_ok,
         )
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             _fix_mocking_url(f"{self.base_urls[1]}/user_data/cloud-init"),
             callback=DataResponses.get_ok,
         )
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             f"{self.base_urls[1]}/vendor_data/cloud-init",
             callback=DataResponses.get_ok,
         )
         self.datasource.get_data()
 
-        if sys.version_info.minor >= 7:
-            self.responses.assert_call_count(
-                f"{self.datasource.metadata_urls[0]}",
-                1,
-            )
-            self.responses.assert_call_count(
-                f"{self.datasource.metadata_urls[1]}",
-                1,
-            )
-            self.responses.assert_call_count(
-                f"{self.datasource.metadata_urls[1]}/conf?format=json", 1
-            )
+        responses_assert_call_count(
+            f"{self.datasource.metadata_urls[0]}",
+            1,
+        )
+        responses_assert_call_count(
+            f"{self.datasource.metadata_urls[1]}",
+            1,
+        )
+        responses_assert_call_count(
+            f"{self.datasource.metadata_urls[1]}/conf?format=json", 1
+        )
 
-        self.assertEqual(
-            self.datasource.get_instance_id(),
-            MetadataResponses.FAKE_METADATA["id"],
+        assert (
+            self.datasource.get_instance_id()
+            == MetadataResponses.FAKE_METADATA["id"]
         )
         ssh_keys = self.datasource.get_public_ssh_keys()
         ssh_keys.sort()
-        self.assertEqual(
-            ssh_keys,
-            [
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA",
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC",
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD",
-            ],
+        assert ssh_keys == [
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA",
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC",
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD",
+        ]
+        assert (
+            self.datasource.get_hostname().hostname
+            == MetadataResponses.FAKE_METADATA["hostname"]
         )
-        self.assertEqual(
-            self.datasource.get_hostname().hostname,
-            MetadataResponses.FAKE_METADATA["hostname"],
+        assert (
+            self.datasource.get_userdata_raw() == DataResponses.FAKE_USER_DATA
         )
-        self.assertEqual(
-            self.datasource.get_userdata_raw(), DataResponses.FAKE_USER_DATA
+        assert (
+            self.datasource.get_vendordata_raw()
+            == DataResponses.FAKE_USER_DATA
         )
-        self.assertEqual(
-            self.datasource.get_vendordata_raw(), DataResponses.FAKE_USER_DATA
-        )
-        self.assertIsNone(self.datasource.availability_zone)
-        self.assertIsNone(self.datasource.region)
+        assert self.datasource.availability_zone == "fr-par-1"
+        assert self.datasource.region == "fr-par"
 
+    @responses.activate
     @mock.patch(
         "cloudinit.sources.DataSourceScaleway.DataSourceScaleway"
         ".override_ds_detect"
@@ -409,35 +404,26 @@ class TestDataSourceScaleway(ResponsesTestCase):
         self.datasource._set_metadata_url([self.base_urls[0]])
 
         # Remove callbacks defined at class initialization
-        self.responses.reset()
-        self.responses.add_callback(
+        responses.reset()
+        responses.add_callback(
             responses.GET,
             f"{self.base_urls[0]}/",
             callback=ConnectTimeout,
         )
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             f"{self.base_urls[1]}/",
             callback=ConnectTimeout,
         )
         self.datasource.max_wait = 0
-        ret = self.datasource.get_data()
-        # assert_call_count is not available in responses for py3.6
-        if sys.version_info.minor >= 7:
-            self.responses.assert_call_count(
-                f"{self.datasource.metadata_urls[0]}",
-                2,
-            )
-            self.responses.assert_call_count(
-                f"{self.datasource.metadata_urls[1]}",
-                2,
-            )
+        assert False is self.datasource.get_data()
+        responses_assert_call_count(f"{self.datasource.metadata_urls[0]}", 2)
+        responses_assert_call_count(f"{self.datasource.metadata_urls[1]}", 2)
+        assert self.datasource.metadata == {}
+        assert self.datasource.get_userdata_raw() is None
+        assert self.datasource.get_vendordata_raw() is None
 
-        self.assertFalse(ret)
-        self.assertEqual(self.datasource.metadata, {})
-        self.assertIsNone(self.datasource.get_userdata_raw())
-        self.assertIsNone(self.datasource.get_vendordata_raw())
-
+    @responses.activate
     @mock.patch(
         "cloudinit.sources.DataSourceScaleway.DataSourceScaleway"
         ".override_ds_detect"
@@ -454,28 +440,27 @@ class TestDataSourceScaleway(ResponsesTestCase):
         # Make user and vendor data APIs return HTTP/404, which means there is
         # no user / vendor data for the server.
 
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             _fix_mocking_url(self.datasource.metadata_url),
             callback=MetadataResponses.get_ok,
         )
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             _fix_mocking_url(self.datasource.userdata_url),
             callback=DataResponses.empty,
         )
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             _fix_mocking_url(self.datasource.vendordata_url),
             callback=DataResponses.empty,
         )
         self.datasource.get_data()
-        self.assertEqual(
-            self.datasource.metadata, MetadataResponses.FAKE_METADATA
-        )
-        self.assertIsNone(self.datasource.get_userdata_raw())
-        self.assertIsNone(self.datasource.get_vendordata_raw())
+        assert self.datasource.metadata == MetadataResponses.FAKE_METADATA
+        assert self.datasource.get_userdata_raw() is None
+        assert self.datasource.get_vendordata_raw() is None
 
+    @responses.activate
     @mock.patch("cloudinit.url_helper.time.sleep", lambda x: None)
     @mock.patch("cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4")
     def test_metadata_connection_errors_legacy_ipv4_url(self, dhcpv4):
@@ -490,18 +475,19 @@ class TestDataSourceScaleway(ResponsesTestCase):
             "http://169.254.42.42",
         ]
 
-        self.responses.reset()
-        with self.assertRaises(ConnectionError):
-            self.responses.add_callback(
+        responses.reset()
+        with pytest.raises(ConnectionError):
+            responses.add_callback(
                 responses.GET,
                 f"{self.datasource.metadata_urls[0]}/",
                 callback=ConnectionError,
             )
             self.datasource._set_metadata_url(self.datasource.metadata_urls)
-        self.assertEqual(self.datasource.metadata, {})
-        self.assertIsNone(self.datasource.get_userdata_raw())
-        self.assertIsNone(self.datasource.get_vendordata_raw())
+        assert self.datasource.metadata == {}
+        assert self.datasource.get_userdata_raw() is None
+        assert self.datasource.get_vendordata_raw() is None
 
+    @responses.activate
     @mock.patch(
         "cloudinit.sources.DataSourceScaleway.DataSourceScaleway"
         ".override_ds_detect"
@@ -536,13 +522,13 @@ class TestDataSourceScaleway(ResponsesTestCase):
         ]
 
         self.datasource.has_ipv4 = True
-        self.responses.reset()
-        self.responses.add_callback(
+        responses.reset()
+        responses.add_callback(
             responses.GET,
             self.datasource.metadata_urls[0],
             callback=ConnectionError,
         )
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             self.datasource.metadata_urls[1],
             callback=ConnectionError,
@@ -551,18 +537,18 @@ class TestDataSourceScaleway(ResponsesTestCase):
         self.datasource.get_data()
         # url_helper.wait_on_url tests both URL in list each time so
         # called twice for each URL
-        if sys.version_info.minor >= 7:
-            self.responses.assert_call_count(
-                f"{self.datasource.metadata_urls[0]}",
-                2,
-            )
-            self.responses.assert_call_count(
-                f"{self.datasource.metadata_urls[1]}",
-                2,
-            )
-        self.assertIsNone(self.datasource.get_userdata_raw())
-        self.assertIsNone(self.datasource.get_vendordata_raw())
+        responses_assert_call_count(
+            f"{self.datasource.metadata_urls[0]}",
+            2,
+        )
+        responses_assert_call_count(
+            f"{self.datasource.metadata_urls[1]}",
+            2,
+        )
+        assert self.datasource.get_userdata_raw() is None
+        assert self.datasource.get_vendordata_raw() is None
 
+    @responses.activate
     @mock.patch(
         "cloudinit.sources.DataSourceScaleway.DataSourceScaleway"
         ".override_ds_detect"
@@ -578,12 +564,12 @@ class TestDataSourceScaleway(ResponsesTestCase):
 
         self.datasource._set_metadata_url([self.base_urls[0]])
 
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             _fix_mocking_url(self.datasource.metadata_url),
             callback=MetadataResponses.get_ok,
         )
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             _fix_mocking_url(self.datasource.vendordata_url),
             callback=DataResponses.empty,
@@ -603,16 +589,16 @@ class TestDataSourceScaleway(ResponsesTestCase):
                 return DataResponses.rate_limited(request)
             return DataResponses.get_ok(request)
 
-        self.responses.add_callback(
+        responses.add_callback(
             responses.GET,
             _fix_mocking_url(self.datasource.userdata_url),
             callback=_callback,
         )
         self.datasource.get_data()
-        self.assertEqual(
-            self.datasource.get_userdata_raw(), DataResponses.FAKE_USER_DATA
+        assert (
+            self.datasource.get_userdata_raw() == DataResponses.FAKE_USER_DATA
         )
-        self.assertEqual(sleep.call_count, 2)
+        assert sleep.call_count == 2
 
     def test_ssh_keys_empty(self):
         """
@@ -621,7 +607,7 @@ class TestDataSourceScaleway(ResponsesTestCase):
         """
         self.datasource.metadata["tags"] = []
         self.datasource.metadata["ssh_public_keys"] = []
-        self.assertEqual(self.datasource.get_public_ssh_keys(), [])
+        assert self.datasource.get_public_ssh_keys() == []
 
     def test_ssh_keys_only_tags(self):
         """
@@ -634,13 +620,10 @@ class TestDataSourceScaleway(ResponsesTestCase):
         self.datasource.metadata["ssh_public_keys"] = []
         ssh_keys = self.datasource.get_public_ssh_keys()
         ssh_keys.sort()
-        self.assertEqual(
-            ssh_keys,
-            [
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC",
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD",
-            ],
-        )
+        assert ssh_keys == [
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC",
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD",
+        ]
 
     def test_ssh_keys_only_conf(self):
         """
@@ -660,13 +643,10 @@ class TestDataSourceScaleway(ResponsesTestCase):
         ]
         ssh_keys = self.datasource.get_public_ssh_keys()
         ssh_keys.sort()
-        self.assertEqual(
-            ssh_keys,
-            [
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA",
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC",
-            ],
-        )
+        assert ssh_keys == [
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA",
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC",
+        ]
 
     def test_ssh_keys_both(self):
         """
@@ -689,168 +669,21 @@ class TestDataSourceScaleway(ResponsesTestCase):
         ]
         ssh_keys = self.datasource.get_public_ssh_keys()
         ssh_keys.sort()
-        self.assertEqual(
-            ssh_keys,
-            [
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA",
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC",
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD",
-            ],
-        )
+        assert ssh_keys == [
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA",
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC",
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD",
+        ]
 
     @mock.patch("cloudinit.distros.net.find_fallback_nic")
     @mock.patch("cloudinit.util.get_cmdline")
-    def test_legacy_network_config_ok(self, m_get_cmdline, fallback_nic):
+    def test_primary_ipv4_config_ok(self, m_get_cmdline, fallback_nic):
         """
-        network_config will only generate IPv4 config if no ipv6 data is
+        network_config will only generate IPv4 config if no IPv6 is
         available in the metadata
         """
         m_get_cmdline.return_value = "scaleway"
         fallback_nic.return_value = "ens2"
-        self.datasource.metadata["private_ip"] = "10.10.10.10"
-        self.datasource.metadata["ipv6"] = None
-
-        netcfg = self.datasource.network_config
-        resp = {
-            "version": 1,
-            "config": [
-                {
-                    "type": "physical",
-                    "name": "ens2",
-                    "subnets": [{"type": "dhcp4"}],
-                }
-            ],
-        }
-        self.assertEqual(netcfg, resp)
-
-    @mock.patch("cloudinit.distros.net.find_fallback_nic")
-    @mock.patch("cloudinit.util.get_cmdline")
-    def test_legacy_network_config_ipv6_ok(self, m_get_cmdline, fallback_nic):
-        """
-        network_config will only generate IPv4/v6 configs if ipv6 data is
-        available in the metadata
-        """
-        m_get_cmdline.return_value = "scaleway"
-        fallback_nic.return_value = "ens2"
-        self.datasource.metadata["private_ip"] = "10.10.10.10"
-        self.datasource.metadata["ipv6"] = {
-            "address": "2000:abc:4444:9876::42:999",
-            "gateway": "2000:abc:4444:9876::42:000",
-            "netmask": "127",
-        }
-
-        netcfg = self.datasource.network_config
-        resp = {
-            "version": 1,
-            "config": [
-                {
-                    "type": "physical",
-                    "name": "ens2",
-                    "subnets": [
-                        {"type": "dhcp4"},
-                        {
-                            "type": "static",
-                            "address": "2000:abc:4444:9876::42:999",
-                            "netmask": "127",
-                            "routes": [
-                                {
-                                    "gateway": "2000:abc:4444:9876::42:000",
-                                    "network": "::",
-                                    "prefix": "0",
-                                }
-                            ],
-                        },
-                    ],
-                }
-            ],
-        }
-        self.assertEqual(netcfg, resp)
-
-    @mock.patch("cloudinit.distros.net.find_fallback_nic")
-    @mock.patch("cloudinit.util.get_cmdline")
-    def test_legacy_network_config_existing(self, m_get_cmdline, fallback_nic):
-        """
-        network_config() should return the same data if a network config
-        already exists
-        """
-        m_get_cmdline.return_value = "scaleway"
-        self.datasource._network_config = "0xdeadbeef"
-
-        netcfg = self.datasource.network_config
-        self.assertEqual(netcfg, "0xdeadbeef")
-
-    @mock.patch("cloudinit.distros.net.find_fallback_nic")
-    @mock.patch("cloudinit.util.get_cmdline")
-    def test_legacy_network_config_unset(self, m_get_cmdline, fallback_nic):
-        """
-        _network_config will be set to sources.UNSET after the first boot.
-        Make sure it behave correctly.
-        """
-        m_get_cmdline.return_value = "scaleway"
-        fallback_nic.return_value = "ens2"
-        self.datasource.metadata["ipv6"] = None
-        self.datasource.metadata["private_ip"] = "10.10.10.10"
-        self.datasource._network_config = sources.UNSET
-
-        resp = {
-            "version": 1,
-            "config": [
-                {
-                    "type": "physical",
-                    "name": "ens2",
-                    "subnets": [{"type": "dhcp4"}],
-                }
-            ],
-        }
-
-        netcfg = self.datasource.network_config
-        self.assertEqual(netcfg, resp)
-
-    @mock.patch("cloudinit.sources.DataSourceScaleway.LOG.warning")
-    @mock.patch("cloudinit.distros.net.find_fallback_nic")
-    @mock.patch("cloudinit.util.get_cmdline")
-    def test_legacy_network_config_cached_none(
-        self, m_get_cmdline, fallback_nic, logwarning
-    ):
-        """
-        network_config() should return config data if cached data is None
-        rather than sources.UNSET
-        """
-        m_get_cmdline.return_value = "scaleway"
-        fallback_nic.return_value = "ens2"
-        self.datasource.metadata["ipv6"] = None
-        self.datasource.metadata["private_ip"] = "10.10.10.10"
-        self.datasource._network_config = None
-
-        resp = {
-            "version": 1,
-            "config": [
-                {
-                    "type": "physical",
-                    "name": "ens2",
-                    "subnets": [{"type": "dhcp4"}],
-                }
-            ],
-        }
-
-        netcfg = self.datasource.network_config
-        self.assertEqual(netcfg, resp)
-        logwarning.assert_called_with(
-            "Found None as cached _network_config. Resetting to %s",
-            sources.UNSET,
-        )
-
-    @mock.patch("cloudinit.distros.net.find_fallback_nic")
-    @mock.patch("cloudinit.util.get_cmdline")
-    def test_ipmob_primary_ipv4_config_ok(self, m_get_cmdline, fallback_nic):
-        """
-        network_config will only generate IPv4 config if no ipv6 data is
-        available in the metadata
-        """
-        m_get_cmdline.return_value = "scaleway"
-        fallback_nic.return_value = "ens2"
-        self.datasource.metadata["private_ip"] = None
-        self.datasource.metadata["ipv6"] = None
         self.datasource.ephemeral_fixed_address = "10.10.10.10"
         self.datasource.metadata["public_ips"] = [{"address": "10.10.10.10"}]
 
@@ -871,21 +704,16 @@ class TestDataSourceScaleway(ResponsesTestCase):
             },
         }
 
-        self.assertEqual(netcfg, resp)
+        assert netcfg == resp
 
     @mock.patch("cloudinit.distros.net.find_fallback_nic")
     @mock.patch("cloudinit.util.get_cmdline")
-    def test_ipmob_additional_ipv4_config_ok(
-        self, m_get_cmdline, fallback_nic
-    ):
+    def test_additional_ipv4_config_ok(self, m_get_cmdline, fallback_nic):
         """
-        network_config will only generate IPv4 config if no ipv6 data is
-        available in the metadata
+        network_config will generate IPv4 config with additional address
         """
         m_get_cmdline.return_value = "scaleway"
         fallback_nic.return_value = "ens2"
-        self.datasource.metadata["private_ip"] = None
-        self.datasource.metadata["ipv6"] = None
         self.datasource.ephemeral_fixed_address = "10.10.10.10"
         self.datasource.metadata["public_ips"] = [
             {
@@ -917,18 +745,16 @@ class TestDataSourceScaleway(ResponsesTestCase):
                 },
             },
         }
-        self.assertEqual(netcfg, resp)
+        assert netcfg == resp
 
     @mock.patch("cloudinit.distros.net.find_fallback_nic")
     @mock.patch("cloudinit.util.get_cmdline")
-    def test_ipmob_primary_ipv6_config_ok(self, m_get_cmdline, fallback_nic):
+    def test_primary_ipv6_config_ok(self, m_get_cmdline, fallback_nic):
         """
         Generate network_config with only IPv6
         """
         m_get_cmdline.return_value = "scaleway"
         fallback_nic.return_value = "ens2"
-        self.datasource.metadata["private_ip"] = None
-        self.datasource.metadata["ipv6"] = None
         self.datasource.ephemeral_fixed_address = "10.10.10.10"
         self.datasource.metadata["public_ips"] = [
             {
@@ -955,20 +781,16 @@ class TestDataSourceScaleway(ResponsesTestCase):
             },
         }
 
-        self.assertEqual(netcfg, resp)
+        assert netcfg == resp
 
     @mock.patch("cloudinit.distros.net.find_fallback_nic")
     @mock.patch("cloudinit.util.get_cmdline")
-    def test_ipmob_primary_ipv4_v6_config_ok(
-        self, m_get_cmdline, fallback_nic
-    ):
+    def test_primary_ipv4_v6_config_ok(self, m_get_cmdline, fallback_nic):
         """
         Generate network_config with IPv4+IPv6
         """
         m_get_cmdline.return_value = "scaleway"
         fallback_nic.return_value = "ens2"
-        self.datasource.metadata["private_ip"] = None
-        self.datasource.metadata["ipv6"] = None
         self.datasource.ephemeral_fixed_address = "10.10.10.10"
         self.datasource.metadata["public_ips"] = [
             {
@@ -1006,20 +828,16 @@ class TestDataSourceScaleway(ResponsesTestCase):
             },
         }
 
-        self.assertEqual(netcfg, resp)
+        assert netcfg == resp
 
     @mock.patch("cloudinit.distros.net.find_fallback_nic")
     @mock.patch("cloudinit.util.get_cmdline")
-    def test_ipmob_primary_ipv6_v4_config_ok(
-        self, m_get_cmdline, fallback_nic
-    ):
+    def test_primary_ipv6_v4_config_ok(self, m_get_cmdline, fallback_nic):
         """
         Generate network_config with IPv6+IPv4
         """
         m_get_cmdline.return_value = "scaleway"
         fallback_nic.return_value = "ens2"
-        self.datasource.metadata["private_ip"] = None
-        self.datasource.metadata["ipv6"] = None
         self.datasource.ephemeral_fixed_address = "10.10.10.10"
         self.datasource.metadata["public_ips"] = [
             {
@@ -1057,4 +875,4 @@ class TestDataSourceScaleway(ResponsesTestCase):
             },
         }
 
-        self.assertEqual(netcfg, resp)
+        assert netcfg == resp

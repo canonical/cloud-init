@@ -3,7 +3,7 @@
 Azure
 *****
 
-This datasource finds metadata and user data from the Azure cloud platform.
+This datasource finds meta-data and user-data from the Azure cloud platform.
 
 The Azure cloud platform provides initial data to an instance via an attached
 CD formatted in UDF. This CD contains a :file:`ovf-env.xml` file that
@@ -13,14 +13,14 @@ with the "endpoint".
 IMDS
 ====
 
-Azure provides the `instance metadata service (IMDS)`_, which is a REST service
-on ``169.254.169.254`` providing additional configuration information to the
-instance. ``Cloud-init`` uses the IMDS for:
+Azure provides the `instance metadata service (IMDS)`_, which is a REST
+service on ``169.254.169.254`` providing additional configuration information
+to the instance. ``Cloud-init`` uses the IMDS for:
 
 - Network configuration for the instance which is applied per boot.
 - A pre-provisioning gate which blocks instance configuration until Azure
   fabric is ready to provision.
-- Retrieving SSH public keys. ``Cloud-init`` will first try to utilise SSH
+- Retrieving SSH public keys. ``Cloud-init`` will first try to utilize SSH
   keys returned from IMDS, and if they are not provided from IMDS then it will
   fall back to using the OVF file provided from the CD-ROM. There is a large
   performance benefit to using IMDS for SSH key retrieval, but in order to
@@ -45,9 +45,25 @@ The settings that may be configured are:
 
   Boolean to configure secondary IP address(es) for each NIC per IMDS
   configuration. Default is True.
+
+* :command:`apply_network_config_set_name`
+
+  Boolean to include ``set-name`` directives in the generated network
+  configuration, which renames interfaces to ``ethX`` naming. When set to
+  False, interfaces are matched by MAC address (and optionally driver)
+  without renaming, and retain kernel-assigned names. Default is True.
+
+  Azure's IMDS does not guarantee the ordering of NICs in the network metadata
+  response (see `Azure IMDS documentation
+  <https://learn.microsoft.com/azure/virtual-machines/instance-metadata-service>`_).
+  Because cloud-init derives ``ethX`` names from the IMDS response order,
+  NIC names may change between reboots. Disabling this option avoids that
+  problem by matching interfaces on MAC address (and optionally driver),
+  allowing the kernel or udev to assign and retain stable names.
+
 * :command:`data_dir`
 
-  Path used to read metadata files and write crawled data.
+  Path used to read meta-data files and write crawled data.
 
 * :command:`disk_aliases`
 
@@ -67,22 +83,23 @@ An example configuration with the default values is provided below:
      Azure:
        apply_network_config: true
        apply_network_config_for_secondary_ips: true
+       apply_network_config_set_name: true
        data_dir: /var/lib/waagent
        disk_aliases:
          ephemeral0: /dev/disk/cloud/azure_resource
 
 
-User data
+User-data
 =========
 
-User data is provided to ``cloud-init`` inside the :file:`ovf-env.xml` file.
-``Cloud-init`` expects that user data will be provided as a base64 encoded
+User-data is provided to ``cloud-init`` inside the :file:`ovf-env.xml` file.
+``Cloud-init`` expects that user-data will be provided as a base64 encoded
 value inside the text child of an element named ``UserData`` or
 ``CustomData``, which is a direct child of the
 ``LinuxProvisioningConfigurationSet`` (a sibling to ``UserName``).
 
 If both ``UserData`` and ``CustomData`` are provided, the behaviour is
-undefined on which will be selected. In the example below, user data provided
+undefined on which will be selected. In the example below, user-data provided
 is ``'this is my userdata'``.
 
 Example:

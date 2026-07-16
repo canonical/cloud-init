@@ -156,6 +156,7 @@ class TestUpgrade:
         "Vultr": {"netcfg"},
         "VMware": {
             "data_access_method",
+            "extra_hotplug_udev_rules",
             "rpctool",
             "rpctool_fn",
         },
@@ -239,7 +240,7 @@ class TestUpgrade:
 
             if getattr(ds.__class__.__bases__[0], "dsname", None) == ds.dsname:
                 # We are a subclass in a different boot mode (Local/Net) and
-                # share a common parent with class atttributes
+                # share a common parent with class attributes
                 class_attrs.update(ds.__class__.__bases__[0].__dict__)
 
             # Determine new instance attributes created by __init__
@@ -293,6 +294,10 @@ class TestUpgrade:
         missing_attrs = ds.__dict__.keys() - previous_obj_pkl.__dict__.keys()
         for attr in missing_attrs:
             assert attr in expected
+        missing_ds_cfg_attrs = (
+            ds.ds_cfg.keys() - previous_obj_pkl.ds_cfg.keys()
+        )
+        assert set() == missing_ds_cfg_attrs
 
     def test_networking_set_on_distro(self, previous_obj_pkl):
         """We always expect to have ``.networking`` on ``Distro`` objects."""

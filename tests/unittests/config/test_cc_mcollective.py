@@ -1,9 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
 import os
-import shutil
-import tempfile
 from io import BytesIO
+from unittest import mock
 
 import configobj
 import pytest
@@ -15,7 +14,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests import helpers as t_help
+from tests.unittests.helpers import skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
@@ -46,22 +45,23 @@ plugin.yaml = /etc/mcollective/facts.yaml
 """
 
 
-class TestConfig(t_help.FilesystemMockingTestCase):
-    def setUp(self):
-        super(TestConfig, self).setUp()
-        self.tmp = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, self.tmp)
-        # "./": make os.path.join behave correctly with abs path as second arg
-        self.server_cfg = os.path.join(
-            self.tmp, "./" + cc_mcollective.SERVER_CFG
-        )
-        self.pubcert_file = os.path.join(
-            self.tmp, "./" + cc_mcollective.PUBCERT_FILE
-        )
-        self.pricert_file = os.path.join(
-            self.tmp, self.tmp, "./" + cc_mcollective.PRICERT_FILE
-        )
+@pytest.fixture
+def server_cfg(tmp_path):
+    return str(tmp_path / cc_mcollective.SERVER_CFG)
 
+
+@pytest.fixture
+def pricert_file(tmp_path):
+    return str(tmp_path / cc_mcollective.PRICERT_FILE)
+
+
+@pytest.fixture
+def pubcert_file(tmp_path):
+    return str(tmp_path / cc_mcollective.PUBCERT_FILE)
+
+
+@pytest.mark.usefixtures("fake_filesystem")
+class TestConfig:
     def test_basic_config(self):
         cfg = {
             "mcollective": {
@@ -84,30 +84,27 @@ class TestConfig(t_help.FilesystemMockingTestCase):
         }
         expected = cfg["mcollective"]["conf"]
 
-        self.patchUtils(self.tmp)
         cc_mcollective.configure(cfg["mcollective"]["conf"])
         contents = util.load_binary_file(cc_mcollective.SERVER_CFG)
         contents = configobj.ConfigObj(BytesIO(contents))
-        self.assertEqual(expected, dict(contents))
+        assert expected == dict(contents)
 
-    def test_existing_config_is_saved(self):
+    def test_existing_config_is_saved(self, server_cfg):
         cfg = {"loglevel": "warn"}
-        util.write_file(self.server_cfg, STOCK_CONFIG)
-        cc_mcollective.configure(config=cfg, server_cfg=self.server_cfg)
-        self.assertTrue(os.path.exists(self.server_cfg))
-        self.assertTrue(os.path.exists(self.server_cfg + ".old"))
-        self.assertEqual(
-            util.load_text_file(self.server_cfg + ".old"), STOCK_CONFIG
-        )
+        util.write_file(server_cfg, STOCK_CONFIG)
+        cc_mcollective.configure(config=cfg, server_cfg=server_cfg)
+        assert os.path.exists(server_cfg)
+        assert os.path.exists(server_cfg + ".old")
+        assert util.load_text_file(server_cfg + ".old") == STOCK_CONFIG
 
-    def test_existing_updated(self):
+    def test_existing_updated(self, server_cfg):
         cfg = {"loglevel": "warn"}
-        util.write_file(self.server_cfg, STOCK_CONFIG)
-        cc_mcollective.configure(config=cfg, server_cfg=self.server_cfg)
-        cfgobj = configobj.ConfigObj(self.server_cfg)
-        self.assertEqual(cfg["loglevel"], cfgobj["loglevel"])
+        util.write_file(server_cfg, STOCK_CONFIG)
+        cc_mcollective.configure(config=cfg, server_cfg=server_cfg)
+        cfgobj = configobj.ConfigObj(server_cfg)
+        assert cfg["loglevel"] == cfgobj["loglevel"]
 
-    def test_certificats_written(self):
+    def test_certificats_written(self, pricert_file, pubcert_file, server_cfg):
         # check public-cert and private-cert keys in config get written
         cfg = {
             "loglevel": "debug",
@@ -117,50 +114,47 @@ class TestConfig(t_help.FilesystemMockingTestCase):
 
         cc_mcollective.configure(
             config=cfg,
-            server_cfg=self.server_cfg,
-            pricert_file=self.pricert_file,
-            pubcert_file=self.pubcert_file,
+            server_cfg=server_cfg,
+            pricert_file=pricert_file,
+            pubcert_file=pubcert_file,
         )
 
-        found = configobj.ConfigObj(self.server_cfg)
+        found = configobj.ConfigObj(server_cfg)
 
         # make sure these didnt get written in
-        self.assertFalse("public-cert" in found)
-        self.assertFalse("private-cert" in found)
+        assert "public-cert" not in found
+        assert "private-cert" not in found
 
         # these need updating to the specified paths
-        self.assertEqual(found["plugin.ssl_server_public"], self.pubcert_file)
-        self.assertEqual(found["plugin.ssl_server_private"], self.pricert_file)
+        assert found["plugin.ssl_server_public"] == pubcert_file
+        assert found["plugin.ssl_server_private"] == pricert_file
 
         # and the security provider should be ssl
-        self.assertEqual(found["securityprovider"], "ssl")
+        assert found["securityprovider"] == "ssl"
 
-        self.assertEqual(
-            util.load_text_file(self.pricert_file), cfg["private-cert"]
-        )
-        self.assertEqual(
-            util.load_text_file(self.pubcert_file), cfg["public-cert"]
-        )
+        assert util.load_text_file(pricert_file) == cfg["private-cert"]
+        assert util.load_text_file(pubcert_file) == cfg["public-cert"]
 
 
-class TestHandler(t_help.TestCase):
-    @t_help.mock.patch("cloudinit.config.cc_mcollective.subp")
-    @t_help.mock.patch("cloudinit.config.cc_mcollective.util")
+class TestHandler:
+    @mock.patch("cloudinit.config.cc_mcollective.subp")
+    @mock.patch("cloudinit.config.cc_mcollective.util")
     def test_mcollective_install(self, mock_util, mock_subp):
         cc = get_cloud()
-        cc.distro = t_help.mock.MagicMock()
+        cc.distro = mock.MagicMock()
         mock_util.load_binary_file.return_value = b""
         mycfg = {"mcollective": {"conf": {"loglevel": "debug"}}}
         cc_mcollective.handle("cc_mcollective", mycfg, cc, [])
-        self.assertTrue(cc.distro.install_packages.called)
+        assert cc.distro.install_packages.called
         install_pkg = cc.distro.install_packages.call_args_list[0][0][0]
-        self.assertEqual(install_pkg, ["mcollective"])
+        assert install_pkg == ["mcollective"]
 
-        self.assertTrue(mock_subp.subp.called)
-        self.assertEqual(
-            mock_subp.subp.call_args_list[0][0][0],
-            ["service", "mcollective", "restart"],
-        )
+        assert mock_subp.subp.called
+        assert mock_subp.subp.call_args_list[0][0][0] == [
+            "service",
+            "mcollective",
+            "restart",
+        ]
 
 
 class TestMcollectiveSchema:
@@ -185,7 +179,7 @@ class TestMcollectiveSchema:
             ),
         ],
     )
-    @t_help.skipUnlessJsonSchema()
+    @skipUnlessJsonSchema()
     def test_schema_validation(self, config, error_msg):
         if error_msg is None:
             validate_cloudconfig_schema(config, get_schema(), strict=True)

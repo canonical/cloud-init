@@ -1,14 +1,17 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+# pylint: disable=attribute-defined-outside-init
 
 import os
 import pwd
-import unittest
+from unittest import mock
 
+import jsonschema
 import pytest
 
-from cloudinit import atomic_helper, helpers, util
+from cloudinit import atomic_helper
+from cloudinit.config.schema import SchemaType, get_schema
 from cloudinit.sources import DataSourceOpenNebula as ds
-from tests.unittests.helpers import CiTestCase, mock, populate_dir
+from tests.unittests.helpers import populate_dir
 
 TEST_VARS = {
     "VAR1": "single",
@@ -41,20 +44,14 @@ IP6_PREFIX = "48"
 DS_PATH = "cloudinit.sources.DataSourceOpenNebula"
 
 
-class TestOpenNebulaDataSource(CiTestCase):
+@pytest.mark.allow_subp_for("bash", "sh")
+class TestOpenNebulaDataSource:
     parsed_user = None
-    allowed_subp = ["bash", "sh"]
 
-    def setUp(self):
-        super(TestOpenNebulaDataSource, self).setUp()
-        self.tmp = self.tmp_dir()
-        self.paths = helpers.Paths(
-            {"cloud_dir": self.tmp, "run_dir": self.tmp}
-        )
-
+    @pytest.fixture(autouse=True)
+    def fixtures(self, paths):
         # defaults for few tests
-        self.ds = ds.DataSourceOpenNebula
-        self.seed_dir = os.path.join(self.paths.seed_dir, "opennebula")
+        self.seed_dir = os.path.join(paths.seed_dir, "opennebula")
         self.sys_cfg = {"datasource": {"OpenNebula": {"dsmode": "local"}}}
 
         # we don't want 'sudo' called in tests. so we patch switch_user_cmd
@@ -64,152 +61,129 @@ class TestOpenNebulaDataSource(CiTestCase):
 
         self.switch_user_cmd_real = ds.switch_user_cmd
         ds.switch_user_cmd = my_switch_user_cmd
-
-    def tearDown(self):
+        yield
         ds.switch_user_cmd = self.switch_user_cmd_real
-        super().tearDown()
 
-    def test_get_data_non_contextdisk(self):
-        orig_find_devs_with = util.find_devs_with
-        try:
-            # dont' try to lookup for CDs
-            util.find_devs_with = lambda n: []  # type: ignore
-            dsrc = self.ds(sys_cfg=self.sys_cfg, distro=None, paths=self.paths)
-            ret = dsrc.get_data()
-            self.assertFalse(ret)
-        finally:
-            util.find_devs_with = orig_find_devs_with
-
-    def test_get_data_broken_contextdisk(self):
-        orig_find_devs_with = util.find_devs_with
-        try:
-            # dont' try to lookup for CDs
-            util.find_devs_with = lambda n: []  # type: ignore
-            populate_dir(self.seed_dir, {"context.sh": INVALID_CONTEXT})
-            dsrc = self.ds(sys_cfg=self.sys_cfg, distro=None, paths=self.paths)
-            self.assertRaises(ds.BrokenContextDiskDir, dsrc.get_data)
-        finally:
-            util.find_devs_with = orig_find_devs_with
-
-    def test_get_data_invalid_identity(self):
-        orig_find_devs_with = util.find_devs_with
-        try:
-            # generate non-existing system user name
-            sys_cfg = self.sys_cfg
-            invalid_user = "invalid"
-            while not sys_cfg["datasource"]["OpenNebula"].get("parseuser"):
-                try:
-                    pwd.getpwnam(invalid_user)
-                    invalid_user += "X"
-                except KeyError:
-                    sys_cfg["datasource"]["OpenNebula"][
-                        "parseuser"
-                    ] = invalid_user
-
-            # dont' try to lookup for CDs
-            util.find_devs_with = lambda n: []  # type: ignore
-            populate_context_dir(self.seed_dir, {"KEY1": "val1"})
-            dsrc = self.ds(sys_cfg=sys_cfg, distro=None, paths=self.paths)
-            self.assertRaises(ds.BrokenContextDiskDir, dsrc.get_data)
-        finally:
-            util.find_devs_with = orig_find_devs_with
-
-    def test_get_data(self):
-        orig_find_devs_with = util.find_devs_with
-        try:
-            # dont' try to lookup for CDs
-            util.find_devs_with = lambda n: []  # type: ignore
-            populate_context_dir(self.seed_dir, {"KEY1": "val1"})
-            dsrc = self.ds(sys_cfg=self.sys_cfg, distro=None, paths=self.paths)
-            with mock.patch(DS_PATH + ".pwd.getpwnam") as getpwnam:
-                ret = dsrc.get_data()
-            self.assertEqual([mock.call("nobody")], getpwnam.call_args_list)
-            self.assertTrue(ret)
-        finally:
-            util.find_devs_with = orig_find_devs_with
-        self.assertEqual("opennebula", dsrc.cloud_name)
-        self.assertEqual("opennebula", dsrc.platform_type)
-        self.assertEqual(
-            "seed-dir (%s/seed/opennebula)" % self.tmp, dsrc.subplatform
+    @pytest.fixture
+    def dsrc(self, paths):
+        return ds.DataSourceOpenNebula(
+            sys_cfg=self.sys_cfg, distro=None, paths=paths
         )
+
+    # dont' try to lookup for CDs
+    @mock.patch(DS_PATH + ".util.find_devs_with", return_value=[])
+    def test_get_data_non_contextdisk(self, m_find_devs_with, dsrc):
+        assert not dsrc.get_data()
+
+    # dont' try to lookup for CDs
+    @mock.patch(DS_PATH + ".util.find_devs_with", return_value=[])
+    def test_get_data_broken_contextdisk(self, m_find_devs_with, dsrc):
+        populate_dir(self.seed_dir, {"context.sh": INVALID_CONTEXT})
+        with pytest.raises(ds.BrokenContextDiskDir):
+            dsrc.get_data()
+
+    # dont' try to lookup for CDs
+    @mock.patch(DS_PATH + ".util.find_devs_with", return_value=[])
+    def test_get_data_invalid_identity(self, m_find_devs_with, dsrc):
+        # generate non-existing system user name
+        sys_cfg = self.sys_cfg
+        invalid_user = "invalid"
+        while not sys_cfg["datasource"]["OpenNebula"].get("parseuser"):
+            try:
+                pwd.getpwnam(invalid_user)
+                invalid_user += "X"
+            except KeyError:
+                sys_cfg["datasource"]["OpenNebula"]["parseuser"] = invalid_user
+
+        populate_context_dir(self.seed_dir, {"KEY1": "val1"})
+        with pytest.raises(ds.BrokenContextDiskDir):
+            dsrc.get_data()
+
+    # dont' try to lookup for CDs
+    @mock.patch(DS_PATH + ".util.find_devs_with", return_value=[])
+    def test_get_data(self, m_find_devs_with, dsrc, paths):
+        populate_context_dir(self.seed_dir, {"KEY1": "val1"})
+        with mock.patch(DS_PATH + ".pwd.getpwnam") as getpwnam:
+            ret = dsrc.get_data()
+        assert [mock.call("nobody")] == getpwnam.call_args_list
+        assert ret
+        assert "opennebula" == dsrc.cloud_name
+        assert "opennebula" == dsrc.platform_type
+        assert "seed-dir (%s/opennebula)" % paths.seed_dir == dsrc.subplatform
 
     def test_seed_dir_non_contextdisk(self):
-        self.assertRaises(
-            ds.NonContextDiskDir,
-            ds.read_context_disk_dir,
-            self.seed_dir,
-            mock.Mock(),
-        )
+        with pytest.raises(ds.NonContextDiskDir):
+            ds.read_context_disk_dir(
+                self.seed_dir,
+                mock.Mock(),
+            )
 
     def test_seed_dir_empty1_context(self):
         populate_dir(self.seed_dir, {"context.sh": ""})
         results = ds.read_context_disk_dir(self.seed_dir, mock.Mock())
 
-        self.assertIsNone(results["userdata"])
-        self.assertEqual(results["metadata"], {})
+        assert results["userdata"] is None
+        assert results["metadata"] == {}
 
     def test_seed_dir_empty2_context(self):
         populate_context_dir(self.seed_dir, {})
         results = ds.read_context_disk_dir(self.seed_dir, mock.Mock())
 
-        self.assertIsNone(results["userdata"])
-        self.assertEqual(results["metadata"], {})
+        assert results["userdata"] is None
+        assert results["metadata"] == {}
 
     def test_seed_dir_broken_context(self):
         populate_dir(self.seed_dir, {"context.sh": INVALID_CONTEXT})
 
-        self.assertRaises(
-            ds.BrokenContextDiskDir,
-            ds.read_context_disk_dir,
-            self.seed_dir,
-            mock.Mock(),
-        )
+        with pytest.raises(ds.BrokenContextDiskDir):
+            ds.read_context_disk_dir(
+                self.seed_dir,
+                mock.Mock(),
+            )
 
     def test_context_parser(self):
         populate_context_dir(self.seed_dir, TEST_VARS)
         results = ds.read_context_disk_dir(self.seed_dir, mock.Mock())
 
-        self.assertTrue("metadata" in results)
-        self.assertEqual(TEST_VARS, results["metadata"])
+        assert "metadata" in results
+        assert TEST_VARS == results["metadata"]
 
-    def test_ssh_key(self):
+    def test_ssh_key(self, tmp_path):
         public_keys = ["first key", "second key"]
         for c in range(4):
             for k in ("SSH_KEY", "SSH_PUBLIC_KEY"):
-                my_d = os.path.join(self.tmp, "%s-%i" % (k, c))
+                my_d = str(tmp_path / f"{k}-{c}")
                 populate_context_dir(my_d, {k: "\n".join(public_keys)})
                 results = ds.read_context_disk_dir(my_d, mock.Mock())
 
-                self.assertTrue("metadata" in results)
-                self.assertTrue("public-keys" in results["metadata"])
-                self.assertEqual(
-                    public_keys, results["metadata"]["public-keys"]
-                )
+                assert "metadata" in results
+                assert "public-keys" in results["metadata"]
+                assert public_keys == results["metadata"]["public-keys"]
 
             public_keys.append(SSH_KEY % (c + 1,))
 
-    def test_user_data_plain(self):
+    def test_user_data_plain(self, tmp_path):
         for k in ("USER_DATA", "USERDATA"):
-            my_d = os.path.join(self.tmp, k)
+            my_d = os.path.join(tmp_path, k)
             populate_context_dir(my_d, {k: USER_DATA, "USERDATA_ENCODING": ""})
             results = ds.read_context_disk_dir(my_d, mock.Mock())
 
-            self.assertTrue("userdata" in results)
-            self.assertEqual(USER_DATA, results["userdata"])
+            assert "userdata" in results
+            assert USER_DATA == results["userdata"]
 
-    def test_user_data_encoding_required_for_decode(self):
+    def test_user_data_encoding_required_for_decode(self, tmp_path):
         b64userdata = atomic_helper.b64e(USER_DATA)
         for k in ("USER_DATA", "USERDATA"):
-            my_d = os.path.join(self.tmp, k)
+            my_d = str(tmp_path / k)
             populate_context_dir(my_d, {k: b64userdata})
             results = ds.read_context_disk_dir(my_d, mock.Mock())
 
-            self.assertTrue("userdata" in results)
-            self.assertEqual(b64userdata, results["userdata"])
+            assert "userdata" in results
+            assert b64userdata == results["userdata"]
 
-    def test_user_data_base64_encoding(self):
+    def test_user_data_base64_encoding(self, tmp_path):
         for k in ("USER_DATA", "USERDATA"):
-            my_d = os.path.join(self.tmp, k)
+            my_d = str(tmp_path / k)
             populate_context_dir(
                 my_d,
                 {
@@ -219,11 +193,11 @@ class TestOpenNebulaDataSource(CiTestCase):
             )
             results = ds.read_context_disk_dir(my_d, mock.Mock())
 
-            self.assertTrue("userdata" in results)
-            self.assertEqual(USER_DATA, results["userdata"])
+            assert "userdata" in results
+            assert USER_DATA == results["userdata"]
 
     @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
-    def test_hostname(self, m_get_phys_by_mac):
+    def test_hostname(self, m_get_phys_by_mac, tmp_path):
         for dev in ("eth0", "ens3"):
             m_get_phys_by_mac.return_value = {MACADDR: dev}
             for k in (
@@ -233,15 +207,13 @@ class TestOpenNebulaDataSource(CiTestCase):
                 "IP_PUBLIC",
                 "ETH0_IP",
             ):
-                my_d = os.path.join(self.tmp, k)
+                my_d = str(tmp_path / k)
                 populate_context_dir(my_d, {k: PUBLIC_IP})
                 results = ds.read_context_disk_dir(my_d, mock.Mock())
 
-                self.assertTrue("metadata" in results)
-                self.assertTrue("local-hostname" in results["metadata"])
-                self.assertEqual(
-                    PUBLIC_IP, results["metadata"]["local-hostname"]
-                )
+                assert "metadata" in results
+                assert "local-hostname" in results["metadata"]
+                assert PUBLIC_IP == results["metadata"]["local-hostname"]
 
     @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
     def test_network_interfaces(self, m_get_phys_by_mac):
@@ -253,8 +225,8 @@ class TestOpenNebulaDataSource(CiTestCase):
             populate_context_dir(self.seed_dir, {"ETH0_IP": IP_BY_MACADDR})
             results = ds.read_context_disk_dir(self.seed_dir, mock.Mock())
 
-            self.assertTrue("network-interfaces" in results)
-            self.assertTrue(
+            assert "network-interfaces" in results
+            assert (
                 IP_BY_MACADDR + "/" + IP4_PREFIX
                 in results["network-interfaces"]["ethernets"][dev]["addresses"]
             )
@@ -265,8 +237,8 @@ class TestOpenNebulaDataSource(CiTestCase):
             )
             results = ds.read_context_disk_dir(self.seed_dir, mock.Mock())
 
-            self.assertTrue("network-interfaces" in results)
-            self.assertTrue(
+            assert "network-interfaces" in results
+            assert (
                 IP_BY_MACADDR + "/" + IP4_PREFIX
                 in results["network-interfaces"]["ethernets"][dev]["addresses"]
             )
@@ -279,8 +251,8 @@ class TestOpenNebulaDataSource(CiTestCase):
             )
             results = ds.read_context_disk_dir(self.seed_dir, mock.Mock())
 
-            self.assertTrue("network-interfaces" in results)
-            self.assertTrue(
+            assert "network-interfaces" in results
+            assert (
                 IP_BY_MACADDR + "/" + IP4_PREFIX
                 in results["network-interfaces"]["ethernets"][dev]["addresses"]
             )
@@ -296,8 +268,8 @@ class TestOpenNebulaDataSource(CiTestCase):
             )
             results = ds.read_context_disk_dir(self.seed_dir, mock.Mock())
 
-            self.assertTrue("network-interfaces" in results)
-            self.assertTrue(
+            assert "network-interfaces" in results
+            assert (
                 IP_BY_MACADDR + "/16"
                 in results["network-interfaces"]["ethernets"][dev]["addresses"]
             )
@@ -313,8 +285,8 @@ class TestOpenNebulaDataSource(CiTestCase):
             )
             results = ds.read_context_disk_dir(self.seed_dir, mock.Mock())
 
-            self.assertTrue("network-interfaces" in results)
-            self.assertTrue(
+            assert "network-interfaces" in results
+            assert (
                 IP_BY_MACADDR + "/" + IP4_PREFIX
                 in results["network-interfaces"]["ethernets"][dev]["addresses"]
             )
@@ -329,8 +301,8 @@ class TestOpenNebulaDataSource(CiTestCase):
             )
             results = ds.read_context_disk_dir(self.seed_dir, mock.Mock())
 
-            self.assertTrue("network-interfaces" in results)
-            self.assertTrue(
+            assert "network-interfaces" in results
+            assert (
                 IP6_GLOBAL + "/64"
                 in results["network-interfaces"]["ethernets"][dev]["addresses"]
             )
@@ -345,8 +317,8 @@ class TestOpenNebulaDataSource(CiTestCase):
             )
             results = ds.read_context_disk_dir(self.seed_dir, mock.Mock())
 
-            self.assertTrue("network-interfaces" in results)
-            self.assertTrue(
+            assert "network-interfaces" in results
+            assert (
                 IP6_ULA + "/64"
                 in results["network-interfaces"]["ethernets"][dev]["addresses"]
             )
@@ -362,8 +334,8 @@ class TestOpenNebulaDataSource(CiTestCase):
             )
             results = ds.read_context_disk_dir(self.seed_dir, mock.Mock())
 
-            self.assertTrue("network-interfaces" in results)
-            self.assertTrue(
+            assert "network-interfaces" in results
+            assert (
                 IP6_GLOBAL + "/" + IP6_PREFIX
                 in results["network-interfaces"]["ethernets"][dev]["addresses"]
             )
@@ -379,13 +351,14 @@ class TestOpenNebulaDataSource(CiTestCase):
             )
             results = ds.read_context_disk_dir(self.seed_dir, mock.Mock())
 
-            self.assertTrue("network-interfaces" in results)
-            self.assertTrue(
+            assert "network-interfaces" in results
+            assert (
                 IP6_GLOBAL + "/64"
                 in results["network-interfaces"]["ethernets"][dev]["addresses"]
             )
 
-    def test_find_candidates(self):
+    @mock.patch(DS_PATH + ".util.find_devs_with")
+    def test_find_candidates(self, m_find_devs_with):
         def my_devs_with(criteria):
             return {
                 "LABEL=CONTEXT": ["/dev/sdb"],
@@ -393,20 +366,29 @@ class TestOpenNebulaDataSource(CiTestCase):
                 "TYPE=iso9660": ["/dev/vdb"],
             }.get(criteria, [])
 
-        orig_find_devs_with = util.find_devs_with
-        try:
-            util.find_devs_with = my_devs_with
-            self.assertEqual(
-                ["/dev/sdb", "/dev/sr0", "/dev/vdb"], ds.find_candidate_devs()
-            )
-        finally:
-            util.find_devs_with = orig_find_devs_with
+        m_find_devs_with.side_effect = my_devs_with
+        assert ["/dev/sdb", "/dev/sr0", "/dev/vdb"] == ds.find_candidate_devs()
 
 
 @mock.patch(DS_PATH + ".net.get_interfaces_by_mac", mock.Mock(return_value={}))
-class TestOpenNebulaNetwork(unittest.TestCase):
-
+class TestOpenNebulaNetwork:
     system_nics = ("eth0", "ens3")
+
+    @pytest.fixture(autouse=True)
+    def _validate_gen_conf_schema(self, monkeypatch):
+        """Wrap gen_conf() to assert schema validity on every test."""
+        schema = get_schema(SchemaType.NETWORK_CONFIG_V2)
+        assert schema, "network-config-v2 schema must not be empty"
+        validator_cls = jsonschema.validators.validator_for(schema)
+        validator = validator_cls(schema)
+        original = ds.OpenNebulaNetwork.gen_conf
+
+        def validated(self_inner):
+            result = original(self_inner)
+            validator.validate(result)
+            return result
+
+        monkeypatch.setattr(ds.OpenNebulaNetwork, "gen_conf", validated)
 
     def test_context_devname(self):
         """Verify context_devname correctly returns mac and name."""
@@ -419,7 +401,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
             "02:00:0a:12:0f:0f": "ETH1",
         }
         net = ds.OpenNebulaNetwork(context, mock.Mock())
-        self.assertEqual(expected, net.context_devname)
+        assert expected == net.context_devname
 
     def test_get_nameservers(self):
         """
@@ -437,21 +419,21 @@ class TestOpenNebulaNetwork(unittest.TestCase):
         }
         net = ds.OpenNebulaNetwork(context, mock.Mock())
         val = net.get_nameservers("eth0")
-        self.assertEqual(expected, val)
+        assert expected == val
 
     def test_get_mtu(self):
         """Verify get_mtu('device') correctly returns MTU size."""
         context = {"ETH0_MTU": "1280"}
         net = ds.OpenNebulaNetwork(context, mock.Mock())
         val = net.get_mtu("eth0")
-        self.assertEqual("1280", val)
+        assert "1280" == val
 
     def test_get_ip(self):
         """Verify get_ip('device') correctly returns IPv4 address."""
         context = {"ETH0_IP": PUBLIC_IP}
         net = ds.OpenNebulaNetwork(context, mock.Mock())
         val = net.get_ip("eth0", MACADDR)
-        self.assertEqual(PUBLIC_IP, val)
+        assert PUBLIC_IP == val
 
     def test_get_ip_emptystring(self):
         """
@@ -462,7 +444,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
         context = {"ETH0_IP": ""}
         net = ds.OpenNebulaNetwork(context, mock.Mock())
         val = net.get_ip("eth0", MACADDR)
-        self.assertEqual(IP_BY_MACADDR, val)
+        assert IP_BY_MACADDR == val
 
     def test_get_ip6(self):
         """
@@ -476,7 +458,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
         expected = [IP6_GLOBAL]
         net = ds.OpenNebulaNetwork(context, mock.Mock())
         val = net.get_ip6("eth0")
-        self.assertEqual(expected, val)
+        assert expected == val
 
     def test_get_ip6_ula(self):
         """
@@ -490,7 +472,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
         expected = [IP6_ULA]
         net = ds.OpenNebulaNetwork(context, mock.Mock())
         val = net.get_ip6("eth0")
-        self.assertEqual(expected, val)
+        assert expected == val
 
     def test_get_ip6_dual(self):
         """
@@ -504,7 +486,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
         expected = [IP6_GLOBAL, IP6_ULA]
         net = ds.OpenNebulaNetwork(context, mock.Mock())
         val = net.get_ip6("eth0")
-        self.assertEqual(expected, val)
+        assert expected == val
 
     def test_get_ip6_prefix(self):
         """
@@ -513,7 +495,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
         context = {"ETH0_IP6_PREFIX_LENGTH": IP6_PREFIX}
         net = ds.OpenNebulaNetwork(context, mock.Mock())
         val = net.get_ip6_prefix("eth0")
-        self.assertEqual(IP6_PREFIX, val)
+        assert IP6_PREFIX == val
 
     def test_get_ip6_prefix_emptystring(self):
         """
@@ -524,7 +506,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
         context = {"ETH0_IP6_PREFIX_LENGTH": ""}
         net = ds.OpenNebulaNetwork(context, mock.Mock())
         val = net.get_ip6_prefix("eth0")
-        self.assertEqual("64", val)
+        assert "64" == val
 
     def test_get_gateway(self):
         """
@@ -534,7 +516,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
         context = {"ETH0_GATEWAY": "1.2.3.5"}
         net = ds.OpenNebulaNetwork(context, mock.Mock())
         val = net.get_gateway("eth0")
-        self.assertEqual("1.2.3.5", val)
+        assert "1.2.3.5" == val
 
     def test_get_gateway6(self):
         """
@@ -545,7 +527,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
             context = {"ETH0_" + k: IP6_GW}
             net = ds.OpenNebulaNetwork(context, mock.Mock())
             val = net.get_gateway6("eth0")
-            self.assertEqual(IP6_GW, val)
+            assert IP6_GW == val
 
     def test_get_mask(self):
         """
@@ -554,7 +536,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
         context = {"ETH0_MASK": "255.255.0.0"}
         net = ds.OpenNebulaNetwork(context, mock.Mock())
         val = net.get_mask("eth0")
-        self.assertEqual("255.255.0.0", val)
+        assert "255.255.0.0" == val
 
     def test_get_mask_emptystring(self):
         """
@@ -564,7 +546,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
         context = {"ETH0_MASK": ""}
         net = ds.OpenNebulaNetwork(context, mock.Mock())
         val = net.get_mask("eth0")
-        self.assertEqual("255.255.255.0", val)
+        assert "255.255.255.0" == val
 
     def test_get_field(self):
         """
@@ -573,7 +555,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
         context = {"ETH9_DUMMY": "DUMMY_VALUE"}
         net = ds.OpenNebulaNetwork(context, mock.Mock())
         val = net.get_field("eth9", "dummy")
-        self.assertEqual("DUMMY_VALUE", val)
+        assert "DUMMY_VALUE" == val
 
     def test_get_field_withdefaultvalue(self):
         """
@@ -583,7 +565,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
         context = {"ETH9_DUMMY": "DUMMY_VALUE"}
         net = ds.OpenNebulaNetwork(context, mock.Mock())
         val = net.get_field("eth9", "dummy", "DEFAULT_VALUE")
-        self.assertEqual("DUMMY_VALUE", val)
+        assert "DUMMY_VALUE" == val
 
     def test_get_field_withdefaultvalue_emptycontext(self):
         """
@@ -593,7 +575,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
         context = {"ETH9_DUMMY": ""}
         net = ds.OpenNebulaNetwork(context, mock.Mock())
         val = net.get_field("eth9", "dummy", "DEFAULT_VALUE")
-        self.assertEqual("DEFAULT_VALUE", val)
+        assert "DEFAULT_VALUE" == val
 
     def test_get_field_emptycontext(self):
         """
@@ -603,17 +585,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
         context = {"ETH9_DUMMY": ""}
         net = ds.OpenNebulaNetwork(context, mock.Mock())
         val = net.get_field("eth9", "dummy")
-        self.assertEqual(None, val)
-
-    def test_get_field_nonecontext(self):
-        """
-        Verify get_field('device', 'name') returns None if context value is
-        None.
-        """
-        context = {"ETH9_DUMMY": None}
-        net = ds.OpenNebulaNetwork(context, mock.Mock())
-        val = net.get_field("eth9", "dummy")
-        self.assertEqual(None, val)
+        assert None is val
 
     @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
     def test_gen_conf_gateway(self, m_get_phys_by_mac):
@@ -636,7 +608,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
             }
             m_get_phys_by_mac.return_value = {MACADDR: nic}
             net = ds.OpenNebulaNetwork(context, mock.Mock())
-            self.assertEqual(net.gen_conf(), expected)
+            assert net.gen_conf() == expected
 
         # set ETH0_GATEWAY
         context = {
@@ -656,7 +628,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
             }
             m_get_phys_by_mac.return_value = {MACADDR: nic}
             net = ds.OpenNebulaNetwork(context, mock.Mock())
-            self.assertEqual(net.gen_conf(), expected)
+            assert net.gen_conf() == expected
 
     @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
     def test_gen_conf_gateway6(self, m_get_phys_by_mac):
@@ -679,7 +651,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
             }
             m_get_phys_by_mac.return_value = {MACADDR: nic}
             net = ds.OpenNebulaNetwork(context, mock.Mock())
-            self.assertEqual(net.gen_conf(), expected)
+            assert net.gen_conf() == expected
 
         # set ETH0_GATEWAY6
         context = {
@@ -699,7 +671,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
             }
             m_get_phys_by_mac.return_value = {MACADDR: nic}
             net = ds.OpenNebulaNetwork(context, mock.Mock())
-            self.assertEqual(net.gen_conf(), expected)
+            assert net.gen_conf() == expected
 
     @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
     def test_gen_conf_ipv6address(self, m_get_phys_by_mac):
@@ -724,7 +696,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
             }
             m_get_phys_by_mac.return_value = {MACADDR: nic}
             net = ds.OpenNebulaNetwork(context, mock.Mock())
-            self.assertEqual(net.gen_conf(), expected)
+            assert net.gen_conf() == expected
 
         # set ETH0_IP6, ETH0_IP6_ULA, ETH0_IP6_PREFIX_LENGTH
         context = {
@@ -749,7 +721,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
             }
             m_get_phys_by_mac.return_value = {MACADDR: nic}
             net = ds.OpenNebulaNetwork(context, mock.Mock())
-            self.assertEqual(net.gen_conf(), expected)
+            assert net.gen_conf() == expected
 
     @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
     def test_gen_conf_dns(self, m_get_phys_by_mac):
@@ -774,7 +746,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
             }
             m_get_phys_by_mac.return_value = {MACADDR: nic}
             net = ds.OpenNebulaNetwork(context, mock.Mock())
-            self.assertEqual(net.gen_conf(), expected)
+            assert net.gen_conf() == expected
 
         # set DNS, ETH0_DNS, ETH0_SEARCH_DOMAIN
         context = {
@@ -799,7 +771,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
             }
             m_get_phys_by_mac.return_value = {MACADDR: nic}
             net = ds.OpenNebulaNetwork(context, mock.Mock())
-            self.assertEqual(net.gen_conf(), expected)
+            assert net.gen_conf() == expected
 
     @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
     def test_gen_conf_mtu(self, m_get_phys_by_mac):
@@ -822,7 +794,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
             }
             m_get_phys_by_mac.return_value = {MACADDR: nic}
             net = ds.OpenNebulaNetwork(context, mock.Mock())
-            self.assertEqual(net.gen_conf(), expected)
+            assert net.gen_conf() == expected
 
         # set ETH0_MTU
         context = {
@@ -834,7 +806,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
                 "version": 2,
                 "ethernets": {
                     nic: {
-                        "mtu": "1280",
+                        "mtu": 1280,
                         "match": {"macaddress": MACADDR},
                         "addresses": [IP_BY_MACADDR + "/" + IP4_PREFIX],
                     }
@@ -842,7 +814,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
             }
             m_get_phys_by_mac.return_value = {MACADDR: nic}
             net = ds.OpenNebulaNetwork(context, mock.Mock())
-            self.assertEqual(net.gen_conf(), expected)
+            assert net.gen_conf() == expected
 
     @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
     def test_eth0(self, m_get_phys_by_mac):
@@ -859,15 +831,14 @@ class TestOpenNebulaNetwork(unittest.TestCase):
                 },
             }
 
-            self.assertEqual(net.gen_conf(), expected)
+            assert net.gen_conf() == expected
 
     @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
     def test_distro_passed_through(self, m_get_physical_nics_by_mac):
         ds.OpenNebulaNetwork({}, mock.sentinel.distro)
-        self.assertEqual(
-            [mock.call(mock.sentinel.distro)],
-            m_get_physical_nics_by_mac.call_args_list,
-        )
+        assert [
+            mock.call(mock.sentinel.distro)
+        ] == m_get_physical_nics_by_mac.call_args_list
 
     def test_eth0_override(self):
         self.maxDiff = None
@@ -904,7 +875,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
                 },
             }
 
-            self.assertEqual(expected, net.gen_conf())
+            assert expected == net.gen_conf()
 
     def test_eth0_v4v6_override(self):
         self.maxDiff = None
@@ -944,12 +915,12 @@ class TestOpenNebulaNetwork(unittest.TestCase):
                             "addresses": ["1.2.3.6", "1.2.3.7", "1.2.3.8"],
                             "search": ["example.com", "example.org"],
                         },
-                        "mtu": "1280",
+                        "mtu": 1280,
                     }
                 },
             }
 
-            self.assertEqual(expected, net.gen_conf())
+            assert expected == net.gen_conf()
 
     def test_multiple_nics(self):
         """Test rendering multiple nics with names that differ from context."""
@@ -1005,7 +976,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
                         "addresses": ["1.2.3.6", "1.2.3.7", "1.2.3.8"],
                         "search": ["example.com"],
                     },
-                    "mtu": "1280",
+                    "mtu": 1280,
                 },
                 "enp0s25": {
                     "match": {"macaddress": MAC_1},
@@ -1019,7 +990,155 @@ class TestOpenNebulaNetwork(unittest.TestCase):
             },
         }
 
-        self.assertEqual(expected, net.gen_conf())
+        assert expected == net.gen_conf()
+
+    @pytest.mark.parametrize(
+        "context,expected_search",
+        [
+            pytest.param(
+                {"SEARCH_DOMAIN": "global.example.com global.example.org"},
+                ["global.example.com", "global.example.org"],
+                id="global_only",
+            ),
+            pytest.param(
+                {
+                    "ETH0_SEARCH_DOMAIN": "iface.example.com",
+                    "SEARCH_DOMAIN": "global.example.com",
+                },
+                ["iface.example.com", "global.example.com"],
+                id="per_interface_and_global",
+            ),
+            pytest.param(
+                {"ETH0_SEARCH_DOMAIN": "iface.example.com"},
+                ["iface.example.com"],
+                id="per_interface_only",
+            ),
+            pytest.param(
+                {
+                    "ETH0_SEARCH_DOMAIN": "shared.example.com",
+                    # extra precedes shared in global; shared must still come
+                    # first because per-interface ordering takes precedence
+                    "SEARCH_DOMAIN": "extra.example.com shared.example.com",
+                },
+                ["shared.example.com", "extra.example.com"],
+                id="dedup_iface_order_preferred",
+            ),
+        ],
+    )
+    def test_get_nameservers_search_domain(self, context, expected_search):
+        """get_nameservers merges and deduplicates SEARCH_DOMAIN correctly."""
+        net = ds.OpenNebulaNetwork(context, mock.Mock())
+        val = net.get_nameservers("eth0")
+        assert val["search"] == expected_search
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_global_search_domain(self, m_get_phys_by_mac):
+        """gen_conf includes global SEARCH_DOMAIN in nameservers.search."""
+        context = {
+            "ETH0_MAC": MACADDR,
+            "SEARCH_DOMAIN": "global.example.com",
+        }
+        for nic in self.system_nics:
+            m_get_phys_by_mac.return_value = {MACADDR: nic}
+            net = ds.OpenNebulaNetwork(context, mock.Mock())
+            conf = net.gen_conf()
+            assert conf["ethernets"][nic]["nameservers"]["search"] == [
+                "global.example.com"
+            ]
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_global_search_domain_multiple_nics(
+        self, m_get_phys_by_mac
+    ):
+        """Global SEARCH_DOMAIN appears on every NIC."""
+        MAC_1 = "02:00:0a:12:01:01"
+        MAC_2 = "02:00:0a:12:01:02"
+        context = {
+            "ETH0_MAC": MAC_1,
+            "ETH1_MAC": MAC_2,
+            "SEARCH_DOMAIN": "global.example.com",
+        }
+        net = ds.OpenNebulaNetwork(
+            context,
+            mock.Mock(),
+            system_nics_by_mac={MAC_1: "eth0", MAC_2: "eth1"},
+        )
+        conf = net.gen_conf()
+        for nic in ("eth0", "eth1"):
+            assert (
+                "global.example.com"
+                in conf["ethernets"][nic]["nameservers"]["search"]
+            )
+
+    # ------------------------------------------------------------------ #
+    # ETHx_ROUTES                                                          #
+    # ------------------------------------------------------------------ #
+
+    @pytest.mark.parametrize(
+        "context,expected",
+        [
+            pytest.param({}, [], id="absent"),
+            pytest.param({"ETH0_ROUTES": ""}, [], id="empty_string"),
+            pytest.param(
+                {"ETH0_ROUTES": "10.0.0.0/8 via 192.168.1.1"},
+                [{"to": "10.0.0.0/8", "via": "192.168.1.1"}],
+                id="single_entry",
+            ),
+            pytest.param(
+                {
+                    "ETH0_ROUTES": (
+                        "10.0.0.0/8 via 192.168.1.1,"
+                        " 172.16.0.0/12 via 192.168.1.254"
+                    )
+                },
+                [
+                    {"to": "10.0.0.0/8", "via": "192.168.1.1"},
+                    {"to": "172.16.0.0/12", "via": "192.168.1.254"},
+                ],
+                id="multiple_comma_separated_entries",
+            ),
+            pytest.param(
+                {"ETH0_ROUTES": "bad-entry, 10.0.0.0/8 via 192.168.1.1"},
+                [{"to": "10.0.0.0/8", "via": "192.168.1.1"}],
+                id="malformed_entry_skipped",
+            ),
+        ],
+    )
+    def test_get_routes(self, context, expected):
+        net = ds.OpenNebulaNetwork(context, mock.Mock())
+        assert net.get_routes("eth0") == expected
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_routes(self, m_get_phys_by_mac):
+        """Routes from ETHx_ROUTES appear in gen_conf() output."""
+        self.maxDiff = None
+        context = {
+            "ETH0_MAC": "02:00:0a:12:01:01",
+            "ETH0_IP": "10.0.0.5",
+            "ETH0_MASK": "255.255.255.0",
+            "ETH0_GATEWAY": "10.0.0.1",
+            "ETH0_ROUTES": (
+                "192.168.0.0/16 via 10.0.0.1, 172.16.0.0/12 via 10.0.0.1"
+            ),
+        }
+        for nic in self.system_nics:
+            m_get_phys_by_mac.return_value = {MACADDR: nic}
+            net = ds.OpenNebulaNetwork(context, mock.Mock())
+            conf = net.gen_conf()
+            routes = conf["ethernets"][nic].get("routes", [])
+            assert {"to": "192.168.0.0/16", "via": "10.0.0.1"} in routes
+            assert {"to": "172.16.0.0/12", "via": "10.0.0.1"} in routes
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_no_routes_key_when_absent(self, m_get_phys_by_mac):
+        """gen_conf() does not emit 'routes' key when ETHx_ROUTES is unset."""
+        context = {
+            "ETH0_MAC": "02:00:0a:12:01:01",
+        }
+        m_get_phys_by_mac.return_value = {MACADDR: "eth0"}
+        net = ds.OpenNebulaNetwork(context, mock.Mock())
+        conf = net.gen_conf()
+        assert "routes" not in conf["ethernets"]["eth0"]
 
 
 class TestParseShellConfig:

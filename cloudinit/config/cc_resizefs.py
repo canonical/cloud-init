@@ -249,7 +249,7 @@ def maybe_get_writable_device_path(devpath, info):
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
-    if len(args) != 0:
+    if args:
         resize_root = args[0]
     else:
         resize_root = util.get_cfg_option_str(cfg, "resize_rootfs", True)

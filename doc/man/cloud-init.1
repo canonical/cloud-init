@@ -9,8 +9,8 @@ cloud-init \- Cloud instance initialization
 .SH DESCRIPTION
 Cloud-init provides a mechanism for cloud instance initialization.
 This is done by identifying the cloud platform that is in use, reading
-provided cloud metadata and optional vendor and user
-data, and then initializing the instance as requested.
+cloud meta-data, vendor-data and user-data, and then initializing the
+instance as requested.
 
 .SH OPTIONS
 .TP
@@ -23,7 +23,7 @@ Show program's version number and exit.
 
 .TP
 .B "--all-stages"
-INTERNAL: Run cloud-init's stages under a single process using a syncronization protocol. This is not intended for CLI usage.
+INTERNAL: Run cloud-init's stages under a single process using a synchronization protocol. This is not intended for CLI usage.
 
 .SH SUBCOMMANDS
 Please see the help output for each subcommand for additional details,

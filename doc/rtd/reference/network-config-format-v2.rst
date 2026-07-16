@@ -65,8 +65,8 @@ currently being defined.
 There are two physically/structurally different classes of device definitions,
 and the ID field has a different interpretation for each:
 
-Physical devices (e.g., ethernet, wifi)
----------------------------------------
+Physical devices (e.g., ethernet, Wi-Fi)
+----------------------------------------
 
 These can dynamically come and go between reboots and even during runtime
 (hotplugging). In the generic case, they can be selected by ``match:``
@@ -241,10 +241,12 @@ Example: ::
 
 Add static addresses to the interface in addition to the ones received
 through DHCP or RA. Each sequence entry is in CIDR notation, i.e., of the
-form ``addr/prefixlen``. ``addr`` is an IPv4 or IPv6 address as recognised
+form ``addr/prefixlen``. ``addr`` is an IPv4 or IPv6 address as recognized
 by ``inet_pton(3)`` and ``prefixlen`` the number of bits of the subnet.
 
-Example: ``addresses: [192.168.14.2/24, 2001:1::1/64]``
+Example: ::
+
+  addresses: [192.168.14.2/24, 2001:1::1/64]
 
 ``gateway4: or gateway6: <(scalar)>``
 -------------------------------------
@@ -252,10 +254,15 @@ Example: ``addresses: [192.168.14.2/24, 2001:1::1/64]``
 Deprecated, see `Netplan#default-routes`_.
 Set default gateway for IPv4/6, for manual address configuration. This
 requires setting ``addresses`` too. Gateway IPs must be in a form
-recognised by ``inet_pton(3)``
+recognized by ``inet_pton(3)``
 
-Example for IPv4: ``gateway4: 172.16.0.1``
-Example for IPv6: ``gateway6: 2001:4::1``
+Example for IPv4: ::
+
+  gateway4: 172.16.0.1
+
+Example for IPv6: ::
+
+  gateway6: 2001:4::1
 
 ``mtu: <MTU SizeBytes>``
 ------------------------
@@ -263,6 +270,14 @@ Example for IPv6: ``gateway6: 2001:4::1``
 The MTU key represents a device's Maximum Transmission Unit, the largest size
 packet or frame, specified in octets (eight-bit bytes), that can be sent in a
 packet- or frame-based network. Specifying ``mtu`` is optional.
+
+``optional: <(bool)>``
+------------------------
+
+Mark a device as not required for booting. By default networkd will wait for
+all configured interfaces to be configured before continuing to boot. This
+option causes networkd to not wait for the interface. This is only supported
+by networkd. The default is false.
 
 ``nameservers: <(mapping)>``
 ----------------------------
@@ -281,12 +296,15 @@ Example: ::
 -----------------------------------
 
 Add device specific routes. Each mapping includes a ``to``, ``via`` key
-with an IPv4 or IPv6 address as value. ``metric`` is an optional value.
+with an IPv4 or IPv6 address as value. ``to: default`` may be used to
+configure the default route. ``metric`` is an optional value.
+``table`` is an optional numeric ID or name of the routing table for
+policy-based routing.
 
 Example: ::
 
   routes:
-   - to: 0.0.0.0/0
+   - to: default  # could be 0.0.0.0/0 optionally
      via: 10.23.2.1
      metric: 3
 

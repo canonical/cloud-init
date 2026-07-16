@@ -1,0 +1,10 @@
+[Link]
+MACAddress=00:11:22:33:44:77
+MTUBytes=333
+
+[Match]
+Name=bond0
+
+[Network]
+DHCP=no
+VLAN=bond.200

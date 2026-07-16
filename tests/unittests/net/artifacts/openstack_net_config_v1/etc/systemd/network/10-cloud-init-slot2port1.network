@@ -1,0 +1,11 @@
+[Link]
+MTUBytes=1500
+
+[Match]
+MACAddress=00:00:00:00:01:01
+Name=slot2port1
+
+[Network]
+Bond=bond1
+DHCP=no
+DNS=8.8.8.8 4.4.4.4

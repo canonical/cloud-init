@@ -7,11 +7,13 @@ from pycloudlib.lxd.instance import LXDInstance
 
 from cloudinit import lifecycle
 from cloudinit.subp import subp
+from cloudinit.util import is_true
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.releases import CURRENT_RELEASE, FOCAL
 from tests.integration_tests.util import (
     get_feature_flag_value,
+    network_wait_logged,
     override_kernel_command_line,
     verify_clean_boot,
     verify_clean_log,
@@ -19,8 +21,20 @@ from tests.integration_tests.util import (
 
 VENDOR_DATA = """\
 #cloud-config
-runcmd:
+bootcmd:
   - touch /var/tmp/seeded_vendordata_test_file
+"""
+
+# The fallback network config doesn't work on LXD, leading to
+# systemd-network-wait-online timing out and/or cloud-init raising
+# an error about wait-online.
+# This gives us a NoCloud default to work around these issues
+NETWORK_CONFIG = """\
+network:
+  version: 2
+  ethernets:
+    eth0:
+      dhcp4: true
 """
 
 
@@ -45,6 +59,12 @@ LXD_METADATA_NOCLOUD_SEED = """\
       default: |
         #cloud-config
         {}
+  /var/lib/cloud/seed/nocloud-net/network-config:
+    when:
+    - create
+    - copy
+    create_only: false
+    template: netcfg.tpl
 """
 
 
@@ -62,6 +82,13 @@ def setup_nocloud(instance: LXDInstance):
     subp(
         ["lxc", "config", "template", "edit", instance.name, "emptycfg.tpl"],
         data="#cloud-config\n{}\n",
+    )
+    subp(
+        ["lxc", "config", "template", "create", instance.name, "netcfg.tpl"],
+    )
+    subp(
+        ["lxc", "config", "template", "edit", instance.name, "netcfg.tpl"],
+        data=NETWORK_CONFIG,
     )
     subp(
         ["lxc", "config", "metadata", "edit", instance.name],
@@ -86,8 +113,11 @@ def test_nocloud_seedfrom_vendordata(client: IntegrationInstance):
         "mkdir {seed_dir} && "
         "touch {seed_dir}/user-data && "
         "touch {seed_dir}/meta-data && "
+        "echo '{net}' > {seed_dir}/network-config && "
         "echo 'seedfrom: {seed_dir}/' > "
-        "/var/lib/cloud/seed/nocloud-net/meta-data".format(seed_dir=seed_dir)
+        "/var/lib/cloud/seed/nocloud-net/meta-data".format(
+            seed_dir=seed_dir, net=NETWORK_CONFIG
+        )
     )
     assert result.return_code == 0
 
@@ -99,6 +129,9 @@ def test_nocloud_seedfrom_vendordata(client: IntegrationInstance):
     client.restart()
     assert client.execute("cloud-init status").ok
     assert "seeded_vendordata_test_file" in client.execute("ls /var/tmp")
+    assert network_wait_logged(
+        client.execute("cat /var/log/cloud-init.log")
+    ) == is_true(get_feature_flag_value(client, "MANUAL_NETWORK_WAIT"))
 
 
 SMBIOS_USERDATA = """\
@@ -327,10 +360,10 @@ class TestFTP:
                     "git clone https://github.com/FiloSottile/mkcert && "
                     "cd mkcert && "
                     "export latest_ver=$(git describe --tags --abbrev=0) && "
-                    'wget "https://github.com/FiloSottile/mkcert/releases/'
+                    'curl -JL "https://github.com/FiloSottile/mkcert/releases/'
                     "download/${latest_ver}/mkcert-"
                     '${latest_ver}-linux-amd64"'
-                    " -O mkcert && "
+                    " -o mkcert && "
                     "chmod 755 mkcert"
                 ).ok
 
@@ -359,6 +392,7 @@ class TestFTP:
                 After=systemd-networkd-wait-online.service
                 After=networking.service
                 Before=cloud-init-network.service
+                Before=cloud-init.service
 
                 [Service]
                 Type=notify

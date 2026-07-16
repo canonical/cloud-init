@@ -20,7 +20,6 @@ from cloudinit.config.schema import MetaSchema
 from cloudinit.settings import PER_INSTANCE
 
 LSC_CLIENT_CFG_FILE = "/etc/landscape/client.conf"
-LS_DEFAULT_FILE = "/etc/default/landscape-client"
 
 # defaults taken from stock client.conf in landscape-client 11.07.1.1-0ubuntu2
 LSC_BUILTIN_CFG = {

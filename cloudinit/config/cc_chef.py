@@ -12,6 +12,7 @@ import itertools
 import json
 import logging
 import os
+import shutil
 from typing import List
 
 from cloudinit import subp, temp_utils, templater, url_helper, util
@@ -23,21 +24,20 @@ from cloudinit.settings import PER_ALWAYS
 
 RUBY_VERSION_DEFAULT = "1.8"
 
-CHEF_DIRS = tuple(
-    [
-        "/etc/chef",
-        "/var/log/chef",
-        "/var/lib/chef",
-        "/var/cache/chef",
-        "/var/backups/chef",
-        "/var/run/chef",
-    ]
+CHEF_DIRS = (
+    "/etc/chef",
+    "/var/log/chef",
+    "/var/lib/chef",
+    "/var/chef/cache",
+    "/var/chef/backup",
+    "/var/run/chef",
 )
-REQUIRED_CHEF_DIRS = tuple(
-    [
-        "/etc/chef",
-    ]
-)
+REQUIRED_CHEF_DIRS = ("/etc/chef",)
+
+CHEF_DIR_MIGRATION = {
+    "/var/cache/chef": "/var/chef/cache",
+    "/var/backups/chef": "/var/chef/backup",
+}
 
 # Used if fetching chef from a omnibus style package
 OMNIBUS_URL = "https://www.chef.io/chef/install.sh"
@@ -55,8 +55,8 @@ CHEF_RB_TPL_DEFAULTS = {
     "validation_cert": None,
     "client_key": "/etc/chef/client.pem",
     "json_attribs": CHEF_FB_PATH,
-    "file_cache_path": "/var/cache/chef",
-    "file_backup_path": "/var/backups/chef",
+    "file_cache_path": "/var/chef/cache",
+    "file_backup_path": "/var/chef/backup",
     "pid_file": "/var/run/chef/client.pid",
     "show_time": True,
     "encrypted_data_bag_secret": None,
@@ -74,22 +74,20 @@ CHEF_RB_TPL_PATH_KEYS = frozenset(
     ]
 )
 CHEF_RB_TPL_KEYS = frozenset(
-    itertools.chain(
-        CHEF_RB_TPL_DEFAULTS.keys(),
-        CHEF_RB_TPL_BOOL_KEYS,
-        CHEF_RB_TPL_PATH_KEYS,
-        [
-            "server_url",
-            "node_name",
-            "environment",
-            "validation_name",
-            "chef_license",
-        ],
-    )
+    [
+        *CHEF_RB_TPL_DEFAULTS.keys(),
+        *CHEF_RB_TPL_BOOL_KEYS,
+        *CHEF_RB_TPL_PATH_KEYS,
+        "server_url",
+        "node_name",
+        "environment",
+        "validation_name",
+        "chef_license",
+    ]
 )
 CHEF_RB_PATH = "/etc/chef/client.rb"
 CHEF_EXEC_PATH = "/usr/bin/chef-client"
-CHEF_EXEC_DEF_ARGS = tuple(["-d", "-i", "1800", "-s", "20"])
+CHEF_EXEC_DEF_ARGS = ("-d", "-i", "1800", "-s", "20")
 
 
 LOG = logging.getLogger(__name__)
@@ -145,6 +143,26 @@ def get_template_params(iid, chef_cfg):
     return params
 
 
+def migrate_chef_config_dirs():
+    """Migrate legacy chef backup and cache directories to new config paths."""
+    for old_dir, migrated_dir in CHEF_DIR_MIGRATION.items():
+        if os.path.exists(old_dir):
+            for filename in os.listdir(old_dir):
+                if os.path.exists(os.path.join(migrated_dir, filename)):
+                    LOG.debug(
+                        "Ignoring migration of %s. File already exists in %s.",
+                        os.path.join(old_dir, filename),
+                        migrated_dir,
+                    )
+                    continue
+                LOG.debug(
+                    "Moving %s to %s.",
+                    os.path.join(old_dir, filename),
+                    migrated_dir,
+                )
+                shutil.move(os.path.join(old_dir, filename), migrated_dir)
+
+
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """Handler method activated by cloud-init."""
 
@@ -164,6 +182,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     for d in itertools.chain(chef_dirs, REQUIRED_CHEF_DIRS):
         util.ensure_dir(d)
 
+    # Migrate old directory cache and backups to new
+    migrate_chef_config_dirs()
+
     vkey_path = chef_cfg.get("validation_key", CHEF_VALIDATION_PEM_PATH)
     vcert = chef_cfg.get("validation_cert")
     # special value 'system' means do not overwrite the file
@@ -179,6 +200,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             )
 
     # Create the chef config from template
+    cfg_filename = util.get_cfg_option_str(
+        chef_cfg, "config_path", default=CHEF_RB_PATH
+    )
     template_fn = cloud.get_template_filename("chef_client.rb")
     if template_fn:
         iid = str(cloud.datasource.get_instance_id())
@@ -191,9 +215,9 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             if k in CHEF_RB_TPL_PATH_KEYS and v:
                 param_paths.add(os.path.dirname(v))
         util.ensure_dirs(param_paths)
-        templater.render_to_file(template_fn, CHEF_RB_PATH, params)
+        templater.render_to_file(template_fn, cfg_filename, params)
     else:
-        LOG.warning("No template found, not rendering to %s", CHEF_RB_PATH)
+        LOG.warning("No template found, not rendering to %s", cfg_filename)
 
     # Set the firstboot json
     fb_filename = util.get_cfg_option_str(
@@ -313,7 +337,7 @@ def install_chef(cloud: Cloud, chef_cfg):
         )
         install_chef_from_gems(ruby_version, chef_version, cloud.distro)
         # Retain backwards compat, by preferring True instead of False
-        # when not provided/overriden...
+        # when not provided/overridden...
         run = util.get_cfg_option_bool(chef_cfg, "exec", default=True)
     elif install_type == "packages":
         # This will install and run the chef-client from packages

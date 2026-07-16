@@ -45,6 +45,7 @@ distros = [
     "opensuse-tumbleweed",
     "opensuse-leap",
     "photon",
+    "raspberry-pi-os",
     "rhel",
     "rocky",
     "sle_hpc",
@@ -67,7 +68,7 @@ NTP_CLIENT_CONFIG = {
     "ntp": {
         "check_exe": "ntpd",
         "confpath": NTP_CONF,
-        "packages": ["ntp"],
+        "packages": ["ntpsec"],
         "service_name": "ntp",
         "template_name": "ntp.conf.{distro}",
         "template": None,
@@ -211,6 +212,11 @@ DISTRO_CLIENT_CONFIG: Dict[str, Dict] = {
             "confpath": "/etc/systemd/timesyncd.conf",
         },
     },
+    "raspberry-pi-os": {
+        "systemd-timesyncd": {
+            "check_exe": "/usr/lib/systemd/systemd-timesyncd",
+        },
+    },
     "rhel": {
         "ntp": {
             "service_name": "ntpd",
@@ -241,7 +247,7 @@ DISTRO_CLIENT_CONFIG: Dict[str, Dict] = {
 for distro in ("opensuse-microos", "opensuse-tumbleweed", "opensuse-leap"):
     DISTRO_CLIENT_CONFIG[distro] = DISTRO_CLIENT_CONFIG["opensuse"]
 
-for distro in ("almalinux", "cloudlinux"):
+for distro in ("almalinux", "cloudlinux", "rocky"):
     DISTRO_CLIENT_CONFIG[distro] = DISTRO_CLIENT_CONFIG["rhel"]
 
 for distro in ("sle_hpc", "sle-micro"):
@@ -341,8 +347,6 @@ def install_ntp_client(install_func, packages=None, check_exe="ntpd"):
     """
     if subp.which(check_exe):
         return
-    if packages is None:
-        packages = ["ntp"]
 
     install_func(packages)
 
@@ -427,18 +431,14 @@ def write_ntp_config_template(
     if not peers:
         peers = []
 
-    if len(servers) == 0 and len(pools) == 0 and distro_name == "cos":
+    if not servers and not pools and distro_name == "cos":
         return
-    if (
-        len(servers) == 0
-        and distro_name == "alpine"
-        and service_name == "ntpd"
-    ):
+    if not servers and distro_name == "alpine" and service_name == "ntpd":
         # Alpine's Busybox ntpd only understands "servers" configuration
         # and not "pool" configuration.
         servers = generate_server_names(distro_name)
         LOG.debug("Adding distro default ntp servers: %s", ",".join(servers))
-    elif len(servers) == 0 and len(pools) == 0:
+    elif not (servers) and not (pools):
         pools = generate_server_names(distro_name)
         LOG.debug(
             "Adding distro default ntp pool servers: %s", ",".join(pools)

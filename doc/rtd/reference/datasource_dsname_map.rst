@@ -1,3 +1,5 @@
+:orphan:
+
 .. _datasource_dsname:
 
 Datasource dsname

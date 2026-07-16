@@ -17,24 +17,46 @@ Distributions
 ``Cloud-init`` has support across all major Linux distributions, FreeBSD,
 NetBSD, OpenBSD and DragonFlyBSD:
 
+- AlmaLinux
 - Alpine Linux
+- AOSC OS
+- Amazon Linux 2023
 - Arch Linux
+- CentOS
+- CloudLinux
+- Container-Optimized OS
 - Debian
 - DragonFlyBSD
+- EuroLinux
 - Fedora
 - FreeBSD
 - Gentoo Linux
+- MarinerOS
+- MIRACLE LINUX
 - NetBSD
 - OpenBSD
+- openEuler
+- OpenCloudOS
+- OpenMandriva
 - Photon OS
-- RHEL/CentOS/AlmaLinux/Rocky Linux/EuroLinux
+- Raspberry Pi OS
+- Red Hat Enterprise Linux (RHEL)
+- Rocky Linux
 - SLES/openSUSE
+- TencentOS
 - Ubuntu
+- Virtuozzo
+
+.. note::
+
+    While BSD variants are not typically referred to as "distributions",
+    ``cloud-init`` has an abstraction to account for operating system differences,
+    which can be found in the `cloudinit/distros/ <https://github.com/canonical/cloud-init/tree/main/cloudinit/distros>`_ directory.
 
 Clouds
 ======
 
-``Cloud-init`` provides support across a wide ranging list of execution
+``Cloud-init`` provides support across a wide-ranging list of execution
 environments in the public cloud:
 
 - Amazon Web Services

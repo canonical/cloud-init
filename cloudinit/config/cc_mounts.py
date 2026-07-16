@@ -31,10 +31,8 @@ meta: MetaSchema = {
 
 # Shortname matches 'sda', 'sda1', 'xvda', 'hda', 'sdb', xvdb, vda, vdd1, sr0
 DEVICE_NAME_FILTER = r"^([x]{0,1}[shv]d[a-z][0-9]*|sr[0-9]+)$"
-DEVICE_NAME_RE = re.compile(DEVICE_NAME_FILTER)
 # Name matches 'server:/path'
 NETWORK_NAME_FILTER = r"^.+:.*"
-NETWORK_NAME_RE = re.compile(NETWORK_NAME_FILTER)
 FSTAB_PATH = "/etc/fstab"
 MNT_COMMENT = "comment=cloudconfig"
 MB = 2**20
@@ -57,7 +55,7 @@ def is_meta_device_name(name):
 
 def is_network_device(name):
     # return true if this is a network device
-    if NETWORK_NAME_RE.match(name):
+    if re.match(NETWORK_NAME_FILTER, name):
         return True
     return False
 
@@ -114,7 +112,7 @@ def sanitize_devname(startname, transformer, aliases=None):
             device_path = "/dev/%s" % (device_path,)
         LOG.debug("Mapped metadata name %s to %s", orig, device_path)
     else:
-        if DEVICE_NAME_RE.match(startname):
+        if re.match(DEVICE_NAME_FILTER, startname):
             device_path = "/dev/%s" % (device_path,)
 
     partition_path = None
@@ -371,7 +369,7 @@ def parse_fstab() -> Tuple[List[str], Dict[str, str], List[str]]:
                 continue
             toks = line.split()
             if toks:
-                fstab_devs[toks[0]] = line
+                fstab_devs[util.unescape_fstab_field(toks[0])] = line
                 fstab_lines.append(line)
     return fstab_lines, fstab_devs, fstab_removed
 
@@ -516,9 +514,37 @@ def mount_if_needed(
             subp.subp(["systemctl", "daemon-reload"])
 
 
+def cleanup_fstab(ds_remove_entry: Optional[str] = None) -> None:
+    if not os.path.exists(FSTAB_PATH):
+        return
+
+    remove_entries = [MNT_COMMENT]
+    if ds_remove_entry:
+        remove_entries.append(ds_remove_entry)
+
+    with open(FSTAB_PATH, "r") as f:
+        lines = f.readlines()
+    new_lines = []
+    changed = False
+    for line in lines:
+        if all(entry in line for entry in remove_entries):
+            changed = True
+            continue
+        new_lines.append(line)
+
+    # rewrite fstab
+    try:
+        if changed:
+            with open(FSTAB_PATH, "w") as f:
+                f.writelines(new_lines)
+            LOG.info("Removed resource disk entries from %s", FSTAB_PATH)
+    except Exception as e:
+        LOG.warning("Failed to clean resource disk entries from fstab: %s", e)
+
+
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """Handle the mounts configuration."""
-    # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
+    # fs_spec, fs_file, fs_vfstype, fs_mntops, fs_freq, fs_passno
     uses_systemd = cloud.distro.uses_systemd()
     default_mount_options = (
         "defaults,nofail,x-systemd.after=cloud-init-network.service,_netdev"
@@ -550,7 +576,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if swapfile:
         updated_cfg.append([swapfile, "none", "swap", "sw", "0", "0"])
 
-    if len(updated_cfg) == 0:
+    if not updated_cfg:
         # This will only be true if there is no mount configuration at all
         # Even if fstab has no functional changes, we'll get past this point
         # as we remove any 'comment=cloudconfig' lines and then add them back
@@ -558,7 +584,18 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         LOG.debug("No modifications to fstab needed")
         return
 
-    cfg_lines = ["\t".join(entry) for entry in updated_cfg]
+    # Only fs_spec (device) and fs_file (mount point) can contain values that
+    # need escaping; the remaining fstab fields never do, so we skip them.
+    cfg_lines = [
+        "\t".join(
+            [
+                util.escape_fstab_field(entry[0]),
+                util.escape_fstab_field(entry[1]),
+                *entry[2:],
+            ]
+        )
+        for entry in updated_cfg
+    ]
 
     dirs = [d[1] for d in updated_cfg if d[1].startswith("/")]
 

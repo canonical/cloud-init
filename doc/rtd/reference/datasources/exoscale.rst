@@ -3,20 +3,20 @@
 Exoscale
 ********
 
-This datasource supports reading from the metadata server used on the
-`Exoscale platform`_. Use of the Exoscale datasource is recommended to benefit
-from new features of the Exoscale platform.
+This datasource supports reading from the instance metadata server (IMDS) used
+on the `Exoscale platform`_. Use of the Exoscale datasource is recommended to
+benefit from new features of the Exoscale platform.
 
-The datasource relies on the availability of a compatible metadata server
+The datasource relies on the availability of a compatible IMDS
 (``http://169.254.169.254`` is used by default) and its companion password
 server, reachable at the same address (by default on port 8080).
 
-Crawling of metadata
-====================
+Crawling the datasource
+=======================
 
-The metadata service and password server are crawled slightly differently:
+The IMDS and password server are crawled slightly differently:
 
-* The "metadata service" is crawled every boot.
+* The IMDS is crawled every boot.
 * The password server is also crawled every boot (the Exoscale datasource
   forces the password module to run with "frequency always").
 
@@ -42,7 +42,7 @@ The following settings are available and can be set for the
 
 The settings available are:
 
-* ``metadata_url``: The URL for the metadata service.
+* ``metadata_url``: The URL for the IMDS.
 
   Defaults to ``http://169.254.169.254``.
 
@@ -51,7 +51,7 @@ The settings available are:
 
   Defaults to ``1.0``.
 
-* ``password_server_port``: The port (on the metadata server) on which the
+* ``password_server_port``: The port (on the IMDS) on which the
   password server listens.
 
   Defaults to ``8080``.

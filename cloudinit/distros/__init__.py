@@ -13,6 +13,7 @@ import abc
 import logging
 import os
 import re
+import shlex
 import stat
 import string
 import urllib.parse
@@ -50,6 +51,7 @@ from cloudinit.distros.package_management.package_manager import PackageManager
 from cloudinit.distros.package_management.utils import known_package_managers
 from cloudinit.distros.parsers import hosts
 from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
+from cloudinit.lifecycle import log_with_downgradable_level
 from cloudinit.net import activators, dhcp, renderers
 from cloudinit.net.netops import NetOps
 from cloudinit.net.network_state import parse_net_config_data
@@ -63,7 +65,7 @@ OSFAMILIES = {
     "alpine": ["alpine"],
     "aosc": ["aosc"],
     "arch": ["arch"],
-    "debian": ["debian", "ubuntu"],
+    "debian": ["debian", "ubuntu", "raspberry-pi-os"],
     "freebsd": ["freebsd", "dragonfly"],
     "gentoo": ["gentoo", "cos"],
     "netbsd": ["netbsd"],
@@ -99,10 +101,6 @@ OSFAMILIES = {
 }
 
 LOG = logging.getLogger(__name__)
-
-# This is a best guess regex, based on current EC2 AZs on 2017-12-11.
-# It could break when Amazon adds new regions and new AZs.
-_EC2_AZ_RE = re.compile("^[a-z][a-z]-(?:[a-z]+-)+[0-9][a-z]$")
 
 # Default NTP Client Configurations
 PREFERRED_NTP_CLIENTS = ["chrony", "systemd-timesyncd", "ntp", "ntpdate"]
@@ -142,7 +140,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     shadow_empty_locked_passwd_patterns = ["^{username}::", "^{username}:!:"]
     tz_zone_dir = "/usr/share/zoneinfo"
     default_owner = "root:root"
-    init_cmd = ["service"]  # systemctl, service etc
+    init_cmd: List[str] = ["service"]  # systemctl, service etc
     renderer_configs: Mapping[str, MutableMapping[str, Any]] = {}
     _preferred_ntp_clients = None
     networking_cls: Type[Networking] = LinuxNetworking
@@ -349,15 +347,16 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         raise dhcp.NoDHCPLeaseMissingDhclientError()
 
     @property
-    def network_activator(self) -> Optional[Type[activators.NetworkActivator]]:
-        """Return the configured network activator for this environment."""
+    def network_activator(self) -> Type[activators.NetworkActivator]:
+        """Return the configured network activator for this environment.
+
+        :returns: The network activator class to use
+        :raises: NoActivatorException if no activator is found
+        """
         priority = util.get_cfg_by_path(
             self._cfg, ("network", "activators"), None
         )
-        try:
-            return activators.select_activator(priority=priority)
-        except activators.NoActivatorException:
-            return None
+        return activators.select_activator(priority=priority)
 
     @property
     def network_renderer(self) -> Renderer:
@@ -460,8 +459,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # Now try to bring them up
         if bring_up:
             LOG.debug("Bringing up newly configured network interfaces")
-            network_activator = self.network_activator
-            if not network_activator:
+            try:
+                network_activator = self.network_activator
+            except activators.NoActivatorException:
                 LOG.warning(
                     "No network activator found, not bringing up "
                     "network interfaces"
@@ -582,10 +582,10 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             )
             return
 
-        # Remove duplicates (incase the previous config filename)
+        # Remove duplicates (in case the previous config filename)
         # is the same as the system config filename, don't bother
         # doing it twice
-        update_files = set([f for f in update_files if f])
+        update_files = list(set([f for f in update_files if f]))
         LOG.debug(
             "Attempting to update hostname to %s in %s files",
             hostname,
@@ -790,7 +790,10 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         create_user_cmd = ["snap", "create-user", "--sudoer", "--json"]
         if known:
             create_user_cmd.append("--known")
-        create_user_cmd.append(snapuser)
+        if snapuser:
+            create_user_cmd.append(snapuser)
+        else:
+            LOG.warning("invalid snap user: %s", snapuser)
 
         # Run the command
         LOG.debug("Adding snap user %s", name)
@@ -898,10 +901,13 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                     password_key = "passwd"
                     # Only "plain_text_passwd" and "hashed_passwd"
                     # are valid for an existing user.
-                    LOG.warning(
-                        "'passwd' in user-data is ignored for existing "
-                        "user %s",
-                        name,
+                    log_with_downgradable_level(
+                        logger=LOG,
+                        version="24.3",
+                        requested_level=logging.WARNING,
+                        msg="'passwd' in user-data is ignored "
+                        "for existing user %s",
+                        args=(name,),
                     )
 
                 # As no password specified for the existing user in user-data
@@ -939,20 +945,26 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         elif pre_existing_user:
             # Pre-existing user with no existing password and none
             # explicitly set in user-data.
-            LOG.warning(
-                "Not unlocking blank password for existing user %s."
+            log_with_downgradable_level(
+                logger=LOG,
+                version="24.3",
+                requested_level=logging.WARNING,
+                msg="Not unlocking blank password for existing user %s."
                 " 'lock_passwd: false' present in user-data but no existing"
                 " password set and no 'plain_text_passwd'/'hashed_passwd'"
                 " provided in user-data",
-                name,
+                args=(name,),
             )
         else:
             # No password (whether blank or otherwise) explicitly set
-            LOG.warning(
-                "Not unlocking password for user %s. 'lock_passwd: false'"
+            log_with_downgradable_level(
+                logger=LOG,
+                version="24.3",
+                requested_level=logging.WARNING,
+                msg="Not unlocking password for user %s. 'lock_passwd: false'"
                 " present in user-data but no 'passwd'/'plain_text_passwd'/"
                 "'hashed_passwd' provided in user-data",
-                name,
+                args=(name,),
             )
 
         # Configure doas access
@@ -996,8 +1008,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             cloud_keys = kwargs.get("cloud_public_ssh_keys", [])
             if not cloud_keys:
                 LOG.warning(
-                    "Unable to disable SSH logins for %s given"
-                    " ssh_redirect_user: %s. No cloud public-keys present.",
+                    "Unable to disable SSH logins for %s."
+                    " ssh_redirect_user was set to redirect logins to"
+                    " %s, but no cloud public-keys are present.",
                     name,
                     kwargs["ssh_redirect_user"],
                 )
@@ -1332,10 +1345,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         Reload systemd startup daemon.
         May raise ProcessExecutionError
         """
-        init_cmd = cls.init_cmd
-        if cls.uses_systemd() or "systemctl" in init_cmd:
-            cmd = [init_cmd, "daemon-reload"]
-            return subp.subp(cmd, capture=True, rcs=rcs)
+        return None
 
     @classmethod
     def manage_service(
@@ -1357,7 +1367,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 "disable": ["disable", service],
                 "restart": ["restart", service],
                 "reload": ["reload-or-restart", service],
-                "try-reload": ["reload-or-try-restart", service],
+                "try-reload": ["try-reload-or-restart", service],
                 "status": ["status", service],
             }
         else:
@@ -1371,7 +1381,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 "try-reload": [service, "restart"],
                 "status": [service, "status"],
             }
-        cmd = list(init_cmd) + list(cmds[action])
+        cmd = init_cmd + cmds[action] + list(extra_args)
         return subp.subp(cmd, capture=True, rcs=rcs)
 
     def set_keymap(self, layout: str, model: str, variant: str, options: str):
@@ -1411,7 +1421,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 "-",
                 user,
                 "-c",
-                directory + "env PATH=$PATH " + " ".join(command),
+                directory
+                + "env PATH=$PATH "
+                + " ".join(shlex.quote(arg) for arg in command),
             ],
             **kwargs,
         )
@@ -1574,6 +1586,19 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # name in /dev/
         return diskdevpath, ptnum
 
+    def wait_for_network(self) -> None:
+        """Ensure that cloud-init has network connectivity.
+
+        For most distros, this is a no-op as cloud-init's network service is
+        ordered in boot to start after network connectivity has been achieved.
+        As an optimization, distros may opt to order cloud-init's network
+        service immediately after cloud-init's local service, and only
+        require network connectivity if it has been deemed necessary.
+        This method is a hook for distros to implement this optimization.
+        It is called during cloud-init's network stage if it was determined
+        that network connectivity is necessary in cloud-init's network stage.
+        """
+
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):
     """
@@ -1692,7 +1717,12 @@ def _get_package_mirror_info(
 
         # ec2 availability zones are named cc-direction-[0-9][a-d] (us-east-1b)
         # the region is us-east-1. so region = az[0:-1]
-        if _EC2_AZ_RE.match(data_source.availability_zone):
+        # This is a best guess regex, based on current EC2 AZs on 2017-12-11.
+        # It could break when Amazon adds new regions and new AZs.
+        if re.match(
+            "^[a-z][a-z]-(?:[a-z]+-)+[0-9][a-z]$",
+            data_source.availability_zone,
+        ):
             ec2_region = data_source.availability_zone[0:-1]
 
             if ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES:
@@ -1742,6 +1772,11 @@ def _get_arch_package_mirror_info(package_mirrors, arch):
 
 def fetch(name: str) -> Type[Distro]:
     locs, looked_locs = importer.find_module(name, ["", __name__], ["Distro"])
+    if not locs:
+        # Some distros may have a `-` in the name but an `_` in the module
+        locs, _ = importer.find_module(
+            name.replace("-", "_"), ["", __name__], ["Distro"]
+        )
     if not locs:
         raise ImportError(
             "No distribution found for distro %s (searched %s)"

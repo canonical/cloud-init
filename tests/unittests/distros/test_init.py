@@ -14,7 +14,7 @@ from cloudinit.distros import (
     PackageInstallerError,
     _get_package_mirror_info,
 )
-from tests.unittests.distros import _get_distro
+from tests.unittests.helpers import get_distro
 
 # In newer versions of Python, these characters will be omitted instead
 # of substituted because of security concerns.
@@ -293,7 +293,7 @@ class TestUpdatePackageSources:
             M_PATH + "snap.Snap.update_package_sources",
             side_effect=snap_error,
         )
-        _get_distro("ubuntu").update_package_sources()
+        get_distro("ubuntu").update_package_sources()
         for log in expected_logs:
             assert log in caplog.text
 
@@ -337,7 +337,7 @@ class TestUpdatePackageSources:
         m_snap_update = mocker.patch(
             M_PATH + "snap.Snap.update_package_sources"
         )
-        _get_distro("ubuntu").update_package_sources()
+        get_distro("ubuntu").update_package_sources()
         if not snap_available:
             m_snap_update.assert_not_called()
         else:
@@ -381,12 +381,12 @@ class TestInstall:
     def test_invalid_yaml(self, m_apt_install):
         """Test that an invalid YAML raises an exception."""
         with pytest.raises(ValueError):
-            _get_distro("debian").install_packages([["invalid"]])
+            get_distro("debian").install_packages([["invalid"]])
         m_apt_install.assert_not_called()
 
     def test_unknown_package_manager(self, m_apt_install, caplog):
         """Test that an unknown package manager raises an exception."""
-        _get_distro("debian").install_packages(
+        get_distro("debian").install_packages(
             [{"apt": ["pkg1"]}, "pkg2", {"invalid": ["pkg3"]}]
         )
         assert (
@@ -400,7 +400,7 @@ class TestInstall:
 
     def test_non_default_package_manager(self, m_apt_install, m_snap_install):
         """Test success from package manager not supported by distro."""
-        _get_distro("debian").install_packages(
+        get_distro("debian").install_packages(
             [{"apt": ["pkg1"]}, "pkg2", {"snap": ["pkg3"]}]
         )
         apt_install_args = m_apt_install.call_args_list[0][0][0]
@@ -422,7 +422,7 @@ class TestInstall:
             PackageInstallerError,
             match="Failed to install the following packages: {'pkg3'}",
         ):
-            _get_distro("debian").install_packages(
+            get_distro("debian").install_packages(
                 [{"apt": ["pkg1"]}, "pkg2", {"snap": ["pkg3"]}]
             )
 
@@ -432,7 +432,7 @@ class TestInstall:
         self, m_apt_install, m_snap_install
     ):
         """Test success from package manager not supported by distro."""
-        _get_distro("ubuntu").install_packages(
+        get_distro("ubuntu").install_packages(
             ["pkg1", ["pkg3", "ver3"], {"apt": [["pkg2", "ver2"]]}]
         )
         apt_install_args = m_apt_install.call_args_list[0][0][0]
@@ -451,7 +451,7 @@ class TestInstall:
             return_value=["pkg1"],
         )
         with pytest.raises(PackageInstallerError):
-            _get_distro("ubuntu").install_packages([{"apt": ["pkg1"]}])
+            get_distro("ubuntu").install_packages([{"apt": ["pkg1"]}])
         apt_install_args = m_apt_install.call_args_list[0][0][0]
         assert "pkg1" in apt_install_args
         m_snap_install.assert_not_called()
@@ -463,7 +463,7 @@ class TestInstall:
         mocker.patch(M_PATH + "apt.Apt.available", return_value=False)
         mocker.patch(M_PATH + "snap.Snap.available", return_value=False)
         with pytest.raises(PackageInstallerError):
-            _get_distro("ubuntu").install_packages(
+            get_distro("ubuntu").install_packages(
                 ["pkg1", "pkg2", {"other": "pkg3"}]
             )
         m_apt_install.assert_not_called()
@@ -544,7 +544,7 @@ class TestInstall:
             return_value=snap_failed,
         )
         with pytest.raises(PackageInstallerError) as exc:
-            _get_distro(distro).install_packages(pkg_list)
+            get_distro(distro).install_packages(pkg_list)
         message = exc.value.args[0]
         assert "Failed to install the following packages" in message
         for pkg in total_failed:

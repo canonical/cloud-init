@@ -6,11 +6,17 @@
 # test/unittests/conftest.py to be loaded by our integration-tests tox env
 # resulting in an unmet dependency issue:
 # https://github.com/pytest-dev/pytest/issues/11104
-pytest!=7.3.2
+pytest
 
 pytest-cov
 pytest-mock
-setuptools
+pytest-xdist
 jsonschema
 responses
+packaging
 passlib
+pyfakefs
+
+# This one is currently used only by the CloudSigma and SmartOS datasources.
+# If these datasources are removed, this is no longer needed.
+pyserial

@@ -129,7 +129,7 @@ class TestAptSourceConfigSourceList:
         tmpl_file = f"/etc/cloud/templates/sources.list.{distro}.tmpl"
         util.write_file(tmpl_file, EXAMPLE_TMPL)
 
-        cc_apt_configure.handle("test", cfg, mycloud, None)
+        cc_apt_configure.handle("test", cfg, mycloud, [])
         sources_file = tmpdir.join("/etc/apt/sources.list")
         assert expected == sources_file.read()
         assert 0o644 == stat.S_IMODE(sources_file.stat().mode)
@@ -152,7 +152,7 @@ class TestAptSourceConfigSourceList:
         mycloud = get_cloud(distro)
         tmpl_file = f"/etc/cloud/templates/sources.list.{distro}.deb822.tmpl"
         util.write_file(tmpl_file, EXAMPLE_TMPL_DEB822)
-        cc_apt_configure.handle("test", {"apt_mirror": mirror}, mycloud, None)
+        cc_apt_configure.handle("test", {"apt_mirror": mirror}, mycloud, [])
         sources_file = tmpdir.join(f"/etc/apt/sources.list.d/{distro}.sources")
         assert (
             EXPECTED_CONVERTED_CONTENT_DEB822.replace(
@@ -202,7 +202,7 @@ class TestAptSourceConfigSourceList:
             util, "is_resolvable", side_effect=self.myresolve
         )
         cc_apt_configure.handle(
-            "test", {"apt_mirror_search": mirrorlist}, mycloud, None
+            "test", {"apt_mirror_search": mirrorlist}, mycloud, []
         )
         sources_file = tmpdir.join(f"/etc/apt/sources.list.d/{distro}.sources")
         assert (
@@ -268,7 +268,7 @@ class TestAptSourceConfigSourceList:
         util.write_file(tmpl_file, tmpl_content)
 
         # the second mock restores the original subp
-        cc_apt_configure.handle("notimportant", cfg, mycloud, None)
+        cc_apt_configure.handle("notimportant", cfg, mycloud, [])
         sources_file = tmpdir.join(apt_file)
         assert expected == sources_file.read()
         assert 0o644 == stat.S_IMODE(sources_file.stat().mode)

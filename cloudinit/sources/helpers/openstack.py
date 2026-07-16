@@ -408,7 +408,7 @@ class ConfigDriveReader(BaseReader):
             path = self._path_join(self.base_path, name)
             if os.path.exists(path):
                 found[name] = path
-        if len(found) == 0:
+        if not found:
             raise NonReadable("%s: no files found" % (self.base_path))
 
         md = {}
@@ -493,10 +493,10 @@ class MetadataReader(BaseReader):
         return self._versions
 
     def _path_read(self, path, decode=False):
-        def should_retry_cb(_request_args, cause):
+        def should_retry_cb(cause):
             try:
                 code = int(cause.code)
-                if code >= 400:
+                if code >= 400 and code not in [408, 429, 500, 502, 503, 504]:
                     return False
             except (TypeError, ValueError):
                 # Older versions of requests didn't have a code.
@@ -705,11 +705,15 @@ def convert_net_json(network_json=None, known_macs=None):
                     # is expected by cloudinit.
                     translated_key = "bond-{}".format(k.split("bond_", 1)[-1])
                     params.update({translated_key: v})
+            cfg["params"] = params
 
             # openstack does not provide a name for the bond.
             # they do provide an 'id', but that is possibly non-sensical.
-            # so we just create our own name.
-            link_name = bond_name_fmt % bond_number
+            # so we just create our own name unless 'name' is set.
+            if cfg.get("name") is None:
+                link_name = bond_name_fmt % bond_number
+                cfg["name"] = link_name
+                curinfo["name"] = link_name
             bond_number += 1
 
             # bond_links reference links by their id, but we need to add
@@ -723,15 +727,13 @@ def convert_net_json(network_json=None, known_macs=None):
                     copy.deepcopy(link["bond_links"]),
                 )
             )
-            cfg.update({"params": params, "name": link_name})
-
-            curinfo["name"] = link_name
         elif link["type"] in ["vlan"]:
             name = "%s.%s" % (link["vlan_link"], link["vlan_id"])
             cfg.update(
                 {
                     "name": name,
                     "vlan_id": link["vlan_id"],
+                    "mac_address": link["vlan_mac_address"],
                 }
             )
             link_updates.append((cfg, "vlan_link", "%s", link["vlan_link"]))
@@ -771,7 +773,11 @@ def convert_net_json(network_json=None, known_macs=None):
             if not mac:
                 raise ValueError("No mac_address or name entry for %s" % d)
             if mac not in known_macs:
-                raise ValueError("Unable to find a system nic for %s" % d)
+                # Let's give udev a chance to catch up
+                util.udevadm_settle()
+                known_macs = net.get_interfaces_by_mac()
+                if mac not in known_macs:
+                    raise ValueError("Unable to find a system nic for %s" % d)
             d["name"] = known_macs[mac]
 
         for cfg, key, fmt, targets in link_updates:

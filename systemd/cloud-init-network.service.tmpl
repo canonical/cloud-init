@@ -2,22 +2,22 @@
 [Unit]
 # https://docs.cloud-init.io/en/latest/explanation/boot.html
 Description=Cloud-init: Network Stage
-{% if variant not in ["almalinux", "cloudlinux", "photon", "rhel"] %}
+{% if variant not in ["almalinux", "azurelinux", "cloudlinux", "photon", "rhel"] %}
 DefaultDependencies=no
 {% endif %}
 Wants=cloud-init-local.service
 Wants=sshd-keygen.service
 Wants=sshd.service
 After=cloud-init-local.service
+{% if variant not in ["ubuntu", "raspberry-pi-os"] %}
 After=systemd-networkd-wait-online.service
-{% if variant in ["ubuntu", "unknown", "debian"] %}
+{% endif %}
+{% if variant in ["ubuntu", "unknown", "debian", "raspberry-pi-os"] %}
 After=networking.service
 {% endif %}
-{% if variant in ["almalinux", "centos", "cloudlinux", "eurolinux", "fedora",
-                  "miraclelinux", "openeuler", "OpenCloudOS", "openmandriva", "rhel", "rocky",
-                  "suse", "TencentOS", "virtuozzo"] %}
-
-After=network.service
+{% if variant in ["almalinux", "azurelinux", "centos", "cloudlinux", "eurolinux", "fedora",
+                  "miraclelinux", "openeuler", "OpenCloudOS", "openmandriva",
+                  "rhel", "rocky", "suse", "TencentOS", "virtuozzo"] %}
 After=NetworkManager.service
 After=NetworkManager-wait-online.service
 {% endif %}
@@ -31,7 +31,7 @@ Before=network-online.target
 Before=sshd-keygen.service
 Before=sshd.service
 Before=systemd-user-sessions.service
-{% if variant in ["ubuntu", "unknown", "debian"] %}
+{% if variant in ["ubuntu", "unknown", "debian", "raspberry-pi-os"] %}
 Before=sysinit.target
 Before=shutdown.target
 Conflicts=shutdown.target
@@ -53,7 +53,7 @@ Type=oneshot
 # process has completed this stage. The output from the return socket is piped
 # into a shell so that the process can send a completion message (defaults to
 # "done", otherwise includes an error message) and an exit code to systemd.
-ExecStart=sh -c 'echo "start" | netcat -Uu -W1 /run/cloud-init/share/network.sock -s /run/cloud-init/share/network-return.sock | sh'
+ExecStart=sh -c 'echo "start" | nc -U /run/cloud-init/share/network.sock | sh'
 RemainAfterExit=yes
 TimeoutSec=0
 

@@ -1,0 +1,9 @@
+#cloud-config
+ssh_pwauth: false
+# Supplement sshd_config part with overrides for images using PAM
+# for authentication on distributions which default to
+# KbdInteractiveAuthentication yes in sshd_config.
+write_files:
+- path: /etc/ssh/sshd_config.d/70-no-pam-password-auth.conf
+  content: 'KbdInteractiveAuthentication no'
+  permissions: '0500'

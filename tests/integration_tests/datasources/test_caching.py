@@ -16,6 +16,12 @@ def setup_custom_datasource(client: IntegrationInstance, datasource_name: str):
         "/usr/lib/python3/dist-packages/cisources/"
         f"DataSource{datasource_name}.py",
     )
+    # Since our custom datasource isn't handling networking, disable
+    # cloud-init networking to avoid wait-online timeouts and errors
+    client.write_to_file(
+        "/etc/cloud/cloud.cfg.d/99-disable-networking.cfg",
+        "network: {config: disabled}",
+    )
 
 
 def verify_no_cache_boot(client: IntegrationInstance):
@@ -44,7 +50,7 @@ def test_no_cache_network_only(client: IntegrationInstance):
     - Metadata is fetched in network timeframe only
     - Because `check_instance_id` is not defined, no cached datasource
       is found in the init-local phase, but the cache is used in the
-      remaining phases due to existance of /run/cloud-init/.instance-id
+      remaining phases due to existence of /run/cloud-init/.instance-id
     - Because `check_if_fallback_is_allowed` is not defined, cloud-init
       does NOT fall back to the pickled datasource, and will
       instead delete the cache during the init-local phase

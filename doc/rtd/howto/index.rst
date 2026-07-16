@@ -18,13 +18,11 @@ How do I...?
 .. toctree::
    :maxdepth: 1
 
-   Run cloud-init locally before deploying <run_cloud_init_locally.rst>
-   Re-run cloud-init <rerun_cloud_init.rst>
-   Change how often a module runs <module_run_frequency.rst>
-   Validate my user data <debug_user_data.rst>
+   Validate user-data <debug_user_data.rst>
    Debug cloud-init <debugging.rst>
    Check the status of cloud-init <status.rst>
-   Report a bug <bugs.rst>
-   Identify my datasource <identify_datasource.rst>
+   Launch an instance using cloud-init <launching.rst>
+   Wait for cloud-init <wait_for_cloud_init.rst>
+   Re-run cloud-init <rerun_cloud_init.rst>
    Disable cloud-init <disable_cloud_init.rst>
-   Test pre-release cloud-init on Ubuntu <ubuntu_test_prerelease.rst>
+   Report a bug <bugs.rst>

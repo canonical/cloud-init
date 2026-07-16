@@ -3,7 +3,7 @@
 Networking config Version 1
 ***************************
 
-This network configuration format lets users customise their instance's
+This network configuration format lets users customize their instance's
 networking interfaces by assigning subnet configuration, virtual device
 creation (bonds, bridges, VLANs) routes and DNS configuration.
 
@@ -95,6 +95,15 @@ Physical example
 .. literalinclude:: ../../examples/network-config-v1-physical-3-nic.yaml
    :language: yaml
 
+``keep_configuration: <boolean>``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Designate the connection as 'critical to the system', meaning that special care
+will be taken not to release the assigned IP when the daemon is restarted.
+
+.. note::
+   This is only recognized by Netplan renderer.
+
 Bond
 ----
 
@@ -108,6 +117,8 @@ A device's name must be less than 15 characters. Names exceeding the maximum
 will be truncated. This is a limitation of the Linux kernel network-device
 structure.
 
+The following optional keys are supported:
+
 ``mac_address: <MAC Address>``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -116,6 +127,13 @@ device and may be different than the MAC address of any of the underlying
 bond interfaces. Specifying a MAC Address is optional. If ``mac_address`` is
 not present, then the bond will use one of the MAC Address values from one of
 the bond interfaces.
+
+``accept-ra: <boolean>``
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+The ``accept-ra`` key is a boolean value that specifies whether or not to
+accept Router Advertisements (RA) for this interface. Specifying ``accept-ra``
+is optional.
 
 .. note::
    It is best practice to "quote" all MAC addresses, since an unquoted MAC
@@ -217,6 +235,15 @@ Valid keys are:
   - ``bridge_waitport``: Set amount of time in seconds to wait on specific
     ports to become available.
 
+The following optional keys are supported:
+
+``accept-ra: <boolean>``
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+The ``accept-ra`` key is a boolean value that specifies whether or not to
+accept Router Advertisements (RA) for this interface. Specifying ``accept-ra``
+is optional.
+
 Bridge example
 ^^^^^^^^^^^^^^
 
@@ -231,6 +258,8 @@ Type ``vlan`` requires the following keys:
 - ``name``: Set the name of the VLAN
 - ``vlan_link``: Specify the underlying link via its ``name``.
 - ``vlan_id``: Specify the VLAN numeric id.
+- ``mac_address``: Optional, specify VLAN subinterface MAC address. If not
+  set MAC address from physical interface is used.
 
 The following optional keys are supported:
 
@@ -240,6 +269,13 @@ The following optional keys are supported:
 The MTU key represents a device's Maximum Transmission Unit, the largest size
 packet or frame, specified in octets (eight-bit bytes), that can be sent in a
 packet- or frame-based network.  Specifying ``mtu`` is optional.
+
+``accept-ra: <boolean>``
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+The ``accept-ra`` key is a boolean value that specifies whether or not to
+accept Router Advertisements (RA) for this interface. Specifying ``accept-ra``
+is optional.
 
 .. note::
    The possible supported values of a device's MTU are not available at
@@ -308,6 +344,7 @@ Valid keys for ``subnets`` include the following:
 - ``dns_nameservers``: Specify a list of IPv4 DNS server IPs.
 - ``dns_search``: Specify a list of DNS search paths.
 - ``routes``: Specify a list of routes for a given interface.
+- ``metric``: Integer which sets the metric cost of routes within this subnet.
 
 Subnet types are one of the following:
 
@@ -319,6 +356,7 @@ Subnet types are one of the following:
 - ``ipv6_dhcpv6-stateful``: Configure this interface with ``dhcp6``.
 - ``ipv6_dhcpv6-stateless``: Configure this interface with SLAAC and DHCP.
 - ``ipv6_slaac``: Configure address with SLAAC.
+- ``manual`` : Manual configure this interface.
 
 When making use of ``dhcp`` or either of the ``ipv6_dhcpv6`` types,
 no additional configuration is needed in the subnet dictionary.

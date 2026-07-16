@@ -14,17 +14,17 @@ import os
 import time
 import uuid
 from contextlib import suppress
-from typing import Dict, List
+from typing import Dict, List, Literal
 
 from cloudinit import dmi, net, sources
 from cloudinit import url_helper as uhelp
 from cloudinit import util, warnings
 from cloudinit.distros import Distro
 from cloudinit.event import EventScope, EventType
-from cloudinit.net import netplan
+from cloudinit.net import device_driver, netplan
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralIPNetwork
-from cloudinit.sources import NicOrder
+from cloudinit.sources import HotplugRetrySettings, NicOrder
 from cloudinit.sources.helpers import ec2
 
 LOG = logging.getLogger(__name__)
@@ -34,12 +34,12 @@ STRICT_ID_DEFAULT = "warn"
 
 
 class CloudNames:
-    ALIYUN = "aliyun"
     AWS = "aws"
     BRIGHTBOX = "brightbox"
     ZSTACK = "zstack"
     E24CLOUD = "e24cloud"
     OUTSCALE = "outscale"
+    TILAA = "tilaa"
     # UNKNOWN indicates no positive id.  If strict_id is 'warn' or 'false',
     # then an attempt at the Ec2 Metadata service will be made.
     UNKNOWN = "unknown"
@@ -54,7 +54,7 @@ def skip_404_tag_errors(exception):
 
 
 # Cloud platforms that support IMDSv2 style metadata server
-IDMSV2_SUPPORTED_CLOUD_PLATFORMS = [CloudNames.AWS, CloudNames.ALIYUN]
+IDMSV2_SUPPORTED_CLOUD_PLATFORMS = [CloudNames.AWS]
 
 # Only trigger hook-hotplug on NICs with Ec2 drivers. Avoid triggering
 # it on docker virtual NICs and the like. LP: #1946003
@@ -62,6 +62,11 @@ _EXTRA_HOTPLUG_UDEV_RULES = """
 ENV{ID_NET_DRIVER}=="vif|ena|ixgbevf", GOTO="cloudinit_hook"
 GOTO="cloudinit_end"
 """
+
+# Drivers that indicate a NIC is being provided by EC2
+# as an Elastic Network Adaptor or Elastic Fabric Adapter
+# https://github.com/amzn/amzn-drivers/
+ELASTIC_DRIVERS = ["ena", "efa"]
 
 
 class DataSourceEc2(sources.DataSource):
@@ -72,7 +77,6 @@ class DataSourceEc2(sources.DataSource):
     metadata_urls = [
         "http://169.254.169.254",
         "http://[fd00:ec2::254]",
-        "http://instance-data.:8773",
     ]
 
     # The minimum supported metadata_version from the ec2 metadata apis
@@ -114,6 +118,7 @@ class DataSourceEc2(sources.DataSource):
     }
 
     extra_hotplug_udev_rules = _EXTRA_HOTPLUG_UDEV_RULES
+    hotplug_retry_settings = HotplugRetrySettings(True, 5, 30)
 
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceEc2, self).__init__(sys_cfg, distro, paths)
@@ -125,6 +130,7 @@ class DataSourceEc2(sources.DataSource):
         super()._unpickle(ci_pkl_version)
         self.extra_hotplug_udev_rules = _EXTRA_HOTPLUG_UDEV_RULES
         self._fallback_nic_order = NicOrder.MAC
+        self.hotplug_retry_settings = HotplugRetrySettings(True, 5, 30)
 
     def _get_cloud_name(self):
         """Return the cloud name as identified during _get_data."""
@@ -153,24 +159,38 @@ class DataSourceEc2(sources.DataSource):
             if util.is_FreeBSD():
                 LOG.debug("FreeBSD doesn't support running dhclient with -sf")
                 return False
-            try:
-                with EphemeralIPNetwork(
-                    self.distro,
-                    self.distro.fallback_interface,
-                    ipv4=True,
-                    ipv6=True,
-                ) as netw:
-                    self._crawled_metadata = self.crawl_metadata()
-                    LOG.debug(
-                        "Crawled metadata service%s",
-                        f" {netw.state_msg}" if netw.state_msg else "",
-                    )
-
-            except NoDHCPLeaseError:
+            candidate_nics = net.find_candidate_nics()
+            LOG.debug("Looking for the primary NIC in: %s", candidate_nics)
+            if len(candidate_nics) < 1:
+                LOG.error("The instance must have at least one eligible NIC")
                 return False
+            for candidate_nic in sorted(
+                candidate_nics, key=_prefer_elastic_drivers
+            ):
+                try:
+                    with EphemeralIPNetwork(
+                        self.distro,
+                        candidate_nic,
+                        ipv4=True,
+                        ipv6=True,
+                    ) as netw:
+                        self._crawled_metadata = self.crawl_metadata()
+                        if self._crawled_metadata:
+                            self.distro.fallback_interface = candidate_nic
+                            LOG.debug("Set fallback NIC: %s.", candidate_nic)
+                            LOG.debug(
+                                "Crawled metadata service%s",
+                                f" {netw.state_msg}" if netw.state_msg else "",
+                            )
+                            break
+                except NoDHCPLeaseError:
+                    LOG.debug(
+                        "Unable to obtain a DHCP lease for %s", candidate_nic
+                    )
         else:
             self._crawled_metadata = self.crawl_metadata()
         if not self._crawled_metadata:
+            LOG.error("Unable to get metadata")
             return False
         self.metadata = self._crawled_metadata.get("meta-data", None)
         self.userdata_raw = self._crawled_metadata.get("user-data", None)
@@ -310,7 +330,7 @@ class DataSourceEc2(sources.DataSource):
                 timeout=url_params.timeout_seconds,
                 status_cb=LOG.warning,
                 headers_cb=self._get_headers,
-                exception_cb=self._imds_exception_cb,
+                exception_cb=self._token_exception_cb,
                 request_method=request_method,
                 headers_redact=self.imdsv2_token_redact,
                 connect_synchronously=False,
@@ -326,6 +346,7 @@ class DataSourceEc2(sources.DataSource):
 
         # If we get here, then wait_for_url timed out, waiting for IMDS
         # or the IMDS HTTP endpoint is disabled
+        LOG.error("Unable to get response from urls: %s", urls)
         return None
 
     def wait_for_metadata_service(self):
@@ -622,25 +643,27 @@ class DataSourceEc2(sources.DataSource):
             return None
         return response.contents
 
-    def _skip_or_refresh_stale_aws_token_cb(self, msg, exception):
+    def _skip_or_refresh_stale_aws_token_cb(
+        self, exception: uhelp.UrlError
+    ) -> bool:
         """Callback will not retry on SKIP_USERDATA_CODES or if no token
         is available."""
-        retry = ec2.skip_retry_on_codes(
-            ec2.SKIP_USERDATA_CODES, msg, exception
-        )
+        retry = ec2.skip_retry_on_codes(ec2.SKIP_USERDATA_CODES, exception)
         if not retry:
             return False  # False raises exception
-        return self._refresh_stale_aws_token_cb(msg, exception)
+        return self._refresh_stale_aws_token_cb(exception)
 
-    def _refresh_stale_aws_token_cb(self, msg, exception):
+    def _refresh_stale_aws_token_cb(
+        self, exception: uhelp.UrlError
+    ) -> Literal[True]:
         """Exception handler for Ec2 to refresh token if token is stale."""
-        if isinstance(exception, uhelp.UrlError) and exception.code == 401:
+        if exception.code == 401:
             # With _api_token as None, _get_headers will _refresh_api_token.
             LOG.debug("Clearing cached Ec2 API token due to expiry")
             self._api_token = None
         return True  # always retry
 
-    def _imds_exception_cb(self, msg, exception=None):
+    def _token_exception_cb(self, exception: uhelp.UrlError) -> bool:
         """Fail quickly on proper AWS if IMDSv2 rejects API token request
 
         Guidance from Amazon is that if IMDSv2 had disabled token requests
@@ -653,19 +676,23 @@ class DataSourceEc2(sources.DataSource):
         temporarily unroutable or unavailable will still retry due to the
         callsite wait_for_url.
         """
-        if isinstance(exception, uhelp.UrlError):
+        if exception.code:
             # requests.ConnectionError will have exception.code == None
-            if exception.code and exception.code >= 400:
-                if exception.code == 403:
-                    LOG.warning(
-                        "Ec2 IMDS endpoint returned a 403 error. "
-                        "HTTP endpoint is disabled. Aborting."
-                    )
-                else:
-                    LOG.warning(
-                        "Fatal error while requesting Ec2 IMDSv2 API tokens"
-                    )
-                raise exception
+            if exception.code == 403:
+                LOG.warning(
+                    "Ec2 IMDS endpoint returned a 403 error. "
+                    "HTTP endpoint is disabled. Aborting."
+                )
+                return False
+            elif exception.code == 503:
+                # Let the global handler deal with it
+                return False
+            elif exception.code >= 400:
+                LOG.warning(
+                    "Fatal error while requesting Ec2 IMDSv2 API tokens"
+                )
+                return False
+        return True
 
     def _get_headers(self, url=""):
         """Return a dict of headers for accessing a url.
@@ -768,11 +795,6 @@ def warn_if_necessary(cfgval, cfg):
     warnings.show_warning("non_ec2_md", cfg, mode=True, sleep=sleep)
 
 
-def identify_aliyun(data):
-    if data["product_name"] == "Alibaba Cloud ECS":
-        return CloudNames.ALIYUN
-
-
 def identify_aws(data):
     # data is a dictionary returned by _collect_platform_data.
     uuid_str = data["uuid"]
@@ -799,6 +821,11 @@ def identify_zstack(data):
         return CloudNames.ZSTACK
 
 
+def identify_tilaa(data):
+    if data["vendor"] == "Tilaa":
+        return CloudNames.TILAA
+
+
 def identify_e24cloud(data):
     if data["vendor"] == "e24cloud":
         return CloudNames.E24CLOUD
@@ -821,7 +848,7 @@ def identify_platform():
         identify_zstack,
         identify_e24cloud,
         identify_outscale,
-        identify_aliyun,
+        identify_tilaa,
         lambda x: CloudNames.UNKNOWN,
     )
     for checker in checks:
@@ -867,6 +894,22 @@ def _collect_platform_data():
     }
 
 
+def _prefer_elastic_drivers(nic: str) -> int:
+    """Sorts the NICs so that Amazon drivers are first.
+
+    This helps speed up finding the metadata server since it will generally
+    be reachable via the first ENA/EFA NIC if one is present. Each incorrect
+    NIC that we are able to skip shortens boot by approximately
+    DataSourceEc2.url_max_wait seconds.
+    """
+    # The python builtin `sorted` is guaranteed to be stable,
+    # so we only need to sort
+    # based on whether the NIC is an elastic driver or not
+    if device_driver(nic) in ELASTIC_DRIVERS:
+        return 0
+    return 1
+
+
 def _build_nic_order(
     macs_metadata: Dict[str, Dict],
     macs_to_nics: Dict[str, str],
@@ -886,7 +929,7 @@ def _build_nic_order(
     @return: Dictionary with macs as keys and nic orders as values.
     """
     nic_order: Dict[str, int] = {}
-    if len(macs_to_nics) == 0 or len(macs_metadata) == 0:
+    if (not macs_to_nics) or (not macs_metadata):
         return nic_order
 
     valid_macs_metadata = filter(

@@ -8,8 +8,9 @@
 """Set Passwords: Set user passwords and enable/disable SSH password auth"""
 
 import logging
+import random
 import re
-from string import ascii_letters, digits
+import string
 from typing import List
 
 from cloudinit import features, lifecycle, subp, util
@@ -30,9 +31,6 @@ meta: MetaSchema = {
 
 LOG = logging.getLogger(__name__)
 
-# We are removing certain 'painful' letters/numbers
-PW_SET = "".join([x for x in ascii_letters + digits if x not in "loLOI01"])
-
 
 def get_users_by_type(users_list: list, pw_type: str) -> list:
     """either password or type: RANDOM is required, user is always required"""
@@ -47,9 +45,9 @@ def get_users_by_type(users_list: list, pw_type: str) -> list:
     )
 
 
-def _restart_ssh_daemon(distro, service):
+def _restart_ssh_daemon(distro: Distro, service: str, *extra_args: str):
     try:
-        distro.manage_service("restart", service)
+        distro.manage_service("restart", service, *extra_args)
         LOG.debug("Restarted the SSH daemon.")
     except subp.ProcessExecutionError as e:
         LOG.warning(
@@ -106,7 +104,21 @@ def handle_ssh_pwauth(pw_auth, distro: Distro):
             ]
         ).stdout.strip()
         if state.lower() in ["active", "activating", "reloading"]:
-            _restart_ssh_daemon(distro, service)
+            # This module runs Before=sshd.service. What that means is that
+            # the code can only get to this point if a user manually starts the
+            # network stage. While this isn't a well-supported use-case, this
+            # does cause a deadlock if started via systemd directly:
+            # "systemctl start cloud-init.service". Prevent users from causing
+            # this deadlock by forcing systemd to ignore dependencies when
+            # restarting. Note that this deadlock is not possible in newer
+            # versions of cloud-init, since starting the second service doesn't
+            # run the second stage in 24.3+. This code therefore exists solely
+            # for backwards compatibility so that users who think that they
+            # need to manually start cloud-init (why?) with systemd (again,
+            # why?) can do so.
+            _restart_ssh_daemon(
+                distro, service, "--job-mode=ignore-dependencies"
+            )
     else:
         _restart_ssh_daemon(distro, service)
 
@@ -248,4 +260,29 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
 
 def rand_user_password(pwlen=20):
-    return util.rand_str(pwlen, select_from=PW_SET)
+    if pwlen < 4:
+        raise ValueError("Password length must be at least 4 characters.")
+
+    # There are often restrictions on the minimum number of character
+    # classes required in a password, so ensure we at least one character
+    # from each class.
+    res_rand_list = [
+        random.choice(string.digits),
+        random.choice(string.ascii_lowercase),
+        random.choice(string.ascii_uppercase),
+        random.choice(string.punctuation),
+    ]
+
+    res_rand_list.extend(
+        list(
+            util.rand_str(
+                pwlen - len(res_rand_list),
+                select_from=string.digits
+                + string.ascii_lowercase
+                + string.ascii_uppercase
+                + string.punctuation,
+            )
+        )
+    )
+    random.shuffle(res_rand_list)
+    return "".join(res_rand_list)

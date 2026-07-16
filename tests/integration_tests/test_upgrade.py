@@ -12,7 +12,7 @@ from tests.integration_tests.releases import (
     CURRENT_RELEASE,
     FOCAL,
     IS_UBUNTU,
-    MANTIC,
+    JAMMY,
 )
 from tests.integration_tests.util import verify_clean_boot, verify_clean_log
 
@@ -136,13 +136,13 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
                 assert post_json["v1"]["datasource"].startswith(
                     "DataSourceAzure"
                 )
-        if CURRENT_RELEASE < MANTIC:
+        if CURRENT_RELEASE < JAMMY:
             # Assert the full content is preserved including header comment
             # since cloud-init writes the file directly and does not use
             # netplan API to write 50-cloud-init.yaml.
             assert pre_network == post_network
         else:
-            # Mantic and later Netplan API is used and doesn't allow
+            # Jammy and later Netplan API is used and doesn't allow
             # cloud-init to write header comments in network config
             assert yaml.safe_load(pre_network) == yaml.safe_load(post_network)
 
@@ -197,5 +197,25 @@ def test_subsequent_boot_of_upgraded_package(session_cloud: IntegrationCloud):
         instance.restart()
         log = instance.read_from_file("/var/log/cloud-init.log")
         verify_clean_log(log)
+        assert instance.execute("cloud-init status --wait --long").ok
+        verify_clean_boot(instance)
+
+
+@pytest.mark.timeout(600)  # A failure here can leave us hanging
+def test_clean_package_install(session_cloud: IntegrationCloud):
+    """Test that the package install works after purge of old package."""
+    source = get_validated_source(session_cloud)
+    if not source.installs_new_version():
+        pytest.skip(UNSUPPORTED_INSTALL_METHOD_MSG.format(source))
+
+    launch_kwargs = {"image_id": session_cloud.initial_image_id}
+
+    with session_cloud.launch(launch_kwargs=launch_kwargs) as instance:
+        # Do the update before uninstalling cloud-init because we
+        # use cloud-init to do the package update.
+        instance.update_package_cache()
+        assert instance.execute("apt --yes remove --purge cloud-init").ok
+        instance.install_new_cloud_init(source, clean=False, update=False)
+        instance.restart()
         assert instance.execute("cloud-init status --wait --long").ok
         verify_clean_boot(instance)

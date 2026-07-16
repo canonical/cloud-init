@@ -12,7 +12,7 @@ cc_phone_home:
     - ``pub_key_ed25519``
     - ``instance_id``
     - ``hostname``
-    - ``fdqn``
+    - ``fqdn``
 
     Data is sent as ``x-www-form-urlencoded`` arguments.
 

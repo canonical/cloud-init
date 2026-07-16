@@ -17,7 +17,7 @@ Test definition
 ===============
 
 Tests are defined like any other ``pytest`` test. The ``user_data``
-mark can be used to supply the cloud-config user data. Platform-specific
+mark can be used to supply the cloud-config user-data. Platform-specific
 marks can be used to limit tests to particular platforms. The ``client``
 fixture can be used to interact with the launched test instance.
 
@@ -60,7 +60,7 @@ All possible configuration values are defined in
 `tests/integration_tests/integration_settings.py`_. Look in this file for
 the full list of variables that are available and for context on what each
 variable does and what the default values are.
-Defaults can be overriden by supplying values in
+Defaults can be overridden by supplying values in
 :file:`tests/integration_tests/user_settings.py` or by
 providing an environment variable of the same name prepended with
 ``CLOUD_INIT_``. For example, to set the ``PLATFORM`` setting:
@@ -95,11 +95,28 @@ to ``True``.
 
             KEEP_INSTANCE = True
 
+To keep the instance only if the test was unsuccessful, set ``KEEP_INSTANCE``
+variable to ``ON_ERROR``.
+
+.. tab-set::
+
+    .. tab-item:: Inline environment variable
+
+        .. code-block:: bash
+
+            CLOUD_INIT_KEEP_INSTANCE=ON_ERROR tox -e integration_tests
+
+    .. tab-item:: user_settings.py file
+
+        .. code-block:: python
+
+            KEEP_INSTANCE = "ON_ERROR"
+
 
 Use in-place cloud-init source code
 -------------------------------------
 
-The simplest way to test an integraton test using your current cloud-init
+The simplest way to test an integration test using your current cloud-init
 changes is to set the ``CLOUD_INIT_SOURCE`` to ``IN_PLACE``. This works ONLY
 on LXD containers. This will mount the source code as-is directly into
 the container to override the pre-existing cloud-init code within the
@@ -171,7 +188,7 @@ by ``LOCAL_LOG_PATH``.
             INCLUDE_COVERAGE = True
 
 
-Addtionally, for profiling the integration tests, set the ``INCLUDE_PROFILE``
+Additionally, for profiling the integration tests, set the ``INCLUDE_PROFILE``
 variable to ``True``. This will generate a profile report for the integration
 test run, and the report will be stored in the directory specified by
 ``LOCAL_LOG_PATH``.
@@ -236,6 +253,30 @@ on of:
 
             PLATFORM = 'lxd_container'
 
+
+Selecting Instance Type
+-----------------------
+
+To select a specific instance type, modify the ``INSTANCE_TYPE`` variable to be
+the desired instance type. This value is cloud-specific, so refer to the
+cloud's documentation for the available instance types. If you specify an
+instance type, be sure to also specify respective cloud platform you are
+testing against.
+
+.. tab-set::
+
+    .. tab-item:: Inline environment variable
+
+        .. code-block:: bash
+
+            CLOUD_INIT_PLATFORM=ec2 CLOUD_INIT_INSTANCE_TYPE='t2.micro' tox -e integration_tests
+
+    .. tab-item:: user_settings.py file
+
+        .. code-block:: python
+
+            PLATFORM = 'ec2'  # need to specify the cloud in order to use the instance type setting
+            INSTANCE_TYPE = 't2.micro'
 
 Image selection
 ===============
@@ -454,4 +495,4 @@ Customizing the launch arguments before launching an instance manually:
 .. _Pytest marks: https://github.com/canonical/cloud-init/blob/af7eb1deab12c7208853c5d18b55228e0ba29c4d/tests/integration_tests/conftest.py#L220-L224
 .. _IntegrationCloud: https://github.com/canonical/cloud-init/blob/af7eb1deab12c7208853c5d18b55228e0ba29c4d/tests/integration_tests/clouds.py#L102
 .. _pycloudlib configuration documentation: https://pycloudlib.readthedocs.io/en/latest/configuration.html
-.. _pycloudlib's ImageType enum: https://github.com/canonical/pycloudlib/blob/1!10.0.0/pycloudlib/cloud.py#L28
+.. _pycloudlib's ImageType enum: https://github.com/canonical/pycloudlib/blob/1!10.0.0/pycloudlib/cloud.py

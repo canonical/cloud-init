@@ -11,12 +11,10 @@ import ipaddress
 import logging
 import os
 import re
-from typing import Any, Callable, Dict, List, Optional, Tuple
-from urllib.parse import urlparse
+from typing import Callable, Dict, List, Optional, Tuple
 
 from cloudinit import subp, util
 from cloudinit.net.netops.iproute2 import Iproute2
-from cloudinit.url_helper import UrlError, readurl
 
 LOG = logging.getLogger(__name__)
 SYS_CLASS_NET = "/sys/class/net/"
@@ -488,7 +486,17 @@ def find_candidate_nics_on_linux() -> List[str]:
                 "Found unstable nic names: %s; calling udevadm settle",
                 unstable,
             )
-            util.udevadm_settle()
+            try:
+                util.udevadm_settle()
+            except subp.ProcessExecutionError as error:
+                LOG.warning(
+                    "udevadm failed to settle: "
+                    "cmd=%r stderr=%r stdout=%r exit_code=%s",
+                    error.cmd,
+                    error.stderr,
+                    error.stdout,
+                    error.exit_code,
+                )
 
     # sort into interfaces with carrier, interfaces which could have carrier,
     # and ignore interfaces that are definitely disconnected
@@ -830,7 +838,7 @@ def _rename_interfaces(
         "up": Iproute2.link_up,
     }
 
-    if len(ops) + len(ups) == 0:
+    if not (ops) and not (ups):
         if len(errors):
             LOG.warning(
                 "Unable to rename interfaces: %s due to errors: %s",
@@ -1046,8 +1054,6 @@ def get_interfaces(
     # 16 somewhat arbitrarily chosen.  Normally a mac is 6 '00:' tokens.
     zero_mac = ":".join(("00",) * 16)
     for name in devs:
-        if filter_without_own_mac and not interface_has_own_mac(name):
-            continue
         if is_bridge(name):
             filtered_logger("Ignoring bridge interface: %s", name)
             continue
@@ -1055,6 +1061,9 @@ def get_interfaces(
             continue
         if is_bond(name):
             filtered_logger("Ignoring bond interface: %s", name)
+            continue
+        if filter_without_own_mac and not interface_has_own_mac(name):
+            filtered_logger("Ignoring interface with inherited MAC: %s", name)
             continue
         if (
             filter_slave_if_master_not_bridge_bond_openvswitch
@@ -1144,45 +1153,6 @@ def get_ib_hwaddrs_by_interface():
                 )
             ret[name] = ib_mac
     return ret
-
-
-def has_url_connectivity(url_data: Dict[str, Any]) -> bool:
-    """Return true when the instance has access to the provided URL.
-
-    Logs a warning if url is not the expected format.
-
-    url_data is a dictionary of kwargs to send to readurl. E.g.:
-
-    has_url_connectivity({
-        "url": "http://example.invalid",
-        "headers": {"some": "header"},
-        "timeout": 10
-    })
-    """
-    if "url" not in url_data:
-        LOG.warning(
-            "Ignoring connectivity check. No 'url' to check in %s", url_data
-        )
-        return False
-    url = url_data["url"]
-    try:
-        result = urlparse(url)
-        if not any([result.scheme == "http", result.scheme == "https"]):
-            LOG.warning(
-                "Ignoring connectivity check. Invalid URL scheme %s",
-                url.scheme,
-            )
-            return False
-    except ValueError as err:
-        LOG.warning("Ignoring connectivity check. Invalid URL %s", err)
-        return False
-    if "timeout" not in url_data:
-        url_data["timeout"] = 5
-    try:
-        readurl(**url_data)
-    except UrlError:
-        return False
-    return True
 
 
 def maybe_get_address(convert_to_address: Callable, address: str, **kwargs):

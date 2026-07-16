@@ -80,7 +80,7 @@ page.
 This subdirectory is of most interest to anyone who wants to create or update
 either the content of the documentation, or the styling of it.
 
-* The content of the documentation is organised according to the `Diataxis`_
+* The content of the documentation is organized according to the `Diataxis`_
   framework and can be found in the subdirectories: ``tutorial/``, ``howto/``,
   ``explanation/``, and ``reference/``.
 

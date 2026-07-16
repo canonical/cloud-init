@@ -1,0 +1,6 @@
+".github/workflows/**/weekly-tics.yml":
+  ignore:
+  # Ignore self-hosted runner labels we use as an organization
+  - "label (amd64|tiobe|noble) is unknown.+""
+
+

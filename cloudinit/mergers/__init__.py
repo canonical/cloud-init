@@ -8,8 +8,6 @@ import re
 
 from cloudinit import importer, type_utils
 
-NAME_MTCH = re.compile(r"(^[a-zA-Z_][A-Za-z0-9_]*)\((.*?)\)$")
-
 DEF_MERGE_TYPE = "list()+dict()+str()"
 MERGER_PREFIX = "m_"
 MERGER_ATTR = "Merger"
@@ -28,7 +26,7 @@ class UnknownMerger:
     # object and a object to merge_with.
     #
     # If not found the merge will be given to a '_handle_unknown'
-    # function which can decide what to do wit the 2 values.
+    # function which can decide what to do with the 2 values.
     def merge(self, source, merge_with):
         type_name = type_utils.obj_name(source)
         type_name = type_name.lower()
@@ -108,7 +106,7 @@ def string_extract_mergers(merge_how):
         m_name = m_name.replace("-", "_")
         if not m_name:
             continue
-        match = NAME_MTCH.match(m_name)
+        match = re.match(r"(^[a-zA-Z_][A-Za-z0-9_]*)\((.*?)\)$", m_name)
         if not match:
             msg = "Matcher identifier '%s' is not in the right format" % (
                 m_name

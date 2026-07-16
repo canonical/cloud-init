@@ -6,7 +6,7 @@ import io
 import logging
 import os
 import re
-from typing import Mapping, Optional
+from typing import Dict, Optional
 
 from cloudinit import subp, util
 from cloudinit.distros.parsers import networkmanager_conf, resolv_conf
@@ -718,9 +718,10 @@ class Renderer(renderer.Renderer):
     def _render_physical_interfaces(
         cls, network_state, iface_contents, flavor
     ):
-        physical_filter = renderer.filter_by_physical
-        for iface in network_state.iter_interfaces(physical_filter):
-            iface_name = iface["name"]
+        for iface in network_state.iter_interfaces(
+            renderer.filter_by_type("physical")
+        ):
+            iface_name = iface.get("config_id") or iface["name"]
             iface_subnets = iface.get("subnets", [])
             iface_cfg = iface_contents[iface_name]
             route_cfg = iface_cfg.routes
@@ -906,26 +907,46 @@ class Renderer(renderer.Renderer):
 
     @staticmethod
     def _render_networkmanager_conf(network_state, templates=None):
+        iface_dns = False
         content = networkmanager_conf.NetworkManagerConf("")
+        # check if there is interface specific DNS information configured
+        for iface in network_state.iter_interfaces():
+            for subnet in iface["subnets"]:
+                if "dns_nameservers" in subnet or "dns_search" in subnet:
+                    iface_dns = True
+                    break
+            if (
+                not iface_dns
+                and "dns" in iface
+                and (iface["dns"]["nameservers"] or iface["dns"]["search"])
+            ):
+                iface_dns = True
+                break
 
-        # If DNS server information is provided, configure
-        # NetworkManager to not manage dns, so that /etc/resolv.conf
-        # does not get clobbered.
+        # If DNS server and/or dns search information is provided either
+        # globally or per interface basis, configure NetworkManager to
+        # not manage dns, so that /etc/resolv.conf does not get clobbered.
         # This is not required for NetworkManager renderer as it
         # does not write /etc/resolv.conf directly. DNS information is
         # written to the interface keyfile and NetworkManager is then
         # responsible for using the DNS information from the keyfile,
         # including managing /etc/resolv.conf.
-        if network_state.dns_nameservers:
+        if (
+            network_state.dns_nameservers
+            or network_state.dns_searchdomains
+            or iface_dns
+        ):
             content.set_section_keypair("main", "dns", "none")
 
-        if len(content) == 0:
+        if not content:
             return None
         out = "".join([_make_header(), "\n", "\n".join(content.write()), "\n"])
         return out
 
     @classmethod
-    def _render_bridge_interfaces(cls, network_state, iface_contents, flavor):
+    def _render_bridge_interfaces(
+        cls, network_state: NetworkState, iface_contents, flavor
+    ):
         bridge_key_map = {
             old_k: new_k
             for old_k, new_k in cls.cfg_key_maps[flavor].items()
@@ -1006,30 +1027,36 @@ class Renderer(renderer.Renderer):
 
     @classmethod
     def _render_sysconfig(
-        cls, base_sysconf_dir, network_state, flavor, templates=None
+        cls,
+        base_sysconf_dir,
+        network_state: NetworkState,
+        flavor,
+        templates=None,
     ):
         """Given state, return /etc/sysconfig files + contents"""
         if not templates:
             templates = cls.templates
-        iface_contents: Mapping[str, NetInterface] = {}
+        iface_contents: Dict[str, NetInterface] = {}
         for iface in network_state.iter_interfaces():
             if iface["type"] == "loopback":
                 continue
-            iface_name = iface["name"]
-            iface_cfg = NetInterface(iface_name, base_sysconf_dir, templates)
+            config_id: str = iface.get("config_id") or iface["name"]
+            iface_cfg = NetInterface(
+                iface["name"], base_sysconf_dir, templates
+            )
             if flavor == "suse":
                 iface_cfg.drop("DEVICE")
                 # If type detection fails it is considered a bug in SUSE
                 iface_cfg.drop("TYPE")
             cls._render_iface_shared(iface, iface_cfg, flavor)
-            iface_contents[iface_name] = iface_cfg
+            iface_contents[config_id] = iface_cfg
         cls._render_physical_interfaces(network_state, iface_contents, flavor)
         cls._render_bond_interfaces(network_state, iface_contents, flavor)
         cls._render_vlan_interfaces(network_state, iface_contents, flavor)
         cls._render_bridge_interfaces(network_state, iface_contents, flavor)
         cls._render_ib_interfaces(network_state, iface_contents, flavor)
         contents = {}
-        for iface_name, iface_cfg in iface_contents.items():
+        for _, iface_cfg in iface_contents.items():
             if iface_cfg or iface_cfg.children:
                 contents[iface_cfg.path] = iface_cfg.to_string()
                 for iface_cfg in iface_cfg.children:
@@ -1092,6 +1119,24 @@ class Renderer(renderer.Renderer):
             if network_state.use_ipv6:
                 netcfg.append("NETWORKING_IPV6=yes")
                 netcfg.append("IPV6_AUTOCONF=no")
+
+            # if sysconfig file exists and is not empty, append rest of the
+            # file content, do not remove the existing customizations.
+            if os.path.exists(sysconfig_path):
+                for line in util.load_text_file(sysconfig_path).splitlines():
+                    if (
+                        not any(
+                            setting in line
+                            for setting in [
+                                "NETWORKING",
+                                "NETWORKING_IPV6",
+                                "IPV6_AUTOCONF",
+                            ]
+                        )
+                        and line not in _make_header().splitlines()
+                    ):
+                        netcfg.append(line)
+
             util.write_file(
                 sysconfig_path, "\n".join(netcfg) + "\n", file_mode
             )

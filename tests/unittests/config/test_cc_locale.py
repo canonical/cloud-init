@@ -1,7 +1,3 @@
-# Copyright (C) 2013 Hewlett-Packard Development Company, L.P.
-#
-# Author: Juerg Haefliger <juerg.haefliger@hp.com>
-#
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
 from io import BytesIO
@@ -48,7 +44,8 @@ class TestLocale:
                 contents = util.load_text_file(cc.distro.locale_gen_fn)
                 assert "%s UTF-8" % locale in contents
                 m_subp.assert_called_with(
-                    ["localectl", "set-locale", locale], capture=False
+                    ["localectl", "set-locale", locale],
+                    capture=False,
                 )
 
     @pytest.mark.parametrize(
@@ -111,15 +108,25 @@ class TestLocale:
             with mock.patch(
                 "cloudinit.distros.debian.LOCALE_CONF_FN", locale_conf.strpath
             ):
-                cc_locale.handle("cc_locale", cfg, cc, [])
-                m_subp.assert_called_with(
-                    [
-                        "update-locale",
-                        "--locale-file=%s" % locale_conf.strpath,
-                        "LANG=C.UTF-8",
-                    ],
-                    capture=False,
-                )
+                with mock.patch(
+                    "cloudinit.distros.debian.subp.which",
+                    return_value="/usr/sbin/update-locale",
+                ) as m_which:
+                    cc_locale.handle("cc_locale", cfg, cc, [])
+        m_subp.assert_called_with(
+            [
+                "update-locale",
+                "--locale-file=%s" % locale_conf.strpath,
+                "LANG=C.UTF-8",
+            ],
+            update_env={
+                "LANG": "C.UTF-8",
+                "LANGUAGE": "C.UTF-8",
+                "LC_ALL": "C.UTF-8",
+            },
+            capture=False,
+        )
+        m_which.assert_called_once_with("update-locale")
 
 
 class TestLocaleSchema:

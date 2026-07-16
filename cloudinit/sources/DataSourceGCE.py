@@ -87,6 +87,7 @@ class DataSourceGCE(sources.DataSource):
 
     def _get_data(self):
         url_params = self.get_url_params()
+        ret = {}
         if self.perform_dhcp_setup:
             candidate_nics = net.find_candidate_nics()
             if DEFAULT_PRIMARY_INTERFACE in candidate_nics:
@@ -116,6 +117,9 @@ class DataSourceGCE(sources.DataSource):
                             )
                             continue
                 except NoDHCPLeaseError:
+                    LOG.debug(
+                        "Unable to obtain a DHCP lease for %s", candidate_nic
+                    )
                     continue
                 if ret["success"]:
                     self.distro.fallback_interface = candidate_nic
@@ -128,14 +132,14 @@ class DataSourceGCE(sources.DataSource):
         else:
             ret = read_md(address=self.metadata_address, url_params=url_params)
 
-        if not ret["success"]:
-            if ret["platform_reports_gce"]:
-                LOG.warning(ret["reason"])
+        if not ret.get("success"):
+            if ret.get("platform_reports_gce"):
+                LOG.warning(ret.get("reason"))
             else:
-                LOG.debug(ret["reason"])
+                LOG.debug(ret.get("reason"))
             return False
-        self.metadata = ret["meta-data"]
-        self.userdata_raw = ret["user-data"]
+        self.metadata = ret.get("meta-data")
+        self.userdata_raw = ret.get("user-data")
         return True
 
     @property
@@ -213,14 +217,14 @@ def _has_expired(public_key):
         return False
 
     expire_str = json_obj["expireOn"]
-    format_str = "%Y-%m-%dT%H:%M:%S+0000"
+    format_str = "%Y-%m-%dT%H:%M:%S%z"
     try:
         expire_time = datetime.datetime.strptime(expire_str, format_str)
     except ValueError:
         return False
 
     # Expire the key if and only if we have exceeded the expiration timestamp.
-    return datetime.datetime.utcnow() > expire_time
+    return datetime.datetime.now(datetime.timezone.utc) > expire_time
 
 
 def _parse_public_keys(public_keys_data, default_user=None):
@@ -313,6 +317,12 @@ def read_md(address=None, url_params=None, platform_check=True):
         elif encoding:
             LOG.warning("unknown user-data-encoding: %s, ignoring", encoding)
         ret["user-data"] = ud
+
+    # Update md with parsed instance-data
+    md["instance-data"] = instance_data
+
+    # Update md with parsed project-data
+    md["project-data"] = project_data
 
     ret["meta-data"] = md
     ret["success"] = True

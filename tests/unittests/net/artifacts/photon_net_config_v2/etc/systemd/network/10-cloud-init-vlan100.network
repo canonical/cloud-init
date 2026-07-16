@@ -1,0 +1,32 @@
+[Address]
+Address=192.168.100.10/24
+
+[Address]
+Address=192.168.100.11/24
+
+[Bridge]
+Cost=45
+Priority=50
+
+[Link]
+MACAddress=00:11:22:33:44:66
+MTUBytes=901
+
+[Match]
+Name=vlan100
+
+[Network]
+Bridge=br1
+DHCP=ipv6
+DNS=8.8.8.8 1.1.1.1
+Domains=corp.example.com vlan.test
+
+[Route]
+Destination=10.10.200.0/24
+Gateway=192.168.100.1
+Metric=50
+
+[Route]
+Destination=10.10.201.0/24
+Gateway=192.168.100.2
+Metric=150

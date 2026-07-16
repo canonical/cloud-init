@@ -13,8 +13,8 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from cloudinit.reporting import events, handlers
-from tests.unittests.helpers import TestCase, skipUnlessJsonSchema
+from cloudinit.reporting import events
+from tests.unittests.helpers import skipUnlessJsonSchema
 
 
 def _fake_registry():
@@ -23,7 +23,7 @@ def _fake_registry():
     )
 
 
-class TestReportStartEvent(TestCase):
+class TestReportStartEvent:
     @mock.patch(
         "cloudinit.reporting.events.instantiated_handler_registry",
         new_callable=_fake_registry,
@@ -40,26 +40,26 @@ class TestReportStartEvent(TestCase):
             _,
             handler,
         ) in instantiated_handler_registry.registered_items.items():
-            self.assertEqual(1, handler.publish_event.call_count)
+            assert handler.publish_event.call_count == 1
             event = handler.publish_event.call_args[0][0]
-            self.assertEqual(expected_string_representation, event.as_string())
+            assert expected_string_representation == event.as_string()
 
 
-class TestReportFinishEvent(TestCase):
+class TestReportFinishEvent:
     def _report_finish_event(self, result=events.status.SUCCESS):
         event_name, event_description = "my_test_event", "my description"
         events.report_finish_event(
-            event_name, event_description, result=result
+            event_name, event_description, duration=1.0, result=result
         )
         return event_name, event_description
 
-    def assertHandlersPassedObjectWithAsString(
+    def assert_handlers_passed_object_with_as_string(
         self, handlers, expected_as_string
     ):
         for _, handler in handlers.items():
-            self.assertEqual(1, handler.publish_event.call_count)
+            assert handler.publish_event.call_count == 1
             event = handler.publish_event.call_args[0][0]
-            self.assertEqual(expected_as_string, event.as_string())
+            assert expected_as_string == event.as_string()
 
     @mock.patch(
         "cloudinit.reporting.events.instantiated_handler_registry",
@@ -69,10 +69,11 @@ class TestReportFinishEvent(TestCase):
         self, instantiated_handler_registry
     ):
         event_name, event_description = self._report_finish_event()
-        expected_string_representation = ": ".join(
-            ["finish", event_name, events.status.SUCCESS, event_description]
+        expected_string_representation = (
+            f"finish: {event_name}: {events.status.SUCCESS}: "
+            f"{event_description} (duration: 1.000s)"
         )
-        self.assertHandlersPassedObjectWithAsString(
+        self.assert_handlers_passed_object_with_as_string(
             instantiated_handler_registry.registered_items,
             expected_string_representation,
         )
@@ -87,10 +88,11 @@ class TestReportFinishEvent(TestCase):
         event_name, event_description = self._report_finish_event(
             result=events.status.SUCCESS
         )
-        expected_string_representation = ": ".join(
-            ["finish", event_name, events.status.SUCCESS, event_description]
+        expected_string_representation = (
+            f"finish: {event_name}: {events.status.SUCCESS}: "
+            f"{event_description} (duration: 1.000s)"
         )
-        self.assertHandlersPassedObjectWithAsString(
+        self.assert_handlers_passed_object_with_as_string(
             instantiated_handler_registry.registered_items,
             expected_string_representation,
         )
@@ -105,26 +107,28 @@ class TestReportFinishEvent(TestCase):
         event_name, event_description = self._report_finish_event(
             result=events.status.FAIL
         )
-        expected_string_representation = ": ".join(
-            ["finish", event_name, events.status.FAIL, event_description]
+        expected_string_representation = (
+            f"finish: {event_name}: {events.status.FAIL}: "
+            f"{event_description} (duration: 1.000s)"
         )
-        self.assertHandlersPassedObjectWithAsString(
+        self.assert_handlers_passed_object_with_as_string(
             instantiated_handler_registry.registered_items,
             expected_string_representation,
         )
 
     def test_invalid_result_raises_attribute_error(self):
-        self.assertRaises(ValueError, self._report_finish_event, ("BOGUS",))
+        with pytest.raises(ValueError):
+            self._report_finish_event("BOGUS")
 
 
-class TestReportingEvent(TestCase):
+class TestReportingEvent:
     def test_as_string(self):
         event_type, name, description = "test_type", "test_name", "test_desc"
         event = events.ReportingEvent(event_type, name, description)
         expected_string_representation = ": ".join(
             [event_type, name, description]
         )
-        self.assertEqual(expected_string_representation, event.as_string())
+        assert expected_string_representation == event.as_string()
 
     def test_as_dict(self):
         event_type, name, desc = "test_type", "test_name", "test_desc"
@@ -138,20 +142,22 @@ class TestReportingEvent(TestCase):
 
         # allow for timestamp to differ, but must be present
         as_dict = event.as_dict()
-        self.assertIn("timestamp", as_dict)
+        assert "timestamp" in as_dict
         del as_dict["timestamp"]
 
-        self.assertEqual(expected, as_dict)
+        assert expected == as_dict
 
 
-class TestFinishReportingEvent(TestCase):
+class TestFinishReportingEvent:
     def test_as_has_result(self):
         result = events.status.SUCCESS
         name, desc = "test_name", "test_desc"
-        event = events.FinishReportingEvent(name, desc, result)
+        event = events.FinishReportingEvent(
+            name, desc, duration=1.5, result=result
+        )
         ret = event.as_dict()
-        self.assertTrue("result" in ret)
-        self.assertEqual(ret["result"], result)
+        assert "result" in ret
+        assert ret["result"] == result
 
     def test_has_result_with_optional_post_files(self):
         result = events.status.SUCCESS
@@ -161,59 +167,61 @@ class TestFinishReportingEvent(TestCase):
             ["/really/fake/path/install.log"],
         )
         event = events.FinishReportingEvent(
-            name, desc, result, post_files=files
+            name, desc, duration=2.0, result=result, post_files=files
         )
         ret = event.as_dict()
-        self.assertTrue("result" in ret)
-        self.assertTrue("files" in ret)
-        self.assertEqual(ret["result"], result)
+        assert "result" in ret
+        assert "files" in ret
+        assert ret["result"] == result
         posted_install_log = ret["files"][0]
-        self.assertTrue("path" in posted_install_log)
-        self.assertTrue("content" in posted_install_log)
-        self.assertTrue("encoding" in posted_install_log)
-        self.assertEqual(posted_install_log["path"], files[0])
-        self.assertEqual(posted_install_log["encoding"], "base64")
+        assert "path" in posted_install_log
+        assert "content" in posted_install_log
+        assert "encoding" in posted_install_log
+        assert posted_install_log["path"] == files[0]
+        assert posted_install_log["encoding"] == "base64"
+
+    def test_includes_duration_in_as_dict(self):
+        event = events.FinishReportingEvent(
+            "test_name", "test_desc", duration=1.234
+        )
+        ret = event.as_dict()
+        assert "duration" in ret
+        assert ret["duration"] == 1.234
+
+    def test_includes_duration_in_as_string(self):
+        event = events.FinishReportingEvent(
+            "test_name", "test_desc", duration=1.234
+        )
+        string_repr = event.as_string()
+        assert "(duration: 1.234s)" in string_repr
 
 
-class TestBaseReportingHandler(TestCase):
-    def test_base_reporting_handler_is_abstract(self):
-        regexp = r".*abstract.*publish_event.*"
-        self.assertRaisesRegex(TypeError, regexp, handlers.ReportingHandler)
-
-
-class TestLogHandler(TestCase):
+class TestLogHandler:
     @mock.patch.object(reporting.handlers.logging, "getLogger")
     def test_appropriate_logger_used(self, getLogger):
         event_type, event_name = "test_type", "test_name"
         event = events.ReportingEvent(event_type, event_name, "description")
         reporting.handlers.LogHandler().publish_event(event)
-        self.assertEqual(
-            [
-                mock.call(
-                    "cloudinit.reporting.{0}.{1}".format(
-                        event_type, event_name
-                    )
-                )
-            ],
-            getLogger.call_args_list,
-        )
+        assert getLogger.call_args_list == [
+            mock.call(
+                "cloudinit.reporting.{0}.{1}".format(event_type, event_name)
+            )
+        ]
 
     @mock.patch.object(reporting.handlers.logging, "getLogger")
     def test_single_log_message_at_info_published(self, getLogger):
         event = events.ReportingEvent("type", "name", "description")
         reporting.handlers.LogHandler().publish_event(event)
-        self.assertEqual(1, getLogger.return_value.log.call_count)
+        assert getLogger.return_value.log.call_count == 1
 
     @mock.patch.object(reporting.handlers.logging, "getLogger")
     def test_log_message_uses_event_as_string(self, getLogger):
         event = events.ReportingEvent("type", "name", "description")
         reporting.handlers.LogHandler(level="INFO").publish_event(event)
-        self.assertIn(
-            event.as_string(), getLogger.return_value.log.call_args[0][1]
-        )
+        assert event.as_string() in getLogger.return_value.log.call_args[0][1]
 
 
-class TestDefaultRegisteredHandler(TestCase):
+class TestDefaultRegisteredHandler:
     def test_log_handler_registered_by_default(self):
         registered_items = (
             reporting.instantiated_handler_registry.registered_items
@@ -222,18 +230,16 @@ class TestDefaultRegisteredHandler(TestCase):
             if isinstance(item, reporting.handlers.LogHandler):
                 break
         else:
-            self.fail("No reporting LogHandler registered by default.")
+            pytest.fail("No reporting LogHandler registered by default.")
 
 
-class TestReportingConfiguration(TestCase):
+class TestReportingConfiguration:
     @mock.patch.object(reporting, "instantiated_handler_registry")
     def test_empty_configuration_doesnt_add_handlers(
         self, instantiated_handler_registry
     ):
         reporting.update_configuration({})
-        self.assertEqual(
-            0, instantiated_handler_registry.register_item.call_count
-        )
+        assert instantiated_handler_registry.register_item.call_count == 0
 
     @mock.patch.object(
         reporting, "instantiated_handler_registry", reporting.DictRegistry()
@@ -247,10 +253,9 @@ class TestReportingConfiguration(TestCase):
         reporting.update_configuration(
             {handler_name: {"type": handler_type_name}}
         )
-        self.assertEqual(
-            {handler_name: handler_cls.return_value},
-            reporting.instantiated_handler_registry.registered_items,
-        )
+        assert reporting.instantiated_handler_registry.registered_items == {
+            handler_name: handler_cls.return_value
+        }
 
     @mock.patch.object(
         reporting, "instantiated_handler_registry", reporting.DictRegistry()
@@ -267,15 +272,13 @@ class TestReportingConfiguration(TestCase):
         handler_config.update({"type": handler_type_name})
         handler_name = "my_test_handler"
         reporting.update_configuration({handler_name: handler_config})
-        self.assertEqual(
-            handler_cls.return_value,
+        assert (
             reporting.instantiated_handler_registry.registered_items[
                 handler_name
-            ],
+            ]
+            == handler_cls.return_value
         )
-        self.assertEqual(
-            [mock.call(**extra_kwargs)], handler_cls.call_args_list
-        )
+        assert handler_cls.call_args_list == [mock.call(**extra_kwargs)]
 
     @mock.patch.object(
         reporting, "instantiated_handler_registry", reporting.DictRegistry()
@@ -288,7 +291,7 @@ class TestReportingConfiguration(TestCase):
         handler_config = {"type": handler_type_name, "foo": "bar"}
         expected_handler_config = handler_config.copy()
         reporting.update_configuration({"my_test_handler": handler_config})
-        self.assertEqual(expected_handler_config, handler_config)
+        assert expected_handler_config == handler_config
 
     @mock.patch.object(
         reporting, "instantiated_handler_registry", reporting.DictRegistry()
@@ -302,32 +305,31 @@ class TestReportingConfiguration(TestCase):
         reporting.update_configuration(
             {handler_name: {"type": handler_type_name}}
         )
-        self.assertEqual(
-            1, len(reporting.instantiated_handler_registry.registered_items)
+        assert (
+            len(reporting.instantiated_handler_registry.registered_items) == 1
         )
         reporting.update_configuration({handler_name: None})
-        self.assertEqual(
-            0, len(reporting.instantiated_handler_registry.registered_items)
+        assert (
+            len(reporting.instantiated_handler_registry.registered_items) == 0
         )
 
 
-class TestReportingEventStack(TestCase):
+class TestReportingEventStack:
     @mock.patch("cloudinit.reporting.events.report_finish_event")
     @mock.patch("cloudinit.reporting.events.report_start_event")
     def test_start_and_finish_success(self, report_start, report_finish):
         with events.ReportEventStack(name="myname", description="mydesc"):
             pass
-        self.assertEqual(
-            [mock.call("myname", "mydesc")], report_start.call_args_list
-        )
-        self.assertEqual(
-            [
-                mock.call(
-                    "myname", "mydesc", events.status.SUCCESS, post_files=[]
-                )
-            ],
-            report_finish.call_args_list,
-        )
+        assert report_start.call_args_list == [mock.call("myname", "mydesc")]
+        assert report_finish.call_args_list == [
+            mock.call(
+                "myname",
+                "mydesc",
+                duration=mock.ANY,
+                result=events.status.SUCCESS,
+                post_files=[],
+            )
+        ]
 
     @mock.patch("cloudinit.reporting.events.report_finish_event")
     @mock.patch("cloudinit.reporting.events.report_start_event")
@@ -339,11 +341,16 @@ class TestReportingEventStack(TestCase):
                 raise ValueError("This didnt work")
         except ValueError:
             pass
-        self.assertEqual([mock.call(name, desc)], report_start.call_args_list)
-        self.assertEqual(
-            [mock.call(name, desc, events.status.FAIL, post_files=[])],
-            report_finish.call_args_list,
-        )
+        assert report_start.call_args_list == [mock.call(name, desc)]
+        assert report_finish.call_args_list == [
+            mock.call(
+                name,
+                desc,
+                duration=mock.ANY,
+                result=events.status.FAIL,
+                post_files=[],
+            )
+        ]
 
     @mock.patch("cloudinit.reporting.events.report_finish_event")
     @mock.patch("cloudinit.reporting.events.report_start_event")
@@ -357,11 +364,16 @@ class TestReportingEventStack(TestCase):
                 raise ValueError("This didnt work")
         except ValueError:
             pass
-        self.assertEqual([mock.call(name, desc)], report_start.call_args_list)
-        self.assertEqual(
-            [mock.call(name, desc, events.status.WARN, post_files=[])],
-            report_finish.call_args_list,
-        )
+        assert report_start.call_args_list == [mock.call(name, desc)]
+        assert report_finish.call_args_list == [
+            mock.call(
+                name,
+                desc,
+                duration=mock.ANY,
+                result=events.status.WARN,
+                post_files=[],
+            )
+        ]
 
     @mock.patch("cloudinit.reporting.events.report_start_event")
     def test_child_fullname_respects_parent(self, report_start):
@@ -380,8 +392,7 @@ class TestReportingEventStack(TestCase):
                 report_start.assert_called_with(c2_expected_fullname, "c2desc")
 
     @mock.patch("cloudinit.reporting.events.report_finish_event")
-    @mock.patch("cloudinit.reporting.events.report_start_event")
-    def test_child_result_bubbles_up(self, report_start, report_finish):
+    def test_child_result_bubbles_up(self, report_finish):
         parent = events.ReportEventStack("topname", "topdesc")
         child = events.ReportEventStack("c_name", "c_desc", parent=parent)
         with parent:
@@ -389,34 +400,40 @@ class TestReportingEventStack(TestCase):
                 child.result = events.status.WARN
 
         report_finish.assert_called_with(
-            "topname", "topdesc", events.status.WARN, post_files=[]
+            "topname",
+            "topdesc",
+            duration=mock.ANY,
+            result=events.status.WARN,
+            post_files=[],
         )
 
     @mock.patch("cloudinit.reporting.events.report_finish_event")
     def test_message_used_in_finish(self, report_finish):
         with events.ReportEventStack("myname", "mydesc", message="mymessage"):
             pass
-        self.assertEqual(
-            [
-                mock.call(
-                    "myname", "mymessage", events.status.SUCCESS, post_files=[]
-                )
-            ],
-            report_finish.call_args_list,
-        )
+        assert report_finish.call_args_list == [
+            mock.call(
+                "myname",
+                "mymessage",
+                duration=mock.ANY,
+                result=events.status.SUCCESS,
+                post_files=[],
+            )
+        ]
 
     @mock.patch("cloudinit.reporting.events.report_finish_event")
     def test_message_updatable(self, report_finish):
         with events.ReportEventStack("myname", "mydesc") as c:
             c.message = "all good"
-        self.assertEqual(
-            [
-                mock.call(
-                    "myname", "all good", events.status.SUCCESS, post_files=[]
-                )
-            ],
-            report_finish.call_args_list,
-        )
+        assert report_finish.call_args_list == [
+            mock.call(
+                "myname",
+                "all good",
+                duration=mock.ANY,
+                result=events.status.SUCCESS,
+                post_files=[],
+            )
+        ]
 
     @mock.patch("cloudinit.reporting.events.report_start_event")
     @mock.patch("cloudinit.reporting.events.report_finish_event")
@@ -425,8 +442,8 @@ class TestReportingEventStack(TestCase):
     ):
         with events.ReportEventStack("a", "b", reporting_enabled=False):
             pass
-        self.assertEqual(report_start.call_count, 0)
-        self.assertEqual(report_finish.call_count, 0)
+        assert report_start.call_count == 0
+        assert report_finish.call_count == 0
 
     @mock.patch("cloudinit.reporting.events.report_start_event")
     @mock.patch("cloudinit.reporting.events.report_finish_event")
@@ -440,25 +457,27 @@ class TestReportingEventStack(TestCase):
         with parent:
             with child:
                 pass
-        self.assertEqual(report_start.call_count, 0)
-        self.assertEqual(report_finish.call_count, 0)
+        assert report_start.call_count == 0
+        assert report_finish.call_count == 0
 
     def test_reporting_event_has_sane_repr(self):
         myrep = events.ReportEventStack(
             "fooname", "foodesc", reporting_enabled=True
         ).__repr__()
-        self.assertIn("fooname", myrep)
-        self.assertIn("foodesc", myrep)
-        self.assertIn("True", myrep)
+        assert "fooname" in myrep
+        assert "foodesc" in myrep
+        assert "True" in myrep
 
     def test_set_invalid_result_raises_value_error(self):
         f = events.ReportEventStack("myname", "mydesc")
-        self.assertRaises(ValueError, setattr, f, "result", "BOGUS")
+        with pytest.raises(ValueError):
+            f.result = "BOGUS"
 
 
-class TestStatusAccess(TestCase):
+class TestStatusAccess:
     def test_invalid_status_access_raises_value_error(self):
-        self.assertRaises(AttributeError, getattr, events.status, "BOGUS")
+        with pytest.raises(AttributeError):
+            getattr(events.status, "BOGUS")
 
 
 @skipUnlessJsonSchema()

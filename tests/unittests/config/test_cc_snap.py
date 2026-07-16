@@ -14,7 +14,6 @@ from cloudinit.config.schema import (
 )
 from tests.unittests.helpers import (
     SCHEMA_EMPTY_ERROR,
-    CiTestCase,
     mock,
     skipUnlessJsonSchema,
 )
@@ -171,29 +170,22 @@ class TestAddAssertions:
         )
 
 
-class TestRunCommands(CiTestCase):
-    with_logs = True
-    allowed_subp = [CiTestCase.SUBP_SHELL_TRUE]
-
-    def setUp(self):
-        super(TestRunCommands, self).setUp()
-        self.tmp = self.tmp_dir()
-
+@pytest.mark.usefixtures("fake_filesystem")
+class TestRunCommands:
     @mock.patch("cloudinit.config.cc_snap.subp.subp")
-    def test_run_commands_on_empty_list(self, m_subp):
+    def test_run_commands_on_empty_list(self, m_subp, caplog):
         """When provided with an empty list, run_commands does nothing."""
         run_commands([])
-        self.assertEqual("", self.logs.getvalue())
+        assert "" == caplog.text
         m_subp.assert_not_called()
 
     def test_run_commands_on_non_list_or_dict(self):
         """When provided an invalid type, run_commands raises an error."""
-        with self.assertRaises(TypeError) as context_manager:
+        with pytest.raises(
+            TypeError,
+            match="commands parameter was not a list or dict: I'm Not Valid",
+        ):
             run_commands(commands="I'm Not Valid")
-        self.assertEqual(
-            "commands parameter was not a list or dict: I'm Not Valid",
-            str(context_manager.exception),
-        )
 
 
 @pytest.mark.allow_all_subp
@@ -296,7 +288,9 @@ class TestSnapSchema:
         if error_msg is None:
             validate_cloudconfig_schema(config, get_schema(), strict=True)
         else:
-            with pytest.raises(SchemaValidationError, match=error_msg):
+            with pytest.raises(
+                SchemaValidationError, match=error_msg if error_msg else None
+            ):
                 validate_cloudconfig_schema(config, get_schema(), strict=True)
 
 
@@ -314,7 +308,7 @@ class TestHandle:
         cfg = {
             "snap": {"assertions": [SYSTEM_USER_ASSERTION, ACCOUNT_ASSERTION]}
         }
-        handle("snap", cfg=cfg, cloud=fake_cloud, args=None)
+        handle("snap", cfg=cfg, cloud=fake_cloud, args=[])
         content = "\n".join(cfg["snap"]["assertions"])
         util.write_file(compare_file, content.encode("utf-8"))
         assert util.load_text_file(compare_file) == util.load_text_file(

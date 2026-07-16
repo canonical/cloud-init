@@ -1,7 +1,11 @@
 .. _yaml_examples:
 
-Cloud config examples
-*********************
+All cloud config examples
+*************************
+
+.. note::
+
+   :ref:`The page <examples_library>` organizes examples by category.
 
 Including users and groups
 ==========================
@@ -112,8 +116,8 @@ Adjust mount points mounted
    :language: yaml
    :linenos:
 
-``Configure instance's SSH keys``
-=================================
+Configure instance's SSH keys
+=============================
 
 .. literalinclude:: ../../examples/cloud-config-ssh-keys.txt
    :language: yaml
@@ -133,13 +137,6 @@ Disk setup
     :language: yaml
     :linenos:
 
-Configure data sources
-======================
-
-.. literalinclude:: ../../examples/cloud-config-datasources.txt
-   :language: yaml
-   :linenos:
-
 Create partitions and filesystems
 =================================
 
@@ -150,3 +147,4 @@ Create partitions and filesystems
 .. _chef: http://www.chef.io/chef/
 .. _puppet: http://puppetlabs.com/
 .. _ansible: https://docs.ansible.com/ansible/latest/
+

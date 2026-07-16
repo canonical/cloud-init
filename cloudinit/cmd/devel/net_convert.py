@@ -18,11 +18,31 @@ from cloudinit.net import (
     network_manager,
     network_state,
     networkd,
+    renderer,
     sysconfig,
 )
-from cloudinit.sources import DataSourceAzure as azure
-from cloudinit.sources.helpers import openstack
-from cloudinit.sources.helpers.vmware.imc import guestcust_util
+
+try:
+    from cloudinit.sources import DataSourceAzure as azure
+except ImportError:
+    azure_kind_available = False
+else:
+    azure_kind_available = True
+
+try:
+    from cloudinit.sources.helpers import openstack
+except ImportError:
+    openstack_kind_available = False
+else:
+    openstack_kind_available = True
+
+try:
+    from cloudinit.sources.helpers.vmware.imc import guestcust_util
+except ImportError:
+    vmware_kind_available = False
+else:
+    vmware_kind_available = True
+
 
 NAME = "net-convert"
 
@@ -45,16 +65,22 @@ def get_parser(parser=None):
         required=True,
         help="The network configuration to read",
     )
+
+    available_kinds = ["eni", "yaml"]
+
+    if azure_kind_available:
+        available_kinds.append("azure-imds")
+
+    if openstack_kind_available:
+        available_kinds.append("network_data.json")
+
+    if vmware_kind_available:
+        available_kinds.append("vmware-imc")
+
     parser.add_argument(
         "-k",
         "--kind",
-        choices=[
-            "eni",
-            "network_data.json",
-            "yaml",
-            "azure-imds",
-            "vmware-imc",
-        ],
+        choices=available_kinds,
         required=True,
         help="The format of the given network config",
     )
@@ -131,15 +157,17 @@ def handle_args(name, args):
         pre_ns = azure.generate_network_config_from_instance_network_metadata(
             json.loads(net_data)["network"],
             apply_network_config_for_secondary_ips=True,
+            apply_network_config_set_name=True,
         )
     elif args.kind == "vmware-imc":
-        config = guestcust_util.Config(
+        vmware_config = guestcust_util.Config(
             guestcust_util.ConfigFile(args.network_data.name)
         )
         pre_ns = guestcust_util.get_network_data_from_vmware_cust_cfg(
-            config, False
+            vmware_config, False
         )
 
+    r_cls: type[renderer.Renderer]
     distro_cls = distros.fetch(args.distro)
     distro = distro_cls(args.distro, {}, None)
     if args.output_kind == "eni":

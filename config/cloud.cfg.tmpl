@@ -10,21 +10,23 @@
                  "mariner": "MarinerOS", "rhel": "Cloud User",
                  "netbsd": "NetBSD", "openbsd": "openBSD",
                  "openmandriva": "OpenMandriva admin", "photon": "PhotonOS",
+                 "raspberry-pi-os": "Raspberry Pi OS",
                  "ubuntu": "Ubuntu", "unknown": "Ubuntu"}) %}
 {% set groups = ({"alpine": "adm, wheel", "aosc": "wheel", "arch": "wheel, users",
-                  "azurelinux": "wheel",
                   "debian": "adm, audio, cdrom, dialout, dip, floppy, netdev, plugdev, sudo, video",
                   "gentoo": "users, wheel", "mariner": "wheel",
                   "photon": "wheel",
                   "openmandriva": "wheel, users, systemd-journal",
+                  "raspberry-pi-os": "adm, dialout, cdrom, audio, users, sudo, video, games, plugdev, input, gpio, spi, i2c, netdev, render, lpadmin",
                   "suse": "cdrom, users",
                   "ubuntu": "adm, cdrom, dip, lxd, sudo",
                   "unknown": "adm, cdrom, dip, lxd, sudo"}) %}
 {% set shells = ({"alpine": "/bin/ash", "dragonfly": "/bin/sh",
                   "freebsd": "/bin/tcsh", "netbsd": "/bin/sh",
                   "openbsd": "/bin/ksh"}) %}
-{% set usernames = ({"amazon": "ec2-user", "centos": "cloud-user",
-                     "openmandriva": "omv", "rhel": "cloud-user",
+{% set usernames = ({"amazon": "ec2-user", "azurelinux": "azureuser", "centos": "cloud-user",
+                     "openmandriva": "omv", "raspberry-pi-os": "pi",
+                     "rhel": "cloud-user",
                      "unknown": "ubuntu"}) %}
 {% if is_bsd %}
 syslog_fix_perms: root:wheel
@@ -58,7 +60,7 @@ disable_root: false
 disable_root: true
 {% endif %}
 
-{%- if variant in ["alpine", "amazon", "fedora", "OpenCloudOS", "openeuler",
+{%- if variant in ["alpine", "amazon", "azurelinux", "fedora", "OpenCloudOS", "openeuler",
                    "openmandriva", "photon", "TencentOS"] or is_rhel %}
 
 {% if is_rhel %}
@@ -70,7 +72,6 @@ mount_default_fields: [~, ~, 'auto', 'defaults,nofail', '0', '2']
 resize_rootfs: noblock
 {% endif %}
 {% if variant not in ["photon"] %}
-resize_rootfs_tmp: /dev
 ssh_pwauth: false
 {% endif %}
 {% endif %}
@@ -95,13 +96,6 @@ apt:
 #     timeout: 5 # (defaults to 50 seconds)
 #     max_wait: 10 # (defaults to 120 seconds)
 
-{% if variant == "amazon" %}
-# Amazon Linux relies on ec2-net-utils for network configuration
-network:
-  config: disabled
-
-{% endif -%}
-
 {% if is_rhel %}
 # Default redhat settings:
 ssh_deletekeys: true
@@ -117,7 +111,7 @@ cloud_init_modules:
 {% endif %}
   - bootcmd
   - write_files
-{% if variant not in ["netbsd", "openbsd"] %}
+{% if variant not in ["netbsd", "openbsd", "raspberry-pi-os"] %}
   - growpart
   - resizefs
 {% endif %}
@@ -166,12 +160,12 @@ cloud_config_modules:
 {% if variant == "ubuntu" %}
   - ubuntu_pro
 {% endif %}
-{% elif variant in ["azurelinux", "fedora", "mariner", "openeuler",
+{% elif variant in ["amazon", "azurelinux", "fedora", "mariner", "openeuler",
                     "openmandriva", "photon"] or is_rhel %}
 {% if is_rhel %}
   - rh_subscription
 {% endif %}
-{% if variant not in ["azurelinux", "mariner", "photon"] %}
+{% if variant not in ["amazon", "azurelinux", "mariner", "photon"] %}
   - spacewalk
 {% endif %}
   - yum_add_repo
@@ -180,9 +174,10 @@ cloud_config_modules:
 {% endif %}
   - ntp
   - timezone
-{% if variant not in ["azurelinux"] %}
-  - disable_ec2_metadata
+{% if variant == "raspberry-pi-os" %}
+  - raspberry_pi
 {% endif %}
+  - disable_ec2_metadata
   - runcmd
 {% if variant in ["debian", "ubuntu", "unknown"] %}
   - byobu
@@ -200,14 +195,12 @@ cloud_final_modules:
   - ubuntu_drivers
 {% endif %}
   - write_files_deferred
-{% if variant not in ["azurelinux"] %}
   - puppet
   - chef
-{% endif %}
   - ansible
-{% if variant not in ["azurelinux"] %}
   - mcollective
   - salt_minion
+{% if variant not in ["alpine"] %}
   - reset_rmc
 {% endif %}
   - scripts_vendor
@@ -228,8 +221,8 @@ system_info:
   # This will affect which distro class gets used
 {% if variant in ["alpine", "amazon", "aosc", "arch", "azurelinux", "debian", "fedora",
                   "freebsd", "gentoo", "mariner", "netbsd", "openbsd",
-                  "OpenCloudOS", "openeuler", "openmandriva", "photon", "suse",
-                  "TencentOS", "ubuntu"] or is_rhel %}
+                  "OpenCloudOS", "openeuler", "openmandriva", "photon",
+                  "raspberry-pi-os", "suse", "TencentOS", "ubuntu"] or is_rhel %}
   distro: {{ variant }}
 {% elif variant == "dragonfly" %}
   distro: dragonflybsd
@@ -246,8 +239,8 @@ system_info:
 {% endif %}
 {% if variant in ["alpine", "amazon", "aosc", "arch", "azurelinux", "debian", "fedora",
                   "gentoo", "mariner", "OpenCloudOS", "openeuler",
-                  "openmandriva", "photon", "suse", "TencentOS", "ubuntu",
-                  "unknown"]
+                  "openmandriva", "photon", "raspberry-pi-os",
+                  "suse", "TencentOS", "ubuntu", "unknown"]
                  or is_bsd or is_rhel %}
     lock_passwd: True
 {% endif %}
@@ -287,6 +280,9 @@ system_info:
 {% if variant == "alpine" %}
   network:
     renderers: ['eni']
+{% elif variant == "azurelinux" %}
+  network:
+    renderers: ['netplan', 'networkd', 'network-manager']
 {% elif variant == "debian" %}
   network:
     renderers: ['netplan', 'eni', 'networkd']
@@ -300,12 +296,16 @@ system_info:
 {% elif variant in ["freebsd", "netbsd", "openbsd"] %}
   network:
     renderers: ['{{ variant }}']
-{% elif variant in ["azurelinux", "mariner", "photon"] %}
+{% elif variant in ["mariner", "photon"] %}
   network:
     renderers: ['networkd']
 {% elif variant == "openmandriva" %}
   network:
     renderers: ['network-manager', 'networkd']
+{% elif variant == "raspberry-pi-os" %}
+  network:
+    renderers: ['netplan', 'network-manager']
+    activators: ['netplan', 'network-manager']
 {% elif variant in ["ubuntu", "unknown"] %}
 {# SRU_BLOCKER: do not ship network renderers on Xenial, Bionic or Eoan #}
   network:
@@ -316,10 +316,11 @@ system_info:
   network:
     renderers: ['eni', 'netplan', 'network-manager', 'sysconfig', 'networkd']
 {% endif %}
-{% if variant == "photon" %}
+{% if variant in ["photon", "raspberry-pi-os"] %}
   # If set to true, cloud-init will not use fallback network config.
-  # In Photon, we have default network settings, hence if network settings are
-  # not explicitly given in metadata, don't use fallback network config.
+  # In Photon and Raspberry Pi OS, we have default network settings,
+  # hence if network settings are not explicitly given in metadata,
+  # don't use fallback network config.
   disable_fallback_netcfg: true
 {% endif %}
 {% if variant in ["debian", "ubuntu", "unknown"] %}
@@ -347,7 +348,7 @@ system_info:
         security: https://deb.debian.org/debian-security
 {% elif variant in ["ubuntu", "unknown"] %}
   package_mirrors:
-    - arches: [i386, amd64]
+    - arches: [arm64, i386, amd64]
       failsafe:
         primary: http://archive.ubuntu.com/ubuntu
         security: http://security.ubuntu.com/ubuntu
@@ -357,7 +358,7 @@ system_info:
           - http://%(availability_zone)s.clouds.archive.ubuntu.com/ubuntu/
           - http://%(region)s.clouds.archive.ubuntu.com/ubuntu/
         security: []
-    - arches: [arm64, armel, armhf]
+    - arches: [armel, armhf]
       failsafe:
         primary: http://ports.ubuntu.com/ubuntu-ports
         security: http://ports.ubuntu.com/ubuntu-ports
@@ -372,7 +373,7 @@ system_info:
         primary: http://ports.ubuntu.com/ubuntu-ports
         security: http://ports.ubuntu.com/ubuntu-ports
 {% endif %}
-{% if variant in ["debian", "ubuntu", "unknown"] %}
+{% if variant in ["debian", "raspberry-pi-os", "ubuntu", "unknown"] %}
   ssh_svcname: ssh
 {% elif variant in ["alpine", "amazon", "aosc", "arch", "azurelinux", "fedora",
                     "gentoo", "mariner", "OpenCloudOS", "openeuler",

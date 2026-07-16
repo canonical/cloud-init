@@ -14,7 +14,6 @@ from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
 from cloudinit.settings import PER_INSTANCE
 
-PRO_URL = "https://ubuntu.com/pro"
 DEPRECATED_KEYS = set(["ubuntu-advantage", "ubuntu_advantage"])
 
 meta: MetaSchema = {
@@ -179,8 +178,8 @@ def configure_pro(token, enable=None):
         # Allow `ua attach` to fail in already attached machines
         subp.subp(attach_cmd, rcs={0, 2}, logstring=redacted_cmd)
     except subp.ProcessExecutionError as e:
-        err = str(e).replace(token, REDACTED)
-        msg = f"Failure attaching Ubuntu Pro:\n{err}"
+        er = str(e).replace(token, REDACTED)
+        msg = f"Failure attaching Ubuntu Pro:\n{er}"
         util.logexc(LOG, msg)
         raise RuntimeError(msg) from e
 

@@ -8,7 +8,9 @@ from cloudinit.util import is_false, is_true
 # LAUNCH SETTINGS
 ##################################################################
 
-# Keep instance (mostly for debugging) when test is finished
+# Keep instance (mostly for debugging) when test is finished.
+# Can be True, False, or "ON_ERROR" to keep the instance only if the test
+# fails.
 KEEP_INSTANCE = False
 # Keep snapshot image (mostly for debugging) when test is finished
 KEEP_IMAGE = False
@@ -54,6 +56,10 @@ OS_IMAGE_TYPE = "generic"
 # creating a new one. The exact contents will be platform dependent
 EXISTING_INSTANCE_ID: Optional[str] = None
 
+# Username to use when launching the instance.
+# If not set, the default username for the platform will be used.
+LAUNCH_USERNAME: Optional[str] = None
+
 ##################################################################
 # IMAGE GENERATION SETTINGS
 ##################################################################
@@ -81,7 +87,7 @@ EXISTING_INSTANCE_ID: Optional[str] = None
 #   Install from a PPA. It MUST start with 'ppa:'
 # <file path>
 #   A path to a valid package to be uploaded and installed
-CLOUD_INIT_SOURCE = "NONE"
+CLOUD_INIT_SOURCE = "IN_PLACE"
 
 # cloud-init metapackage to install
 # Examples: cloud-init, cloud-init-base, cloud-init-smart-os

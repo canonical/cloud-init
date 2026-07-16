@@ -1,8 +1,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
+import warnings
 from contextlib import suppress
 from datetime import datetime, timezone
 from textwrap import dedent
+from unittest import mock
 
 import pytest
 
@@ -11,9 +14,10 @@ from cloudinit.analyze.dump import (
     has_gnu_date,
     parse_ci_logline,
     parse_timestamp,
+    parse_timestamp_from_date,
 )
+from cloudinit.subp import SubpResult
 from cloudinit.util import write_file
-from tests.unittests.helpers import mock
 
 
 class TestParseTimestamp:
@@ -111,6 +115,61 @@ class TestParseTimestamp:
             == "2020-09-12 12:39:20"
         )
 
+    @mock.patch("cloudinit.analyze.dump.subp.subp")
+    @mock.patch("cloudinit.analyze.dump.has_gnu_date", return_value=True)
+    @mock.patch("cloudinit.analyze.dump.util.is_Linux", return_value=True)
+    def test_parse_timestamp_from_date_warns_on_gnu_date_fallback(
+        self, _m_is_linux, _m_has_gnu, m_subp, caplog
+    ):
+        """A warning is emitted whenever GNU date(1) is used as a fallback."""
+        m_subp.return_value = SubpResult("1597333950.000\n", "")
+        timestampstr = "17:15 08/13"
+        with caplog.at_level(logging.WARNING, logger="cloudinit.analyze.dump"):
+            assert 1597333950.0 == parse_timestamp_from_date(timestampstr)
+        m_subp.assert_called_once_with(
+            ["date", "-u", "+%s.%3N", "-d", timestampstr]
+        )
+        warnings_logged = [
+            r for r in caplog.records if r.levelname == "WARNING"
+        ]
+        assert 1 == len(warnings_logged)
+        assert "date(1)" in warnings_logged[0].getMessage()
+        assert repr(timestampstr) in warnings_logged[0].getMessage()
+
+    @mock.patch("cloudinit.analyze.dump.subp.which", return_value="/bin/gdate")
+    @mock.patch("cloudinit.analyze.dump.subp.subp")
+    @mock.patch("cloudinit.analyze.dump.has_gnu_date", return_value=False)
+    @mock.patch("cloudinit.analyze.dump.util.is_Linux", return_value=False)
+    def test_parse_timestamp_from_date_warns_on_gdate_fallback(
+        self, _m_is_linux, _m_has_gnu, m_subp, _m_which, caplog
+    ):
+        """The warning identifies gdate when used on non-Linux systems."""
+        m_subp.return_value = SubpResult("1597333950.000\n", "")
+        timestampstr = "17:15 08/13"
+        with caplog.at_level(logging.WARNING, logger="cloudinit.analyze.dump"):
+            parse_timestamp_from_date(timestampstr)
+        m_subp.assert_called_once_with(
+            ["gdate", "-u", "+%s.%3N", "-d", timestampstr]
+        )
+        warnings_logged = [
+            r for r in caplog.records if r.levelname == "WARNING"
+        ]
+        assert 1 == len(warnings_logged)
+        assert "gdate(1)" in warnings_logged[0].getMessage()
+        assert repr(timestampstr) in warnings_logged[0].getMessage()
+
+    @mock.patch("cloudinit.analyze.dump.subp.which", return_value=None)
+    @mock.patch("cloudinit.analyze.dump.has_gnu_date", return_value=False)
+    @mock.patch("cloudinit.analyze.dump.util.is_Linux", return_value=True)
+    def test_parse_timestamp_from_date_no_warning_when_no_gnu_date(
+        self, _m_is_linux, _m_has_gnu, _m_which, caplog
+    ):
+        """No warning is logged when there is no GNU date to fall back to."""
+        with caplog.at_level(logging.WARNING, logger="cloudinit.analyze.dump"):
+            with pytest.raises(ValueError):
+                parse_timestamp_from_date("17:15 08/13")
+        assert [] == [r for r in caplog.records if r.levelname == "WARNING"]
+
 
 class TestParseCILogLine:
     def test_parse_logline_returns_none_without_separators(self):
@@ -195,12 +254,21 @@ class TestParseCILogLine:
             "Apr 30 19:39:11 cloud-init[2673]: handlers.py[DEBUG]: start:"
             " init-local/check-cache: attempting to read from cache [check]"
         )
-        # Generate the expected value using `datetime`, so that TZ
-        # determination is consistent with the code under test.
-        timestamp_dt = (
-            datetime.strptime("Apr 30 19:39:11", "%b %d %H:%M:%S")
-            .replace(year=datetime.now().year)
-            .replace(tzinfo=timezone.utc)
+
+        # Python deprecated parsing dates without a year due to ambiguous
+        # leap year behavior. Parsing dates without leap years is something
+        # that cloud-init analyze attempts to support.
+        #
+        # This test will start to fail in a future version of Python if
+        # the deprecated behavior changes in a breaking way.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=DeprecationWarning)
+            # Generate the expected value using `datetime`, so that TZ
+            # determination is consistent with the code under test.
+            date = datetime.strptime("Apr 30 19:39:11", "%b %d %H:%M:%S")
+
+        timestamp_dt = date.replace(year=datetime.now().year).replace(
+            tzinfo=timezone.utc
         )
         expected = {
             "description": "attempting to read from cache [check]",

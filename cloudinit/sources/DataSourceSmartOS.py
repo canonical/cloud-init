@@ -438,7 +438,7 @@ class JoyentMetadataClient:
         while True:
             try:
                 byte = self.fp.read(1)
-                if len(byte) == 0:
+                if not byte:
                     raise JoyentMetadataTimeoutException(msg % as_ascii())
                 if byte == b"\n":
                     return as_ascii()
@@ -927,6 +927,8 @@ def convert_smartos_network_data(
         for ip in nic.get("ips", []):
             if ip == "dhcp":
                 subnet = {"type": "dhcp4"}
+            elif ip == "addrconf":
+                subnet = {"type": "dhcp6"}
             else:
                 routeents = []
                 subnet = dict(

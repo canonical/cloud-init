@@ -34,7 +34,7 @@ import subprocess
 import sys
 import time
 from base64 import b64decode
-from collections import deque, namedtuple
+from collections import deque
 from contextlib import contextmanager, suppress
 from errno import ENOENT
 from functools import lru_cache
@@ -50,6 +50,7 @@ from typing import (
     Generator,
     List,
     Mapping,
+    NamedTuple,
     Optional,
     Sequence,
     Union,
@@ -124,7 +125,7 @@ def lsb_release():
             if fname in fmap:
                 data[fmap[fname]] = val.strip()
         missing = [k for k in fmap.values() if k not in data]
-        if len(missing):
+        if missing:
             LOG.warning(
                 "Missing fields in lsb_release --all output: %s",
                 ",".join(missing),
@@ -549,6 +550,8 @@ def get_linux_distro():
     os_release_rhel = False
     if os.path.exists("/etc/os-release"):
         os_release = load_shell_content(load_text_file("/etc/os-release"))
+        if os.path.exists("/etc/rpi-issue"):
+            os_release["ID"] = "raspberry-pi-os"
     if not os_release:
         os_release_rhel = True
         os_release = _parse_redhat_release()
@@ -581,23 +584,11 @@ def get_linux_distro():
         distro_name = platform.system().lower()
         distro_version = platform.release()
     else:
-        dist = ("", "", "")
-        try:
-            # Was removed in 3.8
-            dist = platform.dist()  # type: ignore  # pylint: disable=W1505,E1101
-        except Exception:
-            pass
-        finally:
-            found = None
-            for entry in dist:
-                if entry:
-                    found = 1
-            if not found:
-                LOG.warning(
-                    "Unable to determine distribution, template "
-                    "expansion may have unexpected results"
-                )
-        return dist
+        LOG.warning(
+            "Unable to determine distribution, template "
+            "expansion may have unexpected results"
+        )
+        return "", "", ""
 
     return (distro_name, distro_version, flavor)
 
@@ -624,6 +615,7 @@ def _get_variant(info):
             "opencloudos",
             "openmandriva",
             "photon",
+            "raspberry-pi-os",
             "rhel",
             "rocky",
             "suse",
@@ -910,13 +902,23 @@ def center(text, fill, max_len):
 
 
 def del_dir(path):
+    '''
+    Deletes a directory and all its contents by calling shutil.rmtree
+    Will ignore FileNotFoundError
+
+    @param path: The path of the directory.
+    """
+    '''
     LOG.debug("Recursively deleting %s", path)
-    shutil.rmtree(path)
+    try:
+        shutil.rmtree(path)
+    except FileNotFoundError:
+        pass
 
 
 def read_optional_seed(fill, base="", ext="", timeout=5):
     """
-    returns boolean indicating success or failure (presense of files)
+    returns boolean indicating success or failure (presence of files)
     if files are present, populates 'fill' dictionary with 'user-data' and
     'meta-data' entries
     """
@@ -981,7 +983,7 @@ def load_yaml(blob, default=None, allowed=(dict,)):
             LOG.debug("loaded blob returned None, returning default.")
             converted = default
         elif not isinstance(converted, allowed):
-            # Yes this will just be caught, but thats ok for now...
+            # Yes this will just be caught, but that's ok for now...
             raise TypeError(
                 "Yaml load allows %s root types, but got %s instead"
                 % (allowed, type_utils.obj_name(converted))
@@ -1188,10 +1190,10 @@ def dos2unix(contents):
     return contents.replace("\r\n", "\n")
 
 
-HostnameFqdnInfo = namedtuple(
-    "HostnameFqdnInfo",
-    ["hostname", "fqdn", "is_default"],
-)
+class HostnameFqdnInfo(NamedTuple):
+    hostname: str
+    fqdn: str
+    is_default: bool
 
 
 def get_hostname_fqdn(cfg, cloud, metadata_only=False):
@@ -1199,7 +1201,7 @@ def get_hostname_fqdn(cfg, cloud, metadata_only=False):
 
     @param cfg: Dictionary of merged user-data configuration (from init.cfg).
     @param cloud: Cloud instance from init.cloudify().
-    @param metadata_only: Boolean, set True to only query cloud meta-data,
+    @param metadata_only: Boolean, set True to only query meta-data,
         returning None if not present in meta-data.
     @return: a namedtuple of
         <hostname>, <fqdn>, <is_default> (str, str, bool).
@@ -1214,7 +1216,7 @@ def get_hostname_fqdn(cfg, cloud, metadata_only=False):
     is_default = False
     if "fqdn" in cfg:
         # user specified a fqdn.  Default hostname then is based off that
-        fqdn = cfg["fqdn"]
+        fqdn = str(cfg["fqdn"])
         hostname = get_cfg_option_str(cfg, "hostname", fqdn.split(".")[0])
     else:
         if "hostname" in cfg and cfg["hostname"].find(".") > 0:
@@ -1280,7 +1282,7 @@ def get_fqdn_from_hosts(hostname, filename="/etc/hosts"):
 @performance.timed("Resolving URL")
 def is_resolvable(url) -> bool:
     """determine if a url's network address is resolvable, return a boolean
-    This also attempts to be resilent against dns redirection.
+    This also attempts to be resilient against dns redirection.
 
     Note, that normal nsswitch resolution is used here.  So in order
     to avoid any utilization of 'search' entries in /etc/resolv.conf
@@ -1293,6 +1295,16 @@ def is_resolvable(url) -> bool:
     global _DNS_REDIRECT_IP
     parsed_url = parse.urlparse(url)
     name = parsed_url.hostname
+
+    # Early return for IP addresses - no DNS resolution needed
+    with suppress(ValueError):
+        if net.is_ip_address(name):
+            return True
+    try:
+        hostname_result = socket.getaddrinfo(name, None)
+    except (socket.gaierror, socket.error):
+        return False
+
     if _DNS_REDIRECT_IP is None:
         badips = set()
         badnames = (
@@ -1316,17 +1328,11 @@ def is_resolvable(url) -> bool:
         if badresults:
             LOG.debug("detected dns redirection: %s", badresults)
 
-    try:
-        # ip addresses need no resolution
-        with suppress(ValueError):
-            if net.is_ip_address(parsed_url.netloc.strip("[]")):
-                return True
-        result = socket.getaddrinfo(name, None)
-        # check first result's sockaddr field
-        addr = result[0][4][0]
-        return addr not in _DNS_REDIRECT_IP
-    except (socket.gaierror, socket.error):
+    # check first result's sockaddr field
+    addr = hostname_result[0][4][0]
+    if addr in _DNS_REDIRECT_IP:
         return False
+    return True
 
 
 def get_hostname():
@@ -1626,11 +1632,11 @@ def pipe_in_out(in_fh, out_fh, chunk_size=1024, chunk_cb=None):
         data = in_fh.read(chunk_size)
         if len(data) == 0:
             break
-        else:
-            out_fh.write(data)
-            bytes_piped += len(data)
-            if chunk_cb:
-                chunk_cb(bytes_piped)
+        out_fh.write(data)
+        bytes_piped += len(data)
+        if chunk_cb:
+            chunk_cb(bytes_piped)
+
     out_fh.flush()
     return bytes_piped
 
@@ -1811,18 +1817,6 @@ def hash_blob(blob, routine: str, mlen=None) -> str:
         return digest
 
 
-def hash_buffer(f: io.BufferedIOBase) -> bytes:
-    """Hash the content of a binary buffer using SHA1.
-
-    @param f: buffered binary stream to hash.
-    @return: digested data as bytes.
-    """
-    hasher = hashlib.sha1()
-    for chunk in iter(lambda: f.read(io.DEFAULT_BUFFER_SIZE), b""):
-        hasher.update(chunk)
-    return hasher.digest()
-
-
 def is_user(name):
     try:
         if pwd.getpwnam(name):
@@ -1865,7 +1859,7 @@ def load_json(text, root_types=(dict,)):
 def get_non_exist_parent_dir(path):
     """Get the last directory in a path that does not exist.
 
-    Example: when path=/usr/a/b and /usr/a does not exis but /usr does,
+    Example: when path=/usr/a/b and /usr/a does not exist but /usr does,
     return /usr/a
     """
     p_path = os.path.dirname(path)
@@ -1884,7 +1878,11 @@ def ensure_dir(path, mode=None, user=None, group=None):
         # Get non existed parent dir first before they are created.
         non_existed_parent_dir = get_non_exist_parent_dir(path)
         # Make the dir and adjust the mode
-        with SeLinuxGuard(os.path.dirname(path), recursive=True):
+        dir_name = os.path.dirname(path)
+        selinux_recursive = True
+        if dir_name == "/":
+            selinux_recursive = False
+        with SeLinuxGuard(dir_name, recursive=selinux_recursive):
             os.makedirs(path)
         chmod(path, mode)
         # Change the ownership
@@ -1910,6 +1908,35 @@ def unmounter(umount):
         if umount:
             umount_cmd = ["umount", umount]
             subp.subp(umount_cmd)
+
+
+# Per fstab(5), fstab fields are whitespace-separated, so these characters
+# must be octal-escaped when they appear inside a field. Backslash must come
+# first so we don't double-escape the escapes we introduce.
+_FSTAB_ESCAPES = (
+    ("\\", "\\134"),
+    (" ", "\\040"),
+    ("\t", "\\011"),
+    ("\n", "\\012"),
+)
+
+
+def escape_fstab_field(value: str) -> str:
+    """Octal-escape special characters for safe writing to fstab."""
+    for char, escaped in _FSTAB_ESCAPES:
+        value = value.replace(char, escaped)
+    return value
+
+
+def unescape_fstab_field(value: str) -> str:
+    """Reverse escape_fstab_field.
+
+    Iterate _FSTAB_ESCAPES in reverse so backslash is decoded last; this
+    avoids mis-decoding a field whose original value contained a backslash.
+    """
+    for char, escaped in reversed(_FSTAB_ESCAPES):
+        value = value.replace(escaped, char)
+    return value
 
 
 def mounts():
@@ -1940,9 +1967,9 @@ def mounts():
                 mp = m.group(2)
                 fstype = m.group(3)
                 opts = m.group(4)
-            # If the name of the mount point contains spaces these
-            # can be escaped as '\040', so undo that..
-            mp = mp.replace("\\040", " ")
+            # Mount points may contain octal-escaped characters (e.g. a
+            # space as '\040'); undo that so callers see the real path.
+            mp = unescape_fstab_field(mp)
             mounted[dev] = {
                 "fstype": fstype,
                 "mountpoint": mp,
@@ -1998,7 +2025,8 @@ def mount_cb(
                 mtypes[index] = "msdos"
     else:
         # we cannot do a smart "auto", so just call 'mount' once with no -t
-        mtypes = [""]
+        if mtypes is None:
+            mtypes = [""]
 
     mounted = mounts()
     with temp_utils.tempdir() as tmpd:
@@ -2998,7 +3026,7 @@ def wait_for_files(flist, maxwait, naplen=0.5, log_pre=""):
     waited = 0
     while True:
         need -= set([f for f in need if os.path.exists(f)])
-        if len(need) == 0:
+        if not need:
             LOG.debug(
                 "%sAll files appeared after %s seconds: %s",
                 log_pre,

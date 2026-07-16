@@ -237,6 +237,10 @@ class NMConnection:
         value = subnet["address"] + "/" + str(subnet["prefix"])
         self._add_numbered(family, "address", value)
 
+    def _is_default_route(self, route):
+        default_nets = ("::", "0.0.0.0")
+        return route["prefix"] == 0 and route["network"] in default_nets
+
     def _add_route(self, route):
         """Adds a ipv[46].route<n> property."""
         # Because network v2 route definitions can have mixed v4 and v6
@@ -245,6 +249,11 @@ class NMConnection:
         value = f'{route["network"]}/{route["prefix"]}'
         if "gateway" in route:
             value += f',{route["gateway"]}'
+        if "metric" in route:
+            if self._is_default_route(route):
+                self.config[family]["route-metric"] = f'{route["metric"]}'
+            else:
+                value += f',{route["metric"]}'
         route_key = self._get_next_numbered_section(family, "route")
         self.config[family][route_key] = value
         if "mtu" in route:
@@ -425,6 +434,9 @@ class NMConnection:
                 self.config[family]["gateway"] = subnet["gateway"]
             for route in subnet["routes"]:
                 self._add_route(route)
+            # metric may apply to both dhcp and static config
+            if "metric" in subnet:
+                self.config[family]["route-metric"] = str(subnet["metric"])
             # Add subnet-level DNS
             if "dns_nameservers" in subnet:
                 found_nameservers.extend(subnet["dns_nameservers"])
@@ -575,11 +587,13 @@ class Renderer(renderer.Renderer):
         # interfaces that have UUIDs that can be linked to from related
         # interfaces
         for iface in network_state.iter_interfaces():
-            self.connections[iface["name"]] = NMConnection(iface["name"])
+            conn_key = iface.get("config_id") or iface["name"]
+            self.connections[conn_key] = NMConnection(iface["name"])
 
         # Now render the actual interface configuration
         for iface in network_state.iter_interfaces():
-            conn = self.connections[iface["name"]]
+            conn_key = iface.get("config_id") or iface["name"]
+            conn = self.connections[conn_key]
             conn.render_interface(iface, network_state, self)
 
         # And finally write the files
@@ -635,12 +649,12 @@ def cloud_init_nm_conf_filename(target=None):
     return f"{target_con_dir}/conf.d/{conf_file}"
 
 
-def available(target=None):
+def available():
     # TODO: Move `uses_systemd` to a more appropriate location
     # It is imported here to avoid circular import
     from cloudinit.distros import uses_systemd
 
-    nmcli_present = subp.which("nmcli", target=target)
+    nmcli_present = subp.which("nmcli")
     service_active = True
     if uses_systemd():
         try:

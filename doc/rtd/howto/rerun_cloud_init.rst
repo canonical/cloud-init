@@ -34,7 +34,7 @@ think that it hasn't run yet. It will then re-run after a reboot.
 Run a single cloud-init module
 ------------------------------
 
-If you are using :ref:`user data cloud-config<user_data_formats-cloud_config>`
+If you are using :ref:`user-data cloud-config<user_data_formats-cloud_config>`
 format, you might wish to re-run just a single configuration module.
 Cloud-init provides the ability to run a single module in isolation and
 separately from boot. This command is:
@@ -53,7 +53,7 @@ Example output:
 
 This subcommand is not called by the init system. It can be called manually to
 load the configured datasource and run a single cloud-config module once, using
-the cached user data and metadata after the instance has booted.
+the cached instance-data after the instance has booted.
 
 .. note::
 

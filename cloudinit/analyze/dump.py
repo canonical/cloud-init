@@ -1,12 +1,16 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import calendar
+import logging
 import sys
 from datetime import datetime, timezone
+from typing import IO, Any, Dict, List, Optional, TextIO, Tuple
 
 from cloudinit import atomic_helper, subp, util
 
-stage_to_description = {
+LOG = logging.getLogger(__name__)
+
+stage_to_description: Dict[str, str] = {
     "finished": "finished running cloud-init",
     "init-local": "starting search for local datasources",
     "init-network": "searching for network datasources",
@@ -27,7 +31,7 @@ CLOUD_INIT_JOURNALCTL_FMT = "%b %d %H:%M:%S.%f %Y"
 DEFAULT_FMT = "%b %d %H:%M:%S %Y"
 
 
-def parse_timestamp(timestampstr):
+def parse_timestamp(timestampstr: str) -> float:
     # default syslog time does not include the current year
     months = [calendar.month_abbr[m] for m in range(1, 13)]
     if timestampstr.split()[0] in months:
@@ -54,16 +58,19 @@ def parse_timestamp(timestampstr):
     return float(timestamp)
 
 
-def has_gnu_date():
+def has_gnu_date() -> bool:
     """GNU date includes a string containing the word GNU in it in
     help output. Posix date does not. Use this to indicate on Linux
     systems without GNU date that the extended parsing is not
     available.
     """
-    return "GNU" in subp.subp(["date", "--help"]).stdout
+    try:
+        return "GNU" in subp.subp(["date", "--help"]).stdout
+    except subp.ProcessExecutionError:
+        return False
 
 
-def parse_timestamp_from_date(timestampstr):
+def parse_timestamp_from_date(timestampstr: str) -> float:
     if not util.is_Linux() and subp.which("gdate"):
         date = "gdate"
     elif has_gnu_date():
@@ -72,12 +79,22 @@ def parse_timestamp_from_date(timestampstr):
         raise ValueError(
             f"Unable to parse timestamp without GNU date: [{timestampstr}]"
         )
+    # Transitional: shelling out to GNU date is slated for removal in favor of
+    # native Python parsing. Log the unrecognized timestamp so maintainers can
+    # collect formats that need direct support (see GH-4357).
+    LOG.warning(
+        "analyze: falling back to GNU %s(1) to parse unrecognized "
+        "timestamp %r; please report this format upstream so it can be "
+        "handled natively in Python.",
+        date,
+        timestampstr,
+    )
     return float(
         subp.subp([date, "-u", "+%s.%3N", "-d", timestampstr]).stdout.strip()
     )
 
 
-def parse_ci_logline(line):
+def parse_ci_logline(line: str) -> Optional[Dict[str, Any]]:
     # Stage Starts:
     # Cloud-init v. 0.7.7 running 'init-local' at \
     #               Fri, 02 Sep 2016 19:28:07 +0000. Up 1.0 seconds.
@@ -163,7 +180,10 @@ def parse_ci_logline(line):
     return event
 
 
-def dump_events(cisource=None, rawdata=None):
+def dump_events(
+    cisource: Optional[IO[str]] = None,
+    rawdata: Optional[str] = None,
+) -> Tuple[List[Dict[str, Any]], List[str]]:
     events = []
     event = None
     CI_EVENT_MATCHES = ["start:", "finish:", "Cloud-init v."]
@@ -171,10 +191,14 @@ def dump_events(cisource=None, rawdata=None):
     if not any([cisource, rawdata]):
         raise ValueError("Either cisource or rawdata parameters are required")
 
-    if rawdata:
+    if rawdata is not None:
         data = rawdata.splitlines()
-    else:
+    elif cisource is not None:
         data = cisource.readlines()
+    else:
+        raise ValueError(
+            "Either cisource or rawdata parameters must have a value"
+        )
 
     for line in data:
         for match in CI_EVENT_MATCHES:
@@ -189,9 +213,9 @@ def dump_events(cisource=None, rawdata=None):
     return events, data
 
 
-def main():
+def main() -> str:
     if len(sys.argv) > 1:
-        cisource = open(sys.argv[1])
+        cisource: TextIO = open(sys.argv[1])
     else:
         cisource = sys.stdin
 

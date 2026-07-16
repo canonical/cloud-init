@@ -1,0 +1,20 @@
+In this example we will create empty ``network-config`` and ``meta-data``
+files, and create a ``user-data`` file with a basic cloud-init configuration.
+
+If you have network configuration or metadata to provide, edit the
+``network-config`` and ``meta-data`` files accordingly.
+
+To create the files, run the following commands:
+
+.. code-block:: shell-session
+
+    $ touch network-config
+    $ touch meta-data
+    $ cat >user-data <<EOF
+    #cloud-config
+    password: password
+    chpasswd:
+      expire: False
+    ssh_pwauth: True
+    EOF
+

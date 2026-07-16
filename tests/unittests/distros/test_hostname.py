@@ -1,7 +1,4 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-
-import unittest
-
 from cloudinit.distros.parsers import hostname
 
 BASE_HOSTNAME = """
@@ -13,27 +10,27 @@ blahblah
 BASE_HOSTNAME = BASE_HOSTNAME.strip()
 
 
-class TestHostnameHelper(unittest.TestCase):
+class TestHostnameHelper:
     def test_parse_same(self):
         hn = hostname.HostnameConf(BASE_HOSTNAME)
-        self.assertEqual(str(hn).strip(), BASE_HOSTNAME)
-        self.assertEqual(hn.hostname, "blahblah")
+        assert str(hn).strip() == BASE_HOSTNAME
+        assert hn.hostname == "blahblah"
 
     def test_no_adjust_hostname(self):
         hn = hostname.HostnameConf(BASE_HOSTNAME)
         prev_name = hn.hostname
         hn.set_hostname("")
-        self.assertEqual(hn.hostname, prev_name)
+        assert hn.hostname == prev_name
 
     def test_adjust_hostname(self):
         hn = hostname.HostnameConf(BASE_HOSTNAME)
         prev_name = hn.hostname
-        self.assertEqual(prev_name, "blahblah")
+        assert prev_name == "blahblah"
         hn.set_hostname("bbbbd")
-        self.assertEqual(hn.hostname, "bbbbd")
+        assert hn.hostname == "bbbbd"
         expected_out = """
 # My super-duper-hostname
 
 bbbbd
 """
-        self.assertEqual(str(hn).strip(), expected_out.strip())
+        assert str(hn).strip() == expected_out.strip()

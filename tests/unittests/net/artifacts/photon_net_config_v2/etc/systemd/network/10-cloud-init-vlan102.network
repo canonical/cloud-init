@@ -1,0 +1,22 @@
+[Address]
+Address=10.100.102.10/24
+
+[Link]
+MTUBytes=1400
+
+[Match]
+Name=vlan102
+
+[Network]
+DHCP=no
+DNS=8.8.8.8 1.0.0.1
+Domains=vlan102.local
+
+[Route]
+Destination=0.0.0.0/0
+Gateway=10.100.102.1
+Table=102
+
+[RoutingPolicyRule]
+From=10.100.102.10
+Table=102
