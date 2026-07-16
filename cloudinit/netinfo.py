@@ -135,8 +135,8 @@ def _netdev_info_iproute(ipaddr_out):
                 "up": bool("UP" in flags and "LOWER_UP" in flags),
             }
         elif dev_name is None:
-            # Skip any address lines appearing before the first device header
-            continue
+            # An address line appeared before any device header.
+            raise KeyError(dev_name)
         elif "inet6" in line:
             m = re.match(
                 r"\s+inet6\s(?P<ip>\S+)"
