@@ -534,8 +534,8 @@ class TestFstabHandling:
             """  # noqa: E501
             ).strip()
         )
-    
-    def test_overlay_dirs_are_created(self, mocker, fake_fs):
+
+    def test_overlay_dirs_are_created(self, mocker):
         ensure_dir = mocker.patch("cloudinit.config.cc_mounts.util.ensure_dir")
 
         cc = {
