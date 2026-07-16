@@ -294,6 +294,10 @@ class TestUpgrade:
         missing_attrs = ds.__dict__.keys() - previous_obj_pkl.__dict__.keys()
         for attr in missing_attrs:
             assert attr in expected
+        missing_ds_cfg_attrs = (
+            ds.ds_cfg.keys() - previous_obj_pkl.ds_cfg.keys()
+        )
+        assert set() == missing_ds_cfg_attrs
 
     def test_networking_set_on_distro(self, previous_obj_pkl):
         """We always expect to have ``.networking`` on ``Distro`` objects."""

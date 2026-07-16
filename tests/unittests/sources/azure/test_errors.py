@@ -266,6 +266,7 @@ def test_unhandled_exception():
         "None",
         None,
     ],
+    ids=["running", "string-none", "none-value"],
 )
 def test_imds_invalid_metadata(value):
     key = "compute"

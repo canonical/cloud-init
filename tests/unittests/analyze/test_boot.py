@@ -160,7 +160,7 @@ class TestAnalyzeBoot:
         finish_code = analyze_boot(name_default, args)
 
         self.remove_dummy_file(path, log_path)
-        assert FAIL_CODE == finish_code
+        assert 1 == finish_code
 
     @mock.patch("cloudinit.util.is_container", return_value=True)
     @mock.patch("cloudinit.subp.subp", return_value=("U=1000000", None))
@@ -190,7 +190,7 @@ class TestAnalyzeBoot:
         finish_code = analyze_boot(name_default, args)
 
         self.remove_dummy_file(path, log_path)
-        assert CONTAINER_CODE == finish_code
+        assert 0 == finish_code
 
     @mock.patch("cloudinit.analyze.show.SystemctlReader")
     @pytest.mark.parametrize(

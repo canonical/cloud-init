@@ -369,7 +369,7 @@ def parse_fstab() -> Tuple[List[str], Dict[str, str], List[str]]:
                 continue
             toks = line.split()
             if toks:
-                fstab_devs[toks[0]] = line
+                fstab_devs[util.unescape_fstab_field(toks[0])] = line
                 fstab_lines.append(line)
     return fstab_lines, fstab_devs, fstab_removed
 
@@ -584,7 +584,18 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         LOG.debug("No modifications to fstab needed")
         return
 
-    cfg_lines = ["\t".join(entry) for entry in updated_cfg]
+    # Only fs_spec (device) and fs_file (mount point) can contain values that
+    # need escaping; the remaining fstab fields never do, so we skip them.
+    cfg_lines = [
+        "\t".join(
+            [
+                util.escape_fstab_field(entry[0]),
+                util.escape_fstab_field(entry[1]),
+                *entry[2:],
+            ]
+        )
+        for entry in updated_cfg
+    ]
 
     dirs = [d[1] for d in updated_cfg if d[1].startswith("/")]
     for entry in updated_cfg:

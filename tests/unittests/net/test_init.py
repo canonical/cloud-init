@@ -1731,6 +1731,13 @@ class TestIsIpAddress:
             (lambda _: ipaddress.IPv6Address("2001:db8::"), True),
             (lambda _: ipaddress.IPv6Address("2001:db8::/48"), False),
         ),
+        ids=(
+            "value-error",
+            "ipv4-address",
+            "ipv4-network",
+            "ipv6-address",
+            "ipv6-network",
+        ),
     )
     def test_is_ip_address(self, ip_address_side_effect, expected_return):
         with mock.patch(
