@@ -492,6 +492,13 @@ class NMConnection:
 
         # Parse type-specific properties
         for nm_prop, key in _prop_map[if_type].items():
+            # Either dashes or underscores may separate the words in a
+            # bond option name: v1 config uses underscores
+            # (bond-fail_over_mac) while v2-derived config uses dashes
+            # (bond-fail-over-mac). Accept both spellings, as the
+            # sysconfig and eni renderers already do.
+            if key not in iface:
+                key = key.replace("_", "-")
             if key not in iface:
                 continue
             if iface[key] is None:
