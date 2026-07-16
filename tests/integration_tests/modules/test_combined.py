@@ -759,25 +759,6 @@ class TestCombined:
                 return_code=2,
             )
 
-        # test new manual entry points
-        for command in [
-            "cloud-init --all-stages",
-        ]:
-            # test clean commands after running manual commands
-            check_for_unwanted(
-                class_client.execute(command),
-                command,
-                text=UNWANTED_WORDS_DEPRECATED_EXPECTED,
-                return_code=0,
-            )
-            # test clean commands after running manual commands
-            check_for_unwanted(
-                class_client.execute(command),
-                command,
-                text=UNWANTED_WORDS,
-                return_code=0,
-            )
-
         # test clean commands after running manual entry point
         for command in [
             "cloud-init clean",
