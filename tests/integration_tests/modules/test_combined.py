@@ -826,13 +826,12 @@ class TestCombined:
                 text=UNWANTED_WORDS_WARNING_EXPECTED,
             )
 
-
-# TODO: add tests for commands as an unpriveledged user
-#
-# cloud-init schema -c file.yml
-# cloud-init devel render
-# cloud-init devel make-mime
-# cloud-init devel net-convert
+    # TODO: add tests for commands as an unpriveledged user
+    #
+    # cloud-init schema -c file.yml
+    # cloud-init devel render
+    # cloud-init devel make-mime
+    # cloud-init devel net-convert
 
     @pytest.mark.skipif(not IS_UBUNTU, reason="Ubuntu-only behavior")
     def test_networkd_wait_online(self, class_client: IntegrationInstance):
