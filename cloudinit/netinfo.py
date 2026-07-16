@@ -21,7 +21,6 @@ from cloudinit.simpletable import SimpleTable
 
 LOG = logging.getLogger(__name__)
 
-
 # Example netdev format:
 # {'eth0': {'hwaddr': '00:16:3e:16:db:54',
 #           'ipv4': [{'bcast': '10.85.130.255',
@@ -39,19 +38,19 @@ LOG = logging.getLogger(__name__)
 #                   'scope': 'host'}],
 #         'ipv6': [{'ip': '::1/128', 'scope6': 'host'}],
 #         'up': True}}
-class Interface(TypedDict):
-    up: bool
-    hwaddr: str
-    ipv4: List[dict]
-    ipv6: List[dict]
-
-
-DEFAULT_NETDEV_INFO: Interface = {
+DEFAULT_NETDEV_INFO: "Interface" = {
     "ipv4": [],
     "ipv6": [],
     "hwaddr": "",
     "up": False,
 }
+
+
+class Interface(TypedDict):
+    up: bool
+    hwaddr: str
+    ipv4: List[dict]
+    ipv6: List[dict]
 
 
 def _netdev_info_iproute_json(ipaddr_json):
