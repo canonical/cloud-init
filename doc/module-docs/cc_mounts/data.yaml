@@ -11,7 +11,12 @@ cc_mounts:
     omitted. Any mounts that do not appear to either an attached block device
     or network resource will be skipped with a log like "Ignoring nonexistent
     mount ...".
-    
+
+    Whitespace and other special characters in the ``fs_spec`` and ``fs_file``
+    fields are automatically octal-escaped when written to ``/etc/fstab`` (for
+    example, a space becomes ``\040``), so mount points containing spaces work
+    without any manual escaping in the config.
+
     Cloud-init will attempt to add the following mount directives if available
     and unconfigured in ``/etc/fstab``:
 
@@ -65,5 +70,11 @@ cc_mounts:
       Example 2: Create a 2 GB swap file at ``/swapfile`` using human-readable
       values.
     file: cc_mounts/example2.yaml
+  - comment: >
+      Example 3: Mount a device at a mount point whose path contains a space.
+      Whitespace and other special characters in the ``fs_spec`` and
+      ``fs_file`` fields are automatically escaped (e.g. a space is written as
+      ``\040``) so that the resulting ``/etc/fstab`` entry can be parsed.
+    file: cc_mounts/example3.yaml
   name: Mounts
   title: Configure mount points and swap files
