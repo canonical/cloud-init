@@ -1466,16 +1466,16 @@ class TestNetworkConfig:
     def test_keep_configuration_set_from_imds_fallback(
         self, m_get_interfaces_by_mac, oracle_ds, mocker
     ):
-        """iSCSI root with no initramfs config (dracut) still marks the
+        """iSCSI root with no klibc config (dracut) still marks the
         primary NIC critical when config comes from IMDS."""
         m_get_interfaces_by_mac.return_value = {
             "02:00:17:05:d1:db": "ens3",
             "00:00:17:02:2b:b1": "ens4",
         }
         mocker.patch.object(
-            oracle_ds,
-            "_get_iscsi_config",
-            return_value={"version": 1, "config": []},
+            oracle_ds._network_config_source,
+            "is_applicable",
+            return_value=False,
         )
         oracle_ds._vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)
 

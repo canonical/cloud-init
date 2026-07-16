@@ -52,8 +52,8 @@ MTU = 9000
 # iBFT target flags exposed by the kernel's iscsi_ibft module. A target that
 # is both valid and firmware-boot-selected indicates an iSCSI boot device.
 IBFT_TARGET_FLAGS_GLOB = "/sys/firmware/ibft/target*/flags"
-TGT_BLOCK_VALID = 0x01
-TGT_FIRMWARE_BOOT_SELECTED = 0x02
+IBFT_TGT_BLOCK_VALID = 0x01
+IBFT_TGT_FIRMWARE_BOOT_SELECTED = 0x02
 
 
 class ReadOpcMetadataResponse(NamedTuple):
@@ -80,7 +80,10 @@ def _ibft_has_iscsi_boot_target() -> bool:
     for flags_path in glob.glob(IBFT_TARGET_FLAGS_GLOB):
         try:
             flags = int(util.load_text_file(flags_path).strip())
-            if flags & TGT_BLOCK_VALID and flags & TGT_FIRMWARE_BOOT_SELECTED:
+            if (
+                flags & IBFT_TGT_BLOCK_VALID
+                and flags & IBFT_TGT_FIRMWARE_BOOT_SELECTED
+            ):
                 LOG.debug(
                     "Detected iSCSI boot target via iBFT: %s", flags_path
                 )
