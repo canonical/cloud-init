@@ -857,6 +857,7 @@ class TestCombinedNoCI:
         """
         client = class_client
         ssh_output = client.read_from_file("/home/ubuntu/.ssh/authorized_keys")
+        assert "# ssh-import-id gh:blackboxsw" in ssh_output
 
 
 def check_for_unwanted(
