@@ -54,7 +54,7 @@ from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
 from cloudinit.lifecycle import log_with_downgradable_level
 from cloudinit.net import activators, dhcp, renderers
 from cloudinit.net.netops import NetOps
-from cloudinit.net.network_state import parse_net_config_data
+from cloudinit.net.network_state import NetworkState, parse_net_config_data
 from cloudinit.net.renderer import Renderer
 
 # Used when a cloud-config module can be run on all cloud-init distributions.
@@ -233,7 +233,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 generic_packages.add(self._validate_entry(entry))
         return dict(packages_by_manager), generic_packages
 
-    def install_packages(self, pkglist: PackageList):
+    def install_packages(self, pkglist: PackageList) -> None:
         error_message = (
             "Failed to install the following packages: %s. "
             "See associated package manager logs for more details."
@@ -371,10 +371,10 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         renderer = render_cls(config=self.renderer_configs.get(name))
         return renderer
 
-    def _write_network_state(self, network_state, renderer: Renderer):
+    def _write_network_state(self, network_state: NetworkState, renderer: Renderer) -> None:
         renderer.render_network_state(network_state)
 
-    def _find_tz_file(self, tz):
+    def _find_tz_file(self, tz: str | Any) -> str:
         tz_file = os.path.join(self.tz_zone_dir, str(tz))
         if not os.path.isfile(tz_file):
             raise IOError(
@@ -382,24 +382,24 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             )
         return tz_file
 
-    def get_option(self, opt_name, default=None):
+    def get_option(self, opt_name: str, default: Any = None) -> Any:
         return self._cfg.get(opt_name, default)
 
-    def set_option(self, opt_name, value=None):
+    def set_option(self, opt_name: str, value: Any = None):
         self._cfg[opt_name] = value
 
-    def set_hostname(self, hostname, fqdn=None):
+    def set_hostname(self, hostname: str, fqdn: str | None = None) -> None:
         writeable_hostname = self._select_hostname(hostname, fqdn)
         self._write_hostname(writeable_hostname, self.hostname_conf_fn)
         self._apply_hostname(writeable_hostname)
 
     @staticmethod
-    def uses_systemd():
+    def uses_systemd() -> bool:
         """Wrapper to report whether this distro uses systemd or sysvinit."""
         return uses_systemd()
 
     @abc.abstractmethod
-    def package_command(self, command, args=None, pkgs=None):
+    def package_command(self, command: str, args=None, pkgs=None):
         # Long-term, this method should be removed and callers refactored.
         # Very few commands are going to be consistent across all package
         # managers.
