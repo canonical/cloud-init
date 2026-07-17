@@ -596,7 +596,7 @@ def netdev_pformat():
         fields = ["Device", "Up", "Address", "Mask", "Scope", "Hw-Address"]
         tbl = SimpleTable(fields)
         for dev, data in sorted(netdev.items()):
-            ipv4_addrs = data["ipv4"]
+            ipv4_addrs = data.get("ipv4", [])
             for addr in ipv4_addrs:
                 tbl.add_row(
                     (
@@ -609,7 +609,7 @@ def netdev_pformat():
                     )
                 )
 
-            ipv6_addrs = data["ipv6"]
+            ipv6_addrs = data.get("ipv6", [])
             for addr in ipv6_addrs:
                 tbl.add_row(
                     (
