@@ -14,6 +14,7 @@ Notes:
 """
 
 import base64
+import glob
 import ipaddress
 import json
 import logging
@@ -48,6 +49,12 @@ V2_HEADERS = {"Authorization": "Bearer Oracle"}
 # indicates that an MTU of 9000 is used within OCI
 MTU = 9000
 
+# iBFT target flags exposed by the kernel's iscsi_ibft module. A target that
+# is both valid and firmware-boot-selected indicates an iSCSI boot device.
+IBFT_TARGET_FLAGS_GLOB = "/sys/firmware/ibft/target*/flags"
+IBFT_TGT_BLOCK_VALID = 0x01
+IBFT_TGT_FIRMWARE_BOOT_SELECTED = 0x02
+
 
 class ReadOpcMetadataResponse(NamedTuple):
     version: int
@@ -66,6 +73,24 @@ class KlibcOracleNetworkConfigSource(cmdline.KlibcNetworkConfigSource):
     def _is_applicable(self) -> bool:
         """Override _is_applicable"""
         return bool(self._files)
+
+
+def _ibft_has_iscsi_boot_target() -> bool:
+    """Return True if an iBFT target is flagged as a firmware boot device."""
+    for flags_path in glob.glob(IBFT_TARGET_FLAGS_GLOB):
+        try:
+            flags = int(util.load_text_file(flags_path).strip())
+            if (
+                flags & IBFT_TGT_BLOCK_VALID
+                and flags & IBFT_TGT_FIRMWARE_BOOT_SELECTED
+            ):
+                LOG.debug(
+                    "Detected iSCSI boot target via iBFT: %s", flags_path
+                )
+                return True
+        except (OSError, ValueError):
+            continue
+    return False
 
 
 def _ensure_netfailover_safe(network_config: NetworkConfig) -> None:
@@ -216,7 +241,9 @@ class DataSourceOracle(sources.DataSource):
             )
         else:
             network_context = util.nullcontext()
-        fetch_primary_nic = not self._is_iscsi_root()
+        # Use the klibc source directly rather than _is_iscsi_root: iBFT may
+        # report iSCSI root even when no klibc files exist to render config.
+        fetch_primary_nic = not self._network_config_source.is_applicable()
         fetch_secondary_nics = self.ds_cfg.get(
             "configure_secondary_nics",
             BUILTIN_DS_CONFIG["configure_secondary_nics"],
@@ -274,7 +301,7 @@ class DataSourceOracle(sources.DataSource):
 
     def _is_iscsi_root(self) -> bool:
         """Return whether we are on a iscsi machine."""
-        return self._network_config_source.is_applicable()
+        return _ibft_has_iscsi_boot_target()
 
     def _get_iscsi_config(self) -> dict:
         return self._network_config_source.render_config()
@@ -293,15 +320,8 @@ class DataSourceOracle(sources.DataSource):
             return self._network_config
 
         set_primary = False
-        if self._is_iscsi_root():
+        if self._network_config_source.is_applicable():
             self._network_config = self._get_iscsi_config()
-            logging.debug(
-                "Instance is using iSCSI root, setting primary NIC as critical"
-            )
-            # This is necessary for Oracle baremetal instances in case they are
-            # running on an IPv6-only network. Without this, they become
-            # unreachable/unrecoverable after a shutdown.
-            self._network_config["config"][0]["keep_configuration"] = True
         if not self._has_network_config():
             LOG.debug(
                 "Could not obtain network configuration from initramfs. "
@@ -323,6 +343,14 @@ class DataSourceOracle(sources.DataSource):
                     LOG,
                     "Failed to parse IMDS network configuration!",
                 )
+
+        # On iSCSI root, mark the primary NIC as critical so it is not torn
+        # down on shutdown, whether config came from initramfs or IMDS.
+        if self._is_iscsi_root() and self._has_network_config():
+            LOG.debug(
+                "Instance is using iSCSI root, setting primary NIC as critical"
+            )
+            self._network_config["config"][0]["keep_configuration"] = True
 
         # we need to verify that the nic selected is not a netfail over
         # device and, if it is a netfail master, then we need to avoid
