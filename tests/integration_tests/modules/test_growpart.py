@@ -70,3 +70,61 @@ class TestGrowPart:
         assert len(sdb["children"]) == 1
         assert sdb["children"][0]["name"] == "sdb1"
         assert sdb["size"] == "16M"
+
+
+@pytest.mark.skipif(
+    PLATFORM != "lxd_vm",
+    reason="Test requires loop device and LVM which need VM isolation",
+)
+class TestGrowPartLVM:
+    """
+    Test that LVM partitions are correctly resized.
+
+    This test uses a bootcmd to create a loop device and partition it using
+    LVM.  The underlying partition does not used the whole loop "disk", nor
+    does the Logical Volume we create use the whole of the Physical Volume.
+
+    This test checks that, after boot, the Logical Volume has been resized to
+    use the whole loop device (with some allowance for partitioning/LVM
+    overhead).
+    """
+
+    # These steps pulled from https://ops.tips/blog/lvm-on-loopback-devices/
+    LVM_USER_DATA = """\
+    #cloud-config
+    bootcmd:
+        # Create our LVM "disk"
+        - dd if=/dev/zero of=/lvm0.img bs=50 count=1M
+        # Use loop7 because snaps take up the early numbers
+        - losetup /dev/loop7 /lvm0.img
+        # Create an LVM partition on the first half of the disk
+        - echo "start=1,size=25M,type=8e" | sfdisk /dev/loop7
+        # Update the kernel's partition table
+        - partx --update /dev/loop7
+        # Create our LVM PV and VG
+        - pvcreate /dev/loop7p1
+        - vgcreate myvg /dev/loop7p1
+        # Create our LV with a smaller size than the whole PV
+        - lvcreate --size 10M --name lv1 myvg
+        # Create a filesystem to resize
+        - mkfs.ext4 /dev/mapper/myvg-lv1
+    growpart:
+        devices: ["/dev/mapper/myvg-lv1"]
+    """
+
+    # Our disk is 50M; with 4MB extents, this will mean 48M for the Logical
+    # Volume, so use a slightly lower threshold than that
+    LVM_LOWER_THRESHOLD = 47 * 1024 * 1024
+
+    @pytest.mark.user_data(LVM_USER_DATA)
+    def test_resize_successful(self, client):
+        def _get_size_of(device):
+            ret = client.execute(
+                ["lsblk", "-b", "--output", "SIZE", "-n", "-d", device]
+            )
+            if ret.ok:
+                return int(ret.stdout.strip())
+            pytest.fail("Failed to get size of {}: {}".format(device, ret))
+
+        assert _get_size_of("/dev/loop7p1") > self.LVM_LOWER_THRESHOLD
+        assert _get_size_of("/dev/mapper/myvg-lv1") > self.LVM_LOWER_THRESHOLD
