@@ -128,7 +128,7 @@ class PackageInstallerError(Exception):
 
 
 class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
-    pip_package_name = "python3-pip"
+    pip_package_name: str = "python3-pip"
     usr_lib_exec = "/usr/lib"
     hosts_fn = "/etc/hosts"
     doas_fn = "/etc/doas.conf"
@@ -142,7 +142,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     default_owner = "root:root"
     init_cmd: List[str] = ["service"]  # systemctl, service etc
     renderer_configs: Mapping[str, MutableMapping[str, Any]] = {}
-    _preferred_ntp_clients = None
+    _preferred_ntp_clients: List[str] | None = None
     networking_cls: Type[Networking] = LinuxNetworking
     # This is used by self.shutdown_command(), and can be overridden in
     # subclasses
@@ -172,8 +172,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         self.net_ops = iproute2.Iproute2
         self._runner = helpers.Runners(paths)
         self.package_managers: List[PackageManager] = []
-        self._dhcp_client = None
-        self._fallback_interface = None
+        self._dhcp_client: dhcp.DhcpClient | None  = None
+        self._fallback_interface: str | None = None
         self.is_linux = True
 
     def _unpickle(self, ci_pkl_version: int) -> None:
@@ -194,7 +194,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         if not hasattr(self, "is_linux"):
             self.is_linux = True
 
-    def _validate_entry(self, entry: str | List | Tuple) -> str | Tuple:
+    def _validate_entry(self, entry: str | List[str] | Mapping) -> str | Tuple:
         if isinstance(entry, str):
             return entry
         elif isinstance(entry, (list, tuple)):
@@ -649,7 +649,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             util.write_file(self.hosts_fn, contents.getvalue(), mode=0o644)
 
     @property
-    def preferred_ntp_clients(self):
+    def preferred_ntp_clients(self) -> List[str]:
         """Allow distro to determine the preferred ntp client list"""
         if not self._preferred_ntp_clients:
             self._preferred_ntp_clients = list(PREFERRED_NTP_CLIENTS)
@@ -1461,7 +1461,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return self._fallback_interface
 
     @fallback_interface.setter
-    def fallback_interface(self, value):
+    def fallback_interface(self, value: str | None):
         self._fallback_interface = value
 
     @staticmethod
