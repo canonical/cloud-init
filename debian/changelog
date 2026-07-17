@@ -1,8 +1,8 @@
-cloud-init (26.2~3gbd85f29d-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (26.2~3gbd85f29d-0ubuntu1) stonking; urgency=medium
 
   * Upstream snapshot based on upstream/main at bd85f29d.
 
- -- Chad Smith <chad.smith@canonical.com>  Fri, 17 Jul 2026 16:08:25 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 17 Jul 2026 16:08:31 -0600
 
 cloud-init (26.2~2gfa1bca7e-0ubuntu1) stonking; urgency=medium
 
