@@ -849,7 +849,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 return True
         return False
 
-    def create_user(self, name: str, **kwargs: Any) -> bool:
+    def create_user(self, name: str, **kwargs: Any) -> str | bool:
         """
         Creates or partially updates the ``name`` user in the system.
 
