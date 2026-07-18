@@ -163,7 +163,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     # their lease file name format
     dhclient_lease_file_regex: Optional[str] = None
 
-    def __init__(self, name: str, cfg: Dict[str, Any], paths: helpers.Paths):
+    def __init__(self, name: str, cfg: Dict[str, Any], paths: helpers.Paths | None):
         self._paths = paths
         self._cfg = cfg
         self.name = name
@@ -374,7 +374,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def _write_network_state(self, network_state: NetworkState, renderer: Renderer) -> None:
         renderer.render_network_state(network_state)
 
-    def _find_tz_file(self, tz: str | Any) -> str:
+    def _find_tz_file(self, tz: Any) -> str:
         tz_file = os.path.join(self.tz_zone_dir, str(tz))
         if not os.path.isfile(tz_file):
             raise IOError(
@@ -399,13 +399,13 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return uses_systemd()
 
     @abc.abstractmethod
-    def package_command(self, command: str, args=None, pkgs=None):
+    def package_command(self, command: str, args: str | List | None = None, pkgs: List | None = None):
         # Long-term, this method should be removed and callers refactored.
         # Very few commands are going to be consistent across all package
         # managers.
         raise NotImplementedError()
 
-    def update_package_sources(self, *, force=False):
+    def update_package_sources(self, *, force: bool = False) -> None:
         for manager in self.package_managers:
             if not manager.available():
                 LOG.debug(
@@ -420,19 +420,19 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                     "Failed to update package using %s: %s", manager.name, e
                 )
 
-    def get_primary_arch(self):
+    def get_primary_arch(self) -> str:
         arch = os.uname()[4]
         if arch in ("i386", "i486", "i586", "i686"):
             return "i386"
         return arch
 
-    def _get_arch_package_mirror_info(self, arch=None):
+    def _get_arch_package_mirror_info(self, arch: str | None = None):
         mirror_info = self.get_option("package_mirrors", [])
         if not arch:
             arch = self.get_primary_arch()
         return _get_arch_package_mirror_info(mirror_info, arch)
 
-    def get_package_mirror_info(self, arch=None, data_source=None):
+    def get_package_mirror_info(self, arch: str | None = None, data_source: Any = None) -> dict:
         # This resolves the package_mirrors config option
         # down to a single dict of {mirror_name: mirror_url}
         arch_info = self._get_arch_package_mirror_info(arch)
@@ -440,10 +440,10 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             data_source=data_source, mirror_info=arch_info
         )
 
-    def generate_fallback_config(self):
+    def generate_fallback_config(self) -> dict | None:
         return net.generate_fallback_config()
 
-    def apply_network_config(self, netconfig, bring_up=False) -> bool:
+    def apply_network_config(self, netconfig: dict, bring_up: bool = False) -> bool:
         """Apply the network config.
 
         If bring_up is True, attempt to bring up the passed in devices. If
@@ -473,21 +473,21 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return False
 
     @abc.abstractmethod
-    def apply_locale(self, locale, out_fn=None):
+    def apply_locale(self, locale: str, out_fn: str | None = None):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def set_timezone(self, tz):
+    def set_timezone(self, tz: Any):
         raise NotImplementedError()
 
     def _get_localhost_ip(self):
         return "127.0.0.1"
 
-    def get_locale(self):
+    def get_locale(self) -> str:
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def _read_hostname(self, filename, default=None):
+    def _read_hostname(self, filename: str, default=None):
         raise NotImplementedError()
 
     @abc.abstractmethod
@@ -1461,7 +1461,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return self._fallback_interface
 
     @fallback_interface.setter
-    def fallback_interface(self, value: str | None):
+    def fallback_interface(self, value: str):
         self._fallback_interface = value
 
     @staticmethod
