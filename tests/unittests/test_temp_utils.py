@@ -3,6 +3,7 @@
 """Tests for cloudinit.temp_utils"""
 
 import os
+import stat
 from tempfile import gettempdir
 
 import pytest
@@ -119,6 +120,25 @@ class TestTempUtils:
         )
         assert "/fake/return/path" == retval
         assert [{"dir": "/run/cloud-init/tmp"}] == calls
+
+    def test_mkdtemp_creates_missing_ancestor_not_world_writable(
+        self, tmp_path
+    ):
+        """mkdtemp creates missing ancestor dirs with mode 0o700 (GH-4189)."""
+        ancestor = str(tmp_path / "scratch")
+        retval = mkdtemp(dir=ancestor)
+        assert os.path.isdir(retval)
+        assert 0o700 == stat.S_IMODE(os.stat(ancestor).st_mode)
+
+    def test_mkstemp_creates_missing_ancestor_not_world_writable(
+        self, tmp_path
+    ):
+        """mkstemp creates missing ancestor dirs with mode 0o700 (GH-4189)."""
+        ancestor = str(tmp_path / "scratch")
+        fd, retval = mkstemp(dir=ancestor)
+        os.close(fd)
+        assert os.path.isfile(retval)
+        assert 0o700 == stat.S_IMODE(os.stat(ancestor).st_mode)
 
     def test_tempdir_error_suppression(self):
         """test tempdir suppresses errors during directory removal."""
