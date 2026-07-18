@@ -968,10 +968,19 @@ def get_interfaces_by_mac_on_openbsd() -> dict:
 def get_interfaces_by_mac_on_linux() -> dict:
     """Build a dictionary of tuples {mac: name}.
 
-    Bridges and any devices that have a 'stolen' mac are excluded."""
+    Bridges and devices that have a 'stolen' mac are excluded,
+    with exception of r8152."""
     ret: dict = {}
 
-    for name, mac, driver, _devid in get_interfaces():
+    for name, mac, driver, _devid in get_interfaces(
+        filter_without_own_mac=False
+    ):
+        # Filter out interfaces that don't have their own MAC address, except
+        # for r8152: it reports NET_ADDR_STOLEN when using pass-thru MAC
+        # address. See https://github.com/canonical/cloud-init/issues/6110
+        if not interface_has_own_mac(name) and driver != "r8152":
+            continue
+
         if mac in ret:
             # This is intended to be a short-term fix of LP: #1997922
             # Long term, we should better handle configuration of virtual
@@ -987,6 +996,34 @@ def get_interfaces_by_mac_on_linux() -> dict:
                     ret[mac],
                     driver,
                 )
+                continue
+
+            # In case of Dell hardware, all Dell USB Ethernet interfaces (Dock,
+            # builtin USB NICs for laptops) will be assigned MAC address +1
+            # from the onboard NIC.  If there are multiple USB Ethernet
+            # interfaces, they will all use the same +1 MAC address. When it
+            # happens, tiebreak by preferring the interface that is connected,
+            # otherwise prefer the one that's lexically smaller.
+            if driver == "r8152":
+                # Prefer the connected interface (has carrier).  If both or
+                # neither are connected, fall back to a deterministic choice
+                # (the lexically smallest name) so the result is stable
+                # across enumeration order.
+                carrier = bool(read_sys_net_int(name, "carrier"))
+                stored_carrier = bool(read_sys_net_int(ret[mac], "carrier"))
+                if carrier > stored_carrier or (
+                    carrier == stored_carrier and name < ret[mac]
+                ):
+                    LOG.debug(
+                        "Replacing mac '%s' mapping from '%s' to '%s' "
+                        "(carrier: %s -> %s).",
+                        mac,
+                        ret[mac],
+                        name,
+                        stored_carrier,
+                        carrier,
+                    )
+                    ret[mac] = name
                 continue
 
             msg = "duplicate mac found! both '%s' and '%s' have mac '%s'." % (
