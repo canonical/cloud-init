@@ -6,7 +6,7 @@ import logging
 import os
 import shutil
 import tempfile
-from typing import Any, Iterator, Optional, Tuple
+from typing import Any, Iterator, Optional, Tuple, cast
 
 from cloudinit import util
 
@@ -61,32 +61,28 @@ def _tempfile_dir_arg(
     return tdir
 
 
-def ExtendedTemporaryFile(**kwargs: Any) -> Any:
-    kwargs["dir"] = _tempfile_dir_arg()
-    fh = tempfile.NamedTemporaryFile(**kwargs)
-    # Replace its unlink with a quiet version
-    # that does not raise errors when the
-    # file to unlink has been unlinked elsewhere..
-
-    def _unlink_if_exists(path: str) -> None:
+class _ExtendedTemporaryFile(tempfile._TemporaryFileWrapper):
+    def unlink(self, path: str) -> None:
         try:
             os.unlink(path)
         except OSError as e:
             if e.errno != errno.ENOENT:
                 raise e
 
-    setattr(fh, "unlink", _unlink_if_exists)
+    def unlink_now(self) -> None:
+        self.unlink(self.name)
 
-    # Add a new method that will unlink
-    # right 'now' but still lets the exit
-    # method attempt to remove it (which will
-    # not throw due to our del file being quiet
-    # about files that are not there)
-    def unlink_now() -> None:
-        fh.unlink(fh.name)
-
-    setattr(fh, "unlink_now", unlink_now)
-    return fh
+def ExtendedTemporaryFile(**kwargs: Any) -> _ExtendedTemporaryFile:
+    kwargs["dir"] = _tempfile_dir_arg()
+    fh = tempfile.NamedTemporaryFile(**kwargs)
+    # NamedTemporaryFile is a factory function that always builds a
+    # plain _TemporaryFileWrapper internally, so we can't construct
+    # our subclass directly. Reassigning __class__ after the fact is
+    # the standard way to extend it without depending on tempfile's
+    # private construction internals. mypy can't see this runtime
+    # class change, so we cast() to tell it the true resulting type.
+    fh.__class__ = _ExtendedTemporaryFile
+    return cast(_ExtendedTemporaryFile, fh)
 
 
 @contextlib.contextmanager
