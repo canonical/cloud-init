@@ -129,29 +129,29 @@ class PackageInstallerError(Exception):
 
 class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     pip_package_name: str = "python3-pip"
-    usr_lib_exec = "/usr/lib"
-    hosts_fn = "/etc/hosts"
-    doas_fn = "/etc/doas.conf"
-    ci_sudoers_fn = "/etc/sudoers.d/90-cloud-init-users"
-    hostname_conf_fn = "/etc/hostname"
-    shadow_fn = "/etc/shadow"
-    shadow_extrausers_fn = "/var/lib/extrausers/shadow"
+    usr_lib_exec: str = "/usr/lib"
+    hosts_fn: str = "/etc/hosts"
+    doas_fn: str = "/etc/doas.conf"
+    ci_sudoers_fn: str = "/etc/sudoers.d/90-cloud-init-users"
+    hostname_conf_fn: str = "/etc/hostname"
+    shadow_fn: str = "/etc/shadow"
+    shadow_extrausers_fn: str = "/var/lib/extrausers/shadow"
     # /etc/shadow match patterns indicating empty passwords
-    shadow_empty_locked_passwd_patterns = ["^{username}::", "^{username}:!:"]
-    tz_zone_dir = "/usr/share/zoneinfo"
-    default_owner = "root:root"
+    shadow_empty_locked_passwd_patterns: List[str] = ["^{username}::", "^{username}:!:"]
+    tz_zone_dir: str = "/usr/share/zoneinfo"
+    default_owner: str = "root:root"
     init_cmd: List[str] = ["service"]  # systemctl, service etc
     renderer_configs: Mapping[str, MutableMapping[str, Any]] = {}
     _preferred_ntp_clients: List[str] | None = None
     networking_cls: Type[Networking] = LinuxNetworking
     # This is used by self.shutdown_command(), and can be overridden in
     # subclasses
-    shutdown_options_map = {"halt": "-H", "poweroff": "-P", "reboot": "-r"}
+    shutdown_options_map: Dict[str, str] = {"halt": "-H", "poweroff": "-P", "reboot": "-r"}
     net_ops: Type[NetOps] = iproute2.Iproute2
 
-    _ci_pkl_version = 1
-    prefer_fqdn = False
-    resolve_conf_fn = "/etc/resolv.conf"
+    _ci_pkl_version: int = 1
+    prefer_fqdn: bool = False
+    resolve_conf_fn: str = "/etc/resolv.conf"
 
     osfamily: str
     # Directory where the distro stores their DHCP leases.
@@ -163,7 +163,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     # their lease file name format
     dhclient_lease_file_regex: Optional[str] = None
 
-    def __init__(self, name: str, cfg: Dict[str, Any], paths: helpers.Paths | None):
+    def __init__(self, name: str, cfg: Dict[str, Any], paths: helpers.Paths | None) -> None:
         self._paths = paths
         self._cfg = cfg
         self.name = name
@@ -385,13 +385,14 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def get_option(self, opt_name: str, default: Any = None) -> Any:
         return self._cfg.get(opt_name, default)
 
-    def set_option(self, opt_name: str, value: Any = None):
+    def set_option(self, opt_name: str, value: Any = None) -> None:
         self._cfg[opt_name] = value
 
     def set_hostname(self, hostname: str, fqdn: str | None = None) -> None:
         writeable_hostname = self._select_hostname(hostname, fqdn)
-        self._write_hostname(writeable_hostname, self.hostname_conf_fn)
-        self._apply_hostname(writeable_hostname)
+        if writeable_hostname:
+            self._write_hostname(writeable_hostname, self.hostname_conf_fn)
+            self._apply_hostname(writeable_hostname)
 
     @staticmethod
     def uses_systemd() -> bool:
@@ -399,7 +400,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return uses_systemd()
 
     @abc.abstractmethod
-    def package_command(self, command: str, args: str | List | None = None, pkgs: List | None = None):
+    def package_command(self, command: str, args: str | List | None = None, pkgs: List | None = None) -> None:
         # Long-term, this method should be removed and callers refactored.
         # Very few commands are going to be consistent across all package
         # managers.
@@ -426,7 +427,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             return "i386"
         return arch
 
-    def _get_arch_package_mirror_info(self, arch: str | None = None):
+    def _get_arch_package_mirror_info(self, arch: str | None = None) -> dict | None:
         mirror_info = self.get_option("package_mirrors", [])
         if not arch:
             arch = self.get_primary_arch()
@@ -473,32 +474,32 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return False
 
     @abc.abstractmethod
-    def apply_locale(self, locale: str, out_fn: str | None = None):
+    def apply_locale(self, locale: str, out_fn: str | None = None) -> None:
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def set_timezone(self, tz: Any):
+    def set_timezone(self, tz: Any) -> None:
         raise NotImplementedError()
 
-    def _get_localhost_ip(self):
+    def _get_localhost_ip(self) -> str:
         return "127.0.0.1"
 
     def get_locale(self) -> str:
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def _read_hostname(self, filename: str, default=None):
+    def _read_hostname(self, filename: str, default: str | None = None) -> str | None:
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def _write_hostname(self, hostname, filename):
+    def _write_hostname(self, hostname: str, filename: str | None) -> None:
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def _read_system_hostname(self):
+    def _read_system_hostname(self) -> Tuple[str, str | None]:
         raise NotImplementedError()
 
-    def _apply_hostname(self, hostname):
+    def _apply_hostname(self, hostname: str) -> None:
         # This really only sets the hostname
         # temporarily (until reboot so it should
         # not be depended on). Use the write
@@ -515,7 +516,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 hostname,
             )
 
-    def _select_hostname(self, hostname, fqdn):
+    def _select_hostname(self, hostname: str | None, fqdn: str | None) -> str | None:
         # Prefer the short hostname over the long
         # fully qualified domain name
         if (
@@ -530,7 +531,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return hostname
 
     @staticmethod
-    def expand_osfamily(family_list):
+    def expand_osfamily(family_list: List[str]) -> List[str]:
         distros = []
         for family in family_list:
             if family not in OSFAMILIES:
@@ -540,11 +541,15 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             distros.extend(OSFAMILIES[family])
         return distros
 
-    def update_hostname(self, hostname, fqdn, prev_hostname_fn):
+    def update_hostname(self, hostname: str, fqdn: str | None, prev_hostname_fn: str | None) -> None:
         applying_hostname = hostname
 
         # Determine what the actual written hostname should be
-        hostname = self._select_hostname(hostname, fqdn)
+        selected_hostname = self._select_hostname(hostname, fqdn)
+        if not selected_hostname:
+            LOG.warning("No valid hostname found, skipping hostname update")
+            return
+        hostname = selected_hostname
 
         # If the previous hostname file exists lets see if we
         # can get a hostname from it
@@ -605,7 +610,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         if sys_fn in update_files:
             self._apply_hostname(applying_hostname)
 
-    def update_etc_hosts(self, hostname, fqdn):
+    def update_etc_hosts(self, hostname: str, fqdn: str) -> None:
         header = ""
         if os.path.exists(self.hosts_fn):
             eh = hosts.HostsConf(util.load_text_file(self.hosts_fn))
@@ -656,7 +661,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         return self._preferred_ntp_clients
 
-    def get_default_user(self):
+    def get_default_user(self) -> dict | None:
         return self.get_option("default_user")
 
     def add_user(self, name, **kwargs) -> bool:
@@ -780,7 +785,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # Indicate that a new user was created
         return True
 
-    def add_snap_user(self, name, **kwargs):
+    def add_snap_user(self, name: str, **kwargs: Any) -> str:
         """
         Add a snappy user to the system using snappy tools
         """
@@ -810,7 +815,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         return username
 
-    def _shadow_file_has_empty_user_password(self, username) -> bool:
+    def _shadow_file_has_empty_user_password(self, username: str) -> bool:
         """
         Check whether username exists in shadow files with empty password.
 
@@ -844,7 +849,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 return True
         return False
 
-    def create_user(self, name, **kwargs):
+    def create_user(self, name: str, **kwargs: Any) -> bool:
         """
         Creates or partially updates the ``name`` user in the system.
 
@@ -1024,7 +1029,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 )
         return True
 
-    def lock_passwd(self, name):
+    def lock_passwd(self, name: str) -> None:
         """
         Lock the password of a user, i.e., disable password logins
         """
@@ -1043,7 +1048,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             util.logexc(LOG, "Failed to disable password for user %s", name)
             raise e
 
-    def unlock_passwd(self, name: str):
+    def unlock_passwd(self, name: str) -> None:
         """
         Unlock the password of a user, i.e., enable password logins
         """
@@ -1087,14 +1092,14 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 )
                 raise e
 
-    def expire_passwd(self, user):
+    def expire_passwd(self, user: str) -> None:
         try:
             subp.subp(["passwd", "--expire", user])
         except Exception as e:
             util.logexc(LOG, "Failed to set 'expire' for %s", user)
             raise e
 
-    def set_passwd(self, user, passwd, hashed=False):
+    def set_passwd(self, user: str, passwd: str, hashed: bool = False) -> bool:
         pass_string = "%s:%s" % (user, passwd)
         cmd = ["chpasswd"]
 
@@ -1114,7 +1119,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         return True
 
-    def chpasswd(self, plist_in: list, hashed: bool):
+    def chpasswd(self, plist_in: list, hashed: bool) -> None:
         payload = (
             "\n".join(
                 (":".join([name, password]) for name, password in plist_in)
@@ -1127,7 +1132,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         cmd = ["chpasswd"] + (["-e"] if hashed else [])
         subp.subp(cmd, data=payload)
 
-    def is_doas_rule_valid(self, user, rule):
+    def is_doas_rule_valid(self, user: str, rule: str) -> bool:
         rule_pattern = (
             r"^(?:permit|deny)"
             r"(?:\s+(?:nolog|nopass|persist|keepenv|setenv \{[^}]+\})+)*"
@@ -1159,7 +1164,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             LOG.debug("doas rule does not appear to reference any user")
             return False
 
-    def write_doas_rules(self, user, rules, doas_file=None):
+    def write_doas_rules(self, user: str, rules: List[str], doas_file: str | None = None) -> None:
         if not doas_file:
             doas_file = self.doas_fn
 
@@ -1195,7 +1200,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                     )
                     raise e
 
-    def ensure_sudo_dir(self, path, sudo_base="/etc/sudoers"):
+    def ensure_sudo_dir(self, path: str, sudo_base: str = "/etc/sudoers") -> None:
         # Ensure the dir is included and that
         # it actually exists as a directory
         sudoers_contents = ""
@@ -1249,7 +1254,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 raise e
         util.ensure_dir(path, 0o750)
 
-    def write_sudo_rules(self, user, rules, sudo_file=None):
+    def write_sudo_rules(self, user: str, rules: str | List[str] | Tuple[str, ...], sudo_file: str | None = None) -> None:
         if not sudo_file:
             sudo_file = self.ci_sudoers_fn
 
@@ -1290,7 +1295,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                     )
                     raise e
 
-    def create_group(self, name, members=None):
+    def create_group(self, name: str, members: List[str] | None = None) -> None:
         group_add_cmd = ["groupadd", name]
         if util.system_is_snappy():
             group_add_cmd.append("--extrausers")
@@ -1323,7 +1328,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 LOG.info("Added user '%s' to group '%s'", member, name)
 
     @classmethod
-    def shutdown_command(cls, *, mode, delay, message):
+    def shutdown_command(cls, *, mode: str, delay: str, message: str | None) -> List[str]:
         # called from cc_power_state_change.load_power_state
         command = ["shutdown", cls.shutdown_options_map[mode]]
         try:
@@ -1340,7 +1345,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return args
 
     @classmethod
-    def reload_init(cls, rcs=None):
+    def reload_init(cls, rcs: List[int] | None = None) -> None:
         """
         Reload systemd startup daemon.
         May raise ProcessExecutionError
@@ -1349,8 +1354,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     @classmethod
     def manage_service(
-        cls, action: str, service: str, *extra_args: str, rcs=None
-    ):
+        cls, action: str, service: str, *extra_args: str, rcs: List[int] | None = None
+    ) -> Tuple[str, str]:
         """
         Perform the requested action on a service. This handles the common
         'systemctl' and 'service' cases and may be overridden in subclasses
@@ -1384,7 +1389,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         cmd = init_cmd + cmds[action] + list(extra_args)
         return subp.subp(cmd, capture=True, rcs=rcs)
 
-    def set_keymap(self, layout: str, model: str, variant: str, options: str):
+    def set_keymap(self, layout: str, model: str, variant: str, options: str) -> None:
         if self.uses_systemd():
             subp.subp(
                 [
@@ -1405,7 +1410,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             return tmp_dir
         return os.path.join(self.usr_lib_exec, "cloud-init", "clouddir")
 
-    def do_as(self, command: list, user: str, cwd: str = "", **kwargs):
+    def do_as(self, command: list, user: str, cwd: str = "", **kwargs: Any) -> Tuple[str, str]:
         """
         Perform a command as the requested user. Behaves like subp()
 
@@ -1435,7 +1440,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         pid_file: str,
         interface: str,
         config_file: str,
-    ) -> list:
+    ) -> List[str]:
         return [
             path,
             "-1",
@@ -1449,7 +1454,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         ] + (["-cf", config_file, interface] if config_file else [interface])
 
     @property
-    def fallback_interface(self):
+    def fallback_interface(self) -> str | None:
         """Determine the network interface used during local network config."""
         if self._fallback_interface is None:
             self._fallback_interface = net.find_fallback_nic()
@@ -1461,7 +1466,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return self._fallback_interface
 
     @fallback_interface.setter
-    def fallback_interface(self, value: str):
+    def fallback_interface(self, value: str) -> None:
         self._fallback_interface = value
 
     @staticmethod
@@ -1551,7 +1556,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return None
 
     @staticmethod
-    def device_part_info(devpath: str) -> tuple:
+    def device_part_info(devpath: str) -> Tuple[str, str]:
         """convert an entry in /dev/ to parent disk and partition number
 
         input of /dev/vdb or /dev/disk/by-label/foo
@@ -1600,7 +1605,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """
 
 
-def _apply_hostname_transformations_to_url(url: str, transformations: list):
+def _apply_hostname_transformations_to_url(url: str, transformations: List) -> str | None:
     """
     Apply transformations to a URL's hostname, return transformed URL.
 
@@ -1643,7 +1648,7 @@ def _apply_hostname_transformations_to_url(url: str, transformations: list):
     return urllib.parse.urlunsplit(parts._replace(netloc=new_netloc))
 
 
-def _sanitize_mirror_url(url: str):
+def _sanitize_mirror_url(url: str) -> str | None:
     """
     Given a mirror URL, replace or remove any invalid URI characters.
 
@@ -1703,8 +1708,8 @@ def _sanitize_mirror_url(url: str):
 
 
 def _get_package_mirror_info(
-    mirror_info, data_source=None, mirror_filter=util.search_for_mirror
-):
+    mirror_info: dict | None, data_source: Any = None, mirror_filter = util.search_for_mirror
+) -> dict:
     # given a arch specific 'mirror_info' entry (from package_mirrors)
     # search through the 'search' entries, and fallback appropriately
     # return a dict with only {name: mirror} entries.
@@ -1758,14 +1763,14 @@ def _get_package_mirror_info(
     return results
 
 
-def _get_arch_package_mirror_info(package_mirrors, arch):
+def _get_arch_package_mirror_info(package_mirrors: List[dict], arch: str) -> dict | None:
     # pull out the specific arch from a 'package_mirrors' config option
     default = None
     for item in package_mirrors:
         arches = item.get("arches")
-        if arch in arches:
+        if arches and arch in arches:
             return item
-        if "default" in arches:
+        if arches and "default" in arches:
             default = item
     return default
 
@@ -1788,8 +1793,8 @@ def fetch(name: str) -> Type[Distro]:
 
 
 def set_etc_timezone(
-    tz, tz_file=None, tz_conf="/etc/timezone", tz_local="/etc/localtime"
-):
+    tz: str, tz_file: str | None = None, tz_conf: str = "/etc/timezone", tz_local: str = "/etc/localtime"
+) -> None:
     util.write_file(tz_conf, str(tz).rstrip() + "\n")
     # This ensures that the correct tz will be used for the system
     if tz_local and tz_file:
@@ -1804,7 +1809,7 @@ def set_etc_timezone(
     return
 
 
-def uses_systemd():
+def uses_systemd() -> bool:
     try:
         res = os.lstat("/run/systemd/system")
         return stat.S_ISDIR(res.st_mode)
