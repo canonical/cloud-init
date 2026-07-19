@@ -1267,9 +1267,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 lines.append("%s %s" % (user, rule))
         elif isinstance(rules, str):
             lines.append("%s %s" % (user, rules))
-        else:
-            msg = "Can not create sudoers rule addition with type %r"
-            raise TypeError(msg % (type_utils.obj_name(rules)))
         content = "\n".join(lines)
         content += "\n"  # trailing newline
 
