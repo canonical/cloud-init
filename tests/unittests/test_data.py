@@ -135,7 +135,7 @@ class TestConsumeUserData:
             freq=PER_INSTANCE,
         )
         mods = Modules(initer)
-        (_which_ran, _failures) = mods.run_section("cloud_init_modules")
+        _which_ran, _failures = mods.run_section("cloud_init_modules")
         cfg = mods.cfg
         assert "vendor_data" in cfg
         assert "vendor_data2" in cfg
@@ -181,7 +181,7 @@ class TestConsumeUserData:
             freq=PER_INSTANCE,
         )
         mods = Modules(initer)
-        (_which_ran, _failures) = mods.run_section("cloud_init_modules")
+        _which_ran, _failures = mods.run_section("cloud_init_modules")
         cfg = mods.cfg
         assert cfg["baz"] == "qux"
         assert cfg["bar"] == "qux2"
@@ -292,7 +292,7 @@ run:
             freq=PER_INSTANCE,
         )
         mods = Modules(initer)
-        (_which_ran, _failures) = mods.run_section("cloud_init_modules")
+        _which_ran, _failures = mods.run_section("cloud_init_modules")
         cfg = mods.cfg
         assert "vendor_data" in cfg
         assert cfg["a"] == "c"
@@ -300,6 +300,141 @@ run:
         assert "x" not in cfg["run"]
         assert "y" not in cfg["run"]
         assert "z" in cfg["run"]
+
+    @pytest.mark.usefixtures("fake_filesystem")
+    def test_vendor_user_yaml_cloud_config_with_append_vendor_list_data(
+        self, caplog
+    ):
+        """When datasource sets append_vendor_list_data=True,
+        vendor list values are appended to user list values
+        and a debug message is logged."""
+        vendor_blob = """
+#cloud-config
+write_files:
+ - path: /etc/netplan/50-vendor.yaml
+   content: network-config
+run:
+ - vendor_cmd
+"""
+
+        user_blob = """
+#cloud-config
+vendor_data:
+  enabled: true
+  prefix: /bin/true
+write_files:
+ - path: /user.txt
+   content: hello
+run:
+ - user_cmd
+"""
+
+        class FakeDataSourceWithAppend(FakeDataSource):
+            append_vendor_list_data = True
+
+        initer = stages.Init()
+        initer.datasource = FakeDataSourceWithAppend(
+            user_blob, vendordata=vendor_blob
+        )
+        initer.read_cfg()
+        initer.initialize()
+        initer.fetch()
+        initer.instancify()
+        initer.update()
+        initer.cloudify().run(
+            "consume_data",
+            initer.consume_data,
+            args=[PER_INSTANCE],
+            freq=PER_INSTANCE,
+        )
+        mods = Modules(initer)
+        _which_ran, _failures = mods.run_section("cloud_init_modules")
+        cfg = mods.cfg
+
+        # Verify debug log was emitted
+        assert "requested appending vendor-data lists" in caplog.text
+
+        # List values are appended: user entries first, then vendor
+        assert cfg["run"] == ["user_cmd", "vendor_cmd"]
+        assert cfg["write_files"] == [
+            {"path": "/user.txt", "content": "hello"},
+            {
+                "path": "/etc/netplan/50-vendor.yaml",
+                "content": "network-config",
+            },
+        ]
+
+    @pytest.mark.usefixtures("fake_filesystem")
+    def test_vendor_vendor2_append_vendor_list_data(self, caplog):
+        """With append_vendor_list_data=True and both vendor-data and
+        vendor2-data, vendor2 lists are appended to vendor lists.
+        Vendor2 scalars win over vendor scalars."""
+        vendor_blob = """
+#cloud-config
+write_files:
+ - path: /vendor.yaml
+   content: vendor-net
+run:
+ - vendor_cmd
+name: vendor
+origin: vendor
+"""
+
+        vendor2_blob = """
+#cloud-config
+write_files:
+ - path: /vendor2.yaml
+   content: vendor2-net
+run:
+ - vendor2_cmd
+name: vendor2
+"""
+
+        user_blob = """
+#cloud-config
+vendor_data:
+  enabled: true
+  prefix: /bin/true
+"""
+
+        class FakeDataSourceWithAppend(FakeDataSource):
+            append_vendor_list_data = True
+
+        initer = stages.Init()
+        initer.datasource = FakeDataSourceWithAppend(
+            user_blob,
+            vendordata=vendor_blob,
+            vendordata2=vendor2_blob,
+        )
+        initer.read_cfg()
+        initer.initialize()
+        initer.fetch()
+        initer.instancify()
+        initer.update()
+        initer.cloudify().run(
+            "consume_data",
+            initer.consume_data,
+            args=[PER_INSTANCE],
+            freq=PER_INSTANCE,
+        )
+        mods = Modules(initer)
+        _which_ran, _failures = mods.run_section("cloud_init_modules")
+        cfg = mods.cfg
+
+        # Debug log emitted for both vendor configs
+        assert caplog.text.count("requested appending vendor-data lists") >= 2
+
+        # Vendor2 scalar wins over vendor scalar
+        assert cfg["name"] == "vendor2"
+        # Scalar only in vendor: preserved
+        assert cfg["origin"] == "vendor"
+
+        # Lists appended: vendor2 first, then vendor
+        assert cfg["run"] == ["vendor2_cmd", "vendor_cmd"]
+        assert cfg["write_files"] == [
+            {"path": "/vendor2.yaml", "content": "vendor2-net"},
+            {"path": "/vendor.yaml", "content": "vendor-net"},
+        ]
 
     @pytest.mark.usefixtures("fake_filesystem")
     def test_vendordata_script(self):
@@ -334,7 +469,7 @@ vendor_data:
             freq=PER_INSTANCE,
         )
         mods = Modules(initer)
-        (_which_ran, _failures) = mods.run_section("cloud_init_modules")
+        _which_ran, _failures = mods.run_section("cloud_init_modules")
         vendor_script = initer.paths.get_ipath_cur("vendor_scripts")
         vendor_script_fns = "%s/part-001" % vendor_script
         assert os.path.exists(vendor_script_fns) is True
@@ -677,7 +812,7 @@ c: 4
             freq=PER_INSTANCE,
         )
         mods = Modules(init)
-        (_which_ran, _failures) = mods.run_section("cloud_init_modules")
+        _which_ran, _failures = mods.run_section("cloud_init_modules")
         cfg = mods.cfg
         assert "vendor_data" in cfg
         assert cfg["baz"] == "quxA"
