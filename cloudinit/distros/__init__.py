@@ -43,7 +43,6 @@ from cloudinit import (
     ssh_util,
     subp,
     temp_utils,
-    type_utils,
     util,
 )
 from cloudinit.distros.networking import LinuxNetworking, Networking
