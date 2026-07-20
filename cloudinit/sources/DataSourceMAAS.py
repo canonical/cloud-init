@@ -43,6 +43,11 @@ class DataSourceMAAS(sources.DataSource):
     id_hash = None
     _oauth_helper = None
 
+    # When merging vendor-data with user-data, append list values
+    # (e.g. write_files, runcmd) so that vendor networking config
+    # is not silently dropped when user-data defines the same key.
+    vendor_merge_how = "list(append)+dict(no_replace,recurse_list)+str()"
+
     # Setup read_url parameters per get_url_params.
     url_max_wait = 120
     url_timeout = 50
