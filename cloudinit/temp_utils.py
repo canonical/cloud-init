@@ -72,6 +72,7 @@ class _ExtendedTemporaryFile(tempfile._TemporaryFileWrapper):
     def unlink_now(self) -> None:
         self.unlink(self.name)
 
+
 def ExtendedTemporaryFile(**kwargs: Any) -> _ExtendedTemporaryFile:
     kwargs["dir"] = _tempfile_dir_arg()
     fh = tempfile.NamedTemporaryFile(**kwargs)
