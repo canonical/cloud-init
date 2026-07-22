@@ -1052,8 +1052,8 @@
               "properties": {
                 "base_url": {
                   "type": "string",
-                  "default": "https://alpine.global.ssl.fastly.net/alpine",
-                  "description": "The base URL of an Alpine repository, or mirror, to download official packages from. If not specified then it defaults to ``https://alpine.global.ssl.fastly.net/alpine``."
+                  "default": "https://dl-cdn.alpinelinux.org/alpine",
+                  "description": "The base URL of an Alpine repository, or mirror, to download official packages from. If not specified then it defaults to ``https://dl-cdn.alpinelinux.org/alpine``."
                 },
                 "community_enabled": {
                   "type": "boolean",
