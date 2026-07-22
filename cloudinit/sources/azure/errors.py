@@ -19,7 +19,7 @@ from cloudinit.url_helper import UrlError
 LOG = logging.getLogger(__name__)
 
 # Maximum supported password length for the Azure OSProfile on Linux.
-# https://learn.microsoft.com/en-us/javascript/api/%40azure/arm-compute/osprofile?view=azure-node-latest#@azure-arm-compute-osprofile-adminpassword
+# https://learn.microsoft.com/en-us/rest/api/compute/virtual-machines/create-or-update?view=rest-compute-2026-03-02&tabs=HTTP#osprofile
 MAX_PASSWORD_LENGTH = 72
 
 
