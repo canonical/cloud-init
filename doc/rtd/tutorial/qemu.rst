@@ -77,9 +77,11 @@ configure the virtual machine instance. There are three major types:
 
 * :ref:`user-data <user_data_formats>` is provided by the user, and cloud-init
   recognizes many different formats.
-* :ref:`vendor-data <vendor-data>` is provided by the cloud provider.
-* :ref:`meta-data <instance-data>` contains the platform data, including
-  things like machine ID, hostname, etc.
+* :ref:`vendor-data <vendor-data>` is provided by the cloud provider and
+  supplies provider-specific defaults. User-data can override these defaults.
+* :ref:`meta-data <instance-data>` identifies and describes the instance,
+  including its instance ID and hostname. When the instance ID changes,
+  cloud-init treats the next boot as the first boot of a new instance.
 
 There is a specific user-data format called "*cloud-config*" that is probably
 the most commonly used, so we will create an example of this (and examples of
