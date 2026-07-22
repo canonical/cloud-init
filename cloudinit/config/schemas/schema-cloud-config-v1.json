@@ -1452,9 +1452,18 @@
       "type": "object",
       "properties": {
         "disable_ec2_metadata": {
-          "default": false,
-          "description": "Set true to disable IPv4 routes to EC2 metadata. Default: ``false``.",
-          "type": "boolean"
+          "allOf": [
+            {
+              "default": false,
+              "description": "Set true to disable IPv4 routes to EC2 metadata. Default: ``false``.",
+              "type": "boolean"
+            },
+            {
+              "deprecated": true,
+              "deprecated_version": "26.2",
+              "deprecated_description": "The disable_ec2_metadata module is deprecated and will be removed in a future release."
+            }
+          ]
         }
       }
     },
@@ -2059,40 +2068,49 @@
       "type": "object",
       "properties": {
         "mcollective": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "conf": {
+          "allOf": [
+            {
               "type": "object",
               "additionalProperties": false,
               "properties": {
-                "public-cert": {
-                  "type": "string",
-                  "description": "Optional value of server public certificate which will be written to ``/etc/mcollective/ssl/server-public.pem``."
-                },
-                "private-cert": {
-                  "type": "string",
-                  "description": "Optional value of server private certificate which will be written to ``/etc/mcollective/ssl/server-private.pem``."
-                }
-              },
-              "patternProperties": {
-                "^.+$": {
-                  "description": "Optional config key: value pairs which will be appended to ``/etc/mcollective/server.cfg``.",
-                  "oneOf": [
-                    {
-                      "type": "boolean"
+                "conf": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "public-cert": {
+                      "type": "string",
+                      "description": "Optional value of server public certificate which will be written to ``/etc/mcollective/ssl/server-public.pem``."
                     },
-                    {
-                      "type": "integer"
-                    },
-                    {
-                      "type": "string"
+                    "private-cert": {
+                      "type": "string",
+                      "description": "Optional value of server private certificate which will be written to ``/etc/mcollective/ssl/server-private.pem``."
                     }
-                  ]
+                  },
+                  "patternProperties": {
+                    "^.+$": {
+                      "description": "Optional config key: value pairs which will be appended to ``/etc/mcollective/server.cfg``.",
+                      "oneOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ]
+                    }
+                  }
                 }
               }
+            },
+            {
+              "deprecated": true,
+              "deprecated_version": "26.2",
+              "deprecated_description": "The mcollective module is deprecated and will be removed in a future release."
             }
-          }
+          ]
         }
       }
     },
@@ -2560,6 +2578,24 @@
               }
             }
           }
+        }
+      }
+    },
+    "cc_reset_rmc": {
+      "type": "object",
+      "properties": {
+        "reset_rmc": {
+          "allOf": [
+            {
+              "type": "boolean",
+              "description": "Reset the RSCT node id."
+            },
+            {
+              "deprecated": true,
+              "deprecated_version": "26.2",
+              "deprecated_description": "The reset_rmc module is deprecated and will be removed in a future release."
+            }
+          ]
         }
       }
     },
@@ -3278,22 +3314,31 @@
       "type": "object",
       "properties": {
         "spacewalk": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "server": {
-              "type": "string",
-              "description": "The Spacewalk server to use."
+          "allOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "server": {
+                  "type": "string",
+                  "description": "The Spacewalk server to use."
+                },
+                "proxy": {
+                  "type": "string",
+                  "description": "The proxy to use when connecting to Spacewalk."
+                },
+                "activation_key": {
+                  "type": "string",
+                  "description": "The activation key to use when registering with Spacewalk."
+                }
+              }
             },
-            "proxy": {
-              "type": "string",
-              "description": "The proxy to use when connecting to Spacewalk."
-            },
-            "activation_key": {
-              "type": "string",
-              "description": "The activation key to use when registering with Spacewalk."
+            {
+              "deprecated": true,
+              "deprecated_version": "26.2",
+              "deprecated_description": "The spacewalk module is deprecated and will be removed in a future release."
             }
-          }
+          ]
         }
       }
     },
@@ -4111,6 +4156,9 @@
       "$ref": "#/$defs/cc_resolv_conf"
     },
     {
+      "$ref": "#/$defs/cc_reset_rmc"
+    },
+    {
       "$ref": "#/$defs/cc_rh_subscription"
     },
     {
@@ -4251,6 +4299,7 @@
     "puppet": {},
     "random_seed": {},
     "reporting": {},
+    "reset_rmc": {},
     "resize_rootfs": {},
     "resolv_conf": {},
     "rh_subscription": {},

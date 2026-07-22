@@ -3,7 +3,7 @@
 
 import logging
 
-from cloudinit import subp
+from cloudinit import lifecycle, subp
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -68,6 +68,11 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             name,
         )
         return
+    lifecycle.deprecate(
+        deprecated="Module cc_spacewalk",
+        deprecated_version="26.2",
+        extra_message="The spacewalk module is deprecated and will be removed in a future release.",
+    )
     cfg = cfg["spacewalk"]
     spacewalk_server = cfg.get("server")
     if spacewalk_server:

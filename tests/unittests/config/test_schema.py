@@ -251,6 +251,7 @@ class TestGetSchema:
             {"$ref": "#/$defs/cc_raspberry_pi"},
             {"$ref": "#/$defs/cc_resizefs"},
             {"$ref": "#/$defs/cc_resolv_conf"},
+            {"$ref": "#/$defs/cc_reset_rmc"},
             {"$ref": "#/$defs/cc_rh_subscription"},
             {"$ref": "#/$defs/cc_rsyslog"},
             {"$ref": "#/$defs/cc_runcmd"},

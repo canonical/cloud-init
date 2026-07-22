@@ -1,6 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-import logging
 import os
+import re
 from io import BytesIO
 from unittest import mock
 
@@ -16,8 +16,6 @@ from cloudinit.config.schema import (
 )
 from tests.unittests.helpers import skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
-
-LOG = logging.getLogger(__name__)
 
 
 STOCK_CONFIG = """\
@@ -157,6 +155,7 @@ class TestHandler:
         ]
 
 
+@pytest.mark.usefixtures("clear_deprecation_log")
 class TestMcollectiveSchema:
     @pytest.mark.parametrize(
         "config, error_msg",
@@ -166,8 +165,15 @@ class TestMcollectiveSchema:
                 {"mcollective": {"customkey": True}},
                 "mcollective: Additional properties are not allowed",
             ),
-            # Allow undocumented keys client keys below 'conf' without error
-            ({"mcollective": {"conf": {"customkey": 1}}}, None),
+            # Allow undocumented keys client keys below 'conf' with deprecation
+            (
+                {"mcollective": {"conf": {"customkey": 1}}},
+                re.escape(
+                    "Cloud config schema deprecations: mcollective:  "
+                    "Deprecated in version 26.2. The mcollective module is "
+                    "deprecated and will be removed in a future release."
+                ),
+            ),
             # Don't allow undocumented keys that don't match expected type
             (
                 {"mcollective": {"conf": {"": {"test": None}}}},
@@ -176,6 +182,15 @@ class TestMcollectiveSchema:
             (
                 {"mcollective": {"conf": {"public-cert": 1}}},
                 "mcollective.conf.public-cert: 1 is not of type 'string'",
+            ),
+            # Valid, yet deprecated schema
+            (
+                {"mcollective": {"conf": {"loglevel": "debug"}}},
+                re.escape(
+                    "Cloud config schema deprecations: mcollective:  "
+                    "Deprecated in version 26.2. The mcollective module is "
+                    "deprecated and will be removed in a future release."
+                ),
             ),
         ],
     )
@@ -186,3 +201,17 @@ class TestMcollectiveSchema:
         else:
             with pytest.raises(SchemaValidationError, match=error_msg):
                 validate_cloudconfig_schema(config, get_schema(), strict=True)
+
+    @mock.patch("cloudinit.config.cc_mcollective.subp")
+    @mock.patch("cloudinit.config.cc_mcollective.util")
+    def test_deprecate_module_warning(
+        self, mock_util, mock_subp, caplog
+    ):
+        """Assert warning is logged for deprecated module."""
+        cc = get_cloud()
+        cc.distro = mock.MagicMock()
+        mock_util.load_binary_file.return_value = b""
+        mycfg = {"mcollective": {"conf": {"loglevel": "debug"}}}
+        cc_mcollective.handle("cc_mcollective", mycfg, cc, [])
+        assert "Module cc_mcollective is deprecated in" in caplog.text
+        assert "deprecat" in caplog.text
