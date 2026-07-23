@@ -759,6 +759,21 @@ class TestCombined:
                 return_code=2,
             )
 
+        # These commands include "WARNING", but it would be easier
+        # to test them if they just said "Warning!" or something like
+        # that because then we could just have one list above to test.
+        for command in [
+            "cloud-init collect-logs",
+            "cloud-init collect-logs --tarfile tmp",
+            "ls /root/tmp /root/cloud-init.tar.gz",
+        ]:
+            result = class_client.execute(command)
+            check_for_unwanted(
+                result,
+                command,
+                text=UNWANTED_WORDS_WARNING_EXPECTED,
+            )
+
         # test clean commands after running manual entry point
         for command in [
             "cloud-init clean",
@@ -776,21 +791,6 @@ class TestCombined:
                 command,
                 text=UNWANTED_WORDS,
                 return_code=0,
-            )
-
-        # These commands include "WARNING", but it would be easier
-        # to test them if they just said "Warning!" or something like
-        # that because then we could just have one list above to test.
-        for command in [
-            "cloud-init collect-logs",
-            "cloud-init collect-logs --tarfile tmp",
-            "ls /root/tmp /root/cloud-init.tar.gz",
-        ]:
-            result = class_client.execute(command)
-            check_for_unwanted(
-                result,
-                command,
-                text=UNWANTED_WORDS_WARNING_EXPECTED,
             )
 
     # TODO: add tests for commands as an unpriveledged user
