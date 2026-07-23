@@ -1,3 +1,10 @@
+cloud-init (26.1-0ubuntu2~26.04.1) resolute-updates; urgency=medium
+
+  * cherry-pick bd85f29d: fix(oracle): detect iSCSI root via iBFT for
+    dracut images (LP: #2161665)
+
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 23 Jul 2026 10:34:30 -0600
+
 cloud-init (26.1-0ubuntu2) resolute; urgency=medium
 
   * cherry-pick d4566b1a: Configure arm64 to use archive.ubuntu.com
