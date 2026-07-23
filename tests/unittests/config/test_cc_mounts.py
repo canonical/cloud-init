@@ -535,6 +535,25 @@ class TestFstabHandling:
             ).strip()
         )
 
+    def test_overlay_dirs_are_created(self, mocker):
+        ensure_dir = mocker.patch("cloudinit.config.cc_mounts.util.ensure_dir")
+
+        cc = {
+            "mounts": [
+                [
+                    "overlay",
+                    "/mnt/test",
+                    "overlay",
+                    "lowerdir=/a,upperdir=/upper/path,workdir=/work/path",
+                ]
+            ]
+        }
+
+        cc_mounts.handle("", cc, self.mock_cloud, [])
+
+        ensure_dir.assert_any_call("/upper/path")
+        ensure_dir.assert_any_call("/work/path")
+
     def test_fstab_mountpoint_with_spaces(self):
         """Spaces in the fs_spec and fs_file fields are octal-escaped.
 
