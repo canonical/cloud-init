@@ -1,3 +1,10 @@
+cloud-init (24.4.1-0ubuntu0~20.04.3+esm2) focal-security; urgency=medium
+
+  * d/p/backport-a97e7466-feat-Fix-import-error-6926: fix libimport.util
+    import error in ua-auto-attach.service on minimal cloud images (GH-6924)
+
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 17 Jul 2026 07:29:42 -0600
+
 cloud-init (24.4.1-0ubuntu0~20.04.3+esm1) focal-security; urgency=medium
 
   * d/cloud-init.postinst: move existing hotplug-cmd fifo to root-only
