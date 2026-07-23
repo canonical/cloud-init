@@ -54,6 +54,27 @@ class TestUpdateEventEnabled:
         )
 
 
+class TestReadRuntimeConfig:
+    @mock.patch(M_PATH + "util.read_conf")
+    def test_unreadable_runtime_config_is_skipped(self, m_read_conf):
+        """An unreadable runtime cloud.cfg is skipped rather than fatal.
+
+        Regression test: ``cloud-init schema`` invoked as a non-root user
+        fails with PermissionError when /run/cloud-init exists but is not
+        readable (e.g. packaged mode 0700).
+        """
+        m_read_conf.side_effect = PermissionError(13, "Permission denied")
+        assert {} == stages.read_runtime_config("/run/cloud-init")
+        m_read_conf.assert_called_once_with("/run/cloud-init/cloud.cfg")
+
+    @mock.patch(M_PATH + "util.read_conf")
+    def test_readable_runtime_config_is_returned(self, m_read_conf):
+        m_read_conf.return_value = {"runtime_setting": 1}
+        assert {"runtime_setting": 1} == stages.read_runtime_config(
+            "/run/cloud-init"
+        )
+
+
 class TestNetworkConfigWithoutDS:
     @pytest.fixture(autouse=True)
     def setup(self, tmpdir):
