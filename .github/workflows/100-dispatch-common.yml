@@ -18,9 +18,10 @@ on:
         required: true
         type: choice
         options:
+        - azure
+        - ec2
         - lxd_container
         - lxd_vm
-        - ec2
       image_type:
         required: true
         type: choice
@@ -93,7 +94,7 @@ jobs:
       - name: Setup LXD
         # This shared workflow supports manual dispatch with platform choices including
         # lxd_vm and lxd_container. Only install the lxd snap for those platforms;
-        # cloud platforms such as EC2 do not need it.
+        # cloud platforms such as EC2 and Azure do not need it.
         if: ${{ contains(fromJSON('["lxd_vm", "lxd_container"]'), env.CLOUD_INIT_PLATFORM ) }}
         uses: canonical/setup-lxd@8c6a87bfb56aa48f3fb9b830baa18562d8bfd4ee # v1
         with:
