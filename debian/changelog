@@ -1,4 +1,4 @@
-cloud-init (26.1-0ubuntu3) UNRELEASED; urgency=medium
+cloud-init (26.1-0ubuntu2~26.04.1) resolute-updates; urgency=medium
 
   * cherry-pick bd85f29d: fix(oracle): detect iSCSI root via iBFT for
     dracut images (LP: #2161665)
