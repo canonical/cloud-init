@@ -1,4 +1,4 @@
-name: "Twice weekly 25.10: ec2"
+name: "Twice weekly 26.10: ec2"
 
 on:
   workflow_dispatch:
@@ -21,10 +21,10 @@ on:
     - cron: '2 22 * * 1,4'
 
 jobs:
-  questing-ec2:
+  stonking-ec2:
     uses: ./.github/workflows/100-dispatch-common.yml
     with:
-      release: questing
+      release: stonking
       platform: ec2
       install_source: ${{ inputs.install_source || 'ppa:cloud-init-dev/daily' }}
       image_type: ${{ inputs.image_type || 'generic' }}

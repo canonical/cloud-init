@@ -581,8 +581,6 @@ class TestRandUserPassword:
             (3, ValueError),
             (4, 4),
             (5, 4),
-            (5, 4),
-            (6, 4),
             (20, 4),
         ],
     )

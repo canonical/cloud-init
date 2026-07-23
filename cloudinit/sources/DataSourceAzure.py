@@ -296,6 +296,7 @@ BUILTIN_DS_CONFIG = {
     "apply_network_config": True,  # Use IMDS published network configuration
     "apply_network_config_for_secondary_ips": True,  # Configure secondary ips
     "experimental_fail_on_missing_customdata": False,
+    "apply_network_config_set_name": True,  # Use set-name for NICs
     "experimental_skip_ready_report": False,  # Skip final ready report
 }
 
@@ -363,6 +364,13 @@ class DataSourceAzure(sources.DataSource):
         self._system_uuid = None
         self._vm_id = None
         self._wireserver_endpoint = DEFAULT_WIRESERVER_ENDPOINT
+        for key in (
+            "apply_network_config_for_secondary_ips",
+            "experimental_fail_on_missing_customdata",
+            "apply_network_config_set_name",
+            "experimental_skip_ready_report",
+        ):
+            self.ds_cfg.setdefault(key, BUILTIN_DS_CONFIG[key])
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -1658,9 +1666,12 @@ class DataSourceAzure(sources.DataSource):
             try:
                 return generate_network_config_from_instance_network_metadata(
                     self._metadata_imds["network"],
-                    apply_network_config_for_secondary_ips=self.ds_cfg.get(
+                    apply_network_config_for_secondary_ips=self.ds_cfg[
                         "apply_network_config_for_secondary_ips"
-                    ),
+                    ],
+                    apply_network_config_set_name=self.ds_cfg[
+                        "apply_network_config_set_name"
+                    ],
                 )
             except Exception as e:
                 LOG.error(
@@ -2127,6 +2138,7 @@ def generate_network_config_from_instance_network_metadata(
     network_metadata: dict,
     *,
     apply_network_config_for_secondary_ips: bool,
+    apply_network_config_set_name: bool,
 ) -> dict:
     """Convert imds network metadata dictionary to network v2 configuration.
 
@@ -2140,7 +2152,11 @@ def generate_network_config_from_instance_network_metadata(
         # First IPv4 and/or IPv6 address will be obtained via DHCP.
         # Any additional IPs of each type will be set as static
         # addresses.
-        nicname = "eth{idx}".format(idx=idx)
+        mac = normalize_mac_address(intf["macAddress"])
+        if apply_network_config_set_name:
+            nicname = "eth{idx}".format(idx=idx)
+        else:
+            nicname = "enx{mac}".format(mac=mac.replace(":", ""))
         dhcp_override = {"route-metric": (idx + 1) * 100}
         # DNS resolution through secondary NICs is not supported, disable it.
         if idx > 0:
@@ -2184,10 +2200,9 @@ def generate_network_config_from_instance_network_metadata(
                     "{ip}/{prefix}".format(ip=privateIp, prefix=netPrefix)
                 )
         if dev_config and has_ip_address:
-            mac = normalize_mac_address(intf["macAddress"])
-            dev_config.update(
-                {"match": {"macaddress": mac.lower()}, "set-name": nicname}
-            )
+            dev_config["match"] = {"macaddress": mac.lower()}
+            if apply_network_config_set_name:
+                dev_config["set-name"] = nicname
             driver = determine_device_driver_for_mac(mac)
             if driver:
                 dev_config["match"]["driver"] = driver

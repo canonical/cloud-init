@@ -843,7 +843,6 @@ class TestEphemeralDhcpNoNetworkSetup:
     "error_class",
     [
         NoDHCPLeaseInterfaceError,
-        NoDHCPLeaseInterfaceError,
         NoDHCPLeaseMissingDhclientError,
     ],
 )
