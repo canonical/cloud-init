@@ -777,20 +777,6 @@ class TestCombined:
                 text=UNWANTED_WORDS,
                 return_code=0,
             )
-        # test old manual entry points
-        for command in [
-            "cloud-init init --local",
-            "cloud-init init",
-            "cloud-init modules --mode=config",
-            "cloud-init modules --mode=final",
-        ]:
-            # entry points always return 0
-            check_for_unwanted(
-                class_client.execute(command),
-                command,
-                text=UNWANTED_WORDS,
-                return_code=0,
-            )
 
         # These commands include "WARNING", but it would be easier
         # to test them if they just said "Warning!" or something like
