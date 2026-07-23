@@ -1,4 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+# ruff: noqa: ISC001
+# pylint: disable=implicit-str-concat
 
 import copy
 import os
@@ -82,8 +84,8 @@ disable_root: true
 # This will cause the set+update hostname module to not operate (if true)
 preserve_hostname: false
 
-# If you use datasource_list array, keep array items in a single line.
-# If you use multi line array, ds-identify script won't read array items.
+# datasource_list supports single-line flow sequences, multi-line flow
+# sequences, and block sequences (one item per line with '- ' prefix).
 # Example datasource config
 # datasource:
 #    Ec2:
@@ -537,16 +539,9 @@ class TestDsIdentify(DsIdentifyBase):
             pytest.param("LXD-kvm-not-MAAS-1", True, id="mass_not_detected_1"),
             pytest.param("LXD-kvm-not-MAAS-2", True, id="mass_not_detected_2"),
             pytest.param("LXD-kvm-not-MAAS-3", True, id="mass_not_detected_3"),
-            # Don't detect incorrect config when invalid datasource_list
-            # provided
-            #
-            # If unparsable list is provided we just ignore it. Some users
-            # might assume that since the rest of the configuration is yaml
-            # that multi-line yaml lists are valid (they aren't). When this
-            # happens, just run ds-identify and figure it out for ourselves
-            # which platform to run.
+            # Block-style YAML datasource_list is parsed correctly
             pytest.param(
-                "Azure-parse-invalid", True, id="azure_invalid_configuration"
+                "Azure-block-sequence", True, id="azure_block_sequence"
             ),
             # Azure datasource is detected from DMI chassis-asset-tag
             pytest.param(
@@ -639,19 +634,11 @@ class TestDsIdentify(DsIdentifyBase):
             pytest.param("ConfigDriveUpper", True, id="config_drive_upper"),
             # Config Drive seed directory.
             pytest.param("ConfigDrive-seed", True, id="config_drive_seed"),
-            # Multi-line yaml is unsupported
+            # Block-style multi-line YAML datasource_list is respected
             pytest.param(
-                "LXD-kvm-not-azure",
+                "LXD-kvm-block-sequence-azure",
                 True,
-                marks=[
-                    pytest.mark.xfail(
-                        reason=(
-                            "not supported: yaml parser implemented in POSIX"
-                            " shell"
-                        )
-                    )
-                ],
-                id="multiline_yaml",
+                id="multiline_yaml_block",
             ),
             # Template provisioned with user-data first boot.
             #
@@ -943,6 +930,327 @@ class TestDsIdentify(DsIdentifyBase):
             self._check_via_dict(
                 data, str(tmp_path), RC_FOUND, dslist=[data.get("ds")]
             )
+
+    @pytest.mark.parametrize(
+        "cfg_content,expected_dslist,rc",
+        [
+            # === Single-line flow sequences ===
+            pytest.param(
+                "datasource_list: [Azure]\n",
+                ["Azure"],
+                RC_FOUND,
+                id="single_line_one_entry",
+            ),
+            pytest.param(
+                "datasource_list: [Azure, None]\n",
+                ["Azure", DS_NONE],
+                RC_FOUND,
+                id="single_line_two_entries",
+            ),
+            pytest.param(
+                "datasource_list: [ Azure , None ]\n",
+                ["Azure", DS_NONE],
+                RC_FOUND,
+                id="single_line_extra_spaces",
+            ),
+            pytest.param(
+                "datasource_list: ['Azure', 'None']\n",
+                ["Azure", DS_NONE],
+                RC_FOUND,
+                id="single_line_single_quoted",
+            ),
+            pytest.param(
+                'datasource_list: ["Azure"]\n',
+                ["Azure"],
+                RC_FOUND,
+                id="single_line_double_quoted",
+            ),
+            pytest.param(
+                "datasource_list:  [Azure,None]\n",
+                ["Azure", DS_NONE],
+                RC_FOUND,
+                id="single_line_no_space_after_comma",
+            ),
+            pytest.param(
+                "datasource_list: [Azure ,None]\n",
+                ["Azure", DS_NONE],
+                RC_FOUND,
+                id="single_line_space_before_comma",
+            ),
+            pytest.param(
+                "datasource_list:[Azure]\n",
+                ["Azure"],
+                RC_FOUND,
+                id="single_line_no_space_after_colon",
+            ),
+            # === Multi-line flow sequences ===
+            # dpkg-reconfigure cloud-init generates this format
+            pytest.param(
+                "datasource_list: [\n"
+                "                 Azure\n"
+                "                 ]\n",
+                ["Azure"],
+                RC_FOUND,
+                id="multiline_flow_dpkg_style",
+            ),
+            pytest.param(
+                "datasource_list: [\n" "  Azure,\n" "  None\n" "]\n",
+                ["Azure", DS_NONE],
+                RC_FOUND,
+                id="multiline_flow_two_entries",
+            ),
+            pytest.param(
+                "datasource_list: [\n" "  Azure,\n" "  None\n" "]\n",
+                ["Azure", DS_NONE],
+                RC_FOUND,
+                id="multiline_flow_with_none",
+            ),
+            pytest.param(
+                "datasource_list: [\n" "  Azure,\n" "]\n",
+                ["Azure"],
+                RC_FOUND,
+                id="multiline_flow_trailing_comma",
+            ),
+            pytest.param(
+                "datasource_list: [\n" "  Azure\n" "  ]\n",
+                ["Azure"],
+                RC_FOUND,
+                id="multiline_flow_indented_bracket",
+            ),
+            # first entry on the same line as opening bracket
+            pytest.param(
+                "datasource_list: [Azure,\n" "  None]\n",
+                ["Azure", DS_NONE],
+                RC_FOUND,
+                id="multiline_flow_first_on_bracket_line",
+            ),
+            pytest.param(
+                "datasource_list: [\n" "Azure,\n" "None\n" "]\n",
+                ["Azure", DS_NONE],
+                RC_FOUND,
+                id="multiline_flow_no_indent",
+            ),
+            pytest.param(
+                "datasource_list: [\n"
+                "    Azure  ,  \n"
+                "    None   \n"
+                "  ]\n",
+                ["Azure", DS_NONE],
+                RC_FOUND,
+                id="multiline_flow_irregular_spacing",
+            ),
+            pytest.param(
+                "datasource_list: [\n" "  Azure, None\n" "]\n",
+                ["Azure", DS_NONE],
+                RC_FOUND,
+                id="multiline_flow_multiple_on_one_line",
+            ),
+            pytest.param(
+                "datasource_list: [\n" "  Azure, None,\n" "]\n",
+                ["Azure", DS_NONE],
+                RC_FOUND,
+                id="multiline_flow_multiple_on_one_line_trailing_comma",
+            ),
+            # === Block sequences ===
+            pytest.param(
+                "datasource_list:\n" "  - Azure\n",
+                ["Azure"],
+                RC_FOUND,
+                id="block_one_entry",
+            ),
+            pytest.param(
+                "datasource_list:\n" "  - Azure\n" "  - None\n",
+                ["Azure", DS_NONE],
+                RC_FOUND,
+                id="block_two_entries",
+            ),
+            pytest.param(
+                "datasource_list:\n" " - Azure\n",
+                ["Azure"],
+                RC_FOUND,
+                id="block_one_space_indent",
+            ),
+            pytest.param(
+                "datasource_list:\n" "    - Azure\n",
+                ["Azure"],
+                RC_FOUND,
+                id="block_four_space_indent",
+            ),
+            pytest.param(
+                "datasource_list:\n" "\t- Azure\n",
+                ["Azure"],
+                RC_FOUND,
+                id="block_tab_indent",
+            ),
+            pytest.param(
+                "datasource_list:\n" "  - Azure\n" "  -   None\n",
+                ["Azure", DS_NONE],
+                RC_FOUND,
+                id="block_extra_spaces_after_dash",
+            ),
+            pytest.param(
+                "datasource_list:\n" "  - 'Azure'\n",
+                ["Azure"],
+                RC_FOUND,
+                id="block_single_quoted",
+            ),
+            pytest.param(
+                "datasource_list:\n" '  - "Azure"\n',
+                ["Azure"],
+                RC_FOUND,
+                id="block_double_quoted",
+            ),
+            pytest.param(
+                "datasource_list:\n" "  -   Azure  \n",
+                ["Azure"],
+                RC_FOUND,
+                id="block_trailing_whitespace",
+            ),
+            # === With surrounding config ===
+            pytest.param(
+                "# a comment\n"
+                "manage_etc_hosts: true\n"
+                "datasource_list: [\n"
+                "  Azure\n"
+                "  ]\n"
+                "locale: en_US.UTF-8\n",
+                ["Azure"],
+                RC_FOUND,
+                id="multiline_flow_with_surrounding_config",
+            ),
+            pytest.param(
+                "manage_etc_hosts: true\n"
+                "datasource_list:\n"
+                "  - Azure\n"
+                "locale: en_US.UTF-8\n",
+                ["Azure"],
+                RC_FOUND,
+                id="block_with_surrounding_config",
+            ),
+            pytest.param(
+                "# datasource_list: [GCE]\n"
+                "datasource_list:\n"
+                "  - Azure\n",
+                ["Azure"],
+                RC_FOUND,
+                id="block_with_commented_out_line_above",
+            ),
+            # === Inline comments ===
+            pytest.param(
+                "datasource_list: [\n"
+                "  Azure, # cloud provider\n"
+                "  None\n"
+                "]\n",
+                ["Azure", DS_NONE],
+                RC_FOUND,
+                id="multiline_flow_inline_comment",
+            ),
+            pytest.param(
+                "datasource_list:\n" "  - Azure  # cloud provider\n",
+                ["Azure"],
+                RC_FOUND,
+                id="block_inline_comment",
+            ),
+            # === Quoted keys with multiline ===
+            pytest.param(
+                '"datasource_list": [\n' "  Azure\n" "]\n",
+                ["Azure"],
+                RC_FOUND,
+                id="multiline_flow_double_quoted_key",
+            ),
+            pytest.param(
+                "'datasource_list': [\n" "  Azure\n" "]\n",
+                ["Azure"],
+                RC_FOUND,
+                id="multiline_flow_single_quoted_key",
+            ),
+            pytest.param(
+                '"datasource_list":\n' "  - Azure\n",
+                ["Azure"],
+                RC_FOUND,
+                id="block_double_quoted_key",
+            ),
+            # === Quoted values in multiline flow ===
+            pytest.param(
+                "datasource_list: [\n" "  'Azure'\n" "]\n",
+                ["Azure"],
+                RC_FOUND,
+                id="multiline_flow_single_quoted_value",
+            ),
+            pytest.param(
+                "datasource_list: [\n" '  "Azure"\n' "]\n",
+                ["Azure"],
+                RC_FOUND,
+                id="multiline_flow_double_quoted_value",
+            ),
+            # === No trailing newline at EOF ===
+            pytest.param(
+                "datasource_list:\n" "  - Azure",
+                ["Azure"],
+                RC_FOUND,
+                id="block_no_trailing_newline",
+            ),
+            pytest.param(
+                "datasource_list: [\n" "  Azure\n" "]",
+                ["Azure"],
+                RC_FOUND,
+                id="multiline_flow_no_trailing_newline",
+            ),
+            # === Blank lines ===
+            pytest.param(
+                "datasource_list:\n" "\n" "  - Azure\n",
+                ["Azure"],
+                RC_FOUND,
+                id="block_blank_line_before_items",
+            ),
+            # blank line between block items is skipped; both are captured
+            pytest.param(
+                "datasource_list:\n" "  - Azure\n" "\n" "  - None\n",
+                ["Azure", DS_NONE],
+                RC_FOUND,
+                id="block_blank_line_between_items",
+            ),
+            pytest.param(
+                "datasource_list: [\n" "\n" "  Azure\n" "]\n",
+                ["Azure"],
+                RC_FOUND,
+                id="multiline_flow_blank_line_inside",
+            ),
+            # === Block terminated by next key ===
+            pytest.param(
+                "datasource_list:\n"
+                "  - Azure\n"
+                "  - None\n"
+                "manage_etc_hosts: true\n",
+                ["Azure", DS_NONE],
+                RC_FOUND,
+                id="block_terminated_by_next_key",
+            ),
+            # === Closing bracket on same line as last value ===
+            pytest.param(
+                "datasource_list: [\n" "  Azure]\n",
+                ["Azure"],
+                RC_FOUND,
+                id="multiline_flow_close_bracket_same_line",
+            ),
+            pytest.param(
+                "datasource_list: [\n" "  Azure, None]\n",
+                ["Azure", DS_NONE],
+                RC_FOUND,
+                id="multiline_flow_two_entries_close_bracket_same_line",
+            ),
+        ],
+    )
+    def test_datasource_list_formats(
+        self, cfg_content, expected_dslist, rc, tmp_path
+    ):
+        """Verify ds-identify parses various datasource_list formats."""
+        mydata = copy.deepcopy(VALID_CFG["Azure-dmi-detection"])
+        cfgpath = "etc/cloud/cloud.cfg.d/90_dpkg.cfg"
+        mydata["files"][cfgpath] = cfg_content
+        self._check_via_dict(
+            mydata, str(tmp_path), rc=rc, dslist=expected_dslist
+        )
 
     def test_config_drive_interacts_with_ibmcloud_config_disk(self, tmp_path):
         """Verify ConfigDrive interaction with IBMCloud.
@@ -1643,12 +1951,12 @@ VALID_CFG = {
         },
     },
     "CloudCIX": {"ds": "CloudCIX", "files": {P_PRODUCT_NAME: "CloudCIX\n"}},
-    "Azure-parse-invalid": {
+    "Azure-block-sequence": {
         "ds": "Azure",
         "files": {
             P_CHASSIS_ASSET_TAG: "7783-7084-3265-9085-8269-3286-77\n",
             "etc/cloud/cloud.cfg.d/91-azure_datasource.cfg": (
-                "datasource_list:\n   - Azure"
+                "datasource_list:\n   - Azure\n   - None"
             ),
         },
     },
@@ -1873,11 +2181,11 @@ VALID_CFG = {
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
         "files": {"etc/cloud/cloud.cfg": dedent("datasource_list: [None]")},
     },
-    "LXD-kvm-not-azure": {
+    "LXD-kvm-block-sequence-azure": {
         "ds": "Azure",
         "files": {
-            "etc/cloud/cloud.cfg.d/92-broken-azure.cfg": (
-                "datasource_list:\n - Azure"
+            "etc/cloud/cloud.cfg.d/92-azure.cfg": (
+                "datasource_list:\n - Azure\n - None"
             ),
         },
         # /dev/lxd/sock does exist and KVM virt-type
