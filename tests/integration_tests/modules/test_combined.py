@@ -765,7 +765,7 @@ class TestCombined:
         for command in [
             "cloud-init collect-logs",
             "cloud-init collect-logs --tarfile tmp",
-            "ls /root/tmp /root/cloud-init.tar.gz",
+            "ls tmp cloud-init.tar.gz",
         ]:
             result = class_client.execute(command)
             check_for_unwanted(
