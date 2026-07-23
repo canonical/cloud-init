@@ -1429,6 +1429,24 @@ class TestOvfEnvXml:
                     password="test-password",
                 ),
             ),
+            # Password at maximum supported length.
+            (
+                construct_ovf_env(password="a" * errors.MAX_PASSWORD_LENGTH),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    password="a" * errors.MAX_PASSWORD_LENGTH,
+                ),
+            ),
+            # Empty password (SSH-key-only VMs).
+            (
+                construct_ovf_env(password=""),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    password=None,
+                ),
+            ),
             # Hostname.
             (
                 construct_ovf_env(hostname="other-host"),
@@ -1549,6 +1567,25 @@ class TestOvfEnvXml:
             azure_helper.OvfEnvXml.parse_text(ovf)
 
         assert str(exc_info.value.reason) == error
+
+    def test_password_too_long(self):
+        length = errors.MAX_PASSWORD_LENGTH + 1
+        ovf = construct_ovf_env(password="a" * length)
+
+        with pytest.raises(
+            errors.ReportableErrorOsProfilePasswordTooLong
+        ) as exc_info:
+            azure_helper.OvfEnvXml.parse_text(ovf)
+
+        assert exc_info.value.reason == (
+            f"unsupported password length={length} "
+            f"max={errors.MAX_PASSWORD_LENGTH}"
+        )
+        assert exc_info.value.supporting_data["length"] == length
+        assert (
+            exc_info.value.supporting_data["max_length"]
+            == errors.MAX_PASSWORD_LENGTH
+        )
 
     def test_multiple_sections_fails(self):
         ovf = """\

@@ -18,6 +18,10 @@ from cloudinit.url_helper import UrlError
 
 LOG = logging.getLogger(__name__)
 
+# Maximum supported password length for the Azure OSProfile on Linux.
+# https://learn.microsoft.com/en-us/rest/api/compute/virtual-machines/create-or-update?view=rest-compute-2026-03-02&tabs=HTTP#osprofile
+MAX_PASSWORD_LENGTH = 72
+
 
 def encode_report(
     data: List[str], delimiter: str = "|", quotechar: str = "'"
@@ -202,6 +206,18 @@ class ReportableErrorOvfParsingException(ReportableError):
     def __init__(self, *, exception: ET.ParseError) -> None:
         message = exception.msg
         super().__init__(f"error parsing ovf-env.xml: {message}")
+
+
+class ReportableErrorOsProfilePasswordTooLong(ReportableError):
+    def __init__(
+        self, *, length: int, max_length: int = MAX_PASSWORD_LENGTH
+    ) -> None:
+        super().__init__(
+            f"unsupported password length={length} max={max_length}"
+        )
+
+        self.supporting_data["length"] = length
+        self.supporting_data["max_length"] = max_length
 
 
 class ReportableErrorUnhandledException(ReportableError):

@@ -1112,6 +1112,13 @@ class OvfEnvXml:
         self.password = self._parse_property(
             config_set, "UserPassword", required=False
         )
+        if (
+            self.password is not None
+            and len(self.password) > errors.MAX_PASSWORD_LENGTH
+        ):
+            raise errors.ReportableErrorOsProfilePasswordTooLong(
+                length=len(self.password)
+            )
         self.hostname = self._parse_property(
             config_set, "HostName", required=True
         )
