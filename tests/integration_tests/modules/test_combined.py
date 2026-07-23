@@ -674,6 +674,13 @@ class TestCombined:
         client = class_client
         assert "💩" == client.read_from_file("/var/tmp/unicode_data")
 
+    @pytest.mark.skipif(not IS_UBUNTU, reason="Ubuntu-only behavior")
+    def test_networkd_wait_online(self, class_client: IntegrationInstance):
+        client = class_client
+        assert not network_wait_logged(
+            client.read_from_file("/var/log/cloud-init.log")
+        )
+
     def test_cli(self, class_client: IntegrationInstance):
         """Check that various commands work as expected
 
@@ -799,13 +806,6 @@ class TestCombined:
     # cloud-init devel render
     # cloud-init devel make-mime
     # cloud-init devel net-convert
-
-    @pytest.mark.skipif(not IS_UBUNTU, reason="Ubuntu-only behavior")
-    def test_networkd_wait_online(self, class_client: IntegrationInstance):
-        client = class_client
-        assert not network_wait_logged(
-            client.read_from_file("/var/log/cloud-init.log")
-        )
 
 
 @pytest.mark.user_data(USER_DATA)
