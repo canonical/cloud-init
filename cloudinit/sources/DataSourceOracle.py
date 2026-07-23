@@ -407,13 +407,6 @@ class DataSourceOracle(sources.DataSource):
                 )
                 continue
             name = interfaces_by_mac[mac_address]
-            if is_ipv6_only:
-                network = ipaddress.ip_network(
-                    vnic_dict["ipv6Addresses"][0],
-                )
-            else:
-                network = ipaddress.ip_network(vnic_dict["subnetCidrBlock"])
-
             if is_primary:
                 if is_ipv6_only:
                     subnets = [{"type": "dhcp6"}]
@@ -422,6 +415,9 @@ class DataSourceOracle(sources.DataSource):
             else:
                 subnets = []
                 if vnic_dict.get("privateIp"):
+                    network = ipaddress.ip_network(
+                        vnic_dict["subnetCidrBlock"]
+                    )
                     subnets.append(
                         {
                             "type": "static",
@@ -432,6 +428,9 @@ class DataSourceOracle(sources.DataSource):
                         }
                     )
                 if vnic_dict.get("ipv6Addresses"):
+                    network = ipaddress.ip_network(
+                        vnic_dict["ipv6SubnetCidrBlock"]
+                    )
                     subnets.append(
                         {
                             "type": "static",
