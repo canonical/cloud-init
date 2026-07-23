@@ -616,3 +616,320 @@ class TestConvertNetJson:
             network_json=network_json, known_macs=macs
         )
         assert expected == netcfg
+
+    def test_linux_bridge_basic(self):
+        """Verify basic linux_bridge type is handled correctly."""
+        mac0 = "fa:16:3e:9c:bf:3d"
+        mac1 = "fa:16:3e:9c:bf:3e"
+        net_json = {
+            "links": [
+                {
+                    "ethernet_mac_address": mac0,
+                    "id": "eth0",
+                    "name": "eth0",
+                    "type": "phy",
+                },
+                {
+                    "ethernet_mac_address": mac1,
+                    "id": "eth1",
+                    "name": "eth1",
+                    "type": "phy",
+                },
+                {
+                    "id": "br0",
+                    "name": "br0",
+                    "type": "linux_bridge",
+                    "ethernet_mac_address": mac0,
+                    "bridge_links": ["eth0", "eth1"],
+                },
+            ],
+            "networks": [
+                {
+                    "id": "network0",
+                    "link": "br0",
+                    "type": "ipv4",
+                    "ip_address": "192.168.1.10",
+                    "netmask": "255.255.255.0",
+                }
+            ],
+            "services": [],
+        }
+        macs = {mac0: "eth0", mac1: "eth1"}
+
+        expected = {
+            "version": 1,
+            "config": [
+                {
+                    "mac_address": mac0,
+                    "name": "eth0",
+                    "subnets": [],
+                    "type": "physical",
+                },
+                {
+                    "mac_address": mac1,
+                    "name": "eth1",
+                    "subnets": [],
+                    "type": "physical",
+                },
+                {
+                    "mac_address": mac0,
+                    "name": "br0",
+                    "type": "bridge",
+                    "bridge_interfaces": ["eth0", "eth1"],
+                    "subnets": [
+                        {
+                            "type": "static",
+                            "address": "192.168.1.10",
+                            "netmask": "255.255.255.0",
+                            "ipv4": True,
+                        }
+                    ],
+                },
+            ],
+        }
+
+        assert expected == openstack.convert_net_json(
+            network_json=net_json, known_macs=macs
+        )
+
+    def test_linux_bridge_with_params(self):
+        """Verify linux_bridge with all supported parameters."""
+        mac0 = "fa:16:3e:9c:bf:3d"
+        mac1 = "fa:16:3e:9c:bf:3e"
+        bridge_hw_mac = "fa:16:3e:aa:bb:cc"
+        net_json = {
+            "links": [
+                {
+                    "ethernet_mac_address": mac0,
+                    "id": "eth0",
+                    "name": "eth0",
+                    "type": "phy",
+                },
+                {
+                    "ethernet_mac_address": mac1,
+                    "id": "eth1",
+                    "name": "eth1",
+                    "type": "phy",
+                },
+                {
+                    "id": "br0",
+                    "name": "br0",
+                    "type": "linux_bridge",
+                    "ethernet_mac_address": mac0,
+                    "bridge_links": ["eth0", "eth1"],
+                    "bridge_ageing": 300,
+                    "bridge_bridgeprio": 32768,
+                    "bridge_fd": 15,
+                    "bridge_hello": 2,
+                    "bridge_hw": bridge_hw_mac,
+                    "bridge_maxage": 20,
+                    "bridge_maxwait": 10,
+                    "bridge_pathcost": [["eth0", 100], ["eth1", 100]],
+                    "bridge_portprio": [["eth0", 32], ["eth1", 32]],
+                    "bridge_ports": ["eth0", "eth1"],
+                    "bridge_stp": True,
+                    "bridge_waitport": [5, "eth0", "eth1"],
+                },
+            ],
+            "networks": [
+                {
+                    "id": "network0",
+                    "link": "br0",
+                    "type": "ipv4_dhcp",
+                }
+            ],
+            "services": [],
+        }
+        macs = {mac0: "eth0", mac1: "eth1"}
+
+        expected = {
+            "version": 1,
+            "config": [
+                {
+                    "mac_address": mac0,
+                    "name": "eth0",
+                    "subnets": [],
+                    "type": "physical",
+                },
+                {
+                    "mac_address": mac1,
+                    "name": "eth1",
+                    "subnets": [],
+                    "type": "physical",
+                },
+                {
+                    "mac_address": mac0,
+                    "name": "br0",
+                    "type": "bridge",
+                    "bridge_interfaces": ["eth0", "eth1"],
+                    "params": {
+                        "bridge_ageing": 300,
+                        "bridge_bridgeprio": 32768,
+                        "bridge_fd": 15,
+                        "bridge_hello": 2,
+                        "bridge_hw": bridge_hw_mac,
+                        "bridge_maxage": 20,
+                        "bridge_maxwait": 10,
+                        "bridge_pathcost": [["eth0", 100], ["eth1", 100]],
+                        "bridge_portprio": [["eth0", 32], ["eth1", 32]],
+                        "bridge_ports": ["eth0", "eth1"],
+                        "bridge_stp": True,
+                        "bridge_waitport": [5, "eth0", "eth1"],
+                    },
+                    "subnets": [{"type": "dhcp4"}],
+                },
+            ],
+        }
+
+        assert expected == openstack.convert_net_json(
+            network_json=net_json, known_macs=macs
+        )
+
+    def test_linux_bridge_over_bond(self):
+        """Verify linux_bridge can be created over a bond."""
+        mac0 = "xx:xx:xx:xx:xx:00"
+        mac1 = "xx:xx:xx:xx:xx:01"
+        net_json = {
+            "links": [
+                {
+                    "id": "ens1f0np0",
+                    "name": "ens1f0np0",
+                    "type": "phy",
+                    "ethernet_mac_address": mac0,
+                },
+                {
+                    "id": "ens1f1np1",
+                    "name": "ens1f1np1",
+                    "type": "phy",
+                    "ethernet_mac_address": mac1,
+                },
+                {
+                    "id": "bond0",
+                    "name": "bond0",
+                    "type": "bond",
+                    "bond_links": ["ens1f0np0", "ens1f1np1"],
+                    "ethernet_mac_address": mac0,
+                    "bond_mode": "802.3ad",
+                },
+                {
+                    "id": "br0",
+                    "name": "br0",
+                    "type": "linux_bridge",
+                    "ethernet_mac_address": mac0,
+                    "bridge_links": ["bond0"],
+                    "bridge_stp": False,
+                    "bridge_fd": 0,
+                },
+            ],
+            "networks": [
+                {
+                    "id": "network0",
+                    "link": "br0",
+                    "type": "ipv4",
+                    "ip_address": "10.0.0.5",
+                    "netmask": "255.255.255.0",
+                    "gateway": "10.0.0.1",
+                }
+            ],
+            "services": [{"type": "dns", "address": "8.8.8.8"}],
+        }
+        macs = {mac0: "ens1f0np0", mac1: "ens1f1np1"}
+
+        expected = {
+            "version": 1,
+            "config": [
+                {
+                    "mac_address": mac0,
+                    "name": "ens1f0np0",
+                    "subnets": [],
+                    "type": "physical",
+                },
+                {
+                    "mac_address": mac1,
+                    "name": "ens1f1np1",
+                    "subnets": [],
+                    "type": "physical",
+                },
+                {
+                    "mac_address": mac0,
+                    "name": "bond0",
+                    "type": "bond",
+                    "bond_interfaces": ["ens1f0np0", "ens1f1np1"],
+                    "params": {"bond-mode": "802.3ad"},
+                    "subnets": [],
+                },
+                {
+                    "mac_address": mac0,
+                    "name": "br0",
+                    "type": "bridge",
+                    "bridge_interfaces": ["bond0"],
+                    "params": {
+                        "bridge_stp": False,
+                        "bridge_fd": 0,
+                    },
+                    "subnets": [
+                        {
+                            "type": "static",
+                            "address": "10.0.0.5",
+                            "netmask": "255.255.255.0",
+                            "gateway": "10.0.0.1",
+                            "ipv4": True,
+                        }
+                    ],
+                },
+                {"address": "8.8.8.8", "type": "nameserver"},
+            ],
+        }
+
+        assert expected == openstack.convert_net_json(
+            network_json=net_json, known_macs=macs
+        )
+
+    def test_linux_bridge_with_accept_ra(self):
+        """Verify linux_bridge respects accept-ra setting."""
+        mac0 = "fa:16:3e:9c:bf:3d"
+        net_json = {
+            "links": [
+                {
+                    "ethernet_mac_address": mac0,
+                    "id": "eth0",
+                    "name": "eth0",
+                    "type": "phy",
+                },
+                {
+                    "id": "br0",
+                    "name": "br0",
+                    "type": "linux_bridge",
+                    "ethernet_mac_address": mac0,
+                    "bridge_links": ["eth0"],
+                    "accept-ra": False,
+                },
+            ],
+            "networks": [
+                {
+                    "id": "network0",
+                    "link": "br0",
+                    "type": "ipv6",
+                    "ip_address": "2001:db8::10",
+                    "gateway": "2001:db8::1",
+                }
+            ],
+            "services": [],
+        }
+        macs = {mac0: "eth0"}
+
+        result = openstack.convert_net_json(
+            network_json=net_json, known_macs=macs
+        )
+
+        # Find the bridge config
+        bridge_cfg = None
+        for cfg in result["config"]:
+            if cfg.get("type") == "bridge":
+                bridge_cfg = cfg
+                break
+
+        assert bridge_cfg is not None
+        assert bridge_cfg["name"] == "br0"
+        assert bridge_cfg["accept-ra"] is False
+        assert bridge_cfg["bridge_interfaces"] == ["eth0"]

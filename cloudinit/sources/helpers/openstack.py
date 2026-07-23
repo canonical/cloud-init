@@ -77,6 +77,11 @@ KNOWN_PHYSICAL_TYPES = (
     "vif",
 )
 
+# Link types that represent guest-side Linux bridges.
+# These are distinct from "bridge" in KNOWN_PHYSICAL_TYPES which refers to
+# hypervisor attachment type, not guest bridge creation.
+KNOWN_BRIDGE_TYPES = ("linux_bridge",)
+
 
 class NonReadable(IOError):
     pass
@@ -741,6 +746,55 @@ def convert_net_json(network_json=None, known_macs=None):
                 (cfg, "name", "%%s.%s" % link["vlan_id"], link["vlan_link"])
             )
             curinfo.update({"mac": link["vlan_mac_address"], "name": name})
+        elif link["type"] in KNOWN_BRIDGE_TYPES:
+            # Linux bridge handling - creates a bridge inside the guest
+            cfg.update({"type": "bridge"})
+            if link_mac_addr:
+                cfg.update({"mac_address": link_mac_addr})
+
+            # Collect bridge parameters
+            params = {}
+            if "bridge_ageing" in link:
+                params["bridge_ageing"] = link["bridge_ageing"]
+            if "bridge_bridgeprio" in link:
+                params["bridge_bridgeprio"] = link["bridge_bridgeprio"]
+            if "bridge_fd" in link:
+                params["bridge_fd"] = link["bridge_fd"]
+            if "bridge_hello" in link:
+                params["bridge_hello"] = link["bridge_hello"]
+            if "bridge_hw" in link:
+                params["bridge_hw"] = link["bridge_hw"]
+            if "bridge_maxage" in link:
+                params["bridge_maxage"] = link["bridge_maxage"]
+            if "bridge_maxwait" in link:
+                params["bridge_maxwait"] = link["bridge_maxwait"]
+            if "bridge_pathcost" in link:
+                params["bridge_pathcost"] = link["bridge_pathcost"]
+            if "bridge_portprio" in link:
+                params["bridge_portprio"] = link["bridge_portprio"]
+            if "bridge_ports" in link:
+                params["bridge_ports"] = link["bridge_ports"]
+            if "bridge_stp" in link:
+                params["bridge_stp"] = link["bridge_stp"]
+            if "bridge_waitport" in link:
+                params["bridge_waitport"] = link["bridge_waitport"]
+            if params:
+                cfg["params"] = params
+
+            # Handle accept-ra if specified
+            if "accept-ra" in link:
+                cfg["accept-ra"] = link["accept-ra"]
+
+            # bridge_links reference member interfaces by their id,
+            # we need to resolve them to names later
+            link_updates.append(
+                (
+                    cfg,
+                    "bridge_interfaces",
+                    "%s",
+                    copy.deepcopy(link.get("bridge_links", [])),
+                )
+            )
         else:
             if link["type"] not in KNOWN_PHYSICAL_TYPES:
                 LOG.warning(
