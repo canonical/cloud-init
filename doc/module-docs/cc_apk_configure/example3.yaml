@@ -1,8 +1,7 @@
 #cloud-config
-apk_repos:
-  alpine_repo:
-    base_url: https://some-alpine-mirror/alpine
-    community_enabled: true
-    testing_enabled: true
-    version: edge
-  local_repo_base_url: https://my-local-server/local-alpine
+apk:
+  repositories:
+    - base_url: https://some-alpine-mirror/alpine
+      version: edge
+      repos: [main, community, testing]
+    - https://my-local-server/local-alpine

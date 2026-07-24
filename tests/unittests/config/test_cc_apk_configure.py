@@ -278,6 +278,143 @@ class TestApkConfigure:
         assert util.load_text_file(REPO_FILE) == expected_content
 
 
+class TestApkConfigureTinyCloudStyle:
+    def test_structured_and_raw_repositories(self, fake_filesystem):
+        config = {
+            "apk": {
+                "repositories": [
+                    {
+                        "base_url": "https://dl-cdn.alpinelinux.org/alpine",
+                        "version": "v3.24",
+                        "repos": ["main", "community"],
+                    },
+                    "https://packages.example.net/alpine/custom",
+                ]
+            }
+        }
+
+        cc_apk_configure.handle("", config, get_cloud(), [])
+
+        expected_content = textwrap.dedent(
+            """\
+            #
+            # Created by cloud-init
+            #
+            # This file is written on first boot of an instance
+            #
+
+            https://dl-cdn.alpinelinux.org/alpine/v3.24/main
+            https://dl-cdn.alpinelinux.org/alpine/v3.24/community
+            https://packages.example.net/alpine/custom
+
+            """
+        )
+
+        assert util.load_text_file(REPO_FILE) == expected_content
+
+    def test_duplicate_repositories_are_written_once(self, fake_filesystem):
+        repository_url = "https://packages.example.net/custom"
+        config = {"apk": {"repositories": [repository_url, repository_url]}}
+
+        cc_apk_configure.handle("", config, get_cloud(), [])
+
+        assert util.load_text_file(REPO_FILE).count(repository_url) == 1
+
+    def test_apk_without_repositories_falls_back_to_apk_repos(
+        self, fake_filesystem
+    ):
+        config = {
+            "apk": {"preserve_repositories": False},
+            "apk_repos": {"alpine_repo": {"version": "v3.24"}},
+        }
+
+        cc_apk_configure.handle("", config, get_cloud(), [])
+
+        assert (
+            f"{DEFAULT_MIRROR_URL}/v3.24/main"
+            in util.load_text_file(REPO_FILE)
+        )
+
+    def test_apk_repositories_take_precedence_over_apk_repos(
+        self, fake_filesystem, caplog
+    ):
+        config = {
+            "apk": {"repositories": ["https://packages.example.net/custom"]},
+            "apk_repos": {"alpine_repo": {"version": "v3.24"}},
+        }
+
+        cc_apk_configure.handle("", config, get_cloud(), [])
+
+        repository_file = util.load_text_file(REPO_FILE)
+        assert "https://packages.example.net/custom" in repository_file
+        assert f"{DEFAULT_MIRROR_URL}/v3.24/main" not in repository_file
+        assert "Both 'apk.repositories' and 'apk_repos'" in caplog.text
+
+    def test_apk_preserve_repositories_overrides_apk_repos(self, mocker):
+        config = {
+            "apk": {
+                "preserve_repositories": True,
+                "repositories": ["https://packages.example.net/custom"],
+            },
+            "apk_repos": {"alpine_repo": {"version": "v3.24"}},
+        }
+        m_write_legacy = mocker.patch(CC_APK + "._write_repositories_file")
+        m_write_repositories = mocker.patch(
+            CC_APK + "._write_repository_entries"
+        )
+
+        cc_apk_configure.handle("", config, get_cloud(), [])
+
+        m_write_legacy.assert_not_called()
+        m_write_repositories.assert_not_called()
+
+
+    @pytest.mark.parametrize(
+        "release, repository_version",
+        (
+            ("3.24.0", "v3.24"),
+            ("edge", "edge"),
+            ("3.25.0_alpha20260724", "edge"),
+            ("3.25.0_beta20260724", "edge"),
+            ("3.25.0_pre20260724", "edge"),
+        ),
+    )
+    def test_infers_repository_version_from_alpine_release(
+        self, fake_filesystem, release, repository_version
+    ):
+        util.write_file("/etc/alpine-release", f"{release}\n")
+        config = {
+            "apk": {
+                "repositories": [
+                    {
+                        "base_url": "https://dl-cdn.alpinelinux.org/alpine",
+                        "repos": ["main"],
+                    }
+                ]
+            }
+        }
+
+        cc_apk_configure.handle("", config, get_cloud(), [])
+
+        expected_url = (
+            "https://dl-cdn.alpinelinux.org/alpine/"
+            f"{repository_version}/main"
+        )
+        assert expected_url in util.load_text_file(REPO_FILE)
+
+    def test_requires_version_when_alpine_release_is_unrecognized(
+        self, fake_filesystem
+    ):
+        util.write_file("/etc/alpine-release", "unknown\n")
+        config = {"apk": {"repositories": [{"repos": ["main"]}]}}
+
+        with pytest.raises(
+            ValueError,
+            match=r"set apk.repositories\[\].version explicitly",
+        ):
+            cc_apk_configure.handle("", config, get_cloud(), [])
+
+
 class TestApkConfigureSchema:
     @pytest.mark.parametrize(
         "config, error_msg",
@@ -285,7 +422,7 @@ class TestApkConfigureSchema:
             # Valid schemas
             ({"apk_repos": {"preserve_repositories": True}}, None),
             ({"apk_repos": {"alpine_repo": None}}, None),
-            ({"apk_repos": {"alpine_repo": {"version": "v3.21"}}}, None),
+            ({"apk_repos": {"alpine_repo": {"version": "v3.24"}}}, None),
             (
                 {
                     "apk_repos": {
@@ -293,7 +430,7 @@ class TestApkConfigureSchema:
                             "base_url": "http://yep",
                             "community_enabled": True,
                             "testing_enabled": True,
-                            "version": "v3.21",
+                            "version": "v3.24",
                         }
                     }
                 },
@@ -348,3 +485,40 @@ class TestApkConfigureSchema:
         else:
             with pytest.raises(SchemaValidationError, match=error_msg):
                 validate_cloudconfig_schema(config, schema, strict=True)
+
+
+class TestApkConfigureTinyCloudStyleSchema:
+    @skipUnlessJsonSchema()
+    def test_schema_validation(self):
+        schema = get_schema()
+        validate_cloudconfig_schema(
+            {
+                "apk": {
+                    "repositories": [
+                        {
+                            "base_url": "https://dl-cdn.alpinelinux.org/alpine",
+                            "version": "v3.24",
+                            "repos": ["main", "community"],
+                        },
+                        "https://packages.example.net/alpine/custom",
+                    ]
+                }
+            },
+            schema,
+            strict=True,
+        )
+        with pytest.raises(SchemaValidationError):
+            validate_cloudconfig_schema(
+                {
+                    "apk": {
+                        "repositories": [
+                            {
+                                "base_url": "https://dl-cdn.alpinelinux.org/alpine",
+                                "repos": "main",
+                            }
+                        ]
+                    }
+                },
+                schema,
+                strict=True,
+            )

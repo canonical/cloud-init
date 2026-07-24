@@ -3,6 +3,20 @@ cc_apk_configure:
     This module handles configuration of the Alpine Package Keeper (APK)
     ``/etc/apk/repositories`` file.
 
+    Use the ``apk.repositories`` list to define repository URLs. Entries can
+    be complete repository URLs or structured definitions with ``base_url``,
+    ``version``, and ``repos``. The legacy ``apk_repos`` configuration is
+    retained for backwards compatibility.
+
+    The ``apk.repositories`` list replaces ``/etc/apk/repositories``. Duplicate
+    repository URLs are written only once, in their first configured order.
+
+    When both forms configure repositories, ``apk.repositories`` takes
+    precedence and cloud-init logs a warning. An ``apk`` section without
+    ``repositories`` falls back to ``apk_repos``. Setting
+    ``apk.preserve_repositories`` to ``true`` preserves the existing file and
+    overrides both forms.
+
     .. note::
        To ensure that APK configuration is valid YAML, any strings
        containing special characters, especially colons, should be quoted
@@ -13,11 +27,11 @@ cc_apk_configure:
     file: cc_apk_configure/example1.yaml
   - comment: >
       Example 2: Create repositories file for Alpine v3.12 main and community
-      using default mirror site.
+      using the default mirror site.
     file: cc_apk_configure/example2.yaml
   - comment: >
       Example 3: Create repositories file for Alpine Edge main, community, and
-      testing using a specified mirror site and also a local repo.
+      testing using a specified mirror site and a custom repository URL.
     file: cc_apk_configure/example3.yaml
   name: APK Configure
   title: Configure APK repositories file
