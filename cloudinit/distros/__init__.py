@@ -173,7 +173,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         self,
         name: str,
         cfg: Dict[str, Any],
-        paths: Union[helpers.Paths, None],
+        paths: Optional[helpers.Paths],
     ) -> None:
         self._paths = paths
         self._cfg = cfg
@@ -183,8 +183,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         self.net_ops = iproute2.Iproute2
         self._runner = helpers.Runners(paths)
         self.package_managers: List[PackageManager] = []
-        self._dhcp_client: Union[dhcp.DhcpClient, None] = None
-        self._fallback_interface: Union[str, None] = None
+        self._dhcp_client: Optional[dhcp.DhcpClient] = None
+        self._fallback_interface: Optional[str] = None
         self.is_linux = True
 
     def _unpickle(self, ci_pkl_version: int) -> None:
@@ -404,7 +404,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         self._cfg[opt_name] = value
 
     def set_hostname(
-        self, hostname: str, fqdn: Union[str, None] = None
+        self, hostname: str, fqdn: Optional[str] = None
     ) -> None:
         writeable_hostname = self._select_hostname(hostname, fqdn)
         if writeable_hostname:
@@ -420,8 +420,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def package_command(
         self,
         command: str,
-        args: Union[str, List, None] = None,
-        pkgs: Union[List, None] = None,
+        args: Optional[Union[str, List]] = None,
+        pkgs: Optional[List] = None,
     ) -> None:
         # Long-term, this method should be removed and callers refactored.
         # Very few commands are going to be consistent across all package
@@ -450,15 +450,15 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return arch
 
     def _get_arch_package_mirror_info(
-        self, arch: Union[str, None] = None
-    ) -> Union[dict, None]:
+        self, arch: Optional[str] = None
+    ) -> Optional[dict]:
         mirror_info = self.get_option("package_mirrors", [])
         if not arch:
             arch = self.get_primary_arch()
         return _get_arch_package_mirror_info(mirror_info, arch)
 
     def get_package_mirror_info(
-        self, arch: Union[str, None] = None, data_source: Any = None
+        self, arch: Optional[str] = None, data_source: Any = None
     ) -> dict:
         # This resolves the package_mirrors config option
         # down to a single dict of {mirror_name: mirror_url}
@@ -467,7 +467,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             data_source=data_source, mirror_info=arch_info
         )
 
-    def generate_fallback_config(self) -> Union[dict, None]:
+    def generate_fallback_config(self) -> Optional[dict]:
         return net.generate_fallback_config()
 
     def apply_network_config(
@@ -503,7 +503,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def apply_locale(
-        self, locale: str, out_fn: Union[str, None] = None
+        self, locale: str, out_fn: Optional[str] = None
     ) -> None:
         raise NotImplementedError()
 
@@ -519,18 +519,18 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def _read_hostname(
-        self, filename: str, default: Union[str, None] = None
-    ) -> Union[str, None]:
+        self, filename: str, default: Optional[str] = None
+    ) -> Optional[str]:
         raise NotImplementedError()
 
     @abc.abstractmethod
     def _write_hostname(
-        self, hostname: str, filename: Union[str, None]
+        self, hostname: str, filename: Optional[str]
     ) -> None:
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def _read_system_hostname(self) -> Tuple[str, Union[str, None]]:
+    def _read_system_hostname(self) -> Tuple[str, Optional[str]]:
         raise NotImplementedError()
 
     def _apply_hostname(self, hostname: str) -> None:
@@ -551,8 +551,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             )
 
     def _select_hostname(
-        self, hostname: Union[str, None], fqdn: Union[str, None]
-    ) -> Union[str, None]:
+        self, hostname: Optional[str], fqdn: Optional[str]
+    ) -> Optional[str]:
         # Prefer the short hostname over the long
         # fully qualified domain name
         if (
@@ -580,8 +580,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def update_hostname(
         self,
         hostname: str,
-        fqdn: Union[str, None],
-        prev_hostname_fn: Union[str, None],
+        fqdn: Optional[str],
+        prev_hostname_fn: Optional[str],
     ) -> None:
         applying_hostname = hostname
 
@@ -702,7 +702,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         return self._preferred_ntp_clients
 
-    def get_default_user(self) -> Union[dict, None]:
+    def get_default_user(self) -> Optional[dict]:
         return self.get_option("default_user")
 
     def add_user(self, name, **kwargs) -> bool:
@@ -1209,7 +1209,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         self,
         user: str,
         rules: List[str],
-        doas_file: Union[str, None] = None,
+        doas_file: Optional[str] = None,
     ) -> None:
         if not doas_file:
             doas_file = self.doas_fn
@@ -1306,7 +1306,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         self,
         user: str,
         rules: Union[str, List[str], Tuple[str, ...]],
-        sudo_file: Union[str, None] = None,
+        sudo_file: Optional[str] = None,
     ) -> None:
         if not sudo_file:
             sudo_file = self.ci_sudoers_fn
@@ -1346,7 +1346,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                     raise e
 
     def create_group(
-        self, name: str, members: Union[List[str], None] = None
+        self, name: str, members: Optional[List[str]] = None
     ) -> None:
         group_add_cmd = ["groupadd", name]
         if util.system_is_snappy():
@@ -1381,7 +1381,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     @classmethod
     def shutdown_command(
-        cls, *, mode: str, delay: str, message: Union[str, None]
+        cls, *, mode: str, delay: str, message: Optional[str]
     ) -> List[str]:
         # called from cc_power_state_change.load_power_state
         command = ["shutdown", cls.shutdown_options_map[mode]]
@@ -1399,7 +1399,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return args
 
     @classmethod
-    def reload_init(cls, rcs: Union[List[int], None] = None) -> None:
+    def reload_init(cls, rcs: Optional[List[int]] = None) -> None:
         """
         Reload systemd startup daemon.
         May raise ProcessExecutionError
@@ -1412,7 +1412,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         action: str,
         service: str,
         *extra_args: str,
-        rcs: Union[List[int], None] = None,
+        rcs: Optional[List[int]] = None,
     ) -> Tuple[str, str]:
         """
         Perform the requested action on a service. This handles the common
@@ -1516,7 +1516,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         ] + (["-cf", config_file, interface] if config_file else [interface])
 
     @property
-    def fallback_interface(self) -> Union[str, None]:
+    def fallback_interface(self) -> Optional[str]:
         """Determine the network interface used during local network config."""
         if self._fallback_interface is None:
             self._fallback_interface = net.find_fallback_nic()
@@ -1669,7 +1669,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
 def _apply_hostname_transformations_to_url(
     url: str, transformations: List
-) -> Union[str, None]:
+) -> Optional[str]:
     """
     Apply transformations to a URL's hostname, return transformed URL.
 
@@ -1712,7 +1712,7 @@ def _apply_hostname_transformations_to_url(
     return urllib.parse.urlunsplit(parts._replace(netloc=new_netloc))
 
 
-def _sanitize_mirror_url(url: str) -> Union[str, None]:
+def _sanitize_mirror_url(url: str) -> Optional[str]:
     """
     Given a mirror URL, replace or remove any invalid URI characters.
 
@@ -1772,7 +1772,7 @@ def _sanitize_mirror_url(url: str) -> Union[str, None]:
 
 
 def _get_package_mirror_info(
-    mirror_info: Union[dict, None],
+    mirror_info: Optional[dict],
     data_source: Any = None,
     mirror_filter=util.search_for_mirror,
 ) -> dict:
@@ -1831,7 +1831,7 @@ def _get_package_mirror_info(
 
 def _get_arch_package_mirror_info(
     package_mirrors: List[dict], arch: str
-) -> Union[dict, None]:
+) -> Optional[dict]:
     # pull out the specific arch from a 'package_mirrors' config option
     default = None
     for item in package_mirrors:
@@ -1862,7 +1862,7 @@ def fetch(name: str) -> Type[Distro]:
 
 def set_etc_timezone(
     tz: str,
-    tz_file: Union[str, None] = None,
+    tz_file: Optional[str] = None,
     tz_conf: str = "/etc/timezone",
     tz_local: str = "/etc/localtime",
 ) -> None:
