@@ -2145,6 +2145,44 @@ class TestLoadYaml:
         ]
 
 
+class TestFstabEscaping:
+    @pytest.mark.parametrize(
+        "raw, escaped",
+        [
+            ("/mnt/Cdrom Drive", "/mnt/Cdrom\\040Drive"),
+            ("/mnt/a\tb", "/mnt/a\\011b"),
+            ("/mnt/a\nb", "/mnt/a\\012b"),
+            ("/mnt/a\\b", "/mnt/a\\134b"),
+            # backslash escaped first so existing escapes aren't doubled
+            ("/mnt/a \\b", "/mnt/a\\040\\134b"),
+            ("/mnt/plain", "/mnt/plain"),
+        ],
+    )
+    def test_escape_unescape_roundtrip(self, raw, escaped):
+        assert util.escape_fstab_field(raw) == escaped
+        assert util.unescape_fstab_field(escaped) == raw
+
+
+class TestMounts:
+    def test_mounts_unescapes_mountpoint(self, mocker):
+        """mounts() octal-unescapes fs_file via unescape_fstab_field.
+
+        Exercises the ``mount`` command fallback (no /proc/mounts), where an
+        escaped space (octal 040) appears in the mount point of the output.
+        """
+        # No /proc/mounts, so mounts() parses the `mount` command output.
+        mocker.patch(M_PATH + "os.path.exists", return_value=False)
+        mocker.patch(
+            M_PATH + "subp.subp",
+            return_value=SubpResult(
+                "/dev/sr0 on /mnt/Cdrom\\040Drive (ufs, local, journaled)\n",
+                "",
+            ),
+        )
+        result = util.mounts()
+        assert result["/dev/sr0"]["mountpoint"] == "/mnt/Cdrom Drive"
+
+
 class TestMountinfoParsing:
     def test_invalid_mountinfo(self):
         line = (

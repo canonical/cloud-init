@@ -18,7 +18,7 @@ LOG = logging.getLogger(__name__)
 
 
 # If no mirror is specified then use this one
-DEFAULT_MIRROR = "https://alpine.global.ssl.fastly.net/alpine"
+DEFAULT_MIRROR = "https://dl-cdn.alpinelinux.org/alpine"
 
 
 REPOSITORIES_TEMPLATE = """\

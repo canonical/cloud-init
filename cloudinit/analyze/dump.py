@@ -1,11 +1,14 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import calendar
+import logging
 import sys
 from datetime import datetime, timezone
 from typing import IO, Any, Dict, List, Optional, TextIO, Tuple
 
 from cloudinit import atomic_helper, subp, util
+
+LOG = logging.getLogger(__name__)
 
 stage_to_description: Dict[str, str] = {
     "finished": "finished running cloud-init",
@@ -76,6 +79,16 @@ def parse_timestamp_from_date(timestampstr: str) -> float:
         raise ValueError(
             f"Unable to parse timestamp without GNU date: [{timestampstr}]"
         )
+    # Transitional: shelling out to GNU date is slated for removal in favor of
+    # native Python parsing. Log the unrecognized timestamp so maintainers can
+    # collect formats that need direct support (see GH-4357).
+    LOG.warning(
+        "analyze: falling back to GNU %s(1) to parse unrecognized "
+        "timestamp %r; please report this format upstream so it can be "
+        "handled natively in Python.",
+        date,
+        timestampstr,
+    )
     return float(
         subp.subp([date, "-u", "+%s.%3N", "-d", timestampstr]).stdout.strip()
     )
