@@ -1071,7 +1071,7 @@ class DataSourceAzure(sources.DataSource):
         :returns: List of keys.
         """
         try:
-            raw_keys = [
+            public_keys = [
                 public_key["keyData"]
                 for public_key in imds_md["compute"]["publicKeys"]
             ]
@@ -1081,23 +1081,20 @@ class DataSourceAzure(sources.DataSource):
             raise
 
         ssh_keys = []
-        for key in raw_keys:
-            sanitized = certs.sanitize_openssh_key(key)
-            if certs.is_openssh_formatted(sanitized):
-                ssh_keys.append(sanitized)
-            elif certs.is_x509_certificate(key):
-                log_msg = "Converting x509 certificate from IMDS to OpenSSH"
-                report_diagnostic_event(log_msg, logger_func=LOG.debug)
-                try:
-                    ssh_keys.append(certs.convert_x509_to_openssh(key).strip())
-                except subp.ProcessExecutionError as error:
-                    log_msg = "Failed to convert x509 certificate from IMDS"
-                    report_diagnostic_event(log_msg, logger_func=LOG.warning)
-                    raise ValueError(log_msg) from error
-            else:
-                log_msg = "Key(s) not in a supported format"
-                report_diagnostic_event(log_msg, logger_func=LOG.debug)
-                raise ValueError(log_msg)
+        for key in public_keys:
+            try:
+                ssh_keys.append(certs.normalize_ssh_public_key(key))
+            except ValueError as error:
+                # The offending value is a public key or certificate (no
+                # private material), so log it to identify which entry
+                # failed. Only the first failure is reported before raising,
+                # so this is bounded to a single value.
+                log_msg = (
+                    f"Failed to process IMDS public key: {error}. "
+                    f"Key data: {key!r}"
+                )
+                report_diagnostic_event(log_msg, logger_func=LOG.warning)
+                raise
 
         log_msg = "Retrieved {} keys from IMDS".format(len(ssh_keys))
         report_diagnostic_event(log_msg, logger_func=LOG.debug)
