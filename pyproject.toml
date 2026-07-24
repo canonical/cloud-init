@@ -88,7 +88,6 @@ module = [
     "cloudinit.sources.helpers.vmware.imc.config_nic",
     "cloudinit.sources.helpers.vultr",
     "cloudinit.ssh_util",
-    "cloudinit.temp_utils",
     "cloudinit.templater",
     "cloudinit.user_data",
     "tests.unittests.analyze.test_show",

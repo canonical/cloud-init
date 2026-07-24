@@ -6,6 +6,7 @@ import logging
 import os
 import shutil
 import tempfile
+from typing import Any, Iterator, Optional, Tuple, cast
 
 from cloudinit import util
 
@@ -14,7 +15,9 @@ _ROOT_TMPDIR = "/run/cloud-init/tmp"
 _EXE_ROOT_TMPDIR = "/var/tmp/cloud-init"
 
 
-def get_tmp_ancestor(odir=None, needs_exe: bool = False):
+def get_tmp_ancestor(
+    odir: Optional[str] = None, needs_exe: bool = False
+) -> str:
     if odir is not None:
         return odir
     if needs_exe:
@@ -27,7 +30,9 @@ def get_tmp_ancestor(odir=None, needs_exe: bool = False):
     return os.environ.get("TMPDIR", "/tmp")
 
 
-def _tempfile_dir_arg(odir=None, needs_exe: bool = False):
+def _tempfile_dir_arg(
+    odir: Optional[str] = None, needs_exe: bool = False
+) -> str:
     """Return the proper 'dir' argument for tempfile functions.
 
     When root, cloud-init will use /run/cloud-init/tmp to avoid
@@ -56,36 +61,35 @@ def _tempfile_dir_arg(odir=None, needs_exe: bool = False):
     return tdir
 
 
-def ExtendedTemporaryFile(**kwargs):
-    kwargs["dir"] = _tempfile_dir_arg()
-    fh = tempfile.NamedTemporaryFile(**kwargs)
-    # Replace its unlink with a quiet version
-    # that does not raise errors when the
-    # file to unlink has been unlinked elsewhere..
-
-    def _unlink_if_exists(path):
+class _ExtendedTemporaryFile(tempfile._TemporaryFileWrapper):
+    def unlink(self, path: str) -> None:
         try:
             os.unlink(path)
         except OSError as e:
             if e.errno != errno.ENOENT:
                 raise e
 
-    fh.unlink = _unlink_if_exists
+    def unlink_now(self) -> None:
+        self.unlink(self.name)
 
-    # Add a new method that will unlink
-    # right 'now' but still lets the exit
-    # method attempt to remove it (which will
-    # not throw due to our del file being quiet
-    # about files that are not there)
-    def unlink_now():
-        fh.unlink(fh.name)
 
-    setattr(fh, "unlink_now", unlink_now)
-    return fh
+def ExtendedTemporaryFile(**kwargs: Any) -> _ExtendedTemporaryFile:
+    kwargs["dir"] = _tempfile_dir_arg()
+    fh = tempfile.NamedTemporaryFile(**kwargs)
+    # NamedTemporaryFile is a factory function that always builds a
+    # plain _TemporaryFileWrapper internally, so we can't construct
+    # our subclass directly. Reassigning __class__ after the fact is
+    # the standard way to extend it without depending on tempfile's
+    # private construction internals. mypy can't see this runtime
+    # class change, so we cast() to tell it the true resulting type.
+    fh.__class__ = _ExtendedTemporaryFile
+    return cast(_ExtendedTemporaryFile, fh)
 
 
 @contextlib.contextmanager
-def tempdir(rmtree_ignore_errors=False, **kwargs):
+def tempdir(
+    rmtree_ignore_errors: bool = False, **kwargs: Any
+) -> Iterator[str]:
     # This seems like it was only added in python 3.2
     # Make it since its useful...
     # See: http://bugs.python.org/file12970/tempdir.patch
@@ -96,11 +100,15 @@ def tempdir(rmtree_ignore_errors=False, **kwargs):
         shutil.rmtree(tdir, ignore_errors=rmtree_ignore_errors)
 
 
-def mkdtemp(dir=None, needs_exe: bool = False, **kwargs):
+def mkdtemp(
+    dir: Optional[str] = None, needs_exe: bool = False, **kwargs: Any
+) -> str:
     dir = _tempfile_dir_arg(dir, needs_exe)
     return tempfile.mkdtemp(dir=dir, **kwargs)
 
 
-def mkstemp(dir=None, needs_exe: bool = False, **kwargs):
+def mkstemp(
+    dir: Optional[str] = None, needs_exe: bool = False, **kwargs: Any
+) -> Tuple[int, str]:
     dir = _tempfile_dir_arg(dir, needs_exe)
     return tempfile.mkstemp(dir=dir, **kwargs)

@@ -2030,7 +2030,7 @@ def mount_cb(
 
     mounted = mounts()
     with temp_utils.tempdir() as tmpd:
-        umount = False
+        umount: str = ""
         if os.path.realpath(device) in mounted:
             mountpoint = mounted[os.path.realpath(device)]["mountpoint"]
         else:
