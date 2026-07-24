@@ -1382,7 +1382,7 @@ class TestOvfEnvXml:
                     password="a" * errors.MAX_PASSWORD_LENGTH,
                 ),
             ),
-            # Empty password (SSH-key-only VMs).
+            # Missing password (SSH-key-only VMs).
             (
                 construct_ovf_env(password=""),
                 azure_helper.OvfEnvXml(
