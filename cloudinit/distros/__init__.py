@@ -127,37 +127,37 @@ class PackageInstallerError(Exception):
 
 
 class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
-    pip_package_name: str = "python3-pip"
-    usr_lib_exec: str = "/usr/lib"
-    hosts_fn: str = "/etc/hosts"
-    doas_fn: str = "/etc/doas.conf"
-    ci_sudoers_fn: str = "/etc/sudoers.d/90-cloud-init-users"
-    hostname_conf_fn: str = "/etc/hostname"
-    shadow_fn: str = "/etc/shadow"
-    shadow_extrausers_fn: str = "/var/lib/extrausers/shadow"
+    pip_package_name = "python3-pip"
+    usr_lib_exec = "/usr/lib"
+    hosts_fn = "/etc/hosts"
+    doas_fn = "/etc/doas.conf"
+    ci_sudoers_fn = "/etc/sudoers.d/90-cloud-init-users"
+    hostname_conf_fn = "/etc/hostname"
+    shadow_fn = "/etc/shadow"
+    shadow_extrausers_fn = "/var/lib/extrausers/shadow"
     # /etc/shadow match patterns indicating empty passwords
-    shadow_empty_locked_passwd_patterns: List[str] = [
+    shadow_empty_locked_passwd_patterns = [
         "^{username}::",
         "^{username}:!:",
     ]
-    tz_zone_dir: str = "/usr/share/zoneinfo"
-    default_owner: str = "root:root"
-    init_cmd: List[str] = ["service"]  # systemctl, service etc
+    tz_zone_dir = "/usr/share/zoneinfo"
+    default_owner = "root:root"
+    init_cmd = ["service"]  # systemctl, service etc
     renderer_configs: Mapping[str, MutableMapping[str, Any]] = {}
-    _preferred_ntp_clients: Union[List[str], None] = None
-    networking_cls: Type[Networking] = LinuxNetworking
+    _preferred_ntp_clients: Optional[List[str]] = None
+    networking_cls = LinuxNetworking
     # This is used by self.shutdown_command(), and can be overridden in
     # subclasses
-    shutdown_options_map: Dict[str, str] = {
+    shutdown_options_map = {
         "halt": "-H",
         "poweroff": "-P",
         "reboot": "-r",
     }
-    net_ops: Type[NetOps] = iproute2.Iproute2
+    net_ops = iproute2.Iproute2
 
-    _ci_pkl_version: int = 1
-    prefer_fqdn: bool = False
-    resolve_conf_fn: str = "/etc/resolv.conf"
+    _ci_pkl_version = 1
+    prefer_fqdn = False
+    resolve_conf_fn = "/etc/resolv.conf"
 
     osfamily: str
     # Directory where the distro stores their DHCP leases.
@@ -403,9 +403,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def set_option(self, opt_name: str, value: Any = None) -> None:
         self._cfg[opt_name] = value
 
-    def set_hostname(
-        self, hostname: str, fqdn: Optional[str] = None
-    ) -> None:
+    def set_hostname(self, hostname: str, fqdn: Optional[str] = None) -> None:
         writeable_hostname = self._select_hostname(hostname, fqdn)
         if writeable_hostname:
             self._write_hostname(writeable_hostname, self.hostname_conf_fn)
@@ -502,9 +500,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return False
 
     @abc.abstractmethod
-    def apply_locale(
-        self, locale: str, out_fn: Optional[str] = None
-    ) -> None:
+    def apply_locale(self, locale: str, out_fn: Optional[str] = None) -> None:
         raise NotImplementedError()
 
     @abc.abstractmethod
@@ -524,9 +520,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def _write_hostname(
-        self, hostname: str, filename: Optional[str]
-    ) -> None:
+    def _write_hostname(self, hostname: str, filename: Optional[str]) -> None:
         raise NotImplementedError()
 
     @abc.abstractmethod
