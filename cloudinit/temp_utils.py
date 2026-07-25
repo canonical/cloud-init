@@ -1,12 +1,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import contextlib
-import errno
 import logging
 import os
 import shutil
 import tempfile
-from typing import Any, Iterator, Optional, Tuple, cast
+from typing import Any, Generator, Optional, Tuple
 
 from cloudinit import util
 
@@ -61,35 +60,15 @@ def _tempfile_dir_arg(
     return tdir
 
 
-class _ExtendedTemporaryFile(tempfile._TemporaryFileWrapper):
-    def unlink(self, path: str) -> None:
-        try:
-            os.unlink(path)
-        except OSError as e:
-            if e.errno != errno.ENOENT:
-                raise e
-
-    def unlink_now(self) -> None:
-        self.unlink(self.name)
-
-
-def ExtendedTemporaryFile(**kwargs: Any) -> _ExtendedTemporaryFile:
+def ExtendedTemporaryFile(**kwargs: Any) -> Any:
     kwargs["dir"] = _tempfile_dir_arg()
-    fh = tempfile.NamedTemporaryFile(**kwargs)
-    # NamedTemporaryFile is a factory function that always builds a
-    # plain _TemporaryFileWrapper internally, so we can't construct
-    # our subclass directly. Reassigning __class__ after the fact is
-    # the standard way to extend it without depending on tempfile's
-    # private construction internals. mypy can't see this runtime
-    # class change, so we cast() to tell it the true resulting type.
-    fh.__class__ = _ExtendedTemporaryFile
-    return cast(_ExtendedTemporaryFile, fh)
+    return tempfile.NamedTemporaryFile(**kwargs)
 
 
 @contextlib.contextmanager
 def tempdir(
     rmtree_ignore_errors: bool = False, **kwargs: Any
-) -> Iterator[str]:
+) -> Generator[str, None, None]:
     # This seems like it was only added in python 3.2
     # Make it since its useful...
     # See: http://bugs.python.org/file12970/tempdir.patch
