@@ -1807,6 +1807,26 @@ class TestIdentifyPlatform:
         )
         assert expected == ec2.identify_platform()
 
+    def test_identify_aws_null_hypervisor_uuid(self, mocker):
+        """a null /sys/hypervisor/uuid must fall back to the dmi uuid.
+
+        A Xen dom0 reports an all-zero uuid there, which identifies no
+        platform but is truthy, so AWS was never detected.
+        """
+        mocker.patch(
+            "cloudinit.util.load_text_file",
+            return_value="00000000-0000-0000-0000-000000000000\n",
+        )
+        mocker.patch(
+            "cloudinit.dmi.read_dmi_data",
+            side_effect=lambda key: (
+                "EC2E1916-9099-7CAF-FD21-012345ABCDEF"
+                if key == "system-uuid"
+                else ""
+            ),
+        )
+        assert ec2.CloudNames.AWS == ec2.identify_platform()
+
     @mock.patch("cloudinit.sources.DataSourceEc2._collect_platform_data")
     def test_identify_aws_endian(self, m_collect):
         """aws should be identified if uuid starts with ec2"""
