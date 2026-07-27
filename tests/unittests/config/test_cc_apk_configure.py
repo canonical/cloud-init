@@ -20,7 +20,7 @@ from tests.unittests.helpers import SCHEMA_EMPTY_ERROR, skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
 REPO_FILE = "/etc/apk/repositories"
-DEFAULT_MIRROR_URL = "https://alpine.global.ssl.fastly.net/alpine"
+DEFAULT_MIRROR_URL = "https://dl-cdn.alpinelinux.org/alpine"
 CC_APK = "cloudinit.config.cc_apk_configure"
 
 
