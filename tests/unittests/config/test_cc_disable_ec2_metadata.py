@@ -3,6 +3,7 @@
 """Tests cc_disable_ec2_metadata handler"""
 
 
+import re
 from unittest import mock
 
 import pytest
@@ -54,6 +55,7 @@ class TestEC2MetadataRoute:
         m_subp.assert_not_called()
 
 
+@pytest.mark.usefixtures("clear_deprecation_log")
 @skipUnlessJsonSchema()
 class TestDisableEc2MetadataSchema:
     """Directly test schema rather than through handle."""
@@ -61,7 +63,16 @@ class TestDisableEc2MetadataSchema:
     @pytest.mark.parametrize(
         "config, error_msg",
         (
-            # Valid schemas tested by meta.examples in test_schema
+            # Valid, yet deprecated schema
+            (
+                {"disable_ec2_metadata": True},
+                re.escape(
+                    "Cloud config schema deprecations: "
+                    "disable_ec2_metadata:  Deprecated in version 26.2. "
+                    "The disable_ec2_metadata module is deprecated and will "
+                    "be removed in a future release."
+                ),
+            ),
             # Invalid schemas
             (
                 {"disable_ec2_metadata": 1},
@@ -76,3 +87,15 @@ class TestDisableEc2MetadataSchema:
         schema = get_schema()
         with pytest.raises(SchemaValidationError, match=error_msg):
             validate_cloudconfig_schema(config, schema, strict=True)
+
+
+@pytest.mark.usefixtures("clear_deprecation_log")
+class TestDisableEc2MetadataDeprecation:
+    @mock.patch("cloudinit.config.cc_disable_ec2_metadata.subp.which")
+    @mock.patch("cloudinit.config.cc_disable_ec2_metadata.subp.subp")
+    def test_deprecate_module_warning(self, m_subp, m_which, caplog):
+        """Assert warning is logged for deprecated module."""
+        m_which.side_effect = lambda x: x if x == "ip" else None
+        ec2_meta.handle("foo", {"disable_ec2_metadata": True}, mock.MagicMock(), [])
+        assert "Module cc_disable_ec2_metadata is deprecated in" in caplog.text
+        assert "deprecat" in caplog.text
