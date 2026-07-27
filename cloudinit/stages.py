@@ -1139,11 +1139,13 @@ def read_runtime_config(run_dir: str):
     try:
         return util.read_conf(os.path.join(run_dir, "cloud.cfg"))
     except PermissionError:
-        LOG.debug(
-            "Skipping unreadable runtime config %s",
-            os.path.join(run_dir, "cloud.cfg"),
-        )
-        return {}
+        if os.getuid() != 0:
+            LOG.debug(
+                "Skipping unreadable runtime config %s",
+                os.path.join(run_dir, "cloud.cfg"),
+            )
+            return {}
+        raise
 
 
 def fetch_base_config(run_dir: str, *, instance_data_file=None) -> dict:

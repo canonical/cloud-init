@@ -55,8 +55,11 @@ class TestUpdateEventEnabled:
 
 
 class TestReadRuntimeConfig:
+    @mock.patch(M_PATH + "os.getuid", return_value=1000)
     @mock.patch(M_PATH + "util.read_conf")
-    def test_unreadable_runtime_config_is_skipped(self, m_read_conf):
+    def test_unreadable_runtime_config_is_skipped(
+        self, m_read_conf, _m_getuid
+    ):
         """An unreadable runtime cloud.cfg is skipped rather than fatal.
 
         Regression test: ``cloud-init schema`` invoked as a non-root user
@@ -66,6 +69,15 @@ class TestReadRuntimeConfig:
         m_read_conf.side_effect = PermissionError(13, "Permission denied")
         assert {} == stages.read_runtime_config("/run/cloud-init")
         m_read_conf.assert_called_once_with("/run/cloud-init/cloud.cfg")
+
+    @mock.patch(M_PATH + "os.getuid", return_value=0)
+    @mock.patch(M_PATH + "util.read_conf")
+    def test_unreadable_runtime_config_raises_for_root(
+        self, m_read_conf, _m_getuid
+    ):
+        m_read_conf.side_effect = PermissionError(13, "Permission denied")
+        with pytest.raises(PermissionError):
+            stages.read_runtime_config("/run/cloud-init")
 
     @mock.patch(M_PATH + "util.read_conf")
     def test_readable_runtime_config_is_returned(self, m_read_conf):
