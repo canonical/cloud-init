@@ -1205,7 +1205,7 @@ def get_secondary_addresses(nic_metadata, mac):
     if bool(isinstance(ipv6s, list) and len(ipv6s) > 1):
         addresses.extend(
             _get_secondary_addresses(
-                nic_metadata, "subnet-ipv6-cidr-block", mac, ipv6s, "128"
+                nic_metadata, "subnet-ipv6-cidr-blocks", mac, ipv6s, "128"
             )
         )
     return sorted(addresses)
