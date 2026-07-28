@@ -22,7 +22,6 @@ import cloudinit.config
 from cloudinit import lifecycle
 from cloudinit.util import is_true
 from tests.integration_tests.clouds import Ec2Cloud
-from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import (
     OS_IMAGE_TYPE,
@@ -111,8 +110,6 @@ runcmd:
 snap:
   commands:
     - snap install hello-world
-ssh_import_id:
-  - gh:blackboxsw
 
 timezone: Europe/Madrid
 """
@@ -393,7 +390,6 @@ class TestCombined:
                 "rsyslog",
                 "runcmd",
                 "snap",
-                "ssh_import_id",
                 "timezone",
             }
         )
@@ -814,22 +810,44 @@ class TestCombined:
     # cloud-init devel net-convert
 
 
-@pytest.mark.user_data(USER_DATA)
-class TestCombinedNoCI:
-    @retry(tries=30, delay=1)
-    @pytest.mark.skipif(IS_RHEL, reason="rhel skips ssh_import_id module")
+SSH_IMPORT_ID_USER_DATA = """\
+#cloud-config
+ssh_import_id:
+  - gh:blackboxsw
+"""
+
+
+@pytest.mark.user_data(SSH_IMPORT_ID_USER_DATA)
+@pytest.mark.skipif(IS_RHEL, reason="rhel skips ssh_import_id module")
+class TestSshImportId:
     def test_ssh_import_id(self, class_client: IntegrationInstance):
         """Integration test for the ssh_import_id module.
 
         This test specifies ssh keys to be imported by the ``ssh_import_id``
-        module and then checks that if the ssh keys were successfully imported.
+        module and then checks that the ssh keys were successfully imported.
 
-        TODO:
-        * This test assumes that SSH keys will be imported into the
-        /home/ubuntu; this will need modification to run on other OSes.
+        ssh-import-id calls the GitHub REST API, which rate-limits (HTTP 403)
+        the CI runners' shared IP on an hourly window. When that happens the
+        key is never written, so detect the rate-limit signature and skip
+        rather than hard-failing (the failure is environmental, not a
+        cloud-init regression).
         """
-        client = class_client
-        ssh_output = client.read_from_file("/home/ubuntu/.ssh/authorized_keys")
+        output_log = ""
+        try:
+            output_log = class_client.read_from_file(
+                "/var/log/cloud-init-output.log"
+            )
+        except IOError:
+            pass
+        if (
+            "GitHub REST API rate-limited" in output_log
+            or "status_code=403" in output_log
+        ):
+            pytest.skip("skipped: GitHub API rate-limited")
+        ssh_output = class_client.read_from_file(
+            "/home/ubuntu/.ssh/authorized_keys"
+        )
+
         assert "# ssh-import-id gh:blackboxsw" in ssh_output
 
 
