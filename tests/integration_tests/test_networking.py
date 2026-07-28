@@ -251,12 +251,16 @@ def test_schema_warnings(net_config, session_cloud: IntegrationCloud):
         else:
             assert result.failed
             assert result.return_code == 2  # Warnings exit 2 after 23.4
+        # cloud-init's own v1 schema check still flags the too-long name;
+        # netplan 1.2+ no longer raises, so assert on cloud-init's messages.
         assert (
-            'eth01234567890123\\" is wrong: \\"name\\" not a valid ifname'
+            "network-config-v1 failed schema validation!"
             in result.stdout
         )
-        result = client.execute("cloud-init schema --system")
+        result = client.execute("cloud-init schema --system --annotate")
         assert "Invalid network-config " in result.stdout
+        assert "eth01234567890123" in result.stdout
+        assert "is too long" in result.stdout
 
 
 @pytest.mark.skipif(
