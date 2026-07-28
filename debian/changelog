@@ -1,3 +1,11 @@
+cloud-init (26.2-0ubuntu1) UNRELEASED; urgency=medium
+
+  * Upstream snapshot based on 26.2.
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/26.2/ChangeLog
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 28 Jul 2026 17:20:17 -0600
+
 cloud-init (26.2~3gbd85f29d-0ubuntu1) stonking; urgency=medium
 
   * Upstream snapshot based on upstream/main at bd85f29d.
