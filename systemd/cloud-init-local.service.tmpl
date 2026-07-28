@@ -9,7 +9,7 @@ Wants=network-pre.target
 After=hv_kvp_daemon.service
 Before=network-pre.target
 Before=shutdown.target
-{% if variant in ["almalinux", "azurelinux", "cloudlinux", "rhel"] %}
+{% if variant in ["almalinux", "azurelinux", "cloudlinux", "centos", "eln", "rhel"] %}
 Before=firewalld.target
 {% endif %}
 {% if variant in ["ubuntu", "unknown", "debian", "raspberry-pi-os"] %}

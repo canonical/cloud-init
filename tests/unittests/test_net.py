@@ -5233,6 +5233,7 @@ class TestNetRenderers:
         variants = [
             "suse",
             "centos",
+            "eln",
             "eurolinux",
             "fedora",
             "rhel",

@@ -15,6 +15,7 @@ DISTRO_VARIANTS = [
     "azurelinux",
     "centos",
     "debian",
+    "eln",
     "eurolinux",
     "fedora",
     "freebsd",
@@ -94,6 +95,7 @@ class TestRenderCloudCfg:
         default_user_exceptions = {
             "amazon": "ec2-user",
             "azurelinux": "azureuser",
+            "eln": "cloud-user",
             "rhel": "cloud-user",
             "centos": "cloud-user",
             "raspberry-pi-os": "pi",

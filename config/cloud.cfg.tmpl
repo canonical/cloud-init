@@ -2,7 +2,7 @@
 # The top level settings are used as module
 # and base configuration.
 {% set is_bsd = variant in ["dragonfly", "freebsd", "netbsd", "openbsd"] %}
-{% set is_rhel = variant in ["almalinux", "centos", "cloudlinux", "eurolinux",
+{% set is_rhel = variant in ["almalinux", "centos", "cloudlinux", "eln", "eurolinux",
                              "miraclelinux", "rhel", "rocky", "virtuozzo"] %}
 {% set gecos = ({"amazon": "EC2 Default User", "azurelinux": "Azure Linux",
                  "centos": "Cloud User", "debian": "Debian",
@@ -24,7 +24,8 @@
 {% set shells = ({"alpine": "/bin/ash", "dragonfly": "/bin/sh",
                   "freebsd": "/bin/tcsh", "netbsd": "/bin/sh",
                   "openbsd": "/bin/ksh"}) %}
-{% set usernames = ({"amazon": "ec2-user", "azurelinux": "azureuser", "centos": "cloud-user",
+{% set usernames = ({"amazon": "ec2-user", "azurelinux": "azureuser",
+                     "centos": "cloud-user", "eln": "cloud-user",
                      "openmandriva": "omv", "raspberry-pi-os": "pi",
                      "rhel": "cloud-user",
                      "unknown": "ubuntu"}) %}

@@ -108,4 +108,5 @@ IS_UBUNTU = CURRENT_RELEASE.os == "ubuntu"
 IS_RHEL = CURRENT_RELEASE.os in (
     "rhel",
     "centos",
+    "eln",
 )  # will add other RHEL-like distros later
