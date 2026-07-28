@@ -300,23 +300,24 @@ class OpenNebulaNetwork:
         """
         aliases: List[str] = []
         prefix = c_dev.upper() + "_ALIAS"
+        key_re = re.compile(r"^%s(\d+)_IP$" % re.escape(prefix))
+        indices = sorted(
+            int(m.group(1)) for m in map(key_re.match, self.context) if m
+        )
+
         idx = 0
-        while True:
-            ip_key = "%s%d_IP" % (prefix, idx)
-            ip = self.context.get(ip_key)
-            if not ip:
-                break
-            mask_key = "%s%d_MASK" % (prefix, idx)
-            mask = self.context.get(mask_key) or "255.255.255.255"
+        skipped = []
+        for i in indices:
+            if i != idx:
+                skipped.append(i)
+                continue
+            ip = self.context["%s%d_IP" % (prefix, i)]
+            mask = self.context.get("%s%d_MASK" % (prefix, i))
+            mask = mask or "255.255.255.255"
             net_prefix = str(net.ipv4_mask_to_net_prefix(mask))
             aliases.append("%s/%s" % (ip, net_prefix))
             idx += 1
 
-        key_re = re.compile(r"^%s(\d+)_IP$" % re.escape(prefix))
-        skipped = sorted(
-            int(m.group(1)) for m in map(key_re.match, self.context) if m
-        )
-        skipped = [i for i in skipped if i >= idx]
         if skipped:
             LOG.warning(
                 "Ignoring %s: found gap at %s%d_IP",
