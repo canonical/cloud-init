@@ -320,7 +320,7 @@ class OpenNebulaNetwork:
 
         if skipped:
             LOG.warning(
-                "Ignoring %s: found gap at %s%d_IP",
+                "Ignoring network config keys %s due to missing %s%d_IP",
                 ", ".join("%s%d_IP" % (prefix, i) for i in skipped),
                 prefix,
                 idx,
