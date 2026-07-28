@@ -1486,9 +1486,9 @@ class TestOvfEnvXml:
     @pytest.mark.parametrize(
         "custom_data",
         [
-            "ABCDE",        # invalid length
-            "ab",           # incorrect padding
-            "not_base64",   # bad character stripped away
+            "ABCDE",  # invalid length
+            "ab",  # incorrect padding
+            "not_base64",  # bad character stripped away
         ],
     )
     def test_invalid_base64_custom_data_fails(self, custom_data):
