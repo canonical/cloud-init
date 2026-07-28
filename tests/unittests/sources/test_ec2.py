@@ -1155,7 +1155,7 @@ class TestGetSecondaryAddresses:
         """Any invalid subnet-ipv(4|6)-cidr-block values use defaults"""
         invalid_cidr_md = copy.deepcopy(NIC1_MD_IPV4_IPV6_MULTI_IP)
         invalid_cidr_md["subnet-ipv4-cidr-block"] = "something-unexpected"
-        invalid_cidr_md["subnet-ipv6-cidr-block"] = "not/sure/what/this/is"
+        invalid_cidr_md["subnet-ipv6-cidr-blocks"] = "not/sure/what/this/is"
         assert [
             "172.31.45.70/24",
             "2600:1f16:292:100:f152:2222:3333:4444/128",
