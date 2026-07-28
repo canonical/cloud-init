@@ -541,13 +541,21 @@ def get_test_rsa_keypair(key_name: str = "test1") -> key_pair:
 
 # We're implementing our own here in case cloud-init status --wait
 # isn't working correctly (LP: #1966085)
+_TERMINAL_STATUS = (
+    "status: done",
+    "status: disabled",
+    "status: error",
+    "status: degraded",  # degraded == done w/ warnings
+)
+
+
 def wait_for_cloud_init(client: "IntegrationInstance", num_retries: int = 30):
     last_exception = None
     for _ in range(num_retries):
         try:
             result = client.execute("cloud-init status")
-            if result.return_code in (0, 2) and (
-                "running" not in result or "not started" not in result
+            if result.return_code in (0, 1, 2) and any(
+                terminal in result for terminal in _TERMINAL_STATUS
             ):
                 return result
         except Exception as e:
