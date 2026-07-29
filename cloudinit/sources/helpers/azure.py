@@ -7,7 +7,6 @@ import binascii
 import json
 import logging
 import os
-import re
 import textwrap
 import zlib
 from contextlib import contextmanager
@@ -19,7 +18,7 @@ from xml.sax.saxutils import escape  # nosec B406
 
 from cloudinit import distros, subp, temp_utils, url_helper, util, version
 from cloudinit.reporting import events
-from cloudinit.sources.azure import errors
+from cloudinit.sources.azure import certs, errors
 
 LOG = logging.getLogger(__name__)
 
@@ -491,10 +490,7 @@ class OpenSSLManager:
 
     @azure_ds_telemetry_reporter
     def _get_ssh_key_from_cert(self, certificate):
-        pub_key = self._run_x509_action("-pubkey", certificate)
-        keygen_cmd = ["ssh-keygen", "-i", "-m", "PKCS8", "-f", "/dev/stdin"]
-        ssh_key, _ = subp.subp(keygen_cmd, data=pub_key)
-        return ssh_key
+        return certs.convert_x509_to_openssh(certificate)
 
     @azure_ds_telemetry_reporter
     def _get_fingerprint_from_cert(self, certificate):
@@ -540,19 +536,13 @@ class OpenSSLManager:
         """Given the Certificates XML document, return a dictionary of
         fingerprints and associated SSH keys derived from the certs."""
         out = self._decrypt_certs_from_xml(certificates_xml)
-        current = []
         keys = {}
-        for line in out.splitlines():
-            current.append(line)
-            if re.match(r"[-]+END .*?KEY[-]+$", line):
-                # ignore private_keys
-                current = []
-            elif re.match(r"[-]+END .*?CERTIFICATE[-]+$", line):
-                certificate = "\n".join(current)
-                ssh_key = self._get_ssh_key_from_cert(certificate)
-                fingerprint = self._get_fingerprint_from_cert(certificate)
-                keys[fingerprint] = ssh_key
-                current = []
+
+        for certificate in certs.extract_x509_certificates(out):
+            ssh_key = self._get_ssh_key_from_cert(certificate)
+            fingerprint = self._get_fingerprint_from_cert(certificate)
+            keys[fingerprint] = ssh_key
+
         return keys
 
 
@@ -1128,6 +1118,13 @@ class OvfEnvXml:
         self.password = self._parse_property(
             config_set, "UserPassword", required=False
         )
+        if (
+            self.password is not None
+            and len(self.password) > errors.MAX_PASSWORD_LENGTH
+        ):
+            raise errors.ReportableErrorOsProfilePasswordTooLong(
+                length=len(self.password)
+            )
         self.hostname = self._parse_property(
             config_set, "HostName", required=True
         )
