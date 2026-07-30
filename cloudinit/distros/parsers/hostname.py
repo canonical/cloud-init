@@ -11,15 +11,15 @@ from cloudinit.distros.parsers import chop_comment
 
 # Parser that knows how to work with /etc/hostname format
 class HostnameConf:
-    def __init__(self, text):
+    def __init__(self, text: str) -> None:
         self._text = text
         self._contents = None
 
-    def parse(self):
+    def parse(self) -> None:
         if self._contents is None:
             self._contents = self._parse(self._text)
 
-    def __str__(self):
+    def __str__(self) -> str:
         self.parse()
         contents = StringIO()
         for line_type, components in self._contents:
@@ -37,14 +37,14 @@ class HostnameConf:
         return contents
 
     @property
-    def hostname(self):
+    def hostname(self) -> str | None:
         self.parse()
         for line_type, components in self._contents:
             if line_type == "hostname":
                 return components[0]
         return None
 
-    def set_hostname(self, your_hostname):
+    def set_hostname(self, your_hostname: str) -> None:
         your_hostname = your_hostname.strip()
         if not your_hostname:
             return
@@ -57,7 +57,7 @@ class HostnameConf:
         if not replaced:
             self._contents.append(("hostname", [str(your_hostname), ""]))
 
-    def _parse(self, contents):
+    def _parse(self, contents: str) -> list[tuple[str, list[str]]]:
         entries = []
         hostnames_found = set()
         for line in contents.splitlines():
