@@ -1084,7 +1084,13 @@ class OvfEnvXml:
             value = default
 
         if decode_base64 and value is not None:
-            value = base64.b64decode("".join(value.split()))
+            try:
+                value = base64.b64decode("".join(value.split()))
+            except binascii.Error as error:
+                field = name[0].lower() + name[1:]
+                raise errors.ReportableErrorOvfInvalidBase64(
+                    field=field
+                ) from error
 
         if parse_bool:
             value = util.translate_bool(value)
@@ -1101,17 +1107,12 @@ class OvfEnvXml:
             required=True,
         )
 
-        try:
-            self.custom_data = self._parse_property(
-                config_set,
-                "CustomData",
-                decode_base64=True,
-                required=False,
-            )
-        except binascii.Error as error:
-            raise errors.ReportableErrorOvfInvalidBase64(
-                field="customData"
-            ) from error
+        self.custom_data = self._parse_property(
+            config_set,
+            "CustomData",
+            decode_base64=True,
+            required=False,
+        )
         self.username = self._parse_property(
             config_set, "UserName", required=False
         )
