@@ -788,7 +788,8 @@ class TestCombined:
             "cloud-init clean --seed",
             "cloud-init clean --machine-id",
             "cloud-init clean --configs ssh_config",
-            "cloud-init clean --configs ssh_config",
+            "cloud-init clean --configs datasource",
+            "cloud-init clean --configs fstab",
             "cloud-init clean --configs network",
             "cloud-init clean --configs all",
             "cloud-init clean --configs all --machine-id --seed --logs",
@@ -800,7 +801,7 @@ class TestCombined:
                 return_code=0,
             )
 
-    # TODO: add tests for commands as an unpriveledged user
+    # TODO: add tests for commands as an unprivileged user
     #
     # cloud-init schema -c file.yml
     # cloud-init devel render
