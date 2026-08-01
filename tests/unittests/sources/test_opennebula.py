@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 # pylint: disable=attribute-defined-outside-init
 
+import logging
 import os
 import pwd
 from unittest import mock
@@ -1139,6 +1140,127 @@ class TestOpenNebulaNetwork:
         net = ds.OpenNebulaNetwork(context, mock.Mock())
         conf = net.gen_conf()
         assert "routes" not in conf["ethernets"]["eth0"]
+
+    # ------------------------------------------------------------------ #
+    # ETHx_ALIASn                                                          #
+    # ------------------------------------------------------------------ #
+
+    def test_get_alias_addresses_single(self):
+        """Single alias on ETH0 produces one extra address."""
+        context = {
+            "ETH0_ALIAS0_IP": "192.168.1.10",
+            "ETH0_ALIAS0_MASK": "255.255.255.0",
+        }
+        net = ds.OpenNebulaNetwork(context, mock.Mock())
+        aliases = net.get_alias_addresses("ETH0")
+        assert aliases == ["192.168.1.10/24"]
+
+    def test_get_alias_addresses_multiple(self):
+        """Multiple aliases on same interface are all returned."""
+        context = {
+            "ETH0_ALIAS0_IP": "192.168.1.10",
+            "ETH0_ALIAS0_MASK": "255.255.255.0",
+            "ETH0_ALIAS1_IP": "192.168.1.11",
+            "ETH0_ALIAS1_MASK": "255.255.255.0",
+            "ETH0_ALIAS2_IP": "192.168.1.12",
+            "ETH0_ALIAS2_MASK": "255.255.255.0",
+        }
+        net = ds.OpenNebulaNetwork(context, mock.Mock())
+        aliases = net.get_alias_addresses("ETH0")
+        assert aliases == [
+            "192.168.1.10/24",
+            "192.168.1.11/24",
+            "192.168.1.12/24",
+        ]
+
+    def test_get_alias_addresses_none(self):
+        """No alias variables → empty list."""
+        net = ds.OpenNebulaNetwork({}, mock.Mock())
+        aliases = net.get_alias_addresses("ETH0")
+        assert aliases == []
+
+    def test_get_alias_addresses_default_mask(self):
+        """Alias without MASK uses default /32."""
+        context = {
+            "ETH0_ALIAS0_IP": "10.0.0.5",
+        }
+        net = ds.OpenNebulaNetwork(context, mock.Mock())
+        aliases = net.get_alias_addresses("ETH0")
+        assert aliases == ["10.0.0.5/32"]
+
+    def test_get_alias_addresses_gap_ignored_and_warned(self, caplog):
+        """A gap in the alias index stops the scan and logs a warning
+        naming the alias index(es) beyond the gap that were ignored."""
+        context = {
+            "ETH0_ALIAS0_IP": "192.168.1.10",
+            "ETH0_ALIAS0_MASK": "255.255.255.0",
+            "ETH0_ALIAS2_IP": "192.168.1.12",
+            "ETH0_ALIAS2_MASK": "255.255.255.0",
+        }
+        net = ds.OpenNebulaNetwork(context, mock.Mock())
+        aliases = net.get_alias_addresses("ETH0")
+        assert aliases == ["192.168.1.10/24"]
+        warnings = [r for r in caplog.record_tuples if r[1] == logging.WARNING]
+        assert len(warnings) == 1
+        assert "ETH0_ALIAS2_IP" in warnings[0][2]
+        assert "ETH0_ALIAS1_IP" in warnings[0][2]
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_aliases_in_addresses(self, m_get_phys_by_mac):
+        """gen_conf includes alias IPs in addresses list."""
+        context = {
+            "ETH0_MAC": MACADDR,
+            "ETH0_IP": PUBLIC_IP,
+            "ETH0_MASK": "255.255.255.0",
+            "ETH0_ALIAS0_IP": "192.168.1.10",
+            "ETH0_ALIAS0_MASK": "255.255.255.0",
+            "ETH0_ALIAS1_IP": "192.168.1.11",
+            "ETH0_ALIAS1_MASK": "255.255.255.0",
+        }
+        for nic in self.system_nics:
+            m_get_phys_by_mac.return_value = {MACADDR: nic}
+            net = ds.OpenNebulaNetwork(context, mock.Mock())
+            conf = net.gen_conf()
+            addresses = conf["ethernets"][nic]["addresses"]
+            assert PUBLIC_IP + "/24" in addresses
+            assert "192.168.1.10/24" in addresses
+            assert "192.168.1.11/24" in addresses
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_no_aliases_unchanged(self, m_get_phys_by_mac):
+        """gen_conf without aliases produces same output as before."""
+        context = {
+            "ETH0_MAC": MACADDR,
+            "ETH0_IP": PUBLIC_IP,
+            "ETH0_MASK": "255.255.255.0",
+        }
+        for nic in self.system_nics:
+            m_get_phys_by_mac.return_value = {MACADDR: nic}
+            net = ds.OpenNebulaNetwork(context, mock.Mock())
+            conf = net.gen_conf()
+            assert conf["ethernets"][nic]["addresses"] == [PUBLIC_IP + "/24"]
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_aliases_on_second_nic(self, m_get_phys_by_mac):
+        """Aliases on a second NIC do not bleed into the first."""
+        MAC_1 = "02:00:0a:12:01:01"
+        MAC_2 = "02:00:0a:12:01:02"
+        context = {
+            "ETH0_MAC": MAC_1,
+            "ETH0_IP": "10.0.0.1",
+            "ETH1_MAC": MAC_2,
+            "ETH1_IP": "10.0.1.1",
+            "ETH1_ALIAS0_IP": "10.0.1.100",
+            "ETH1_ALIAS0_MASK": "255.255.255.0",
+        }
+        net = ds.OpenNebulaNetwork(
+            context,
+            mock.Mock(),
+            system_nics_by_mac={MAC_1: "eth0", MAC_2: "eth1"},
+        )
+        conf = net.gen_conf()
+        assert conf["ethernets"]["eth0"]["addresses"] == ["10.0.0.1/24"]
+        assert "10.0.1.100/24" in conf["ethernets"]["eth1"]["addresses"]
 
 
 class TestParseShellConfig:
