@@ -21,6 +21,7 @@ on:
         - lxd_container
         - lxd_vm
         - ec2
+        - oci
       image_type:
         required: true
         type: choice
@@ -58,6 +59,10 @@ on:
         required: true
       SSH_PUBLIC_KEY:
         required: true
+      PYCLOUDLIB_OCI_CONFIG_B64:
+        required: false
+      PYCLOUDLIB_OCI_KEY_B64:
+        required: false
 
 jobs:
   integration-test:
@@ -68,6 +73,8 @@ jobs:
       REQUIRED_SECRET: ${{ secrets.PYCLOUDLIB_TOML_B64 }}
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
       SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
+      PYCLOUDLIB_OCI_CONFIG_B64: ${{ secrets.PYCLOUDLIB_OCI_CONFIG_B64 }}
+      PYCLOUDLIB_OCI_KEY_B64: ${{ secrets.PYCLOUDLIB_OCI_KEY_B64 }}
       CLOUD_INIT_PLATFORM: ${{ inputs.platform }}
       CLOUD_INIT_OS_IMAGE: ${{ inputs.release }}
       CLOUD_INIT_OS_IMAGE_TYPE: ${{ inputs.image_type }}
@@ -87,6 +94,16 @@ jobs:
           if [ -z "$SSH_PRIVATE_KEY" ]; then
              echo "ERROR: Missing required repo secret. Please provide SSH_PRIVATE_KEY repo secret at ${{ github.repository }}/settings/secrets/actions."
              exit 1
+          fi
+          if [ "$CLOUD_INIT_PLATFORM" = "oci" ]; then
+            if [ -z "$PYCLOUDLIB_OCI_CONFIG_B64" ]; then
+              echo "ERROR: Missing required repo secret. Please provide PYCLOUDLIB_OCI_CONFIG_B64 repo secret at ${{ github.repository }}/settings/secrets/actions."
+              exit 1
+            fi
+            if [ -z "$PYCLOUDLIB_OCI_KEY_B64" ]; then
+              echo "ERROR: Missing required repo secret. Please provide PYCLOUDLIB_OCI_KEY_B64 repo secret at ${{ github.repository }}/settings/secrets/actions."
+              exit 1
+            fi
           fi
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
@@ -112,6 +129,15 @@ jobs:
           PYCLOUDLIB_CONFIG: ${{ runner.temp }}/pycloudlib.toml
         run: |
           sh -c 'echo "$REQUIRED_SECRET" | base64 -d > "$PYCLOUDLIB_CONFIG"'
+      - name: Setup OCI credentials
+        if: ${{ env.CLOUD_INIT_PLATFORM == 'oci' }}
+        env:
+          PYCLOUDLIB_OCI_CONFIG_FILE_PATH: ${{ runner.temp }}/oci/config
+          PYCLOUDLIB_OCI_KEY_FILE_PATH: ${{ runner.temp }}/oci/key.pem
+        run: |
+          mkdir -p "$(dirname "$PYCLOUDLIB_OCI_CONFIG_FILE_PATH")"
+          sh -c 'printf "%s\n" "$PYCLOUDLIB_OCI_CONFIG_B64" | base64 -d > "$PYCLOUDLIB_OCI_CONFIG_FILE_PATH"'
+          sh -c 'printf "%s\n" "$PYCLOUDLIB_OCI_KEY_B64" | base64 -d  | install -m 600 /dev/stdin "$PYCLOUDLIB_OCI_KEY_FILE_PATH"'
       - name: Install Dependencies
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get -qy update
@@ -120,6 +146,8 @@ jobs:
         env:
           CLOUD_INIT_LOCAL_LOG_PATH: ${{ github.workspace }}/cloud_init_test_logs
           PYCLOUDLIB_CONFIG: ${{ runner.temp }}/pycloudlib.toml
+          PYCLOUDLIB_OCI_CONFIG_FILE_PATH: ${{ runner.temp }}/oci/config
+          PYCLOUDLIB_OCI_KEY_FILE_PATH: ${{ runner.temp }}/oci/key.pem
         run: |
           tox -e integration-tests -- --junitxml="${{ github.workspace }}/junit-report.xml" --color=yes ${{ inputs.filter_tests || 'tests/integration_tests' }}
       - name: Publish Test Report with Insights
@@ -163,3 +191,4 @@ jobs:
         if: ${{ always() }}
         run: |
           rm -f ${{ runner.temp }}/pycloudlib.toml
+          rm -rf ${{ runner.temp }}/oci
