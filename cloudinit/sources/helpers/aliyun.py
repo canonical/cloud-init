@@ -144,7 +144,7 @@ def convert_ecs_metadata_network_config(
     @param: macs_to_nics: Optional dict of mac addresses and nic names. If
     not provided, get_interfaces_by_mac is called to get it from the OS.
     @param: fallback_nic: Optionally provide the primary nic interface name.
-    This nic will be guaranteed to minimally have a dhcp4 configuration.
+    This nic will be guaranteed to minimally have a dhcp configuration.
     @param: full_network_config: Boolean set True to configure all networking
     presented by IMDS. This includes rendering secondary IPv4 and IPv6
     addresses on all NICs and rendering network config on secondary NICs.
@@ -162,14 +162,14 @@ def convert_ecs_metadata_network_config(
         for mac, nic_name in macs_to_nics.items():
             if nic_name == fallback_nic:
                 break
+        nic_metadata = macs_metadata.get(mac, {})
         dev_config: MutableMapping = {
-            "dhcp4": True,
+            "dhcp4": "private-ipv4s" in nic_metadata,
             "dhcp6": False,
             "match": {"macaddress": mac.lower()},
             "set-name": nic_name,
         }
-        nic_metadata = macs_metadata.get(mac)
-        if nic_metadata.get("ipv6s"):  # Any IPv6 addresses configured
+        if "ipv6s" in nic_metadata:  # Any IPv6 addresses configured
             dev_config["dhcp6"] = True
         netcfg["ethernets"][nic_name] = dev_config
         return netcfg
@@ -189,13 +189,14 @@ def convert_ecs_metadata_network_config(
         nic_metadata = macs_metadata.get(nic_mac)
         dhcp_override = {"route-metric": (nic_idx + 1) * 100}
         dev_config = {
-            "dhcp4": True,
-            "dhcp4-overrides": dhcp_override,
+            "dhcp4": "private-ipv4s" in nic_metadata,
             "dhcp6": False,
             "match": {"macaddress": nic_mac.lower()},
             "set-name": nic_name,
         }
-        if nic_metadata.get("ipv6s"):  # Any IPv6 addresses configured
+        if dev_config["dhcp4"]:
+            dev_config["dhcp4-overrides"] = dhcp_override
+        if "ipv6s" in nic_metadata:  # Any IPv6 addresses configured
             dev_config["dhcp6"] = True
             dev_config["dhcp6-overrides"] = dhcp_override
 
@@ -204,7 +205,7 @@ def convert_ecs_metadata_network_config(
     # one nic configured
     if len(netcfg["ethernets"]) == 1:
         for nic_name in netcfg["ethernets"].keys():
-            netcfg["ethernets"][nic_name].pop("dhcp4-overrides")
+            netcfg["ethernets"][nic_name].pop("dhcp4-overrides", None)
             netcfg["ethernets"][nic_name].pop("dhcp6-overrides", None)
             netcfg["ethernets"][nic_name].pop("routes", None)
             netcfg["ethernets"][nic_name].pop("routing-policy", None)

@@ -44,7 +44,8 @@ DEFAULT_METADATA_RAW = r"""{
         "00:16:3e:14:59:58": {
           "gateway": "172.16.101.253",
           "netmask": "255.255.255.0",
-          "network-interface-id": "eni-bp13i3ed90icgdgaxxxx"
+          "network-interface-id": "eni-bp13i3ed90icgdgaxxxx",
+          "private-ipv4s": ["172.16.111.222"]
         }
       }
     }
@@ -182,6 +183,12 @@ def regist_json_meta_path(ds, metadata_address):
 
 
 class TestAliYunDatasource:
+
+    def test_metadata_urls_include_ipv4_then_ipv6(self):
+        assert ay.DataSourceAliYun.metadata_urls == [
+            "http://100.100.100.200",
+            "http://[fd00:100::100:200]",
+        ]
 
     def _test_get_data(self, ds):
         assert ds.metadata == DEFAULT_METADATA
@@ -333,11 +340,13 @@ class TestAliYunDatasource:
                             "ipv6-gateway": "2408:xxxxx",
                             "ipv6s": "[2408:xxxxxx]",
                             "network-interface-id": "eni-bp13i1xxxxx",
+                            "private-ipv4s": ["172.16.101.215"],
                         },
                         "00:16:3e:39:43:27": {
                             "gateway": "172.16.101.253",
                             "netmask": "255.255.255.0",
                             "network-interface-id": "eni-bp13i2xxxx",
+                            "private-ipv4s": ["172.16.101.216"],
                         },
                     }
                 }
@@ -374,6 +383,7 @@ class TestAliYunDatasource:
                             "gateway": "172.16.101.253",
                             "netmask": "255.255.255.0",
                             "network-interface-id": "eni-bp13ixxxx",
+                            "private-ipv4s": ["172.16.101.215"],
                         }
                     }
                 }
@@ -383,6 +393,44 @@ class TestAliYunDatasource:
         met0 = netcfg["ethernets"]["eth0"]
         # single network card would have no dhcp4-overrides
         assert "dhcp4-overrides" not in met0
+
+    @pytest.mark.parametrize(
+        "nic_metadata,expected_dhcp4,expected_dhcp6",
+        [
+            ({"private-ipv4s": ["172.16.101.215"]}, True, False),
+            (
+                {
+                    "ipv6s": ["2408:xxxxxx"],
+                    "private-ipv4s": ["172.16.101.215"],
+                },
+                True,
+                True,
+            ),
+            ({"ipv6s": ["2408:xxxxxx"]}, False, True),
+        ],
+    )
+    def test_network_config_dhcp_from_metadata(
+        self, nic_metadata, expected_dhcp4, expected_dhcp6
+    ):
+        netcfg = convert_ecs_metadata_network_config(
+            {
+                "interfaces": {
+                    "macs": {
+                        "00:16:3e:14:59:58": {
+                            "network-interface-id": "eni-bp13ixxxx",
+                            **nic_metadata,
+                        }
+                    }
+                }
+            },
+            macs_to_nics={"00:16:3e:14:59:58": "eth0"},
+        )
+
+        eth0 = netcfg["ethernets"]["eth0"]
+        assert eth0["dhcp4"] is expected_dhcp4
+        assert eth0["dhcp6"] is expected_dhcp6
+        if not expected_dhcp4:
+            assert "dhcp4-overrides" not in eth0
 
 
 class TestIsAliYun:
