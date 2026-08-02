@@ -16,12 +16,9 @@ from cloudinit.sources import DataSourceHostname
 
 LOG = logging.getLogger(__name__)
 
-MD_V1_URL = "http://metadata.google.internal/computeMetadata/v1/"
+MD_V1_URL = "http://169.254.169.254/computeMetadata/v1/"
 BUILTIN_DS_CONFIG = {"metadata_url": MD_V1_URL}
-GUEST_ATTRIBUTES_URL = (
-    "http://metadata.google.internal/computeMetadata/"
-    "v1/instance/guest-attributes"
-)
+GUEST_ATTRIBUTES_URL = MD_V1_URL + "instance/guest-attributes"
 HOSTKEY_NAMESPACE = "hostkeys"
 HEADERS = {"Metadata-Flavor": "Google"}
 DEFAULT_PRIMARY_INTERFACE = "ens4"
