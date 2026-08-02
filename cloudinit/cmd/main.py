@@ -820,6 +820,19 @@ def main_modules(action_name, args):
     return run_module_section(mods, name, name)
 
 
+def _write_boot_finished(paths) -> None:
+    boot_fin_fn = paths.boot_finished
+    try:
+        contents = "%s - %s - v. %s\n" % (
+            util.uptime(),
+            util.time_rfc2822(),
+            version.version_string(),
+        )
+        util.write_file(boot_fin_fn, contents, ensure_dir_exists=False)
+    except Exception:
+        util.logexc(LOG, "Failed to write boot finished file %s", boot_fin_fn)
+
+
 def main_single(name, args):
     # Cloud-init single stage is broken up into the following sub-stages
     # 1. Ensure that the init object fetches its config without errors
@@ -1046,6 +1059,7 @@ def status_wrapper(name, args):
         util.sym_link(
             os.path.relpath(result_path, link_d), result_link, force=True
         )
+        _write_boot_finished(paths)
 
     return len(v1[mode]["errors"])
 

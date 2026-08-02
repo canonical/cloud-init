@@ -71,13 +71,6 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     except Exception:
         util.logexc(LOG, "Failed to render final message template")
 
-    boot_fin_fn = cloud.paths.boot_finished
-    try:
-        contents = "%s - %s - v. %s\n" % (uptime, ts, cver)
-        util.write_file(boot_fin_fn, contents, ensure_dir_exists=False)
-    except Exception:
-        util.logexc(LOG, "Failed to write boot finished file %s", boot_fin_fn)
-
     if cloud.datasource.dsname == "None":
         if cloud.datasource.sys_cfg.get("datasource_list") != ["None"]:
             LOG.warning("Used fallback datasource")

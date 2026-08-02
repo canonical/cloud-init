@@ -2,6 +2,7 @@
 
 import copy
 import getpass
+import logging
 import os
 import textwrap
 from collections import namedtuple
@@ -16,6 +17,7 @@ from cloudinit.util import ensure_dir, load_text_file, write_file
 MyArgs = namedtuple(
     "MyArgs", "debug files force local reporter subcommand skip_log_setup"
 )
+FakeArgs = namedtuple("FakeArgs", "action local mode")
 
 
 CLOUD_CONFIG_ARCHIVE = """\
@@ -175,6 +177,48 @@ class TestMain:
         main.main_init("init", cmdargs)
 
         m_hostname.assert_called_once()
+
+    def test_status_wrapper_modules_final_writes_boot_finished(
+        self, mocker, tmpdir
+    ):
+        data_d = os.path.join(tmpdir, "data")
+        link_d = os.path.join(tmpdir, "run")
+        instance_d = os.path.join(tmpdir, "instance")
+        boot_finished = os.path.join(instance_d, "boot-finished")
+        paths = mock.Mock(
+            run_dir=link_d,
+            boot_finished=boot_finished,
+        )
+        paths.get_cpath.return_value = data_d
+        mocker.patch("cloudinit.cmd.main.read_cfg_paths", return_value=paths)
+        mocker.patch(
+            "cloudinit.cmd.main.util.time_rfc2822",
+            return_value="Thu, 01 Jan 1970 00:00:00 +0000",
+        )
+        mocker.patch(
+            "cloudinit.cmd.main.version.version_string",
+            return_value="test-version",
+        )
+        handler = main.loggers.LogExporter()
+        logging.getLogger().addHandler(handler)
+        ensure_dir(instance_d)
+
+        try:
+            ret = main.status_wrapper(
+                "modules",
+                FakeArgs((None, lambda *_: []), False, "final"),
+            )
+        finally:
+            logging.getLogger().removeHandler(handler)
+
+        assert ret == 0
+        assert os.path.exists(os.path.join(data_d, "status.json"))
+        assert os.path.exists(os.path.join(data_d, "result.json"))
+        assert os.path.islink(os.path.join(link_d, "result.json"))
+        assert (
+            "12345 - Thu, 01 Jan 1970 00:00:00 +0000 - v. test-version\n"
+            == load_text_file(boot_finished)
+        )
 
     @mock.patch("cloudinit.cmd.clean.get_parser")
     @mock.patch("cloudinit.cmd.clean.handle_clean_args")
