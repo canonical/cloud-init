@@ -5790,6 +5790,77 @@ def _gzip_data(data):
 
 
 class TestRenameInterfaces:
+    def _get_current_rename_info(
+        self, ipv6="", ipv4_permanent="", ipv4_all=""
+    ):
+        def subp_side_effect(cmd, capture=True):
+            assert capture is True
+            if cmd == [
+                "ip",
+                "-6",
+                "addr",
+                "show",
+                "permanent",
+                "scope",
+                "global",
+            ]:
+                return ipv6, ""
+            if cmd == ["ip", "-4", "addr", "show", "permanent"]:
+                return ipv4_permanent, ""
+            if cmd == ["ip", "-4", "addr", "show"]:
+                return ipv4_all, ""
+            raise AssertionError("unexpected command: %s" % cmd)
+
+        with mock.patch(
+            "cloudinit.net.get_interfaces",
+            return_value=[
+                ("ens18", "00:11:22:33:44:55", "virtio_net", "0x12")
+            ],
+        ), mock.patch(
+            "cloudinit.net.is_up", return_value=True
+        ), mock.patch(
+            "cloudinit.subp.subp", side_effect=subp_side_effect
+        ):
+            return net._get_current_rename_info()
+
+    def test_get_current_rename_info_dynamic_ipv4_downable(self):
+        dynamic_ipv4 = "\n".join(
+            [
+                "2: ens18: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500",
+                "    inet 192.0.2.2/24 scope global dynamic ens18",
+            ]
+        )
+
+        current_info = self._get_current_rename_info(ipv4_all=dynamic_ipv4)
+
+        assert current_info["ens18"]["downable"] is True
+
+    def test_get_current_rename_info_permanent_ipv4_not_downable(self):
+        permanent_ipv4 = "\n".join(
+            [
+                "2: ens18: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500",
+                "    inet 192.0.2.2/24 scope global ens18",
+            ]
+        )
+
+        current_info = self._get_current_rename_info(
+            ipv4_permanent=permanent_ipv4
+        )
+
+        assert current_info["ens18"]["downable"] is False
+
+    def test_get_current_rename_info_permanent_ipv6_not_downable(self):
+        permanent_ipv6 = "\n".join(
+            [
+                "2: ens18: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500",
+                "    inet6 2001:db8::1/64 scope global",
+            ]
+        )
+
+        current_info = self._get_current_rename_info(ipv6=permanent_ipv6)
+
+        assert current_info["ens18"]["downable"] is False
+
     @mock.patch("cloudinit.subp.subp")
     def test_rename_all(self, mock_subp):
         renames = [

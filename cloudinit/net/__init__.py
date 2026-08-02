@@ -691,7 +691,9 @@ def _get_current_rename_info(check_downable=True):
             ["ip", "-6", "addr", "show", "permanent", "scope", "global"],
             capture=True,
         )
-        ipv4, _err = subp.subp(["ip", "-4", "addr", "show"], capture=True)
+        ipv4, _err = subp.subp(
+            ["ip", "-4", "addr", "show", "permanent"], capture=True
+        )
 
         nics_with_addresses = set()
         for bytes_out in (ipv6, ipv4):
