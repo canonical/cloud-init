@@ -654,6 +654,34 @@ class TestInit:
             "network update allowed" in caplog.text
         )
 
+    @mock.patch(M_PATH + "sources.pkl_store")
+    @mock.patch(M_PATH + "util.write_file")
+    @mock.patch(M_PATH + "atomic_helper.write_file")
+    def test__write_to_cache_uses_atomic_helper(
+        self, m_atomic_write, m_util_write, m_pkl_store
+    ):
+        self.init._cfg["manual_cache_clean"] = True
+        expected_path = self.init.paths.get_ipath_cur("manual_clean_marker")
+
+        self.init._write_to_cache()
+
+        assert [
+            mock.call(expected_path, omode="w", content="")
+        ] == m_atomic_write.call_args_list
+        assert 0 == m_util_write.call_count
+        assert 1 == m_pkl_store.call_count
+
+    @mock.patch(M_PATH + "sources.pkl_store")
+    @mock.patch(M_PATH + "atomic_helper.write_file")
+    def test__write_to_cache_no_manual_clean(
+        self, m_atomic_write, m_pkl_store
+    ):
+        self.init._cfg["manual_cache_clean"] = False
+
+        self.init._write_to_cache()
+
+        assert 0 == m_atomic_write.call_count
+
 
 class TestInit_InitializeFilesystem:
     """Tests for cloudinit.stages.Init._initialize_filesystem.
