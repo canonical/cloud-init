@@ -9,40 +9,25 @@ from tests.unittests.util import get_cloud
 
 
 class TestHandle:
-    # TODO: Expand these tests to cover full functionality; currently they only
-    # cover the logic around how the boot-finished file is written (and not its
-    # contents).
-
-    @pytest.mark.parametrize(
-        "instance_dir_exists,file_is_written,expected_log_substring",
-        [
-            (True, True, None),
-            (False, False, "Failed to write boot finished file "),
-        ],
-    )
-    def test_boot_finished_written(
+    def test_final_message_logged_without_boot_finished_write(
         self,
-        instance_dir_exists,
-        file_is_written,
-        expected_log_substring,
-        caplog,
+        mocker,
         paths,
-        tmpdir,
     ):
         instance_dir = Path(paths.get_ipath_cur())
-        if instance_dir_exists:
-            instance_dir.mkdir()
+        instance_dir.mkdir()
         boot_finished = instance_dir / "boot-finished"
+        m_multi_log = mocker.patch(
+            "cloudinit.config.cc_final_message.log_util.multi_log"
+        )
 
         m_cloud = get_cloud(paths=paths)
         handle(None, {}, m_cloud, [])
 
         # We should not change the status of the instance directory
-        assert instance_dir_exists == instance_dir.exists()
-        assert file_is_written == boot_finished.exists()
-
-        if expected_log_substring:
-            assert expected_log_substring in caplog.text
+        assert instance_dir.exists()
+        assert not boot_finished.exists()
+        assert "Cloud-init v." in m_multi_log.call_args[0][0]
 
     @pytest.mark.parametrize(
         "dsname,datasource_list,expected_log,log_level",
