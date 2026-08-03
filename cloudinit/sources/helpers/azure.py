@@ -1087,9 +1087,8 @@ class OvfEnvXml:
             try:
                 value = base64.b64decode("".join(value.split()))
             except binascii.Error as error:
-                field = name[0].lower() + name[1:]
                 raise errors.ReportableErrorOvfInvalidBase64(
-                    field=field
+                    field=name
                 ) from error
 
         if parse_bool:

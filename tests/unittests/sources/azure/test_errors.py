@@ -239,10 +239,10 @@ def test_ovf_invalid_metadata_exception():
 
 
 def test_ovf_invalid_base64():
-    error = errors.ReportableErrorOvfInvalidBase64(field="customData")
+    error = errors.ReportableErrorOvfInvalidBase64(field="CustomData")
 
-    assert error.reason == "failure to decode ovf-env.xml field=customData"
-    assert error.supporting_data["field"] == "customData"
+    assert error.reason == "failure to decode ovf-env.xml field=CustomData"
+    assert error.supporting_data["field"] == "CustomData"
 
 
 def test_os_profile_password_too_long():

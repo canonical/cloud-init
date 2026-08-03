@@ -1593,7 +1593,7 @@ class TestOvfEnvXml:
             azure_helper.OvfEnvXml.parse_text(ovf)
 
         assert exc_info.value.reason == (
-            "failure to decode ovf-env.xml field=customData"
+            "failure to decode ovf-env.xml field=CustomData"
         )
 
     @pytest.mark.parametrize(
