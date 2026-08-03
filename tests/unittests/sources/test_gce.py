@@ -53,11 +53,9 @@ GCE_USER_DATA_TEXT = {
 }
 
 HEADERS = {"Metadata-Flavor": "Google"}
-MD_URL_RE = re.compile(
-    r"http://metadata.google.internal/computeMetadata/v1/.*"
-)
+MD_URL_RE = re.compile(r"http://169.254.169.254/computeMetadata/v1/.*")
 GUEST_ATTRIBUTES_URL = (
-    "http://metadata.google.internal/computeMetadata/"
+    "http://169.254.169.254/computeMetadata/"
     "v1/instance/guest-attributes/hostkeys/"
 )
 
@@ -123,6 +121,12 @@ class TestDataSourceGCE:
         self._set_mock_metadata(check_headers=HEADERS)
         success = self.ds.get_data()
         assert success
+
+    def test_default_metadata_address_uses_link_local_ip(self):
+        assert (
+            "http://169.254.169.254/computeMetadata/v1/"
+            == self.ds.metadata_address
+        )
 
     @responses.activate
     def test_metadata(self):
