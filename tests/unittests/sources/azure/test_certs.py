@@ -392,3 +392,65 @@ class TestConvertX509ToOpenssh:
 
         result = certs.convert_x509_to_openssh(cert_data)
         assert result.strip() == expected_key
+
+
+class TestNormalizeSshPublicKey:
+    """Test normalize_ssh_public_key() function."""
+
+    def test_openssh_key_returned_sanitized(self):
+        """An OpenSSH-formatted key is returned unchanged."""
+        assert certs.normalize_ssh_public_key(_VALID_RSA_KEY) == _VALID_RSA_KEY
+
+    def test_openssh_key_with_crlf_is_sanitized(self):
+        """Embedded CRLF sequences are stripped from OpenSSH keys."""
+        key = "ssh-rsa AAAA\r\nBBBB user@host"
+        assert (
+            certs.normalize_ssh_public_key(key) == "ssh-rsa AAAABBBB user@host"
+        )
+
+    @mock.patch("cloudinit.sources.azure.certs.convert_x509_to_openssh")
+    @mock.patch("cloudinit.sources.azure.certs.is_x509_certificate")
+    @mock.patch("cloudinit.sources.azure.certs.is_openssh_formatted")
+    def test_x509_certificate_is_converted(
+        self, m_is_openssh, m_is_x509, m_convert
+    ):
+        """An x509 certificate is converted to OpenSSH format."""
+        m_is_openssh.return_value = False
+        m_is_x509.return_value = True
+        m_convert.return_value = "ssh-rsa converted-from-x509\n"
+
+        result = certs.normalize_ssh_public_key(_X509_CERT)
+
+        assert result == "ssh-rsa converted-from-x509"
+        m_convert.assert_called_once_with(_X509_CERT)
+
+    @mock.patch("cloudinit.sources.azure.certs.convert_x509_to_openssh")
+    @mock.patch("cloudinit.sources.azure.certs.is_x509_certificate")
+    @mock.patch("cloudinit.sources.azure.certs.is_openssh_formatted")
+    def test_x509_conversion_failure_raises_value_error(
+        self, m_is_openssh, m_is_x509, m_convert
+    ):
+        """A conversion failure is surfaced as a ValueError."""
+        m_is_openssh.return_value = False
+        m_is_x509.return_value = True
+        m_convert.side_effect = subp.ProcessExecutionError("conversion failed")
+
+        with pytest.raises(ValueError) as exc_info:
+            certs.normalize_ssh_public_key(_X509_CERT)
+
+        assert "Failed to convert x509 certificate" in str(exc_info.value)
+        assert isinstance(exc_info.value.__cause__, subp.ProcessExecutionError)
+
+    @mock.patch("cloudinit.sources.azure.certs.is_x509_certificate")
+    @mock.patch("cloudinit.sources.azure.certs.is_openssh_formatted")
+    def test_unsupported_format_raises_value_error(
+        self, m_is_openssh, m_is_x509
+    ):
+        """A key that is neither OpenSSH nor x509 raises a ValueError."""
+        m_is_openssh.return_value = False
+        m_is_x509.return_value = False
+
+        with pytest.raises(ValueError) as exc_info:
+            certs.normalize_ssh_public_key("not-a-supported-key")
+
+        assert "not in a supported format" in str(exc_info.value)

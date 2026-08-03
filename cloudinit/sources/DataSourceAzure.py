@@ -1062,13 +1062,16 @@ class DataSourceAzure(sources.DataSource):
     def _get_public_keys_from_imds(self, imds_md: dict) -> List[str]:
         """Get SSH keys from IMDS metadata.
 
+        Keys provided by IMDS may be in OpenSSH format or as x509
+        certificates. x509 certificates are converted to OpenSSH format.
+
         :raises KeyError: if IMDS metadata is malformed/missing.
         :raises ValueError: if key format is not supported.
 
         :returns: List of keys.
         """
         try:
-            ssh_keys = [
+            public_keys = [
                 public_key["keyData"]
                 for public_key in imds_md["compute"]["publicKeys"]
             ]
@@ -1077,12 +1080,21 @@ class DataSourceAzure(sources.DataSource):
             report_diagnostic_event(log_msg, logger_func=LOG.debug)
             raise
 
-        ssh_keys = [certs.sanitize_openssh_key(key) for key in ssh_keys]
-
-        if any(not certs.is_openssh_formatted(key) for key in ssh_keys):
-            log_msg = "Key(s) not in OpenSSH format"
-            report_diagnostic_event(log_msg, logger_func=LOG.debug)
-            raise ValueError(log_msg)
+        ssh_keys = []
+        for key in public_keys:
+            try:
+                ssh_keys.append(certs.normalize_ssh_public_key(key))
+            except ValueError as error:
+                # The offending value is a public key or certificate (no
+                # private material), so log it to identify which entry
+                # failed. Only the first failure is reported before raising,
+                # so this is bounded to a single value.
+                log_msg = (
+                    f"Failed to process IMDS public key: {error}. "
+                    f"Key data: {key!r}"
+                )
+                report_diagnostic_event(log_msg, logger_func=LOG.warning)
+                raise
 
         log_msg = "Retrieved {} keys from IMDS".format(len(ssh_keys))
         report_diagnostic_event(log_msg, logger_func=LOG.debug)
