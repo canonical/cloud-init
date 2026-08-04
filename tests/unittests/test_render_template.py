@@ -128,6 +128,29 @@ class TestRenderCloudCfg:
         assert renderers == system_cfg["system_info"]["network"]["renderers"]
 
 
+class TestRenderSystemdTemplates:
+    tmpl_path = cloud_init_project_dir(
+        "systemd/cloud-init-network.service.tmpl"
+    )
+
+    @pytest.mark.parametrize(
+        "variant", ("ubuntu", "debian", "unknown", "raspberry-pi-os")
+    )
+    def test_debian_family_network_unit_does_not_order_after_wait_online(
+        self, variant, tmpdir
+    ):
+        outfile = tmpdir.join("cloud-init-network.service").strpath
+
+        templater.render_template(variant, self.tmpl_path, outfile)
+        with open(outfile) as stream:
+            rendered_unit = stream.read()
+
+        assert "Before=sysinit.target" in rendered_unit
+        assert (
+            "After=systemd-networkd-wait-online.service" not in rendered_unit
+        )
+
+
 EXPECTED_DEBIAN = """\
 deb testmirror testcodename main
 deb-src testmirror testcodename main
