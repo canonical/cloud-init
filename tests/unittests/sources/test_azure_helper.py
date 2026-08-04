@@ -1612,9 +1612,7 @@ class TestOvfEnvXml:
             "failure to decode ovf-env.xml field=CustomData"
         )
         assert exc_info.value.supporting_data["field"] == "CustomData"
-        assert (
-            exc_info.value.supporting_data["length"] == expected_length
-        )
+        assert exc_info.value.supporting_data["length"] == expected_length
         assert (
             exc_info.value.supporting_data["exception"] == expected_exception
         )
