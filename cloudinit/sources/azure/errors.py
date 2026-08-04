@@ -3,6 +3,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import base64
+import binascii
 import csv
 import logging
 import traceback
@@ -203,10 +204,14 @@ class ReportableErrorOvfInvalidMetadata(ReportableError):
 
 
 class ReportableErrorOvfInvalidBase64(ReportableError):
-    def __init__(self, field: str) -> None:
+    def __init__(
+        self, field: str, *, error: binascii.Error, length: int
+    ) -> None:
         super().__init__(f"failure to decode ovf-env.xml field={field}")
 
         self.supporting_data["field"] = field
+        self.supporting_data["exception"] = repr(error)
+        self.supporting_data["length"] = length
 
 
 class ReportableErrorOvfParsingException(ReportableError):

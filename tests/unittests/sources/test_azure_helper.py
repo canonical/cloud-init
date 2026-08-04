@@ -1558,14 +1558,30 @@ class TestOvfEnvXml:
         assert parsed.custom_data is None
 
     @pytest.mark.parametrize(
-        "custom_data",
+        "custom_data,expected_length,expected_exception",
         [
-            "ABCDE",  # invalid length
-            "ab",  # incorrect padding
-            "not_base64",  # bad character stripped away
+            (
+                "ABCDE",  # invalid length
+                5,
+                "Error('Invalid base64-encoded string: number of data "
+                "characters (5) cannot be 1 more than a multiple of 4')",
+            ),
+            (
+                "ab",  # incorrect padding
+                2,
+                "Error('Incorrect padding')",
+            ),
+            (
+                "not_base64",  # bad character stripped away
+                10,
+                "Error('Invalid base64-encoded string: number of data "
+                "characters (9) cannot be 1 more than a multiple of 4')",
+            ),
         ],
     )
-    def test_invalid_base64_custom_data_fails(self, custom_data):
+    def test_invalid_base64_custom_data_fails(
+        self, custom_data, expected_length, expected_exception
+    ):
         ovf = f"""\
             <ns0:Environment xmlns="http://schemas.dmtf.org/ovf/environment/1"
              xmlns:ns0="http://schemas.dmtf.org/ovf/environment/1"
@@ -1594,6 +1610,13 @@ class TestOvfEnvXml:
 
         assert exc_info.value.reason == (
             "failure to decode ovf-env.xml field=CustomData"
+        )
+        assert exc_info.value.supporting_data["field"] == "CustomData"
+        assert (
+            exc_info.value.supporting_data["length"] == expected_length
+        )
+        assert (
+            exc_info.value.supporting_data["exception"] == expected_exception
         )
 
     @pytest.mark.parametrize(
