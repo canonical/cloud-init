@@ -391,7 +391,9 @@ def netdev_info(
     return devs
 
 
-def _netdev_route_info_iproute(iproute_data):
+def _netdev_route_info_iproute(
+    iproute_data: str,
+) -> Dict[str, List[Dict[str, str]]]:
     """
     Get network route dicts from ip route info.
 
@@ -479,7 +481,9 @@ def _netdev_route_info_iproute(iproute_data):
     return routes
 
 
-def _netdev_route_info_netstat(route_data):
+def _netdev_route_info_netstat(
+    route_data: str,
+) -> Dict[str, List[Dict[str, str]]]:
     routes: Dict[str, List[Dict[str, str]]] = {}
     routes["ipv4"] = []
     routes["ipv6"] = []
@@ -564,8 +568,8 @@ def _netdev_route_info_netstat(route_data):
     return routes
 
 
-def route_info():
-    routes = {}
+def route_info() -> Dict[str, List[Dict[str, str]]]:
+    routes: Dict[str, List[Dict[str, str]]] = {}
     if subp.which("ip"):
         # Try iproute first of all
         (iproute_out, _err) = subp.subp(["ip", "-o", "route", "list"])
@@ -638,7 +642,7 @@ def netdev_pformat():
     return "\n".join(lines) + "\n"
 
 
-def route_pformat():
+def route_pformat() -> str:
     lines = []
     try:
         routes = route_info()
@@ -650,7 +654,8 @@ def route_pformat():
         )
         util.logexc(LOG, "Route info failed: %s" % e)
     else:
-        if routes.get("ipv4"):
+        ipv4_routes = routes.get("ipv4", [])
+        if ipv4_routes:
             fields_v4 = [
                 "Route",
                 "Destination",
@@ -660,7 +665,7 @@ def route_pformat():
                 "Flags",
             ]
             tbl_v4 = SimpleTable(fields_v4)
-            for n, r in enumerate(routes.get("ipv4")):
+            for n, r in enumerate(ipv4_routes):
                 route_id = str(n)
                 try:
                     tbl_v4.add_row(
@@ -679,7 +684,8 @@ def route_pformat():
             max_len = len(max(route_s.splitlines(), key=len))
             header = util.center("Route IPv4 info", "+", max_len)
             lines.extend([header, route_s])
-        if routes.get("ipv6"):
+        ipv6_routes = routes.get("ipv6", [])
+        if ipv6_routes:
             fields_v6 = [
                 "Route",
                 "Destination",
@@ -688,7 +694,7 @@ def route_pformat():
                 "Flags",
             ]
             tbl_v6 = SimpleTable(fields_v6)
-            for n, r in enumerate(routes.get("ipv6")):
+            for n, r in enumerate(ipv6_routes):
                 route_id = str(n)
                 if r["iface"] == "lo":
                     continue
@@ -711,7 +717,7 @@ def route_pformat():
     return "\n".join(lines) + "\n"
 
 
-def debug_info(prefix="ci-info: "):
+def debug_info(prefix: str = "ci-info: ") -> str:
     lines = []
     netdev_lines = netdev_pformat().splitlines()
     if prefix:

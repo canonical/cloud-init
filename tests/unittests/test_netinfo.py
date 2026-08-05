@@ -95,8 +95,8 @@ class TestNetInfo:
         )
         assert new_output == content
 
-    def test_netdev_info_iproute_warns_on_line_before_device_header(self, caplog):
-        """_netdev_info_iproute warns and skips address lines before a device."""
+    def test_netdev_info_iproute_warns_before_device_header(self, caplog):
+        """Warn and skip ip addr lines appearing before any device header."""
         ipaddr_out = (
             "    inet 127.0.0.1/8 scope host lo\n"
             "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state"
