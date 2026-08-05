@@ -10,6 +10,7 @@ import pytest
 
 from cloudinit import subp
 from cloudinit.netinfo import (
+    _netdev_info_iproute,
     _netdev_info_iproute_json,
     netdev_info,
     netdev_pformat,
@@ -93,6 +94,42 @@ class TestNetInfo:
             "255.0.0.0   |   .    |", "255.0.0.0   |  host  |"
         )
         assert new_output == content
+
+    def test_netdev_info_iproute_warns_before_device_header(self, caplog):
+        """Warn and skip ip addr lines appearing before any device header."""
+        ipaddr_out = (
+            "    inet 127.0.0.1/8 scope host lo\n"
+            "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state"
+            " UNKNOWN group default qlen 1000\n"
+            "    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n"
+            "    inet 127.0.0.1/8 scope host lo\n"
+        )
+        result = _netdev_info_iproute(ipaddr_out)
+        assert result == {
+            "lo": {
+                "ipv4": [
+                    {
+                        "ip": "127.0.0.1",
+                        "bcast": "",
+                        "mask": "255.0.0.0",
+                        "scope": "host",
+                    }
+                ],
+                "ipv6": [],
+                "hwaddr": "",
+                "up": True,
+            }
+        }
+        log = caplog.records[0]
+        assert log.levelname == "WARNING"
+        assert log.msg == (
+            "Skipping ip addr show line before any device header:"
+            " (line:%d) %s"
+        )
+        assert log.args == (
+            0,
+            "    inet 127.0.0.1/8 scope host lo",
+        )
 
     @mock.patch("cloudinit.netinfo.subp.which")
     @mock.patch("cloudinit.netinfo.subp.subp")
