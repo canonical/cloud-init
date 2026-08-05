@@ -75,7 +75,6 @@ module = [
     "cloudinit.sources.DataSourceNoCloud",
     "cloudinit.sources.DataSourceOVF",
     "cloudinit.sources.DataSourceOpenStack",
-    "cloudinit.sources.DataSourceOracle",
     "cloudinit.sources.DataSourceRbxCloud",
     "cloudinit.sources.DataSourceScaleway",
     "cloudinit.sources.DataSourceSmartOS",
