@@ -248,7 +248,7 @@ def test_ovf_invalid_base64():
 
     assert error.reason == "failure to decode ovf-env.xml field=CustomData"
     assert error.supporting_data["field"] == "CustomData"
-    assert error.supporting_data["exception"] == "Error('Incorrect padding')"
+    assert error.supporting_data["exception"] == "Incorrect padding"
     assert error.supporting_data["length"] == 5
 
 

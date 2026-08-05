@@ -210,7 +210,7 @@ class ReportableErrorOvfInvalidBase64(ReportableError):
         super().__init__(f"failure to decode ovf-env.xml field={field}")
 
         self.supporting_data["field"] = field
-        self.supporting_data["exception"] = repr(error)
+        self.supporting_data["exception"] = str(error)
         self.supporting_data["length"] = length
 
 
