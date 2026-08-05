@@ -556,6 +556,62 @@ class TestOpenSSLManagerActions:
         for fp in fingerprints:
             assert fp in keys_by_fp
 
+    def test_parse_certificates_processes_all_certificates(self):
+        pem_bundle = (
+            "header\r\n"
+            "-----BEGIN CERTIFICATE-----\r\n"
+            "CERTDATA1\r\n"
+            "-----END CERTIFICATE-----\r\n"
+            "-----BEGIN PRIVATE KEY-----\r\n"
+            "KEYDATA\r\n"
+            "-----END PRIVATE KEY-----\r\n"
+            "-----BEGIN CERTIFICATE-----\r\n"
+            "CERTDATA2\r\n"
+            "-----END CERTIFICATE-----\r\n"
+        )
+        cert1 = (
+            "-----BEGIN CERTIFICATE-----\r\n"
+            "CERTDATA1\r\n"
+            "-----END CERTIFICATE-----"
+        )
+        cert2 = (
+            "-----BEGIN CERTIFICATE-----\r\n"
+            "CERTDATA2\r\n"
+            "-----END CERTIFICATE-----"
+        )
+        with mock.patch.object(
+            azure_helper.OpenSSLManager,
+            "generate_certificate",
+        ), mock.patch.object(
+            azure_helper.OpenSSLManager,
+            "_decrypt_certs_from_xml",
+            return_value=pem_bundle,
+        ) as m_decrypt, mock.patch.object(
+            azure_helper.OpenSSLManager,
+            "_get_ssh_key_from_cert",
+            side_effect=["ssh-cert-1", "ssh-cert-2"],
+        ) as m_get_key, mock.patch.object(
+            azure_helper.OpenSSLManager,
+            "_get_fingerprint_from_cert",
+            side_effect=["fp1", "fp2"],
+        ) as m_get_fp, mock.patch(
+            "cloudinit.sources.helpers.azure.certs.extract_x509_certificates",
+            return_value=[cert1, cert2],
+        ):
+            sslmgr = azure_helper.OpenSSLManager()
+            result = sslmgr.parse_certificates("fake-xml")
+
+        assert result == {"fp1": "ssh-cert-1", "fp2": "ssh-cert-2"}
+        m_decrypt.assert_called_once_with("fake-xml")
+        assert m_get_key.call_args_list == [
+            mock.call(cert1),
+            mock.call(cert2),
+        ]
+        assert m_get_fp.call_args_list == [
+            mock.call(cert1),
+            mock.call(cert2),
+        ]
+
 
 class TestGoalStateHealthReporter:
     maxDiff = None
@@ -1373,6 +1429,24 @@ class TestOvfEnvXml:
                     password="test-password",
                 ),
             ),
+            # Password at maximum supported length.
+            (
+                construct_ovf_env(password="a" * errors.MAX_PASSWORD_LENGTH),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    password="a" * errors.MAX_PASSWORD_LENGTH,
+                ),
+            ),
+            # Missing password (SSH-key-only VMs).
+            (
+                construct_ovf_env(password=""),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    password=None,
+                ),
+            ),
             # Hostname.
             (
                 construct_ovf_env(hostname="other-host"),
@@ -1493,6 +1567,25 @@ class TestOvfEnvXml:
             azure_helper.OvfEnvXml.parse_text(ovf)
 
         assert str(exc_info.value.reason) == error
+
+    def test_password_too_long(self):
+        length = errors.MAX_PASSWORD_LENGTH + 1
+        ovf = construct_ovf_env(password="a" * length)
+
+        with pytest.raises(
+            errors.ReportableErrorOsProfilePasswordTooLong
+        ) as exc_info:
+            azure_helper.OvfEnvXml.parse_text(ovf)
+
+        assert exc_info.value.reason == (
+            f"unsupported password length={length} "
+            f"max={errors.MAX_PASSWORD_LENGTH}"
+        )
+        assert exc_info.value.supporting_data["length"] == length
+        assert (
+            exc_info.value.supporting_data["max_length"]
+            == errors.MAX_PASSWORD_LENGTH
+        )
 
     def test_multiple_sections_fails(self):
         ovf = """\
