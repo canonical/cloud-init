@@ -402,7 +402,7 @@ def _netdev_route_info_iproute(iproute_data):
               gateway, flags, genmask and interface information.
     """
 
-    routes: Dict[str, list] = {}
+    routes: Dict[str, List[Dict[str, str]]] = {}
     routes["ipv4"] = []
     routes["ipv6"] = []
     entries = iproute_data.splitlines()
@@ -480,7 +480,7 @@ def _netdev_route_info_iproute(iproute_data):
 
 
 def _netdev_route_info_netstat(route_data):
-    routes: Dict[str, list] = {}
+    routes: Dict[str, List[Dict[str, str]]] = {}
     routes["ipv4"] = []
     routes["ipv6"] = []
 
