@@ -1084,14 +1084,13 @@ class OvfEnvXml:
             value = default
 
         if decode_base64 and value is not None:
-            stripped_value = "".join(value.split())
             try:
-                value = base64.b64decode(stripped_value)
+                value = base64.b64decode(value)
             except binascii.Error as error:
                 raise errors.ReportableErrorOvfInvalidBase64(
                     field=name,
                     error=error,
-                    length=len(stripped_value),
+                    length=len(value),
                 ) from error
 
         if parse_bool:
