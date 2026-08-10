@@ -233,7 +233,7 @@ ipv4_v2_instance_url = oracle.IPV4_METADATA_PATTERN.format(
     path="instance",
     version=2,
 )
-connectivity_urls_data = (
+connectivity_urls_data = [
     {
         "url": oracle.IPV4_METADATA_PATTERN.format(version=2, path="instance"),
         "headers": oracle.V2_HEADERS,
@@ -248,7 +248,7 @@ connectivity_urls_data = (
     {
         "url": oracle.IPV6_METADATA_PATTERN.format(version=1, path="instance"),
     },
-)
+]
 
 
 @pytest.fixture
