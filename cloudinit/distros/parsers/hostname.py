@@ -5,6 +5,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from io import StringIO
+from typing import Optional
 
 from cloudinit.distros.parsers import chop_comment
 
@@ -37,7 +38,7 @@ class HostnameConf:
         return contents
 
     @property
-    def hostname(self) -> str | None:
+    def hostname(self) -> Optional[str]:
         self.parse()
         for line_type, components in self._contents:
             if line_type == "hostname":
