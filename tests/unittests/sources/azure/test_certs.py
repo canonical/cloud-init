@@ -422,7 +422,7 @@ class TestNormalizeSshPublicKey:
         result = certs.normalize_ssh_public_key(_X509_CERT)
 
         assert result == "ssh-rsa converted-from-x509"
-        m_convert.assert_called_once_with(_X509_CERT)
+        m_convert.assert_called_once_with(_X509_CERT.strip())
 
     @mock.patch("cloudinit.sources.azure.certs.convert_x509_to_openssh")
     @mock.patch("cloudinit.sources.azure.certs.is_x509_certificate")

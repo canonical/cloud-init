@@ -1081,17 +1081,12 @@ class DataSourceAzure(sources.DataSource):
             raise
 
         ssh_keys = []
-        for key in public_keys:
+        for i, key in enumerate(public_keys):
             try:
                 ssh_keys.append(certs.normalize_ssh_public_key(key))
             except ValueError as error:
-                # The offending value is a public key or certificate (no
-                # private material), so log it to identify which entry
-                # failed. Only the first failure is reported before raising,
-                # so this is bounded to a single value.
                 log_msg = (
-                    f"Failed to process IMDS public key: {error}. "
-                    f"Key data: {key!r}"
+                    f"Failed to process IMDS public key index={i}: {error}"
                 )
                 report_diagnostic_event(log_msg, logger_func=LOG.warning)
                 raise

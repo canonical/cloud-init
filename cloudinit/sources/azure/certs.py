@@ -158,9 +158,12 @@ def normalize_ssh_public_key(key: str) -> str:
 
     :returns: The public key in OpenSSH format.
     """
-    sanitized = sanitize_openssh_key(key)
-    if is_openssh_formatted(sanitized):
-        return sanitized
+    key = key.strip()
+    if "\r\n" in key:
+        LOG.debug("SSH key contains embedded CRLF sequences, sanitizing.")
+        key = key.replace("\r\n", "")
+    if is_openssh_formatted(key):
+        return key
 
     if is_x509_certificate(key):
         try:
