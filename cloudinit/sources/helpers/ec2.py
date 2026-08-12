@@ -9,6 +9,7 @@
 import functools
 import json
 import logging
+from typing import Dict, List
 
 from cloudinit import url_helper, util
 
@@ -63,8 +64,8 @@ class MetadataMaterializer:
             self._leaf_decoder = leaf_decoder
 
     def _parse(self, blob):
-        leaves = {}
-        children = []
+        leaves: Dict[str, str] = {}
+        children: List[str] = []
         blob = util.decode_binary(blob)
 
         if not blob:
