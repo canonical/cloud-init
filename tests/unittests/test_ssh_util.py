@@ -668,14 +668,12 @@ class TestAppendSshConfig:
             [("MyKey", "NEW_VAL"), ("MyKey", "NEW_VAL_2")], mycfg
         )
         found = util.load_text_file(mycfg)
-        expected_cfg = dedent(
-            """\
+        expected_cfg = dedent("""\
             #Option val
             MyKey ORIG_VAL
             MyKey NEW_VAL
             MyKey NEW_VAL_2
-            """
-        )
+            """)
         assert expected_cfg == found
         # assert there is a newline at end of file (LP: #1677205)
         assert "\n" == found[-1]
@@ -812,7 +810,7 @@ class TestMultipleSshAuthorizedKeysFile:
         return sshd_config
 
     def execute_and_check(self, user, sshd_config, solution, keys):
-        (auth_key_fn, auth_key_entries) = ssh_util.extract_authorized_keys(
+        auth_key_fn, auth_key_entries = ssh_util.extract_authorized_keys(
             user, sshd_config
         )
         content = ssh_util.update_authorized_keys(auth_key_entries, [])

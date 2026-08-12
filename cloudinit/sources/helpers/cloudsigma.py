@@ -19,6 +19,7 @@ hostname to the VM name or passing SSH public keys through server meta.
 For more information take a look at the Server Context section of CloudSigma
 API Docs: http://cloudsigma-docs.readthedocs.org/en/latest/server_context.html
 """
+
 import json
 import platform
 

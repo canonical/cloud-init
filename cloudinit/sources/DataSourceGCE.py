@@ -74,8 +74,8 @@ class DataSourceGCE(sources.DataSource):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.default_user = None
         if distro:
-            (users, _groups) = ug_util.normalize_users_groups(sys_cfg, distro)
-            (self.default_user, _user_config) = ug_util.extract_default(users)
+            users, _groups = ug_util.normalize_users_groups(sys_cfg, distro)
+            self.default_user, _user_config = ug_util.extract_default(users)
         self.metadata = dict()
         self.ds_cfg = util.mergemanydict(
             [

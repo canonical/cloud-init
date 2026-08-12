@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """Module for ephemeral network context managers"""
+
 import contextlib
 import logging
 from functools import partial

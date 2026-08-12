@@ -555,7 +555,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         # Lets get where we should write the system hostname
         # and what the system hostname is
-        (sys_fn, sys_hostname) = self._read_system_hostname()
+        sys_fn, sys_hostname = self._read_system_hostname()
         update_files = []
 
         # If there is no previous hostname or it differs
@@ -798,7 +798,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # Run the command
         LOG.debug("Adding snap user %s", name)
         try:
-            (out, err) = subp.subp(
+            out, err = subp.subp(
                 create_user_cmd, logstring=create_user_cmd, capture=True
             )
             LOG.debug("snap create-user returned: %s:%s", out, err)
@@ -1223,8 +1223,10 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             try:
                 if not base_exists:
                     lines = [
-                        "# See sudoers(5) for more information"
-                        ' on "#include" directives:',
+                        (
+                            "# See sudoers(5) for more information"
+                            ' on "#include" directives:'
+                        ),
                         "",
                         util.make_header(base="added"),
                         "#includedir %s" % (path),

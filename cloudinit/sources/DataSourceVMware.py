@@ -254,7 +254,7 @@ class DataSourceVMware(sources.DataSource):
         ) in self.possible_data_access_method_list:
             if require_vmware_platform and not is_vmware_platform():
                 continue
-            (md, ud, vd) = get_data_fn()
+            md, ud, vd = get_data_fn()
             if md or ud or vd:
                 self.data_access_method = data_access_method
                 break
@@ -573,7 +573,7 @@ class DataSourceVMware(sources.DataSource):
         # Get data only if guest customization type and flag matches.
         if is_vmware_cust_cfg and allow_vmware_cust:
             LOG.debug("Getting data via VMware customization configuration")
-            (md, ud, vd, self.cfg) = guestcust_util.get_data_from_imc_cust_cfg(
+            md, ud, vd, self.cfg = guestcust_util.get_data_from_imc_cust_cfg(
                 self.paths.cloud_dir,
                 self.paths.get_cpath("scripts"),
                 cust_cfg,
@@ -585,7 +585,7 @@ class DataSourceVMware(sources.DataSource):
                 "Getting data via VMware raw cloudinit data "
                 "customization configuration"
             )
-            (md, ud, vd) = guestcust_util.get_data_from_imc_raw_data_cust_cfg(
+            md, ud, vd = guestcust_util.get_data_from_imc_raw_data_cust_cfg(
                 cust_cfg
             )
         else:
@@ -770,12 +770,12 @@ def guestinfo_envvar_get_value(key):
 
 
 def exec_vmware_rpctool(rpctool, arg):
-    (stdout, stderr) = subp([rpctool, arg])
+    stdout, stderr = subp([rpctool, arg])
     return (stdout, stderr)
 
 
 def exec_vmtoolsd(rpctool, arg):
-    (stdout, stderr) = subp([rpctool, "--cmd", arg])
+    stdout, stderr = subp([rpctool, "--cmd", arg])
     return (stdout, stderr)
 
 
@@ -798,7 +798,7 @@ def guestinfo_get_value(key, rpctool, rpctool_fn):
     LOG.debug("Getting guestinfo value for key %s", key)
 
     try:
-        (stdout, stderr) = rpctool_fn(
+        stdout, stderr = rpctool_fn(
             rpctool, "info-get " + get_guestinfo_key_name(key)
         )
         if stderr == NOVAL:

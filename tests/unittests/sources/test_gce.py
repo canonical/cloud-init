@@ -469,10 +469,14 @@ class TestDataSourceGCE:
         assert ds.userdata_raw == "ud"
 
         expected_logs = (
-            "Looking for the primary NIC in:"
-            " ['ens4', 'ens0p4', 'ens0p5', 'ens0p6']",
-            "Error fetching IMD with candidate NIC ens0p5:"
-            " whoopsie, not this one",
+            (
+                "Looking for the primary NIC in:"
+                " ['ens4', 'ens0p4', 'ens0p5', 'ens0p6']"
+            ),
+            (
+                "Error fetching IMD with candidate NIC ens0p5:"
+                " whoopsie, not this one"
+            ),
         )
         for msg in expected_logs:
             assert msg in caplog.text

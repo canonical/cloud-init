@@ -24,18 +24,12 @@ Name                     Version                     Rev    Tracking      ...
 core20                   20220527                    1518   latest/stable ...
 lxd                      git-69dc707                 23315  latest/edge   ...
 """
-SAMPLE_SNAP_LIST_SUBIQUITY = (
-    SAMPLE_SNAP_LIST_OUTPUT
-    + """
+SAMPLE_SNAP_LIST_SUBIQUITY = SAMPLE_SNAP_LIST_OUTPUT + """
 subiquity                22.06.01                 23315  latest/stable   ...
 """
-)
-SAMPLE_SNAP_LIST_DESKTOP_INSTALLER = (
-    SAMPLE_SNAP_LIST_OUTPUT
-    + """
+SAMPLE_SNAP_LIST_DESKTOP_INSTALLER = SAMPLE_SNAP_LIST_OUTPUT + """
 ubuntu-desktop-installer 22.06.01                 23315  latest/stable   ...
 """
-)
 
 
 @mock.patch(MODPATH + "util.wait_for_snap_seeded")
@@ -51,9 +45,11 @@ class TestHandleAutoinstall:
                 SAMPLE_SNAP_LIST_OUTPUT,
                 [mock.call(["snap", "list"])],
                 [
-                    "Skipping autoinstall module. Expected one of the Ubuntu"
-                    " installer snap packages to be present: subiquity,"
-                    " ubuntu-desktop-installer"
+                    (
+                        "Skipping autoinstall module. Expected one of"
+                        " the Ubuntu installer snap packages to be present:"
+                        " subiquity, ubuntu-desktop-installer"
+                    )
                 ],
                 True,
                 id="valid_autoinstall_schema_checks_snaps",
@@ -63,8 +59,10 @@ class TestHandleAutoinstall:
                 SAMPLE_SNAP_LIST_SUBIQUITY,
                 [mock.call(["snap", "list"])],
                 [
-                    "Valid autoinstall schema. Config will be processed by"
-                    " subiquity"
+                    (
+                        "Valid autoinstall schema. Config will be processed by"
+                        " subiquity"
+                    )
                 ],
                 True,
                 id="valid_autoinstall_schema_sees_subiquity",
@@ -74,8 +72,10 @@ class TestHandleAutoinstall:
                 SAMPLE_SNAP_LIST_DESKTOP_INSTALLER,
                 [mock.call(["snap", "list"])],
                 [
-                    "Valid autoinstall schema. Config will be processed by"
-                    " ubuntu-desktop-installer"
+                    (
+                        "Valid autoinstall schema. Config will be processed by"
+                        " ubuntu-desktop-installer"
+                    )
                 ],
                 True,
                 id="valid_autoinstall_schema_sees_desktop_installer",

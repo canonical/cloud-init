@@ -250,9 +250,11 @@ class TestBadInput:
             (
                 CONFIG_SERVICE,
                 [
-                    "The service_level key must be used in conjunction with"
-                    " the auto_attach key.  Please re-run with"
-                    " auto_attach: True",
+                    (
+                        "The service_level key must be used in conjunction"
+                        " with the auto_attach key.  Please re-run with"
+                        " auto_attach: True"
+                    ),
                     "rh_subscription plugin did not complete successfully",
                 ],
             ),
@@ -399,10 +401,12 @@ class TestRhSubscriptionSchema:
             # add-pool are added
             (
                 {"rh_subscription": {"add_pool": ["1"], "add-pool": ["2"]}},
-                r"({'add_pool': \['1'\], 'add-pool': \['2'\]} should not be"
-                r" valid under {'required': \['add_pool', 'add-pool'\]}|"
-                r"{'required': \['add_pool', 'add-pool'\]} is not allowed"
-                r" for {'add_pool': \['1'\], 'add-pool': \['2'\]})",
+                (
+                    r"({'add_pool': \['1'\], 'add-pool': \['2'\]} should not"
+                    r" be valid under {'required': \['add_pool', 'add-pool'\]}"
+                    r"|{'required': \['add_pool', 'add-pool'\]} is not allowed"
+                    r" for {'add_pool': \['1'\], 'add-pool': \['2'\]})"
+                ),
             ),
             (
                 {"rh_subscription": {"enable_repo": "name"}},
@@ -427,8 +431,10 @@ class TestRhSubscriptionSchema:
             ),
             (
                 {"rh_subscription": {"activation_key": "foobar", "org": 314}},
-                "Deprecated in version 24.2. Use of type integer for this"
-                " value is deprecated. Use a string instead.",
+                (
+                    "Deprecated in version 24.2. Use of type integer for this"
+                    " value is deprecated. Use a string instead."
+                ),
             ),
         ],
     )

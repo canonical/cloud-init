@@ -127,7 +127,7 @@ def parse_ci_logline(line: str) -> Optional[Dict[str, Any]]:
     if not found:
         return None
 
-    (timehost, eventstr) = line.split(sep)
+    timehost, eventstr = line.split(sep)
 
     # journalctl -o short-precise
     if timehost.endswith(":"):
@@ -161,7 +161,7 @@ def parse_ci_logline(line: str) -> Optional[Dict[str, Any]]:
             return None
         event_description = stage_to_description[event_name]
     else:
-        (_pymodloglvl, event_type, event_name) = eventstr.split()[0:3]
+        _pymodloglvl, event_type, event_name = eventstr.split()[0:3]
         event_description = eventstr.split(event_name)[1].strip()
 
     event = {

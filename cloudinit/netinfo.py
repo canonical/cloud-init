@@ -331,20 +331,20 @@ def netdev_info(
     """
     devs = {}
     if util.is_NetBSD():
-        (ifcfg_out, _err) = subp.subp(["ifconfig", "-a"], rcs=[0, 1])
+        ifcfg_out, _err = subp.subp(["ifconfig", "-a"], rcs=[0, 1])
         devs = _netdev_info_ifconfig_netbsd(ifcfg_out)
     elif subp.which("ip"):
         # Try iproute first of all
         try:
-            (ipaddr_out, _err) = subp.subp(["ip", "--json", "addr"])
+            ipaddr_out, _err = subp.subp(["ip", "--json", "addr"])
             devs = _netdev_info_iproute_json(ipaddr_out)
         except subp.ProcessExecutionError:
             # Can be removed when "ip --json" is available everywhere
-            (ipaddr_out, _err) = subp.subp(["ip", "addr", "show"])
+            ipaddr_out, _err = subp.subp(["ip", "addr", "show"])
             devs = _netdev_info_iproute(ipaddr_out)
     elif subp.which("ifconfig"):
         # Fall back to net-tools if iproute2 is not present
-        (ifcfg_out, _err) = subp.subp(["ifconfig", "-a"], rcs=[0, 1])
+        ifcfg_out, _err = subp.subp(["ifconfig", "-a"], rcs=[0, 1])
         devs = _netdev_info_ifconfig(ifcfg_out)
     else:
         LOG.warning(
@@ -410,7 +410,7 @@ def _netdev_route_info_iproute(iproute_data):
             entry["genmask"] = "0.0.0.0"
         else:
             if "/" in toks[0]:
-                (addr, cidr) = toks[0].split("/")
+                addr, cidr = toks[0].split("/")
             else:
                 addr = toks[0]
                 cidr = "32"
@@ -430,7 +430,7 @@ def _netdev_route_info_iproute(iproute_data):
         entry["flags"] = "".join(flags)
         routes["ipv4"].append(entry)
     try:
-        (iproute_data6, _err6) = subp.subp(
+        iproute_data6, _err6 = subp.subp(
             ["ip", "--oneline", "-6", "route", "list", "table", "all"],
             rcs=[0, 1],
         )
@@ -508,7 +508,7 @@ def _netdev_route_info_netstat(route_data):
         routes["ipv4"].append(entry)
 
     try:
-        (route_data6, _err6) = subp.subp(
+        route_data6, _err6 = subp.subp(
             ["netstat", "-A", "inet6", "--route", "--numeric"], rcs=[0, 1]
         )
     except subp.ProcessExecutionError:
@@ -553,11 +553,11 @@ def route_info():
     routes = {}
     if subp.which("ip"):
         # Try iproute first of all
-        (iproute_out, _err) = subp.subp(["ip", "-o", "route", "list"])
+        iproute_out, _err = subp.subp(["ip", "-o", "route", "list"])
         routes = _netdev_route_info_iproute(iproute_out)
     elif subp.which("netstat"):
         # Fall back to net-tools if iproute2 is not present
-        (route_out, _err) = subp.subp(
+        route_out, _err = subp.subp(
             ["netstat", "--route", "--numeric", "--extend"], rcs=[0, 1]
         )
         routes = _netdev_route_info_netstat(route_out)

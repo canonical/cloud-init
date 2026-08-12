@@ -90,8 +90,10 @@ class TestWireguard:
             # sha256sum check
             (
                 "sha256sum </etc/wireguard/wg1.conf",
-                "8443055d1442d051588beb03f7895b58"
-                "269196eb9916617969dc5220c1a90d54",
+                (
+                    "8443055d1442d051588beb03f7895b58"
+                    "269196eb9916617969dc5220c1a90d54"
+                ),
             ),
             # check if systemd started wg0
             (

@@ -61,7 +61,7 @@ class TestVmwareConfigFile:
         md1, _ = get_non_network_data_from_vmware_cust_cfg(conf)
         assert "instance-id" not in md1
 
-        (md2, _) = get_non_network_data_from_vmware_cust_cfg(conf)
+        md2, _ = get_non_network_data_from_vmware_cust_cfg(conf)
         assert "instance-id" not in md2
 
     def test_configfile_with_instance_id(self):
@@ -69,10 +69,10 @@ class TestVmwareConfigFile:
         cf = ConfigFile("tests/data/vmware/cust-dhcp-2nic-instance-id.cfg")
         conf = Config(cf)
 
-        (md1, _) = get_non_network_data_from_vmware_cust_cfg(conf)
+        md1, _ = get_non_network_data_from_vmware_cust_cfg(conf)
         assert md1["instance-id"] == conf.instance_id, "instance-id"
 
-        (md2, _) = get_non_network_data_from_vmware_cust_cfg(conf)
+        md2, _ = get_non_network_data_from_vmware_cust_cfg(conf)
         assert md2["instance-id"] == conf.instance_id, "instance-id"
 
     def test_configfile_static_2nics(self):
@@ -327,8 +327,7 @@ class TestVmwareNetConfig:
 
     def test_static_nic_without_ipv4_netmask(self, tmp_path):
         """netmask is optional for static ipv4 configuration."""
-        config = textwrap.dedent(
-            """\
+        config = textwrap.dedent("""\
             [NETWORK]
             NETWORKING = yes
             BOOTPROTO = dhcp
@@ -344,8 +343,7 @@ class TestVmwareNetConfig:
             IPv4_MODE = BACKWARDS_COMPATIBLE
             BOOTPROTO = static
             IPADDR = 10.20.87.154
-            """
-        )
+            """)
         nc = self._get_NicConfigurator(tmp_path, config)
         assert {
             "NIC1": {
@@ -359,8 +357,7 @@ class TestVmwareNetConfig:
 
     def test_static_nic_without_ipv6_netmask(self, tmp_path):
         """netmask is mandatory for static ipv6 configuration."""
-        config = textwrap.dedent(
-            """\
+        config = textwrap.dedent("""\
             [NETWORK]
             NETWORKING = yes
             BOOTPROTO = dhcp
@@ -377,16 +374,14 @@ class TestVmwareNetConfig:
             BOOTPROTO = static
             IPADDR = 10.20.87.154
             IPv6ADDR|1 = fc00:10:20:87::154
-            """
-        )
+            """)
         nc = self._get_NicConfigurator(tmp_path, config)
         with pytest.raises(ValueError):
             nc.generate()
 
     def test_non_primary_nic_with_gateway(self, tmp_path):
         """A non primary nic set can have a gateway."""
-        config = textwrap.dedent(
-            """\
+        config = textwrap.dedent("""\
             [NETWORK]
             NETWORKING = yes
             BOOTPROTO = dhcp
@@ -404,8 +399,7 @@ class TestVmwareNetConfig:
             IPADDR = 10.20.87.154
             NETMASK = 255.255.252.0
             GATEWAY = 10.20.87.253
-            """
-        )
+            """)
         nc = self._get_NicConfigurator(tmp_path, config)
         assert {
             "NIC1": {
@@ -420,8 +414,7 @@ class TestVmwareNetConfig:
 
     def test_cust_non_primary_nic_with_gateway_(self, tmp_path):
         """A customer non primary nic set can have a gateway."""
-        config = textwrap.dedent(
-            """\
+        config = textwrap.dedent("""\
             [NETWORK]
             NETWORKING = yes
             BOOTPROTO = dhcp
@@ -448,8 +441,7 @@ class TestVmwareNetConfig:
 
             [DATETIME]
             UTC = yes
-            """
-        )
+            """)
         nc = self._get_NicConfigurator(tmp_path, config)
         assert {
             "NIC1": {
@@ -467,8 +459,7 @@ class TestVmwareNetConfig:
 
     def test_a_primary_nic_with_gateway(self, tmp_path):
         """A primary nic set can have a gateway."""
-        config = textwrap.dedent(
-            """\
+        config = textwrap.dedent("""\
             [NETWORK]
             NETWORKING = yes
             BOOTPROTO = dhcp
@@ -487,8 +478,7 @@ class TestVmwareNetConfig:
             NETMASK = 255.255.252.0
             PRIMARY = true
             GATEWAY = 10.20.87.253
-            """
-        )
+            """)
         nc = self._get_NicConfigurator(tmp_path, config)
         assert {
             "NIC1": {

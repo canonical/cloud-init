@@ -160,7 +160,7 @@ class Distro(distros.Distro):
         if self.uses_systemd() and filename.endswith("/previous-hostname"):
             return util.load_text_file(filename).strip()
         elif self.uses_systemd():
-            (out, _err) = subp.subp(["hostname"])
+            out, _err = subp.subp(["hostname"])
             if len(out):
                 return out
             else:
@@ -196,7 +196,7 @@ class Distro(distros.Distro):
             result = util.get_mount_info("/")
             fs_type = ""
             if result:
-                (devpth, fs_type, mount_point) = result
+                devpth, fs_type, mount_point = result
                 # Check if the file system is read only
                 mounts = util.load_text_file("/proc/mounts").split("\n")
                 for mount in mounts:
