@@ -266,11 +266,7 @@ class Distro(distros.Distro):
             name = distro_info[0]
             major_ver = int(distro_info[1].split(".")[0])
 
-            # This is horribly complicated because of a case of
-            # "we do not care if versions should be increasing syndrome"
-            if (major_ver >= 15 and "openSUSE" not in name) or (
-                major_ver >= 15 and "openSUSE" in name and major_ver != 42
-            ):
+            if major_ver >= 15 or "micro" in name.lower():
                 self._preferred_ntp_clients = [
                     "chrony",
                     "systemd-timesyncd",
