@@ -52,7 +52,6 @@ module = [
     "cloudinit.distros.bsd",
     "cloudinit.distros.opensuse",
     "cloudinit.distros.parsers.hostname",
-    "cloudinit.distros.parsers.resolv_conf",
     "cloudinit.distros.ug_util",
     "cloudinit.helpers",
     "cloudinit.net.cmdline",
