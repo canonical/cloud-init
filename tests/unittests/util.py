@@ -60,6 +60,7 @@ def get_cloud(
         myds, paths, sys_cfg, mydist, runners=helpers.Runners(paths)
     )
 
+
 def abstract_to_concrete(abclass: Type):
     """Takes an abstract class and returns a concrete version of it."""
 
