@@ -1,7 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
-from typing import cast
 
 import cloudinit.net.bsd
 from cloudinit import net, subp, util
@@ -26,20 +25,17 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
                 )
                 mtu = v.get("mtu")
                 if mtu:
-                    net_config += " mtu %d" % cast(int, mtu)
+                    net_config += f" mtu {mtu}"
             elif v == "DHCP":
                 net_config = "DHCP"
             self.set_rc_config_value("ifconfig_" + device_name, net_config)
 
         for device_name, v in self.interface_configurations_ipv6.items():
             if isinstance(v, dict):
-                net_config = "inet6 %s/%d" % (
-                    v.get("address"),
-                    cast(int, v.get("prefix")),
-                )
+                net_config = f"inet6 {v.get('address')}/{v.get('prefix')}"
                 mtu = v.get("mtu")
                 if mtu:
-                    net_config += " mtu %d" % cast(int, mtu)
+                    net_config += f" mtu {mtu}"
             self.set_rc_config_value(
                 "ifconfig_%s_ipv6" % device_name, net_config
             )
