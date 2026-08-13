@@ -23,16 +23,9 @@ exclude = []
 [[tool.mypy.overrides]]
 module = [
     "apport.*",
-    "BaseHTTPServer",
     "configobj",
     "debconf",
-    "httplib",
     "jsonpatch",
-    "paramiko.*",
-    "pip.*",
-    "pycloudlib.*",
-    "responses",
-    "serial",
     "tests.integration_tests.user_settings",
     "uaclient.*",
 ]
