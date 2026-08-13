@@ -158,7 +158,6 @@ module = [
     "tests.unittests.test_upgrade",
     "tests.unittests.test_url_helper",
     "tests.unittests.test_util",
-    "tests.unittests.util",
 
     # tools/*
     "netplan_schema_check",

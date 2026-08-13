@@ -13,7 +13,7 @@ class DataSourceTesting(DataSourceNone):
     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
         return DataSourceHostname("hostname", False)
 
-    def persist_instance_data(self):
+    def persist_instance_data(self, write_cache=True):
         return True
 
     @property
@@ -60,8 +60,7 @@ def get_cloud(
         myds, paths, sys_cfg, mydist, runners=helpers.Runners(paths)
     )
 
-
-def abstract_to_concrete(abclass):
+def abstract_to_concrete(abclass: Type):
     """Takes an abstract class and returns a concrete version of it."""
 
     class concreteCls(abclass):
@@ -170,7 +169,8 @@ class MockDistro(distros.Distro):
     def create_group(self, name, members=None):
         pass
 
-    def shutdown_command(self, *, mode, delay, message):
+    @classmethod
+    def shutdown_command(cls, *, mode, delay, message):
         pass
 
     def package_command(self, command, args=None, pkgs=None):
@@ -179,7 +179,7 @@ class MockDistro(distros.Distro):
     def update_package_sources(self, *, force=False):
         return (True, "yay")
 
-    def do_as(self, command, args=None, **kwargs):
+    def do_as(self, command: list, user: str, cwd: str = "", **kwargs):
         return ("stdout", "stderr")
 
 
@@ -195,7 +195,7 @@ class FakeDataSource(DataSource):
         network_config="",
         paths=None,
     ):
-        DataSource.__init__(self, {}, None, paths=paths)
+        DataSource.__init__(self, {}, MockDistro(), paths=paths)
         self.metadata = {"instance-id": TEST_INSTANCE_ID}
         self.userdata_raw = userdata
         self.vendordata_raw = vendordata
