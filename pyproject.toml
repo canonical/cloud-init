@@ -55,7 +55,6 @@ module = [
     "cloudinit.distros.parsers.resolv_conf",
     "cloudinit.distros.ug_util",
     "cloudinit.helpers",
-    "cloudinit.net.cmdline",
     "cloudinit.net.ephemeral",
     "cloudinit.net.freebsd",
     "cloudinit.net.netbsd",
