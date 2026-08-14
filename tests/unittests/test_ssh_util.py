@@ -4,7 +4,7 @@ import os
 import stat
 from functools import partial
 from textwrap import dedent
-from typing import NamedTuple
+from typing import Dict, NamedTuple
 from unittest import mock
 from unittest.mock import patch
 
@@ -839,8 +839,8 @@ class TestMultipleSshAuthorizedKeysFile:
         tmpdir,
     ):
         user_bobby = "bobby"
-        keys = {}
-        users = {}
+        keys: Dict[str, str] = {}
+        users: Dict[str, FakePwEnt] = {}
         mock_permissions = {
             tmpdir.join("home", "bobby"): ("bobby", "bobby", 0o700),
             tmpdir.join("home", "bobby", ".ssh"): ("bobby", "bobby", 0o700),
@@ -907,8 +907,8 @@ class TestMultipleSshAuthorizedKeysFile:
         tmpdir,
     ):
         user_bobby = "bobby"
-        keys = {}
-        users = {}
+        keys: Dict[str, str] = {}
+        users: Dict[str, FakePwEnt] = {}
         mock_permissions = {
             tmpdir.join("home", "bobby"): ("bobby", "bobby", 0o700),
             tmpdir.join("home", "bobby", ".ssh"): ("bobby", "bobby", 0o700),
@@ -970,8 +970,8 @@ class TestMultipleSshAuthorizedKeysFile:
         self, m_get_group, m_get_owner, m_get_permissions, m_getpwnam, tmpdir
     ):
         user_bobby = "bobby"
-        keys = {}
-        users = {}
+        keys: Dict[str, str] = {}
+        users: Dict[str, FakePwEnt] = {}
         mock_permissions = {
             tmpdir.join("home", "bobby"): ("bobby", "bobby", 0o700),
             tmpdir.join("home", "bobby", ".ssh"): ("bobby", "bobby", 0o700),
@@ -1012,8 +1012,8 @@ class TestMultipleSshAuthorizedKeysFile:
     def test_two_users_local_file_standard(
         self, m_get_group, m_get_owner, m_get_permissions, m_getpwnam, tmpdir
     ):
-        keys = {}
-        users = {}
+        keys: Dict[str, str] = {}
+        users: Dict[str, FakePwEnt] = {}
         mock_permissions = {
             tmpdir.join("home", "bobby"): ("bobby", "bobby", 0o700),
             tmpdir.join("home", "bobby", ".ssh"): ("bobby", "bobby", 0o700),
@@ -1069,8 +1069,8 @@ class TestMultipleSshAuthorizedKeysFile:
     def test_two_users_local_file_custom(
         self, m_get_group, m_get_owner, m_get_permissions, m_getpwnam, tmpdir
     ):
-        keys = {}
-        users = {}
+        keys: Dict[str, str] = {}
+        users: Dict[str, FakePwEnt] = {}
         mock_permissions = {
             tmpdir.join("home", "bobby"): ("bobby", "bobby", 0o700),
             tmpdir.join("home", "bobby", ".ssh"): ("bobby", "bobby", 0o700),
@@ -1126,8 +1126,8 @@ class TestMultipleSshAuthorizedKeysFile:
     def test_two_users_local_global_files(
         self, m_get_group, m_get_owner, m_get_permissions, m_getpwnam, tmpdir
     ):
-        keys = {}
-        users = {}
+        keys: Dict[str, str] = {}
+        users: Dict[str, FakePwEnt] = {}
         mock_permissions = {
             tmpdir.join("home", "bobby"): ("bobby", "bobby", 0o700),
             tmpdir.join("home", "bobby", ".ssh"): ("bobby", "bobby", 0o700),
@@ -1212,8 +1212,8 @@ class TestMultipleSshAuthorizedKeysFile:
         m_get_user_groups,
         tmpdir,
     ):
-        keys = {}
-        users = {}
+        keys: Dict[str, str] = {}
+        users: Dict[str, FakePwEnt] = {}
         mock_permissions = {
             tmpdir.join("home", "bobby"): ("bobby", "bobby", 0o700),
             tmpdir.join("home", "bobby", ".ssh"): ("bobby", "bobby", 0o700),
@@ -1295,8 +1295,8 @@ class TestMultipleSshAuthorizedKeysFile:
         m_get_user_groups,
         tmpdir,
     ):
-        keys = {}
-        users = {}
+        keys: Dict[str, str] = {}
+        users: Dict[str, FakePwEnt] = {}
         mock_permissions = {
             tmpdir.join("home", "bobby"): ("bobby", "bobby", 0o700),
             tmpdir.join("home", "bobby", ".ssh"): ("bobby", "bobby", 0o700),
@@ -1388,8 +1388,8 @@ class TestMultipleSshAuthorizedKeysFile:
         m_get_user_groups,
         tmpdir,
     ):
-        keys = {}
-        users = {}
+        keys: Dict[str, str] = {}
+        users: Dict[str, FakePwEnt] = {}
         mock_permissions = {
             tmpdir.join("home", "bobby"): ("bobby", "bobby", 0o700),
             tmpdir.join("home", "bobby", ".ssh"): ("bobby", "bobby", 0o700),
@@ -1483,8 +1483,8 @@ class TestMultipleSshAuthorizedKeysFile:
         inverted,
         tmpdir,
     ):
-        keys = {}
-        users = {}
+        keys: Dict[str, str] = {}
+        users: Dict[str, FakePwEnt] = {}
         mock_permissions = {
             tmpdir.join("home", "bobby"): ("bobby", "bobby", 0o700),
             tmpdir.join("home", "bobby", ".ssh"): ("bobby", "bobby", 0o700),
@@ -1559,8 +1559,8 @@ class TestMultipleSshAuthorizedKeysFile:
         m_get_user_groups,
         tmpdir,
     ):
-        keys = {}
-        users = {}
+        keys: Dict[str, str] = {}
+        users: Dict[str, FakePwEnt] = {}
         mock_permissions = {
             tmpdir.join("home", "bobby"): ("bobby", "bobby", 0o700),
             tmpdir.join("home", "bobby", ".ssh"): ("bobby", "bobby", 0o700),

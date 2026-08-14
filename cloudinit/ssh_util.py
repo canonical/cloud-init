@@ -684,7 +684,6 @@ def get_opensshd_upstream_version():
     else:
         upstream_version = full_version
     try:
-        upstream_version = lifecycle.Version.from_str(upstream_version)
-        return upstream_version
+        return lifecycle.Version.from_str(upstream_version)
     except (ValueError, TypeError):
         LOG.warning("Could not parse sshd version: %s", upstream_version)
