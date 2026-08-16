@@ -1027,9 +1027,13 @@ def _get_config_type_and_rendered_userdata(
     schema_position = "format-l1.c1"
     if user_data_type == "text/jinja2":
         try:
-            content = render_jinja_payload_from_file(
+            rendered = render_jinja_payload_from_file(
                 content, config_path, instance_data_path
             )
+            if rendered is None:
+                error("Failed to render templated user-data.", sys_exit=True)
+            else:
+                content = rendered
         except NotJinjaError as e:
             raise SchemaValidationError(
                 [

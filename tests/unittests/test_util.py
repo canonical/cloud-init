@@ -551,6 +551,25 @@ class TestUtil:
         )
         assert conf == {}
 
+    def test_read_conf_with_config_unrendered_template(self, mocker, caplog):
+        """If a jinja config fails to render, it is skipped.
+
+        The rendering functions return None value for failed
+        templates. This value shouldn't be passed down to load_yaml().
+        """
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch(
+            "cloudinit.util.load_text_file",
+            return_value='## template: jinja\n{"a": "{{ b.c.d }}"}',
+        )
+        mocker.patch(
+            "cloudinit.handlers.jinja_template.load_text_file",
+            return_value='{"b": {}}',
+        )
+        conf = util.read_conf("cfg_path", instance_data_file="vars_path")
+        assert "Skipping jinja config file 'cfg_path'" in caplog.text
+        assert conf == {}
+
     @mock.patch(
         M_PATH + "read_conf",
         side_effect=(OSError(errno.EACCES, "Not allowed"), {"0": "0"}),
