@@ -44,25 +44,14 @@ IP6_PREFIX = "48"
 DS_PATH = "cloudinit.sources.DataSourceOpenNebula"
 
 
-@pytest.mark.allow_subp_for("bash", "sh")
+@pytest.mark.allow_subp_for("sh")
 class TestOpenNebulaDataSource:
-    parsed_user = None
-
     @pytest.fixture(autouse=True)
     def fixtures(self, paths):
         # defaults for few tests
         self.seed_dir = os.path.join(paths.seed_dir, "opennebula")
         self.sys_cfg = {"datasource": {"OpenNebula": {"dsmode": "local"}}}
-
-        # we don't want 'sudo' called in tests. so we patch switch_user_cmd
-        def my_switch_user_cmd(user):
-            self.parsed_user = user
-            return []
-
-        self.switch_user_cmd_real = ds.switch_user_cmd
-        ds.switch_user_cmd = my_switch_user_cmd
         yield
-        ds.switch_user_cmd = self.switch_user_cmd_real
 
     @pytest.fixture
     def dsrc(self, paths):
@@ -103,9 +92,26 @@ class TestOpenNebulaDataSource:
     @mock.patch(DS_PATH + ".util.find_devs_with", return_value=[])
     def test_get_data(self, m_find_devs_with, dsrc, paths):
         populate_context_dir(self.seed_dir, {"KEY1": "val1"})
-        with mock.patch(DS_PATH + ".pwd.getpwnam") as getpwnam:
+        with mock.patch(DS_PATH + ".pwd.getpwnam") as getpwnam, mock.patch(
+            DS_PATH + ".subp.subp",
+            return_value=ds.subp.SubpResult(
+                "_start_\x00_start_\x00_start_\x00KEY1=val1\n_start_\x00",
+                "",
+            ),
+        ) as m_subp:
+            getpwnam.return_value.pw_uid = 123
+            getpwnam.return_value.pw_gid = 456
             ret = dsrc.get_data()
         assert [mock.call("nobody")] == getpwnam.call_args_list
+        assert [
+            mock.call(
+                ["sh", "-e"],
+                data=mock.ANY,
+                user=123,
+                group=456,
+                extra_groups=(),
+            )
+        ] == m_subp.call_args_list
         assert ret
         assert "opennebula" == dsrc.cloud_name
         assert "opennebula" == dsrc.platform_type
@@ -1142,7 +1148,7 @@ class TestOpenNebulaNetwork:
 
 
 class TestParseShellConfig:
-    @pytest.mark.allow_subp_for("bash", "sh")
+    @pytest.mark.allow_subp_for("sh")
     def test_no_seconds(self):
         cfg = "\n".join(["foo=bar", "SECONDS=2", "xx=foo"])
         # we could test 'sleep 2', but that would make the test run slower.

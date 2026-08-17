@@ -365,10 +365,6 @@ def find_candidate_devs():
     return combined
 
 
-def switch_user_cmd(user):
-    return ["sudo", "-u", user]
-
-
 def varprinter():
     """print the shell environment variables within delimiters to be parsed"""
     return textwrap.dedent(
@@ -420,12 +416,21 @@ def parse_shell_config(
         + "\n"
     )
 
-    cmd = []
+    kwargs: Dict[str, Any] = {}
     if asuser is not None:
-        cmd = switch_user_cmd(asuser)
-    cmd.extend(["sh", "-e"])
+        try:
+            pw = pwd.getpwnam(asuser)
+        except KeyError as e:
+            raise BrokenContextDiskDir(
+                "configured user '{user}' does not exist".format(user=asuser)
+            ) from e
+        kwargs = {
+            "user": pw.pw_uid,
+            "group": pw.pw_gid,
+            "extra_groups": (),
+        }
 
-    output = subp.subp(cmd, data=bcmd).stdout
+    output = subp.subp(["sh", "-e"], data=bcmd, **kwargs).stdout
 
     # exclude vars that change on their own or that we used
     ret = {}
@@ -480,15 +485,6 @@ def read_context_disk_dir(
     results: Dict[str, Any] = {"userdata": None, "metadata": {}}
 
     if "context.sh" in found:
-        if asuser is not None:
-            try:
-                pwd.getpwnam(asuser)
-            except KeyError as e:
-                raise BrokenContextDiskDir(
-                    "configured user '{user}' does not exist".format(
-                        user=asuser
-                    )
-                ) from e
         try:
             path = os.path.join(source_dir, "context.sh")
             content = util.load_text_file(path)
