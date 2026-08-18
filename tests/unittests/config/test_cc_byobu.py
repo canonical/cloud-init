@@ -37,10 +37,14 @@ class TestHandleByobu:
                         [
                             "/bin/sh",
                             "-c",
-                            'X=0; echo "byobu byobu/launch-by-default boolean'
-                            ' false" | debconf-set-selections &&'
-                            " dpkg-reconfigure byobu --frontend=noninteractive"
-                            " || X=$(($X+1));  exit $X",
+                            (
+                                'X=0; echo "byobu byobu/launch-by-default'
+                                ' boolean false" |'
+                                " debconf-set-selections &&"
+                                " dpkg-reconfigure byobu"
+                                " --frontend=noninteractive"
+                                " || X=$(($X+1));  exit $X"
+                            ),
                         ],
                         capture=False,
                     )
@@ -55,10 +59,14 @@ class TestHandleByobu:
                         [
                             "/bin/sh",
                             "-c",
-                            'X=0; echo "byobu byobu/launch-by-default'
-                            ' boolean false" | debconf-set-selections &&'
-                            " dpkg-reconfigure byobu --frontend=noninteractive"
-                            " || X=$(($X+1));  exit $X",
+                            (
+                                'X=0; echo "byobu byobu/launch-by-default'
+                                ' boolean false" |'
+                                " debconf-set-selections &&"
+                                " dpkg-reconfigure byobu"
+                                " --frontend=noninteractive"
+                                " || X=$(($X+1));  exit $X"
+                            ),
                         ],
                         capture=False,
                     )

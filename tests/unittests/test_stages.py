@@ -2,6 +2,7 @@
 # pylint: disable=attribute-defined-outside-init
 
 """Tests related to cloudinit.stages module."""
+
 import json
 import os
 import stat

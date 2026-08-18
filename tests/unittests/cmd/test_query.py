@@ -417,8 +417,10 @@ class TestQuery:
             ),
             # Assert no jinja underscore-delimited aliases are reported on CLI
             (
-                '{"v1": {"something-hyphenated": {"no.underscores":"x",'
-                ' "no-alias": "y"}}, "my-var": "it worked"}',
+                (
+                    '{"v1": {"something-hyphenated": {"no.underscores":"x",'
+                    ' "no-alias": "y"}}, "my-var": "it worked"}'
+                ),
                 "v1.something_hyphenated",
                 '{\n "no-alias": "y",\n "no.underscores": "x"\n}\n',
             ),
@@ -455,8 +457,7 @@ class TestQuery:
             '{"v1": {"v1_1": "val1.1"}, "v2": {"v2_2": "val2.2"},'
             ' "top": "gun"}'
         )
-        expected = dedent(
-            """\
+        expected = dedent("""\
             {
              "combined_cloud_config": "<redacted for non-root user> %s",
              "top": "gun",
@@ -471,9 +472,7 @@ class TestQuery:
              "v2_2": "val2.2",
              "vendordata": "<redacted for non-root user> file:vd"
             }
-        """
-            % "file:/run/cloud-init/combined-cloud-config.json"
-        )
+        """ % "file:/run/cloud-init/combined-cloud-config.json")
         args = self.Args(
             debug=False,
             dump_all=True,

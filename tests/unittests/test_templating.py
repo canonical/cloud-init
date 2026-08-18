@@ -27,21 +27,17 @@ class TestTemplates:
         return "## template: %s\n" % renderer + data
 
     def test_render_basic(self):
-        in_data = textwrap.dedent(
-            """
+        in_data = textwrap.dedent("""
             ${b}
 
             c = d
-            """
-        )
+            """)
         in_data = in_data.strip()
-        expected_data = textwrap.dedent(
-            """
+        expected_data = textwrap.dedent("""
             2
 
             c = d
-            """
-        )
+            """)
         out_data = templater.basic_render(in_data, {"b": 2})
         assert expected_data.strip() == out_data
 

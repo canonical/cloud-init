@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Test the behavior of loading/discarding pickle data"""
+
 from pathlib import Path
 
 import pytest
@@ -25,8 +26,10 @@ def test_log_message_on_missing_version_file(client: IntegrationInstance):
     log = client.read_from_file("/var/log/cloud-init.log")
     verify_ordered_items_in_text(
         [
-            "Unable to unpickle datasource: 'MIMEMultipart' object has no "
-            "attribute 'policy'. Ignoring current cache.",
+            (
+                "Unable to unpickle datasource: 'MIMEMultipart' object has no "
+                "attribute 'policy'. Ignoring current cache."
+            ),
             "no cache found",
             "Searching for local data source",
             r"SUCCESS: found local data from DataSource(NoCloud|LXD)",

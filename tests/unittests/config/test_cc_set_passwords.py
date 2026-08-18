@@ -154,10 +154,14 @@ class TestSetPasswordsHandle:
         """handle parses command password hashes."""
         cloud = get_cloud()
         valid_hashed_pwds = [
-            "root:$2y$10$8BQjxjVByHA/Ee.O1bCXtO8S7Y5WojbXWqnqYpUW.BrPx/"
-            "Dlew1Va",
-            "ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoakMMC7dR52q"
-            "SDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXazGGx3oo1",
+            (
+                "root:$2y$10$8BQjxjVByHA/Ee.O1bCXtO8S7Y5WojbXWqnqYpUW.BrPx/"
+                "Dlew1Va"
+            ),
+            (
+                "ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoakMMC7dR52q"
+                "SDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXazGGx3oo1"
+            ),
         ]
         cfg = {"chpasswd": {"list": valid_hashed_pwds}}
         with mock.patch.object(setpass.Distro, "chpasswd") as chpasswd:
@@ -310,14 +314,20 @@ class TestSetPasswordsHandle:
                 {
                     "chpasswd": {
                         "list": [
-                            "root:$2y$10$8BQjxjVByHA/Ee.O1bCXtO8S7Y5WojbXWqnqY"
-                            "pUW.BrPx/Dlew1Va",
-                            "ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoak"
-                            "MMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXaz"
-                            "GGx3oo1",
-                            "dog:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoakMMC"
-                            "7dR52qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXazGGx"
-                            "3oo1",
+                            (
+                                "root:$2y$10$8BQjxjVByHA/Ee.O1bCXtO8S7Y5WojbXWqnqY"
+                                "pUW.BrPx/Dlew1Va"
+                            ),
+                            (
+                                "ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoak"
+                                "MMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXaz"
+                                "GGx3oo1"
+                            ),
+                            (
+                                "dog:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoakMMC"
+                                "7dR52qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXazGGx"
+                                "3oo1"
+                            ),
                             "Till:RANDOM",
                         ]
                     }
@@ -357,14 +367,20 @@ class TestSetPasswordsHandle:
                 {
                     "chpasswd": {
                         "list": [
-                            "root:$2y$10$8BQjxjVByHA/Ee.O1bCXtO8S7Y5WojbXWqnqY"
-                            "pUW.BrPx/Dlew1Va",
-                            "ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoak"
-                            "MMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXaz"
-                            "GGx3oo1",
-                            "ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoak"
-                            "MMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXaz"
-                            "GGx3oo1",
+                            (
+                                "root:$2y$10$8BQjxjVByHA/Ee.O1bCXtO8S7Y5WojbXWqnqY"
+                                "pUW.BrPx/Dlew1Va"
+                            ),
+                            (
+                                "ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoak"
+                                "MMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXaz"
+                                "GGx3oo1"
+                            ),
+                            (
+                                "ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoak"
+                                "MMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXaz"
+                                "GGx3oo1"
+                            ),
                         ]
                     }
                 },
@@ -398,14 +414,20 @@ class TestSetPasswordsHandle:
                 {
                     "chpasswd": {
                         "list": [
-                            "root:$2y$10$8BQjxjVByHA/Ee.O1bCXtO8S7Y5WojbXWqnqY"
-                            "pUW.BrPx/Dlew1Va",
-                            "ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoak"
-                            "MMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXaz"
-                            "GGx3oo1",
-                            "ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoak"
-                            "MMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXaz"
-                            "GGx3oo1",
+                            (
+                                "root:$2y$10$8BQjxjVByHA/Ee.O1bCXtO8S7Y5WojbXWqnqY"
+                                "pUW.BrPx/Dlew1Va"
+                            ),
+                            (
+                                "ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoak"
+                                "MMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXaz"
+                                "GGx3oo1"
+                            ),
+                            (
+                                "ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoak"
+                                "MMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXaz"
+                                "GGx3oo1"
+                            ),
                         ]
                     }
                 },
@@ -426,9 +448,11 @@ class TestSetPasswordsHandle:
                             },
                         ],
                         "list": [
-                            "ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoak"
-                            "MMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXaz"
-                            "GGx3oo1",
+                            (
+                                "ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoak"
+                                "MMC7dR52qSDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXaz"
+                                "GGx3oo1"
+                            ),
                         ],
                     }
                 },

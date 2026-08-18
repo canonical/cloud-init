@@ -290,16 +290,14 @@ class TestPuppetHandle:
         }
         cc_puppet.handle("notimportant", cfg, get_cloud(), None)
         content = util.load_text_file(self.CSR_ATTRIBUTES_PATH)
-        expected = textwrap.dedent(
-            """\
+        expected = textwrap.dedent("""\
             custom_attributes:
               1.2.840.113549.1.9.7: 342thbjkt82094y0uthhor289jnqthpc2290
             extension_requests:
               pp_image_name: my_ami_image
               pp_preshared_key: 342thbjkt82094y0uthhor289jnqthpc2290
               pp_uuid: ED803750-E3C7-44F5-BB08-41A04433FE2E
-            """
-        )
+            """)
         assert expected == content
 
     @mock.patch("cloudinit.config.cc_puppet.subp.subp", return_value=("", ""))

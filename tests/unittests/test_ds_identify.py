@@ -271,8 +271,7 @@ MOCK_WSL_INSTANCE_DATA = {
     "name": "Noble-MLKit",
     "distro": "ubuntu",
     "version": "24.04",
-    "os_release": dedent(
-        """\
+    "os_release": dedent("""\
         PRETTY_NAME="Ubuntu Noble Numbat (development branch)"
         NAME="Ubuntu"
         VERSION_ID="24.04"
@@ -282,16 +281,13 @@ MOCK_WSL_INSTANCE_DATA = {
         ID_LIKE=debian
         UBUNTU_CODENAME=noble
         LOGO=ubuntu-logo
-        """
-    ),
-    "os_release_no_version_id": dedent(
-        """\
+        """),
+    "os_release_no_version_id": dedent("""\
         PRETTY_NAME="Debian GNU/Linux trixie/sid"
         NAME="Debian GNU/Linux"
         VERSION_CODENAME="trixie"
         ID=debian
-        """
-    ),
+        """),
 }
 
 shell_true = 0
@@ -1154,7 +1150,7 @@ class TestDsIdentify(DsIdentifyBase):
 
         # updating the uname to ppc64 though should get a maybe.
         data.update({"mocks": [MOCK_VIRT_IS_KVM, MOCK_UNAME_IS_PPC64]})
-        (_, _, err, _, _) = self._check_via_dict(
+        _, _, err, _, _ = self._check_via_dict(
             data, str(tmp_path / "1"), RC_NOT_FOUND
         )
         assert "check for 'OpenStack' returned maybe" in err
@@ -1760,13 +1756,9 @@ VALID_CFG = {
         # /dev/lxd/sock does not exist and KVM virt-type
         "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
-        "files": {
-            "etc/cloud/cloud.cfg": dedent(
-                """\
+        "files": {"etc/cloud/cloud.cfg": dedent("""\
                 "datasource-list":  [ None    ]   \n
-                """
-            )
-        },
+                """)},
     },
     # no quotes, whitespace between all chars and at the end of line
     "flow_sequence-1": {
@@ -1774,13 +1766,9 @@ VALID_CFG = {
         # /dev/lxd/sock does not exist and KVM virt-type
         "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
-        "files": {
-            "etc/cloud/cloud.cfg": dedent(
-                """\
+        "files": {"etc/cloud/cloud.cfg": dedent("""\
                 datasource_list :  [ None    ]   \n
-                """
-            )
-        },
+                """)},
     },
     # double quotes
     "flow_sequence-2": {
@@ -1788,13 +1776,9 @@ VALID_CFG = {
         # /dev/lxd/sock does not exist and KVM virt-type
         "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
-        "files": {
-            "etc/cloud/cloud.cfg": dedent(
-                """\
+        "files": {"etc/cloud/cloud.cfg": dedent("""\
                 "datasource_list": [None]
-                """
-            )
-        },
+                """)},
     },
     # single quotes
     "flow_sequence-3": {
@@ -1802,13 +1786,9 @@ VALID_CFG = {
         # /dev/lxd/sock does not exist and KVM virt-type
         "mocks": [{"name": "is_socket_file", "ret": 1}, MOCK_VIRT_IS_KVM],
         "no_mocks": ["dscheck_LXD"],  # Don't default mock dscheck_LXD
-        "files": {
-            "etc/cloud/cloud.cfg": dedent(
-                """\
+        "files": {"etc/cloud/cloud.cfg": dedent("""\
                 'datasource_list': [None]
-                """
-            )
-        },
+                """)},
     },
     # no newlines
     "flow_sequence-4": {
@@ -1946,8 +1926,7 @@ VALID_CFG = {
             # Also include a datasource list of more than just
             # [NoCloud, None], because that would automatically select
             # NoCloud without checking
-            "etc/cloud/cloud.cfg": dedent(
-                """\
+            "etc/cloud/cloud.cfg": dedent("""\
                 datasource_list: [ Azure, OpenStack, NoCloud, None ]
                 datasource:
                   NoCloud:
@@ -1956,8 +1935,7 @@ VALID_CFG = {
                       hostname: footbar
                     meta-data: |
                       instance_id: cloud-image
-                """
-            )
+                """)
         },
     },
     "NoCloud-fbsd": {
@@ -2032,14 +2010,12 @@ VALID_CFG = {
             # Also include a datasource list of more than just
             # [NoCloud, None], because that would automatically select
             # NoCloud without checking
-            "etc/cloud/cloud.cfg.d/test.cfg": dedent(
-                """\
+            "etc/cloud/cloud.cfg.d/test.cfg": dedent("""\
                 datasource_list: [ Azure, OpenStack, NoCloud, None ]
                 datasource:
                   NoCloud:
                     seedfrom: http://0.0.0.0/test
-                """
-            )
+                """)
         },
     },
     "NoCloud-user-data-meta-data": {
@@ -2048,8 +2024,7 @@ VALID_CFG = {
             # Also include a datasource list of more than just
             # [NoCloud, None], because that would automatically select
             # NoCloud without checking
-            "etc/cloud/cloud.cfg.d/test.cfg": dedent(
-                """\
+            "etc/cloud/cloud.cfg.d/test.cfg": dedent("""\
                 datasource_list: [ Azure, OpenStack, NoCloud, None ]
                 datasource:
                   NoCloud:
@@ -2057,8 +2032,7 @@ VALID_CFG = {
                     user-data: |
                       #cloud-config
                       <some-config>
-            """
-            )
+            """)
         },
     },
     "NoCloud-seed-ubuntu-core": {

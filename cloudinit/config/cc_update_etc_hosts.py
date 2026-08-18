@@ -38,7 +38,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                 deprecated_version="22.2",
                 extra_message="Use 'true' instead.",
             )
-        (hostname, fqdn, _) = util.get_hostname_fqdn(cfg, cloud)
+        hostname, fqdn, _ = util.get_hostname_fqdn(cfg, cloud)
         if not hostname:
             LOG.warning(
                 "Option 'manage_etc_hosts' was set, but no hostname was found"
@@ -60,7 +60,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         )
 
     elif manage_hosts == "localhost":
-        (hostname, fqdn, _) = util.get_hostname_fqdn(cfg, cloud)
+        hostname, fqdn, _ = util.get_hostname_fqdn(cfg, cloud)
         if not hostname:
             LOG.warning(
                 "Option 'manage_etc_hosts' was set, but no hostname was found"

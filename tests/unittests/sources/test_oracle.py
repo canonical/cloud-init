@@ -629,8 +629,10 @@ class TestNetworkConfigFromOpcImds:
 
         assert (
             logging.DEBUG,
-            "Could not obtain network configuration from initramfs."
-            " Falling back to IMDS.",
+            (
+                "Could not obtain network configuration from initramfs."
+                " Falling back to IMDS."
+            ),
         ) == caplog.record_tuples[log_initramfs_index][1:]
 
 
@@ -1141,8 +1143,10 @@ class TestCommon_GetDataBehaviour:
             ("local-hostname", "instance-20200320-1400"),
             (
                 "instance-id",
-                "ocid1.instance.oc1.phx"
-                ".anyhqljtniwq6syc3nex55sep5w34qbwmw6TRUNCATED",
+                (
+                    "ocid1.instance.oc1.phx"
+                    ".anyhqljtniwq6syc3nex55sep5w34qbwmw6TRUNCATED"
+                ),
             ),
             ("name", "instance-20200320-1400"),
             (

@@ -341,7 +341,7 @@ class Modules:
         inapplicable_mods = []
         active_mods = []
         for module_details in mostly_mods:
-            (mod, name, _freq, _args) = module_details
+            mod, name, _freq, _args = module_details
             if mod is None:
                 continue
             worked_distros = mod.meta["distros"]

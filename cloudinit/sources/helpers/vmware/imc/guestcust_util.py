@@ -50,7 +50,7 @@ def send_rpc(rpc):
 
     try:
         logger.debug("Sending RPC command: %s", rpc)
-        (out, err) = subp.subp(["vmware-rpctool", rpc], rcs=[0])
+        out, err = subp.subp(["vmware-rpctool", rpc], rcs=[0])
         # Remove the trailing newline in the output.
         if out:
             out = out.rstrip()
@@ -72,7 +72,7 @@ def set_customization_status(custstate, custerror, errormessage=None):
         message = CLOUDINIT_LOG_FILE
 
     rpc = "deployPkg.update.state %d %d %s" % (custstate, custerror, message)
-    (out, err) = send_rpc(rpc)
+    out, err = send_rpc(rpc)
     return (out, err)
 
 
@@ -110,7 +110,7 @@ def enable_nics(nics):
 
     for attempt in range(enableNicsWaitRetries):
         logger.debug("Trying to connect interfaces, attempt %d", attempt)
-        (out, _err) = set_customization_status(
+        out, _err = set_customization_status(
             GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
             GuestCustEventEnum.GUESTCUST_EVENT_ENABLE_NICS,
             nics,
@@ -124,7 +124,7 @@ def enable_nics(nics):
             return
 
         for count in range(enableNicsWaitCount):
-            (out, _err) = set_customization_status(
+            out, _err = set_customization_status(
                 GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
                 GuestCustEventEnum.GUESTCUST_EVENT_QUERY_NICS,
                 nics,
@@ -211,7 +211,7 @@ def get_data_from_imc_cust_cfg(
 ):
     md, ud, vd, cfg = {}, None, None, {}
     set_gc_status(cust_cfg, "Started")
-    (md, cfg) = get_non_network_data_from_vmware_cust_cfg(cust_cfg)
+    md, cfg = get_non_network_data_from_vmware_cust_cfg(cust_cfg)
     is_special_customization = check_markers(cloud_dir, cust_cfg)
     if is_special_customization:
         if not do_special_customization(

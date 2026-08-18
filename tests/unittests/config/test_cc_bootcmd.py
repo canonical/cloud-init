@@ -103,8 +103,10 @@ class TestBootCMDSchema:
             # Invalid schemas
             (
                 {"bootcmd": 1},
-                "Cloud config schema errors: bootcmd: 1 is not of type"
-                " 'array'",
+                (
+                    "Cloud config schema errors: bootcmd: 1 is not of type"
+                    " 'array'"
+                ),
             ),
             (
                 {"bootcmd": []},
@@ -124,9 +126,11 @@ class TestBootCMDSchema:
                         {"a": "n"},
                     ]
                 },
-                "Cloud config schema errors: bootcmd.1: 20 is not of type"
-                " 'array', bootcmd.1: 20 is not of type 'string', bootcmd.3:"
-                " {'a': 'n'} is not of type 'array'",
+                (
+                    "Cloud config schema errors: bootcmd.1: 20 is not of"
+                    " type 'array', bootcmd.1: 20 is not of type 'string',"
+                    " bootcmd.3: {'a': 'n'} is not of type 'array'"
+                ),
             ),
         ),
     )

@@ -96,14 +96,12 @@ def get_formatted_health_report_xml_bytes(
     ).encode("utf-8")
 
 
-HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE = dedent(
-    """\
+HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE = dedent("""\
     <Details>
       <SubStatus>{health_substatus}</SubStatus>
       <Description>{health_description}</Description>
     </Details>
-    """
-)
+    """)
 
 HEALTH_REPORT_DESCRIPTION_TRIM_LEN = 512
 MOCKPATH = "cloudinit.sources.helpers.azure."
@@ -411,10 +409,12 @@ class TestHttpWithRetries:
         assert caplog.record_tuples[1] == (
             "cloudinit.sources.helpers.azure",
             10,
-            "Failed HTTP request with Azure endpoint testurl during "
-            "attempt 1 with exception: Failed to establish a new "
-            "connection: [Errno 101] Network is unreachable "
-            "(code=None headers={})",
+            (
+                "Failed HTTP request with Azure endpoint testurl during "
+                "attempt 1 with exception: Failed to establish a new "
+                "connection: [Errno 101] Network is unreachable "
+                "(code=None headers={})"
+            ),
         )
         assert len(caplog.record_tuples) == 3
         assert self.m_time.mock_calls == [mock.call(), mock.call()]
@@ -1555,8 +1555,10 @@ class TestOvfEnvXml:
         [
             (
                 construct_ovf_env(hostname=None),
-                "unexpected metadata parsing ovf-env.xml: "
-                "missing configuration for 'HostName'",
+                (
+                    "unexpected metadata parsing ovf-env.xml: "
+                    "missing configuration for 'HostName'"
+                ),
             ),
         ],
     )
@@ -1670,13 +1672,17 @@ class TestOvfEnvXml:
         [
             (
                 "",
-                "error parsing ovf-env.xml: "
-                "no element found: line 1, column 0",
+                (
+                    "error parsing ovf-env.xml: "
+                    "no element found: line 1, column 0"
+                ),
             ),
             (
                 "<!!!!>",
-                "error parsing ovf-env.xml: "
-                "not well-formed (invalid token): line 1, column 2",
+                (
+                    "error parsing ovf-env.xml: "
+                    "not well-formed (invalid token): line 1, column 2"
+                ),
             ),
             (
                 "badxml",

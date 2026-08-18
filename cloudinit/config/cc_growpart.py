@@ -493,8 +493,10 @@ def resize_devices(resizer: Resizer, devices, distro: Distro):
                         (
                             devent,
                             RESIZE.SKIPPED,
-                            f"Resizing mapped device ({blockdev}) skipped "
-                            "as it is not encrypted.",
+                            (
+                                f"Resizing mapped device ({blockdev}) skipped "
+                                "as it is not encrypted."
+                            ),
                         )
                     )
             except Exception as e:

@@ -98,7 +98,7 @@ class MetadataMaterializer:
                 resource = field_name
                 if len(contents) > 1:
                     # What a PITA...
-                    (ident, sub_contents) = contents
+                    ident, sub_contents = contents
                     ident = util.safe_int(ident)
                     if ident is not None:
                         resource = "%s/openssh-key" % (ident)
@@ -113,7 +113,7 @@ class MetadataMaterializer:
         return self._md
 
     def _materialize(self, blob, base_url):
-        (leaves, children) = self._parse(blob)
+        leaves, children = self._parse(blob)
         child_contents = {}
         for c in children:
             child_url = url_helper.combine_url(base_url, c)

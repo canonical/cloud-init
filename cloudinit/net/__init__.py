@@ -906,7 +906,7 @@ def find_interface_name_from_mac(mac: str) -> Optional[str]:
 
 
 def get_interfaces_by_mac_on_freebsd() -> dict:
-    (out, _) = subp.subp(["ifconfig", "-a", "ether"])
+    out, _ = subp.subp(["ifconfig", "-a", "ether"])
 
     # flatten each interface block in a single line
     def flatten(out):
@@ -939,7 +939,7 @@ def get_interfaces_by_mac_on_netbsd() -> dict:
         r"(?P<ifname>\w+).*address:\s"
         r"(?P<mac>([\da-f]{2}[:-]){5}([\da-f]{2})).*"
     )
-    (out, _) = subp.subp(["ifconfig", "-a"])
+    out, _ = subp.subp(["ifconfig", "-a"])
     if_lines = re.sub(r"\n\s+", " ", out).splitlines()
     for line in if_lines:
         m = re.match(re_field_match, line)
@@ -955,7 +955,7 @@ def get_interfaces_by_mac_on_openbsd() -> dict:
         r"(?P<ifname>\w+).*lladdr\s"
         r"(?P<mac>([\da-f]{2}[:-]){5}([\da-f]{2})).*"
     )
-    (out, _) = subp.subp(["ifconfig", "-a"])
+    out, _ = subp.subp(["ifconfig", "-a"])
     if_lines = re.sub(r"\n\s+", " ", out).splitlines()
     for line in if_lines:
         m = re.match(re_field_match, line)

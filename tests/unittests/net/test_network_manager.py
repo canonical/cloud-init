@@ -24,8 +24,7 @@ class TestNetworkManagerRenderNetworkState:
 
     def test_subnet_route_metric(self, tmpdir):
         """Test subnet metric renders as route-metric in NM config."""
-        config = textwrap.dedent(
-            """\
+        config = textwrap.dedent("""\
             version: 1
             config:
               - mac_address: 'xx:xx:xx:xx:xx:00'
@@ -35,8 +34,7 @@ class TestNetworkManagerRenderNetworkState:
                   - type: static
                     address: 192.168.1.10/24
                     metric: 100
-            """
-        )
+            """)
 
         expected_config = {
             "/etc/NetworkManager/system-connections/cloud-init-ens1f0np0.nmconnection": textwrap.dedent(  # noqa: E501
@@ -74,8 +72,7 @@ class TestNetworkManagerRenderNetworkState:
 
     def test_bond_dns_baseline(self, tmpdir):
 
-        config = textwrap.dedent(
-            """\
+        config = textwrap.dedent("""\
             version: 1
             config:
               - mac_address: 'xx:xx:xx:xx:xx:00'
@@ -132,8 +129,7 @@ class TestNetworkManagerRenderNetworkState:
               - address: 1.1.1.1
                 search: hostname1
                 type: nameserver
-            """
-        )
+            """)
 
         expected_config = {
             "/etc/NetworkManager/system-connections/cloud-init-ens1f0np0.nmconnection": textwrap.dedent(  # noqa: E501
@@ -263,8 +259,7 @@ class TestNetworkManagerRenderNetworkState:
 
     def test_bond_dns_redacted_with_method_disabled(self, tmpdir):
 
-        config = textwrap.dedent(
-            """\
+        config = textwrap.dedent("""\
             version: 1
             config:
               - mac_address: 'xx:xx:xx:xx:xx:00'
@@ -321,8 +316,7 @@ class TestNetworkManagerRenderNetworkState:
               - address: 1.1.1.1
                 search: hostname1
                 type: nameserver
-            """
-        )
+            """)
 
         expected_config = {
             "/etc/NetworkManager/system-connections/cloud-init-ens1f0np0.nmconnection": textwrap.dedent(  # noqa: E501
@@ -454,8 +448,7 @@ class TestNetworkManagerRenderNetworkState:
 
     def test_bond_balance_tlb_baseline(self, tmpdir):
 
-        config = textwrap.dedent(
-            """\
+        config = textwrap.dedent("""\
             version: 1
             config:
               - mac_address: 'xx:xx:xx:xx:xx:00'
@@ -495,8 +488,7 @@ class TestNetworkManagerRenderNetworkState:
                   bond-xmit_hash_policy: layer3+4
                 subnets: []
                 type: bond
-            """
-        )
+            """)
 
         expected_config = {
             "/etc/NetworkManager/system-connections/cloud-init-ens1f0np0.nmconnection": textwrap.dedent(  # noqa: E501
@@ -598,8 +590,7 @@ class TestNetworkManagerRenderNetworkState:
 
     def test_bond_balance_rr_baseline(self, tmpdir):
 
-        config = textwrap.dedent(
-            """\
+        config = textwrap.dedent("""\
             version: 1
             config:
               - mac_address: 'xx:xx:xx:xx:xx:00'
@@ -634,8 +625,7 @@ class TestNetworkManagerRenderNetworkState:
                   bond-use_carrier: 1
                 subnets: []
                 type: bond
-            """
-        )
+            """)
 
         expected_config = {
             "/etc/NetworkManager/system-connections/cloud-init-ens1f0np0.nmconnection": textwrap.dedent(  # noqa: E501
@@ -732,8 +722,7 @@ class TestNetworkManagerRenderNetworkState:
 
     def test_bond_active_backup_baseline(self, tmpdir):
 
-        config = textwrap.dedent(
-            """\
+        config = textwrap.dedent("""\
             version: 1
             config:
               - mac_address: 'xx:xx:xx:xx:xx:00'
@@ -770,8 +759,7 @@ class TestNetworkManagerRenderNetworkState:
                   bond-use_carrier: 1
                 subnets: []
                 type: bond
-            """
-        )
+            """)
 
         expected_config = {
             "/etc/NetworkManager/system-connections/cloud-init-ens1f0np0.nmconnection": textwrap.dedent(  # noqa: E501

@@ -5,6 +5,7 @@ of the test would be unlikely to affect the running of another test using
 the same instance launch. Most independent module coherence tests can go
 here.
 """
+
 import glob
 import importlib
 import json
@@ -702,15 +703,19 @@ class TestCombined:
             "cloud-init single --name cc_write_files --frequency always",
             "cloud-init single --name cc_write_files --frequency instance",
             "cloud-init single --name cc_write_files --frequency once",
-            "cloud-init single --name cc_write_files --frequency once "
-            "--report",
+            (
+                "cloud-init single --name cc_write_files --frequency once "
+                "--report"
+            ),
             # single subcommands
             "cloud-init schema --system",
             "cloud-init schema --system --annotate",
             "cloud-init schema --config-file /dev/null",
             "cloud-init schema --config-file /dev/null --annotate",
-            "cloud-init schema --config-file /dev/null --annotate "
-            "--instance-data /run/cloud-init/instance-data.json",
+            (
+                "cloud-init schema --config-file /dev/null --annotate "
+                "--instance-data /run/cloud-init/instance-data.json"
+            ),
             (
                 "cloud-init schema "
                 "--config-file /etc/netplan/50-cloud-init.yaml "

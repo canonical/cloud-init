@@ -265,16 +265,20 @@ class TestUpdatePackageSources:
                 RuntimeError("fail to find 'apt' command"),
                 None,
                 [
-                    "Failed to update package using apt: fail to find 'apt'"
-                    " command"
+                    (
+                        "Failed to update package using apt: fail to find"
+                        " 'apt' command"
+                    )
                 ],
             ),
             pytest.param(
                 None,
                 RuntimeError("fail to find 'snap' command"),
                 [
-                    "Failed to update package using snap: fail to find 'snap'"
-                    " command"
+                    (
+                        "Failed to update package using snap: fail to find"
+                        " 'snap' command"
+                    )
                 ],
             ),
         ],
@@ -314,10 +318,14 @@ class TestUpdatePackageSources:
                 False,
                 False,
                 [
-                    "Skipping update for package manager 'apt': not"
-                    " available.",
-                    "Skipping update for package manager 'snap': not"
-                    " available.",
+                    (
+                        "Skipping update for package manager 'apt': not"
+                        " available."
+                    ),
+                    (
+                        "Skipping update for package manager 'snap': not"
+                        " available."
+                    ),
                 ],
             ),
         ],
