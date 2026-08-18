@@ -52,7 +52,6 @@ from cloudinit.distros.parsers import hosts
 from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
 from cloudinit.lifecycle import log_with_downgradable_level
 from cloudinit.net import activators, dhcp, renderers
-from cloudinit.net.netops import NetOps
 from cloudinit.net.network_state import NetworkState, parse_net_config_data
 from cloudinit.net.renderer import Renderer
 
