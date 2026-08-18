@@ -342,6 +342,7 @@ class TestMain:
             ("debian", True, False),
             ("debian", False, False),
             ("centos", True, False),
+            ("eln", True, False),
             ("rhel", False, False),
             ("fedora", True, False),
             ("suse", False, False),

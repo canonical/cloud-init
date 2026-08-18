@@ -121,6 +121,32 @@ OS_RELEASE_CENTOS = dedent(
 """
 )
 
+OS_RELEASE_ELN = dedent(
+    """\
+    NAME="Fedora ELN"
+    VERSION="11"
+    RELEASE_TYPE=development
+    ID=eln
+    ID_LIKE="rhel centos fedora"
+    VERSION_ID=11
+    PRETTY_NAME="Fedora ELN 11"
+    ANSI_COLOR="0;31"
+    LOGO=fedora-logo-icon
+    CPE_NAME="cpe:/o:fedoraproject:fedora-eln:11"
+    DEFAULT_HOSTNAME="eln"
+    VENDOR_NAME="Fedora"
+    VENDOR_URL="https://fedoraproject.org/"
+    HOME_URL="https://fedoraproject.org/"
+    DOCUMENTATION_URL="https://docs.fedoraproject.org/en-US/eln/"
+    SUPPORT_URL="https://ask.fedoraproject.org/"
+    BUG_REPORT_URL="https://bugzilla.redhat.com/"
+    REDHAT_BUGZILLA_PRODUCT="Fedora"
+    REDHAT_BUGZILLA_PRODUCT_VERSION=rawhide
+    REDHAT_SUPPORT_PRODUCT="Fedora"
+    REDHAT_SUPPORT_PRODUCT_VERSION=rawhide
+"""
+)
+
 OS_RELEASE_REDHAT_7 = dedent(
     """\
     NAME="Red Hat Enterprise Linux Server"
@@ -1049,6 +1075,14 @@ class TestGetLinuxDistro:
         m_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
         dist = util.get_linux_distro()
         assert ("centos", "7.5.1804", "Core") == dist
+
+    @mock.patch(M_PATH + "load_text_file")
+    def test_get_linux_eln_osrelease(self, m_os_release, m_path_exists):
+        """Verify ELN read from os-release."""
+        m_os_release.return_value = OS_RELEASE_ELN
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        assert ("eln", "11", "") == dist
 
     @mock.patch(M_PATH + "load_text_file")
     def test_get_linux_redhat7_osrelease(self, m_os_release, m_path_exists):
