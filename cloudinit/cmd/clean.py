@@ -115,16 +115,16 @@ def get_parser(parser=None):
         "--configs",
         choices=[
             "all",
-            "ssh_config",
-            "network",
             "datasource",
             "fstab",
+            "network",
+            "ssh_config",
+            "sudoers",
         ],
         default=[],
         nargs="+",
         dest="remove_config",
-        help="Remove cloud-init generated config files of a certain type."
-        " Config types: all, ssh_config, network",
+        help="Remove cloud-init generated config files of specified type."
     )
     return parser
 
@@ -138,7 +138,7 @@ def remove_artifacts(init, remove_logs, remove_seed=False, remove_config=None):
     @param: remove_seed: Boolean. Set True to also delete seed subdir in
         paths.cloud_dir.
     @param: remove_config: List of strings.
-        Can be any of: all, network, ssh_config, datasource, fstab.
+        Can be any of: all, network, ssh_config, datasource, fstab, sudoers.
     @returns: 0 on success, 1 otherwise.
     """
     init.read_cfg()
@@ -155,6 +155,8 @@ def remove_artifacts(init, remove_logs, remove_seed=False, remove_config=None):
     ):
         for conf in GEN_SSH_CONFIG_FILES:
             del_file(conf)
+    if remove_config and set(remove_config).intersection(["all", "sudoers"]):
+        del_file(init.distro.ci_sudoers_fn)
     if remove_config and set(remove_config).intersection(["all", "fstab"]):
         cc_mounts.cleanup_fstab()
 

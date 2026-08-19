@@ -54,7 +54,7 @@ re-run all stages as it did on first boot.
   remove the file. Best practice when cloning a golden image, to ensure the
   next boot of that image auto-generates a unique machine ID.
   `More details on machine-id`_.
-* :command:`--configs [all | ssh_config | network | datasource | fstab ]`:
+* :command:`--configs [all | ssh_config | network | datasource | fstab | sudoers ]`:
   Optionally remove all ``cloud-init`` generated config files. Argument
   `ssh_config` cleans config files for ssh daemon. Argument `network` removes
   all generated config files for network. Argument `datasource` removes files
@@ -62,7 +62,9 @@ re-run all stages as it did on first boot.
   that have been only configured by this datasource leaving aside other entries
   configured by cloud-init. Argument `fstab` removes all entries that have
   been configured by cloud-init including those that are configured by various
-  datasources. `all` removes config files of all types.
+  datasources. Argument `sudoers` removes the ``cloud-init`` generated sudoers
+  file (e.g., :file:`/etc/sudoers.d/90-cloud-init-users`). `all` removes config
+  files of all types.
 * :command:`--seed`: Remove the cloud-init seed directory
   (e.g., :file:`/var/lib/cloud/seed/`)
   which stores instance metadata used initializing a datasource.
