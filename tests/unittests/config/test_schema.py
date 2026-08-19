@@ -1886,6 +1886,49 @@ class TestNetworkSchema:
                 "",
                 id="subnet_metric_validation",
             ),
+            pytest.param(
+                {
+                    "network": {
+                        "version": 1,
+                        "config": [
+                            {
+                                "type": "physical",
+                                "name": "eth0",
+                                "subnets": [
+                                    {
+                                        "type": "static",
+                                        "address": "10.0.0.2",
+                                        "netmask": 24,
+                                        "routes": [
+                                            {
+                                                "network": "192.168.23.0",
+                                                "netmask": 24,
+                                                "gateway": "10.0.0.1",
+                                            }
+                                        ],
+                                    },
+                                    {
+                                        "type": "static6",
+                                        "address": "2001:db8::1",
+                                        "netmask": 64,
+                                        "routes": [
+                                            {
+                                                "network": "2001:db8:1::",
+                                                "netmask": 128,
+                                                "gateway": "2001:db8::2",
+                                            }
+                                        ],
+                                    },
+                                ],
+                            }
+                        ],
+                    }
+                },
+                SchemaType.NETWORK_CONFIG_V1,
+                does_not_raise(),
+                "",
+                id="netmask_as_integer_prefix",
+            ),
         ),
     )
     @mock.patch("cloudinit.net.netplan.available", return_value=False)
