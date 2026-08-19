@@ -72,7 +72,7 @@ class CepkoResult:
             raise NotImplementedError("serial support is not available") from e
 
         connection = serial.Serial(
-            port=SERIAL_PORT, timeout=READ_TIMEOUT, writeTimeout=WRITE_TIMEOUT
+            port=SERIAL_PORT, timeout=READ_TIMEOUT, write_timeout=WRITE_TIMEOUT
         )
         connection.write(self.request.encode("ascii"))
         return connection.readline().strip(b"\x04\n").decode("ascii")
