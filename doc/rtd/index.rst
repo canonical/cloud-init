@@ -101,4 +101,4 @@ projects, contributions, suggestions, fixes and constructive feedback.
 
 .. LINKS
 .. include:: links.txt
-.. _release schedule: https://discourse.ubuntu.com/t/2025-cloud-init-release-schedule/55534
+.. _release schedule: https://github.com/canonical/cloud-init/milestones
