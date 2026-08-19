@@ -2525,6 +2525,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
 
                 [bond]
                 mode=active-backup
+                xmit_hash_policy=layer3+4
 
                 [ipv6]
                 method=auto
