@@ -786,16 +786,38 @@ class TestCombined:
                 text=UNWANTED_WORDS_WARNING_EXPECTED,
             )
 
+        # Some `clean --configs` types (sudoers, all) remove the cloud-init
+        # generated sudoers file (distro-specific dir) that grants the default
+        # user passwordless sudo. Copy whichever exists to a sibling path
+        # `clean` won't touch so subsequent sudo commands keep working;
+        # otherwise the next sudo call fails with
+        # "sudo: a terminal is required to authenticate".
+        sudoers_fn = ""
+        for candidate in (
+            "/etc/sudoers.d/90-cloud-init-users",
+            "/usr/local/etc/sudoers.d/90-cloud-init-users",
+            "/usr/pkg/etc/sudoers.d/90-cloud-init-users",
+        ):
+            if class_client.execute(f"test -f {candidate}").ok:
+                sudoers_fn = candidate
+                break
+        if sudoers_fn:
+            sudoers_dir = sudoers_fn.rsplit("/", 1)[0]
+            sudoers_backup_fn = f"{sudoers_dir}/90-cloud-init-integration-test"
+            cp_cmd = f"cp -p {sudoers_fn} {sudoers_backup_fn}"
+            assert class_client.execute(cp_cmd).ok, f"cp {sudoers_fn} failed"
+
         # test clean commands after running manual entry point
         for command in [
             "cloud-init clean",
             "cloud-init clean --logs",
             "cloud-init clean --seed",
             "cloud-init clean --machine-id",
-            "cloud-init clean --configs ssh_config",
             "cloud-init clean --configs datasource",
             "cloud-init clean --configs fstab",
             "cloud-init clean --configs network",
+            "cloud-init clean --configs ssh_config",
+            "cloud-init clean --configs sudoers",
             "cloud-init clean --configs all",
             "cloud-init clean --configs all --machine-id --seed --logs",
         ]:
