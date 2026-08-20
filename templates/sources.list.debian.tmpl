@@ -26,5 +26,8 @@ deb-src {{mirror}} {{codename}}-updates main
 ## N.B. software from this repository may not have been tested as
 ## extensively as that contained in the main release, although it includes
 ## newer versions of some applications which may provide useful features.
+## N.B. backports repository was deprecated in Debian 11 (bullseye).
+{% if codename != 'bullseye' -%}
 deb {{mirror}} {{codename}}-backports main
 deb-src {{mirror}} {{codename}}-backports main
+{% endif -%}

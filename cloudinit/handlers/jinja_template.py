@@ -140,7 +140,11 @@ def render_jinja_payload(payload, payload_fn, instance_data, debug=False):
         )
     try:
         rendered_payload = render_string(payload, instance_jinja_vars)
-    except (TypeError, exceptions.UndefinedError) as e:
+    except (
+        TypeError,
+        exceptions.UndefinedError,
+        exceptions.SecurityError,
+    ) as e:
         LOG.warning("Ignoring jinja template for %s: %s", payload_fn, str(e))
         return None
     warnings = [
