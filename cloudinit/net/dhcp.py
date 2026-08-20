@@ -107,26 +107,6 @@ def maybe_perform_dhcp_discovery(
     return distro.dhcp_client.dhcp_discovery(interface, dhcp_log_func, distro)
 
 
-def _parse_key_value(content):
-    """Parse simple key=value content, ignoring comments and blank lines."""
-    result = {}
-    if hasattr(content, "read"):
-        data = content.read()
-        if isinstance(data, bytes):
-            data = data.decode("utf-8")
-        lines = data.splitlines()
-    elif isinstance(content, (list, tuple)):
-        lines = content
-    else:
-        lines = content.splitlines()
-    for line in lines:
-        line = line.strip()
-        if not line or line.startswith("#") or line.startswith(";"):
-            continue
-        if "=" in line:
-            key, _, value = line.partition("=")
-            result[key.strip()] = value.strip()
-    return result
 
 
 def networkd_parse_lease(content):
@@ -137,7 +117,7 @@ def networkd_parse_lease(content):
 
     Simply return a dictionary of key/values."""
 
-    return _parse_key_value(StringIO(content))
+    return util.parse_key_value(StringIO(content))
 
 
 def networkd_load_leases(leases_d=None):
@@ -201,7 +181,7 @@ def network_manager_load_leases(device: str) -> Dict[str, str]:
         line = line.partition(":")[2].strip()
         content.append(line)
 
-    return _parse_key_value(content)
+    return util.parse_key_value(content)
 
 
 def find_correct_device_nmcli() -> Optional[str]:
