@@ -51,7 +51,6 @@ module = [
     "cloudinit.helpers",
     "cloudinit.net.ephemeral",
     "cloudinit.net.freebsd",
-    "cloudinit.net.netbsd",
     "cloudinit.net.network_manager",
     "cloudinit.net.network_state",
     "cloudinit.net.networkd",
