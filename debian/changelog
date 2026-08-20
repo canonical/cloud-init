@@ -1,4 +1,4 @@
-cloud-init (26.2-0ubuntu1~24.04.1) UNRELEASED; urgency=medium
+cloud-init (26.2-0ubuntu1~24.04.1) noble; urgency=medium
 
   * d/control: add python3-pyfakefs dependency
   * refresh patches:
@@ -13,7 +13,7 @@ cloud-init (26.2-0ubuntu1~24.04.1) UNRELEASED; urgency=medium
     List of changes from upstream can be found at
     https://raw.githubusercontent.com/canonical/cloud-init/26.2/ChangeLog
 
- -- Chad Smith <chad.smith@canonical.com>  Thu, 20 Aug 2026 15:00:58 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 20 Aug 2026 15:02:15 -0600
 
 cloud-init (26.1-0ubuntu1~24.04.1) noble; urgency=medium
 
