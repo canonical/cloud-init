@@ -2,7 +2,6 @@
 
 """Tests cc_disable_ec2_metadata handler"""
 
-
 import re
 from unittest import mock
 
@@ -96,6 +95,8 @@ class TestDisableEc2MetadataDeprecation:
     def test_deprecate_module_warning(self, m_subp, m_which, caplog):
         """Assert warning is logged for deprecated module."""
         m_which.side_effect = lambda x: x if x == "ip" else None
-        ec2_meta.handle("foo", {"disable_ec2_metadata": True}, mock.MagicMock(), [])
+        ec2_meta.handle(
+            "foo", {"disable_ec2_metadata": True}, mock.MagicMock(), []
+        )
         assert "Module cc_disable_ec2_metadata is deprecated in" in caplog.text
         assert "deprecat" in caplog.text

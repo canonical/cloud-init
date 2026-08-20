@@ -17,7 +17,6 @@ from cloudinit.config.schema import (
 from tests.unittests.helpers import skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
-
 STOCK_CONFIG = """\
 main_collective = mcollective
 collectives = mcollective
@@ -204,9 +203,7 @@ class TestMcollectiveSchema:
 
     @mock.patch("cloudinit.config.cc_mcollective.subp")
     @mock.patch("cloudinit.config.cc_mcollective.util")
-    def test_deprecate_module_warning(
-        self, mock_util, mock_subp, caplog
-    ):
+    def test_deprecate_module_warning(self, mock_util, mock_subp, caplog):
         """Assert warning is logged for deprecated module."""
         cc = get_cloud()
         cc.distro = mock.MagicMock()

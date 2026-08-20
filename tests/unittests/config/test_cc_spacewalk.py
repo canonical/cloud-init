@@ -78,9 +78,7 @@ class TestSpacewalkSchema:
 
     @mock.patch("cloudinit.config.cc_spacewalk.subp.subp")
     @mock.patch("cloudinit.config.cc_spacewalk.is_registered")
-    def test_deprecate_module_warning(
-        self, m_is_registered, m_subp, caplog
-    ):
+    def test_deprecate_module_warning(self, m_is_registered, m_subp, caplog):
         """Assert warning is logged for deprecated module."""
         cloud = get_cloud("fedora")
         m_is_registered.return_value = True
