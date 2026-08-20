@@ -2,6 +2,9 @@
 
 import re
 
+import pytest
+
+from cloudinit.distros import rhel_util
 from cloudinit.distros.parsers.sys_conf import SysConf
 
 # Lots of good examples @
@@ -9,6 +12,56 @@ from cloudinit.distros.parsers.sys_conf import SysConf
 
 
 class TestSysConfHelper:
+
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            ("en_US.UTF-8 # default", "en_US.UTF-8"),
+            ('"en_US.UTF-8" # default', "en_US.UTF-8"),
+            ("'en_US.UTF-8' # default", "en_US.UTF-8"),
+            ('"en_US.UTF-8"#default', "en_US.UTF-8"),
+            ('"" # empty', ""),
+            ("# empty", ""),
+            ('"value#part" # default', "value#part"),
+            ("'value # part' # default", "value # part"),
+            ('"value#part"', "value#part"),
+            ('"$DEVICE#suffix" # note', "$DEVICE#suffix"),
+            (r'"C:\locale\data" # default', r"C:\locale\data"),
+            ("it's-valid # default", "it's-valid"),
+        ],
+    )
+    def test_parse_inline_comments(self, value, expected):
+        conf = SysConf([f"VALUE={value}"])
+
+        assert conf["VALUE"] == expected
+        assert SysConf(str(conf).splitlines())["VALUE"] == expected
+
+    def test_hash_quoting_preserves_shell_variables(self):
+        conf = SysConf(['VALUE="$DEVICE#suffix" # note'])
+
+        assert str(conf) == 'VALUE="$DEVICE#suffix" # note'
+
+    def test_update_preserves_inline_comments(self, tmp_path):
+        path = tmp_path / "locale.conf"
+        path.write_text(
+            '# Locale settings\nLANG="en_US.UTF-8" # system default\n'
+            "LC_TIME=en_GB.UTF-8\t# keep\n"
+            "MARKER='value#part' # literal hash\n"
+        )
+
+        rhel_util.update_sysconfig_file(str(path), {"LANG": "fr_FR.UTF-8"})
+
+        assert path.read_text() == (
+            "# Locale settings\nLANG=fr_FR.UTF-8 # system default\n"
+            "LC_TIME=en_GB.UTF-8\t# keep\n"
+            "MARKER='value#part' # literal hash\n"
+        )
+        _, conf = rhel_util.read_sysconfig_file(str(path))
+        assert conf == {
+            "LANG": "fr_FR.UTF-8",
+            "LC_TIME": "en_GB.UTF-8",
+            "MARKER": "value#part",
+        }
 
     def test_parse_no_change(self):
         contents = """# A comment
