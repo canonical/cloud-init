@@ -434,6 +434,9 @@ class NMConnection:
                 self.config[family]["gateway"] = subnet["gateway"]
             for route in subnet["routes"]:
                 self._add_route(route)
+            # metric may apply to both dhcp and static config
+            if "metric" in subnet:
+                self.config[family]["route-metric"] = str(subnet["metric"])
             # Add subnet-level DNS
             if "dns_nameservers" in subnet:
                 found_nameservers.extend(subnet["dns_nameservers"])
