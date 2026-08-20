@@ -18,7 +18,6 @@ from io import StringIO
 from subprocess import TimeoutExpired
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
-import configobj
 
 from cloudinit import subp, temp_utils, util
 from cloudinit.net import get_interface_mac, is_ib_interface
@@ -108,6 +107,28 @@ def maybe_perform_dhcp_discovery(
     return distro.dhcp_client.dhcp_discovery(interface, dhcp_log_func, distro)
 
 
+def _parse_key_value(content):
+    """Parse simple key=value content, ignoring comments and blank lines."""
+    result = {}
+    if hasattr(content, "read"):
+        data = content.read()
+        if isinstance(data, bytes):
+            data = data.decode("utf-8")
+        lines = data.splitlines()
+    elif isinstance(content, (list, tuple)):
+        lines = content
+    else:
+        lines = content.splitlines()
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#") or line.startswith(";"):
+            continue
+        if "=" in line:
+            key, _, value = line.partition("=")
+            result[key.strip()] = value.strip()
+    return result
+
+
 def networkd_parse_lease(content):
     """Parse a systemd lease file content as in /run/systemd/netif/leases/
 
@@ -116,7 +137,7 @@ def networkd_parse_lease(content):
 
     Simply return a dictionary of key/values."""
 
-    return dict(configobj.ConfigObj(StringIO(content), list_values=False))
+    return _parse_key_value(StringIO(content))
 
 
 def networkd_load_leases(leases_d=None):
@@ -180,7 +201,7 @@ def network_manager_load_leases(device: str) -> Dict[str, str]:
         line = line.partition(":")[2].strip()
         content.append(line)
 
-    return dict(configobj.ConfigObj(content, list_values=False))
+    return _parse_key_value(content)
 
 
 def find_correct_device_nmcli() -> Optional[str]:
