@@ -8,19 +8,16 @@ import re
 import shlex
 from io import StringIO
 
-# This library is used to parse/write
-# out the various sysconfig files edited (best attempt effort)
-#
-# It has to be slightly modified though
-# to ensure that all values are quoted/unquoted correctly
-# since these configs are usually sourced into
-# bash scripts...
-import configobj
-
 # See: http://pubs.opengroup.org/onlinepubs/000095399/basedefs/xbd_chap08.html
 # or look at the 'param_expand()' function in the subst.c file in the bash
 # source tarball...
 SHELL_VAR_RULE = r"[a-zA-Z_]+[a-zA-Z0-9_]*"
+
+# Quote format strings
+_SQUOT = "'%s'"
+_DQUOT = '"%s"'
+_TSQUOT = '"""%s"""'
+_TDQUOT = "\'\'\'%s\'\'\'"
 
 
 def _contains_shell_variable(text):
@@ -39,28 +36,111 @@ def _contains_shell_variable(text):
     return False
 
 
-class SysConf(configobj.ConfigObj):
-    """A configobj.ConfigObj subclass specialised for sysconfig files.
+class SysConf(dict):
+    """A dict-like object for reading and writing sysconfig files.
 
     :param contents:
-        The sysconfig file to parse, in a format accepted by
-        ``configobj.ConfigObj.__init__`` (i.e. "a filename, file like object,
-        or list of lines").
+        The sysconfig file to parse: a list of lines, a file-like object,
+        or a string (treated as file content).
     """
 
     def __init__(self, contents):
-        configobj.ConfigObj.__init__(
-            self, contents, interpolation=False, write_empty_values=True
-        )
+        super().__init__()
+        self._order = []  # ordered list of keys as originally seen
+        self._comments = {}  # key -> list of comment/blank lines before it
+        self._inline_comments = {}  # key -> inline comment string (after value)
+        self._final_comments = []  # trailing comment/blank lines after last key
+        self.sections = []  # sysconfig files have no INI sections
+        self._parse(contents)
+
+    def _parse(self, contents):
+        if isinstance(contents, (list, tuple)):
+            lines = list(contents)
+        elif isinstance(contents, str):
+            lines = contents.splitlines()
+        elif hasattr(contents, "read"):
+            data = contents.read()
+            if isinstance(data, bytes):
+                data = data.decode("utf-8")
+            lines = data.splitlines()
+        else:
+            lines = []
+
+        pending = []  # accumulate comment/blank lines until next key
+        for line in lines:
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                pending.append(line)
+                continue
+            if "=" in line:
+                idx = line.index("=")
+                key = line[:idx].strip()
+                rest = line[idx + 1 :]
+                value = self._unquote(rest.strip())
+                self._comments[key] = pending
+                pending = []
+                self._inline_comments[key] = ""
+                self._order.append(key)
+                super().__setitem__(key, value)
+            else:
+                pending.append(line)
+
+        self._final_comments = pending
+
+    def _unquote(self, value):
+        if len(value) >= 2:
+            if (value[0] == '"' and value[-1] == '"') or (
+                value[0] == "'" and value[-1] == "'"
+            ):
+                return value[1:-1]
+        return value
+
+    def __setitem__(self, key, value):
+        if key not in self:
+            self._order.append(key)
+            self._comments[key] = []
+            self._inline_comments[key] = ""
+        super().__setitem__(key, value)
+
+    def __delitem__(self, key):
+        super().__delitem__(key)
+        if key in self._order:
+            self._order.remove(key)
+        self._comments.pop(key, None)
+        self._inline_comments.pop(key, None)
 
     def __str__(self):
-        contents = self.write()
-        out_contents = StringIO()
-        if isinstance(contents, (list, tuple)):
-            out_contents.write("\n".join(contents))
-        else:
-            out_contents.write(str(contents))
-        return out_contents.getvalue()
+        lines = []
+        written = set()
+        for key in self._order:
+            if key not in self:
+                continue
+            for comment_line in self._comments.get(key, []):
+                lines.append(comment_line)
+            val = self._quote(self[key])
+            key_q = self._quote(key)
+            inline = self._inline_comments.get(key, "")
+            lines.append("%s%s%s%s" % (key_q, "=", val, inline))
+            written.add(key)
+        # Write any newly-added keys not in original parse order
+        for key in self:
+            if key not in written:
+                val = self._quote(self[key])
+                key_q = self._quote(key)
+                lines.append("%s%s%s" % (key_q, "=", val))
+        for comment_line in self._final_comments:
+            lines.append(comment_line)
+        return "\n".join(lines)
+
+    def _get_single_quote(self, value):
+        if '"' in value:
+            return _SQUOT
+        return _DQUOT
+
+    def _get_triple_quote(self, value):
+        if '"""' not in value:
+            return _TDQUOT
+        return _TSQUOT
 
     def _quote(self, value, multiline=False):
         if not isinstance(value, str):
@@ -96,17 +176,3 @@ class SysConf(configobj.ConfigObj):
         if not quot_func:
             return value
         return quot_func(value)
-
-    def _write_line(self, indent_string, entry, this_entry, comment):
-        # Ensure it is formatted fine for
-        # how these sysconfig scripts are used
-        val = self._decode_element(self._quote(this_entry))
-        key = self._decode_element(self._quote(entry))
-        cmnt = self._decode_element(comment)
-        return "%s%s%s%s%s" % (
-            indent_string,
-            key,
-            "=",
-            val,
-            cmnt,
-        )
