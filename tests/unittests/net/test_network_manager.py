@@ -266,8 +266,7 @@ class TestNetworkManagerRenderNetworkState:
         primary-reselect-policy and transmit-hash-policy used to be
         silently dropped from the rendered bond. See GH-6932.
         """
-        config = textwrap.dedent(
-            """\
+        config = textwrap.dedent("""\
             version: 2
             ethernets:
               eth0:
@@ -286,8 +285,7 @@ class TestNetworkManagerRenderNetworkState:
                   fail-over-mac-policy: active
                   primary-reselect-policy: always
                   transmit-hash-policy: layer3+4
-            """
-        )
+            """)
 
         expected_config = {
             "/etc/NetworkManager/system-connections/cloud-init-bond0.nmconnection": textwrap.dedent(  # noqa: E501
