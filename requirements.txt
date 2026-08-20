@@ -7,12 +7,6 @@ jinja2
 # reporting feature when configured to use webhooks.
 oauthlib
 
-# This is only needed for places where we need to support configs in a manner
-# that the built-in config parser is not sufficient (ie
-# when we need to preserve comments, or do not have a top-level
-# section)...
-configobj
-
 # All new style configurations are in the yaml format
 pyyaml
 
