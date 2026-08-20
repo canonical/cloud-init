@@ -19,24 +19,10 @@ from tests.unittests.util import get_cloud
 LOG = logging.getLogger(__name__)
 
 def _parse_mcollective_config(source):
-    """Parse a flat key=value mcollective config. source can be BytesIO, filename str, or bytes."""
-    if hasattr(source, "read"):
-        content = source.read()
-    elif isinstance(source, (bytes, bytearray)):
-        content = source
-    else:
-        content = util.load_binary_file(source)
-    if isinstance(content, (bytes, bytearray)):
-        content = content.decode("utf-8")
-    result = {}
-    for line in content.splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-        if "=" in stripped:
-            key, _, value = stripped.partition("=")
-            result[key.strip()] = value.strip()
-    return result
+    """Thin test helper: parse flat key=value mcollective config via util."""
+    if hasattr(source, "read") or isinstance(source, (bytes, bytearray)):
+        return util.parse_key_value(source)
+    return util.parse_key_value(util.load_text_file(source))
 
 
 

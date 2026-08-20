@@ -29,14 +29,7 @@ class TestTimezone:
         cc_timezone.handle("cc_timezone", cfg, cc, [])
 
         contents = util.load_binary_file("/etc/sysconfig/clock")
-        n_cfg = {}
-        for line in contents.decode("utf-8").splitlines():
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if "=" in line:
-                key, _, value = line.partition("=")
-                n_cfg[key.strip()] = value.strip()
+        n_cfg = util.parse_key_value(contents)
 
         assert {"TIMEZONE": cfg["timezone"]} == dict(n_cfg)
 
