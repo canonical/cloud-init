@@ -5,7 +5,7 @@ Notes:
  * Older LXD images may not have updates for cloud-init so NoCloud may
    still be detected on those images.
  * Detect LXD datasource when /dev/lxd/sock is an active socket file.
- * Info on dev-lxd API: https://documentation.ubuntu.com/lxd/en/latest/dev-lxd/
+ * Info on dev-lxd API: https://canonical.com/lxd/docs/latest/dev-lxd/
 """
 
 import logging

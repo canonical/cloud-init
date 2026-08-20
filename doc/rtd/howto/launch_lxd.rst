@@ -70,5 +70,5 @@ custom network config and using LXD with cloud-init.
 
 .. LINKS
 .. _LXD: https://ubuntu.com/lxd
-.. _Instance Configuration: https://documentation.ubuntu.com/lxd/en/latest/instances/
-.. _Custom Network Configuration: https://documentation.ubuntu.com/lxd/en/latest/cloud-init/
+.. _Instance Configuration: https://canonical.com/lxd/docs/latest/instances/
+.. _Custom Network Configuration: https://canonical.com/lxd/docs/latest/cloud-init/
