@@ -4,37 +4,6 @@
 name: "Dispatch: Integration"
 
 on:
-  workflow_dispatch:
-    inputs:
-      release:
-        required: true
-        type: choice
-        options:
-        - stonking
-        - resolute
-        - jammy
-        - noble
-      platform:
-        required: true
-        type: choice
-        options:
-        - azure
-        - ec2
-        - lxd_container
-        - lxd_vm
-      image_type:
-        required: true
-        type: choice
-        options:
-        - generic
-        - minimal
-      install_source:
-        required: false
-        type: string
-        default: 'ppa:cloud-init-dev/daily'
-      filter_tests:
-        required: false
-        type: string
   workflow_call:
     inputs:
       release:
