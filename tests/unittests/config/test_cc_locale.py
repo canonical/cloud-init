@@ -92,14 +92,7 @@ class TestLocale:
         else:
             locale_conf = cc.distro.locale_conf_fn
         contents = util.load_binary_file(locale_conf)
-        n_cfg = {}
-        for line in contents.decode("utf-8").splitlines():
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if "=" in line:
-                key, _, value = line.partition("=")
-                n_cfg[key.strip()] = value.strip()
+        n_cfg = util.parse_key_value(contents)
         assert expected_locale == dict(n_cfg)
 
     def test_locale_update_config_if_different_than_default(self, tmpdir):
