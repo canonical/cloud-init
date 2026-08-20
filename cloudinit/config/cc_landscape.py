@@ -8,10 +8,10 @@
 
 """install and configure landscape client"""
 
+import configparser
+import copy
 import logging
 from itertools import chain
-
-from configobj import ConfigObj
 
 from cloudinit import subp, type_utils, util
 from cloudinit.cloud import Cloud
@@ -44,7 +44,7 @@ LOG = logging.getLogger(__name__)
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     """
     Basically turn a top level 'landscape' entry with a 'client' dict
-    and render it to ConfigObj format under '[client]' section in
+    and render it to INI format under '[client]' section in
     /etc/landscape/client.conf
     """
 
@@ -90,17 +90,41 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             raise RuntimeError(msg) from e
 
 
+def _deep_merge(base, override):
+    """Deep-merge override dict into base dict in-place."""
+    for key, value in override.items():
+        if (
+            key in base
+            and isinstance(base[key], dict)
+            and isinstance(value, dict)
+        ):
+            _deep_merge(base[key], value)
+        else:
+            base[key] = value
+
+
+def _parse_ini_file(filename):
+    """Parse an INI file and return a nested dict {section: {key: value}}."""
+    parser = configparser.RawConfigParser()
+    parser.optionxform = str  # preserve key case
+    try:
+        parser.read(filename)
+    except (configparser.Error, OSError):
+        return {}
+    result = {}
+    for section in parser.sections():
+        result[section] = dict(parser.items(section))
+    return result
+
+
 def merge_together(objs):
-    """
-    merge together ConfigObj objects or things that ConfigObj() will take in
-    later entries override earlier
-    """
-    cfg = ConfigObj({})
+    """Merge together dicts or INI filenames; later entries override earlier."""
+    result = {}
     for obj in objs:
         if not obj:
             continue
-        if isinstance(obj, ConfigObj):
-            cfg.merge(obj)
-        else:
-            cfg.merge(ConfigObj(obj))
-    return cfg
+        if isinstance(obj, str):
+            _deep_merge(result, _parse_ini_file(obj))
+        elif isinstance(obj, dict):
+            _deep_merge(result, copy.deepcopy(obj))
+    return result
