@@ -17,7 +17,8 @@ import logging
 import re
 import sys
 
-from jinja2 import DebugUndefined, Template, TemplateSyntaxError
+from jinja2 import DebugUndefined, TemplateSyntaxError
+from jinja2.sandbox import SandboxedEnvironment
 
 from cloudinit import performance
 from cloudinit import type_utils as tu
@@ -134,15 +135,12 @@ def detect_template(text):
         add = "\n" if content.endswith("\n") else ""
         try:
             with performance.Timed("Rendering jinja2 template"):
-                return (
-                    Template(
-                        content,
-                        undefined=UndefinedJinjaVariable,
-                        trim_blocks=True,
-                        extensions=["jinja2.ext.do"],
-                    ).render(**params)
-                    + add
+                jinja_env = SandboxedEnvironment(
+                    undefined=UndefinedJinjaVariable,
+                    trim_blocks=True,
+                    extensions=["jinja2.ext.do"],
                 )
+                return jinja_env.from_string(content).render(**params) + add
         except TemplateSyntaxError as template_syntax_error:
             template_syntax_error.lineno += 1
             raise JinjaSyntaxParsingException(
