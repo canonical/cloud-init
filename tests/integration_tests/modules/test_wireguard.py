@@ -8,9 +8,17 @@ from pycloudlib.lxd.instance import LXDInstance
 from cloudinit.subp import subp
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
-from tests.integration_tests.releases import IS_UBUNTU
+from tests.integration_tests.releases import (
+    CURRENT_RELEASE,
+    IS_UBUNTU,
+    RESOLUTE,
+)
 
-ASCII_TEXT = "ASCII text"
+ASCII_TEXT = (
+    "ASCII text"
+    if CURRENT_RELEASE <= RESOLUTE
+    else "Generic INItialization configuration"
+)
 
 USER_DATA = """\
 #cloud-config
