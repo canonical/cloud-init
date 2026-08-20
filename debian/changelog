@@ -1,9 +1,12 @@
-cloud-init (26.2-0ubuntu1~26.04.1) UNRELEASED; urgency=medium
+cloud-init (26.2-0ubuntu1~26.04.1) resolute; urgency=medium
 
   * d/control: add python3-pyfakefs dependency
   * Upstream snapshot based on upstream/main at 399cc042.
+  * Upstream snapshot based on 26.2. (LP: #2164685).
+    List of changes from upstream can be found at
+    https://raw.githubusercontent.com/canonical/cloud-init/26.2/ChangeLog
 
- -- Chad Smith <chad.smith@canonical.com>  Mon, 06 Jul 2026 07:59:10 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 20 Aug 2026 14:59:50 -0600
 
 cloud-init (26.1-0ubuntu2) resolute; urgency=medium
 

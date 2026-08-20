@@ -1910,6 +1910,35 @@ def unmounter(umount):
             subp.subp(umount_cmd)
 
 
+# Per fstab(5), fstab fields are whitespace-separated, so these characters
+# must be octal-escaped when they appear inside a field. Backslash must come
+# first so we don't double-escape the escapes we introduce.
+_FSTAB_ESCAPES = (
+    ("\\", "\\134"),
+    (" ", "\\040"),
+    ("\t", "\\011"),
+    ("\n", "\\012"),
+)
+
+
+def escape_fstab_field(value: str) -> str:
+    """Octal-escape special characters for safe writing to fstab."""
+    for char, escaped in _FSTAB_ESCAPES:
+        value = value.replace(char, escaped)
+    return value
+
+
+def unescape_fstab_field(value: str) -> str:
+    """Reverse escape_fstab_field.
+
+    Iterate _FSTAB_ESCAPES in reverse so backslash is decoded last; this
+    avoids mis-decoding a field whose original value contained a backslash.
+    """
+    for char, escaped in reversed(_FSTAB_ESCAPES):
+        value = value.replace(escaped, char)
+    return value
+
+
 def mounts():
     mounted = {}
     try:
@@ -1938,9 +1967,9 @@ def mounts():
                 mp = m.group(2)
                 fstype = m.group(3)
                 opts = m.group(4)
-            # If the name of the mount point contains spaces these
-            # can be escaped as '\040', so undo that..
-            mp = mp.replace("\\040", " ")
+            # Mount points may contain octal-escaped characters (e.g. a
+            # space as '\040'); undo that so callers see the real path.
+            mp = unescape_fstab_field(mp)
             mounted[dev] = {
                 "fstype": fstype,
                 "mountpoint": mp,
