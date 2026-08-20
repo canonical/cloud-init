@@ -876,6 +876,60 @@ def mergemanydict(sources: Sequence[Mapping], reverse=False) -> dict:
     return merged_cfg
 
 
+def parse_key_value(content) -> dict:
+    """Parse flat key=value content, ignoring comments and blank lines.
+
+    Accepts a file-like object, list/tuple of line strings, bytes/bytearray,
+    or a plain string. Returns a {key: value} dict; keys and values have
+    surrounding whitespace stripped. Lines starting with # or ; are treated
+    as comments. When a value contains =, only the first = is used as the
+    delimiter.
+    """
+    if hasattr(content, "read"):
+        data = content.read()
+        if isinstance(data, (bytes, bytearray)):
+            data = data.decode("utf-8")
+        lines = data.splitlines()
+    elif isinstance(content, (bytes, bytearray)):
+        lines = content.decode("utf-8").splitlines()
+    elif isinstance(content, (list, tuple)):
+        lines = [str(line) for line in content]
+    else:
+        lines = content.splitlines()
+    result: dict = {}
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#") or line.startswith(";"):
+            continue
+        if "=" in line:
+            key, _, value = line.partition("=")
+            result[key.strip()] = value.strip()
+    return result
+
+
+def deep_merge(base: dict, override: dict) -> dict:
+    """Return a new dict with override merged into base (last-writer wins).
+
+    Nested dicts are merged recursively; all other types are replaced by the
+    value from override. Neither base nor override is mutated.
+
+    Unlike mergemanydict, this function does not use merger plugins, does not
+    support first-key-wins semantics, and does not handle lists specially.
+    Use this when you want a simple recursive merge where later values win.
+    """
+    result = dict(base)
+    for key, value in override.items():
+        if (
+            key in result
+            and isinstance(result[key], dict)
+            and isinstance(value, dict)
+        ):
+            result[key] = deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
 @contextlib.contextmanager
 def chdir(ndir):
     curr = os.getcwd()
