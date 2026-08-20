@@ -1,10 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
-from io import BytesIO
 from pathlib import Path
 
 import pytest
-from configobj import ConfigObj
 
 from cloudinit import util
 from cloudinit.config import cc_locale
@@ -94,7 +92,14 @@ class TestLocale:
         else:
             locale_conf = cc.distro.locale_conf_fn
         contents = util.load_binary_file(locale_conf)
-        n_cfg = ConfigObj(BytesIO(contents))
+        n_cfg = {}
+        for line in contents.decode("utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" in line:
+                key, _, value = line.partition("=")
+                n_cfg[key.strip()] = value.strip()
         assert expected_locale == dict(n_cfg)
 
     def test_locale_update_config_if_different_than_default(self, tmpdir):

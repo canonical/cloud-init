@@ -5,9 +5,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
-from io import BytesIO
 
-from configobj import ConfigObj
 
 from cloudinit import util
 from cloudinit.config import cc_timezone
@@ -31,7 +29,14 @@ class TestTimezone:
         cc_timezone.handle("cc_timezone", cfg, cc, [])
 
         contents = util.load_binary_file("/etc/sysconfig/clock")
-        n_cfg = ConfigObj(BytesIO(contents))
+        n_cfg = {}
+        for line in contents.decode("utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" in line:
+                key, _, value = line.partition("=")
+                n_cfg[key.strip()] = value.strip()
 
         assert {"TIMEZONE": cfg["timezone"]} == dict(n_cfg)
 
