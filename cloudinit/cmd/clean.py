@@ -124,7 +124,7 @@ def get_parser(parser=None):
         default=[],
         nargs="+",
         dest="remove_config",
-        help="Remove cloud-init generated config files of specified type."
+        help="Remove cloud-init generated config files of specified type.",
     )
     return parser
 
