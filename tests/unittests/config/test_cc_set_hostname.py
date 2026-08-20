@@ -20,16 +20,7 @@ def fake_subp(*args, **kwargs):
     raise RuntimeError(f"Unexpected subp: {args[0]}")
 
 
-def conf_parser(conf):
-    result = {}
-    for line in conf.splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if "=" in line:
-            key, _, value = line.partition("=")
-            result[key.strip()] = value.strip()
-    return result
+conf_parser = util.parse_key_value
 
 
 @pytest.mark.usefixtures("fake_filesystem")
