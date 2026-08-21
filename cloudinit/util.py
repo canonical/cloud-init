@@ -899,7 +899,7 @@ def parse_key_value(content) -> dict:
     result: dict = {}
     for line in lines:
         line = line.strip()
-        if not line or line.startswith("#") or line.startswith(";"):
+        if not line or line.startswith(("#", ";")):
             continue
         if "=" in line:
             key, _, value = line.partition("=")
