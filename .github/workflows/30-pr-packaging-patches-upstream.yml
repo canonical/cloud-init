@@ -52,7 +52,7 @@ jobs:
           for BRANCH in ubuntu/devel ubuntu/resolute ubuntu/noble ubuntu/jammy; do
             # merge - this step is not expected to fail
             git merge "origin/$BRANCH"
-            if [ ! -f debian/patches/series || ! grep '[^[:space:]]' debian/patches/series ]; then
+            if ! grep --quiet --no-messages '[^[:space:]]' debian/patches/series; then
               echo "no patches, skipping $BRANCH"
               # undo merge - this step is not expected to fail
               git reset --hard origin/main
