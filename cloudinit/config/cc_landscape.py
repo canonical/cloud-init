@@ -9,7 +9,6 @@
 """install and configure landscape client"""
 
 import configparser
-import copy
 import logging
 from itertools import chain
 
@@ -90,17 +89,6 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             raise RuntimeError(msg) from e
 
 
-def _deep_merge(base, override):
-    """Deep-merge override dict into base dict in-place."""
-    for key, value in override.items():
-        if (
-            key in base
-            and isinstance(base[key], dict)
-            and isinstance(value, dict)
-        ):
-            _deep_merge(base[key], value)
-        else:
-            base[key] = value
 
 
 def _parse_ini_file(filename):
@@ -124,7 +112,7 @@ def merge_together(objs):
         if not obj:
             continue
         if isinstance(obj, str):
-            _deep_merge(result, _parse_ini_file(obj))
+            result = util.deep_merge(result, _parse_ini_file(obj))
         elif isinstance(obj, dict):
-            _deep_merge(result, copy.deepcopy(obj))
+            result = util.deep_merge(result, obj)
     return result
