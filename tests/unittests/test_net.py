@@ -5654,6 +5654,25 @@ class TestGetInterfacesByMac:
         ret = net.get_interfaces_by_mac()
         assert "lo" == ret["00:00:00:00:00:00"]
 
+    def test_skip_intel_unprogrammed_placeholder_mac(self, mocks):
+        placeholder_mac = net.INTEL_UNPROGRAMMED_MAC
+        addnics = ("enp4s0", "enp5s0")
+        self.data["macs"].update(dict((k, placeholder_mac) for k in addnics))
+        self.data["devices"].update(set(addnics))
+        self.data["own_macs"].extend(addnics)
+        self.data["drivers"].update(dict((k, "igc") for k in addnics))
+        ret = net.get_interfaces_by_mac()
+        assert placeholder_mac not in ret
+
+    def test_real_duplicate_igc_macs_still_raise(self, mocks):
+        real_mac = "3c:52:82:aa:bb:cc"
+        addnics = ("enp4s0", "enp5s0")
+        self.data["macs"].update(dict((k, real_mac) for k in addnics))
+        self.data["devices"].update(set(addnics))
+        self.data["own_macs"].extend(addnics)
+        self.data["drivers"].update(dict((k, "igc") for k in addnics))
+        pytest.raises(RuntimeError, net.get_interfaces_by_mac)
+
     def test_ib(self, mocks):
         ib_addr = "80:00:00:28:fe:80:00:00:00:00:00:00:00:11:22:03:00:33:44:56"
         ib_addr_eth_format = "00:11:22:33:44:56"
