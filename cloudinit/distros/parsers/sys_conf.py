@@ -6,7 +6,6 @@
 
 import re
 import shlex
-from io import StringIO
 
 # See: http://pubs.opengroup.org/onlinepubs/000095399/basedefs/xbd_chap08.html
 # or look at the 'param_expand()' function in the subst.c file in the bash
@@ -17,7 +16,7 @@ SHELL_VAR_RULE = r"[a-zA-Z_]+[a-zA-Z0-9_]*"
 _SQUOT = "'%s'"
 _DQUOT = '"%s"'
 _TSQUOT = '"""%s"""'
-_TDQUOT = "\'\'\'%s\'\'\'"
+_TDQUOT = "'''%s'''"
 
 
 def _contains_shell_variable(text):
@@ -48,8 +47,12 @@ class SysConf(dict):
         super().__init__()
         self._order = []  # ordered list of keys as originally seen
         self._comments = {}  # key -> list of comment/blank lines before it
-        self._inline_comments = {}  # key -> inline comment string (after value)
-        self._final_comments = []  # trailing comment/blank lines after last key
+        self._inline_comments = (
+            {}
+        )  # key -> inline comment string (after value)
+        self._final_comments = (
+            []
+        )  # trailing comment/blank lines after last key
         self.sections = []  # sysconfig files have no INI sections
         self._parse(contents)
 

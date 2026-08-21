@@ -14,7 +14,7 @@ import configparser
 class NetworkManagerConf:
     def __init__(self, contents):
         self._parser = configparser.RawConfigParser()
-        self._parser.optionxform = str  # preserve key case
+        self._parser.optionxform = str  # type: ignore[method-assign,assignment]
         if contents:
             if isinstance(contents, (list, tuple)):
                 contents = "\n".join(contents)
