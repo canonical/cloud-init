@@ -66,7 +66,9 @@ class _McollectiveConfig:
                 if current_section not in self._sections:
                     self._sections[current_section] = {}
                     self._section_order.append(current_section)
-                    self._interleaved_order.append(("section", current_section))
+                    self._interleaved_order.append(
+                        ("section", current_section)
+                    )
             elif "=" in stripped:
                 key, _, value = stripped.partition("=")
                 key = key.strip()

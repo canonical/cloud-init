@@ -3383,10 +3383,12 @@ class TestParseKeyValue:
 
     def test_stringio_input(self):
         from io import StringIO
+
         assert util.parse_key_value(StringIO("K=v\n")) == {"K": "v"}
 
     def test_bytesio_input(self):
         from io import BytesIO
+
         assert util.parse_key_value(BytesIO(b"K=v\n")) == {"K": "v"}
 
     def test_list_input(self):
@@ -3427,12 +3429,16 @@ class TestDeepMerge:
     def test_recursive_nested(self):
         base = {"s": {"x": 1, "y": 2}}
         override = {"s": {"y": 20, "z": 30}}
-        assert util.deep_merge(base, override) == {"s": {"x": 1, "y": 20, "z": 30}}
+        assert util.deep_merge(base, override) == {
+            "s": {"x": 1, "y": 20, "z": 30}
+        }
 
     def test_three_levels_deep(self):
         base = {"a": {"b": {"c": 1, "d": 2}}}
         override = {"a": {"b": {"d": 99}}}
-        assert util.deep_merge(base, override) == {"a": {"b": {"c": 1, "d": 99}}}
+        assert util.deep_merge(base, override) == {
+            "a": {"b": {"c": 1, "d": 99}}
+        }
 
     def test_override_scalar_replaces_nested_dict(self):
         result = util.deep_merge({"k": {"nested": 1}}, {"k": "scalar"})
