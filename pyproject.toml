@@ -37,7 +37,6 @@ no_implicit_optional = true
 [[tool.mypy.overrides]]
 module = [
     "cloudinit.config.cc_apt_configure",
-    "cloudinit.config.cc_ca_certs",
     "cloudinit.config.cc_growpart",
     "cloudinit.config.cc_ntp",
     "cloudinit.config.modules",
@@ -82,7 +81,6 @@ module = [
     "tests.unittests.config.test_apt_configure_sources_list_v3",
     "tests.unittests.config.test_apt_source_v1",
     "tests.unittests.config.test_cc_apt_pipelining",
-    "tests.unittests.config.test_cc_ca_certs",
     "tests.unittests.config.test_cc_chef",
     "tests.unittests.config.test_cc_final_message",
     "tests.unittests.config.test_cc_growpart",
