@@ -2876,6 +2876,9 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 may-fail=false
                 dns-search=barley.maas;wark.maas;foobar.maas;
 
+                [ethernet]
+                cloned-mac-address=AA:BB:CC:DD:EE:FF
+
                 """
             ),
             "cloud-init-eth2.nmconnection": textwrap.dedent(
@@ -3711,6 +3714,9 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 may-fail=false
                 dns-search=barley.maas;wark.maas;foobar.maas;
 
+                [ethernet]
+                cloned-mac-address=AA:BB:CC:DD:EE:FF
+
                 """
             ),
             "cloud-init-eth2.nmconnection": textwrap.dedent(
@@ -4246,6 +4252,7 @@ iface bond0 inet6 static
 
                 [ethernet]
                 mtu=9000
+                cloned-mac-address=AA:BB:CC:DD:E8:FF
 
                 """
             ),
@@ -4666,6 +4673,9 @@ iface bond0 inet6 static
                 method=manual
                 may-fail=false
                 address1=2001:1::1/92
+
+                [ethernet]
+                cloned-mac-address=AA:BB:CC:DD:E8:FF
 
                 """
             ),

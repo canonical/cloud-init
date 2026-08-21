@@ -518,10 +518,16 @@ class NMConnection:
             self.config["vlan"]["parent"] = renderer.con_ref(
                 iface["vlan-raw-device"]
             )
-        if if_type == "bond" and ipv4_mtu is not None:
-            if "ethernet" not in self.config:
-                self.config["ethernet"] = {}
-            self.config["ethernet"]["mtu"] = str(ipv4_mtu)
+        if if_type == "bond":
+            if ipv4_mtu is not None or iface["mac_address"] is not None:
+                if "ethernet" not in self.config:
+                    self.config["ethernet"] = {}
+            if ipv4_mtu is not None:
+                self.config["ethernet"]["mtu"] = str(ipv4_mtu)
+            if iface["mac_address"] is not None:
+                self.config["ethernet"]["cloned-mac-address"] = self.mac_addr(
+                    iface["mac_address"]
+                )
         if if_type == "bridge":
             # Bridge is ass-backwards compared to bond
             for port in iface["bridge_ports"]:
