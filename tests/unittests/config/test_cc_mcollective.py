@@ -1,7 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
 import os
-from io import BytesIO
 from unittest import mock
 
 import pytest
@@ -18,12 +17,12 @@ from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
 
+
 def _parse_mcollective_config(source):
     """Thin test helper: parse flat key=value mcollective config via util."""
     if hasattr(source, "read") or isinstance(source, (bytes, bytearray)):
         return util.parse_key_value(source)
     return util.parse_key_value(util.load_text_file(source))
-
 
 
 STOCK_CONFIG = """\
