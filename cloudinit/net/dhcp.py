@@ -18,7 +18,6 @@ from io import StringIO
 from subprocess import TimeoutExpired
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
-
 from cloudinit import subp, temp_utils, util
 from cloudinit.net import get_interface_mac, is_ib_interface
 
@@ -105,8 +104,6 @@ def maybe_perform_dhcp_discovery(
         raise NoDHCPLeaseInterfaceError()
 
     return distro.dhcp_client.dhcp_discovery(interface, dhcp_log_func, distro)
-
-
 
 
 def networkd_parse_lease(content):
