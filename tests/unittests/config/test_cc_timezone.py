@@ -6,7 +6,6 @@
 
 import logging
 
-
 from cloudinit import util
 from cloudinit.config import cc_timezone
 from tests.unittests.util import get_cloud
