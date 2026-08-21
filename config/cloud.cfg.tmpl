@@ -200,9 +200,6 @@ cloud_final_modules:
   - ansible
   - mcollective
   - salt_minion
-{% if variant not in ["alpine"] %}
-  - reset_rmc
-{% endif %}
   - scripts_vendor
   - scripts_per_once
   - scripts_per_boot

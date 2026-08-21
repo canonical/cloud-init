@@ -10,7 +10,7 @@
 
 import logging
 
-from cloudinit import subp, util
+from cloudinit import lifecycle, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -33,6 +33,11 @@ meta: MetaSchema = {
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     disabled = util.get_cfg_option_bool(cfg, "disable_ec2_metadata", False)
     if disabled:
+        lifecycle.deprecate(
+            deprecated="Module cc_disable_ec2_metadata",
+            deprecated_version="26.2",
+            extra_message="The disable_ec2_metadata module is deprecated and will be removed in a future release.",
+        )
         reject_cmd = None
         if subp.which("ip"):
             reject_cmd = REJECT_CMD_IP
