@@ -32,7 +32,7 @@ jobs:
           # only run it if necessary to save some cycles.
           # GitHub Actions doesn't appear to have a simple mechanism for
           # early exit without failure
-          if [ ! -f debian/patches/series ]; then
+          if [ ! grep --quiet --no-messages '[^[:space:]]' debian/patches/series ]; then
             echo "no patches, skipping"
             exit 0
           fi
@@ -43,7 +43,7 @@ jobs:
         run: |
           # GitHub Actions doesn't appear to have a simple mechanism for
           # early exit without failure
-          if [ ! -f debian/patches/series ]; then
+          if [ ! grep --quiet --no-messages '[^[:space:]]' debian/patches/series ]; then
             echo "no patches, skipping"
             exit 0
           fi
@@ -59,7 +59,7 @@ jobs:
         run: |
           # GitHub Actions doesn't appear to have a simple mechanism for
           # early exit without failure
-          if [ ! -f debian/patches/series ]; then
+          if [ ! grep --quiet --no-messages '[^[:space:]]' debian/patches/series ]; then
             echo "no patches, skipping"
             exit 0
           fi
@@ -70,7 +70,7 @@ jobs:
         run: |
           # GitHub Actions doesn't appear to have a simple mechanism for
           # early exit without failure
-          if [ ! -f debian/patches/series ]; then
+          if [ grep --quiet --no-messages '[^[:space:]]' debian/patches/series ]; then
             echo "no patches, skipping"
             exit 0
           fi
