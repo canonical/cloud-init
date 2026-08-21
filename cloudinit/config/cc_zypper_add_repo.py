@@ -8,7 +8,6 @@
 import logging
 import os
 
-
 from cloudinit import util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config

@@ -89,8 +89,6 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             raise RuntimeError(msg) from e
 
 
-
-
 def _parse_ini_value(value):
     """Remove INI quotes and comments while preserving literal backslashes."""
     if value.startswith(('"', "'")):
@@ -105,12 +103,12 @@ def _parse_ini_value(value):
 def _parse_ini_file(filename):
     """Parse an INI file and return a nested dict {section: {key: value}}."""
     parser = configparser.RawConfigParser()
-    parser.optionxform = str  # preserve key case
+    parser.optionxform = str  # type: ignore[method-assign,assignment]
     try:
         parser.read(filename)
     except (configparser.Error, OSError):
         return {}
-    result = {}
+    result: dict[str, dict[str, str]] = {}
     for section in parser.sections():
         result[section] = {
             key: _parse_ini_value(value)
@@ -120,8 +118,8 @@ def _parse_ini_file(filename):
 
 
 def merge_together(objs):
-    """Merge together dicts or INI filenames; later entries override earlier."""
-    result = {}
+    """Merge dicts or INI filenames; later entries override earlier."""
+    result: dict = {}
     for obj in objs:
         if not obj:
             continue
