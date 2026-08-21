@@ -302,6 +302,66 @@ run:
         assert "z" in cfg["run"]
 
     @pytest.mark.usefixtures("fake_filesystem")
+    def test_vendor_user_yaml_cloud_config_with_vendor_merge_how(self):
+        """When datasource sets vendor_merge_how, vendor list values
+        are appended to user list values instead of being dropped."""
+        vendor_blob = """
+#cloud-config
+write_files:
+ - path: /etc/netplan/50-vendor.yaml
+   content: network-config
+run:
+ - vendor_cmd
+"""
+
+        user_blob = """
+#cloud-config
+vendor_data:
+  enabled: true
+  prefix: /bin/true
+write_files:
+ - path: /user.txt
+   content: hello
+run:
+ - user_cmd
+"""
+
+        class FakeDataSourceWithMerge(FakeDataSource):
+            vendor_merge_how = (
+                "list(append)+dict(no_replace,recurse_list)+str()"
+            )
+
+        initer = stages.Init()
+        initer.datasource = FakeDataSourceWithMerge(
+            user_blob, vendordata=vendor_blob
+        )
+        initer.read_cfg()
+        initer.initialize()
+        initer.fetch()
+        initer.instancify()
+        initer.update()
+        initer.cloudify().run(
+            "consume_data",
+            initer.consume_data,
+            args=[PER_INSTANCE],
+            freq=PER_INSTANCE,
+        )
+        mods = Modules(initer)
+        (_which_ran, _failures) = mods.run_section("cloud_init_modules")
+        cfg = mods.cfg
+        # User scalar values still win
+        assert "vendor_data" in cfg
+        # List values are appended: user entries first, then vendor
+        assert cfg["run"] == ["user_cmd", "vendor_cmd"]
+        assert cfg["write_files"] == [
+            {"path": "/user.txt", "content": "hello"},
+            {
+                "path": "/etc/netplan/50-vendor.yaml",
+                "content": "network-config",
+            },
+        ]
+
+    @pytest.mark.usefixtures("fake_filesystem")
     def test_vendordata_script(self):
         vendor_blob = """
 #!/bin/bash
