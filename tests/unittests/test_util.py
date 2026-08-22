@@ -820,6 +820,15 @@ class TestGetHostnameFqdn:
             mock.call(metadata_only=True),
         ] == cloud.get_hostname.call_args_list
 
+    def test_get_hostname_fqdn_with_numeric_hostname(self):
+        """When hostname is numeric, return empty values."""
+        (hostname, fqdn, is_default) = util.get_hostname_fqdn(
+            cfg={"hostname": 12345}, cloud=None
+        )
+        assert hostname == ""
+        assert fqdn == ""
+        assert is_default is False
+
 
 class TestBlkid:
     ids = {
