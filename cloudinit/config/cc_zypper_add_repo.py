@@ -8,8 +8,6 @@
 import logging
 import os
 
-import configobj
-
 from cloudinit import util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
@@ -51,14 +49,9 @@ def _format_repo_value(val):
 
 
 def _format_repository_config(repo_id, repo_config):
-    to_be = configobj.ConfigObj()
-    to_be[repo_id] = {}
-    # Do basic translation of the items -> values
+    lines = ["[%s]" % repo_id]
     for k, v in repo_config.items():
-        # For now assume that people using this know the format
-        # of zypper repos  and don't verify keys/values further
-        to_be[repo_id][k] = _format_repo_value(v)
-    lines = to_be.write()
+        lines.append("%s=%s" % (k, _format_repo_value(v)))
     return "\n".join(lines)
 
 
