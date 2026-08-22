@@ -230,9 +230,9 @@ class UserDataProcessor:
             content = None
             if include_once_on:
                 include_once_fn = self._get_include_once_filename(include_url)
-            if include_once_fn is not None and os.path.isfile(include_once_fn):
-                content = util.load_text_file(include_once_fn)
-            else:
+                if os.path.isfile(include_once_fn):
+                    content = util.load_text_file(include_once_fn)
+            if content is None:
                 try:
                     resp = read_file_or_url(
                         include_url,
