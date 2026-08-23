@@ -216,6 +216,7 @@ class DataSourceCloudStack(sources.DataSource):
             self.metadata = seed_ret["meta-data"]
             LOG.debug("Using seeded cloudstack data from: %s", self.seed_dir)
             return True
+        primary_nic = None
         if self.perform_dhcp_setup:
             primary_nic = net.find_fallback_nic()
             LOG.debug("Attempting DHCP on: %s", primary_nic)
