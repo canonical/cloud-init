@@ -205,25 +205,40 @@ Source files
 ------------
 
 The base path pointed to by the URI in the above sources provides content
-using the following final path components:
+using the following path components:
 
-* ``user-data``
-* ``meta-data``
-* ``vendor-data``
-* ``network-config``
+* **Required files:**
 
-For example, if the ``seedfrom`` value of ``seedfrom`` is
-``https://10.42.42.42/``, then the following files will be fetched from the
-webserver at first boot:
+  * ``meta-data`` (required): Contains cloud-instance information.
+    It is recommended to define a unique ``instance-id``.
+  * ``user-data`` (required): Contains user configuration instructions
+    (can be empty if no configuration is needed).
 
-.. code-block:: sh
+* **Optional files:**
+
+  * ``vendor-data`` (optional): Used for cloud provider defaults.
+  * ``network-config`` (optional): Network configuration if differing
+    from defaults.
+
+.. note::
+
+   Both ``user-data`` and ``meta-data`` must be present. If either of these
+   required files is missing, the NoCloud datasource will treat the seed as
+   invalid and skip it (e.g., logging a warning such as
+   ``device ... with label=cidata not a valid seed``).
+
+For example, if the ``seedfrom`` value is ``https://10.42.42.42/``, then
+the following files will be fetched from the webserver at first boot:
+
+.. code-block:: text
 
     https://10.42.42.42/user-data
-    https://10.42.42.42/vendor-data
     https://10.42.42.42/meta-data
+    https://10.42.42.42/vendor-data
     https://10.42.42.42/network-config
 
-If the required files don't exist, this datasource will be skipped.
+If the required files (``user-data`` and ``meta-data``) do not exist,
+this datasource will be skipped.
 
 .. _line_config_detail:
 
