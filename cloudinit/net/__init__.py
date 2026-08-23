@@ -356,6 +356,8 @@ def is_vlan(devname):
 
 def device_driver(devname):
     """Return the device driver for net device named 'devname'."""
+    if not devname:
+        return None
     driver = None
     driver_path = sys_dev_path(devname, "device/driver")
     # driver is a symlink to the driver *dir*
@@ -367,6 +369,8 @@ def device_driver(devname):
 
 def device_devid(devname):
     """Return the device id string for net device named 'devname'."""
+    if not devname:
+        return None
     dev_id = read_sys_net_safe(devname, "device/device")
     if dev_id is False:
         return None
@@ -601,6 +605,8 @@ def extract_physdevs(netcfg):
             if not mac:
                 continue
             name = ent.get("name")
+            if not name:
+                continue
             driver = ent.get("params", {}).get("driver")
             device_id = ent.get("params", {}).get("device_id")
             if not driver:
