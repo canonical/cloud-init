@@ -68,6 +68,15 @@ GOTO="cloudinit_end"
 # https://github.com/amzn/amzn-drivers/
 ELASTIC_DRIVERS = ["ena", "efa"]
 
+# Instance types known to exhibit a NIC initialization race condition
+# where kernel network drivers are not ready when cloud-init-local runs.
+# Polling for NICs is restricted to these product names (from DMI
+# system-product-name) to avoid unnecessary boot delays on other instances.
+# Addresses GH-6697.
+NETWORK_POLLING_PRODUCT_ALLOW_LIST = [
+    "hpc7a.96xlarge",
+]
+
 
 class DataSourceEc2(sources.DataSource):
     dsname = "Ec2"
@@ -159,9 +168,20 @@ class DataSourceEc2(sources.DataSource):
             if util.is_FreeBSD():
                 LOG.debug("FreeBSD doesn't support running dhclient with -sf")
                 return False
-            candidate_nics = net.find_candidate_nics()
+            product_name = dmi.read_dmi_data("system-product-name")
+            wait_for_nics = product_name in NETWORK_POLLING_PRODUCT_ALLOW_LIST
+            if wait_for_nics:
+                LOG.debug(
+                    "Product %s is in NIC polling allowlist, waiting for NICs",
+                    product_name,
+                )
+            candidate_nics = net.wait_for_candidate_nics(
+                timeout=60 if wait_for_nics else 0, sleep_interval=1
+            )
             LOG.debug("Looking for the primary NIC in: %s", candidate_nics)
-            if len(candidate_nics) < 1:
+            # Abort if NICs are still unavailable
+            # (whether retry was attempted or skipped).
+            if not candidate_nics:
                 LOG.error("The instance must have at least one eligible NIC")
                 return False
             for candidate_nic in sorted(
