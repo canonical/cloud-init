@@ -71,7 +71,6 @@ module = [
     "cloudinit.sources.DataSourceSmartOS",
     "cloudinit.sources.DataSourceVMware",
     "cloudinit.sources.helpers.azure",
-    "cloudinit.sources.helpers.netlink",
     "cloudinit.sources.helpers.openstack",
     "cloudinit.sources.helpers.vmware.imc.config_file",
     "cloudinit.sources.helpers.vmware.imc.config_nic",
