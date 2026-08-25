@@ -55,7 +55,6 @@ module = [
     "cloudinit.net.networkd",
     "cloudinit.netinfo",
     "cloudinit.sources.DataSourceAzure",
-    "cloudinit.sources.DataSourceBigstep",
     "cloudinit.sources.DataSourceCloudStack",
     "cloudinit.sources.DataSourceConfigDrive",
     "cloudinit.sources.DataSourceDigitalOcean",
