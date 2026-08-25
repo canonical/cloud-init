@@ -13,6 +13,13 @@ cc_runcmd:
     :ref:`Final boot stage <boot-Final>`.
 
     .. note::
+       Because commands are written line-by-line to a shell script executed by
+       ``/bin/sh``, the overall exit status of ``runcmd`` is determined by the
+       exit status of the last executed command by default. To stop execution and
+       fail immediately on any command error, include ``set -e`` as the first
+       command or handle command exit codes explicitly.
+
+    .. note::
        All commands must be proper YAML, so you must quote any characters YAML
        would eat (":" can be problematic).
 
