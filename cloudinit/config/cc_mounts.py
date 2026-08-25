@@ -8,7 +8,6 @@
 
 """Mounts: Configure mount points and swap files"""
 
-
 import copy
 import logging
 import math

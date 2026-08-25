@@ -172,7 +172,7 @@ def extract_fns(args):
 
 def run_module_section(mods: Modules, action_name, section):
     full_section_name = MOD_SECTION_TPL % (section)
-    (which_ran, failures) = mods.run_section(full_section_name)
+    which_ran, failures = mods.run_section(full_section_name)
     total_attempted = len(which_ran) + len(failures)
     if total_attempted == 0:
         msg = "No '%s' modules to run under section '%s'" % (
@@ -651,7 +651,7 @@ def main_init(name, args):
         # Attempt to consume the data per instance.
         # This may run user-data handlers and/or perform
         # url downloads and such as needed.
-        (ran, _results) = init.cloudify().run(
+        ran, _results = init.cloudify().run(
             "consume_data",
             init.consume_data,
             args=[PER_INSTANCE],
@@ -688,10 +688,10 @@ def main_init(name, args):
     try:
         outfmt_orig = outfmt
         errfmt_orig = errfmt
-        (outfmt, errfmt) = util.get_output_cfg(mods.cfg, name)
+        outfmt, errfmt = util.get_output_cfg(mods.cfg, name)
         if outfmt_orig != outfmt or errfmt_orig != errfmt:
             LOG.warning("Stdout, stderr changing to (%s, %s)", outfmt, errfmt)
-            (outfmt, errfmt) = util.fixup_output(mods.cfg, name)
+            outfmt, errfmt = util.fixup_output(mods.cfg, name)
     except Exception:
         util.logexc(LOG, "Failed to re-adjust output redirection!")
     loggers.setup_logging(mods.cfg)
@@ -878,7 +878,7 @@ def main_single(name, args):
     welcome(name, msg=w_msg)
 
     # Stage 5
-    (which_ran, failures) = mods.run_single(mod_name, mod_args, mod_freq)
+    which_ran, failures = mods.run_single(mod_name, mod_args, mod_freq)
     if failures:
         LOG.warning("Ran %s but it failed!", mod_name)
         return 1
@@ -908,7 +908,7 @@ def status_wrapper(name, args):
         )
     )
 
-    (_name, functor) = args.action
+    _name, functor = args.action
 
     if name == "init":
         if args.local:
@@ -984,7 +984,7 @@ def status_wrapper(name, args):
     try:
         ret = functor(name, args)
         if mode in ("init", "init-local"):
-            (datasource, errors) = ret
+            datasource, errors = ret
             if datasource is not None:
                 v1["datasource"] = str(datasource)
         else:
@@ -1065,7 +1065,7 @@ def _maybe_set_hostname(init, stage, retry_stage):
     @param retry_stage: String represented logs upon error setting hostname.
     """
     cloud = init.cloudify()
-    (hostname, _fqdn, _) = util.get_hostname_fqdn(
+    hostname, _fqdn, _ = util.get_hostname_fqdn(
         init.cfg, cloud, metadata_only=True
     )
     if hostname:  # meta-data or user-data hostname content
@@ -1391,7 +1391,7 @@ def sub_main(args, parser):
     try:
         # Subparsers.required = True
         # and each subparser sets action=(name, functor)
-        (name, functor) = args.action
+        name, functor = args.action
     except AttributeError:
         parser.print_usage()
         sys.stderr.write(

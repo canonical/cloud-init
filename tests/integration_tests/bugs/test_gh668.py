@@ -24,9 +24,7 @@ ethernets:
     routes:
     - to: {}/32
       via: {}
-""".format(
-    DESTINATION_IP, GATEWAY_IP
-)
+""".format(DESTINATION_IP, GATEWAY_IP)
 
 EXPECTED_ROUTE = "{} via {}".format(DESTINATION_IP, GATEWAY_IP)
 

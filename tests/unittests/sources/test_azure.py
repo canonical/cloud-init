@@ -448,9 +448,11 @@ def construct_ovf_env(
         "<ns1:ProvisioningSection>",
         "<ns1:Version>1.0</ns1:Version>",
         "<ns1:LinuxProvisioningConfigurationSet>",
-        "<ns1:ConfigurationSetType>"
-        "LinuxProvisioningConfiguration"
-        "</ns1:ConfigurationSetType>",
+        (
+            "<ns1:ConfigurationSetType>"
+            "LinuxProvisioningConfiguration"
+            "</ns1:ConfigurationSetType>"
+        ),
     ]
     if hostname is not None:
         content.append("<ns1:HostName>%s</ns1:HostName>" % hostname)
@@ -489,9 +491,11 @@ def construct_ovf_env(
         "<ns1:PlatformSettingsSection>",
         "<ns1:Version>1.0</ns1:Version>",
         "<ns1:PlatformSettings>",
-        "<ns1:KmsServerHostname>"
-        "kms.core.windows.net"
-        "</ns1:KmsServerHostname>",
+        (
+            "<ns1:KmsServerHostname>"
+            "kms.core.windows.net"
+            "</ns1:KmsServerHostname>"
+        ),
         "<ns1:ProvisionGuestAgent>false</ns1:ProvisionGuestAgent>",
         '<ns1:GuestAgentPackageName xsi:nil="true" />',
     ]
@@ -2575,7 +2579,7 @@ class TestReadAzureOvf:
     def test_load_with_pubkeys(self):
         public_keys = [{"fingerprint": "fp1", "path": "path1", "value": ""}]
         content = construct_ovf_env(public_keys=public_keys)
-        (_md, _ud, cfg) = dsaz.read_azure_ovf(content)
+        _md, _ud, cfg = dsaz.read_azure_ovf(content)
         for pk in public_keys:
             assert pk in cfg["_pubkeys"]
 
@@ -3467,9 +3471,11 @@ class TestRemoveUbuntuNetworkConfigScripts:
             (
                 mock.ANY,
                 logging.INFO,
-                "Removing Ubuntu extended network scripts because cloud-init"
-                " updates Azure network configuration on the following events:"
-                " ['boot', 'boot-legacy'].",
+                (
+                    "Removing Ubuntu extended network scripts because"
+                    " cloud-init updates Azure network configuration on the"
+                    " following events: ['boot', 'boot-legacy']."
+                ),
             ),
             (mock.ANY, logging.DEBUG, "Recursively deleting %s" % subdir),
             (mock.ANY, logging.DEBUG, "Attempting to remove %s" % file1),
@@ -3945,13 +3951,17 @@ class TestEphemeralNetworking:
         # Verify the diagnostic messages in order, ignoring dynamic values
         expected = [
             (
-                "Bringing up ephemeral networking with "
-                "iface=eth0 mac=00:11:22:33:44:00 driver=hv_netvsc",
+                (
+                    "Bringing up ephemeral networking with "
+                    "iface=eth0 mac=00:11:22:33:44:00 driver=hv_netvsc"
+                ),
                 dsaz.LOG.debug,
             ),
             (
-                "Failed to obtain DHCP lease "
-                "(iface=eth0 mac=00:11:22:33:44:00 driver=hv_netvsc)",
+                (
+                    "Failed to obtain DHCP lease "
+                    "(iface=eth0 mac=00:11:22:33:44:00 driver=hv_netvsc)"
+                ),
                 dsaz.LOG.error,
             ),
             (
@@ -3964,13 +3974,17 @@ class TestEphemeralNetworking:
                 dsaz.LOG.error,
             ),
             (
-                "Bringing up ephemeral networking with iface=eth1 "
-                "mac=00:11:22:33:44:01 driver=unknown1",
+                (
+                    "Bringing up ephemeral networking with iface=eth1 "
+                    "mac=00:11:22:33:44:01 driver=unknown1"
+                ),
                 dsaz.LOG.debug,
             ),
             (
-                "Failed to obtain DHCP lease "
-                "(iface=eth1 mac=00:11:22:33:44:01 driver=unknown1)",
+                (
+                    "Failed to obtain DHCP lease "
+                    "(iface=eth1 mac=00:11:22:33:44:01 driver=unknown1)"
+                ),
                 dsaz.LOG.error,
             ),
             (
@@ -3983,8 +3997,10 @@ class TestEphemeralNetworking:
                 dsaz.LOG.error,
             ),
             (
-                "Bringing up ephemeral networking with "
-                "iface=eth2 mac=00:11:22:33:44:02 driver=unknown2",
+                (
+                    "Bringing up ephemeral networking with "
+                    "iface=eth2 mac=00:11:22:33:44:02 driver=unknown2"
+                ),
                 dsaz.LOG.debug,
             ),
             (
@@ -5956,9 +5972,11 @@ class TestValidateIMDSMetadata:
         assert (
             "cloudinit.sources.DataSourceAzure",
             30,
-            "IMDS network metadata is missing configuration for NICs "
-            "['00:11:22:33:44:55', '01:11:22:33:44:55']: "
-            f"{imds_md['network']!r}",
+            (
+                "IMDS network metadata is missing configuration for NICs "
+                "['00:11:22:33:44:55', '01:11:22:33:44:55']: "
+                f"{imds_md['network']!r}"
+            ),
         ) in caplog.record_tuples
 
     def test_missing_primary(
@@ -5998,14 +6016,18 @@ class TestValidateIMDSMetadata:
         assert (
             "cloudinit.sources.DataSourceAzure",
             30,
-            "IMDS network metadata is missing configuration for NICs "
-            f"['00:11:22:33:44:55']: {imds_md['network']!r}",
+            (
+                "IMDS network metadata is missing configuration for NICs "
+                f"['00:11:22:33:44:55']: {imds_md['network']!r}"
+            ),
         ) in caplog.record_tuples
         assert (
             "cloudinit.sources.DataSourceAzure",
             30,
-            "IMDS network metadata is missing primary NIC "
-            f"'00:11:22:33:44:55': {imds_md['network']!r}",
+            (
+                "IMDS network metadata is missing primary NIC "
+                f"'00:11:22:33:44:55': {imds_md['network']!r}"
+            ),
         ) in caplog.record_tuples
 
     def test_missing_secondary(

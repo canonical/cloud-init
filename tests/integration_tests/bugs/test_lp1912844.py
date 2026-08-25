@@ -53,9 +53,7 @@ vlans:
     id: 200
     link: ovs-br
     mtu: 1500
-""".format(
-    MAC_ADDRESS
-)
+""".format(MAC_ADDRESS)
 
 
 SETUP_USER_DATA = """\

@@ -437,8 +437,10 @@ class TestMaybeGetDevicePathAsWritableBlock:
         assert (
             mock.ANY,
             logging.DEBUG,
-            "Converted /dev/root to '/dev/disk/by-uuid/my-uuid' per kernel"
-            " cmdline",
+            (
+                "Converted /dev/root to '/dev/disk/by-uuid/my-uuid' per kernel"
+                " cmdline"
+            ),
         ) in caplog.record_tuples
 
     @mock.patch("cloudinit.util.mount_is_read_write")

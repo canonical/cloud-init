@@ -68,7 +68,7 @@ class TestMergeRun:
         mirror = mirrors[0]
         assert mirror["arches"] == ["i386", "amd64", "blah"]
         mods = Modules(initer)
-        (which_ran, failures) = mods.run_section("cloud_init_modules")
+        which_ran, failures = mods.run_section("cloud_init_modules")
         assert not failures
         assert os.path.exists("/etc/blah.ini")
         assert "write_files" in which_ran

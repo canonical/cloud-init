@@ -76,7 +76,7 @@ class Distro(distros.Distro):
     def _read_hostname(self, filename, default=None):
         if filename.endswith("/previous-hostname"):
             return util.load_text_file(filename).strip()
-        (out, _err) = subp.subp(["hostname"])
+        out, _err = subp.subp(["hostname"])
         out = out.strip()
         if len(out):
             return out
@@ -129,7 +129,7 @@ def read_locale_conf(sys_path):
 def update_locale_conf(sys_path, locale_cfg):
     if not locale_cfg:
         return
-    (exists, contents) = read_locale_conf(sys_path)
+    exists, contents = read_locale_conf(sys_path)
     updated_am = 0
     for k, v in locale_cfg.items():
         if v is None:

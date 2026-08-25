@@ -114,7 +114,7 @@ def update_fs_setup_devices(disk_setup, tformer):
         if origname is None:
             continue
 
-        (dev, part) = util.expand_dotted_devname(origname)
+        dev, part = util.expand_dotted_devname(origname)
 
         tformed = tformer(dev)
         if tformed is not None:

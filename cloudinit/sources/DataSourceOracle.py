@@ -19,7 +19,15 @@ import ipaddress
 import json
 import logging
 import time
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple
+from typing import (
+    Any,
+    ContextManager,
+    Dict,
+    List,
+    NamedTuple,
+    Optional,
+    Tuple,
+)
 
 from cloudinit import atomic_helper, dmi, net, sources, util
 from cloudinit.distros.networking import NetworkConfig
@@ -205,7 +213,7 @@ class DataSourceOracle(sources.DataSource):
 
         self.system_uuid = _read_system_uuid()
 
-        connectivity_urls_data = (
+        connectivity_urls_data: List[Dict[str, Any]] = [
             {
                 "url": IPV4_METADATA_PATTERN.format(
                     version=2, path="instance"
@@ -228,8 +236,9 @@ class DataSourceOracle(sources.DataSource):
                     version=1, path="instance"
                 ),
             },
-        )
+        ]
 
+        network_context: ContextManager
         if self.perform_dhcp_setup:
             nic_name = net.find_fallback_nic()
             network_context = ephemeral.EphemeralIPNetwork(

@@ -36,9 +36,7 @@ ethernets:
       match:
           macaddress: {}
 version: 2
-""".format(
-    MAC_ADDRESS
-)
+""".format(MAC_ADDRESS)
 
 
 @pytest.mark.lxd_config_dict(

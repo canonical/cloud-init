@@ -40,7 +40,7 @@ class Distro(distros.Distro):
     def exec_cmd(self, cmd, capture=True):
         LOG.debug("Attempting to run: %s", cmd)
         try:
-            (out, err) = subp.subp(cmd, capture=capture)
+            out, err = subp.subp(cmd, capture=capture)
             if err:
                 LOG.warning(
                     "Running %s resulted in stderr output: %s", cmd, err

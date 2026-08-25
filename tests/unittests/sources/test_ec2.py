@@ -743,8 +743,10 @@ class TestEc2:
             (
                 mock.ANY,
                 logging.WARNING,
-                "Ec2 IMDS endpoint returned a 403 error. HTTP endpoint is"
-                " disabled. Aborting.",
+                (
+                    "Ec2 IMDS endpoint returned a 403 error. HTTP endpoint is"
+                    " disabled. Aborting."
+                ),
             ),
             (
                 mock.ANY,
@@ -1088,16 +1090,20 @@ class TestGetSecondaryAddresses:
             (
                 mock.ANY,
                 logging.WARNING,
-                "Could not parse subnet-ipv4-cidr-block"
-                " something-unexpected for mac 06:17:04:d7:26:ff."
-                " ipv4 network config prefix defaults to /24",
+                (
+                    "Could not parse subnet-ipv4-cidr-block"
+                    " something-unexpected for mac 06:17:04:d7:26:ff."
+                    " ipv4 network config prefix defaults to /24"
+                ),
             ),
             (
                 mock.ANY,
                 logging.WARNING,
-                "Could not parse subnet-ipv6-cidr-block"
-                " not/sure/what/this/is for mac 06:17:04:d7:26:ff."
-                " ipv6 network config prefix defaults to /128",
+                (
+                    "Could not parse subnet-ipv6-cidr-block"
+                    " not/sure/what/this/is for mac 06:17:04:d7:26:ff."
+                    " ipv6 network config prefix defaults to /128"
+                ),
             ),
         ]
         for log in expected_logs:

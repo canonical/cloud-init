@@ -14,6 +14,7 @@ the flag and intended lifetime.
 Tests are required for new feature flags, and tests must verify
 all valid states of a flag, not just the default state.
 """
+
 import re
 import sys
 from typing import Dict

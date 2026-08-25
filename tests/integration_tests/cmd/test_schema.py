@@ -174,8 +174,7 @@ class TestSchemaDeprecations:
             annotated_result.ok
         ), "`schema` cmd must return 0 even with deprecated configs"
         assert not annotated_result.stderr
-        expected_output = dedent(
-            """\
+        expected_output = dedent("""\
             #cloud-config
             apt_update: false\t\t# D1
             apt_upgrade: false\t\t# D2
@@ -187,6 +186,5 @@ class TestSchemaDeprecations:
             # D3:  Deprecated in version 22.2. Use **package_reboot_if_required** instead.
 
 
-            Valid schema /root/user-data"""  # noqa: E501
-        )
+            Valid schema /root/user-data""")  # noqa: E501
         assert expected_output in annotated_result.stdout

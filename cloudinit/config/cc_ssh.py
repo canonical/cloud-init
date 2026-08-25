@@ -229,8 +229,8 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             util.logexc(LOG, "Publishing host keys failed!")
 
     try:
-        (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
-        (user, _user_config) = ug_util.extract_default(users)
+        users, _groups = ug_util.normalize_users_groups(cfg, cloud.distro)
+        user, _user_config = ug_util.extract_default(users)
         disable_root = util.get_cfg_option_bool(cfg, "disable_root", True)
         disable_root_opts = util.get_cfg_option_str(
             cfg, "disable_root_opts", ssh_util.DISABLE_USER_OPTS

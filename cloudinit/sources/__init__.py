@@ -1163,7 +1163,7 @@ def canonical_cloud_id(cloud_name, region, platform):
             return cloud_name
         return platform
     for prefix, cloud_id_test in CLOUD_ID_REGION_PREFIX_MAP.items():
-        (cloud_id, valid_cloud) = cloud_id_test
+        cloud_id, valid_cloud = cloud_id_test
         if region.startswith(prefix) and valid_cloud(cloud_name):
             return cloud_id
     if cloud_name != METADATA_UNKNOWN:

@@ -62,7 +62,7 @@ class TestNtp:
             template = TIMESYNCD_TEMPLATE
         else:
             template = NTP_TEMPLATE
-        (confpath, _template_fn) = self._generate_template(
+        confpath, _template_fn = self._generate_template(
             templates_dir, template=template
         )
         ntpconfig = copy.deepcopy(dcfg[client])
@@ -122,7 +122,7 @@ class TestNtp:
         self, tmpdir
     ):
         """write_ntp_config_template reads from $client.conf.distro.tmpl"""
-        (confpath, template_fn) = self._generate_template(tmpdir)
+        confpath, template_fn = self._generate_template(tmpdir)
         cc_ntp.write_ntp_config_template(
             "ubuntu",
             servers=[],
@@ -146,7 +146,7 @@ class TestNtp:
         """
         distro = "ubuntu"
         pools = cc_ntp.generate_server_names(distro)
-        (confpath, template_fn) = self._generate_template(tmpdir)
+        confpath, template_fn = self._generate_template(tmpdir)
         cc_ntp.write_ntp_config_template(
             distro,
             servers=[],
@@ -167,7 +167,7 @@ class TestNtp:
         """
         distro = "sles"
         default_pools = cc_ntp.generate_server_names(distro)
-        (confpath, template_fn) = self._generate_template(tmpdir)
+        confpath, template_fn = self._generate_template(tmpdir)
 
         cc_ntp.write_ntp_config_template(
             distro,
@@ -193,7 +193,7 @@ class TestNtp:
         """Test timesycnd template is correct"""
         pools = ["0.mycompany.pool.ntp.org", "3.mycompany.pool.ntp.org"]
         servers = ["192.168.23.3", "192.168.23.4"]
-        (confpath, template_fn) = self._generate_template(
+        confpath, template_fn = self._generate_template(
             tmpdir, template=TIMESYNCD_TEMPLATE
         )
         cc_ntp.write_ntp_config_template(
@@ -828,13 +828,17 @@ class TestNTPSchema:
                         "servers": ["www.example.com", None],
                     }
                 },
-                "ntp.pools.0: 123 is not of type 'string'.*"
-                "ntp.servers.1: None is not of type 'string'",
+                (
+                    "ntp.pools.0: 123 is not of type 'string'.*"
+                    "ntp.servers.1: None is not of type 'string'"
+                ),
             ),
             (
                 {"ntp": {"pools": 123, "servers": "non-array"}},
-                "ntp.pools: 123 is not of type 'array'.*"
-                "ntp.servers: 'non-array' is not of type 'array'",
+                (
+                    "ntp.pools: 123 is not of type 'array'.*"
+                    "ntp.servers: 'non-array' is not of type 'array'"
+                ),
             ),
             (
                 {
@@ -843,9 +847,11 @@ class TestNTPSchema:
                         "allow": ["www.example.com", None],
                     }
                 },
-                "Cloud config schema errors: "
-                "ntp.allow.1: None is not of type 'string',*"
-                ", ntp.peers.0: 123 is not of type 'string'",
+                (
+                    "Cloud config schema errors: "
+                    "ntp.allow.1: None is not of type 'string',*"
+                    ", ntp.peers.0: 123 is not of type 'string'"
+                ),
             ),
         ),
     )

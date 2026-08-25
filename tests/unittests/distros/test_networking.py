@@ -283,8 +283,7 @@ class TestNetworkingWaitForPhysDevs:
 
 
 class TestLinuxNetworkingApplyNetworkCfgNames:
-    V1_CONFIG = textwrap.dedent(
-        """\
+    V1_CONFIG = textwrap.dedent("""\
         version: 1
         config:
             - type: physical
@@ -295,10 +294,8 @@ class TestLinuxNetworkingApplyNetworkCfgNames:
                     address: 10.0.2.15
                     netmask: 255.255.255.0
                     gateway: 10.0.2.2
-    """
-    )
-    V2_CONFIG = textwrap.dedent(
-        """\
+    """)
+    V2_CONFIG = textwrap.dedent("""\
       version: 2
       ethernets:
           interface0:
@@ -308,11 +305,9 @@ class TestLinuxNetworkingApplyNetworkCfgNames:
               - 10.0.2.15/24
             gateway4: 10.0.2.2
             set-name: interface0
-    """
-    )
+    """)
 
-    V2_CONFIG_NO_SETNAME = textwrap.dedent(
-        """\
+    V2_CONFIG_NO_SETNAME = textwrap.dedent("""\
       version: 2
       ethernets:
           interface0:
@@ -321,11 +316,9 @@ class TestLinuxNetworkingApplyNetworkCfgNames:
             addresses:
               - 10.0.2.15/24
             gateway4: 10.0.2.2
-    """
-    )
+    """)
 
-    V2_CONFIG_NO_MAC = textwrap.dedent(
-        """\
+    V2_CONFIG_NO_MAC = textwrap.dedent("""\
       version: 2
       ethernets:
           interface0:
@@ -335,8 +328,7 @@ class TestLinuxNetworkingApplyNetworkCfgNames:
               - 10.0.2.15/24
             gateway4: 10.0.2.2
             set-name: interface0
-    """
-    )
+    """)
 
     @pytest.mark.parametrize(
         ["config_attr"],

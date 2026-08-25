@@ -2,6 +2,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """Debug network config format conversions."""
+
 import argparse
 import json
 import logging
