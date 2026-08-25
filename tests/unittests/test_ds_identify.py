@@ -727,6 +727,11 @@ class TestDsIdentify(DsIdentifyBase):
             ),
             # Hetzner cloud is identified in sys_vendor.
             pytest.param("Hetzner", True, id="hetzner_found"),
+            pytest.param(
+                "Hetzner-with-ec2-like-uuid",
+                True,
+                id="hetzner_with_ec2_like_uuid_found",
+            ),
             # CloudCIX cloud is identified in dmi product-name
             pytest.param("CloudCIX", True, id="cloudcix_found"),
             # NWCS is identified in sys_vendor.
@@ -2261,6 +2266,13 @@ VALID_CFG = {
         ],
     },
     "Hetzner": {"ds": "Hetzner", "files": {P_SYS_VENDOR: "Hetzner\n"}},
+    "Hetzner-with-ec2-like-uuid": {
+        "ds": "Hetzner",
+        "files": {
+            P_SYS_VENDOR: "Hetzner\n",
+            P_PRODUCT_UUID: "545f25ec-662d-4691-b311-23cf1794b78c\n",
+        },
+    },
     "Hetzner-kenv": {
         "ds": "Hetzner",
         "mocks": [

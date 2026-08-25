@@ -1405,6 +1405,10 @@ ec2_identify_platform() {
             _RET="Tilaa"
             return 0
             ;;
+        Hetzner)
+            _RET="$default"
+            return 0
+            ;;
     esac
 
     local product_name="${DI_DMI_PRODUCT_NAME}"
