@@ -254,10 +254,10 @@ def devent2dev(devent):
     if dev == "/dev/root" and not container:
         dev = util.rootdev_from_cmdline(util.get_cmdline())
         if dev is None:
-            if os.path.exists(dev):
+            if os.path.exists("/dev/root"):
                 # if /dev/root exists, but we failed to convert
                 # that to a "real" /dev/ path device, then return it.
-                return dev, None
+                return "/dev/root", None
             raise ValueError("Unable to find device '/dev/root'")
     return dev, fs
 
