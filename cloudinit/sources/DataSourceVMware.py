@@ -27,7 +27,7 @@ import os
 import socket
 import sys
 import time
-from typing import Dict, Set
+from typing import Any, Dict, Optional, Set, Tuple
 
 from cloudinit import atomic_helper, dmi, net, netinfo, sources, util
 from cloudinit.event import EventScope, EventType, userdata_to_events
@@ -365,7 +365,9 @@ class DataSourceVMware(sources.DataSource):
             }
         return self.metadata["network"]["config"]
 
-    def advertise_update_events(self, cfg):
+    def advertise_update_events(
+        self, cfg: Dict[str, Any]
+    ) -> Tuple[Optional[str], Optional[str]]:
         default_events: Dict[EventScope, Set[EventType]] = copy.deepcopy(
             self.default_update_events
         )
@@ -1122,7 +1124,7 @@ def get_host_info():
     """
     Returns host information such as the host name and network interfaces.
     """
-    host_info = {
+    host_info: Dict[str, Any] = {
         "network": {
             "interfaces": {
                 "by-mac": collections.OrderedDict(),
@@ -1164,7 +1166,7 @@ def get_host_info():
 
         if mac and (af_inet4 or af_inet6):
             key = mac
-            val = {}
+            val: Dict[str, Any] = {}
             if af_inet4:
                 af_inet4_vals = []
                 for ip_info in af_inet4:

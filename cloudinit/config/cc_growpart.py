@@ -289,7 +289,7 @@ def is_encrypted(blockdev, partition) -> bool:
     return False
 
 
-def get_underlying_partition(blockdev):
+def get_underlying_partition(blockdev: str) -> str:
     command = ["dmsetup", "deps", "--options=devname", blockdev]
     dep: str = subp.subp(command)[0]  # pyright: ignore
     # Returned result should look something like:
