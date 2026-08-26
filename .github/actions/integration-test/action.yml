@@ -142,3 +142,4 @@ runs:
       run: |
         rm -f ${{ inputs.runner_temp }}/pycloudlib.toml
         rm -rf ${{ inputs.runner_temp }}/oci
+        rm -rf ~/.ssh
