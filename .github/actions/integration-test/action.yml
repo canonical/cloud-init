@@ -23,8 +23,12 @@ inputs:
   install_source:
     description: cloud-init install source (e.g. ppa:cloud-init-dev/daily)
     required: true
-  filter_tests:
-    description: Optional test filter expression passed through to tox
+  test_posargs:
+    description: >
+      Optional extra posargs appended to the `tox -e integration-tests`
+      invocation (after the hardcoded --junitxml/--color flags). Accepts
+      pytest flags and/or positional test paths/node IDs. Defaults to the
+      full `tests/integration_tests` suite.
     required: false
     default: ''
   runner_temp:
@@ -98,7 +102,7 @@ runs:
         PYCLOUDLIB_OCI_CONFIG_FILE_PATH: ${{ inputs.runner_temp }}/oci/config
         PYCLOUDLIB_OCI_KEY_FILE_PATH: ${{ inputs.runner_temp }}/oci/key.pem
       run: |
-        tox -e integration-tests -- --junitxml="${{ github.workspace }}/junit-report.xml" --color=yes ${{ inputs.filter_tests || 'tests/integration_tests' }}
+        tox -e integration-tests -- --junitxml="${{ github.workspace }}/junit-report.xml" --color=yes ${{ inputs.test_posargs || 'tests/integration_tests' }}
     - name: Publish Test Report with Insights
       if: ${{ always() }}
       uses: ctrf-io/github-test-reporter@024bc4b64d997ca9da86833c6b9548c55c620e40 # v1.0.26

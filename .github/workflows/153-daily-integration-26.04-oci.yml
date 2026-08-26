@@ -13,7 +13,7 @@ on:
         options:
         - generic
         - minimal
-      filter_tests:
+      test_posargs:
         required: false
         type: string
   schedule:
@@ -61,5 +61,5 @@ jobs:
           platform: oci
           install_source: ${{ inputs.install_source || 'ppa:cloud-init-dev/daily' }}
           image_type: ${{ inputs.image_type || 'generic' }}
-          filter_tests: ${{ inputs.filter_tests }}
+          test_posargs: ${{ inputs.test_posargs }}
           runner_temp: ${{ runner.temp }}

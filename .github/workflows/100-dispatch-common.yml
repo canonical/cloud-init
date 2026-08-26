@@ -18,7 +18,7 @@ on:
       install_source:
         required: true
         type: string
-      filter_tests:
+      test_posargs:
         required: false
         type: string
     secrets:
@@ -118,7 +118,7 @@ jobs:
           PYCLOUDLIB_OCI_CONFIG_FILE_PATH: ${{ runner.temp }}/oci/config
           PYCLOUDLIB_OCI_KEY_FILE_PATH: ${{ runner.temp }}/oci/key.pem
         run: |
-          tox -e integration-tests -- --junitxml="${{ github.workspace }}/junit-report.xml" --color=yes ${{ inputs.filter_tests || 'tests/integration_tests' }}
+          tox -e integration-tests -- --junitxml="${{ github.workspace }}/junit-report.xml" --color=yes ${{ inputs.test_posargs || 'tests/integration_tests' }}
       - name: Publish Test Report with Insights
         if: ${{ always() }}
         uses: ctrf-io/github-test-reporter@024bc4b64d997ca9da86833c6b9548c55c620e40 # v1.0.26
