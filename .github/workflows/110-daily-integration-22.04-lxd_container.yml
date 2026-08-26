@@ -37,3 +37,4 @@ jobs:
           install_source: ${{ inputs.install_source || 'ppa:cloud-init-dev/daily' }}
           image_type: ${{ inputs.image_type || 'generic' }}
           filter_tests: ${{ inputs.filter_tests }}
+          runner_temp: ${{ runner.temp }}
