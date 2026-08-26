@@ -4,7 +4,7 @@ description: >
   for a given (release, platform, image_type) tuple and publishes the
   resulting JUnit report. OCI-specific secret validation and credential
   setup are NOT handled here; OCI callers must assert and write the OCI
-  config/key to ${{ runner.temp }}/oci/ before invoking this action.
+  config/key to the runner temp directory (passed via runner_temp) before invoking this action.
   Repository secrets (PYCLOUDLIB_TOML_B64, SSH_*) must be exposed to this
   action via the calling job's `env:` mapping; this action MUST NOT be
   triggered by PR-driven workflows to prevent secret exposure to untrusted
@@ -27,6 +27,12 @@ inputs:
     description: Optional test filter expression passed through to tox
     required: false
     default: ''
+  runner_temp:
+    description: >
+      The runner's temp directory (runner.temp). Passed by the caller
+      because the runner context is not available inside a composite action's
+      runs section at load time.
+    required: true
 
 runs:
   using: composite
@@ -72,7 +78,7 @@ runs:
     - name: Setup pycloudlib
       shell: bash
       env:
-        PYCLOUDLIB_CONFIG: ${{ runner.temp }}/pycloudlib.toml
+        PYCLOUDLIB_CONFIG: ${{ inputs.runner_temp }}/pycloudlib.toml
       run: |
         sh -c 'echo "$REQUIRED_SECRET" | base64 -d > "$PYCLOUDLIB_CONFIG"'
     - name: Install Dependencies
@@ -88,9 +94,9 @@ runs:
         CLOUD_INIT_OS_IMAGE_TYPE: ${{ inputs.image_type }}
         CLOUD_INIT_CLOUD_INIT_SOURCE: ${{ inputs.install_source }}
         CLOUD_INIT_LOCAL_LOG_PATH: ${{ github.workspace }}/cloud_init_test_logs
-        PYCLOUDLIB_CONFIG: ${{ runner.temp }}/pycloudlib.toml
-        PYCLOUDLIB_OCI_CONFIG_FILE_PATH: ${{ runner.temp }}/oci/config
-        PYCLOUDLIB_OCI_KEY_FILE_PATH: ${{ runner.temp }}/oci/key.pem
+        PYCLOUDLIB_CONFIG: ${{ inputs.runner_temp }}/pycloudlib.toml
+        PYCLOUDLIB_OCI_CONFIG_FILE_PATH: ${{ inputs.runner_temp }}/oci/config
+        PYCLOUDLIB_OCI_KEY_FILE_PATH: ${{ inputs.runner_temp }}/oci/key.pem
       run: |
         tox -e integration-tests -- --junitxml="${{ github.workspace }}/junit-report.xml" --color=yes ${{ inputs.filter_tests || 'tests/integration_tests' }}
     - name: Publish Test Report with Insights
@@ -134,5 +140,5 @@ runs:
       if: ${{ always() }}
       shell: bash
       run: |
-        rm -f ${{ runner.temp }}/pycloudlib.toml
-        rm -rf ${{ runner.temp }}/oci
+        rm -f ${{ inputs.runner_temp }}/pycloudlib.toml
+        rm -rf ${{ inputs.runner_temp }}/oci
