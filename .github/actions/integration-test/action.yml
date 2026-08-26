@@ -3,7 +3,8 @@ description: >
   Shared composite action that runs the cloud-init integration test suite
   for a given (release, platform, image_type) tuple and publishes the
   resulting JUnit report. Platform-specific secret validation or credential
-  setup belong in the scheduled platform workflows.
+  setup belong in the scheduled platform workflows. OCI callers must write
+  credentials to the runner temp directory passed via runner_temp.
   Repository secrets (PYCLOUDLIB_TOML_B64, SSH_*) must be exposed to this
   action via the calling job's `env:` mapping; this action MUST NOT be
   triggered by PR-driven workflows to prevent secret exposure to untrusted
@@ -14,7 +15,7 @@ inputs:
     description: OS release identifier (e.g. jammy, noble, resolute, stonking)
     required: true
   platform:
-    description: Cloud-init platform identifier (e.g. lxd_container, lxd_vm, ec2)
+    description: Cloud-init platform identifier (e.g. lxd_container, lxd_vm, ec2, oci)
     required: true
   image_type:
     description: Image type identifier (e.g. generic, minimal)
@@ -28,6 +29,12 @@ inputs:
       tests/integration_tests (the full integration test suite) when unset.
     required: false
     default: ''
+  runner_temp:
+    description: >
+      The runner's temp directory (runner.temp). Passed by the caller
+      because the runner context is not available inside a composite action's
+      runs section at load time.
+    required: true
 
 runs:
   using: composite
@@ -87,7 +94,7 @@ runs:
     - name: Setup pycloudlib
       shell: bash
       env:
-        PYCLOUDLIB_CONFIG: ${{ runner.temp }}/pycloudlib.toml
+        PYCLOUDLIB_CONFIG: ${{ inputs.runner_temp }}/pycloudlib.toml
       run: |
         sh -c 'echo "$PYCLOUDLIB_TOML_B64" | base64 -d > "$PYCLOUDLIB_CONFIG"'
     - name: Install Dependencies
@@ -103,10 +110,10 @@ runs:
         CLOUD_INIT_OS_IMAGE_TYPE: ${{ inputs.image_type }}
         CLOUD_INIT_CLOUD_INIT_SOURCE: ${{ inputs.install_source }}
         CLOUD_INIT_LOCAL_LOG_PATH: ${{ github.workspace }}/cloud_init_test_logs
-        PYCLOUDLIB_CONFIG: ${{ runner.temp }}/pycloudlib.toml
+        PYCLOUDLIB_CONFIG: ${{ inputs.runner_temp }}/pycloudlib.toml
         FILTER_TESTS: ${{ inputs.filter_tests || 'tests/integration_tests' }}
-        PYCLOUDLIB_OCI_CONFIG_FILE_PATH: ${{ runner.temp }}/oci/config
-        PYCLOUDLIB_OCI_KEY_FILE_PATH: ${{ runner.temp }}/oci/key.pem
+        PYCLOUDLIB_OCI_CONFIG_FILE_PATH: ${{ inputs.runner_temp }}/oci/config
+        PYCLOUDLIB_OCI_KEY_FILE_PATH: ${{ inputs.runner_temp }}/oci/key.pem
       run: |
         # Split filter_tests on whitespace into an array so each test path
         # or node ID is passed as a single, safely-quoted argument to tox.
@@ -156,6 +163,6 @@ runs:
       if: ${{ always() }}
       shell: bash
       run: |
-        rm -f ${{ runner.temp }}/pycloudlib.toml
-        rm -rf ${{ runner.temp }}/oci
+        rm -f ${{ inputs.runner_temp }}/pycloudlib.toml
+        rm -rf ${{ inputs.runner_temp }}/oci
         rm -rf ~/.ssh
