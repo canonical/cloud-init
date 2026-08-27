@@ -244,6 +244,7 @@ class DataSourceRbxCloud(sources.DataSource):
 
     @property
     def network_config(self):
+        assert self.cfg is not None
         return self.cfg["network_config"]
 
     def get_public_ssh_keys(self):
