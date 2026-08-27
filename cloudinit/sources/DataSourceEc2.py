@@ -14,7 +14,7 @@ import os
 import time
 import uuid
 from contextlib import suppress
-from typing import Dict, List, Literal
+from typing import Any, Dict, List, Literal
 
 from cloudinit import dmi, net, sources
 from cloudinit import url_helper as uhelp
@@ -123,7 +123,7 @@ class DataSourceEc2(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceEc2, self).__init__(sys_cfg, distro, paths)
         self.metadata_address = None
-        self.identity = None
+        self.identity: Any = None
         self._fallback_nic_order = NicOrder.MAC
 
     def _unpickle(self, ci_pkl_version: int) -> None:
@@ -192,7 +192,7 @@ class DataSourceEc2(sources.DataSource):
         if not self._crawled_metadata:
             LOG.error("Unable to get metadata")
             return False
-        self.metadata = self._crawled_metadata.get("meta-data", None)
+        self.metadata = self._crawled_metadata.get("meta-data", None)  # type: ignore[assignment]
         self.userdata_raw = self._crawled_metadata.get("user-data", None)
         self.identity = (
             self._crawled_metadata.get("dynamic", {})
@@ -518,7 +518,7 @@ class DataSourceEc2(sources.DataSource):
 
         if self.metadata is None:
             # this would happen if get_data hadn't been called. leave as UNSET
-            LOG.warning(
+            LOG.warning(  # type: ignore[unreachable]
                 "Unexpected call to network_config when metadata is None."
             )
             return None
@@ -1089,7 +1089,7 @@ def convert_ec2_metadata_network_config(
 
     @return A dict of network config version 2 based on the metadata and macs.
     """
-    netcfg = {"version": 2, "ethernets": {}}
+    netcfg: Dict[str, Any] = {"version": 2, "ethernets": {}}
     if not macs_to_nics:
         macs_to_nics = net.get_interfaces_by_mac()
     macs_metadata = network_md["interfaces"]["macs"]
