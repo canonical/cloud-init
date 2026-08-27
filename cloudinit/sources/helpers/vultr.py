@@ -6,6 +6,7 @@ import json
 import logging
 import os
 from functools import lru_cache
+from typing import Any, Dict
 
 from requests import exceptions
 
@@ -22,7 +23,7 @@ def get_metadata(
     distro, url, timeout, retries, sec_between, agent, tmp_dir=None
 ):
     # Bring up interface (and try until one works)
-    exception = RuntimeError("Failed to DHCP")
+    exception: Exception = RuntimeError("Failed to DHCP")
 
     # Seek iface with DHCP
     for iface in get_interface_list():
@@ -160,7 +161,7 @@ def get_interface_name(mac):
 
 # Generate network configs
 def generate_network_config(interfaces):
-    network = {
+    network: Dict[str, Any] = {
         "version": 1,
         "config": [
             {
