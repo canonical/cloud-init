@@ -12,6 +12,7 @@ import copy
 import functools
 import logging
 import os
+from typing import Any, Dict, Optional
 
 from cloudinit import net, sources, subp, url_helper, util
 from cloudinit.sources import BrokenMetadata
@@ -83,6 +84,13 @@ class NonReadable(IOError):
 
 
 class SourceMixin:
+    ec2_metadata: Any
+    version: Any
+    metadata: Any
+
+    def _remap_device(self, name: str) -> Optional[str]:
+        raise NotImplementedError
+
     def _ec2_name_to_device(self, name):
         if not self.ec2_metadata:
             return None
@@ -295,7 +303,7 @@ class BaseReader(metaclass=abc.ABCMeta):
             if found:
                 results[name] = data
 
-        metadata = results["metadata"]
+        metadata: Dict[str, Any] = results["metadata"]  # type: ignore[assignment]
         if "random_seed" in metadata:
             random_seed = metadata["random_seed"]
             try:
