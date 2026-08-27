@@ -18,7 +18,6 @@ import time
 from contextlib import suppress
 from socket import gaierror, getaddrinfo, inet_ntoa
 from struct import pack
-
 from typing import Any, Dict
 
 from cloudinit import dmi, net, performance, sources

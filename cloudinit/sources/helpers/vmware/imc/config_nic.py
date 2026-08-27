@@ -12,7 +12,6 @@ import ipaddress
 import logging
 import os
 import re
-
 from typing import Any, Dict
 
 from cloudinit import subp, util
