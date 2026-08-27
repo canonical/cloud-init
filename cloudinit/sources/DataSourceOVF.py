@@ -68,7 +68,7 @@ class DataSourceOVF(sources.DataSource):
             ]
             name = None
             for name, transfunc in np:
-                contents = transfunc()  # type: ignore[call-arg]
+                contents = transfunc()  # type: ignore[operator]
                 if contents:
                     break
             if contents:
