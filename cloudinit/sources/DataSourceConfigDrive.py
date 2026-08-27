@@ -8,6 +8,7 @@
 
 import logging
 import os
+from typing import Any, List, Optional
 
 from cloudinit import lifecycle, sources, subp, util
 from cloudinit.event import EventScope, EventType
@@ -47,7 +48,7 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         super(DataSourceConfigDrive, self).__init__(sys_cfg, distro, paths)
         self.source = None
         self.seed_dir = os.path.join(paths.seed_dir, "config_drive")
-        self.version = None
+        self.version: Optional[str] = None  # type: ignore[assignment]
         self.ec2_metadata = None
         self._network_config = None
         self.network_json = sources.UNSET
@@ -134,7 +135,7 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
             return False
 
         self.source = found
-        self.metadata = md
+        self.metadata = md  # type: ignore[assignment]
         self.ec2_metadata = results.get("ec2-metadata")
         self.userdata_raw = results.get("userdata")
         self.version = results["version"]
@@ -194,7 +195,7 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
 
     def _get_subplatform(self):
         """Return the subplatform metadata source details."""
-        if self.source.startswith("/dev"):
+        if self.source and self.source.startswith("/dev"):
             subplatform_type = "config-disk"
         else:
             subplatform_type = "seed-dir"
@@ -203,7 +204,7 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
 
 def read_config_drive(source_dir):
     reader = openstack.ConfigDriveReader(source_dir)
-    finders = [
+    finders: List[Any] = [
         (reader.read_v2, [], {}),
         (reader.read_v1, [], {}),
     ]
