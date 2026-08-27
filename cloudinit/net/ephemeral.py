@@ -132,7 +132,7 @@ class EphemeralIPv4Network:
             self.cidr,
             self.broadcast,
         )
-        interface_addrs_after_dhcp = netinfo.netdev_info().get(
+        interface_addrs_after_dhcp: Dict[str, Any] = netinfo.netdev_info().get(
             self.interface, {}
         )
         has_link = interface_addrs_after_dhcp.get("up")
@@ -374,14 +374,16 @@ class EphemeralDHCPv4:
         return self.lease
 
     def extract_dhcp_options_mapping(self, nmap):
-        result = {}
+        result: Dict[str, Any] = {}
         for internal_reference, lease_option_names in nmap.items():
             if isinstance(lease_option_names, list):
                 self.get_first_option_value(
                     internal_reference, lease_option_names, result
                 )
             else:
-                result[internal_reference] = self.lease.get(lease_option_names)
+                result[internal_reference] = (self.lease or {}).get(
+                    lease_option_names
+                )
         return result
 
     def get_first_option_value(
@@ -389,7 +391,9 @@ class EphemeralDHCPv4:
     ):
         for different_names in lease_option_names:
             if not result.get(internal_mapping):
-                result[internal_mapping] = self.lease.get(different_names)
+                result[internal_mapping] = (self.lease or {}).get(
+                    different_names
+                )
 
 
 class EphemeralIPNetwork:
@@ -438,7 +442,7 @@ class EphemeralIPNetwork:
 
         # short-circuit if we already have connectivity to IMDS
         if imds_url := _check_connectivity_to_imds(
-            self.connectivity_urls_data
+            self.connectivity_urls_data or []
         ):
             LOG.debug(
                 "We already have connectivity to IMDS at %s, skipping DHCP.",
