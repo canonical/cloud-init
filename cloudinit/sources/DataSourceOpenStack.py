@@ -63,7 +63,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         super(DataSourceOpenStack, self).__init__(sys_cfg, distro, paths)
         self.metadata_address = None
         self.ssl_details = util.fetch_ssl_details(self.paths)
-        self.version = None
+        self.version = None  # type: ignore[assignment]
         self.files = {}
         self.ec2_metadata = sources.UNSET
         self.network_json = sources.UNSET
