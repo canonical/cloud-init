@@ -78,6 +78,47 @@ class TestHandleSshImportIDs:
         cc_ssh_import_id.handle("name", cfg, cloud, [])
         assert log in caplog.text
 
+    @pytest.mark.parametrize(
+        "cfg,expected",
+        (
+            pytest.param(
+                {"user": {"name": "dave", "ssh_import_id": ["lp:user"]}},
+                [mock.call(["lp:user"], "dave")],
+                id="default_user_config_is_honored",
+            ),
+            pytest.param(
+                {"user": {"name": "dave"}, "ssh_import_id": ["lp:top"]},
+                [mock.call(["lp:top"], "dave")],
+                id="top_level_config_is_honored",
+            ),
+            pytest.param(
+                {
+                    "user": {"name": "dave", "ssh_import_id": ["lp:user"]},
+                    "ssh_import_id": ["lp:top"],
+                },
+                [mock.call(["lp:top", "lp:user"], "dave")],
+                id="both_are_merged",
+            ),
+            pytest.param(
+                {
+                    "users": [
+                        "default",
+                        {"name": "bob", "ssh_import_id": ["lp:bob"]},
+                    ]
+                },
+                [mock.call(["lp:bob"], "bob")],
+                id="non_default_user_is_unaffected",
+            ),
+        ),
+    )
+    @mock.patch(MODPATH + "import_ssh_ids")
+    @mock.patch(MODPATH + "subp.which")
+    def test_ssh_import_id_sources(self, m_which, m_import, cfg, expected):
+        """ssh_import_id on the default user is not ignored."""
+        m_which.return_value = "/usr/bin/ssh-import-id"
+        cc_ssh_import_id.handle("name", cfg, get_cloud("ubuntu"), [])
+        assert expected == m_import.call_args_list
+
     @mock.patch(MODPATH + "pwd.getpwnam")
     @mock.patch(MODPATH + "subp.subp")
     @mock.patch(MODPATH + "subp.which")
