@@ -118,6 +118,7 @@ class DataSourceDigitalOcean(sources.DataSource):
         if not interfaces:
             raise RuntimeError("Unable to get meta-data from server....")
 
+        assert self.metadata_full is not None
         nameservers = self.metadata_full["dns"]["nameservers"]
         self._network_config = do_helper.convert_network_configuration(
             interfaces, nameservers
