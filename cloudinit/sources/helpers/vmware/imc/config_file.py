@@ -58,7 +58,7 @@ class ConfigFile(ConfigSource, dict):
         logger.info("Parsing the config file %s.", filename)
 
         config = configparser.ConfigParser()
-        config.optionxform = str
+        config.optionxform = str  # type: ignore[method-assign,assignment]
         config.read(filename)
 
         self.clear()
