@@ -7,7 +7,7 @@
 import copy
 import functools
 import logging
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from cloudinit import lifecycle, safeyaml, util
 from cloudinit.net import (
@@ -235,7 +235,9 @@ class NetworkStateInterpreter:
     ):
         self._version = version
         self._config = config
-        self._network_state = copy.deepcopy(self.initial_network_state)
+        self._network_state: Dict[str, Any] = copy.deepcopy(
+            self.initial_network_state
+        )
         self._network_state["config"] = config
         self._parsed = False
         self._interface_dns_map: dict = {}
@@ -489,9 +491,9 @@ class NetworkStateInterpreter:
         """
 
         self.handle_physical(command)
-        interfaces = self._network_state.get("interfaces")
+        interfaces = self._network_state.get("interfaces", {})
         iface = interfaces.get(command.get("name"), {})
-        for param, val in command.get("params").items():
+        for param, val in (command.get("params") or {}).items():
             iface.update({param: val})
         iface.update({"bond-slaves": "none"})
         self._network_state["interfaces"].update({iface["name"]: iface})
@@ -602,7 +604,7 @@ class NetworkStateInterpreter:
 
     @ensure_command_keys(["address"])
     def handle_nameserver(self, command):
-        dns = self._network_state.get("dns")
+        dns = self._network_state.get("dns", {})
         nameservers, search = self._parse_dns(command)
         if "interface" in command:
             self._interface_dns_map[command["interface"]] = (
@@ -615,7 +617,7 @@ class NetworkStateInterpreter:
 
     @ensure_command_keys(["address"])
     def _handle_individual_nameserver(self, command, iface):
-        _iface = self._network_state.get("interfaces")
+        _iface = self._network_state.get("interfaces", {})
         nameservers, search = self._parse_dns(command)
         _iface[iface]["dns"] = {"nameservers": nameservers, "search": search}
 
@@ -835,7 +837,7 @@ class NetworkStateInterpreter:
 
         # inverse mapping for v2 keynames to v1 keynames
         v2key_to_v1 = dict(
-            (v, k) for k, v in NET_CONFIG_TO_V2.get(cmd_type).items()
+            (v, k) for k, v in NET_CONFIG_TO_V2.get(cmd_type, {}).items()
         )
 
         for item_name, item_cfg in command.items():
@@ -887,7 +889,7 @@ class NetworkStateInterpreter:
             if "route-metric" in overrides:
                 subnet["metric"] = overrides["route-metric"]
 
-        subnets = []
+        subnets: List[Dict[str, Any]] = []
         if cfg.get("dhcp4"):
             subnet = {"type": "dhcp4"}
             _add_dhcp_overrides(cfg.get("dhcp4-overrides", {}), subnet)
@@ -900,7 +902,7 @@ class NetworkStateInterpreter:
 
         gateway4 = None
         gateway6 = None
-        nameservers = {}
+        nameservers: Dict[str, Any] = {}
         for address in cfg.get("addresses", []):
             subnet = {
                 "type": "static",
