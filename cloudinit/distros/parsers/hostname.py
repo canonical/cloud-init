@@ -13,32 +13,29 @@ from cloudinit.distros.parsers import chop_comment
 class HostnameConf:
     def __init__(self, text):
         self._text = text
-        self._contents = None
+        self._contents: list = self._parse(text)
 
     def parse(self):
-        if self._contents is None:
-            self._contents = self._parse(self._text)
+        pass
 
     def __str__(self):
-        self.parse()
-        contents = StringIO()
+        buf = StringIO()
         for line_type, components in self._contents:
             if line_type == "blank":
-                contents.write("%s\n" % (components[0]))
+                buf.write("%s\n" % (components[0]))
             elif line_type == "all_comment":
-                contents.write("%s\n" % (components[0]))
+                buf.write("%s\n" % (components[0]))
             elif line_type == "hostname":
                 hostname, tail = components
-                contents.write("%s%s\n" % (hostname, tail))
+                buf.write("%s%s\n" % (hostname, tail))
         # Ensure trailing newline
-        contents = contents.getvalue()
-        if not contents.endswith("\n"):
-            contents += "\n"
-        return contents
+        result = buf.getvalue()
+        if not result.endswith("\n"):
+            result += "\n"
+        return result
 
     @property
     def hostname(self):
-        self.parse()
         for line_type, components in self._contents:
             if line_type == "hostname":
                 return components[0]
@@ -48,7 +45,6 @@ class HostnameConf:
         your_hostname = your_hostname.strip()
         if not your_hostname:
             return
-        self.parse()
         replaced = False
         for line_type, components in self._contents:
             if line_type == "hostname":
