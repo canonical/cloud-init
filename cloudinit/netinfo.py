@@ -13,7 +13,7 @@ import logging
 import re
 from copy import copy, deepcopy
 from ipaddress import IPv4Network
-from typing import Dict, List, TypedDict
+from typing import Any, Dict, List, TypedDict
 
 from cloudinit import lifecycle, subp, util
 from cloudinit.net.network_state import net_prefix_to_ipv4_mask
@@ -59,12 +59,12 @@ def _netdev_info_iproute_json(ipaddr_json):
     Raises json.JSONDecodeError if json could not be decoded
     """
     ipaddr_data = json.loads(ipaddr_json)
-    devs = {}
+    devs: Dict[str, Any] = {}
 
     for dev in ipaddr_data:
         flags = dev["flags"] if "flags" in dev else []
         address = dev["address"] if dev.get("link_type") == "ether" else ""
-        dev_info = {
+        dev_info: Dict[str, Any] = {
             "hwaddr": address,
             "up": bool("UP" in flags and "LOWER_UP" in flags),
             "ipv4": [],
@@ -115,8 +115,8 @@ def _netdev_info_iproute(ipaddr_out):
               device configuration values.
     @raise: TypeError if ipaddr_out isn't a string.
     """
-    devs = {}
-    dev_name = None
+    devs: Dict[str, Any] = {}
+    dev_name: str = ""
     for num, line in enumerate(ipaddr_out.splitlines()):
         m = re.match(r"^\d+:\s(?P<dev>[^:]+):\s+<(?P<flags>\S+)>\s+.*", line)
         if m:
@@ -187,7 +187,7 @@ def _netdev_info_iproute(ipaddr_out):
 
 def _netdev_info_ifconfig_netbsd(ifconfig_data):
     # fields that need to be returned in devs for each dev
-    devs = {}
+    devs: Dict[str, Any] = {}
     for line in ifconfig_data.splitlines():
         if not line:
             continue
@@ -235,7 +235,7 @@ def _netdev_info_ifconfig_netbsd(ifconfig_data):
 
 def _netdev_info_ifconfig(ifconfig_data):
     # fields that need to be returned in devs for each dev
-    devs = {}
+    devs: Dict[str, Any] = {}
     for line in ifconfig_data.splitlines():
         if not line:
             continue
@@ -359,6 +359,7 @@ def netdev_info(
     def fill(data, new_val="", empty_vals=("", b"")):
         """Recursively replace 'empty_vals' in data (dict, tuple, list)
         with new_val"""
+        myiter: Any
         if isinstance(data, dict):
             myiter = data.items()
         elif isinstance(data, (tuple, list)):
@@ -387,7 +388,7 @@ def _netdev_route_info_iproute(iproute_data):
               gateway, flags, genmask and interface information.
     """
 
-    routes = {}
+    routes: Dict[str, Any] = {}
     routes["ipv4"] = []
     routes["ipv6"] = []
     entries = iproute_data.splitlines()
@@ -465,7 +466,7 @@ def _netdev_route_info_iproute(iproute_data):
 
 
 def _netdev_route_info_netstat(route_data):
-    routes = {}
+    routes: Dict[str, Any] = {}
     routes["ipv4"] = []
     routes["ipv6"] = []
 

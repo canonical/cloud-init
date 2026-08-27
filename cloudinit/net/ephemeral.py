@@ -132,7 +132,7 @@ class EphemeralIPv4Network:
             self.cidr,
             self.broadcast,
         )
-        interface_addrs_after_dhcp: Dict[str, Any] = netinfo.netdev_info().get(
+        interface_addrs_after_dhcp: Any = netinfo.netdev_info().get(
             self.interface, {}
         )
         has_link = interface_addrs_after_dhcp.get("up")
