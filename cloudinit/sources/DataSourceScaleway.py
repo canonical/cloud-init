@@ -10,6 +10,7 @@ import logging
 import os
 import socket
 import time
+from typing import Any, Dict
 from urllib.parse import urlparse
 
 import requests
@@ -44,7 +45,7 @@ class SourceAddressAdapter(requests.adapters.HTTPAdapter):
         self.source_address = source_address
         super(SourceAddressAdapter, self).__init__(**kwargs)
 
-    def init_poolmanager(self, connections, maxsize, block=False):
+    def init_poolmanager(self, connections, maxsize, block=False):  # type: ignore[override]
         socket_options = HTTPConnection.default_socket_options + [
             (socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         ]
@@ -313,7 +314,7 @@ class DataSourceScaleway(sources.DataSource):
         metadata API.
         """
         if self._network_config is None:
-            LOG.warning(
+            LOG.warning(  # type: ignore[unreachable]
                 "Found None as cached _network_config. Resetting to %s",
                 sources.UNSET,
             )
@@ -322,8 +323,8 @@ class DataSourceScaleway(sources.DataSource):
         if self._network_config != sources.UNSET:
             return self._network_config
 
-        netcfg = {}
-        ip_cfg = {}
+        netcfg: Dict[str, Any] = {}
+        ip_cfg: Dict[str, Any] = {}
         for ip in self.metadata["public_ips"]:
             # Use DHCP for primary address
             if ip["address"] == self.ephemeral_fixed_address:
