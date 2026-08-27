@@ -48,7 +48,7 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         super(DataSourceConfigDrive, self).__init__(sys_cfg, distro, paths)
         self.source = None
         self.seed_dir = os.path.join(paths.seed_dir, "config_drive")
-        self.version: Optional[str] = None  # type: ignore[assignment]
+        self.version: Optional[str] = None
         self.ec2_metadata = None
         self._network_config = None
         self.network_json = sources.UNSET
@@ -135,7 +135,7 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
             return False
 
         self.source = found
-        self.metadata = md  # type: ignore[assignment]
+        self.metadata = md
         self.ec2_metadata = results.get("ec2-metadata")
         self.userdata_raw = results.get("userdata")
         self.version = results["version"]
