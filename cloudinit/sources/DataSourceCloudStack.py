@@ -19,6 +19,8 @@ from contextlib import suppress
 from socket import gaierror, getaddrinfo, inet_ntoa
 from struct import pack
 
+from typing import Any, Dict
+
 from cloudinit import dmi, net, performance, sources
 from cloudinit import url_helper as uhelp
 from cloudinit import util
@@ -210,7 +212,7 @@ class DataSourceCloudStack(sources.DataSource):
         return is_platform_viable()
 
     def _get_data(self):
-        seed_ret = {}
+        seed_ret: Dict[str, Any] = {}
         if util.read_optional_seed(seed_ret, base=(self.seed_dir + "/")):
             self.userdata_raw = seed_ret["user-data"]
             self.metadata = seed_ret["meta-data"]
@@ -219,7 +221,7 @@ class DataSourceCloudStack(sources.DataSource):
         if self.perform_dhcp_setup:
             primary_nic = net.find_fallback_nic()
             LOG.debug("Attempting DHCP on: %s", primary_nic)
-            network_context = EphemeralIPNetwork(self.distro, primary_nic)
+            network_context: Any = EphemeralIPNetwork(self.distro, primary_nic)
         else:
             network_context = util.nullcontext()
         try:
