@@ -134,7 +134,7 @@ class DataSourceExoscale(sources.DataSource):
 
     @staticmethod
     def ds_detect():
-        return dmi.read_dmi_data("system-product-name").startswith(
+        return (dmi.read_dmi_data("system-product-name") or "").startswith(
             EXOSCALE_DMI_NAME
         )
 
