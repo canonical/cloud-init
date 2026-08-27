@@ -223,7 +223,7 @@ class DataSourceEc2(sources.DataSource):
     @property
     def platform(self):
         if not self._platform_type:
-            self._platform_type = DataSourceEc2.dsname.lower()  # type: ignore[assignment]
+            self._platform_type = DataSourceEc2.dsname.lower()
         return self._platform_type
 
     # IMDSv2 related parameters from the ec2 metadata api document

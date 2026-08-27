@@ -223,7 +223,7 @@ class DataSourceNoCloud(sources.DataSource):
     @property
     def platform_type(self):
         if not self._platform_type:
-            self._platform_type = "lxd" if util.is_lxd() else "nocloud"  # type: ignore[assignment]
+            self._platform_type = "lxd" if util.is_lxd() else "nocloud"
         return self._platform_type
 
     def _log_unusable_seedfrom(self, seedfrom: str):
