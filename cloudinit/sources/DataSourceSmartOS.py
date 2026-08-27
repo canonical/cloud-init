@@ -28,6 +28,7 @@ import json
 import logging
 import os
 import random
+from typing import Any, Dict, List
 import re
 import socket
 
@@ -165,8 +166,8 @@ class DataSourceSmartOS(sources.DataSource):
 
     dsname = "Joyent"
 
-    smartos_type = sources.UNSET
-    md_client = sources.UNSET
+    smartos_type: Any = sources.UNSET
+    md_client: Any = sources.UNSET
     default_update_events = {
         EventScope.NETWORK: {
             EventType.BOOT_NEW_INSTANCE,
@@ -307,7 +308,7 @@ class DataSourceSmartOS(sources.DataSource):
             else:
                 md["local-hostname"] = md["instance-id"]
 
-        ud = None
+        ud: Any = None
         if md["user-data"]:
             ud = md["user-data"]
 
@@ -394,7 +395,9 @@ class JoyentMetadataClient:
         )
 
     def _get_value_from_frame(self, expected_request_id, frame):
-        frame_data = self.line_regex.match(frame).groupdict()
+        m = self.line_regex.match(frame)
+        assert m is not None
+        frame_data = m.groupdict()
         if int(frame_data["length"]) != len(frame_data["body"]):
             raise JoyentMetadataFetchException(
                 "Incorrect frame length given ({0} != {1}).".format(
@@ -429,7 +432,7 @@ class JoyentMetadataClient:
         If a timeout (per-byte) is set and it expires, a
         JoyentMetadataFetchException will be thrown.
         """
-        response = []
+        response: List[bytes] = []
 
         def as_ascii():
             return b"".join(response).decode("ascii")
@@ -581,7 +584,7 @@ class JoyentMetadataSerialClient(JoyentMetadataClient):
                     "serial support is not available"
                 ) from e
             ser = serial.Serial(self.device, timeout=self.timeout)
-            if not ser.isOpen():
+            if not ser.is_open:
                 raise SystemError("Unable to open %s" % self.device)
             self.fp = ser
             fcntl.lockf(ser, fcntl.LOCK_EX)
@@ -651,9 +654,10 @@ class JoyentMetadataLegacySerialClient(JoyentMetadataSerialClient):
     <keyname> is base64 encoded."""
 
     def __init__(self, device, timeout=10, smartos_type=None):
-        s = super(JoyentMetadataLegacySerialClient, self)
-        s.__init__(device, timeout, smartos_type)
-        self.base64_keys = None
+        super(JoyentMetadataLegacySerialClient, self).__init__(
+            device, timeout, smartos_type
+        )
+        self.base64_keys: Any = None
         self.base64_all = None
 
     def _init_base64_keys(self, reset=False):
@@ -703,6 +707,7 @@ class JoyentMetadataLegacySerialClient(JoyentMetadataSerialClient):
         if self.base64_all:
             return True
 
+        assert self.base64_keys is not None
         return key in self.base64_keys
 
     def get(self, key, default=None, strip=False):
@@ -909,7 +914,7 @@ def convert_smartos_network_data(
     def is_valid_ipv6(addr):
         return ":" in addr
 
-    pgws = {
+    pgws: Dict[str, Any] = {
         "ipv4": {"match": is_valid_ipv4, "gw": None},
         "ipv6": {"match": is_valid_ipv6, "gw": None},
     }
