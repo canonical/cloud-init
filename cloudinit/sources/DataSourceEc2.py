@@ -192,10 +192,10 @@ class DataSourceEc2(sources.DataSource):
         if not self._crawled_metadata:
             LOG.error("Unable to get metadata")
             return False
-        self.metadata = self._crawled_metadata.get("meta-data", None)  # type: ignore[assignment]
-        self.userdata_raw = self._crawled_metadata.get("user-data", None)
+        self.metadata = self._crawled_metadata.get("meta-data", None)  # type: ignore[union-attr,assignment]
+        self.userdata_raw = self._crawled_metadata.get("user-data", None)  # type: ignore[union-attr]
         self.identity = (
-            self._crawled_metadata.get("dynamic", {})
+            self._crawled_metadata.get("dynamic", {})  # type: ignore[union-attr]
             .get("instance-identity", {})
             .get("document", {})
         )
@@ -223,7 +223,7 @@ class DataSourceEc2(sources.DataSource):
     @property
     def platform(self):
         if not self._platform_type:
-            self._platform_type = DataSourceEc2.dsname.lower()
+            self._platform_type = DataSourceEc2.dsname.lower()  # type: ignore[assignment]
         return self._platform_type
 
     # IMDSv2 related parameters from the ec2 metadata api document
@@ -351,7 +351,7 @@ class DataSourceEc2(sources.DataSource):
 
     def wait_for_metadata_service(self):
         urls = []
-        start_time = 0
+        start_time: float = 0
         mcfg = self.ds_cfg
 
         url_params = self.get_url_params()
@@ -554,7 +554,7 @@ class DataSourceEc2(sources.DataSource):
                 )
         else:
             LOG.warning("Metadata 'network' key not valid: %s.", net_md)
-        self._network_config = result
+        self._network_config = result  # type: ignore[assignment]
 
         return self._network_config
 
@@ -574,10 +574,10 @@ class DataSourceEc2(sources.DataSource):
             exc_cb_ud = self._skip_or_refresh_stale_aws_token_cb
             skip_cb = None
         elif self.cloud_name == CloudNames.OUTSCALE:
-            exc_cb = exc_cb_ud = None
+            exc_cb = exc_cb_ud = None  # type: ignore[assignment]
             skip_cb = skip_404_tag_errors
         else:
-            exc_cb = exc_cb_ud = skip_cb = None
+            exc_cb = exc_cb_ud = skip_cb = None  # type: ignore[assignment]
         try:
             raw_userdata = ec2.get_instance_userdata(
                 api_version,
