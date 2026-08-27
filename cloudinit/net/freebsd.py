@@ -3,7 +3,8 @@
 import logging
 
 import cloudinit.net.bsd
-from cloudinit import distros, net, subp, util
+from cloudinit import net, subp, util
+from cloudinit.distros import freebsd as freebsd_distros
 
 LOG = logging.getLogger(__name__)
 
@@ -16,12 +17,12 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
     def rename_interface(self, cur_name, device_name):
         self.set_rc_config_value("ifconfig_%s_name" % cur_name, device_name)
 
-    def write_config(self):
+    def write_config(self, target=None):
         for device_name, v in self.interface_configurations.items():
             if isinstance(v, dict):
                 net_config = "inet %s netmask %s" % (
-                    v.get("address"),
-                    v.get("netmask"),
+                    v.get("address", ""),
+                    v.get("netmask", ""),
                 )
                 mtu = v.get("mtu")
                 if mtu:
@@ -33,8 +34,8 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
         for device_name, v in self.interface_configurations_ipv6.items():
             if isinstance(v, dict):
                 net_config = "inet6 %s/%d" % (
-                    v.get("address"),
-                    v.get("prefix"),
+                    v.get("address", ""),
+                    v.get("prefix", 0),
                 )
                 mtu = v.get("mtu")
                 if mtu:
@@ -52,7 +53,7 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
             # Observed on DragonFlyBSD 6. If we use the "restart" parameter,
             # the routes are not recreated.
             net.dhcp.IscDhclient.stop_service(
-                dhcp_interface, distros.freebsd.Distro
+                dhcp_interface, freebsd_distros.Distro
             )
 
         subp.subp(["service", "netif", "restart"], capture=True)
@@ -66,7 +67,7 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
 
         for dhcp_interface in self.dhcp_interfaces():
             net.dhcp.IscDhclient.start_service(
-                dhcp_interface, distros.freebsd.Distro
+                dhcp_interface, freebsd_distros.Distro
             )
 
     def set_route(self, network, netmask, gateway):
