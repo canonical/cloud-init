@@ -6,7 +6,7 @@
 
 import logging
 from collections import defaultdict
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
 from cloudinit import subp, util
 from cloudinit.net import renderer, should_add_gateway_onlink_flag
@@ -15,7 +15,7 @@ from cloudinit.net.network_state import NetworkState
 LOG = logging.getLogger(__name__)
 
 
-def normalize(data: Dict[str, List[Any]]) -> Dict[str, List[Any]]:
+def normalize(data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Normalize a dictionary of lists.
     - Assumes top-level keys map to lists.
@@ -56,7 +56,7 @@ def _normalize_value(data: Any) -> Any:
 
 class CfgParser:
     def __init__(self):
-        self.conf_dict = {
+        self.conf_dict: Dict[str, Any] = {
             "Match": [],
             "Link": [],
             "Network": [],
