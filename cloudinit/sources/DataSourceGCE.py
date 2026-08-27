@@ -6,6 +6,7 @@ import datetime
 import json
 import logging
 from base64 import b64decode
+from typing import Any, Dict, List
 
 from cloudinit import dmi, net, sources, url_helper, util
 from cloudinit.distros import ug_util
@@ -138,7 +139,7 @@ class DataSourceGCE(sources.DataSource):
             else:
                 LOG.debug(ret.get("reason"))
             return False
-        self.metadata = ret.get("meta-data")
+        self.metadata = ret.get("meta-data")  # type: ignore[assignment]
         self.userdata_raw = ret.get("user-data")
         return True
 
@@ -232,7 +233,7 @@ def _parse_public_keys(public_keys_data, default_user=None):
     # a list containing SSH public keys in the GCE specific key format
     # documented here:
     # https://cloud.google.com/compute/docs/instances/adding-removing-ssh-keys#sshkeyformat
-    public_keys = []
+    public_keys: List[str] = []
     if not public_keys_data:
         return public_keys
     for public_key in public_keys_data:
@@ -252,7 +253,7 @@ def read_md(address=None, url_params=None, platform_check=True):
     if address is None:
         address = MD_V1_URL
 
-    ret = {
+    ret: Dict[str, Any] = {
         "meta-data": None,
         "user-data": None,
         "success": False,
