@@ -353,7 +353,7 @@ class DataSourceScaleway(sources.DataSource):
                     else:
                         ip_cfg["routes"] = [route]
         netcfg[self.distro.fallback_interface] = ip_cfg
-        self._network_config = {"version": 2, "ethernets": netcfg}
+        self._network_config = {"version": 2, "ethernets": netcfg}  # type: ignore[assignment]
 
         return self._network_config
 
