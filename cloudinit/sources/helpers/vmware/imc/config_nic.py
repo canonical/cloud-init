@@ -15,7 +15,7 @@ import re
 
 from typing import Any, Dict
 
-from cloudinit import net, subp, util
+from cloudinit import subp, util
 from cloudinit.net import dhcp as net_dhcp
 from cloudinit.net.network_state import (
     ipv4_mask_to_net_prefix,
