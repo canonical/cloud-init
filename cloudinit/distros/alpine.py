@@ -573,7 +573,8 @@ class Distro(distros.Distro):
                 subp.subp(["addgroup", member, name])
                 LOG.info("Added user '%s' to group '%s'", member, name)
 
-    def shutdown_command(self, mode="poweroff", delay="now", message=None):
+    @classmethod
+    def shutdown_command(cls, mode="poweroff", delay="now", message=None):
         # called from cc_power_state_change.load_power_state
         # Alpine has halt/poweroff/reboot, with the following specifics:
         # - we use them rather than the generic "shutdown"
@@ -608,7 +609,7 @@ class Distro(distros.Distro):
 
     @classmethod
     def manage_service(
-        self, action: str, service: str, *extra_args: str, rcs=None
+        cls, action: str, service: str, *extra_args: str, rcs=None
     ):
         """
         Perform the requested action on a service. This handles OpenRC
