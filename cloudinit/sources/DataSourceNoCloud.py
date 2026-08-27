@@ -223,7 +223,7 @@ class DataSourceNoCloud(sources.DataSource):
     @property
     def platform_type(self):
         if not self._platform_type:
-            self._platform_type = "lxd" if util.is_lxd() else "nocloud"
+            self._platform_type = "lxd" if util.is_lxd() else "nocloud"  # type: ignore[assignment]
         return self._platform_type
 
     def _log_unusable_seedfrom(self, seedfrom: str):
@@ -242,6 +242,7 @@ class DataSourceNoCloud(sources.DataSource):
 
     def _get_subplatform(self):
         """Return the subplatform metadata source details."""
+        assert self.seed is not None
         if self.seed.startswith("/dev"):
             subplatform_type = "config-disk"
         else:
@@ -283,7 +284,7 @@ def _quick_read_instance_id(dirs=None):
         dirs = []
 
     iid_key = "instance-id"
-    fill = {}
+    fill: Dict[str, Any] = {}
     if load_cmdline_data(fill) and iid_key in fill:
         return fill[iid_key]
 
@@ -395,7 +396,7 @@ def _merge_new_seed(cur, seeded):
 class DataSourceNoCloudNet(DataSourceNoCloud):
     def __init__(self, sys_cfg, distro, paths):
         DataSourceNoCloud.__init__(self, sys_cfg, distro, paths)
-        self.supported_seed_starts = (
+        self.supported_seed_starts = (  # type: ignore[assignment]
             "http://",
             "https://",
             "ftp://",
