@@ -63,7 +63,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         super(DataSourceOpenStack, self).__init__(sys_cfg, distro, paths)
         self.metadata_address = None
         self.ssl_details = util.fetch_ssl_details(self.paths)
-        self.version = None  # type: ignore[assignment]
+        self.version = None
         self.files = {}
         self.ec2_metadata = sources.UNSET
         self.network_json = sources.UNSET
@@ -134,7 +134,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         # network_config by default unless configured in /etc/cloud/cloud.cfg*.
         # Patch Xenial and Artful before release to default to False.
         if util.is_false(self.ds_cfg.get("apply_network_config", True)):
-            self._network_config = None
+            self._network_config = None  # type: ignore[assignment]
             return self._network_config
         if self.network_json == sources.UNSET:
             # this would happen if get_data hadn't been called. leave as UNSET
