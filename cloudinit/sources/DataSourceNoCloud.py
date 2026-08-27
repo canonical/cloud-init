@@ -12,6 +12,7 @@ import errno
 import logging
 import os
 from functools import partial
+from typing import Any, Dict, Union
 
 from cloudinit import dmi, lifecycle, sources, util
 from cloudinit.net import eni
@@ -67,7 +68,7 @@ class DataSourceNoCloud(sources.DataSource):
         }
 
         found = []
-        mydata = {
+        mydata: Dict[str, Any] = {
             "meta-data": {},
             "user-data": "",
             "vendor-data": "",
@@ -77,7 +78,7 @@ class DataSourceNoCloud(sources.DataSource):
         try:
             # Parse the system serial label from dmi. If not empty, try parsing
             # like the command line
-            md = {}
+            md: Dict[str, Any] = {}
             serial = dmi.read_dmi_data("system-serial-number")
             if serial and load_cmdline_data(md, serial):
                 found.append("dmi")
@@ -170,7 +171,7 @@ class DataSourceNoCloud(sources.DataSource):
         # on the command line, ie: ds=nocloud;s=http://bit.ly/abcdefg/
         if "seedfrom" in mydata["meta-data"]:
             seedfrom = mydata["meta-data"]["seedfrom"]
-            seedfound = False
+            seedfound: Union[str, bool] = False
             for proto in self.supported_seed_starts:
                 if seedfrom.startswith(proto):
                     seedfound = proto
@@ -341,7 +342,7 @@ def parse_cmdline_data(ds_id, fill, cmdline=None):
     if not (" %s " % ds_id in cmdline or " %s;" % ds_id in cmdline):
         return False
 
-    argline = ""
+    argline: Any = ""
     # cmdline can contain:
     # ds=nocloud[;key=val;key=val]
     for tok in cmdline.split():
@@ -352,7 +353,7 @@ def parse_cmdline_data(ds_id, fill, cmdline=None):
     # a ';' and then key=value pairs also terminated with ';'
     tmp = argline[1].split(";")
     if len(tmp) > 1:
-        kvpairs = tmp[1:]
+        kvpairs: Any = tmp[1:]
     else:
         kvpairs = ()
 
