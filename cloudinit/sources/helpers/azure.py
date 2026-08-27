@@ -509,7 +509,9 @@ class OpenSSLManager:
         return the list of certs and private keys contained in the doc.
         """
         tag = ET.fromstring(certificates_xml).find(".//Data")  # nosec B314
+        assert tag is not None
         certificates_content = tag.text
+        assert certificates_content is not None
         lines = [
             b"MIME-Version: 1.0",
             b'Content-Disposition: attachment; filename="Certificates.p7m"',
