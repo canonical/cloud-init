@@ -53,7 +53,7 @@ class NMConnection:
 
         self.config = configparser.ConfigParser()
         # Identity option name mapping, to achieve case sensitivity
-        self.config.optionxform = str
+        self.config.optionxform = lambda option: option  # type: ignore[method-assign,assignment]
 
         self.config["connection"] = {
             "id": f"cloud-init {con_id}",
