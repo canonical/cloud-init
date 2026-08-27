@@ -17,20 +17,17 @@ LOG = logging.getLogger(__name__)
 class ResolvConf:
     def __init__(self, text):
         self._text = text
-        self._contents = None
+        self._contents: list = self._parse(text)
 
     def parse(self):
-        if self._contents is None:
-            self._contents = self._parse(self._text)
+        pass
 
     @property
     def nameservers(self):
-        self.parse()
         return self._retr_option("nameserver")
 
     @property
     def local_domain(self):
-        self.parse()
         dm = self._retr_option("domain")
         if dm:
             return dm[0]
@@ -38,14 +35,12 @@ class ResolvConf:
 
     @local_domain.setter
     def local_domain(self, domain):
-        self.parse()
         self._remove_option("domain")
         self._contents.append(("option", ["domain", str(domain), ""]))
         return domain
 
     @property
     def search_domains(self):
-        self.parse()
         current_sds = self._retr_option("search")
         flat_sds = []
         for sdlist in current_sds:
@@ -55,7 +50,6 @@ class ResolvConf:
         return flat_sds
 
     def __str__(self):
-        self.parse()
         contents = StringIO()
         for line_type, components in self._contents:
             if line_type == "blank":
@@ -80,7 +74,6 @@ class ResolvConf:
         return found
 
     def add_nameserver(self, ns):
-        self.parse()
         current_ns = self._retr_option("nameserver")
         new_ns = list(current_ns)
         new_ns.append(str(ns))
