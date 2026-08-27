@@ -17,11 +17,10 @@ LOG = logging.getLogger(__name__)
 class ResolvConf:
     def __init__(self, text):
         self._text = text
-        self._contents = None
+        self._contents: list = self._parse(text)
 
     def parse(self):
-        if self._contents is None:
-            self._contents = self._parse(self._text)
+        pass
 
     @property
     def nameservers(self):
