@@ -13,11 +13,13 @@ from cloudinit.distros.parsers import chop_comment
 class HostnameConf:
     def __init__(self, text):
         self._text = text
-        self._contents = None
+        self._contents: list = []
+        self._parsed = False
 
-    def parse(self):
-        if self._contents is None:
+    def parse(self) -> None:
+        if not self._parsed:
             self._contents = self._parse(self._text)
+            self._parsed = True
 
     def __str__(self):
         self.parse()
