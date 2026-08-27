@@ -15,10 +15,12 @@ class HostnameConf:
     def __init__(self, text: str) -> None:
         self._text = text
         self._contents: List[Tuple[str, List[str]]] = []
+        self._parsed = False
 
     def parse(self) -> None:
-        if not self._contents:
+        if not self._parsed:
             self._contents = self._parse(self._text)
+            self._parsed = True
 
     def __str__(self) -> str:
         self.parse()
