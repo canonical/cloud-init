@@ -13,7 +13,10 @@ import logging
 import os
 import re
 
+from typing import Any, Dict
+
 from cloudinit import net, subp, util
+from cloudinit.net import dhcp as net_dhcp
 from cloudinit.net.network_state import (
     ipv4_mask_to_net_prefix,
     ipv6_mask_to_net_prefix,
@@ -118,7 +121,7 @@ class NicConfigurator:
         return {"wakeonlan": nic.onboot}
 
     def gen_dhcp4(self, nic):
-        dhcp4 = {}
+        dhcp4: Dict[str, Any] = {}
         bootproto = nic.bootProto.lower()
         if nic.ipv4_mode.lower() == "disabled":
             bootproto = "manual"
@@ -240,7 +243,7 @@ class NicConfigurator:
 
     def clear_dhcp(self):
         logger.info("Clearing DHCP leases")
-        net.dhcp.IscDhclient.clear_leases()
+        net_dhcp.IscDhclient.clear_leases()
 
     def configure(self, osfamily=None):
         """
