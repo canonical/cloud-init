@@ -12,7 +12,7 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
     def __init__(self, config=None):
         super(Renderer, self).__init__()
 
-    def write_config(self):
+    def write_config(self, target=None):
         if self.dhcp_interfaces():
             self.set_rc_config_value("dhcpcd", "YES")
             self.set_rc_config_value(
@@ -20,7 +20,11 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
             )
         for device_name, v in self.interface_configurations.items():
             if isinstance(v, dict):
-                net_config = v.get("address") + " netmask " + v.get("netmask")
+                net_config = (
+                    (v.get("address") or "")
+                    + " netmask "
+                    + (v.get("netmask") or "")
+                )
                 mtu = v.get("mtu")
                 if mtu:
                     net_config += " mtu %d" % mtu
