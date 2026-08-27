@@ -142,7 +142,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     default_owner = "root:root"
     init_cmd: List[str] = ["service"]  # systemctl, service etc
     renderer_configs: Mapping[str, MutableMapping[str, Any]] = {}
-    _preferred_ntp_clients = None
+    _preferred_ntp_clients: Optional[List[str]] = None
     networking_cls: Type[Networking] = LinuxNetworking
     # This is used by self.shutdown_command(), and can be overridden in
     # subclasses
