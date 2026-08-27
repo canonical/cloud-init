@@ -197,7 +197,7 @@ class DataSourceHetzner(sources.DataSource):
         """
 
         if self._network_config is None:
-            LOG.warning(
+            LOG.warning(  # type: ignore[unreachable]
                 "Found None as cached _network_config. Resetting to %s",
                 sources.UNSET,
             )
