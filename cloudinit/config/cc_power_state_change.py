@@ -137,7 +137,7 @@ def load_power_state(cfg, distro):
     args = distro.shutdown_command(
         mode=mode,
         delay=pstate.get("delay", "now"),
-        message=pstate.get("message"),
+        message=pstate.get("message", ""),
     )
 
     try:
