@@ -72,9 +72,10 @@ class TestParseDHCPServerFromLeaseFile:
         server address, otherwise return the address.
         """
         dhclient = IscDhclient()
-        dhclient.lease_file = tmp_path / "dhcp.leases"
+        lease_file_path = tmp_path / "dhcp.leases"
+        dhclient.lease_file = str(lease_file_path)
         if lease_file_content:
-            dhclient.lease_file.write_text(lease_file_content)
+            lease_file_path.write_text(lease_file_content)
             if server_address:
                 assert server_address == dhclient.get_newest_lease("eth0").get(
                     "dhcp-server-identifier"
@@ -1226,10 +1227,10 @@ class TestDhcpcd:
 
         with pytest.raises(InvalidDHCPLeaseFileError):
             with mock.patch("cloudinit.net.dhcp.util.load_binary_file"):
-                lease = dedent("""
+                str_lease = dedent("""
                     fail
                     """)
-                Dhcpcd.parse_dhcpcd_lease(lease, "eth0")
+                Dhcpcd.parse_dhcpcd_lease(str_lease, "eth0")
 
     @pytest.mark.parametrize(
         "lease_file, option_245",

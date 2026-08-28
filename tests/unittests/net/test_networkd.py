@@ -2,6 +2,7 @@
 
 from configparser import ConfigParser
 from string import Template
+from typing import Union
 from unittest import mock
 
 import pytest
@@ -703,16 +704,18 @@ class TestNetworkdRenderState:
         c = ConfigParser()
         c.read_string(rendered_content["eth0"])
 
+        expected_dhcp: Union[str, bool]
         if address in ["4", "6"]:
             expected_dhcp = f"ipv{address}"
             expected_address = None
         else:
             expected_dhcp = False
             expected_address = address
+        got_dhcp: Union[str, bool, None]
         try:
             got_dhcp = c.getboolean("Network", "DHCP")
         except ValueError:
-            got_dhcp = c.get("Network", "DHCP", fallback=None)
+            got_dhcp = c.get("Network", "DHCP")
         got_address = c.get("Address", "Address", fallback=None)
         got_accept_ra = c.getboolean("Network", "IPv6AcceptRA", fallback=None)
         assert (

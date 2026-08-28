@@ -7,7 +7,7 @@ import ipaddress
 import logging
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, List, Optional
 from unittest import mock
 
 import pytest
@@ -474,7 +474,7 @@ class TestNetFindCandidateNics:
             name="ethWithoutMacIgnored",
             address=None,
         )
-        self.create_fake_interface(name="vethIgnored", carrier=1)
+        self.create_fake_interface(name="vethIgnored", carrier=True)
         self.create_fake_interface(
             name="bondIgnored",
             bonding=True,
@@ -818,7 +818,7 @@ class TestEphemeralIPV4Network:
 
     def test_ephemeral_ipv4_network_errors_on_missing_params(self, m_subp):
         """No required params for EphemeralIPv4Network can be None."""
-        required_params = {
+        required_params: Dict[str, Any] = {
             "interface": "eth0",
             "ip": "192.168.2.2",
             "prefix_or_mask": "255.255.255.0",
@@ -837,7 +837,7 @@ class TestEphemeralIPV4Network:
 
     def test_ephemeral_ipv4_network_errors_invalid_mask_prefix(self, m_subp):
         """Raise an error when prefix_or_mask is not a netmask or prefix."""
-        params = {
+        params: Dict[str, Any] = {
             "interface": "eth0",
             "ip": "192.168.2.2",
             "broadcast": "192.168.2.255",
@@ -886,7 +886,7 @@ class TestEphemeralIPV4Network:
                 ],
             ),
         ]
-        params = {
+        params: Dict[str, Any] = {
             "interface": "eth0",
             "ip": "192.168.2.2",
             "prefix_or_mask": "255.255.255.0",
@@ -961,7 +961,7 @@ class TestEphemeralIPV4Network:
 
         It performs no cleanup as the interface was already setup.
         """
-        params = {
+        params: Dict[str, Any] = {
             "interface": "eth0",
             "ip": "10.85.130.116",
             "prefix_or_mask": "255.255.255.0",
@@ -971,7 +971,7 @@ class TestEphemeralIPV4Network:
         m_subp.side_effect = ProcessExecutionError(
             "", "RTNETLINK answers: File exists", 2
         )
-        expected_calls = []
+        expected_calls: List[Any] = []
         with EphemeralIPv4Network(MockDistro(), **params):
             pass
         assert expected_calls == m_subp.call_args_list
@@ -980,7 +980,7 @@ class TestEphemeralIPV4Network:
 
     def test_ephemeral_ipv4_network_with_prefix(self, m_subp):
         """EphemeralIPv4Network takes a valid prefix to setup the network."""
-        params = {
+        params: Dict[str, Any] = {
             "interface": "eth0",
             "ip": "192.168.2.2",
             "prefix_or_mask": "24",
@@ -1030,7 +1030,7 @@ class TestEphemeralIPV4Network:
 
     def test_ephemeral_ipv4_network_with_new_default_route(self, m_subp):
         """Add the route when router is set and no default route exists."""
-        params = {
+        params: Dict[str, Any] = {
             "interface": "eth0",
             "ip": "192.168.2.2",
             "prefix_or_mask": "255.255.255.0",
@@ -1107,7 +1107,7 @@ class TestEphemeralIPV4Network:
         m_subp.assert_has_calls(expected_teardown_calls)
 
     def test_ephemeral_ipv4_network_with_rfc3442_static_routes(self, m_subp):
-        params = {
+        params: Dict[str, Any] = {
             "interface": "eth0",
             "ip": "192.168.2.2",
             "prefix_or_mask": "255.255.255.255",
