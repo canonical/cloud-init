@@ -74,7 +74,8 @@ class TestHandleUsersGroups:
         """Normalize values group config from str, dict and list."""
         cfg = {"users": [{"name": "me2", "groups": groups_cfg}]}
         cloud = get_cloud(distro="ubuntu", sys_cfg={}, metadata={})
-        cc_users_groups.handle("modulename", cfg, cloud, None)
+        with caplog.at_level(logging.INFO):
+            cc_users_groups.handle("modulename", cfg, cloud, None)
         assert_count_equal(
             m_user.call_args_list,
             [
