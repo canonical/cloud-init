@@ -26,9 +26,8 @@ inputs:
   test_posargs:
     description: >
       Optional extra posargs appended to the `tox -e integration-tests`
-      invocation (after the hardcoded --junitxml/--color flags). Accepts
-      pytest flags and/or positional test paths/node IDs. Defaults to the
-      full `tests/integration_tests` suite.
+      invocation. Accepts pytest flags and/or positional test paths/node IDs.
+      When unspecified, the full `tests/integration_tests` path is provided.
     required: false
     default: ''
   runner_temp:
