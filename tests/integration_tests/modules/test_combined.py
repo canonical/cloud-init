@@ -832,17 +832,10 @@ class TestSshImportId:
         rather than hard-failing (the failure is environmental, not a
         cloud-init regression).
         """
-        output_log = ""
-        try:
-            output_log = class_client.read_from_file(
-                "/var/log/cloud-init-output.log"
-            )
-        except IOError:
-            pass
-        if (
-            "GitHub REST API rate-limited" in output_log
-            or "status_code=403" in output_log
-        ):
+        output_log = class_client.read_from_file(
+            "/var/log/cloud-init-output.log"
+        )
+        if "GitHub REST API rate-limited" in output_log:
             pytest.skip("skipped: GitHub API rate-limited")
         ssh_output = class_client.read_from_file(
             "/home/ubuntu/.ssh/authorized_keys"
