@@ -778,7 +778,8 @@ class TestDataSourceCloudStackLocal:
         tmpdir,
     ):
         distro = MockDistro()
-        ds = DataSourceCloudStack({}, distro, helpers.Paths({"run_dir": tmpdir}))
+        paths = helpers.Paths({"run_dir": tmpdir})
+        ds = DataSourceCloudStack({}, distro, paths)
         ds.perform_dhcp_setup = False
         assert ds._get_data() is False
 
