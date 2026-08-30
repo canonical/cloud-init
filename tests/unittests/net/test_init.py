@@ -792,7 +792,6 @@ class TestGetInterfaceMAC:
         assert res == {"192.0.2.1": "gre_xx"}
 
 
-
 class TestInterfaceHasOwnMAC:
     @pytest.fixture(autouse=True)
     def fixtures(self, mocker, tmp_path):

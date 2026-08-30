@@ -980,7 +980,9 @@ def get_interfaces_by_mac_on_linux() -> dict:
             # have fully initialized the leader/subordinate relationships for
             # those devices or switches.
             if driver in ("fsl_enetc", "mscc_felix", "qmi_wwan") or (
-                driver is None and _devid is None
+                name.startswith(
+                    ("gre", "gretap", "sit", "ip6tnl", "ip6gre", "tun", "tap")
+                )
             ):
                 LOG.debug(
                     "Ignoring duplicate macs from '%s' and '%s' due to "
