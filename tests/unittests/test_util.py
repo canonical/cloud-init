@@ -486,7 +486,9 @@ class TestUtil:
         mocker.patch("os.path.exists", return_value=True)
         mocker.patch(
             "cloudinit.util.load_text_file",
-            return_value='## template: jinja\n{"a": "{{ ds.meta_data.placement.region }}"}',
+            return_value=(
+                '## template: jinja\n{"a": "{{ ds.meta_data.region }}"}'
+            ),
         )
         mocker.patch(
             "cloudinit.handlers.jinja_template.load_text_file",
@@ -494,7 +496,7 @@ class TestUtil:
         )
         conf = util.read_conf("cfg_path", instance_data_file="vars_path")
         assert "Ignoring jinja template for cfg_path" in caplog.text
-        assert conf == {"a": "{{ ds.meta_data.placement.region }}"}
+        assert conf == {"a": "{{ ds.meta_data.region }}"}
 
 
     @pytest.mark.parametrize(
