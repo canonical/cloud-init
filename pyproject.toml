@@ -89,7 +89,6 @@ module = [
     "tests.unittests.config.test_cc_zypper_add_repo",
     "tests.unittests.config.test_modules",
     "tests.unittests.config.test_schema",
-    "tests.unittests.distros.test_netbsd",
     "tests.unittests.distros.test_netconfig",
     "tests.unittests.distros.test_opensuse",
     "tests.unittests.distros.test_user_data_normalize",
