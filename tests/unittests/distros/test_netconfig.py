@@ -6,6 +6,7 @@ import re
 import shutil
 from io import StringIO
 from textwrap import dedent
+from typing import Dict
 from unittest import mock
 
 import pytest
@@ -418,7 +419,7 @@ ifconfig_eth0='inet 192.168.1.5 netmask 255.255.255.0'
 ifconfig_eth1=DHCP
 """
 
-        V1_NET_CFG_RENAME = copy.deepcopy(V1_NET_CFG)
+        V1_NET_CFG_RENAME: Dict = copy.deepcopy(V1_NET_CFG)
         V1_NET_CFG_RENAME["config"][0]["mac_address"] = "00:15:5d:4c:73:00"
 
         expected_cfgs = {
@@ -440,7 +441,7 @@ ifconfig_eth1=DHCP
             "00:15:5d:4c:73:00": "eth0",
         }
 
-        V1_NET_CFG_DNS = copy.deepcopy(V1_NET_CFG)
+        V1_NET_CFG_DNS: Dict = copy.deepcopy(V1_NET_CFG)
         ns = ["1.2.3.4"]
         V1_NET_CFG_DNS["config"][0]["subnets"][0]["dns_nameservers"] = ns
         expected_cfgs = {"/etc/resolv.conf": "nameserver 1.2.3.4\n"}
@@ -1130,7 +1131,7 @@ def distro_photon(mocker):
 @pytest.mark.usefixtures("fake_filesystem")
 class TestNetCfgDistroPhoton:
     def create_conf_dict(self, contents):
-        content_dict = {}
+        content_dict: Dict[str, list] = {}
         for line in contents:
             if line:
                 line = line.strip()
@@ -1264,7 +1265,7 @@ def distro_mariner(mocker):
 @pytest.mark.usefixtures("fake_filesystem")
 class TestNetCfgDistroMariner:
     def create_conf_dict(self, contents):
-        content_dict = {}
+        content_dict: Dict[str, list] = {}
         for line in contents:
             if line:
                 line = line.strip()
@@ -1398,7 +1399,7 @@ def distro_azurelinux(mocker):
 @pytest.mark.usefixtures("fake_filesystem")
 class TestNetCfgDistroAzureLinux:
     def create_conf_dict(self, contents):
-        content_dict = {}
+        content_dict: Dict[str, list] = {}
         for line in contents:
             if line:
                 line = line.strip()
