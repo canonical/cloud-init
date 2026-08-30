@@ -782,4 +782,3 @@ class TestDataSourceCloudStackLocal:
         ds = DataSourceCloudStack({}, distro, paths)
         ds.perform_dhcp_setup = False
         assert ds._get_data() is False
-
