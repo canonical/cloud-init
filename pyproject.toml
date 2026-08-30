@@ -36,9 +36,6 @@ no_implicit_optional = true
 # See GH-5445
 [[tool.mypy.overrides]]
 module = [
-    "cloudinit.config.cc_growpart",
-    "cloudinit.config.cc_ntp",
-    "cloudinit.config.modules",
     "cloudinit.distros.alpine",
     "cloudinit.distros.azurelinux",
     "cloudinit.distros.bsd",
