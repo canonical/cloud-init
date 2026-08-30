@@ -10,7 +10,7 @@ import re
 from collections import defaultdict
 from functools import lru_cache
 from ipaddress import IPv4Address, IPv4Interface, IPv6Interface
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, Optional, Tuple
 
 LOG = logging.getLogger(__name__)
 
@@ -85,10 +85,10 @@ class Ifconfig:
         self._ifs_by_mac = {}
 
     @lru_cache()
-    def parse(self, text: str) -> Dict[str, Union[Ifstate, List[Ifstate]]]:
+    def parse(self, text: str) -> Dict[str, Ifstate]:
         """
         Parse the ``ifconfig -a`` output ``text``, into a dict of ``Ifstate``
-        objects, referenced by ``name`` *and* by ``mac`` address.
+        objects, referenced by interface name.
 
         This dict will always be the same, given the same input, so we can
         ``@lru_cache()`` it. n.b.: ``@lru_cache()`` takes only the
@@ -96,7 +96,7 @@ class Ifconfig:
         despite our giant inputs.
 
         @param text: The output of ``ifconfig -a``
-        @returns: A dict of ``Ifstate``s, referenced by ``name`` and ``mac``
+        @returns: A dict of ``Ifstate``s, referenced by interface name
         """
         ifindex = 0
         ifs_by_mac = defaultdict(list)
@@ -198,7 +198,7 @@ class Ifconfig:
                         dev.vlan["link"] = toks[i + 1]
 
         self._ifs_by_mac = dict(ifs_by_mac)
-        return {**self._ifs_by_name, **self._ifs_by_mac}
+        return self._ifs_by_name
 
     def ifs_by_mac(self):
         return self._ifs_by_mac
