@@ -782,7 +782,8 @@ class TestGetInterfaceMAC:
     def test_get_interfaces_by_mac_skips_duplicate_mac_virtual_tunnels(
         self, m_get_interfaces
     ):
-        """Virtual tunnel interfaces with driver=None should ignore duplicate MACs."""
+        """Virtual tunnel interfaces with driver=None should ignore duplicate
+        MACs."""
         m_get_interfaces.return_value = [
             ("gre_xx", "192.0.2.1", None, None),
             ("gre_yy", "192.0.2.1", None, None),
