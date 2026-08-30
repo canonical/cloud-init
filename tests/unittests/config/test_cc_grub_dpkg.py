@@ -162,7 +162,7 @@ class TestHandle:
                 (
                     "Setting grub debconf-set-selections with '%s'",
                     (
-                        "grub-pc grub-pc/install_devices string "
+                        "grub-pc grub-pc/install_devices multiselect "
                         "/dev/disk/by-id/nvme-Company_hash000\n"
                         "grub-pc grub-pc/install_devices_empty boolean false\n"
                     ),
@@ -177,7 +177,8 @@ class TestHandle:
                 (
                     "Setting grub debconf-set-selections with '%s'",
                     (
-                        "grub-pc grub-pc/install_devices string /dev/sda\n"
+                        "grub-pc grub-pc/install_devices "
+                        "multiselect /dev/sda\n"
                         "grub-pc grub-pc/install_devices_empty boolean false\n"
                     ),
                 ),
@@ -191,7 +192,8 @@ class TestHandle:
                 (
                     "Setting grub debconf-set-selections with '%s'",
                     (
-                        "grub-pc grub-pc/install_devices string /dev/xvda\n"
+                        "grub-pc grub-pc/install_devices "
+                        "multiselect /dev/xvda\n"
                         "grub-pc grub-pc/install_devices_empty boolean true\n"
                     ),
                 ),
@@ -205,7 +207,8 @@ class TestHandle:
                 (
                     "Setting grub debconf-set-selections with '%s'",
                     (
-                        "grub-pc grub-pc/install_devices string /dev/vda\n"
+                        "grub-pc grub-pc/install_devices "
+                        "multiselect /dev/vda\n"
                         "grub-pc grub-pc/install_devices_empty boolean false\n"
                     ),
                 ),
@@ -220,7 +223,8 @@ class TestHandle:
                 (
                     "Setting grub debconf-set-selections with '%s'",
                     (
-                        "grub-pc grub-pc/install_devices string /dev/nvme0n1\n"
+                        "grub-pc grub-pc/install_devices "
+                        "multiselect /dev/nvme0n1\n"
                         "grub-pc grub-pc/install_devices_empty boolean true\n"
                     ),
                 ),
@@ -233,11 +237,14 @@ class TestHandle:
                 "/dev/sda1",
                 (
                     "Setting grub debconf-set-selections with '%s'",
-                    "grub-pc grub-efi/install_devices string /dev/sda1\n",
+                    "grub-pc grub-efi/install_devices multiselect /dev/sda1\n",
                 ),
                 True,
             ),
         ],
+    )
+    @mock.patch(
+        "cloudinit.config.cc_grub_dpkg.os.path.exists", return_value=True
     )
     @mock.patch("cloudinit.config.cc_grub_dpkg.fetch_idevs")
     @mock.patch("cloudinit.config.cc_grub_dpkg.util.logexc")
@@ -251,6 +258,7 @@ class TestHandle:
         m_subp,
         m_logexc,
         m_fetch_idevs,
+        m_exists,
         cfg_idevs,
         cfg_idevs_empty,
         fetch_idevs_output,
