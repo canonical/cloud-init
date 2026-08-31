@@ -52,7 +52,9 @@ except ImportError:
 
 LOG = logging.getLogger(__name__)
 
-REMOTE_SCHEMA_BASE = "https://raw.githubusercontent.com/canonical/cloud-init/main/cloudinit/config/schemas/"  # noqa: E501
+REMOTE_SCHEMA_BASE = (
+    "https://raw.githubusercontent.com/canonical/cloud-init/main/schemas/"
+)
 
 
 # Note versions.schema.json is publicly consumed by schemastore.org.
@@ -1212,7 +1214,28 @@ def validate_cloudconfig_file(
 
 
 def get_schema_dir() -> str:
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "schemas")
+    """Return the directory containing cloud-init's JSON schema files.
+
+    The schema files are architecture-independent data, so they are
+    installed under datadir (typically /usr/share/cloud-init/schemas)
+    instead of inside the Python package. Meson records that location in
+    the generated cloudinit/meson_paths.py at build time, because only the
+    build system knows the configured prefix.
+
+    When running from a source checkout no such file has been generated,
+    so fall back to the schemas directory at the root of the source tree.
+    """
+    try:
+        from cloudinit import meson_paths  # type: ignore
+
+        if os.path.isdir(meson_paths.SCHEMA_DIR):
+            return meson_paths.SCHEMA_DIR
+    except ImportError:
+        pass
+    source_tree_root = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    )
+    return os.path.join(source_tree_root, "schemas")
 
 
 def get_schema(schema_type: SchemaType = SchemaType.CLOUD_CONFIG) -> dict:
