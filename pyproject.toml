@@ -69,7 +69,6 @@ module = [
     "cloudinit.sources.helpers.vmware.imc.config_nic",
     "cloudinit.user_data",
     "tests.unittests.analyze.test_show",
-    "tests.unittests.config.test_cc_wireguard",
     "tests.unittests.config.test_cc_yum_add_repo",
     "tests.unittests.config.test_cc_zypper_add_repo",
     "tests.unittests.config.test_modules",
