@@ -64,7 +64,6 @@ module = [
     "cloudinit.sources.helpers.vmware.imc.config_file",
     "cloudinit.sources.helpers.vmware.imc.config_nic",
     "tests.unittests.analyze.test_show",
-    "tests.unittests.config.test_cc_ubuntu_autoinstall",
     "tests.unittests.config.test_cc_update_etc_hosts",
     "tests.unittests.config.test_cc_users_groups",
     "tests.unittests.config.test_cc_wireguard",

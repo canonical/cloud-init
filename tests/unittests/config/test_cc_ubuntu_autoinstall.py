@@ -96,7 +96,7 @@ class TestHandleAutoinstall:
     ):
         subp.return_value = snap_list, ""
         cloud = get_cloud(distro="ubuntu", paths=Paths({"cloud_dir": tmpdir}))
-        cc_ubuntu_autoinstall.handle("name", cfg, cloud, None)
+        cc_ubuntu_autoinstall.handle("name", cfg, cloud, [])
         assert subp_calls == subp.call_args_list
         for log in logs:
             assert log in caplog.text
