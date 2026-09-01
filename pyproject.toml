@@ -69,7 +69,6 @@ module = [
     "cloudinit.sources.helpers.vmware.imc.config_nic",
     "cloudinit.user_data",
     "tests.unittests.analyze.test_show",
-    "tests.unittests.config.test_cc_puppet",
     "tests.unittests.config.test_cc_resizefs",
     "tests.unittests.config.test_cc_resolv_conf",
     "tests.unittests.config.test_cc_rh_subscription",
