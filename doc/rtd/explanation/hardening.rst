@@ -16,7 +16,7 @@ SSH public/private key pairs.
 Updated packages
 ================
 
-To ensure the available security fixes are applied to VM images at launch,
+To ensure the available security fixes are applied to images at launch,
 it is recommended by `Ubuntu security team guidelines`_ to update the packages
 
 .. note::

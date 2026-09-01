@@ -26,8 +26,6 @@ determined time for disclosure has arrived the following will occur:
 
 ## Supported versions
 
-Each [cloud-init time-based upstream release](https://github.com/canonical/cloud-init/milestones) is published to the
-[latest Ubuntu interim release and the two most recent Ubuntu LTS releases](https://ubuntu.com/about/release-cycle) to
-ensure security bug fixes are published to stable Ubuntu LTS releases.
+Each [cloud-init scheduled upstream release](https://github.com/canonical/cloud-init/milestones) is provided as updates to the [latest Ubuntu interim release and the two most recent Ubuntu LTS releases](https://ubuntu.com/about/release-cycle) to ensure common behavior of cloud-init on all Ubuntu standard security maintenance releases.
 
-If a CVE is of critical CVSS severity and affects older Ubuntu LTS releases, it will be backported to the specific release.
+CVEs of critical or high CVSS severity will be backported to the all Ubuntu LTS releases and the two most recent Ubuntu ESM releases supported under Ubuntu Pro.
