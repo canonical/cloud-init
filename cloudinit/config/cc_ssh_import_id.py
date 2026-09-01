@@ -64,7 +64,10 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     for user, user_cfg in users.items():
         import_ids = []
         if user_cfg["default"]:
-            import_ids = util.get_cfg_option_list(cfg, "ssh_import_id", [])
+            import_ids = util.uniq_merge(
+                util.get_cfg_option_list(cfg, "ssh_import_id", []),
+                user_cfg.get("ssh_import_id", []),
+            )
         else:
             try:
                 import_ids = user_cfg["ssh_import_id"]
