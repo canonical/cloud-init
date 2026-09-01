@@ -4,6 +4,7 @@
 
 import copy
 import logging
+from typing import cast
 
 import pytest
 
@@ -53,7 +54,7 @@ class TestHappyPath:
         Emulates a system that is already registered. Ensure it gets
         a non-ProcessExecution error from is_registered()
         """
-        cc_rh_subscription.handle(NAME, self.CONFIG, None, [])
+        cc_rh_subscription.handle(NAME, self.CONFIG, mock.Mock(), [])
         assert m_sman_cli.call_count == 1
         assert "System is already registered" in caplog.text
 
@@ -71,7 +72,7 @@ class TestHappyPath:
             " 12345678-abde-abcde-1234-1234567890abc"
         )
         m_sman_cli.side_effect = [subp.ProcessExecutionError, (reg, "bar")]
-        cc_rh_subscription.handle(NAME, self.CONFIG, None, [])
+        cc_rh_subscription.handle(NAME, self.CONFIG, mock.Mock(), [])
         assert mock.call(["identity"]) in m_sman_cli.call_args_list
         assert (
             mock.call(
@@ -106,7 +107,7 @@ class TestHappyPath:
 
         enable_repo_key = "enable_repo".replace("_", variable_name_separator)
         disable_repo_key = "disable_repo".replace("_", variable_name_separator)
-        cfg["rh_subscription"].update(
+        cast(dict, cfg["rh_subscription"]).update(
             {enable_repo_key: ["repo1"], disable_repo_key: None}
         )
         mysm = cc_rh_subscription.SubscriptionManager(cfg)
@@ -149,7 +150,7 @@ class TestHappyPath:
         # on the host running the tests
         mocker.patch("shutil.rmtree")
 
-        cc_rh_subscription.handle(NAME, self.CONFIG_FULL, None, [])
+        cc_rh_subscription.handle(NAME, self.CONFIG_FULL, mock.Mock(), [])
         assert m_sman_cli.call_count == 10
         for call in call_lists:
             assert mock.call(call) in m_sman_cli.call_args_list
@@ -225,13 +226,15 @@ class TestBadInput:
             subp.ProcessExecutionError,
             (self.REG, "bar"),
         ]
-        cc_rh_subscription.handle(NAME, self.CONFIG_NO_PASSWORD, None, [])
+        cc_rh_subscription.handle(
+            NAME, self.CONFIG_NO_PASSWORD, mock.Mock(), []
+        )
         assert m_sman_cli.call_count == 0
 
     def test_no_org(self, m_sman_cli, caplog):
         """Attempt to register without the org key/value."""
         m_sman_cli.side_effect = [subp.ProcessExecutionError]
-        cc_rh_subscription.handle(NAME, self.CONFIG_NO_KEY, None, [])
+        cc_rh_subscription.handle(NAME, self.CONFIG_NO_KEY, mock.Mock(), [])
         m_sman_cli.assert_called_with(["identity"])
         assert m_sman_cli.call_count == 1
         self.assert_logged_warnings(
@@ -272,7 +275,7 @@ class TestBadInput:
             subp.ProcessExecutionError,
             (self.REG, "bar"),
         ]
-        cc_rh_subscription.handle(NAME, auto_attach_cfg, None, [])
+        cc_rh_subscription.handle(NAME, auto_attach_cfg, mock.Mock(), [])
         assert m_sman_cli.call_count == 1
         self.assert_logged_warnings(
             warnings,
@@ -287,7 +290,7 @@ class TestBadInput:
             subp.ProcessExecutionError,
             (self.REG, "bar"),
         ]
-        cc_rh_subscription.handle(NAME, self.CONFIG_BADPOOL, None, [])
+        cc_rh_subscription.handle(NAME, self.CONFIG_BADPOOL, mock.Mock(), [])
         assert m_sman_cli.call_count == 2
         self.assert_logged_warnings(
             (
@@ -305,7 +308,7 @@ class TestBadInput:
             subp.ProcessExecutionError,
             (self.REG, "bar"),
         ]
-        cc_rh_subscription.handle(NAME, self.CONFIG_BADREPO, None, [])
+        cc_rh_subscription.handle(NAME, self.CONFIG_BADREPO, mock.Mock(), [])
         assert m_sman_cli.call_count == 2
         self.assert_logged_warnings(
             (
@@ -329,7 +332,7 @@ class TestBadInput:
             subp.ProcessExecutionError,
         ]
         cc_rh_subscription.handle(
-            NAME, self.CONFIG_BAD_RELEASE_VERSION, None, []
+            NAME, self.CONFIG_BAD_RELEASE_VERSION, mock.Mock(), []
         )
         assert m_sman_cli.call_count == 3
         assert m_delete_pm_cache.call_count == 0
@@ -362,7 +365,7 @@ class TestBadInput:
             (self.REG, "bar"),
             ("Release set to: 1.2Server", ""),
         ]
-        cc_rh_subscription.handle(NAME, good_release_ver_cfg, None, [])
+        cc_rh_subscription.handle(NAME, good_release_ver_cfg, mock.Mock(), [])
         # assert "rh_subscription plugin completed successfully" in caplog.text
         assert m_sman_cli.call_count == 3
         assert m_rmtree.call_args_list == [mock.call("/var/cache/dnf")]
@@ -479,8 +482,8 @@ class TestConstructor:
         correct python object fields
         """
 
-        cfg_with_new_keys = {"rh_subscription": {}}
-        cfg_with_deprecated_keys = {"rh_subscription": {}}
+        cfg_with_new_keys: dict = {"rh_subscription": {}}
+        cfg_with_deprecated_keys: dict = {"rh_subscription": {}}
 
         deprecation_pairs = [
             ("activation-key", "activation_key"),
