@@ -156,7 +156,7 @@ def read_metadata(
 
     if not response.ok():
         raise RuntimeError(
-            "Failed to connect to %s: Code: %s" % url, response.code
+            "Failed to connect to %s: Code: %s" % (url, response.code)
         )
 
     return response.contents.decode()
@@ -268,8 +268,7 @@ def generate_interface_additional_addresses(
     interface: Mapping[str, Any], netcfg: Dict[str, Any]
 ) -> None:
     # Check for additional IP's
-    additional_count = len(interface["ipv4"]["additional"])
-    if "ipv4" in interface and additional_count > 0:
+    if "ipv4" in interface and len(interface["ipv4"]["additional"]) > 0:
         for additional in interface["ipv4"]["additional"]:
             add = {
                 "type": "static",
@@ -284,8 +283,7 @@ def generate_interface_additional_addresses(
             netcfg["subnets"].append(add)
 
     # Check for additional IPv6's
-    additional_count = len(interface["ipv6"]["additional"])
-    if "ipv6" in interface and additional_count > 0:
+    if "ipv6" in interface and len(interface["ipv6"]["additional"]) > 0:
         for additional in interface["ipv6"]["additional"]:
             add = {
                 "type": "static6",

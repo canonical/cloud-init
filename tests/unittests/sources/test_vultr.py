@@ -7,6 +7,7 @@
 
 import copy
 import json
+from typing import Any, Dict
 from unittest import mock
 
 import pytest
@@ -361,3 +362,67 @@ class TestDataSourceVultr:
         ds.get_metadata()
 
         assert mock_eph_init.call_args[1]["iface"] == FILTERED_INTERFACES[1]
+
+    @mock.patch("cloudinit.sources.helpers.vultr.url_helper.readurl")
+    def test_read_metadata_runtimeerror_on_connection_failure(self, mock_readurl):
+        response = mock.MagicMock()
+        response.ok.return_value = False
+        response.code = 404
+        mock_readurl.return_value = response
+
+        with pytest.raises(RuntimeError) as exc_info:
+            vultr.read_metadata(
+                "http://169.254.169.254",
+                timeout=1,
+                retries=1,
+                sec_between=1,
+                agent="cloud-init/test",
+            )
+
+        assert "Failed to connect to http://169.254.169.254/v1.json" in str(
+            exc_info.value
+        )
+        assert "404" in str(exc_info.value)
+
+    def test_generate_interface_additional_addresses_missing_ip_keys(self):
+        interface = {"mac": "56:00:03:15:c4:65"}
+        netcfg: Dict[str, Any] = {"subnets": []}
+
+        # Must not raise KeyError: 'ipv4' / 'ipv6'
+        vultr.generate_interface_additional_addresses(interface, netcfg)
+
+        assert netcfg["subnets"] == []
+
+    # Sanity check that the guarded len() still adds addresses when the
+    # "ipv4"/"ipv6" keys are present with non-empty additional lists.
+    def test_generate_interface_additional_addresses_adds_static(self):
+        interface = {
+            "mac": "56:00:03:15:c4:65",
+            "ipv4": {
+                "additional": [
+                    {"address": "10.0.0.10", "netmask": "255.255.255.0"}
+                ],
+            },
+            "ipv6": {
+                "additional": [
+                    {"network": "2001:19f0::", "prefix": "64"},
+                ],
+            },
+        }
+        netcfg: Dict[str, Any] = {"subnets": []}
+
+        vultr.generate_interface_additional_addresses(interface, netcfg)
+
+        assert netcfg["subnets"] == [
+            {
+                "type": "static",
+                "control": "auto",
+                "address": "10.0.0.10",
+                "netmask": "255.255.255.0",
+            },
+            {
+                "type": "static6",
+                "control": "auto",
+                "address": "2001:19f0::/64",
+            },
+        ]
