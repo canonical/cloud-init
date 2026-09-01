@@ -18,7 +18,7 @@ import stat
 from abc import ABC, abstractmethod
 from contextlib import suppress
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 from cloudinit import lifecycle, performance, subp, temp_utils, util
 from cloudinit.cloud import Cloud
@@ -63,14 +63,16 @@ class Resizer(ABC):
         self._distro = distro
 
     @abstractmethod
-    def available(self, devices: list) -> bool: ...
+    def available(self, devices: List[str]) -> bool: ...
 
     @abstractmethod
-    def resize(self, diskdev, partnum, partdev, fs): ...
+    def resize(
+        self, diskdev: str, partnum: str, partdev: str, fs: Optional[str]
+    ) -> Tuple[Optional[int], Optional[int]]: ...
 
 
 class ResizeGrowPart(Resizer):
-    def available(self, devices: list):
+    def available(self, devices: list[str]) -> bool:
         try:
             out = subp.subp(
                 ["growpart", "--help"], update_env={"LANG": "C"}
@@ -82,7 +84,9 @@ class ResizeGrowPart(Resizer):
             pass
         return False
 
-    def resize(self, diskdev, partnum, partdev, fs):
+    def resize(
+        self, diskdev: str, partnum: str, partdev: str, fs: Optional[str]
+    ) -> Tuple[Optional[int], Optional[int]]:
         before = get_size(partdev, fs)
 
         # growpart uses tmp dir to store intermediate states
@@ -131,11 +135,13 @@ class ResizeGrowFS(Resizer):
     doesn't need to be enabled in ``rc.conf``.
     """
 
-    def available(self, devices: list):
+    def available(self, devices: list[str]) -> bool:
         """growfs only works on the root partition"""
         return os.path.isfile("/etc/rc.d/growfs") and devices == ["/"]
 
-    def resize(self, diskdev, partnum, partdev, fs):
+    def resize(
+        self, diskdev: str, partnum: str, partdev: str, fs: Optional[str]
+    ) -> Tuple[Optional[int], Optional[int]]:
         before = get_size(partdev, fs)
         try:
             self._distro.manage_service(action="onestart", service="growfs")
@@ -147,7 +153,7 @@ class ResizeGrowFS(Resizer):
 
 
 class ResizeGpart(Resizer):
-    def available(self, devices: list):
+    def available(self, devices: list[str]) -> bool:
         try:
             err = subp.subp(
                 ["gpart", "help"], update_env={"LANG": "C"}, rcs=[0, 1]
@@ -159,7 +165,9 @@ class ResizeGpart(Resizer):
             pass
         return False
 
-    def resize(self, diskdev, partnum, partdev, fs):
+    def resize(
+        self, diskdev: str, partnum: str, partdev: str, fs: Optional[str]
+    ) -> Tuple[Optional[int], Optional[int]]:
         """
         GPT disks store metadata at the beginning (primary) and at the
         end (secondary) of the disk. When launching an image with a
@@ -184,7 +192,7 @@ class ResizeGpart(Resizer):
         return (before, get_size(partdev, fs))
 
 
-def resizer_factory(mode: str, distro: Distro, devices: list) -> Resizer:
+def resizer_factory(mode: str, distro: Distro, devices: List[str]) -> Resizer:
     resize_class = None
     if mode == "auto":
         for _name, resizer in RESIZERS:
@@ -214,7 +222,7 @@ def resizer_factory(mode: str, distro: Distro, devices: list) -> Resizer:
     return resize_class
 
 
-def get_size(filename, fs) -> Optional[int]:
+def get_size(filename: str, fs: Optional[str]) -> Optional[int]:
     fd = None
     try:
         fd = os.open(filename, os.O_RDONLY)
@@ -228,7 +236,7 @@ def get_size(filename, fs) -> Optional[int]:
             os.close(fd)
 
 
-def get_zfs_size(dataset) -> Optional[int]:
+def get_zfs_size(dataset: str) -> Optional[int]:
     zpool = dataset.split("/")[0]
     try:
         size, _ = subp.subp(["zpool", "get", "-Hpovalue", "size", zpool])
@@ -238,7 +246,7 @@ def get_zfs_size(dataset) -> Optional[int]:
     return int(size.strip())
 
 
-def devent2dev(devent):
+def devent2dev(devent: str) -> Tuple[str, Optional[str]]:
     if devent.startswith("/dev/"):
         return devent, None
 
@@ -254,15 +262,15 @@ def devent2dev(devent):
     if dev == "/dev/root" and not container:
         dev = util.rootdev_from_cmdline(util.get_cmdline())
         if dev is None:
-            if os.path.exists(dev):
+            if os.path.exists("/dev/root"):
                 # if /dev/root exists, but we failed to convert
                 # that to a "real" /dev/ path device, then return it.
-                return dev, None
+                return "/dev/root", None
             raise ValueError("Unable to find device '/dev/root'")
     return dev, fs
 
 
-def is_encrypted(blockdev, partition) -> bool:
+def is_encrypted(blockdev: str, partition: str) -> bool:
     """
     Check if a device is an encrypted device. blockdev should have
     a /dev/dm-* path whereas partition is something like /dev/sda1.
@@ -306,7 +314,7 @@ def get_underlying_partition(blockdev: str) -> str:
         ) from e
 
 
-def resize_encrypted(blockdev, partition) -> Tuple[str, str]:
+def resize_encrypted(blockdev: str, partition: str) -> Tuple[str, str]:
     """Use 'cryptsetup resize' to resize LUKS volume.
 
     The loaded keyfile is json formatted with 'key' and 'slot' keys.
@@ -363,8 +371,15 @@ def resize_encrypted(blockdev, partition) -> Tuple[str, str]:
     )
 
 
-def _call_resizer(resizer, devent, disk, ptnum, blockdev, fs):
-    info = []
+def _call_resizer(
+    resizer: Resizer,
+    devent: str,
+    disk: str,
+    ptnum: str,
+    blockdev: str,
+    fs: Optional[str],
+) -> List[Tuple[str, str, str]]:
+    info: List[Tuple[str, str, str]] = []
     try:
         old, new = resizer.resize(disk, ptnum, blockdev, fs)
         if old == new:
@@ -377,7 +392,7 @@ def _call_resizer(resizer, devent, disk, ptnum, blockdev, fs):
             )
         elif new is None or old is None:
             msg = ""
-            if disk is not None and ptnum is None:
+            if disk and ptnum:
                 msg = "changed (%s, %s) size, new size is unknown" % (
                     disk,
                     ptnum,
@@ -387,7 +402,7 @@ def _call_resizer(resizer, devent, disk, ptnum, blockdev, fs):
             info.append((devent, RESIZE.CHANGED, msg))
         else:
             msg = ""
-            if disk is not None and ptnum is None:
+            if disk and ptnum:
                 msg = "changed (%s, %s) from %s to %s" % (
                     disk,
                     ptnum,
@@ -409,15 +424,17 @@ def _call_resizer(resizer, devent, disk, ptnum, blockdev, fs):
     return info
 
 
-def resize_devices(resizer: Resizer, devices, distro: Distro):
+def resize_devices(
+    resizer: Resizer, devices: List[str], distro: Distro
+) -> List[Tuple[str, str, str]]:
     # returns a tuple of tuples containing (entry-in-devices, action, message)
     devices = copy.copy(devices)
-    info = []
+    info: List[Tuple[str, str, str]] = []
 
     while devices:
         devent = devices.pop(0)
-        disk = None
-        ptnum = None
+        disk = ""
+        ptnum = ""
 
         try:
             blockdev, fs = devent2dev(devent)
