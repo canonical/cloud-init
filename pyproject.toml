@@ -69,7 +69,6 @@ module = [
     "cloudinit.sources.helpers.vmware.imc.config_nic",
     "cloudinit.user_data",
     "tests.unittests.analyze.test_show",
-    "tests.unittests.config.test_apt_source_v1",
     "tests.unittests.config.test_cc_apt_pipelining",
     "tests.unittests.config.test_cc_chef",
     "tests.unittests.config.test_cc_final_message",
