@@ -6,6 +6,7 @@ Test templating of custom sources list
 """
 
 import stat
+from typing import Any
 
 import pytest
 
@@ -238,7 +239,7 @@ class TestAptSourceConfigSourceList:
             "_should_configure_on_empty_apt",
             return_value=SubpResult(True, "test"),
         )
-        cc_apt_configure.handle("test", {"apt": {}}, mycloud, None)
+        cc_apt_configure.handle("test", {"apt": {}}, mycloud, [])
 
         sources_file = tmpdir.join(f"/etc/apt/sources.list.d/{distro}.sources")
         if template_present:
@@ -257,13 +258,13 @@ class TestAptSourceConfigSourceList:
     def test_apt_v3_source_list_ubuntu_snappy(self, mocker):
         """test_apt_v3_source_list_ubuntu_snappy - without custom sources or
         params"""
-        cfg = {"apt": {}}
+        cfg: dict = {"apt": {}}
         mycloud = get_cloud()
 
         mock_writefile = mocker.patch.object(util, "write_file")
         mock_issnappy = mocker.patch.object(util, "system_is_snappy")
         mock_issnappy.return_value = True
-        cc_apt_configure.handle("test", cfg, mycloud, None)
+        cc_apt_configure.handle("test", cfg, mycloud, [])
         mock_writefile.assert_not_called()
         assert 1 == mock_issnappy.call_count
 
@@ -315,7 +316,7 @@ class TestAptSourceConfigSourceList:
 
         util.write_file(tmpl_file, tmpl_content)
         mycloud = get_cloud("ubuntu")
-        cc_apt_configure.handle("test", {"apt": cfg}, mycloud, None)
+        cc_apt_configure.handle("test", {"apt": cfg}, mycloud, [])
 
         sources_file = tmpdir.join(apt_file)
         assert expected == sources_file.read()
@@ -369,7 +370,7 @@ class TestAptSourceConfigSourceList:
             cc_apt_configure.features, "APT_DEB822_SOURCE_LIST_FILE", deb822
         )
         mocker.patch.object(Distro, "get_primary_arch", return_value="amd64")
-        cc_apt_configure.handle("notimportant", cfg, mycloud, None)
+        cc_apt_configure.handle("notimportant", cfg, mycloud, [])
         sources_file = tmpdir.join(apt_file)
         assert expected == sources_file.read()
         assert 0o644 == stat.S_IMODE(sources_file.stat().mode)
@@ -428,7 +429,7 @@ class TestAptSourceConfigSourceList:
         util.write_file(tmpl_file, tmpl_content)
 
         # Base config
-        cfg = {
+        cfg: dict[str, Any] = {
             "preserve_sources_list": False,
             "primary": [{"arches": ["default"], "uri": pm}],
         }
@@ -442,7 +443,7 @@ class TestAptSourceConfigSourceList:
                 cfg["security"][0]["key"] = smkey
 
         mycloud = get_cloud(distro)
-        cc_apt_configure.handle("test", {"apt": cfg}, mycloud, None)
+        cc_apt_configure.handle("test", {"apt": cfg}, mycloud, [])
 
         apt_file = f"/etc/apt/sources.list.d/{distro}.sources"
         sources_file = tmpdir.join(apt_file)
