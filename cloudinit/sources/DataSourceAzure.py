@@ -842,7 +842,7 @@ class DataSourceAzure(sources.DataSource):
                     self._report_failure(
                         errors.ReportableErrorMissingCustomData(
                             pps_type=pps_type.value,
-                            provisioning_media=self.seed,
+                            provisioning_media=self.seed or "",
                         )
                     )
                 else:
