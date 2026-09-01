@@ -81,7 +81,7 @@ class TestResizefs:
     def test_handle_noops_on_disabled(self, caplog):
         """The handle function logs when the configuration disables resize."""
         cfg = {"resize_rootfs": False}
-        handle("cc_resizefs", cfg, cloud=None, args=[])
+        handle("cc_resizefs", cfg, cloud=mock.Mock(), args=[])
         assert (
             mock.ANY,
             logging.DEBUG,
@@ -96,7 +96,7 @@ class TestResizefs:
         """handle warns when get_mount_info sees unknown filesystem for /."""
         m_get_mount_info.return_value = None
         cfg = {"resize_rootfs": True}
-        handle("cc_resizefs", cfg, cloud=None, args=[])
+        handle("cc_resizefs", cfg, cloud=mock.Mock(), args=[])
         logs = caplog.text
         assert (
             "WARNING: Invalid cloud-config provided:\nresize_rootfs:"
@@ -190,7 +190,7 @@ class TestResizefs:
         cfg = {"resize_rootfs": True}
 
         with mock.patch("cloudinit.config.cc_resizefs.do_resize") as dresize:
-            handle("cc_resizefs", cfg, cloud=None, args=[])
+            handle("cc_resizefs", cfg, cloud=mock.Mock(), args=[])
             ret = dresize.call_args[0]
 
         assert (("zpool", "online", "-e", "vmzroot", disk),) == ret
@@ -224,7 +224,7 @@ class TestResizefs:
         with mock.patch("cloudinit.config.cc_resizefs.do_resize") as dresize:
             with mock.patch("cloudinit.config.cc_resizefs.os.stat") as m_stat:
                 m_stat.side_effect = fake_stat
-                handle("cc_resizefs", cfg, cloud=None, args=[])
+                handle("cc_resizefs", cfg, cloud=mock.Mock(), args=[])
         assert (
             ("zpool", "online", "-e", "zroot", "/dev/" + disk),
         ) == dresize.call_args[0]
