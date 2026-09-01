@@ -332,11 +332,13 @@ class TestAliYunDatasource:
                         "00:16:3e:14:59:58": {
                             "ipv6-gateway": "2408:xxxxx",
                             "ipv6s": "[2408:xxxxxx]",
+                            "private-ipv4s": "172.16.101.100",
                             "network-interface-id": "eni-bp13i1xxxxx",
                         },
                         "00:16:3e:39:43:27": {
                             "gateway": "172.16.101.253",
                             "netmask": "255.255.255.0",
+                            "private-ipv4s": "172.16.101.200",
                             "network-interface-id": "eni-bp13i2xxxx",
                         },
                     }
@@ -373,6 +375,7 @@ class TestAliYunDatasource:
                         "00:16:3e:14:59:58": {
                             "gateway": "172.16.101.253",
                             "netmask": "255.255.255.0",
+                            "private-ipv4s": "172.16.101.100",
                             "network-interface-id": "eni-bp13ixxxx",
                         }
                     }
@@ -383,6 +386,84 @@ class TestAliYunDatasource:
         met0 = netcfg["ethernets"]["eth0"]
         # single network card would have no dhcp4-overrides
         assert "dhcp4-overrides" not in met0
+
+    def test_dhcp4_disabled_when_no_private_ipv4s(self):
+        """Test DHCPv4 is disabled when private-ipv4s is absent."""
+        # Multi-NIC: one NIC has private-ipv4s, other does not
+        netcfg = convert_ecs_metadata_network_config(
+            {
+                "interfaces": {
+                    "macs": {
+                        "00:16:3e:14:59:58": {
+                            "private-ipv4s": "172.16.101.100",
+                            "gateway": "172.16.101.253",
+                            "netmask": "255.255.255.0",
+                            "network-interface-id": "eni-bp13i1xxxxx",
+                        },
+                        "00:16:3e:39:43:27": {
+                            "ipv6s": "[2408:xxxxxx]",
+                            "network-interface-id": "eni-bp13i2xxxx",
+                        },
+                    }
+                }
+            },
+            macs_to_nics={
+                "00:16:3e:14:59:58": "eth0",
+                "00:16:3e:39:43:27": "eth1",
+            },
+        )
+
+        # eth0 has private-ipv4s, dhcp4 should be True
+        assert netcfg["ethernets"]["eth0"]["dhcp4"] is True
+        assert "dhcp4-overrides" in netcfg["ethernets"]["eth0"]
+
+        # eth1 has no private-ipv4s, dhcp4 should be False
+        assert netcfg["ethernets"]["eth1"]["dhcp4"] is False
+        assert "dhcp4-overrides" not in netcfg["ethernets"]["eth1"]
+        # eth1 has ipv6s, dhcp6 should be True
+        assert netcfg["ethernets"]["eth1"]["dhcp6"] is True
+
+    def test_dhcp6_enabled_when_ipv6s_present(self):
+        """Test DHCPv6 is enabled when ipv6s field is present."""
+        # Single NIC with ipv6s and private-ipv4s
+        netcfg = convert_ecs_metadata_network_config(
+            {
+                "interfaces": {
+                    "macs": {
+                        "00:16:3e:14:59:58": {
+                            "private-ipv4s": "172.16.101.100",
+                            "ipv6s": "[2408:xxxxxx]",
+                            "network-interface-id": "eni-bp13i1xxxxx",
+                        }
+                    }
+                }
+            },
+            macs_to_nics={"00:16:3e:14:59:58": "eth0"},
+        )
+
+        assert netcfg["ethernets"]["eth0"]["dhcp4"] is True
+        assert netcfg["ethernets"]["eth0"]["dhcp6"] is True
+
+    def test_ipv6_only_nic_config(self):
+        """Test a NIC with only IPv6 (no private-ipv4s)."""
+        netcfg = convert_ecs_metadata_network_config(
+            {
+                "interfaces": {
+                    "macs": {
+                        "00:16:3e:14:59:58": {
+                            "ipv6s": "[2408:xxxxxx]",
+                            "network-interface-id": "eni-bp13i1xxxxx",
+                        }
+                    }
+                }
+            },
+            macs_to_nics={"00:16:3e:14:59:58": "eth0"},
+        )
+
+        # No private-ipv4s: dhcp4 disabled
+        assert netcfg["ethernets"]["eth0"]["dhcp4"] is False
+        # Has ipv6s: dhcp6 enabled
+        assert netcfg["ethernets"]["eth0"]["dhcp6"] is True
 
 
 class TestIsAliYun:

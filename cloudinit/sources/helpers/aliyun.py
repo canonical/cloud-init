@@ -171,6 +171,8 @@ def convert_ecs_metadata_network_config(
         nic_metadata = macs_metadata.get(mac)
         if nic_metadata.get("ipv6s"):  # Any IPv6 addresses configured
             dev_config["dhcp6"] = True
+        if not nic_metadata.get("private-ipv4s"):  # No IPv4 addresses
+            dev_config["dhcp4"] = False
         netcfg["ethernets"][nic_name] = dev_config
         return netcfg
     nic_name_2_mac_map = dict()
@@ -198,13 +200,16 @@ def convert_ecs_metadata_network_config(
         if nic_metadata.get("ipv6s"):  # Any IPv6 addresses configured
             dev_config["dhcp6"] = True
             dev_config["dhcp6-overrides"] = dhcp_override
+        if not nic_metadata.get("private-ipv4s"):  # No IPv4 addresses
+            dev_config["dhcp4"] = False
+            dev_config.pop("dhcp4-overrides", None)
 
         netcfg["ethernets"][nic_name] = dev_config
     # Remove route-metric dhcp overrides and routes / routing-policy if only
     # one nic configured
     if len(netcfg["ethernets"]) == 1:
         for nic_name in netcfg["ethernets"].keys():
-            netcfg["ethernets"][nic_name].pop("dhcp4-overrides")
+            netcfg["ethernets"][nic_name].pop("dhcp4-overrides", None)
             netcfg["ethernets"][nic_name].pop("dhcp6-overrides", None)
             netcfg["ethernets"][nic_name].pop("routes", None)
             netcfg["ethernets"][nic_name].pop("routing-policy", None)
