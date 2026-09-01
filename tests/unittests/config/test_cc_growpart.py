@@ -110,7 +110,7 @@ def test_mode_off(mocker):
     cc_growpart.handle(
         name="growpart",
         cfg=config,
-        cloud=None,
+        cloud=mock.Mock(),
         args=[],
     )
     mock_resizer.assert_not_called()
@@ -127,11 +127,11 @@ def freebsd_cloud(mocker):
     distro = cls("freebsd", {}, None)
 
     cloud_obj = cloud.Cloud(
-        None,
-        None,
+        mock.Mock(),
+        mock.Mock(),
         {},
         distro,
-        None,
+        mock.Mock(),
     )
     return cloud_obj
 
@@ -205,7 +205,7 @@ class TestConfig:
             )
             assert isinstance(ret, cc_growpart.ResizeGrowPart)
             diskdev = "/dev/sdb"
-            partnum = 1
+            partnum = "1"
             partdev = "/dev/sdb"
             ret.resize(diskdev, partnum, partdev, None)
         mockobj.assert_has_calls(
@@ -333,7 +333,7 @@ class TestResize:
         )
         resize_calls = []
 
-        class myresizer:
+        class myresizer(mock.MagicMock):
             def resize(self, diskdev, partnum, partdev, fs):
                 resize_calls.append((diskdev, partnum, partdev, fs))
                 if partdev == "/dev/YYda2":
@@ -518,8 +518,11 @@ class TestEncrypted:
         # when needed
 
         self.distro = MockDistro()
-        original_device_part_info = self.distro.device_part_info
-        self.distro.device_part_info = self._device_part_info_side_effect
+        mocker.patch.object(
+            self.distro,
+            "device_part_info",
+            side_effect=self._device_part_info_side_effect,
+        )
         mocker.patch("os.stat")
         mocker.patch("stat.S_ISBLK")
         mocker.patch("stat.S_ISCHR")
@@ -553,7 +556,6 @@ class TestEncrypted:
         self.resizer = mock.Mock()
         self.resizer.resize = mock.Mock(return_value=(1024, 1024))
         yield
-        self.distro.device_part_info = original_device_part_info
 
     def test_resize_when_encrypted(self, common_mocks, caplog):
         info = cc_growpart.resize_devices(
