@@ -32,8 +32,7 @@ class TestResolvConf:
     cfg = {"manage_resolv_conf": True, "resolv_conf": {}}
 
     def call_resolv_conf_handler(self, distro, conf, paths):
-        ds = None
-        cc = cloud.Cloud(ds, paths, {}, distro, None)
+        cc = cloud.Cloud(mock.Mock(), paths, {}, distro, mock.Mock())
         cc_resolv_conf.handle("cc_resolv_conf", conf, cc, [])
 
     @mock.patch("cloudinit.config.cc_resolv_conf.templater.render_to_file")
@@ -88,10 +87,9 @@ class TestResolvConf:
     def test_resolv_conf_invalid_resolve_conf_fn(
         self, m_render_to_file, caplog, Distro, tmp_path
     ):
-        ds = None
         dist = Distro("rhel", self.cfg)
         paths = helpers.Paths({"cloud_dir": str(tmp_path)})
-        cc = cloud.Cloud(ds, paths, {}, dist, None)
+        cc = cloud.Cloud(mock.Mock(), paths, {}, dist, mock.Mock())
         cc.distro.resolve_conf_fn = "bla"
 
         cc_resolv_conf.handle("rhel", self.cfg, cc, [])
