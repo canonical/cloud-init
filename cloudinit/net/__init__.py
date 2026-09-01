@@ -25,6 +25,11 @@ IPV6_DYNAMIC_TYPES = [
     "ipv6_dhcpv6-stateless",
     "ipv6_dhcpv6-stateful",
 ]
+# Default/unprogrammed MAC address shipped on Intel i225 (NVM >= 1.53) and
+# all i226 NICs (igc driver) until the device is flashed with a real MAC
+# address in manufacturing. Not unique to a given NIC, so it must never be
+# treated as a real MAC address.
+INTEL_UNPROGRAMMED_MAC = "00:a0:c9:00:00:00"
 OVS_INTERNAL_INTERFACE_LOOKUP_CMD = [
     "ovs-vsctl",
     "--format",
@@ -1080,9 +1085,20 @@ def get_interfaces(
         if not mac:
             filtered_logger("Ignoring interface without mac: %s", name)
             continue
-        # skip nics that have no mac (00:00....)
-        if filter_zero_mac and name != "lo" and mac == zero_mac[: len(mac)]:
-            continue
+        # skip nics that have no real per-device mac assigned yet: either
+        # an all-zero mac (00:00...), or a known vendor placeholder mac
+        # that ships on unprogrammed hardware
+        if filter_zero_mac and name != "lo":
+            if mac == zero_mac[: len(mac)]:
+                continue
+            if mac == INTEL_UNPROGRAMMED_MAC:
+                filtered_logger(
+                    "Ignoring interface '%s' with unprogrammed "
+                    "placeholder mac '%s'.",
+                    name,
+                    mac,
+                )
+                continue
         if filter_openvswitch_internal and is_openvswitch_internal_interface(
             name
         ):
