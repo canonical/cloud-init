@@ -117,6 +117,7 @@ cloud_init_modules:
 {% endif %}
 {% if not is_bsd %}
   - disk_setup
+  - install_hotplug
   - mounts
 {% endif %}
   - set_hostname
@@ -210,7 +211,6 @@ cloud_final_modules:
   - scripts_user
   - ssh_authkey_fingerprints
   - keys_to_console
-  - install_hotplug
   - phone_home
   - final_message
   - power_state_change
