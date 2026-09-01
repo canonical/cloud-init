@@ -21,7 +21,7 @@ from urllib3.poolmanager import PoolManager
 
 from cloudinit import dmi, performance, sources, url_helper, util
 from cloudinit.event import EventScope, EventType
-from cloudinit.net.dhcp import NoDHCPLeaseError
+from cloudinit.net.dhcp import InvalidDHCPLeaseFileError, NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralDHCPv4, EphemeralIPv6Network
 from cloudinit.sources import DataSourceHostname
 from cloudinit.subp import ProcessExecutionError
@@ -257,7 +257,6 @@ class DataSourceScaleway(sources.DataSource):
         return False
 
     def _get_data(self):
-
         # The DataSource uses EventType.BOOT so we are called more than once.
         # Try to crawl metadata on IPv4 first and set has_ipv4 to False if we
         # timeout so we do not try to crawl on IPv4 more than once.
@@ -279,6 +278,7 @@ class DataSourceScaleway(sources.DataSource):
                     self.ephemeral_fixed_address = ipv4["fixed-address"]
                     self.metadata["net_in_use"] = "ipv4"
             except (
+                InvalidDHCPLeaseFileError,
                 NoDHCPLeaseError,
                 ConnectionError,
                 ProcessExecutionError,
@@ -305,6 +305,52 @@ class DataSourceScaleway(sources.DataSource):
             except ConnectionError:
                 return False
         return True
+
+    # Methods required by the DataSource base class
+    def get_instance_id(self):
+        if not self.metadata:
+            return None
+        return self.metadata.get("id")
+
+    def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
+        if not self.metadata:
+            return DataSourceHostname(None, True)
+        hostname = self.metadata.get("hostname")
+        if hostname:
+            return DataSourceHostname(hostname, False)
+        return DataSourceHostname(None, True)
+
+    def get_public_ssh_keys(self):
+        if not self.metadata:
+            return []
+        keys = []
+        for entry in self.metadata.get("ssh_public_keys", []):
+            if isinstance(entry, dict):
+                keys.append(entry["key"])
+        for tag in self.metadata.get("tags", []):
+            if tag.startswith("AUTHORIZED_KEY="):
+                key = tag.split("=", 1)[1].replace("_", " ")
+                keys.append(key)
+        return keys
+
+    @property
+    def availability_zone(self):
+        if not self.metadata:
+            return None
+        zone = self.metadata.get("zone")
+        if zone:
+            return zone
+        return None
+
+    @property
+    def region(self):
+        if not self.metadata:
+            return None
+        zone = self.availability_zone
+        if zone:
+            # zone format: "fr-par-1"
+            return "-".join(zone.split("-")[:-1])
+        return None
 
     @property
     def network_config(self):
@@ -360,37 +406,30 @@ class DataSourceScaleway(sources.DataSource):
     def launch_index(self):
         return None
 
-    def get_instance_id(self):
-        return self.metadata["id"]
 
-    def get_public_ssh_keys(self):
-        ssh_keys = [key["key"] for key in self.metadata["ssh_public_keys"]]
-
-        akeypre = "AUTHORIZED_KEY="
-        plen = len(akeypre)
-        for tag in self.metadata.get("tags", []):
-            if not tag.startswith(akeypre):
-                continue
-            ssh_keys.append(tag[plen:].replace("_", " "))
-
-        return ssh_keys
-
-    def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
-        return DataSourceHostname(self.metadata["hostname"], False)
-
-    @property
-    def availability_zone(self):
-        return self.metadata["zone"]
-
-    @property
-    def region(self):
-        return self.metadata["zone"].rpartition("-")[0]
-
-
+# Used to match classes to dependencies
 datasources = [
     (DataSourceScaleway, (sources.DEP_FILESYSTEM,)),
 ]
 
 
+# Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
+
+
+if __name__ == "__main__":
+    import sys
+
+    if not DataSourceScaleway.ds_detect():
+        print("Machine is not a Scaleway instance")
+        sys.exit(1)
+
+    distro = sources.MockDistro()  # pylint: disable=no-member
+    ds = DataSourceScaleway({}, distro, None)
+    ds.get_data()
+    print("Instance ID: %s" % ds.get_instance_id())
+    print("Hostname: %s" % ds.get_hostname())
+    print("SSH Keys: %s" % ds.get_public_ssh_keys())
+    print("Availability Zone: %s" % ds.availability_zone)
+    print("Region: %s" % ds.region)
