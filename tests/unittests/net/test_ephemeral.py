@@ -4,6 +4,7 @@ from unittest import mock
 
 import pytest
 
+from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralIPNetwork
 from cloudinit.subp import ProcessExecutionError
 from cloudinit.url_helper import UrlError
@@ -273,3 +274,20 @@ class TestEphemeralIPNetwork:
                 "No connectivity to IMDS, attempting DHCP setup."
                 in caplog.text
             )
+
+    def test_no_dhcp_lease_raises(self, mocker):
+        """Test that NoDHCPLeaseError is raised when no DHCP lease can be obtained."""
+        error = NoDHCPLeaseError()
+        mocker.patch.object(
+            EphemeralIPNetwork,
+            "_perform_ephemeral_network_setup",
+            return_value=(False, error),
+        )
+        mocker.patch(
+            M_PATH + "_check_connectivity_to_imds",
+            return_value=None,
+        )
+        distro = MockDistro()
+        with pytest.raises(NoDHCPLeaseError):
+            with EphemeralIPNetwork(distro, "eth0", ipv4=True, ipv6=False):
+                pass
