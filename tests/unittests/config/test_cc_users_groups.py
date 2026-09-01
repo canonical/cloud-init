@@ -28,7 +28,7 @@ class TestHandleUsersGroups:
 
     def test_handle_no_cfg_creates_no_users_or_groups(self, m_user, m_group):
         """Test handle with no config will not create users or groups."""
-        cfg = {}  # merged cloud-config
+        cfg: dict = {}  # merged cloud-config
         # System config defines a default user for the distro.
         sys_cfg = {
             "default_user": {
@@ -38,9 +38,9 @@ class TestHandleUsersGroups:
                 "shell": "/bin/bash",
             }
         }
-        metadata = {}
+        metadata: dict = {}
         cloud = get_cloud(distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata)
-        cc_users_groups.handle("modulename", cfg, cloud, None)
+        cc_users_groups.handle("modulename", cfg, cloud, [])
         m_user.assert_not_called()
         m_group.assert_not_called()
 
@@ -56,9 +56,9 @@ class TestHandleUsersGroups:
                 "shell": "/bin/bash",
             }
         }
-        metadata = {}
+        metadata: dict = {}
         cloud = get_cloud(distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata)
-        cc_users_groups.handle("modulename", cfg, cloud, None)
+        cc_users_groups.handle("modulename", cfg, cloud, [])
         assert_count_equal(
             m_user.call_args_list,
             [
@@ -96,7 +96,7 @@ class TestHandleUsersGroups:
                 "homedir": "/home/freebsd",
             }
         }
-        metadata = {}
+        metadata: dict = {}
         # patch ifconfig -a
         with mock.patch(
             "cloudinit.distros.networking.subp.subp", return_value=("", None)
@@ -104,7 +104,7 @@ class TestHandleUsersGroups:
             cloud = get_cloud(
                 distro="freebsd", sys_cfg=sys_cfg, metadata=metadata
             )
-        cc_users_groups.handle("modulename", cfg, cloud, None)
+        cc_users_groups.handle("modulename", cfg, cloud, [])
         assert_count_equal(
             m_fbsd_user.call_args_list,
             [
@@ -138,7 +138,7 @@ class TestHandleUsersGroups:
         }
         metadata = {"public-keys": ["key1"]}
         cloud = get_cloud(distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata)
-        cc_users_groups.handle("modulename", cfg, cloud, None)
+        cc_users_groups.handle("modulename", cfg, cloud, [])
         assert_count_equal(
             m_user.call_args_list,
             [
@@ -177,7 +177,7 @@ class TestHandleUsersGroups:
         }
         metadata = {"public-keys": ["key1"]}
         cloud = get_cloud(distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata)
-        cc_users_groups.handle("modulename", cfg, cloud, None)
+        cc_users_groups.handle("modulename", cfg, cloud, [])
         assert_count_equal(
             m_user.call_args_list,
             [
@@ -214,7 +214,7 @@ class TestHandleUsersGroups:
             match=r"Not creating user me2. Key\(s\) ssh_import_id cannot be"
             " provided with no_create_home",
         ):
-            cc_users_groups.handle("modulename", cfg, cloud, None)
+            cc_users_groups.handle("modulename", cfg, cloud, [])
         m_group.assert_not_called()
 
     def test_users_with_ssh_redirect_user_non_default(self, m_user, m_group):
@@ -241,7 +241,7 @@ class TestHandleUsersGroups:
             match="Not creating user me2. Invalid value of ssh_redirect_user:"
             " snowflake. Expected values: true, default or false.",
         ):
-            cc_users_groups.handle("modulename", cfg, cloud, None)
+            cc_users_groups.handle("modulename", cfg, cloud, [])
         m_group.assert_not_called()
 
     def test_users_with_ssh_redirect_user_default_false(self, m_user, m_group):
@@ -258,7 +258,7 @@ class TestHandleUsersGroups:
         }
         metadata = {"public-keys": ["key1"]}
         cloud = get_cloud(distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata)
-        cc_users_groups.handle("modulename", cfg, cloud, None)
+        cc_users_groups.handle("modulename", cfg, cloud, [])
         assert_count_equal(
             m_user.call_args_list,
             [
@@ -281,10 +281,10 @@ class TestHandleUsersGroups:
             "users": ["default", {"name": "me2", "ssh_redirect_user": True}]
         }
         # System config defines *no* default user for the distro.
-        sys_cfg = {}
-        metadata = {}  # no public-keys defined
+        sys_cfg: dict = {}
+        metadata: dict = {}  # no public-keys defined
         cloud = get_cloud(distro="ubuntu", sys_cfg=sys_cfg, metadata=metadata)
-        cc_users_groups.handle("modulename", cfg, cloud, None)
+        cc_users_groups.handle("modulename", cfg, cloud, [])
         m_user.assert_called_once_with("me2", default=False)
         m_group.assert_not_called()
         assert [
