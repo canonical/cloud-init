@@ -79,7 +79,7 @@ ansible:
 write_files:
   - path: /home/ansible/.ssh/known_hosts
     owner: ansible:ansible
-    permissions: 0o600
+    permissions: "0o600"
     defer: true
     content: |
       |1|YJEFAk6JjnXpUjUSLFiBQS55W9E=|OLNePOn3eBa1PWhBBmt5kXsbGM4= ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
@@ -88,7 +88,7 @@ write_files:
 
   - path: /home/ansible/.ssh/id_rsa
     owner: ansible:ansible
-    permissions: 0o600
+    permissions: "0o600"
     defer: true
     encoding: base64
     content: |
