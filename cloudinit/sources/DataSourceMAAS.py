@@ -43,6 +43,10 @@ class DataSourceMAAS(sources.DataSource):
     id_hash = None
     _oauth_helper = None
 
+    # Tell ConfigMerger to append vendor-data lists (e.g. write_files, runcmd)
+    # to user-data lists so MAAS networking configuration is not dropped.
+    append_vendor_list_data = True
+
     # Setup read_url parameters per get_url_params.
     url_max_wait = 120
     url_timeout = 50
