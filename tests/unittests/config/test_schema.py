@@ -13,7 +13,7 @@ from errno import EACCES
 from pathlib import Path
 from textwrap import dedent
 from types import ModuleType
-from typing import List
+from typing import List, cast
 
 import pytest
 import yaml
@@ -1049,10 +1049,16 @@ class TestAnnotatedCloudconfigFile:
         """With no schema_errors, print the original content."""
         content = b"ntp:\n  pools: [ntp1.pools.com]\n"
         _, schemamarks = load_with_marks(content)
-        assert content == annotated_cloudconfig_file(
-            content,
-            schemamarks=schemamarks,
-            schema_errors=[],
+        assert (
+            content
+            == cast(
+                str,
+                annotated_cloudconfig_file(
+                    content.decode(),
+                    schemamarks=schemamarks,
+                    schema_errors=[],
+                ),
+            ).encode()
         )
 
     def test_annotated_cloudconfig_file_schema_annotates_and_adds_footer(self):
