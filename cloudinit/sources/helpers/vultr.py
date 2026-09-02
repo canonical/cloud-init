@@ -6,10 +6,12 @@ import json
 import logging
 import os
 from functools import lru_cache
+from typing import Any, Dict, List, Mapping, Optional, Sequence, TypedDict
 
 from requests import exceptions
 
 from cloudinit import dmi, net, subp, url_helper, util
+from cloudinit.distros import Distro
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralDHCPv4
 
@@ -17,12 +19,28 @@ from cloudinit.net.ephemeral import EphemeralDHCPv4
 LOG = logging.getLogger(__name__)
 
 
+class SystemInfo(TypedDict):
+    manufacturer: Optional[str]
+    subid: Optional[str]
+
+
+class NetworkConfig(TypedDict):
+    version: int
+    config: List[Dict[str, Any]]
+
+
 @lru_cache()
 def get_metadata(
-    distro, url, timeout, retries, sec_between, agent, tmp_dir=None
-):
+    distro: Distro,
+    url: str,
+    timeout: int,
+    retries: int,
+    sec_between: int,
+    agent: str,
+    tmp_dir: Optional[str] = None,
+) -> Dict[str, Any]:
     # Bring up interface (and try until one works)
-    exception = RuntimeError("Failed to DHCP")
+    exception: Exception = RuntimeError("Failed to DHCP")
 
     # Seek iface with DHCP
     for iface in get_interface_list():
@@ -50,7 +68,7 @@ def get_metadata(
 
 
 # Refactor metadata into acceptable format
-def refactor_metadata(metadata):
+def refactor_metadata(metadata: Dict[str, Any]) -> None:
     metadata["instance-id"] = metadata["instance-v2-id"]
     metadata["local-hostname"] = metadata["hostname"]
     region = metadata["region"]["regioncode"]
@@ -60,7 +78,7 @@ def refactor_metadata(metadata):
 
 
 # Get interface list, sort, and clean
-def get_interface_list():
+def get_interface_list() -> List[str]:
     # Check for the presence of a "find_candidate_nics.sh" shell script on the
     # running guest image. Use that as an optional source of truth before
     # falling back to "net.find_candidate_nics()". This allows the Vultr team
@@ -89,7 +107,7 @@ def get_interface_list():
 
 
 # Read the system information from SMBIOS
-def get_sysinfo():
+def get_sysinfo() -> SystemInfo:
     return {
         "manufacturer": dmi.read_dmi_data("system-manufacturer"),
         "subid": dmi.read_dmi_data("system-serial-number"),
@@ -97,14 +115,14 @@ def get_sysinfo():
 
 
 # Assumes is Vultr is already checked
-def is_baremetal():
+def is_baremetal() -> bool:
     if get_sysinfo()["manufacturer"] != "Vultr":
         return True
     return False
 
 
 # Confirm is Vultr
-def is_vultr():
+def is_vultr() -> bool:
     # VC2, VDC, and HFC use DMI
     sysinfo = get_sysinfo()
 
@@ -119,7 +137,9 @@ def is_vultr():
 
 
 # Read Metadata endpoint
-def read_metadata(url, timeout, retries, sec_between, agent):
+def read_metadata(
+    url: str, timeout: int, retries: int, sec_between: int, agent: str
+) -> str:
     url = "%s/v1.json" % url
 
     # Announce os details so we can handle non Vultr origin
@@ -144,12 +164,12 @@ def read_metadata(url, timeout, retries, sec_between, agent):
 
 # Wrapped for caching
 @lru_cache()
-def get_interface_map():
+def get_interface_map() -> Dict[str, str]:
     return net.get_interfaces_by_mac()
 
 
 # Convert macs to nics
-def get_interface_name(mac):
+def get_interface_name(mac: str) -> Optional[str]:
     macs_to_nic = get_interface_map()
 
     if mac not in macs_to_nic:
@@ -159,8 +179,10 @@ def get_interface_name(mac):
 
 
 # Generate network configs
-def generate_network_config(interfaces):
-    network = {
+def generate_network_config(
+    interfaces: Sequence[Mapping[str, Any]],
+) -> NetworkConfig:
+    network: NetworkConfig = {
         "version": 1,
         "config": [
             {
@@ -189,7 +211,9 @@ def generate_network_config(interfaces):
     return network
 
 
-def generate_interface(interface, primary=False):
+def generate_interface(
+    interface: Mapping[str, Any], primary: bool = False
+) -> Dict[str, Any]:
     interface_name = get_interface_name(interface["mac"])
     if not interface_name:
         raise RuntimeError(
@@ -226,7 +250,9 @@ def generate_interface(interface, primary=False):
     return netcfg
 
 
-def generate_interface_routes(interface, netcfg):
+def generate_interface_routes(
+    interface: Mapping[str, Any], netcfg: Dict[str, Any]
+) -> None:
     # Options that may or may not be used
     if "mtu" in interface:
         netcfg["mtu"] = interface["mtu"]
@@ -238,7 +264,9 @@ def generate_interface_routes(interface, netcfg):
         netcfg["subnets"][0]["routes"] = interface["routes"]
 
 
-def generate_interface_additional_addresses(interface, netcfg):
+def generate_interface_additional_addresses(
+    interface: Mapping[str, Any], netcfg: Dict[str, Any]
+) -> None:
     # Check for additional IP's
     additional_count = len(interface["ipv4"]["additional"])
     if "ipv4" in interface and additional_count > 0:
@@ -273,7 +301,7 @@ def generate_interface_additional_addresses(interface, netcfg):
 
 
 # Make required adjustments to the network configs provided
-def add_interface_names(netcfg):
+def add_interface_names(netcfg: Mapping[str, Any]) -> None:
     for interface in netcfg["config"]:
         if interface["type"] != "physical":
             continue

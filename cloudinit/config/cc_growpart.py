@@ -260,13 +260,14 @@ def devent2dev(devent: str) -> Tuple[str, Optional[str]]:
 
     # Ensure the path is a block device.
     if dev == "/dev/root" and not container:
-        dev = util.rootdev_from_cmdline(util.get_cmdline())
-        if dev is None:
-            if os.path.exists("/dev/root"):
+        real_dev = util.rootdev_from_cmdline(util.get_cmdline())
+        if real_dev is None:
+            if os.path.exists(dev):
                 # if /dev/root exists, but we failed to convert
                 # that to a "real" /dev/ path device, then return it.
-                return "/dev/root", None
+                return dev, None
             raise ValueError("Unable to find device '/dev/root'")
+        dev = real_dev
     return dev, fs
 
 
