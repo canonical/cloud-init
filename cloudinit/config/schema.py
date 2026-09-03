@@ -1217,13 +1217,9 @@ def get_schema_dir() -> str:
     """Return the directory containing cloud-init's JSON schema files.
 
     The schema files are architecture-independent data, so they are
-    installed under datadir (typically /usr/share/cloud-init/schemas)
-    instead of inside the Python package. Meson records that location in
-    the generated cloudinit/meson_paths.py at build time, because only the
-    build system knows the configured prefix.
-
-    When running from a source checkout no such file has been generated,
-    so fall back to the schemas directory at the root of the source tree.
+    installed under datadir instead of inside the Python package. Meson 
+    records that location in the generated cloudinit/meson_paths.py at 
+    build time, because only the build system knows the configured prefix.
     """
     try:
         from cloudinit import meson_paths  # type: ignore
