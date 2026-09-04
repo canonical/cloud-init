@@ -252,8 +252,8 @@ class Distro(distros.Distro):
         }
 
         for key, val in sorted(kwargs.items()):
-            if key in adduser_opts and val and isinstance(val, str):
-                adduser_cmd.extend([adduser_opts[key], val])
+            if key in adduser_opts and val and isinstance(val, (str, int)):
+                adduser_cmd.extend([adduser_opts[key], str(val)])
         if system:
             adduser_cmd.append("-S")
 

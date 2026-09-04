@@ -5,7 +5,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
-from typing import List
 
 from cloudinit import net, subp
 from cloudinit.distros import debian
@@ -68,7 +67,7 @@ class Distro(debian.Distro):
             else:
                 LOG.error("Failed to set locale %s", locale)
 
-    def _post_add_user(self, name: str, groups: List[str], **kwargs) -> None:
+    def _post_add_user(self, name: str, **kwargs) -> None:
         try:
             subp.subp(
                 [

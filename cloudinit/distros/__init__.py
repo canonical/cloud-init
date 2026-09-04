@@ -678,9 +678,6 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                     self.create_group(group)
                     LOG.debug("created group '%s' for user '%s'", group, name)
 
-        if "uid" in kwargs:
-            kwargs["uid"] = str(kwargs["uid"])
-
         LOG.debug("Adding user %s", name)
         self._add_user(
             name,
@@ -709,7 +706,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         except subp.ProcessExecutionError:
             LOG.warning("Failed to create user %s", name)
             raise
-        self._post_add_user(name, groups, **kwargs)
+        self._post_add_user(name, **kwargs)
 
     def _build_add_user_cmd(
         self, name: str, groups: List[str], **kwargs
@@ -755,14 +752,14 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             useradd_cmd.extend(["--groups", ",".join(groups)])
             log_useradd_cmd.extend(["--groups", ",".join(groups)])
         for key, val in sorted(kwargs.items()):
-            if key in useradd_opts and val and isinstance(val, str):
-                useradd_cmd.extend([useradd_opts[key], val])
+            if key in useradd_opts and val and isinstance(val, (str, int)):
+                useradd_cmd.extend([useradd_opts[key], str(val)])
 
                 # Redact certain fields from the logs
                 if key in redact_opts:
                     log_useradd_cmd.extend([useradd_opts[key], "REDACTED"])
                 else:
-                    log_useradd_cmd.extend([useradd_opts[key], val])
+                    log_useradd_cmd.extend([useradd_opts[key], str(val)])
 
             elif key in useradd_flags and val:
                 useradd_cmd.append(useradd_flags[key])
@@ -779,7 +776,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         return useradd_cmd, log_useradd_cmd
 
-    def _post_add_user(self, name: str, groups: List[str], **kwargs) -> None:
+    def _post_add_user(self, name: str, **kwargs) -> None:
         """Hook called after the user-creation command succeeds.
 
         Overridden to perform distro-specific post-creation steps.
@@ -1339,14 +1336,15 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         cls, *, mode: str, delay: Union[int, str], message: str
     ) -> List[str]:
         try:
-            if delay != "now":
-                delay = "+%d" % int(delay)
+            shutdown_delay: str = (
+                delay if delay == "now" else "+%d" % int(delay)
+            )
         except ValueError as e:
             raise TypeError(
                 "power_state[delay] must be 'now' or '+m' (minutes)."
                 " found '%s'." % (delay,)
             ) from e
-        return cls._build_shutdown_command(mode, delay, message)  # type: ignore[arg-type]
+        return cls._build_shutdown_command(mode, shutdown_delay, message)
 
     @classmethod
     def _build_shutdown_command(

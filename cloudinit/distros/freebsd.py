@@ -143,7 +143,6 @@ class Distro(cloudinit.distros.bsd.BSD):
     def _post_add_user(
         self,
         name: str,
-        groups: List[str],
         passwd: Optional[str] = None,
         **kwargs,
     ) -> None:
