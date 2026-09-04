@@ -5,6 +5,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
+from typing import Dict
 
 from cloudinit.distros import rhel
 from cloudinit.net.netplan import CLOUDINIT_NETPLAN_FILE
@@ -21,6 +22,8 @@ NETWORK_FILE_HEADER = """\
 
 
 class Distro(rhel.Distro):
+    network_conf_fn: Dict[str, str]  # type: ignore[assignment]
+
     def __init__(self, name, cfg, paths):
         super().__init__(name, cfg, paths)
         self.osfamily = "azurelinux"
