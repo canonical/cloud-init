@@ -1337,7 +1337,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     ) -> List[str]:
         try:
             shutdown_delay: str = (
-                delay if delay == "now" else "+%d" % int(delay)
+                str(delay) if delay == "now" else "+%d" % int(delay)
             )
         except ValueError as e:
             raise TypeError(
