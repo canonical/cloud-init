@@ -217,7 +217,7 @@ def handle_clean_args(name, args):
             del_file(ETC_MACHINE_ID)
     if exit_code == 0 and args.reboot:
         cmd = init.distro.shutdown_command(
-            mode="reboot", delay="now", message=None
+            mode="reboot", delay="now", message=""
         )
         try:
             subp(cmd, capture=False)
