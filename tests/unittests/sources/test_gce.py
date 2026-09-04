@@ -405,9 +405,10 @@ class TestDataSourceGCE:
         M_PATH + "EphemeralDHCPv4",
         autospec=True,
     )
-    @mock.patch(M_PATH + "net.find_candidate_nics", return_value=["ens4"])
+    @mock.patch(M_PATH + "dmi.read_dmi_data", return_value="other-board")
+    @mock.patch(M_PATH + "net.wait_for_candidate_nics", return_value=["ens4"])
     def test_local_datasource_uses_ephemeral_dhcp(
-        self, _m_find_candidate_nics, m_dhcp, tmp_path
+        self, _m_wait_for_candidate_nics, _m_read_dmi, m_dhcp, tmp_path
     ):
         self._set_mock_metadata()
         distro = mock.MagicMock()
@@ -418,15 +419,64 @@ class TestDataSourceGCE:
         ds._get_data()
         assert m_dhcp.call_count == 1
 
+    @mock.patch(M_PATH + "net.wait_for_candidate_nics")
+    @mock.patch(M_PATH + "dmi.read_dmi_data")
+    def test_local_datasource_waits_for_allowlisted_board(
+        self,
+        m_read_dmi,
+        m_wait_for_candidate_nics,
+        tmp_path,
+    ):
+        distro = mock.MagicMock()
+        distro.get_tmp_exec_path = str(tmp_path)
+        ds = DataSourceGCE.DataSourceGCELocal(
+            sys_cfg={}, distro=distro, paths=None
+        )
+        m_read_dmi.return_value = "izumi"
+        m_wait_for_candidate_nics.return_value = []
+
+        assert ds._get_data() is False
+        m_wait_for_candidate_nics.assert_called_once_with(
+            timeout=60, sleep_interval=1
+        )
+
+    @mock.patch(M_PATH + "net.wait_for_candidate_nics")
+    @mock.patch(M_PATH + "dmi.read_dmi_data")
+    def test_local_datasource_does_not_wait_for_non_allowlisted_board(
+        self,
+        m_read_dmi,
+        m_wait_for_candidate_nics,
+        tmp_path,
+    ):
+        distro = mock.MagicMock()
+        distro.get_tmp_exec_path = str(tmp_path)
+        ds = DataSourceGCE.DataSourceGCELocal(
+            sys_cfg={}, distro=distro, paths=None
+        )
+        m_read_dmi.return_value = "other-board"
+        m_wait_for_candidate_nics.return_value = []
+
+        assert ds._get_data() is False
+        m_wait_for_candidate_nics.assert_called_once_with(
+            timeout=0, sleep_interval=1
+        )
+
     @responses.activate
     @mock.patch(M_PATH + "read_md")
     @mock.patch(
         M_PATH + "EphemeralDHCPv4",
         autospec=True,
     )
-    @mock.patch(M_PATH + "net.find_candidate_nics")
+    @mock.patch(M_PATH + "dmi.read_dmi_data", return_value="other-board")
+    @mock.patch(M_PATH + "net.wait_for_candidate_nics")
     def test_local_datasource_tries_on_multi_nic(
-        self, m_find_candidate_nics, m_dhcp, m_read_md, caplog, tmp_path
+        self,
+        m_wait_for_candidate_nics,
+        _m_read_dmi,
+        m_dhcp,
+        m_read_md,
+        caplog,
+        tmp_path,
     ):
         self._set_mock_metadata()
         distro = mock.MagicMock()
@@ -434,7 +484,7 @@ class TestDataSourceGCE:
         ds = DataSourceGCE.DataSourceGCELocal(
             sys_cfg={}, distro=distro, paths=None
         )
-        m_find_candidate_nics.return_value = [
+        m_wait_for_candidate_nics.return_value = [
             "ens0p4",
             "ens0p5",
             "ens0p6",
@@ -497,9 +547,15 @@ class TestDataSourceGCE:
         M_PATH + "EphemeralDHCPv4",
         autospec=True,
     )
-    @mock.patch(M_PATH + "net.find_candidate_nics")
+    @mock.patch(M_PATH + "dmi.read_dmi_data", return_value="other-board")
+    @mock.patch(M_PATH + "net.wait_for_candidate_nics")
     def test_datasource_on_dhcp_lease_failure(
-        self, m_find_candidate_nics, m_dhcp, caplog, tmp_path
+        self,
+        m_wait_for_candidate_nics,
+        _m_read_dmi,
+        m_dhcp,
+        caplog,
+        tmp_path,
     ):
         self._set_mock_metadata()
         distro = mock.MagicMock()
@@ -507,7 +563,7 @@ class TestDataSourceGCE:
         ds = DataSourceGCE.DataSourceGCELocal(
             sys_cfg={}, distro=distro, paths=None
         )
-        m_find_candidate_nics.return_value = [
+        m_wait_for_candidate_nics.return_value = [
             "ens0p4",
             "ens0p5",
         ]

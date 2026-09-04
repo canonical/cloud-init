@@ -26,6 +26,15 @@ HOSTKEY_NAMESPACE = "hostkeys"
 HEADERS = {"Metadata-Flavor": "Google"}
 DEFAULT_PRIMARY_INTERFACE = "ens4"
 
+# Board names (from DMI baseboard-product-name) for GCE platforms known to
+# exhibit a NIC initialization race condition where kernel network drivers
+# are not ready when cloud-init-local runs. Polling for NICs is restricted
+# to these board names to avoid unnecessary boot delays on other instances.
+# Addresses GH-6737.
+NETWORK_POLLING_BOARD_ALLOW_LIST = [
+    "izumi",  # c3-metal
+]
+
 
 class GoogleMetadataFetcher:
     def __init__(self, metadata_address, num_retries, sec_between_retries):
@@ -89,14 +98,25 @@ class DataSourceGCE(sources.DataSource):
         url_params = self.get_url_params()
         ret = {}
         if self.perform_dhcp_setup:
-            candidate_nics = net.find_candidate_nics()
+            board_name = dmi.read_dmi_data("baseboard-product-name")
+            wait_for_nics = board_name in NETWORK_POLLING_BOARD_ALLOW_LIST
+            if wait_for_nics:
+                LOG.debug(
+                    "Board %s is in NIC polling allowlist, waiting for NICs",
+                    board_name,
+                )
+            candidate_nics = net.wait_for_candidate_nics(
+                timeout=60 if wait_for_nics else 0, sleep_interval=1
+            )
+            # Abort if NICs are still unavailable
+            # (whether retry was attempted or skipped).
+            if not candidate_nics:
+                LOG.error("The instance must have at least one eligible NIC")
+                return False
             if DEFAULT_PRIMARY_INTERFACE in candidate_nics:
                 candidate_nics.remove(DEFAULT_PRIMARY_INTERFACE)
                 candidate_nics.insert(0, DEFAULT_PRIMARY_INTERFACE)
             LOG.debug("Looking for the primary NIC in: %s", candidate_nics)
-            assert (
-                len(candidate_nics) >= 1
-            ), "The instance has to have at least one candidate NIC"
             for candidate_nic in candidate_nics:
                 network_context = EphemeralDHCPv4(
                     self.distro,
