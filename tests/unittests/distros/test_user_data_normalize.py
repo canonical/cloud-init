@@ -1,4 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+from typing import Any, Dict
 from unittest import mock
 
 import pytest
@@ -6,7 +7,7 @@ import pytest
 from cloudinit import distros, helpers, settings
 from cloudinit.distros import ug_util
 
-bcfg = {
+bcfg: Dict[str, Any] = {
     "name": "bob",
     "plain_text_passwd": "ubuntu",
     "home": "/home/ubuntu",
@@ -19,7 +20,7 @@ bcfg = {
 
 class TestUGNormalize:
     def _make_distro(self, dtype, def_user=None):
-        cfg = dict(settings.CFG_BUILTIN)
+        cfg: Dict[str, Any] = dict(settings.CFG_BUILTIN)
         cfg["system_info"]["distro"] = dtype
         paths = helpers.Paths(cfg["system_info"]["paths"])
         distro_cls = distros.fetch(dtype)
@@ -141,7 +142,7 @@ class TestUGNormalize:
 
     def test_users_old_user(self):
         distro = self._make_distro("ubuntu", bcfg)
-        ug_cfg = {"user": "zetta", "users": "default"}
+        ug_cfg: Dict[str, Any] = {"user": "zetta", "users": "default"}
         users, _groups = self._norm(ug_cfg, distro)
         assert "bob" not in users  # Bob is not the default now, zetta is
         assert "zetta" in users
@@ -214,7 +215,7 @@ class TestUGNormalize:
                 # matches the passed config: False
                 assert users["bob"][key] is False
             elif key == "groups":
-                assert users["bob"][key] == ",".join(val)
+                assert users["bob"][key] == ",".join(list(val))
             elif key != "name":
                 assert users["bob"][key] == val
 
@@ -231,7 +232,7 @@ class TestUGNormalize:
         assert "bob" in users
         name, config = ug_util.extract_default(users)
         assert name == "bob"
-        expected_config = {}
+        expected_config: Dict[str, Any] = {}
         def_config = None
         try:
             def_config = distro.get_default_user()

@@ -1,13 +1,18 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+from typing import cast
 from unittest import mock
 
 from cloudinit import distros
+from cloudinit.distros import opensuse as opensuse_distro
 
 
 @mock.patch("cloudinit.distros.opensuse.subp.subp")
 class TestPackageCommands:
-    distro = distros.fetch("opensuse")("opensuse", {}, None)
+    distro: opensuse_distro.Distro = cast(
+        opensuse_distro.Distro,
+        distros.fetch("opensuse")("opensuse", {}, None),
+    )
 
     @mock.patch(
         "cloudinit.distros.opensuse.util.get_mount_info",

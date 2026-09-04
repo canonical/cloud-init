@@ -1,4 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+
 import pytest
 
 from cloudinit.distros.parsers.ifconfig import Ifconfig

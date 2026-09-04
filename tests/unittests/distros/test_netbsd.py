@@ -40,7 +40,7 @@ class TestNetBSD:
 def test_init(m_os, with_pkgin):
     print(with_pkgin)
     m_os.path.exists.return_value = with_pkgin
-    cfg = {}
+    cfg: dict = {}
 
     # patch ifconfig -a
     with mock.patch(
