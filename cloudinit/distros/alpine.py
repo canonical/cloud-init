@@ -220,7 +220,6 @@ class Distro(distros.Distro):
     ) -> None:
         if selinux_user:
             LOG.warning("Ignoring selinux_user parameter for Alpine Linux")
-            selinux_user = None
 
         # If 'useradd' is available (e.g. shadow package installed) use the
         # generic GNU implementation.
@@ -229,7 +228,6 @@ class Distro(distros.Distro):
                 name,
                 groups=groups,
                 passwd=passwd,
-                selinux_user=selinux_user,
                 no_create_home=no_create_home,
                 system=system,
                 expiredate=expiredate,
