@@ -3,6 +3,7 @@
 import configparser
 import logging
 import re
+from unittest import mock
 
 import pytest
 
@@ -36,7 +37,7 @@ class TestConfig:
                 },
             },
         }
-        cc_yum_add_repo.handle("yum_add_repo", cfg, None, [])
+        cc_yum_add_repo.handle("yum_add_repo", cfg, mock.Mock(), [])
         with pytest.raises(IOError):
             util.load_text_file("/etc/yum.repos.d/epel_testing.repo")
 
@@ -53,7 +54,7 @@ class TestConfig:
                 },
             },
         }
-        cc_yum_add_repo.handle("yum_add_repo", cfg, None, [])
+        cc_yum_add_repo.handle("yum_add_repo", cfg, mock.Mock(), [])
         contents = util.load_text_file("/etc/yum.repos.d/epel-testing.repo")
         parser = configparser.ConfigParser()
         parser.read_string(contents)
@@ -87,7 +88,7 @@ class TestConfig:
                 },
             },
         }
-        cc_yum_add_repo.handle("yum_add_repo", cfg, None, [])
+        cc_yum_add_repo.handle("yum_add_repo", cfg, mock.Mock(), [])
         contents = util.load_text_file("/etc/yum.repos.d/epel-testing.repo")
         parser = configparser.ConfigParser()
         parser.read_string(contents)
@@ -121,7 +122,7 @@ class TestConfig:
                 },
             },
         }
-        cc_yum_add_repo.handle("yum_add_repo", cfg, None, [])
+        cc_yum_add_repo.handle("yum_add_repo", cfg, mock.Mock(), [])
         contents = util.load_text_file("/etc/yum.repos.d/epel-testing.repo")
         parser = configparser.ConfigParser()
         parser.read_string(contents)
@@ -159,7 +160,7 @@ class TestConfig:
                 }
             }
         }
-        cc_yum_add_repo.handle("yum_add_repo", cfg, None, [])
+        cc_yum_add_repo.handle("yum_add_repo", cfg, mock.Mock(), [])
         contents = util.load_text_file(
             "/etc/yum.repos.d/puppetlabs-products.repo"
         )
