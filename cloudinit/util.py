@@ -718,7 +718,7 @@ def get_cfg_by_path(yobj, keyp, default=None):
 
 
 def fixup_output(cfg, mode):
-    (outfmt, errfmt) = get_output_cfg(cfg, mode)
+    outfmt, errfmt = get_output_cfg(cfg, mode)
     redirect_output(outfmt, errfmt)
     return (outfmt, errfmt)
 
@@ -768,7 +768,7 @@ def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
 
     if outfmt:
         LOG.debug("Redirecting %s to %s", o_out, outfmt)
-        (mode, arg) = outfmt.split(" ", 1)
+        mode, arg = outfmt.split(" ", 1)
         if mode == ">" or mode == ">>":
             owith = "ab"
             if mode == ">":
@@ -797,7 +797,7 @@ def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
 
     if errfmt:
         LOG.debug("Redirecting %s to %s", o_err, errfmt)
-        (mode, arg) = errfmt.split(" ", 1)
+        mode, arg = errfmt.split(" ", 1)
         if mode == ">" or mode == ">>":
             owith = "ab"
             if mode == ">":
@@ -1502,7 +1502,7 @@ def find_devs_with(
     cmd = blk_id_cmd + options
     # See man blkid for why 2 is added
     try:
-        (out, _err) = subp.subp(cmd, rcs=[0, 2])
+        out, _err = subp.subp(cmd, rcs=[0, 2])
     except subp.ProcessExecutionError as e:
         if e.errno == ENOENT:
             # blkid not found...
@@ -1910,6 +1910,35 @@ def unmounter(umount):
             subp.subp(umount_cmd)
 
 
+# Per fstab(5), fstab fields are whitespace-separated, so these characters
+# must be octal-escaped when they appear inside a field. Backslash must come
+# first so we don't double-escape the escapes we introduce.
+_FSTAB_ESCAPES = (
+    ("\\", "\\134"),
+    (" ", "\\040"),
+    ("\t", "\\011"),
+    ("\n", "\\012"),
+)
+
+
+def escape_fstab_field(value: str) -> str:
+    """Octal-escape special characters for safe writing to fstab."""
+    for char, escaped in _FSTAB_ESCAPES:
+        value = value.replace(char, escaped)
+    return value
+
+
+def unescape_fstab_field(value: str) -> str:
+    """Reverse escape_fstab_field.
+
+    Iterate _FSTAB_ESCAPES in reverse so backslash is decoded last; this
+    avoids mis-decoding a field whose original value contained a backslash.
+    """
+    for char, escaped in reversed(_FSTAB_ESCAPES):
+        value = value.replace(escaped, char)
+    return value
+
+
 def mounts():
     mounted = {}
     try:
@@ -1929,7 +1958,7 @@ def mounts():
                 words = mpline.split()
                 if len(words) != 6:
                     continue
-                (dev, mp, fstype, opts, _freq, _passno) = words
+                dev, mp, fstype, opts, _freq, _passno = words
             else:
                 m = mountre.search(mpline)
                 if m is None or len(m.groups()) < 4:
@@ -1938,9 +1967,9 @@ def mounts():
                 mp = m.group(2)
                 fstype = m.group(3)
                 opts = m.group(4)
-            # If the name of the mount point contains spaces these
-            # can be escaped as '\040', so undo that..
-            mp = mp.replace("\\040", " ")
+            # Mount points may contain octal-escaped characters (e.g. a
+            # space as '\040'); undo that so callers see the real path.
+            mp = unescape_fstab_field(mp)
             mounted[dev] = {
                 "fstype": fstype,
                 "mountpoint": mp,
@@ -2001,7 +2030,7 @@ def mount_cb(
 
     mounted = mounts()
     with temp_utils.tempdir() as tmpd:
-        umount = False
+        umount = ""
         if os.path.realpath(device) in mounted:
             mountpoint = mounted[os.path.realpath(device)]["mountpoint"]
         else:
@@ -2437,7 +2466,7 @@ def is_container():
         lines = load_text_file("/proc/self/status").splitlines()
         for line in lines:
             if line.startswith("VxID:"):
-                (_key, val) = line.strip().split(":", 1)
+                _key, val = line.strip().split(":", 1)
                 if val != "0":
                     return True
     except (IOError, OSError):
@@ -2476,7 +2505,7 @@ def get_proc_env(
     for tok in contents.split(null):
         if not tok:
             continue
-        (name, val) = tok.split(equal, 1)
+        name, val = tok.split(equal, 1)
         if name:
             env[name] = val
     return env
@@ -2486,7 +2515,7 @@ def keyval_str_to_dict(kvstring):
     ret = {}
     for tok in kvstring.split():
         try:
-            (key, val) = tok.split("=", 1)
+            key, val = tok.split("=", 1)
         except ValueError:
             key = tok
             val = True
@@ -2623,7 +2652,7 @@ def find_freebsd_part(fs):
         return splitted[2]
     elif splitted[2] in ["label", "gpt", "gptid", "ufs", "ufsid"]:
         target_label = fs[5:]
-        (part, _err) = subp.subp(["glabel", "status", "-s"])
+        part, _err = subp.subp(["glabel", "status", "-s"])
         for labels in part.split("\n"):
             items = labels.split()
             if len(items) > 0 and items[0] == target_label:
@@ -2645,10 +2674,10 @@ def get_path_dev_freebsd(path, mnt_list):
 
 
 def get_freebsd_devpth(path):
-    (result, err) = subp.subp(["mount", "-p", path], rcs=[0, 1])
+    result, err = subp.subp(["mount", "-p", path], rcs=[0, 1])
     if len(err):
         # find a path if the input is not a mounting point
-        (mnt_list, err) = subp.subp(["mount", "-p"])
+        mnt_list, err = subp.subp(["mount", "-p"])
         path_found = get_path_dev_freebsd(path, mnt_list)
         if path_found is None:
             return None
@@ -2661,7 +2690,7 @@ def get_freebsd_devpth(path):
 def parse_mount(path, get_mnt_opts=False):
     """Return the mount information for PATH given the lines ``mount(1)``
     This function is compatible with ``util.parse_mount_info()``"""
-    (mountoutput, _err) = subp.subp(["mount"])
+    mountoutput, _err = subp.subp(["mount"])
 
     # there are 2 types of mount outputs we have to parse therefore
     # the regex is a bit complex. to better understand this regex see:
@@ -2908,7 +2937,7 @@ def get_installed_packages():
     pkgs_inst = set()
     for line in out.stdout.splitlines():
         try:
-            (state, pkg, _) = line.split(None, 2)
+            state, pkg, _ = line.split(None, 2)
         except ValueError:
             continue
         if state.startswith(("hi", "ii")):

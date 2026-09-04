@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """A module for common socket helpers."""
+
 import logging
 import os
 import socket

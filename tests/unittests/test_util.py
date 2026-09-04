@@ -45,8 +45,7 @@ MOUNT_INFO = [
     "153 68 254:0 / /home rw,relatime shared:101 - xfs /dev/sda2 rw,attr2",
 ]
 
-OS_RELEASE_SLES = dedent(
-    """\
+OS_RELEASE_SLES = dedent("""\
     NAME="SLES"
     VERSION="12-SP3"
     VERSION_ID="12.3"
@@ -54,11 +53,9 @@ OS_RELEASE_SLES = dedent(
     ID="sles"
     ANSI_COLOR="0;32"
     CPE_NAME="cpe:/o:suse:sles:12:sp3"
-"""
-)
+""")
 
-OS_RELEASE_OPENSUSE = dedent(
-    """\
+OS_RELEASE_OPENSUSE = dedent("""\
     NAME="openSUSE Leap"
     VERSION="42.3"
     ID=opensuse
@@ -69,11 +66,9 @@ OS_RELEASE_OPENSUSE = dedent(
     CPE_NAME="cpe:/o:opensuse:leap:42.3"
     BUG_REPORT_URL="https://bugs.opensuse.org"
     HOME_URL="https://www.opensuse.org/"
-"""
-)
+""")
 
-OS_RELEASE_OPENSUSE_L15 = dedent(
-    """\
+OS_RELEASE_OPENSUSE_L15 = dedent("""\
     NAME="openSUSE Leap"
     VERSION="15.0"
     ID="opensuse-leap"
@@ -84,11 +79,9 @@ OS_RELEASE_OPENSUSE_L15 = dedent(
     CPE_NAME="cpe:/o:opensuse:leap:15.0"
     BUG_REPORT_URL="https://bugs.opensuse.org"
     HOME_URL="https://www.opensuse.org/"
-"""
-)
+""")
 
-OS_RELEASE_OPENSUSE_TW = dedent(
-    """\
+OS_RELEASE_OPENSUSE_TW = dedent("""\
     NAME="openSUSE Tumbleweed"
     ID="opensuse-tumbleweed"
     ID_LIKE="opensuse suse"
@@ -98,11 +91,9 @@ OS_RELEASE_OPENSUSE_TW = dedent(
     CPE_NAME="cpe:/o:opensuse:tumbleweed:20180920"
     BUG_REPORT_URL="https://bugs.opensuse.org"
     HOME_URL="https://www.opensuse.org/"
-"""
-)
+""")
 
-OS_RELEASE_CENTOS = dedent(
-    """\
+OS_RELEASE_CENTOS = dedent("""\
     NAME="CentOS Linux"
     VERSION="7 (Core)"
     ID="centos"
@@ -118,11 +109,9 @@ OS_RELEASE_CENTOS = dedent(
     CENTOS_MANTISBT_PROJECT_VERSION="7"
     REDHAT_SUPPORT_PRODUCT="centos"
     REDHAT_SUPPORT_PRODUCT_VERSION="7"
-"""
-)
+""")
 
-OS_RELEASE_REDHAT_7 = dedent(
-    """\
+OS_RELEASE_REDHAT_7 = dedent("""\
     NAME="Red Hat Enterprise Linux Server"
     VERSION="7.5 (Maipo)"
     ID="rhel"
@@ -140,11 +129,9 @@ OS_RELEASE_REDHAT_7 = dedent(
     REDHAT_BUGZILLA_PRODUCT_VERSION=7.5
     REDHAT_SUPPORT_PRODUCT="Red Hat Enterprise Linux"
     REDHAT_SUPPORT_PRODUCT_VERSION="7.5"
-"""
-)
+""")
 
-OS_RELEASE_ALMALINUX_8 = dedent(
-    """\
+OS_RELEASE_ALMALINUX_8 = dedent("""\
     NAME="AlmaLinux"
     VERSION="8.3 (Purple Manul)"
     ID="almalinux"
@@ -159,11 +146,9 @@ OS_RELEASE_ALMALINUX_8 = dedent(
 
     ALMALINUX_MANTISBT_PROJECT="AlmaLinux-8"
     ALMALINUX_MANTISBT_PROJECT_VERSION="8.3"
-"""
-)
+""")
 
-OS_RELEASE_EUROLINUX_7 = dedent(
-    """\
+OS_RELEASE_EUROLINUX_7 = dedent("""\
     VERSION="7.9 (Minsk)"
     ID="eurolinux"
     ID_LIKE="rhel scientific centos fedora"
@@ -177,11 +162,9 @@ OS_RELEASE_EUROLINUX_7 = dedent(
     REDHAT_BUGZILLA_PRODUCT_VERSION=7.9
     REDHAT_SUPPORT_PRODUCT="EuroLinux"
     REDHAT_SUPPORT_PRODUCT_VERSION="7.9"
-"""
-)
+""")
 
-OS_RELEASE_EUROLINUX_8 = dedent(
-    """\
+OS_RELEASE_EUROLINUX_8 = dedent("""\
     NAME="EuroLinux"
     VERSION="8.4 (Vaduz)"
     ID="eurolinux"
@@ -195,11 +178,9 @@ OS_RELEASE_EUROLINUX_8 = dedent(
     BUG_REPORT_URL="https://github.com/EuroLinux/eurolinux-distro-bugs-and-rfc/"
     REDHAT_SUPPORT_PRODUCT="EuroLinux"
     REDHAT_SUPPORT_PRODUCT_VERSION="8"
-"""
-)
+""")
 
-OS_RELEASE_MIRACLELINUX_8 = dedent(
-    """\
+OS_RELEASE_MIRACLELINUX_8 = dedent("""\
     NAME="MIRACLE LINUX"
     VERSION="8.4 (Peony)"
     ID="miraclelinux"
@@ -214,11 +195,9 @@ OS_RELEASE_MIRACLELINUX_8 = dedent(
     BUG_REPORT_URL="https://bugzilla.asianux.com/"
     MIRACLELINUX_SUPPORT_PRODUCT="MIRACLE LINUX"
     MIRACLELINUX_SUPPORT_PRODUCT_VERSION="8"
-"""
-)
+""")
 
-OS_RELEASE_ROCKY_8 = dedent(
-    """\
+OS_RELEASE_ROCKY_8 = dedent("""\
     NAME="Rocky Linux"
     VERSION="8.3 (Green Obsidian)"
     ID="rocky"
@@ -232,11 +211,9 @@ OS_RELEASE_ROCKY_8 = dedent(
     BUG_REPORT_URL="https://bugs.rockylinux.org/"
     ROCKY_SUPPORT_PRODUCT="Rocky Linux"
     ROCKY_SUPPORT_PRODUCT_VERSION="8"
-"""
-)
+""")
 
-OS_RELEASE_VIRTUOZZO_8 = dedent(
-    """\
+OS_RELEASE_VIRTUOZZO_8 = dedent("""\
     NAME="Virtuozzo Linux"
     VERSION="8"
     ID="virtuozzo"
@@ -248,11 +225,9 @@ OS_RELEASE_VIRTUOZZO_8 = dedent(
     CPE_NAME="cpe:/o:virtuozzoproject:vzlinux:8"
     HOME_URL="https://www.vzlinux.org"
     BUG_REPORT_URL="https://bugs.openvz.org"
-"""
-)
+""")
 
-OS_RELEASE_CLOUDLINUX_8 = dedent(
-    """\
+OS_RELEASE_CLOUDLINUX_8 = dedent("""\
     NAME="CloudLinux"
     VERSION="8.4 (Valery Rozhdestvensky)"
     ID="cloudlinux"
@@ -264,22 +239,18 @@ OS_RELEASE_CLOUDLINUX_8 = dedent(
     CPE_NAME="cpe:/o:cloudlinux:cloudlinux:8.4:GA:server"
     HOME_URL="https://www.cloudlinux.com/"
     BUG_REPORT_URL="https://www.cloudlinux.com/support"
-"""
-)
+""")
 
-OS_RELEASE_OPENEULER_20 = dedent(
-    """\
+OS_RELEASE_OPENEULER_20 = dedent("""\
     NAME="openEuler"
     VERSION="20.03 (LTS-SP2)"
     ID="openEuler"
     VERSION_ID="20.03"
     PRETTY_NAME="openEuler 20.03 (LTS-SP2)"
     ANSI_COLOR="0;31"
-"""
-)
+""")
 
-OS_RELEASE_OPENCLOUDOS_8 = dedent(
-    """\
+OS_RELEASE_OPENCLOUDOS_8 = dedent("""\
     NAME="OpenCloudOS"
     VERSION="8.6"
     ID="OpenCloudOS"
@@ -291,11 +262,9 @@ OS_RELEASE_OPENCLOUDOS_8 = dedent(
     CPE_NAME="cpe:/o:opencloudos:opencloudos:8"
     HOME_URL="https://www.opencloudos.org/"
     BUG_REPORT_URL="https://bugs.opencloudos.tech/"
-"""
-)
+""")
 
-OS_RELEASE_TENCENTOS_3 = dedent(
-    """\
+OS_RELEASE_TENCENTOS_3 = dedent("""\
     NAME="TencentOS"
     VERSION="3.1"
     ID="TencentOS"
@@ -305,8 +274,7 @@ OS_RELEASE_TENCENTOS_3 = dedent(
     PRETTY_NAME="TencentOS 3.1"
     ANSI_COLOR="0;31"
     CPE_NAME="cpe:/o:tencentos:tencentos:3"
-"""
-)
+""")
 
 REDHAT_RELEASE_CENTOS_6 = "CentOS release 6.10 (Final)"
 REDHAT_RELEASE_CENTOS_7 = "CentOS Linux release 7.5.1804 (Core)"
@@ -321,8 +289,7 @@ REDHAT_RELEASE_MIRACLELINUX_8 = "MIRACLE LINUX release 8.4 (Peony)"
 REDHAT_RELEASE_ROCKY_8 = "Rocky Linux release 8.3 (Green Obsidian)"
 REDHAT_RELEASE_VIRTUOZZO_8 = "Virtuozzo Linux release 8"
 REDHAT_RELEASE_CLOUDLINUX_8 = "CloudLinux release 8.4 (Valery Rozhdestvensky)"
-OS_RELEASE_DEBIAN = dedent(
-    """\
+OS_RELEASE_DEBIAN = dedent("""\
     PRETTY_NAME="Debian GNU/Linux 9 (stretch)"
     NAME="Debian GNU/Linux"
     VERSION_ID="9"
@@ -331,11 +298,9 @@ OS_RELEASE_DEBIAN = dedent(
     HOME_URL="https://www.debian.org/"
     SUPPORT_URL="https://www.debian.org/support"
     BUG_REPORT_URL="https://bugs.debian.org/"
-"""
-)
+""")
 
-OS_RELEASE_UBUNTU = dedent(
-    """\
+OS_RELEASE_UBUNTU = dedent("""\
     NAME="Ubuntu"\n
     # comment test
     VERSION="16.04.3 LTS (Xenial Xerus)"\n
@@ -348,8 +313,7 @@ OS_RELEASE_UBUNTU = dedent(
     BUG_REPORT_URL="http://bugs.launchpad.net/ubuntu/"\n
     VERSION_CODENAME=xenial\n
     UBUNTU_CODENAME=xenial\n
-"""
-)
+""")
 
 OS_RELEASE_PHOTON = """\
         NAME="VMware Photon OS"
@@ -362,8 +326,7 @@ OS_RELEASE_PHOTON = """\
         BUG_REPORT_URL="https://github.com/vmware/photon/issues"
 """
 
-OS_RELEASE_OPENMANDRIVA = dedent(
-    """\
+OS_RELEASE_OPENMANDRIVA = dedent("""\
     NAME="OpenMandriva Lx"\n
     VERSION="4.90 (Nickel) Cooker"\n
     ID="openmandriva"\n
@@ -378,11 +341,9 @@ OS_RELEASE_OPENMANDRIVA = dedent(
     BUG_REPORT_URL="http://issues.openmandriva.org/"\n
     SUPPORT_URL="https://forum.openmandriva.org"\n
     PRIVACY_POLICY_URL="https://www.openmandriva.org/tos"\n
-"""
-)
+""")
 
-OS_RELEASE_COS = dedent(
-    """\
+OS_RELEASE_COS = dedent("""\
     NAME="Container-Optimized OS"
     ID=cos
     PRETTY_NAME="Container-Optimized OS from Google"
@@ -390,11 +351,9 @@ OS_RELEASE_COS = dedent(
     BUG_REPORT_URL="https://cloud.google.com/container-optimized-os/docs/resources/support-policy#contact_us"
     VERSION=93
     VERSION_ID=93
-"""
-)
+""")
 
-OS_RELEASE_MARINER = dedent(
-    """\
+OS_RELEASE_MARINER = dedent("""\
     NAME="CBL-Mariner"
     VERSION="2.0.20221004"
     ID=mariner
@@ -404,11 +363,9 @@ OS_RELEASE_MARINER = dedent(
     HOME_URL="https://aka.ms/cbl-mariner"
     BUG_REPORT_URL="https://aka.ms/cbl-mariner"
     SUPPORT_URL="https://aka.ms/cbl-mariner"
-"""
-)
+""")
 
-OS_RELEASE_AZURELINUX = dedent(
-    """\
+OS_RELEASE_AZURELINUX = dedent("""\
     NAME="Azure Linux"
     VERSION="4.0 (Cloud Variant)"
     RELEASE_TYPE=stable
@@ -426,8 +383,7 @@ OS_RELEASE_AZURELINUX = dedent(
     BUG_REPORT_URL="https://aka.ms/azurelinux"
     VARIANT="Cloud Variant"
     VARIANT_ID=cloud
-"""
-)
+""")
 
 
 @pytest.mark.usefixtures("fake_filesystem")
@@ -1427,8 +1383,10 @@ class TestReadCcFromCmdline:
             ("cc: ssh_import_id: smoser end_cc", {"ssh_import_id": "smoser"}),
             # Parse multiline content with multiple mapping and nested lists.
             (
-                "cc: ssh_import_id: [smoser, bob]\\n"
-                "runcmd: [ [ ls, -l ], echo hi ] end_cc",
+                (
+                    "cc: ssh_import_id: [smoser, bob]\\n"
+                    "runcmd: [ [ ls, -l ], echo hi ] end_cc"
+                ),
                 {
                     "ssh_import_id": ["smoser", "bob"],
                     "runcmd": [["ls", "-l"], "echo hi"],
@@ -1436,8 +1394,10 @@ class TestReadCcFromCmdline:
             ),
             # Parse multiline encoded content w/ mappings and nested lists.
             (
-                "cc: ssh_import_id: %5Bsmoser, bob%5D\\n"
-                "runcmd: [ [ ls, -l ], echo hi ] end_cc",
+                (
+                    "cc: ssh_import_id: %5Bsmoser, bob%5D\\n"
+                    "runcmd: [ [ ls, -l ], echo hi ] end_cc"
+                ),
                 {
                     "ssh_import_id": ["smoser", "bob"],
                     "runcmd": [["ls", "-l"], "echo hi"],
@@ -1475,14 +1435,18 @@ class TestReadCcFromCmdline:
             ),
             # Parse and merge multiple yaml content sections.
             (
-                "cc:ssh_import_id: [smoser, bob] end_cc "
-                "cc: runcmd: [ [ ls, -l ] ] end_cc",
+                (
+                    "cc:ssh_import_id: [smoser, bob] end_cc "
+                    "cc: runcmd: [ [ ls, -l ] ] end_cc"
+                ),
                 {"ssh_import_id": ["smoser", "bob"], "runcmd": [["ls", "-l"]]},
             ),
             # Parse and merge multiple encoded yaml content sections.
             (
-                "cc:ssh_import_id%3A%20%5Bsmoser%5D end_cc "
-                "cc:runcmd%3A%20%5B%20%5B%20ls%2C%20-l%20%5D%20%5D end_cc",
+                (
+                    "cc:ssh_import_id%3A%20%5Bsmoser%5D end_cc "
+                    "cc:runcmd%3A%20%5B%20%5B%20ls%2C%20-l%20%5D%20%5D end_cc"
+                ),
                 {"ssh_import_id": ["smoser"], "runcmd": [["ls", "-l"]]},
             ),
             # Parse cmdlines that contain an IPv6 with cc: in different
@@ -2143,6 +2107,44 @@ class TestLoadYaml:
         assert [(b, self.mydefault) for b in blobs] == [
             (b, util.load_yaml(blob=b, default=mdef)) for b in blobs
         ]
+
+
+class TestFstabEscaping:
+    @pytest.mark.parametrize(
+        "raw, escaped",
+        [
+            ("/mnt/Cdrom Drive", "/mnt/Cdrom\\040Drive"),
+            ("/mnt/a\tb", "/mnt/a\\011b"),
+            ("/mnt/a\nb", "/mnt/a\\012b"),
+            ("/mnt/a\\b", "/mnt/a\\134b"),
+            # backslash escaped first so existing escapes aren't doubled
+            ("/mnt/a \\b", "/mnt/a\\040\\134b"),
+            ("/mnt/plain", "/mnt/plain"),
+        ],
+    )
+    def test_escape_unescape_roundtrip(self, raw, escaped):
+        assert util.escape_fstab_field(raw) == escaped
+        assert util.unescape_fstab_field(escaped) == raw
+
+
+class TestMounts:
+    def test_mounts_unescapes_mountpoint(self, mocker):
+        """mounts() octal-unescapes fs_file via unescape_fstab_field.
+
+        Exercises the ``mount`` command fallback (no /proc/mounts), where an
+        escaped space (octal 040) appears in the mount point of the output.
+        """
+        # No /proc/mounts, so mounts() parses the `mount` command output.
+        mocker.patch(M_PATH + "os.path.exists", return_value=False)
+        mocker.patch(
+            M_PATH + "subp.subp",
+            return_value=SubpResult(
+                "/dev/sr0 on /mnt/Cdrom\\040Drive (ufs, local, journaled)\n",
+                "",
+            ),
+        )
+        result = util.mounts()
+        assert result["/dev/sr0"]["mountpoint"] == "/mnt/Cdrom Drive"
 
 
 class TestMountinfoParsing:
@@ -2880,45 +2882,57 @@ class TestGetProcPpid:
         for ppid, proc_data in (
             (
                 0,
-                "1 (systemd) S 0 1 1 0 -1 4194560 112664 14612195 153 18014"
-                "274 237 756828 152754 20 0 1 0 3 173809664 3736"
-                "18446744073709551615 1 1 0 0 0 0 671173123 4096 1260 0 0 0 17"
-                "8 0 0 0 0 123974 0 0 0 0 0 0 0 0",
+                (
+                    "1 (systemd) S 0 1 1 0 -1 4194560 112664 14612195 153"
+                    " 18014274 237 756828 152754 20 0 1 0 3 173809664 3736"
+                    " 18446744073709551615 1 1 0 0 0 0 671173123 4096 1260 0 0"
+                    " 0 178 0 0 0 0 123974 0 0 0 0 0 0 0 0"
+                ),
             ),
             (
                 180771,
-                "180781 ([pytest-xdist r) R 180771 180598 167240 34825 "
-                "180598 4194304 128712 7570 0 0 1061 34 8 1 20 0 2 0 6551540 "
-                "351993856 25173 18446744073709551615 93907896635392 "
-                "93907899455533 140725724279536 0 0 0 0 16781312 17642 0 0 0 "
-                "17 1 0 0 0 0 0 93907901810800 93907902095288 93907928788992 "
-                "140725724288007 140725724288074 140725724288074 "
-                "140725724291047 0",
+                (
+                    "180781 ([pytest-xdist r) R 180771"
+                    " 180598 167240 34825 180598 4194304 128712 7570 0 0 1061"
+                    " 34 8 1 20 0 2 0 6551540 351993856 25173"
+                    " 18446744073709551615"
+                    " 93907896635392 93907899455533 140725724279536 0 0 0 0"
+                    " 16781312 17642 0 0 0 17 1 0 0 0 0 0 93907901810800"
+                    " 93907902095288 93907928788992 140725724288007"
+                    " 140725724288074 140725724288074 140725724291047 0"
+                ),
             ),
             (
                 5620,
-                "8723 (Utility Process) S 5620 5191 5191 0 -1 4194304 3219 "
-                "0 50 0 1045 431 0 0 20 0 3 0 9007 220585984 8758 "
-                "18446744073709551615 94469734690816 94469735319392 "
-                "140728350183632 0 0 0 0 69634 1073745144 0 0 0 17 10 0 0 0 0 "
-                "0 94469735327152 94469735331056 94469763170304 "
-                "140728350189012 140728350189221 140728350189221 "
-                "140728350195661 0",
+                (
+                    "8723 (Utility Process) S 5620 5191 5191 0 -1 4194304"
+                    " 3219 0 50 0 1045 431 0 0 20 0 3 0 9007 220585984 8758"
+                    " 18446744073709551615 94469734690816 94469735319392"
+                    " 140728350183632 0 0 0 0 69634 1073745144 0 0 0 17 10 0 0"
+                    " 0 0 0 94469735327152 94469735331056 94469763170304"
+                    " 140728350189012 140728350189221 140728350189221"
+                    " 140728350195661 0"
+                ),
             ),
             (
                 4946,
-                "4947 ((sd-pam)) S 4946 4946 4946 0 -1 1077936448 54 0 0 0 "
-                "0 0 0 0 20 0 1 0 4136 175616000 1394 18446744073709551615 1 1"
-                "0 0 0 0 0 4096 0 0 0 0 17 8 0 0 0 0 0 0 0 0 0 0 0 0 0",
+                (
+                    "4947 ((sd-pam)) S 4946 4946 4946 0 -1 1077936448 54"
+                    " 0 0 0 0 0 0 0 20 0 1 0 4136 175616000 1394"
+                    " 18446744073709551615 1 1 0 0 0 0 0 4096 0 0 0 0 17 8 0 0"
+                    " 0 0 0 0 0 0 0 0 0 0"
+                ),
             ),
             (
                 144855,
-                "167644 (python) R 144855 167644 144855 34819 167644 4194304 "
-                "12692 0 0 0 114 10 0 0 20 0 1 0 8929754 69824512 13959 "
-                "18446744073709551615 4321280 7154413 140733469268592 0 0 0 0 "
-                "16781312 1258 0 0 0 17 0 0 0 0 0 0 9719240 11022936 13484032 "
-                "140733469277329 140733469277436 140733469277436 "
-                "140733469282250 0",
+                (
+                    "167644 (python) R 144855 167644 144855 34819"
+                    " 167644 4194304 12692 0 0 0 114 10 0 0 20 0 1 0 8929754"
+                    " 69824512 13959 18446744073709551615 4321280 7154413"
+                    " 140733469268592 0 0 0 0 16781312 1258 0 0 0 17 0 0 0 0 0"
+                    " 0 9719240 11022936 13484032 140733469277329"
+                    " 140733469277436 140733469277436 140733469282250 0"
+                ),
             ),
         ):
             with mock.patch(

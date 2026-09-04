@@ -65,7 +65,7 @@ class DataSourceDigitalOcean(sources.DataSource):
         return do_helper.read_sysinfo()
 
     def _get_data(self):
-        (is_do, droplet_id) = self._get_sysinfo()
+        is_do, droplet_id = self._get_sysinfo()
 
         # only proceed if we know we are on DigitalOcean
         if not is_do:

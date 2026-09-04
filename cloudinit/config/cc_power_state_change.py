@@ -42,7 +42,7 @@ def givecmdline(pid):
         #   PID COMM             ARGS
         #     1 init             /bin/init --
         if util.is_FreeBSD():
-            (output, _err) = subp.subp(["procstat", "-c", str(pid)])
+            output, _err = subp.subp(["procstat", "-c", str(pid)])
             line = output.splitlines()[1]
             m = re.search(r"\d+ (\w|\.|-)+\s+(/\w.+)", line)
             if m:
@@ -81,7 +81,7 @@ def check_condition(cond):
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     try:
-        (arg_list, timeout, condition) = load_power_state(cfg, cloud.distro)
+        arg_list, timeout, condition = load_power_state(cfg, cloud.distro)
         if arg_list is None:
             LOG.debug("no power_state provided. doing nothing")
             return

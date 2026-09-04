@@ -252,13 +252,14 @@ def devent2dev(devent):
 
     # Ensure the path is a block device.
     if dev == "/dev/root" and not container:
-        dev = util.rootdev_from_cmdline(util.get_cmdline())
-        if dev is None:
+        real_dev = util.rootdev_from_cmdline(util.get_cmdline())
+        if real_dev is None:
             if os.path.exists(dev):
                 # if /dev/root exists, but we failed to convert
                 # that to a "real" /dev/ path device, then return it.
                 return dev, None
             raise ValueError("Unable to find device '/dev/root'")
+        dev = real_dev
     return dev, fs
 
 
@@ -289,7 +290,7 @@ def is_encrypted(blockdev, partition) -> bool:
     return False
 
 
-def get_underlying_partition(blockdev):
+def get_underlying_partition(blockdev: str) -> str:
     command = ["dmsetup", "deps", "--options=devname", blockdev]
     dep: str = subp.subp(command)[0]  # pyright: ignore
     # Returned result should look something like:
@@ -493,8 +494,10 @@ def resize_devices(resizer: Resizer, devices, distro: Distro):
                         (
                             devent,
                             RESIZE.SKIPPED,
-                            f"Resizing mapped device ({blockdev}) skipped "
-                            "as it is not encrypted.",
+                            (
+                                f"Resizing mapped device ({blockdev}) skipped "
+                                "as it is not encrypted."
+                            ),
                         )
                     )
             except Exception as e:

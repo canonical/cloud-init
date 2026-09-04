@@ -27,9 +27,11 @@ apt:
 def test_gpg_no_tty(client: IntegrationInstance):
     log = client.read_from_file("/var/log/cloud-init.log")
     to_verify = [
-        "Running command ['gpg', '--no-tty', "
-        "'--keyserver=keyserver.ubuntu.com', '--recv-keys', 'E4D304DF'] "
-        "with allowed return codes [0] (shell=False, capture=True)",
+        (
+            "Running command ['gpg', '--no-tty', "
+            "'--keyserver=keyserver.ubuntu.com', '--recv-keys', 'E4D304DF'] "
+            "with allowed return codes [0] (shell=False, capture=True)"
+        ),
         "Imported key 'E4D304DF' from keyserver 'keyserver.ubuntu.com'",
     ]
     verify_ordered_items_in_text(to_verify, log)

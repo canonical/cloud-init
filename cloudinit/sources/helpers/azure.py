@@ -6,7 +6,6 @@ import base64
 import json
 import logging
 import os
-import re
 import textwrap
 import zlib
 from contextlib import contextmanager
@@ -18,7 +17,7 @@ from xml.sax.saxutils import escape  # nosec B406
 
 from cloudinit import distros, subp, temp_utils, url_helper, util, version
 from cloudinit.reporting import events
-from cloudinit.sources.azure import errors
+from cloudinit.sources.azure import certs, errors
 
 LOG = logging.getLogger(__name__)
 
@@ -303,8 +302,7 @@ def build_minimal_ovf(
 
     ns_hostname = f"<ns1:HostName>{hostname}</ns1:HostName>"
 
-    return textwrap.dedent(
-        f"""\
+    return textwrap.dedent(f"""\
         <ns0:Environment xmlns:ns0="http://schemas.dmtf.org/ovf/environment/1"
          xmlns:ns1="http://schemas.microsoft.com/windowsazure"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
@@ -325,8 +323,7 @@ def build_minimal_ovf(
             </ns1:PlatformSettings>
           </ns1:PlatformSettingsSection>
         </ns0:Environment>
-        """
-    ).encode("utf-8")
+        """).encode("utf-8")
 
 
 class AzureEndpointHttpClient:
@@ -490,10 +487,7 @@ class OpenSSLManager:
 
     @azure_ds_telemetry_reporter
     def _get_ssh_key_from_cert(self, certificate):
-        pub_key = self._run_x509_action("-pubkey", certificate)
-        keygen_cmd = ["ssh-keygen", "-i", "-m", "PKCS8", "-f", "/dev/stdin"]
-        ssh_key, _ = subp.subp(keygen_cmd, data=pub_key)
-        return ssh_key
+        return certs.convert_x509_to_openssh(certificate)
 
     @azure_ds_telemetry_reporter
     def _get_fingerprint_from_cert(self, certificate):
@@ -539,25 +533,18 @@ class OpenSSLManager:
         """Given the Certificates XML document, return a dictionary of
         fingerprints and associated SSH keys derived from the certs."""
         out = self._decrypt_certs_from_xml(certificates_xml)
-        current = []
         keys = {}
-        for line in out.splitlines():
-            current.append(line)
-            if re.match(r"[-]+END .*?KEY[-]+$", line):
-                # ignore private_keys
-                current = []
-            elif re.match(r"[-]+END .*?CERTIFICATE[-]+$", line):
-                certificate = "\n".join(current)
-                ssh_key = self._get_ssh_key_from_cert(certificate)
-                fingerprint = self._get_fingerprint_from_cert(certificate)
-                keys[fingerprint] = ssh_key
-                current = []
+
+        for certificate in certs.extract_x509_certificates(out):
+            ssh_key = self._get_ssh_key_from_cert(certificate)
+            fingerprint = self._get_fingerprint_from_cert(certificate)
+            keys[fingerprint] = ssh_key
+
         return keys
 
 
 class GoalStateHealthReporter:
-    HEALTH_REPORT_XML_TEMPLATE = textwrap.dedent(
-        """\
+    HEALTH_REPORT_XML_TEMPLATE = textwrap.dedent("""\
         <?xml version="1.0" encoding="utf-8"?>
         <Health xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xmlns:xsd="http://www.w3.org/2001/XMLSchema">
@@ -575,17 +562,14 @@ class GoalStateHealthReporter:
             </RoleInstanceList>
           </Container>
         </Health>
-        """
-    )
+        """)
 
-    HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE = textwrap.dedent(
-        """\
+    HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE = textwrap.dedent("""\
         <Details>
           <SubStatus>{health_substatus}</SubStatus>
           <Description>{health_description}</Description>
         </Details>
-        """
-    )
+        """)
 
     PROVISIONING_SUCCESS_STATUS = "Ready"
     PROVISIONING_NOT_READY_STATUS = "NotReady"
@@ -1122,6 +1106,13 @@ class OvfEnvXml:
         self.password = self._parse_property(
             config_set, "UserPassword", required=False
         )
+        if (
+            self.password is not None
+            and len(self.password) > errors.MAX_PASSWORD_LENGTH
+        ):
+            raise errors.ReportableErrorOsProfilePasswordTooLong(
+                length=len(self.password)
+            )
         self.hostname = self._parse_property(
             config_set, "HostName", required=True
         )

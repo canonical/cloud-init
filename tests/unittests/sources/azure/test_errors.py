@@ -238,6 +238,18 @@ def test_ovf_invalid_metadata_exception():
     assert error.reason == "unexpected metadata parsing ovf-env.xml: foobar"
 
 
+def test_os_profile_password_too_long():
+    length = errors.MAX_PASSWORD_LENGTH + 1
+    error = errors.ReportableErrorOsProfilePasswordTooLong(length=length)
+
+    assert error.reason == (
+        f"unsupported password length={length} "
+        f"max={errors.MAX_PASSWORD_LENGTH}"
+    )
+    assert error.supporting_data["length"] == length
+    assert error.supporting_data["max_length"] == errors.MAX_PASSWORD_LENGTH
+
+
 def test_unhandled_exception():
     source_error = None
     try:

@@ -371,15 +371,13 @@ def switch_user_cmd(user):
 
 def varprinter():
     """print the shell environment variables within delimiters to be parsed"""
-    return textwrap.dedent(
-        """
+    return textwrap.dedent("""
         printf "%s\\0" _start_
         [ $0 != 'sh' ] && set -o posix
         set
         [ $0 != 'sh' ] && set +o posix
         printf "%s\\0" _start_
-        """
-    )
+        """)
 
 
 def parse_shell_config(

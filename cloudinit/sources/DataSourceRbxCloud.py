@@ -9,6 +9,7 @@
 This file contains code used to gather the user data passed to an
 instance on rootbox / hyperone cloud platforms
 """
+
 import errno
 import logging
 import os

@@ -444,7 +444,7 @@ class Distro(distros.Distro):
         #
         # with exit code 1
         try:
-            (_out, err) = subp.subp(cmd, rcs=[0, 1])
+            _out, err = subp.subp(cmd, rcs=[0, 1])
             if re.search(r"is already locked", err):
                 return True
         except subp.ProcessExecutionError as e:

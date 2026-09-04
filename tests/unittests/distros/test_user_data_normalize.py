@@ -229,7 +229,7 @@ class TestUGNormalize:
         }
         users, _groups = self._norm(ug_cfg, distro)
         assert "bob" in users
-        (name, config) = ug_util.extract_default(users)
+        name, config = ug_util.extract_default(users)
         assert name == "bob"
         expected_config = {}
         def_config = None

@@ -11,6 +11,7 @@ profile = "black"
 line_length = 79
 # We patch logging in main.py before certain imports
 skip = ["cloudinit/cmd/main.py", ".tox", "packages", "tools"]
+skip_gitignore = true
 
 [tool.mypy]
 follow_imports = "silent"
@@ -23,16 +24,9 @@ exclude = []
 [[tool.mypy.overrides]]
 module = [
     "apport.*",
-    "BaseHTTPServer",
     "configobj",
     "debconf",
-    "httplib",
     "jsonpatch",
-    "paramiko.*",
-    "pip.*",
-    "pycloudlib.*",
-    "responses",
-    "serial",
     "tests.integration_tests.user_settings",
     "uaclient.*",
 ]
@@ -42,20 +36,13 @@ no_implicit_optional = true
 # See GH-5445
 [[tool.mypy.overrides]]
 module = [
-    "cloudinit.config.cc_apt_configure",
-    "cloudinit.config.cc_ca_certs",
-    "cloudinit.config.cc_growpart",
-    "cloudinit.config.cc_ntp",
-    "cloudinit.config.modules",
     "cloudinit.distros.alpine",
     "cloudinit.distros.azurelinux",
     "cloudinit.distros.bsd",
     "cloudinit.distros.opensuse",
     "cloudinit.distros.parsers.hostname",
     "cloudinit.distros.parsers.resolv_conf",
-    "cloudinit.distros.ug_util",
     "cloudinit.helpers",
-    "cloudinit.net.cmdline",
     "cloudinit.net.ephemeral",
     "cloudinit.net.freebsd",
     "cloudinit.net.netbsd",
@@ -63,8 +50,6 @@ module = [
     "cloudinit.net.network_state",
     "cloudinit.net.networkd",
     "cloudinit.netinfo",
-    "cloudinit.sources.DataSourceAzure",
-    "cloudinit.sources.DataSourceBigstep",
     "cloudinit.sources.DataSourceCloudStack",
     "cloudinit.sources.DataSourceConfigDrive",
     "cloudinit.sources.DataSourceDigitalOcean",
@@ -75,27 +60,18 @@ module = [
     "cloudinit.sources.DataSourceNoCloud",
     "cloudinit.sources.DataSourceOVF",
     "cloudinit.sources.DataSourceOpenStack",
-    "cloudinit.sources.DataSourceOracle",
     "cloudinit.sources.DataSourceRbxCloud",
     "cloudinit.sources.DataSourceScaleway",
     "cloudinit.sources.DataSourceSmartOS",
-    "cloudinit.sources.DataSourceVMware",
     "cloudinit.sources.helpers.azure",
-    "cloudinit.sources.helpers.ec2",
-    "cloudinit.sources.helpers.netlink",
     "cloudinit.sources.helpers.openstack",
     "cloudinit.sources.helpers.vmware.imc.config_file",
     "cloudinit.sources.helpers.vmware.imc.config_nic",
-    "cloudinit.sources.helpers.vultr",
-    "cloudinit.ssh_util",
-    "cloudinit.temp_utils",
-    "cloudinit.templater",
     "cloudinit.user_data",
     "tests.unittests.analyze.test_show",
     "tests.unittests.config.test_apt_configure_sources_list_v3",
     "tests.unittests.config.test_apt_source_v1",
     "tests.unittests.config.test_cc_apt_pipelining",
-    "tests.unittests.config.test_cc_ca_certs",
     "tests.unittests.config.test_cc_chef",
     "tests.unittests.config.test_cc_final_message",
     "tests.unittests.config.test_cc_growpart",
@@ -156,14 +132,11 @@ module = [
     "tests.unittests.test_merging",
     "tests.unittests.test_net",
     "tests.unittests.test_net_activators",
-    "tests.unittests.test_ssh_util",
     "tests.unittests.test_stages",
     "tests.unittests.test_subp",
-    "tests.unittests.test_templating",
     "tests.unittests.test_upgrade",
     "tests.unittests.test_url_helper",
     "tests.unittests.test_util",
-    "tests.unittests.util",
 
     # tools/*
     "netplan_schema_check",

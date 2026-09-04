@@ -272,6 +272,15 @@ class TestEnsureDependencies:
         else:
             install_packages.assert_not_called()
 
+    def test_none_aa_repo_match_skips_source_check(self, mocker):
+        """_ensure_dependencies must not call aa_repo_match when it is None."""
+        mycloud = get_cloud("debian")
+        mocker.patch.object(mycloud.distro, "install_packages")
+        cfg = {"sources": {"s1": {"source": "ppa:yep"}}}
+        # aa_repo_match=None must not raise; no packages should be installed
+        # because the source match is skipped entirely.
+        cc_apt._ensure_dependencies(cfg, None, mycloud)
+
 
 class TestAptConfigure:
     @pytest.mark.parametrize(
@@ -320,14 +329,12 @@ class TestAptConfigure:
         Path(sources_file).parent.mkdir(parents=True, exist_ok=True)
         sources_file.write(src_content)
 
-        cfg = {
-            "sources_list": """\
+        cfg = {"sources_list": """\
 Types: deb
 URIs: {{mirror}}
 Suites: {{codename}} {{codename}}-updates {{codename}}-backports
 Components: main restricted universe multiverse
-Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg"""
-        }
+Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg"""}
         cc_apt.generate_sources_list(cfg, "noble", {}, cloud, {})
         if expected_content is None:
             assert not sources_file.exists()

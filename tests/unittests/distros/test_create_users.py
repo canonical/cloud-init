@@ -246,11 +246,13 @@ class TestCreateUser:
                 "ubuntu",
                 False,
                 [
-                    "Not unlocking blank password for existing user "
-                    "foo_user. 'lock_passwd: false' present in user-data "
-                    "but no existing password set and no "
-                    "'plain_text_passwd'/'hashed_passwd' provided in "
-                    "user-data"
+                    (
+                        "Not unlocking blank password for existing user "
+                        "foo_user. 'lock_passwd: false' present in user-data "
+                        "but no existing password set and no "
+                        "'plain_text_passwd'/'hashed_passwd' provided in "
+                        "user-data"
+                    )
                 ],
                 id="no_unlock_on_locked_empty_user_passwd",
             ),
@@ -404,8 +406,10 @@ class TestCreateUser:
                 {"passwd": "$6$rounds=..."},
                 [mock.call(["passwd", "-l", USER])],
                 [
-                    "'passwd' in user-data is ignored for existing user "
-                    "foo_user"
+                    (
+                        "'passwd' in user-data is ignored for existing user "
+                        "foo_user"
+                    )
                 ],
                 id="skip_passwd_set_on_existing_user",
             ),

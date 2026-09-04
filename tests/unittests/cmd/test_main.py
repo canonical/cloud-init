@@ -221,8 +221,7 @@ class TestMain:
             # write_files with source uri wait
             (
                 mock.Mock(),
-                textwrap.dedent(
-                    """\
+                textwrap.dedent("""\
                     #cloud-config
                     write_files:
                     - source:
@@ -230,15 +229,13 @@ class TestMain:
                         headers:
                           Authorization: Basic stuff
                           User-Agent: me
-                    """
-                ),
+                    """),
                 True,
             ),
             # write_files with source file don't wait
             (
                 mock.Mock(),
-                textwrap.dedent(
-                    """\
+                textwrap.dedent("""\
                     #cloud-config
                     write_files:
                     - source:
@@ -246,15 +243,13 @@ class TestMain:
                         headers:
                           Authorization: Basic stuff
                           User-Agent: me
-                    """
-                ),
+                    """),
                 False,
             ),
             # write_files without 'source' don't wait
             (
                 mock.Mock(),
-                textwrap.dedent(
-                    """\
+                textwrap.dedent("""\
                     #cloud-config
                     write_files:
                     - content: hello
@@ -262,8 +257,7 @@ class TestMain:
                       owner: root:root
                       path: /etc/sysconfig/selinux
                       permissions: '0644'
-                    """
-                ),
+                    """),
                 False,
             ),
             # random_seed with 'command' wait
@@ -275,15 +269,13 @@ class TestMain:
             # random_seed without 'command' no wait
             (
                 mock.Mock(),
-                textwrap.dedent(
-                    """\
+                textwrap.dedent("""\
                     #cloud-config
                     random_seed:
                       data: 4
                       encoding: raw
                       file: /dev/urandom
-                    """
-                ),
+                    """),
                 False,
             ),
             # mounts always wait

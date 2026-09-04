@@ -26,23 +26,31 @@ class TestKeyboardSchema:
             # Invalid schemas
             (
                 {"keyboard": {}},
-                "Cloud config schema errors: keyboard: 'layout' is a"
-                " required property",
+                (
+                    "Cloud config schema errors: keyboard: 'layout' is a"
+                    " required property"
+                ),
             ),
             (
                 {"keyboard": "bogus"},
-                "Cloud config schema errors: keyboard: 'bogus' is not"
-                " of type 'object'",
+                (
+                    "Cloud config schema errors: keyboard: 'bogus' is not"
+                    " of type 'object'"
+                ),
             ),
             (
                 {"keyboard": {"layout": 1}},
-                "Cloud config schema errors: keyboard.layout: 1 is not"
-                " of type 'string'",
+                (
+                    "Cloud config schema errors: keyboard.layout: 1 is not"
+                    " of type 'string'"
+                ),
             ),
             (
                 {"keyboard": {"layout": "somestr", "model": None}},
-                "Cloud config schema errors: keyboard.model: None is not"
-                " of type 'string'",
+                (
+                    "Cloud config schema errors: keyboard.model: None is not"
+                    " of type 'string'"
+                ),
             ),
             (
                 {"keyboard": {"layout": "somestr", "variant": [1]}},
@@ -53,8 +61,10 @@ class TestKeyboardSchema:
             ),
             (
                 {"keyboard": {"layout": "somestr", "options": {}}},
-                "Cloud config schema errors: keyboard.options: {} is not"
-                " of type 'string'",
+                (
+                    "Cloud config schema errors: keyboard.options: {} is not"
+                    " of type 'string'"
+                ),
             ),
             (
                 {"keyboard": {"layout": "somestr", "extraprop": "somestr"}},

@@ -404,8 +404,10 @@ class TestUbuntuAdvantageSchema:
             # Strict boolean license-accepted
             (
                 {"drivers": {"nvidia": {"license-accepted": "TRUE"}}},
-                "drivers.nvidia.license-accepted: 'TRUE' is not of type"
-                " 'boolean'",
+                (
+                    "drivers.nvidia.license-accepted: 'TRUE' is not of type"
+                    " 'boolean'"
+                ),
             ),
             # Additional properties disallowed
             (

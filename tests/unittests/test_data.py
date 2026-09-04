@@ -135,7 +135,7 @@ class TestConsumeUserData:
             freq=PER_INSTANCE,
         )
         mods = Modules(initer)
-        (_which_ran, _failures) = mods.run_section("cloud_init_modules")
+        _which_ran, _failures = mods.run_section("cloud_init_modules")
         cfg = mods.cfg
         assert "vendor_data" in cfg
         assert "vendor_data2" in cfg
@@ -181,7 +181,7 @@ class TestConsumeUserData:
             freq=PER_INSTANCE,
         )
         mods = Modules(initer)
-        (_which_ran, _failures) = mods.run_section("cloud_init_modules")
+        _which_ran, _failures = mods.run_section("cloud_init_modules")
         cfg = mods.cfg
         assert cfg["baz"] == "qux"
         assert cfg["bar"] == "qux2"
@@ -292,7 +292,7 @@ run:
             freq=PER_INSTANCE,
         )
         mods = Modules(initer)
-        (_which_ran, _failures) = mods.run_section("cloud_init_modules")
+        _which_ran, _failures = mods.run_section("cloud_init_modules")
         cfg = mods.cfg
         assert "vendor_data" in cfg
         assert cfg["a"] == "c"
@@ -334,7 +334,7 @@ vendor_data:
             freq=PER_INSTANCE,
         )
         mods = Modules(initer)
-        (_which_ran, _failures) = mods.run_section("cloud_init_modules")
+        _which_ran, _failures = mods.run_section("cloud_init_modules")
         vendor_script = initer.paths.get_ipath_cur("vendor_scripts")
         vendor_script_fns = "%s/part-001" % vendor_script
         assert os.path.exists(vendor_script_fns) is True
@@ -677,7 +677,7 @@ c: 4
             freq=PER_INSTANCE,
         )
         mods = Modules(init)
-        (_which_ran, _failures) = mods.run_section("cloud_init_modules")
+        _which_ran, _failures = mods.run_section("cloud_init_modules")
         cfg = mods.cfg
         assert "vendor_data" in cfg
         assert cfg["baz"] == "quxA"

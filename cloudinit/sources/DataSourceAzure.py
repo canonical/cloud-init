@@ -15,13 +15,15 @@ import xml.etree.ElementTree as ET  # nosec B405
 from enum import Enum
 from pathlib import Path
 from time import monotonic, sleep, time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import requests
 
-from cloudinit import net, performance, sources, ssh_util, subp, util
+from cloudinit import net, performance, sources, subp, util
 from cloudinit.config import cc_mounts
+from cloudinit.distros import Distro
 from cloudinit.event import EventScope, EventType
+from cloudinit.helpers import Paths
 from cloudinit.net import device_driver
 from cloudinit.net.dhcp import (
     NoDHCPLeaseError,
@@ -30,7 +32,7 @@ from cloudinit.net.dhcp import (
 )
 from cloudinit.net.ephemeral import EphemeralDHCPv4, EphemeralIPv4Network
 from cloudinit.reporting import events
-from cloudinit.sources.azure import errors, identity, imds, kvp
+from cloudinit.sources.azure import certs, errors, identity, imds, kvp
 from cloudinit.sources.helpers import netlink
 from cloudinit.sources.helpers.azure import (
     DEFAULT_WIRESERVER_ENDPOINT,
@@ -328,27 +330,29 @@ class DataSourceAzure(sources.DataSource):
         }
     }
     _negotiated = False
-    _metadata_imds = sources.UNSET
+    _metadata_imds: Union[str, Dict[str, Any]] = sources.UNSET
     _ci_pkl_version = 1
 
-    def __init__(self, sys_cfg, distro, paths):
+    def __init__(
+        self, sys_cfg: Dict[str, Any], distro: Distro, paths: Paths
+    ) -> None:
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.seed_dir = os.path.join(paths.seed_dir, "azure")
-        self.cfg = {}
-        self.seed = None
+        self.cfg: Dict[str, Any] = {}
+        self.seed: Optional[str] = None
         self.ds_cfg = util.mergemanydict(
             [util.get_cfg_by_path(sys_cfg, DS_CFG_PATH, {}), BUILTIN_DS_CONFIG]
         )
-        self._iso_dev = None
-        self._network_config = None
+        self._iso_dev: Optional[str] = None
+        self._network_config: Optional[Dict[str, Any]] = None
         self._ephemeral_dhcp_ctx: Optional[EphemeralDHCPv4] = None
         self._reported_ready_marker_file = os.path.join(
             paths.cloud_dir, "data", "reported_ready"
         )
         self._route_configured_for_imds = False
         self._route_configured_for_wireserver = False
-        self._system_uuid = None
-        self._vm_id = None
+        self._system_uuid: Optional[str] = None
+        self._vm_id: Optional[str] = None
         self._wireserver_endpoint = DEFAULT_WIRESERVER_ENDPOINT
 
     def _unpickle(self, ci_pkl_version: int) -> None:
@@ -661,7 +665,7 @@ class DataSourceAzure(sources.DataSource):
             logger_func=LOG.info,
         )
 
-        crawled_data = {}
+        crawled_data: Dict[str, Any] = {}
         # azure removes/ejects the cdrom containing the ovf-env.xml
         # file on reboot.  So, in order to successfully reboot we
         # need to look in the datadir and consider that valid
@@ -838,7 +842,7 @@ class DataSourceAzure(sources.DataSource):
                     self._report_failure(
                         errors.ReportableErrorMissingCustomData(
                             pps_type=pps_type.value,
-                            provisioning_media=self.seed,
+                            provisioning_media=self.seed or "",
                         )
                     )
                 else:
@@ -961,9 +965,6 @@ class DataSourceAzure(sources.DataSource):
             return True
 
         # If no valid chassis tag, check for seeded ovf-env.xml.
-        if self.seed_dir is None:
-            return False
-
         return Path(self.seed_dir, "ovf-env.xml").exists()
 
     @azure_ds_telemetry_reporter
@@ -1077,7 +1078,9 @@ class DataSourceAzure(sources.DataSource):
             report_diagnostic_event(log_msg, logger_func=LOG.debug)
             raise
 
-        if any(not _key_is_openssh_formatted(key=key) for key in ssh_keys):
+        ssh_keys = [certs.sanitize_openssh_key(key) for key in ssh_keys]
+
+        if any(not certs.is_openssh_formatted(key) for key in ssh_keys):
             log_msg = "Key(s) not in OpenSSH format"
             report_diagnostic_event(log_msg, logger_func=LOG.debug)
             raise ValueError(log_msg)
@@ -1123,13 +1126,18 @@ class DataSourceAzure(sources.DataSource):
                 raise errors.ReportableErrorVmIdentification(exception=error)
 
         if not self._vm_id:
+            system_uuid = self._system_uuid
+            if system_uuid is None:
+                raise errors.ReportableErrorVmIdentification(
+                    exception=RuntimeError("system_uuid unavailable"),
+                )
             try:
                 self._vm_id = identity.convert_system_uuid_to_vm_id(
-                    self._system_uuid
+                    system_uuid
                 )
             except ValueError as error:
                 raise errors.ReportableErrorVmIdentification(
-                    exception=error, system_uuid=self._system_uuid
+                    exception=error, system_uuid=system_uuid
                 )
 
     def _iid(self, previous=None):
@@ -1140,13 +1148,16 @@ class DataSourceAzure(sources.DataSource):
         )
         if os.path.exists(prev_iid_path):
             previous = util.load_text_file(prev_iid_path).strip()
-            swapped_id = identity.byte_swap_system_uuid(self._system_uuid)
+            system_uuid = self._system_uuid
+            if system_uuid is None:
+                return None
+            swapped_id = identity.byte_swap_system_uuid(system_uuid)
 
             # Older kernels than 4.15 will have UPPERCASE product_uuid.
             # We don't want Azure to react to an UPPER/lower difference as
             # a new instance id as it rewrites SSH host keys.
             # LP: #1835584
-            if previous.lower() in [self._system_uuid, swapped_id]:
+            if previous.lower() in [system_uuid, swapped_id]:
                 return previous
         return self._system_uuid
 
@@ -1259,7 +1270,7 @@ class DataSourceAzure(sources.DataSource):
         """Wait until the primary nic for the vm is hot-attached."""
         LOG.info("Waiting for primary nic to be hot-attached")
         try:
-            nics_found = []
+            nics_found: List[Any] = []
             primary_nic_found = False
 
             # Wait for netlink nic attach events. After the first nic is
@@ -1641,10 +1652,8 @@ class DataSourceAzure(sources.DataSource):
     def _generate_network_config(self):
         """Generate network configuration according to configuration."""
         # Use IMDS network metadata, if configured.
-        if (
-            self._metadata_imds
-            and self._metadata_imds != sources.UNSET
-            and self.ds_cfg.get("apply_network_config")
+        if isinstance(self._metadata_imds, dict) and self.ds_cfg.get(
+            "apply_network_config"
         ):
             try:
                 return generate_network_config_from_instance_network_metadata(
@@ -1675,7 +1684,7 @@ class DataSourceAzure(sources.DataSource):
     def network_config(self):
         """Provide network configuration v2 dictionary."""
         # Use cached config, if present.
-        if self._network_config and self._network_config != sources.UNSET:
+        if self._network_config:
             return self._network_config
 
         self._network_config = self._generate_network_config()
@@ -1782,23 +1791,6 @@ def _disable_password_from_imds(imds_data):
         )
     except KeyError:
         return None
-
-
-def _key_is_openssh_formatted(key):
-    """
-    Validate whether or not the key is OpenSSH-formatted.
-    """
-    # See https://bugs.launchpad.net/cloud-init/+bug/1910835
-    if "\r\n" in key.strip():
-        return False
-
-    parser = ssh_util.AuthKeyLineParser()
-    try:
-        akl = parser.parse(key)
-    except TypeError:
-        return False
-
-    return akl.keytype is not None
 
 
 def _partitions_on_device(devpath, maxnum=16):
@@ -2008,7 +2000,9 @@ def write_files(datadir, files, dirmode=None):
 
 
 @azure_ds_telemetry_reporter
-def read_azure_ovf(contents):
+def read_azure_ovf(
+    contents: str,
+) -> Tuple[Dict[str, Any], Union[bytes, str], Dict[str, Any]]:
     """Parse OVF XML contents.
 
     :return: Tuple of metadata, configuration, userdata dicts.
@@ -2018,7 +2012,7 @@ def read_azure_ovf(contents):
     """
     ovf_env = OvfEnvXml.parse_text(contents)
     md: Dict[str, Any] = {}
-    cfg = {}
+    cfg: Dict[str, Any] = {}
     ud = ovf_env.custom_data or ""
 
     if ovf_env.hostname:
@@ -2032,7 +2026,7 @@ def read_azure_ovf(contents):
     elif ovf_env.password:
         cfg["ssh_pwauth"] = True
 
-    defuser = {}
+    defuser: Dict[str, Any] = {}
     if ovf_env.username:
         defuser["name"] = ovf_env.username
     if ovf_env.password:

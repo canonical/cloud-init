@@ -831,17 +831,14 @@ class TestDataSourceVMwareIMC:
         ds = DS({"disable_vmware_customization": True})
         # Prepare the conf file
         conf_file = os.path.join(tmpdir, "test-cust")
-        conf_content = dedent(
-            """\
+        conf_content = dedent("""\
             [CLOUDINIT]
             METADATA = test-meta
-            """
-        )
+            """)
         util.write_file(conf_file, conf_content)
         # Prepare the meta data file
         metadata_file = os.path.join(tmpdir, "test-meta")
-        metadata_content = dedent(
-            """\
+        metadata_content = dedent("""\
             {
               "instance-id": "cloud-vm",
               "local-hostname": "my-host.domain.com",
@@ -857,8 +854,7 @@ class TestDataSourceVMwareIMC:
                 }
               }
             }
-            """
-        )
+            """)
         util.write_file(metadata_file, metadata_content)
 
         with mock.patch(
@@ -920,12 +916,10 @@ class TestDataSourceVMwareIMC:
             },
         )
         conf_file = os.path.join(tmpdir, "test-cust")
-        conf_content = dedent(
-            """\
+        conf_content = dedent("""\
             [MISC]
             MARKER-ID = 12345345
-            """
-        )
+            """)
         util.write_file(conf_file, conf_content)
         result = wrap_and_call(
             "cloudinit.sources.DataSourceVMware",
@@ -951,12 +945,10 @@ class TestDataSourceVMwareIMC:
             },
         )
         conf_file = os.path.join(tmpdir, "test-cust")
-        conf_content = dedent(
-            """\
+        conf_content = dedent("""\
             [MISC]
             MARKER-ID = 12345345
-            """
-        )
+            """)
         util.write_file(conf_file, conf_content)
         result = wrap_and_call(
             "cloudinit.sources.DataSourceVMware",
@@ -987,12 +979,10 @@ class TestDataSourceVMwareIMC:
 
         # Prepare the conf file
         conf_file = os.path.join(tmpdir, "test-cust")
-        conf_content = dedent(
-            """\
+        conf_content = dedent("""\
             [CLOUDINIT]
             METADATA = test-meta
-            """
-        )
+            """)
         util.write_file(conf_file, conf_content)
         result = wrap_and_call(
             "cloudinit.sources.DataSourceVMware",
@@ -1019,14 +1009,12 @@ class TestDataSourceVMwareIMC:
         """
         ds = DS({"disable_vmware_customization": False})
         conf_file = os.path.join(tmpdir, "test-cust")
-        conf_content = dedent(
-            """\
+        conf_content = dedent("""\
             [CUSTOM-SCRIPT]
             SCRIPT-NAME = test-script
             [MISC]
             MARKER-ID = 12345345
-            """
-        )
+            """)
         util.write_file(conf_file, conf_content)
         with mock.patch(
             MPATH + "guestcust_util.get_tools_config",
@@ -1054,14 +1042,12 @@ class TestDataSourceVMwareIMC:
         ds = DS({"disable_vmware_customization": False})
         # Prepare the conf file
         conf_file = os.path.join(tmpdir, "test-cust")
-        conf_content = dedent(
-            """\
+        conf_content = dedent("""\
             [CUSTOM-SCRIPT]
             SCRIPT-NAME = test-script
             [MISC]
             MARKER-ID = 12345346
-            """
-        )
+            """)
         util.write_file(conf_file, conf_content)
         # Prepare the custom script
         customscript = os.path.join(tmpdir, "test-script")
@@ -1096,14 +1082,12 @@ class TestDataSourceVMwareIMC:
         ds = DS({"disable_vmware_customization": False})
         # Prepare the conf file
         conf_file = os.path.join(tmpdir, "test-cust")
-        conf_content = dedent(
-            """\
+        conf_content = dedent("""\
             [CUSTOM-SCRIPT]
             SCRIPT-NAME = test-script
             [MISC]
             MARKER-ID = 12345346
-            """
-        )
+            """)
         util.write_file(conf_file, conf_content)
 
         # Mock custom script is enabled by return true when calling
@@ -1143,15 +1127,13 @@ class TestDataSourceVMwareIMC:
         conf_file = os.path.join(tmpdir, "test-cust")
         # set DEFAULT-RUN-POST-CUST-SCRIPT = yes so that enable-custom-scripts
         # default value is TRUE
-        conf_content = dedent(
-            """\
+        conf_content = dedent("""\
             [CUSTOM-SCRIPT]
             SCRIPT-NAME = test-script
             [MISC]
             MARKER-ID = 12345346
             DEFAULT-RUN-POST-CUST-SCRIPT = yes
-            """
-        )
+            """)
         util.write_file(conf_file, conf_content)
 
         # Mock get_tools_config(section, key, defaultVal) to return
@@ -1191,17 +1173,14 @@ class TestDataSourceVMwareIMC:
         ds = DS({"disable_vmware_customization": True})
         # Prepare the conf file
         conf_file = os.path.join(tmpdir, "test-cust")
-        conf_content = dedent(
-            """\
+        conf_content = dedent("""\
             [CLOUDINIT]
             METADATA = test-meta
-            """
-        )
+            """)
         util.write_file(conf_file, conf_content)
         # Prepare the meta data file
         metadata_file = os.path.join(tmpdir, "test-meta")
-        metadata_content = dedent(
-            """\
+        metadata_content = dedent("""\
             {
               "instance-id": "cloud-vm",
               "local-hostname": "my-host.domain.com",
@@ -1217,8 +1196,7 @@ class TestDataSourceVMwareIMC:
                 }
               }
             }
-            """
-        )
+            """)
         util.write_file(metadata_file, metadata_content)
 
         with mock.patch(
@@ -1250,17 +1228,14 @@ class TestDataSourceVMwareIMC:
         ds = DS({"disable_vmware_customization": True})
         # Prepare the conf file
         conf_file = os.path.join(tmpdir, "test-cust")
-        conf_content = dedent(
-            """\
+        conf_content = dedent("""\
             [CLOUDINIT]
             METADATA = test-meta
-            """
-        )
+            """)
         util.write_file(conf_file, conf_content)
         # Prepare the meta data file
         metadata_file = os.path.join(tmpdir, "test-meta")
-        metadata_content = dedent(
-            """\
+        metadata_content = dedent("""\
             instance-id: cloud-vm
             local-hostname: my-host.domain.com
             network:
@@ -1270,8 +1245,7 @@ class TestDataSourceVMwareIMC:
                         match:
                             name: ens*
                         dhcp4: yes
-            """
-        )
+            """)
         util.write_file(metadata_file, metadata_content)
 
         with mock.patch(
@@ -1305,12 +1279,10 @@ class TestDataSourceVMwareIMC:
 
         # Prepare the conf file
         conf_file = os.path.join(tmpdir, "test-cust")
-        conf_content = dedent(
-            """\
+        conf_content = dedent("""\
             [CLOUDINIT]
             METADATA = test-meta
-            """
-        )
+            """)
         util.write_file(conf_file, conf_content)
 
         # Prepare the meta data file
@@ -1347,12 +1319,10 @@ class TestDataSourceVMwareIMC:
         ds = DS({"disable_vmware_customization": True})
         # Prepare the conf file
         conf_file = os.path.join(tmpdir, "test-cust")
-        conf_content = dedent(
-            """\
+        conf_content = dedent("""\
             [CLOUDINIT]
             METADATA = test-meta
-            """
-        )
+            """)
         util.write_file(conf_file, conf_content)
         # Don't prepare the meta data file
 
@@ -1382,19 +1352,16 @@ class TestDataSourceVMwareIMC:
 
         # Prepare the conf file
         conf_file = os.path.join(tmpdir, "test-cust")
-        conf_content = dedent(
-            """\
+        conf_content = dedent("""\
             [CLOUDINIT]
             METADATA = test-meta
             USERDATA = test-user
-            """
-        )
+            """)
         util.write_file(conf_file, conf_content)
 
         # Prepare the meta data file
         metadata_file = os.path.join(tmpdir, "test-meta")
-        metadata_content = dedent(
-            """\
+        metadata_content = dedent("""\
             instance-id: cloud-vm
             local-hostname: my-host.domain.com
             network:
@@ -1404,8 +1371,7 @@ class TestDataSourceVMwareIMC:
                         match:
                             name: ens*
                         dhcp4: yes
-            """
-        )
+            """)
         util.write_file(metadata_file, metadata_content)
 
         # Prepare the user data file
@@ -1442,19 +1408,16 @@ class TestDataSourceVMwareIMC:
 
         # Prepare the conf file
         conf_file = os.path.join(tmpdir, "test-cust")
-        conf_content = dedent(
-            """\
+        conf_content = dedent("""\
             [CLOUDINIT]
             METADATA = test-meta
             USERDATA = test-user
-            """
-        )
+            """)
         util.write_file(conf_file, conf_content)
 
         # Prepare the meta data file
         metadata_file = os.path.join(tmpdir, "test-meta")
-        metadata_content = dedent(
-            """\
+        metadata_content = dedent("""\
             instance-id: cloud-vm
             local-hostname: my-host.domain.com
             network:
@@ -1464,8 +1427,7 @@ class TestDataSourceVMwareIMC:
                         match:
                             name: ens*
                         dhcp4: yes
-            """
-        )
+            """)
         util.write_file(metadata_file, metadata_content)
 
         # Don't prepare the user data file

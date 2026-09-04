@@ -2388,8 +2388,7 @@ USERCTL=no
         entry = {
             "yaml": NETPLAN_DHCP_FALSE,
             "expected_sysconfig": {
-                "ifcfg-ens3": textwrap.dedent(
-                    """\
+                "ifcfg-ens3": textwrap.dedent("""\
                    BOOTPROTO=none
                    DEFROUTE=yes
                    DEVICE=ens3
@@ -2408,8 +2407,7 @@ USERCTL=no
                    ONBOOT=yes
                    TYPE=Ethernet
                    USERCTL=no
-                   """
-                ),
+                   """),
             },
         }
 
@@ -2434,17 +2432,14 @@ USERCTL=no
             },
         }
         expected = {
-            "ifcfg-eno1": textwrap.dedent(
-                """\
+            "ifcfg-eno1": textwrap.dedent("""\
                 BOOTPROTO=none
                 DEVICE=eno1
                 ONBOOT=yes
                 TYPE=Ethernet
                 USERCTL=no
-                """
-            ),
-            "ifcfg-eno1.1000": textwrap.dedent(
-                """\
+                """),
+            "ifcfg-eno1.1000": textwrap.dedent("""\
                 BOOTPROTO=none
                 DEVICE=eno1.1000
                 IPADDR=192.6.1.9
@@ -2454,8 +2449,7 @@ USERCTL=no
                 PHYSDEV=eno1
                 USERCTL=no
                 VLAN=yes
-                """
-            ),
+                """),
         }
         self._compare_files_to_expected(
             expected, self._render_and_read(network_config=v2data)
@@ -2475,8 +2469,7 @@ USERCTL=no
             },
         }
         expected = {
-            "ifcfg-bond0": textwrap.dedent(
-                """\
+            "ifcfg-bond0": textwrap.dedent("""\
                 BONDING_MASTER=yes
                 BONDING_SLAVE0=enp0s0
                 BONDING_SLAVE1=enp0s1
@@ -2488,10 +2481,8 @@ USERCTL=no
                 ONBOOT=yes
                 TYPE=Bond
                 USERCTL=no
-                """
-            ),
-            "ifcfg-enp0s0": textwrap.dedent(
-                """\
+                """),
+            "ifcfg-enp0s0": textwrap.dedent("""\
                 BONDING_MASTER=yes
                 BOOTPROTO=none
                 DEVICE=enp0s0
@@ -2500,10 +2491,8 @@ USERCTL=no
                 SLAVE=yes
                 TYPE=Bond
                 USERCTL=no
-                """
-            ),
-            "ifcfg-enp0s1": textwrap.dedent(
-                """\
+                """),
+            "ifcfg-enp0s1": textwrap.dedent("""\
                 BONDING_MASTER=yes
                 BOOTPROTO=none
                 DEVICE=enp0s1
@@ -2512,8 +2501,7 @@ USERCTL=no
                 SLAVE=yes
                 TYPE=Bond
                 USERCTL=no
-                """
-            ),
+                """),
         }
         self._compare_files_to_expected(
             expected, self._render_and_read(network_config=v2data)
@@ -2533,16 +2521,14 @@ USERCTL=no
         }
         for dhcp_ver in ("dhcp4", "dhcp6"):
             expected = {
-                "ifcfg-eno1": textwrap.dedent(
-                    """\
+                "ifcfg-eno1": textwrap.dedent("""\
                     BOOTPROTO=dhcp
                     DEVICE=eno1
                     HWADDR=07-1c-c6-75-a4-be
                     ONBOOT=yes
                     TYPE=Ethernet
                     USERCTL=no
-                    """
-                ),
+                    """),
             }
             v2data = copy.deepcopy(v2base)
             if dhcp_ver == "dhcp6":
@@ -2611,8 +2597,7 @@ USERCTL=no
         }
 
         expected = {
-            "ifcfg-eth0": textwrap.dedent(
-                """\
+            "ifcfg-eth0": textwrap.dedent("""\
                 # Created by cloud-init automatically, do not edit.
                 #
                 BOOTPROTO=none
@@ -2634,25 +2619,20 @@ USERCTL=no
                 ONBOOT=yes
                 TYPE=Ethernet
                 USERCTL=no
-                """  # noqa: E501
-            ),
-            "route-eth0": textwrap.dedent(
-                """\
+                """),  # noqa: E501
+            "route-eth0": textwrap.dedent("""\
                 # Created by cloud-init automatically, do not edit.
                 #
                 ADDRESS0=10.54.0.1
                 GATEWAY0=0.0.0.0
                 NETMASK0=255.255.255.255
-                """  # noqa: E501
-            ),
-            "route6-eth0": textwrap.dedent(
-                """\
+                """),  # noqa: E501
+            "route6-eth0": textwrap.dedent("""\
                 # Created by cloud-init automatically, do not edit.
                 #
                 2a00:1730:fff9:100::1/128 via ::0  dev eth0
                 ::0/0 via 2a00:1730:fff9:100::1  dev eth0
-                """  # noqa: E501
-            ),
+                """),  # noqa: E501
         }
 
         found = self._render_and_read(network_config=v2_data)
@@ -2946,8 +2926,7 @@ class TestNetworkManagerRendering:
     expected_name = "expected_network_manager"
 
     expected_conf_d = {
-        "30-cloud-init-ip6-addr-gen-mode.conf": textwrap.dedent(
-            """\
+        "30-cloud-init-ip6-addr-gen-mode.conf": textwrap.dedent("""\
                 # This is generated by cloud-init. Do not edit.
                 #
                 [.config]
@@ -2956,8 +2935,7 @@ class TestNetworkManagerRendering:
                   # Select EUI64 to be used if the profile does not specify it.
                   ipv6.addr-gen-mode=0
 
-                """
-        ),
+                """),
     }
 
     @pytest.fixture(autouse=True)
@@ -3027,8 +3005,7 @@ class TestNetworkManagerRendering:
         found = dir2dict(render_dir)
         self._compare_files_to_expected(
             {
-                "cloud-init-eth1000.nmconnection": textwrap.dedent(
-                    """\
+                "cloud-init-eth1000.nmconnection": textwrap.dedent("""\
                 # Generated by cloud-init. Changes will be lost.
 
                 [connection]
@@ -3051,8 +3028,7 @@ class TestNetworkManagerRendering:
                 method=auto
                 may-fail=true
 
-                """
-                ),
+                """),
             },
             self.expected_conf_d,
             found,
@@ -3086,9 +3062,7 @@ class TestNetworkManagerRendering:
         renderer.render_network_state(ns, target=render_dir)
         found = dir2dict(render_dir)
         self._compare_files_to_expected(
-            {
-                "cloud-init-interface0.nmconnection": textwrap.dedent(
-                    """\
+            {"cloud-init-interface0.nmconnection": textwrap.dedent("""\
                 # Generated by cloud-init. Changes will be lost.
 
                 [connection]
@@ -3109,9 +3083,7 @@ class TestNetworkManagerRendering:
                 address1=10.0.2.15/24
                 gateway=10.0.2.2
 
-                """
-                )
-            },
+                """)},
             self.expected_conf_d,
             found,
         )
@@ -3125,8 +3097,7 @@ class TestNetworkManagerRendering:
         found = dir2dict(render_dir)
         self._compare_files_to_expected(
             {
-                "cloud-init-eth0.nmconnection": textwrap.dedent(
-                    """\
+                "cloud-init-eth0.nmconnection": textwrap.dedent("""\
                 # Generated by cloud-init. Changes will be lost.
 
                 [connection]
@@ -3145,8 +3116,7 @@ class TestNetworkManagerRendering:
                 method=auto
                 may-fail=false
 
-                """
-                ),
+                """),
             },
             self.expected_conf_d,
             found,
@@ -3318,16 +3288,14 @@ iface eth0 inet dhcp
         """Network v2 route-metric overrides are preserved in eni output"""
         tmp_dir = self.tmp_dir()
         renderer = eni.Renderer()
-        expected_tmpl = textwrap.dedent(
-            """\
+        expected_tmpl = textwrap.dedent("""\
             auto lo
             iface lo inet loopback
 
             auto eth0
             iface eth0 inet{suffix} dhcp
                 metric 100
-            """
-        )
+            """)
         for dhcp_ver in ("dhcp4", "dhcp6"):
             suffix = "6" if dhcp_ver == "dhcp6" else ""
             dhcp_cfg = {
@@ -3834,8 +3802,7 @@ class TestNetplanNetRendering:
 
 class TestNetplanCleanDefault:
     snapd_known_path = "etc/netplan/00-snapd-config.yaml"
-    snapd_known_content = textwrap.dedent(
-        """\
+    snapd_known_content = textwrap.dedent("""\
         # This is the initial network config.
         # It can be overwritten by cloud-init or console-conf.
         network:
@@ -3849,8 +3816,7 @@ class TestNetplanCleanDefault:
                     match:
                         name: "eth*"
                     dhcp4: true
-        """
-    )
+        """)
     stub_known = {
         "run/systemd/network/10-netplan-all-en.network": "foo-en",
         "run/systemd/network/10-netplan-all-eth.network": "foo-eth",
@@ -4306,15 +4272,13 @@ class TestReadInitramfsConfig:
 
 
 class TestNetplanRoundTrip:
-    NETPLAN_INFO_OUT = textwrap.dedent(
-        """
+    NETPLAN_INFO_OUT = textwrap.dedent("""
     netplan.io:
       features:
         - dhcp-use-domains
         - ipv6-mtu
       website: https://netplan.io/
-    """
-    )
+    """)
 
     @pytest.fixture(autouse=True)
     def setup(self, tmpdir_factory, mocker):
@@ -4626,22 +4590,38 @@ class TestEniRoundTrip:
             "iface eth0 inet static",
             "    address 172.23.31.42/26",
             "    gateway 172.23.31.2",
-            "post-up ip route add 10.0.0.0/12 via "
-            "172.23.31.1 metric 0 || true",
-            "pre-down ip route del 10.0.0.0/12 via "
-            "172.23.31.1 metric 0 || true",
-            "post-up ip route add 192.168.2.0/16 via "
-            "172.23.31.1 metric 0 || true",
-            "pre-down ip route del 192.168.2.0/16 via "
-            "172.23.31.1 metric 0 || true",
-            "post-up ip route add 10.0.200.0/16 via "
-            "172.23.31.1 metric 1 || true",
-            "pre-down ip route del 10.0.200.0/16 via "
-            "172.23.31.1 metric 1 || true",
-            "post-up ip route add 10.0.0.100/32 via "
-            "172.23.31.1 metric 1 || true",
-            "pre-down ip route del 10.0.0.100/32 via "
-            "172.23.31.1 metric 1 || true",
+            (
+                "post-up ip route add 10.0.0.0/12 via "
+                "172.23.31.1 metric 0 || true"
+            ),
+            (
+                "pre-down ip route del 10.0.0.0/12 via "
+                "172.23.31.1 metric 0 || true"
+            ),
+            (
+                "post-up ip route add 192.168.2.0/16 via "
+                "172.23.31.1 metric 0 || true"
+            ),
+            (
+                "pre-down ip route del 192.168.2.0/16 via "
+                "172.23.31.1 metric 0 || true"
+            ),
+            (
+                "post-up ip route add 10.0.200.0/16 via "
+                "172.23.31.1 metric 1 || true"
+            ),
+            (
+                "pre-down ip route del 10.0.200.0/16 via "
+                "172.23.31.1 metric 1 || true"
+            ),
+            (
+                "post-up ip route add 10.0.0.100/32 via "
+                "172.23.31.1 metric 1 || true"
+            ),
+            (
+                "pre-down ip route del 10.0.0.100/32 via "
+                "172.23.31.1 metric 1 || true"
+            ),
         ]
         found = files["/etc/network/interfaces"].splitlines()
 
@@ -4704,22 +4684,38 @@ class TestEniRoundTrip:
             "iface eth0 inet static",
             "    address 172.23.31.42/26",
             "    gateway 172.23.31.2",
-            "post-up route add -net 10.0.0.0/12 gw "
-            "172.23.31.1 metric 0 || true",
-            "pre-down route del -net 10.0.0.0/12 gw "
-            "172.23.31.1 metric 0 || true",
-            "post-up route add -net 192.168.2.0/16 gw "
-            "172.23.31.1 metric 0 || true",
-            "pre-down route del -net 192.168.2.0/16 gw "
-            "172.23.31.1 metric 0 || true",
-            "post-up route add -net 10.0.200.0/16 gw "
-            "172.23.31.1 metric 1 || true",
-            "pre-down route del -net 10.0.200.0/16 gw "
-            "172.23.31.1 metric 1 || true",
-            "post-up route add -host 10.0.0.100/32 gw "
-            "172.23.31.1 metric 1 || true",
-            "pre-down route del -host 10.0.0.100/32 gw "
-            "172.23.31.1 metric 1 || true",
+            (
+                "post-up route add -net 10.0.0.0/12 gw "
+                "172.23.31.1 metric 0 || true"
+            ),
+            (
+                "pre-down route del -net 10.0.0.0/12 gw "
+                "172.23.31.1 metric 0 || true"
+            ),
+            (
+                "post-up route add -net 192.168.2.0/16 gw "
+                "172.23.31.1 metric 0 || true"
+            ),
+            (
+                "pre-down route del -net 192.168.2.0/16 gw "
+                "172.23.31.1 metric 0 || true"
+            ),
+            (
+                "post-up route add -net 10.0.200.0/16 gw "
+                "172.23.31.1 metric 1 || true"
+            ),
+            (
+                "pre-down route del -net 10.0.200.0/16 gw "
+                "172.23.31.1 metric 1 || true"
+            ),
+            (
+                "post-up route add -host 10.0.0.100/32 gw "
+                "172.23.31.1 metric 1 || true"
+            ),
+            (
+                "pre-down route del -host 10.0.0.100/32 gw "
+                "172.23.31.1 metric 1 || true"
+            ),
         ]
         found = files["/etc/network/interfaces"].splitlines()
 
@@ -4780,26 +4776,46 @@ class TestEniRoundTrip:
             "    address fd00::12/64",
             "    dns-nameservers fd00:2::15",
             "    gateway fd00::1",
-            "    post-up ip -family inet6 route add fd00:12::/32 via fd00::2 "
-            "|| true",
-            "    pre-down ip -family inet6 route del fd00:12::/32 via fd00::2 "
-            "|| true",
-            "    post-up ip -family inet6 route add fd00:14::/64 via fd00::3 "
-            "|| true",
-            "    pre-down ip -family inet6 route del fd00:14::/64 via fd00::3 "
-            "|| true",
-            "    post-up ip -family inet6 route add fe00:14::/48 via "
-            "fe00::4 metric 500 || true",
-            "    pre-down ip -family inet6 route del fe00:14::/48 via "
-            "fe00::4 metric 500 || true",
-            "    post-up ip route add 192.168.23.0/24 via "
-            "192.168.23.1 metric 999 || true",
-            "    pre-down ip route del 192.168.23.0/24 via "
-            "192.168.23.1 metric 999 || true",
-            "    post-up ip route add 10.23.23.0/24 via "
-            "10.23.23.2 metric 300 || true",
-            "    pre-down ip route del 10.23.23.0/24 via "
-            "10.23.23.2 metric 300 || true",
+            (
+                "    post-up ip -family inet6 route add fd00:12::/32 via"
+                " fd00::2 || true"
+            ),
+            (
+                "    pre-down ip -family inet6 route del fd00:12::/32 via"
+                " fd00::2 || true"
+            ),
+            (
+                "    post-up ip -family inet6 route add fd00:14::/64 via"
+                " fd00::3 || true"
+            ),
+            (
+                "    pre-down ip -family inet6 route del fd00:14::/64 via"
+                " fd00::3 || true"
+            ),
+            (
+                "    post-up ip -family inet6 route add fe00:14::/48 via "
+                "fe00::4 metric 500 || true"
+            ),
+            (
+                "    pre-down ip -family inet6 route del fe00:14::/48 via "
+                "fe00::4 metric 500 || true"
+            ),
+            (
+                "    post-up ip route add 192.168.23.0/24 via "
+                "192.168.23.1 metric 999 || true"
+            ),
+            (
+                "    pre-down ip route del 192.168.23.0/24 via "
+                "192.168.23.1 metric 999 || true"
+            ),
+            (
+                "    post-up ip route add 10.23.23.0/24 via "
+                "10.23.23.2 metric 300 || true"
+            ),
+            (
+                "    pre-down ip route del 10.23.23.0/24 via "
+                "10.23.23.2 metric 300 || true"
+            ),
         ]
         found = files["/etc/network/interfaces"].splitlines()
 
@@ -4864,18 +4880,30 @@ class TestEniRoundTrip:
             "    pre-down route del -A inet6 fd00:12::/32 gw fd00::2 || true",
             "    post-up route add -A inet6 fd00:14::/64 gw fd00::3 || true",
             "    pre-down route del -A inet6 fd00:14::/64 gw fd00::3 || true",
-            "    post-up route add -A inet6 fe00:14::/48 gw "
-            "fe00::4 metric 500 || true",
-            "    pre-down route del -A inet6 fe00:14::/48 gw "
-            "fe00::4 metric 500 || true",
-            "    post-up route add -net 192.168.23.0/24 gw "
-            "192.168.23.1 metric 999 || true",
-            "    pre-down route del -net 192.168.23.0/24 gw "
-            "192.168.23.1 metric 999 || true",
-            "    post-up route add -net 10.23.23.0/24 gw "
-            "10.23.23.2 metric 300 || true",
-            "    pre-down route del -net 10.23.23.0/24 gw "
-            "10.23.23.2 metric 300 || true",
+            (
+                "    post-up route add -A inet6 fe00:14::/48 gw "
+                "fe00::4 metric 500 || true"
+            ),
+            (
+                "    pre-down route del -A inet6 fe00:14::/48 gw "
+                "fe00::4 metric 500 || true"
+            ),
+            (
+                "    post-up route add -net 192.168.23.0/24 gw "
+                "192.168.23.1 metric 999 || true"
+            ),
+            (
+                "    pre-down route del -net 192.168.23.0/24 gw "
+                "192.168.23.1 metric 999 || true"
+            ),
+            (
+                "    post-up route add -net 10.23.23.0/24 gw "
+                "10.23.23.2 metric 300 || true"
+            ),
+            (
+                "    pre-down route del -net 10.23.23.0/24 gw "
+                "10.23.23.2 metric 300 || true"
+            ),
         ]
         found = files["/etc/network/interfaces"].splitlines()
 
@@ -4941,14 +4969,12 @@ class TestNetworkdNetRendering:
         actual = self.create_conf_dict(contents)
         print(actual)
 
-        expected = textwrap.dedent(
-            """\
+        expected = textwrap.dedent("""\
             [Match]
             Name=eth1000
             MACAddress=07-1c-c6-75-a4-be
             [Network]
-            DHCP=yes"""
-        ).rstrip(" ")
+            DHCP=yes""").rstrip(" ")
 
         expected = self.create_conf_dict(expected.splitlines())
 
@@ -5172,7 +5198,7 @@ class TestRenderersSelect:
         m_network_manager_avail.return_value = network_manager  # NM presence
         m_networkd_avail.return_value = networkd  # networkd presence
         if isinstance(renderer_selected, str):
-            (renderer_name, _rnd_class) = renderers.select(
+            renderer_name, _rnd_class = renderers.select(
                 priority=renderers.DEFAULT_PRIORITY
             )
             assert renderer_selected == renderer_name

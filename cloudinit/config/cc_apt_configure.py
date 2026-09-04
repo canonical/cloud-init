@@ -15,7 +15,7 @@ import pathlib
 import re
 import shutil
 from textwrap import indent
-from typing import Dict, Iterable, List, Mapping
+from typing import Any, Callable, Dict, List, Mapping, Optional, Set
 
 from cloudinit import features, lifecycle, subp, templater, util
 from cloudinit.cloud import Cloud
@@ -606,7 +606,11 @@ def add_apt_key_raw(key, file_name, gpg, hardened=False):
         raise
 
 
-def _ensure_dependencies(cfg, aa_repo_match, cloud):
+def _ensure_dependencies(
+    cfg: Config,
+    aa_repo_match: Optional[Callable[[str], Any]],
+    cloud: Cloud,
+) -> None:
     """Install missing package dependencies based on apt_sources config.
 
     Inspect the cloud config user-data provided. When user-data indicates
@@ -618,7 +622,7 @@ def _ensure_dependencies(cfg, aa_repo_match, cloud):
     package installation.
     """
     missing_packages: List[str] = []
-    required_cmds: Iterable[str] = set()
+    required_cmds: Set[str] = set()
     if util.is_false(cfg.get("preserve_sources_list", False)):
         for mirror_key in ("primary", "security"):
             if cfg.get(mirror_key):
@@ -631,7 +635,7 @@ def _ensure_dependencies(cfg, aa_repo_match, cloud):
     for ent in apt_sources_dict.values():
         if {"key", "keyid"}.intersection(ent):
             required_cmds.add("gpg")
-        if aa_repo_match(ent.get("source", "")):
+        if aa_repo_match and aa_repo_match(ent.get("source", "")):
             required_cmds.add("add-apt-repository")
     for command in required_cmds:
         if not shutil.which(command):
@@ -749,7 +753,7 @@ def add_apt_sources(
 
 def convert_v1_to_v2_apt_format(srclist):
     """convert v1 apt format to v2 (dict in apt_sources)"""
-    srcdict = {}
+    srcdict: Dict[str, Any] = {}
     lifecycle.deprecate(
         deprecated="Config key 'apt_sources'",
         deprecated_version="22.1",
@@ -858,7 +862,7 @@ def convert_v2_to_v3_apt_format(oldcfg):
         return oldcfg
 
     # create new format from old keys
-    aptcfg = {}
+    aptcfg: Dict[str, Any] = {}
 
     # simple renames / moves under the apt key
     for oldkey in mapoldkeys:
