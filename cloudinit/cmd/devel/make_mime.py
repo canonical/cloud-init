@@ -28,7 +28,7 @@ def create_mime_message(files):
         contents = fh.read()
         sub_message = MIMEText(contents, format_type, sys.getdefaultencoding())
         sub_message.add_header(
-            "Content-Disposition", 'attachment; filename="%s"' % (filename)
+            "Content-Disposition", "attachment", filename=filename
         )
         content_type = sub_message.get_content_type().lower()
         if content_type not in get_content_types():
