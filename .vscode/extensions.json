@@ -1,5 +1,8 @@
 {
   "recommendations": [
+    "ms-vscode-remote.remote-containers",
+    "davidanson.vscode-markdownlint",
+    "ms-python.mypy-type-checker",
     "redhat.vscode-yaml"
   ]
 }
