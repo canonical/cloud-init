@@ -278,6 +278,13 @@ class TestUpCloudNetworkSetup:
             UC_METADATA.get("network").get("dns")[1] == dns.get("address")[1]
         )
 
+        # GH-7067: Verify recomputation when _network_config is UNSET
+        ds._network_config = sources.UNSET
+        recomputed_netcfg = ds.network_config
+        assert recomputed_netcfg != sources.UNSET
+        assert isinstance(recomputed_netcfg, dict)
+        assert 1 == recomputed_netcfg.get("version")
+
 
 class TestUpCloudDatasourceLoading:
     def test_get_datasource_list_returns_in_local(self):
