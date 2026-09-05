@@ -23,3 +23,10 @@ determined time for disclosure has arrived the following will occur:
 * A public bug is filed/made public with vulnerability details, CVE,
   mitigations and where to obtain the fix
 * An announcement is made to [GitHub Discussions](https://github.com/canonical/cloud-init/discussions)
+
+## Supported versions
+
+Each [cloud-init upstream release](https://github.com/canonical/cloud-init/milestones) is published to the
+[Ubuntu interim release and the two most recent Ubuntu LTS releases](https://ubuntu.com/about/release-cycle) to ensure stable cloud-init behavior on recent releases.
+
+[Ubuntu ESM CVE policy](https://ubuntu.com/security/cves/about) is followed to determine when to backport CVEs.
