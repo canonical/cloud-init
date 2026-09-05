@@ -641,9 +641,125 @@ parse_yaml_array() {
     _RET="${ret# }"
 }
 
+read_datasource_list_multiline() {
+    # Parse multi-line datasource_list from config files.
+    # Handles both multi-line flow sequences and block sequences:
+    #
+    #   Multi-line flow sequence:
+    #     datasource_list: [
+    #       Azure
+    #     ]
+    #
+    #   Block sequence:
+    #     datasource_list:
+    #       - NoCloud
+    #       - ConfigDrive
+    #
+    # NOTE: A more reliable approach would be to invoke python3 for YAML
+    # parsing with a shell fallback, since python3 is a hard dependency of
+    # cloud-init. That would handle all valid YAML correctly with no edge
+    # cases.  This shell implementation covers the formats seen in practice.
+    #
+    # Sets _RET to space-separated list of values.
+    # Sets _RET_fname to the file where it was found.
+    local files="" f="" line="" val="" mode="" dslist="" found_file=""
+    local flow_content=""
+    # files is a space-separated list of paths/globs; intentionally left
+    # unquoted below so the shell performs word splitting and pathname
+    # expansion (e.g. *.cfg) when assigning to the positional parameters.
+    # This mirrors the pattern used in check_config().
+    files="${PATH_ETC_CI_CFG} ${PATH_ETC_CI_CFG_D}/*.cfg"
+    # shellcheck disable=2086
+    { set +f; set -- $files; set -f; }
+    [ "$1" = "$files" ] && [ ! -f "$1" ] && return 1
+
+    for f in "$@"; do
+        [ -f "$f" ] || continue
+        mode=""
+        while IFS= read -r line || [ -n "$line" ]; do
+            line="${line%%#*}"
+            case "$mode" in
+                flow)
+                    case "$line" in
+                        *"]"*)
+                            # found closing bracket
+                            val="${line%%"]"*}"
+                            trim "$val"
+                            [ -n "$_RET" ] &&
+                                flow_content="${flow_content},${_RET}"
+                            parse_yaml_array "$flow_content"
+                            dslist="$_RET"
+                            mode=""
+                            ;;
+                        *)
+                            trim "$line"
+                            [ -n "$_RET" ] &&
+                                flow_content="${flow_content},${_RET}"
+                            ;;
+                    esac
+                    continue
+                    ;;
+                block)
+                    trim "$line"
+                    case "$_RET" in
+                        "- "*)
+                            val="${_RET#- }"
+                            trim "$val"
+                            unquote "$_RET"
+                            dslist="${dslist} $_RET"
+                            continue
+                            ;;
+                        "") continue;;
+                        *) mode="";;
+                    esac
+                    ;;
+            esac
+            case "$line" in
+                *datasource_list*)
+                    trim "${line%%:*}"
+                    unquote "$_RET"
+                    case "$_RET" in
+                        datasource_list)
+                            val="${line#*:}"
+                            trim "$val"
+                            case "$_RET" in
+                                "["*"]"*)
+                                    # single-line flow sequence
+                                    # already handled by caller
+                                    ;;
+                                "["*)
+                                    # multi-line flow sequence
+                                    mode="flow"
+                                    found_file="$f"
+                                    dslist=""
+                                    flow_content="${_RET#"["}"
+                                    ;;
+                                "")
+                                    # block sequence
+                                    mode="block"
+                                    found_file="$f"
+                                    dslist=""
+                                    ;;
+                            esac
+                            ;;
+                    esac
+                    ;;
+            esac
+        done < "$f"
+    done
+
+    dslist="${dslist# }"
+    if [ -n "$dslist" ]; then
+        _RET="$dslist"
+        _RET_fname="$found_file"
+        return 0
+    fi
+    return 1
+}
+
 read_datasource_list() {
     cached "$DI_DSLIST" && return
-    local dslist="" key="datasource_list"
+    local dslist="" key="datasource_list" key_found=false
     # if DI_DSNAME is set directly, then avoid parsing config.
     if [ -n "${DI_DSNAME}" ]; then
         dslist="${DI_DSNAME}"
@@ -666,9 +782,23 @@ read_datasource_list() {
         parse_yaml_array "$_RET"
         dslist=${_RET}
     fi
+    # Track whether the key was present in config at all
+    if [ -z "$dslist" ] && check_config "$key"; then
+        key_found=true
+    fi
+    # Try multi-line formats (flow sequence or block sequence)
+    if [ -z "$dslist" ] && read_datasource_list_multiline; then
+        debug 1 "$_RET_fname set datasource_list (multiline): $_RET"
+        dslist=${_RET}
+    fi
     if [ -z "$dslist" ]; then
+        if [ "$key_found" = "true" ]; then
+            error "datasource_list found in config but could not be parsed," \
+                "using default: $DI_DSLIST_DEFAULT"
+        else
+            warn "no datasource_list found, using default: $DI_DSLIST_DEFAULT"
+        fi
         dslist=${DI_DSLIST_DEFAULT}
-        warn "no datasource_list found, using default: $dslist"
     fi
     DI_DSLIST=$dslist
     return 0
@@ -962,6 +1092,15 @@ get_single_line_flow_sequence() {
     ret="$_RET"
     tmp="$_RET"
 
+    # reject values that don't contain both [ and ]
+    # (multi-line flow sequences are handled elsewhere)
+    case "$tmp" in
+        *"["*"]"*) ;;
+        *)
+            debug 1 "key $1 has no single line flow sequence"
+            return 1;;
+    esac
+
     # remove smallest ] suffix
     tmp="${tmp%]}"
 
@@ -976,7 +1115,7 @@ get_single_line_flow_sequence() {
     if [ "${#_RET}" -ne 0 ]; then
         return 0
     fi
-    debug 1 "key $key didn't have a valid single line flow sequence"
+    debug 1 "key $1 didn't have a valid single line flow sequence"
     return 1
 }
 
