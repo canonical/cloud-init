@@ -3,6 +3,7 @@
 # TODO: Importing this file without first importing
 # cloudinit.sources.azure.errors will result in a circular import.
 import base64
+import binascii
 import json
 import logging
 import os
@@ -1077,7 +1078,14 @@ class OvfEnvXml:
             value = default
 
         if decode_base64 and value is not None:
-            value = base64.b64decode("".join(value.split()))
+            try:
+                value = base64.b64decode(value)
+            except binascii.Error as error:
+                raise errors.ReportableErrorOvfInvalidBase64(
+                    field=name,
+                    error=error,
+                    length=len(value),
+                ) from error
 
         if parse_bool:
             value = util.translate_bool(value)
