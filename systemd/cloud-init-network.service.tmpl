@@ -55,7 +55,7 @@ Type=oneshot
 # "done", otherwise includes an error message) and an exit code to systemd.
 ExecStart=sh -c 'echo "start" | nc -U /run/cloud-init/share/network.sock | sh'
 RemainAfterExit=yes
-TimeoutSec=0
+TimeoutSec=300
 
 # Output needs to appear in instance console output
 StandardOutput=journal+console
