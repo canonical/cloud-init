@@ -22,29 +22,29 @@ discovery configuration can be delivered to cloud-init in different ways, but
 is different from the configurations that cloud-init uses to configure the
 instance at runtime.
 
-user-data
----------
+user-data (required)
+--------------------
 
 User-data is a :ref:`configuration format<user_data_formats>` that allows a
 user to configure an instance.
 
-meta-data
----------
+meta-data (required)
+--------------------
 
 The ``meta-data`` file is a YAML-formatted file which contains cloud-provided
 information to the instance. This is required to contain an ``instance-id``,
 with other cloud-specific keys available.
 
-vendor-data
------------
+vendor-data (optional)
+----------------------
 
 Vendor-data may be used to provide default cloud-specific configurations which
 may be overridden by user-data. This may be useful, for example, to configure
 an instance with a cloud provider's repository mirror for faster package
 installation.
 
-network-config
---------------
+network-config (optional)
+-------------------------
 
 Network configuration typically comes from the cloud provider to set
 cloud-specific network configurations, or a reasonable default is set by
@@ -209,23 +209,22 @@ using the following path components:
 
 * **Required files:**
 
-  * ``meta-data`` (required): Contains cloud-instance information.
+  * ``meta-data``: Contains cloud-instance information.
     It is recommended to define a unique ``instance-id``.
-  * ``user-data`` (required): Contains user configuration instructions
+  * ``user-data``: Contains user configuration instructions
     (can be empty if no configuration is needed).
 
 * **Optional files:**
 
-  * ``vendor-data`` (optional): Used for cloud provider defaults.
-  * ``network-config`` (optional): Network configuration if differing
+  * ``vendor-data``: Used for cloud provider defaults.
+  * ``network-config``: Network configuration if differing
     from defaults.
 
 .. note::
 
    Both ``user-data`` and ``meta-data`` must be present. If either of these
    required files is missing, the NoCloud datasource will treat the seed as
-   invalid and skip it (e.g., logging a warning such as
-   ``device ... with label=cidata not a valid seed``).
+   invalid and skip it while logging a warning.
 
 For example, if the ``seedfrom`` value is ``https://10.42.42.42/``, then
 the following files will be fetched from the webserver at first boot:
