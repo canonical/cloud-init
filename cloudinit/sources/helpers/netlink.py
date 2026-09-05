@@ -61,14 +61,15 @@ def create_bound_netlink_socket() -> socket.socket:
     includes RTM_NEWLINK/RTM_DELLINK/RTM_GETLINK events). The socket is set to
     non-blocking mode since we're only receiving messages.
 
-    :returns: netlink socket in non-blocking mode
+    :returns: A :class:`socket.socket` instance bound to the netlink protocol
+              in non-blocking mode.
     :raises: NetlinkCreateSocketError
     """
     try:
         netlink_socket = socket.socket(
-            socket.AF_NETLINK,  # type: ignore[attr-defined]
+            getattr(socket, "AF_NETLINK", 16),
             socket.SOCK_RAW,
-            socket.NETLINK_ROUTE,  # type: ignore[attr-defined]
+            getattr(socket, "NETLINK_ROUTE", 0),
         )
         netlink_socket.bind((os.getpid(), RTMGRP_LINK))
         netlink_socket.setblocking(False)
@@ -83,7 +84,8 @@ def get_netlink_msg_header(data: bytes) -> NetlinkHeader:
     """Gets netlink message type and length
 
     :param: data read from netlink socket
-    :returns: netlink message type
+    :returns: A :class:`NetlinkHeader` namedtuple containing message length,
+              type, flags, sequence number, and pid.
     :raises: AssertionError if data is None or data is not >= NLMSGHDR_SIZE
     struct nlmsghdr {
                __u32 nlmsg_len;    /* Length of message including header */
