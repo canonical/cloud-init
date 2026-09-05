@@ -60,7 +60,6 @@ module = [
     "cloudinit.sources.DataSourceNoCloud",
     "cloudinit.sources.DataSourceOVF",
     "cloudinit.sources.DataSourceOpenStack",
-    "cloudinit.sources.DataSourceRbxCloud",
     "cloudinit.sources.DataSourceScaleway",
     "cloudinit.sources.DataSourceSmartOS",
     "cloudinit.sources.helpers.azure",
