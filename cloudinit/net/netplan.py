@@ -505,6 +505,23 @@ class Renderer(renderer.Renderer):
                 _extract_addresses(ifcfg, eth, ifname, self.features)
                 ethernets.update({ifname: eth})
 
+            elif if_type == "infiniband":
+                ib = {
+                    "set-name": ifname,
+                    "match": ifcfg.get("match", None),
+                }
+                if ib["match"] is None:
+                    macaddr = ifcfg.get("mac_address", None)
+                    if macaddr is not None:
+                        ib["match"] = {"macaddress": macaddr.lower()}
+                    else:
+                        del ib["match"]
+                        del ib["set-name"]
+                _extract_addresses(ifcfg, ib, ifname, self.features)
+                if ib.get("mtu") is not None:
+                    ib["infiniband-mode"] = "datagram"
+                ethernets.update({ifname: ib})
+
             elif if_type == "bond":
                 # required_keys = ['name', 'bond_interfaces']
                 bond = {}
