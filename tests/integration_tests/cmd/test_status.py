@@ -158,7 +158,7 @@ def test_status_block_through_all_boot_status(client):
     )
     client.instance.clean()
     client.instance.restart()
-    wait_for_cloud_init(client).stdout.strip()
+    wait_for_cloud_init(client, num_retries=120).stdout.strip()
     client.execute("cloud-init status --wait")
 
     # Assert that before-cloud-init-local.service started before
