@@ -21,10 +21,9 @@ it is recommended by `Ubuntu security team guidelines`_ to update the packages
 
 .. note::
 
-  Ubuntu cloud images are configured by default to enable unattended-upgrades,
-  thus this is resolved this issue when the update gets triggered. One can
-  still apply this recommendation to cloud that gap and update the packages
-  on first boot.
+  Ubuntu cloud images enable unattended-upgrades by default, so this issue
+  resolves automatically as daily scheduled upgrades run. For images without
+  automated upgrades, follow this recommendation to update packages on first boot.
 
 .. code-block:: yaml
 
