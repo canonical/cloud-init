@@ -7,6 +7,7 @@ import os
 import select
 import socket
 import struct
+import sys
 from collections import namedtuple
 from typing import Callable, List, Optional
 
@@ -65,19 +66,23 @@ def create_bound_netlink_socket() -> socket.socket:
               in non-blocking mode.
     :raises: NetlinkCreateSocketError
     """
-    try:
-        netlink_socket = socket.socket(
-            getattr(socket, "AF_NETLINK", 16),
-            socket.SOCK_RAW,
-            getattr(socket, "NETLINK_ROUTE", 0),
-        )
-        netlink_socket.bind((os.getpid(), RTMGRP_LINK))
-        netlink_socket.setblocking(False)
-    except socket.error as e:
-        msg = "Exception during netlink socket create: %s" % e
-        raise NetlinkCreateSocketError(msg) from e
-    LOG.debug("Created netlink socket")
-    return netlink_socket
+    if sys.platform == "linux":
+        try:
+            netlink_socket = socket.socket(
+                socket.AF_NETLINK,
+                socket.SOCK_RAW,
+                socket.NETLINK_ROUTE,
+            )
+            netlink_socket.bind((os.getpid(), RTMGRP_LINK))
+            netlink_socket.setblocking(False)
+        except socket.error as e:
+            msg = "Exception during netlink socket create: %s" % e
+            raise NetlinkCreateSocketError(msg) from e
+        LOG.debug("Created netlink socket")
+        return netlink_socket
+    raise NetlinkCreateSocketError(
+        "Netlink sockets are only supported on Linux"
+    )
 
 
 def get_netlink_msg_header(data: bytes) -> NetlinkHeader:
@@ -125,10 +130,7 @@ def read_netlink_socket(
     if netlink_socket not in read_set:
         return None
     LOG.debug("netlink socket ready for read")
-    data = netlink_socket.recv(MAX_SIZE)
-    if data is None:
-        LOG.error("Reading from Netlink socket returned no data")  # type: ignore[unreachable]
-    return data
+    return netlink_socket.recv(MAX_SIZE)
 
 
 def unpack_rta_attr(data: bytes, offset: int) -> Optional[RTAAttr]:
