@@ -52,7 +52,6 @@ module = [
     "cloudinit.netinfo",
     "cloudinit.sources.DataSourceCloudStack",
     "cloudinit.sources.DataSourceConfigDrive",
-    "cloudinit.sources.DataSourceDigitalOcean",
     "cloudinit.sources.DataSourceEc2",
     "cloudinit.sources.DataSourceExoscale",
     "cloudinit.sources.DataSourceGCE",
