@@ -298,6 +298,9 @@ class TestFstabHandling:
         fake_fs.create_dir("/etc")
 
         self.m_subp = mocker.patch(f"{M_PATH}subp.subp")
+        self.m_udevadm_settle = mocker.patch(
+            f"{M_PATH}util.udevadm_settle"
+        )
         self.m_mounts = mocker.patch(
             f"{M_PATH}util.mounts",
             return_value={
@@ -473,6 +476,7 @@ class TestFstabHandling:
         with open(cc_mounts.FSTAB_PATH, "r") as fd:
             fstab_new_content = fd.read()
             assert fstab_original_content == fstab_new_content.strip()
+        self.m_udevadm_settle.assert_called_once_with()
         self.m_subp.assert_has_calls(
             [
                 mock.call(["mount", "-a"]),
