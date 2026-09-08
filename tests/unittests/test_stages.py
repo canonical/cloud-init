@@ -504,6 +504,44 @@ class TestInit:
             ):
                 assert not self.tmpdir.join(path).exists()
 
+    @pytest.mark.parametrize(
+        "cached_content",
+        (
+            pytest.param("{not valid json", id="malformed_json"),
+            pytest.param("", id="empty_file"),
+            pytest.param(
+                "[1, 2, 3]", id="valid_json_wrong_type_raises_typeerror"
+            ),
+        ),
+    )
+    def test_write_network_config_json_recovers_from_corrupted_cache(
+        self, cached_content, caplog
+    ):
+        """_write_network_config_json rewrites a corrupted cache file
+        instead of raising an unhandled exception."""
+        net_cfg = {
+            "version": 1,
+            "config": [
+                {
+                    "subnets": [{"type": "dhcp"}],
+                    "type": "physical",
+                    "name": "eth9",
+                    "mac_address": "42:42:42:42:42:42",
+                }
+            ],
+        }
+        ncfg_instance_path = self.init.paths.get_ipath_cur("network_config")
+        write_file(ncfg_instance_path, cached_content)
+
+        self.init._write_network_config_json(net_cfg)
+
+        warnings = [r for r in caplog.records if r.levelname == "WARNING"]
+        assert len(warnings) == 1
+        assert "Corrupted network-config.json" in warnings[0].getMessage()
+        assert net_cfg == json.loads(
+            self.tmpdir.join("network-config.json").read()
+        )
+
     @mock.patch("cloudinit.distros.ubuntu.Distro")
     @mock.patch.dict(
         sources.DataSource.default_update_events,
