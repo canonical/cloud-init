@@ -9,7 +9,7 @@ import socket
 import struct
 import sys
 from collections import namedtuple
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Tuple
 
 from cloudinit import util
 
@@ -104,9 +104,10 @@ def get_netlink_msg_header(data: bytes) -> NetlinkHeader:
     assert (
         len(data) >= NLMSGHDR_SIZE
     ), "data is smaller than netlink message header"
-    msg_len, msg_type, flags, seq, pid = struct.unpack(
+    netlink_msg: Tuple[int, int, int, int, int] = struct.unpack(
         NLMSGHDR_FMT, data[:MSG_TYPE_OFFSET]
     )
+    msg_len, msg_type, flags, seq, pid = netlink_msg
     LOG.debug("Got netlink msg of type %d", msg_type)
     return NetlinkHeader(msg_len, msg_type, flags, seq, pid)
 
