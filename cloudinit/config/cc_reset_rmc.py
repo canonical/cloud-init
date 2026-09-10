@@ -28,7 +28,7 @@ Prerequisite of using this module is to install RSCT packages.
 import logging
 import os
 
-from cloudinit import subp, util
+from cloudinit import lifecycle, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -67,6 +67,11 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if not os.path.isdir(RSCT_PATH):
         LOG.debug("module disabled, RSCT_PATH not present")
         return
+
+    lifecycle.deprecate(
+        deprecated="Module cc_reset_rmc",
+        deprecated_version="26.2",
+    )
 
     orig_path = os.environ.get("PATH")
     try:
