@@ -110,7 +110,7 @@ class DataSourceDigitalOcean(sources.DataSource):
         migration.
         """
 
-        if self._network_config:
+        if self._network_config and self._network_config != sources.UNSET:
             return self._network_config
 
         interfaces = self.metadata.get("interfaces")

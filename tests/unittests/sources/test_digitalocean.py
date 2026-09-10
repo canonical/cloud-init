@@ -12,7 +12,7 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import settings
+from cloudinit import settings, sources
 from cloudinit.sources import DataSourceDigitalOcean
 from cloudinit.sources.helpers import digitalocean
 
@@ -247,6 +247,35 @@ class TestDataSourceDigitalOcean:
         # Multiple keys
         assert metadata["public_keys"] == ds.get_public_ssh_keys()
         assert isinstance(ds.get_public_ssh_keys(), list)
+
+    @mock.patch("cloudinit.net.get_interfaces_by_mac")
+    @mock.patch("cloudinit.sources.helpers.digitalocean.read_metadata")
+    def test_network_config_unset_recomputes(
+        self, mock_readmd, m_get_by_mac, get_ds
+    ):
+        """GH-7067: network_config must recompute when
+        _network_config is UNSET.
+
+        update_metadata_if_supported() sets _network_config = sources.UNSET
+        (the truthy string "_unset"). Without the UNSET sentinel check, the
+        bare truthiness guard returns the sentinel directly instead of
+        recomputing, causing AttributeError in apply_network_config.
+        """
+        mock_readmd.return_value = DO_META.copy()
+        m_get_by_mac.return_value = {
+            "04:01:57:d1:9e:01": "eth0",
+            "04:01:57:d1:9e:02": "eth1",
+        }
+
+        ds = get_ds()
+        assert ds.get_data() is True
+
+        # Simulate what update_metadata_if_supported() does on every boot
+        ds._network_config = sources.UNSET
+        recomputed_netcfg = ds.network_config
+        assert recomputed_netcfg != sources.UNSET
+        assert isinstance(recomputed_netcfg, dict)
+        assert "config" in recomputed_netcfg
 
 
 class TestNetworkConvert:
