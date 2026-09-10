@@ -326,7 +326,7 @@ class Init:
         if util.get_cfg_option_bool(self.cfg, "manual_cache_clean", False):
             # The empty file in instance/ dir indicates manual cleaning,
             # and can be read by ds-identify.
-            util.write_file(
+            atomic_helper.write_file(
                 self.paths.get_ipath_cur("manual_clean_marker"),
                 omode="w",
                 content="",
