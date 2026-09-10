@@ -601,6 +601,9 @@ def extract_physdevs(netcfg):
             if not mac:
                 continue
             name = ent.get("name")
+            # cloud-init requires a name to rename the device to
+            if not name:
+                continue
             driver = ent.get("params", {}).get("driver")
             device_id = ent.get("params", {}).get("device_id")
             if not driver:

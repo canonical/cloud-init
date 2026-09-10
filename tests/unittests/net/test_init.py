@@ -1351,6 +1351,22 @@ class TestExtractPhysdevs:
         }
         assert sorted(physdevs) == sorted(net.extract_physdevs(netcfg))
 
+    def test_get_v1_type_physical_skips_if_no_name(self):
+        netcfg = {
+            "version": 1,
+            "config": [
+                {
+                    "type": "physical",
+                    "mac_address": "86:00:00:3c:5c:43",
+                    "name": None,
+                    "subnets": [{"type": "dhcp", "ipv4": True}],
+                }
+            ],
+        }
+        assert [] == net.extract_physdevs(netcfg)
+        self.m_driver.assert_not_called()
+        self.m_devid.assert_not_called()
+
     def test_get_v2_type_physical_skips_if_no_set_name(self):
         netcfg = {
             "version": 2,
