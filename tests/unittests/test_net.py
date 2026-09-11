@@ -6077,6 +6077,153 @@ class TestRenameInterfaces:
         mock_subp.assert_has_calls(expected)
 
 
+class TestGetCurrentRenameInfo:
+    """Tests for _get_current_rename_info(), covering the fix for GH #6887.
+
+    On Ubuntu 26.04 with Netplan 1.2+ / systemd-networkd, interfaces may
+    receive link-local (169.254.x.x, scope link) or early transient DHCP
+    (scope global dynamic from dracut) IPv4 addresses before cloud-init runs
+    init-local.
+
+    _get_current_rename_info() checks 'permanent scope global' for IPv6 to
+    ignore autoconfigured/temporary addresses. Mirroring this for IPv4 ensures
+    that both link-local (scope link) and ephemeral DHCP leases (dynamic)
+    do not cause downable=False and block interface renaming with a [busy]
+    error.
+    """
+
+    IFACE = ("ens18", "bc:24:11:56:41:9f", "virtio_net", "0x1")
+
+    def _make_subp_side_effect(self, ipv4_output="", ipv6_output=""):
+        """Build a subp side-effect function returning given outputs."""
+
+        def _side_effect(cmd, **kwargs):
+            if "-4" in cmd:
+                return (ipv4_output, "")
+            if "-6" in cmd:
+                return (ipv6_output, "")
+            return ("", "")
+
+        return _side_effect
+
+    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.net.get_interfaces")
+    @mock.patch("cloudinit.net.is_up", return_value=True)
+    def test_link_local_or_dhcp_ipv4_does_not_block_downable(
+        self, mock_is_up, mock_get_interfaces, mock_subp
+    ):
+        """Interface with only a link-local address or early dynamic DHCP
+        lease must be downable. Fixes GH #6887: 'permanent scope global'
+        filters out both scope link (IPv4LL) and dynamic (transient DHCP)
+        addresses assigned before cloud-init init-local runs."""
+        mock_get_interfaces.return_value = [self.IFACE]
+        # ip -4 addr show permanent scope global returns nothing for
+        # link-local or dynamic DHCP leases
+        mock_subp.side_effect = self._make_subp_side_effect(ipv4_output="")
+        info = net._get_current_rename_info(check_downable=True)
+        assert info["ens18"]["downable"] is True, (
+            "Interface with only auto-assigned IPv4 must be downable "
+            "(fix for GH #6887)"
+        )
+
+    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.net.get_interfaces")
+    @mock.patch("cloudinit.net.is_up", return_value=True)
+    def test_permanent_global_ipv4_marks_not_downable(
+        self, mock_is_up, mock_get_interfaces, mock_subp
+    ):
+        """Interface with a permanent, statically configured global IPv4
+        must NOT be downable -- cloud-init should not evict it."""
+        mock_get_interfaces.return_value = [self.IFACE]
+        ipv4_out = (
+            "2: ens18: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500\n"
+            "    inet 10.0.0.5/24 brd 10.0.0.255 scope global ens18\n"
+            "       valid_lft forever preferred_lft forever\n"
+        )
+        mock_subp.side_effect = self._make_subp_side_effect(
+            ipv4_output=ipv4_out
+        )
+        info = net._get_current_rename_info(check_downable=True)
+        assert (
+            info["ens18"]["downable"] is False
+        ), "Interface with a permanent global IPv4 must not be downable"
+
+    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.net.get_interfaces")
+    @mock.patch("cloudinit.net.is_up", return_value=True)
+    def test_permanent_global_ipv6_marks_not_downable(
+        self, mock_is_up, mock_get_interfaces, mock_subp
+    ):
+        """Interface with a permanent global IPv6 address must NOT be
+        downable, consistent with the IPv6 permanent scope global filter."""
+        mock_get_interfaces.return_value = [self.IFACE]
+        ipv6_out = (
+            "2: ens18: <BROADCAST,MULTICAST,UP,LOWER_UP>\n"
+            "    inet6 2001:db8::1/64 scope global permanent\n"
+            "       valid_lft forever preferred_lft forever\n"
+        )
+        mock_subp.side_effect = self._make_subp_side_effect(
+            ipv4_output="", ipv6_output=ipv6_out
+        )
+        info = net._get_current_rename_info(check_downable=True)
+        assert (
+            info["ens18"]["downable"] is False
+        ), "Interface with a permanent global IPv6 must not be downable"
+
+    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.net.get_interfaces")
+    @mock.patch("cloudinit.net.is_up", return_value=False)
+    def test_interface_already_down_is_always_downable(
+        self, mock_is_up, mock_get_interfaces, mock_subp
+    ):
+        """An interface that is already administratively down is always
+        downable regardless of what ip addr show returns."""
+        mock_get_interfaces.return_value = [self.IFACE]
+        ipv4_out = (
+            "2: ens18: <BROADCAST,MULTICAST> mtu 1500\n"
+            "    inet 10.0.0.5/24 brd 10.0.0.255 scope global ens18\n"
+        )
+        mock_subp.side_effect = self._make_subp_side_effect(
+            ipv4_output=ipv4_out
+        )
+        info = net._get_current_rename_info(check_downable=True)
+        assert (
+            info["ens18"]["downable"] is True
+        ), "An already-down interface must always be downable"
+
+    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.net.get_interfaces")
+    @mock.patch("cloudinit.net.is_up", return_value=True)
+    def test_check_downable_false_leaves_downable_none(
+        self, mock_is_up, mock_get_interfaces, mock_subp
+    ):
+        """When check_downable=False, downable stays None and subp is not
+        called for address lookups."""
+        mock_get_interfaces.return_value = [self.IFACE]
+        info = net._get_current_rename_info(check_downable=False)
+        assert info["ens18"]["downable"] is None
+        mock_subp.assert_not_called()
+
+    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.net.get_interfaces")
+    @mock.patch("cloudinit.net.is_up", return_value=True)
+    def test_ipv4_permanent_scope_global_flags_used(
+        self, mock_is_up, mock_get_interfaces, mock_subp
+    ):
+        """Regression guard: verify the ip -4 command includes both
+        'permanent' and 'scope global'."""
+        mock_get_interfaces.return_value = [self.IFACE]
+        mock_subp.return_value = ("", "")
+        net._get_current_rename_info(check_downable=True)
+        ipv4_calls = [c for c in mock_subp.call_args_list if "-4" in str(c)]
+        assert len(ipv4_calls) == 1
+        cmd = ipv4_calls[0][0][0]
+        assert "permanent" in cmd and "scope" in cmd and "global" in cmd, (
+            "ip -4 addr show must include 'permanent scope global' "
+            f"but got: {cmd}"
+        )
+
+
 class TestNetworkState:
     def test_bcast_addr(self):
         """Test mask_and_ipv4_to_bcast_addr proper execution."""
