@@ -23,3 +23,7 @@ determined time for disclosure has arrived the following will occur:
 * A public bug is filed/made public with vulnerability details, CVE,
   mitigations and where to obtain the fix
 * An announcement is made to [GitHub Discussions](https://github.com/canonical/cloud-init/discussions)
+
+## Downstream CVE mitigation
+
+- Ubuntu provides for CVE mitigation as part of the [Ubuntu Expanded Security Maintenance](https://docs.cloud-init.io/en/latest/reference/ubuntu_stable_release_updates.html#expanded-security-maintenance-esm-releases).
