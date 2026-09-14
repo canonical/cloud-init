@@ -12,6 +12,7 @@ import errno
 import logging
 import os
 from functools import partial
+from typing import Any, cast
 
 from cloudinit import dmi, lifecycle, sources, util
 from cloudinit.net import eni
@@ -25,13 +26,13 @@ class DataSourceNoCloud(sources.DataSource):
 
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
-        self.seed = None
+        self.seed: str | None = None
         self.seed_dirs = [
             os.path.join(paths.seed_dir, "nocloud"),
             os.path.join(paths.seed_dir, "nocloud-net"),
         ]
         self.seed_dir = None
-        self.supported_seed_starts = ("/", "file://")
+        self.supported_seed_starts: tuple[str, ...] = ("/", "file://")
         self._network_config = None
         self._network_eni = None
 
@@ -66,8 +67,8 @@ class DataSourceNoCloud(sources.DataSource):
             "dsmode": self.dsmode,
         }
 
-        found = []
-        mydata = {
+        found: list[str] = []
+        mydata: dict[str, Any] = {
             "meta-data": {},
             "user-data": "",
             "vendor-data": "",
@@ -77,7 +78,7 @@ class DataSourceNoCloud(sources.DataSource):
         try:
             # Parse the system serial label from dmi. If not empty, try parsing
             # like the command line
-            md = {}
+            md: dict[str, Any] = {}
             serial = dmi.read_dmi_data("system-serial-number")
             if serial and load_cmdline_data(md, serial):
                 found.append("dmi")
@@ -170,12 +171,12 @@ class DataSourceNoCloud(sources.DataSource):
         # on the command line, ie: ds=nocloud;s=http://bit.ly/abcdefg/
         if "seedfrom" in mydata["meta-data"]:
             seedfrom = mydata["meta-data"]["seedfrom"]
-            seedfound = False
+            seedfound: str | None = None
             for proto in self.supported_seed_starts:
                 if seedfrom.startswith(proto):
                     seedfound = proto
                     break
-            if not seedfound:
+            if seedfound is None:
                 self._log_unusable_seedfrom(seedfrom)
                 return False
             # check and replace instances of known dmi.<dmi_keys> such as
@@ -241,11 +242,12 @@ class DataSourceNoCloud(sources.DataSource):
 
     def _get_subplatform(self):
         """Return the subplatform metadata source details."""
-        if self.seed.startswith("/dev"):
+        seed = cast(str, self.seed)
+        if seed.startswith("/dev"):
             subplatform_type = "config-disk"
         else:
             subplatform_type = "seed-dir"
-        return "%s (%s)" % (subplatform_type, self.seed)
+        return "%s (%s)" % (subplatform_type, seed)
 
     def check_instance_id(self, sys_cfg):
         # quickly (local check only) if self.instance_id is still valid
@@ -282,7 +284,7 @@ def _quick_read_instance_id(dirs=None):
         dirs = []
 
     iid_key = "instance-id"
-    fill = {}
+    fill: dict[str, Any] = {}
     if load_cmdline_data(fill) and iid_key in fill:
         return fill[iid_key]
 
@@ -354,7 +356,7 @@ def parse_cmdline_data(ds_id, fill, cmdline=None):
     if len(tmp) > 1:
         kvpairs = tmp[1:]
     else:
-        kvpairs = ()
+        kvpairs = []
 
     # short2long mapping to save cmdline typing
     s2l = {"h": "local-hostname", "i": "instance-id", "s": "seedfrom"}
