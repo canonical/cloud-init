@@ -23,7 +23,7 @@ relies on that directory to glean the netplan schema.
         required=True,
         help="""
 The cloud-init networkv2 schema file found in
-cloudinit/config/schemas/schema-network-config-v2.json
+schemas/schema-network-config-v2.json
 in this repository.
         """,
     )
@@ -51,7 +51,7 @@ def validate_netplan_against_networkv2(schema_file, netplan_examples):
 
     There are two arguments required for this script.  The first is schema_file
     which should point to the cloud-init networkv2 schema file found in
-    cloudinit/config/schemas/schema-network-config-v2.json in this repository.
+    schemas/schema-network-config-v2.json in this repository.
     The second is netplan_examples which should point to the examples/
     directory in the netplan repo.  The most recent netplan repo can be cloned
     from https://github.com/canonical/netplan.

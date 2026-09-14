@@ -18,8 +18,11 @@ from typing import List
 import pytest
 import yaml
 
+import cloudinit
 from cloudinit import features, performance
 from cloudinit.config.schema import (
+    REMOTE_SCHEMA_BASE,
+    USERDATA_SCHEMA_FILE,
     SchemaProblem,
     SchemaType,
     SchemaValidationError,
@@ -129,8 +132,7 @@ class TestVersionedSchemas:
         # reference from our upstream raw file in github.
         version_schema = json.loads(
             re.sub(
-                r"https:\/\/raw.githubusercontent.com\/canonical\/"
-                r"cloud-init\/main\/cloudinit\/config\/schemas\/",
+                re.escape(REMOTE_SCHEMA_BASE),
                 f"file://{schema_dir}/",
                 load_text_file(version_schemafile),
             )
@@ -145,6 +147,52 @@ class TestVersionedSchemas:
             validate_cloudconfig_schema(
                 schema, schema=version_schema, strict=True
             )
+
+
+class TestGetSchemaDir:
+    """Schema files live outside the Python package.
+
+    Their location differs between a source checkout and an installed
+    system, so get_schema_dir has to resolve both.
+    """
+
+    @staticmethod
+    def _fake_meson_paths(schema_dir) -> ModuleType:
+        module = ModuleType("cloudinit.meson_paths")
+        module.SCHEMA_DIR = str(schema_dir)  # type: ignore
+        return module
+
+    def test_source_tree_used_when_not_built(self, monkeypatch):
+        """Without a Meson-generated module, use the source tree layout."""
+        monkeypatch.setitem(sys.modules, "cloudinit.meson_paths", None)
+        schema_dir = get_schema_dir()
+        assert (
+            str(Path(cloudinit.__file__).parents[1] / "schemas") == schema_dir
+        )
+        assert os.path.isfile(os.path.join(schema_dir, USERDATA_SCHEMA_FILE))
+
+    def test_meson_path_preferred_when_installed(self, monkeypatch, tmp_path):
+        """The path recorded at build time wins over the source tree."""
+        monkeypatch.setitem(
+            sys.modules,
+            "cloudinit.meson_paths",
+            self._fake_meson_paths(tmp_path),
+        )
+        assert str(tmp_path) == get_schema_dir()
+
+    def test_source_tree_used_when_meson_path_absent(
+        self, monkeypatch, tmp_path
+    ):
+        """A recorded path that no longer exists must not be returned."""
+        missing = tmp_path / "does-not-exist"
+        monkeypatch.setitem(
+            sys.modules,
+            "cloudinit.meson_paths",
+            self._fake_meson_paths(missing),
+        )
+        schema_dir = get_schema_dir()
+        assert str(missing) != schema_dir
+        assert os.path.isfile(os.path.join(schema_dir, USERDATA_SCHEMA_FILE))
 
 
 class TestCheckSchema:
