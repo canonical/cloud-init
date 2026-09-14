@@ -214,6 +214,23 @@ class TestSubp:
             set(out.splitlines())
         )
 
+    def test_subp_runs_as_user_group_and_extra_groups(self):
+        with mock.patch.object(
+            subp.subprocess,
+            "Popen",
+            autospec=True,
+        ) as m_popen:
+            m_popen.return_value.communicate.return_value = ("", "")
+            m_popen.return_value.returncode = 0
+
+            subp.subp(["true"], user=123, group=456, extra_groups=())
+
+        assert {
+            "user": 123,
+            "group": 456,
+            "extra_groups": (),
+        }.items() <= m_popen.call_args.kwargs.items()
+
     def test_subp_warn_missing_shebang(self, tmp_path):
         """Warn on no #! in script"""
         noshebang = str(tmp_path / "noshebang")
