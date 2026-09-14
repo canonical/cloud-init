@@ -35,7 +35,7 @@ class TestHandle:
         boot_finished = instance_dir / "boot-finished"
 
         m_cloud = get_cloud(paths=paths)
-        handle(None, {}, m_cloud, [])
+        handle("", {}, m_cloud, [])
 
         # We should not change the status of the instance directory
         assert instance_dir_exists == instance_dir.exists()
@@ -69,7 +69,7 @@ class TestHandle:
         m_cloud.datasource.dsname = dsname
         Path(paths.get_ipath_cur()).mkdir()
         with caplog.at_level(log_level):
-            handle(None, {}, m_cloud, [])
+            handle("", {}, m_cloud, [])
 
         # We should not change the status of the instance directory
         if expected_log:
