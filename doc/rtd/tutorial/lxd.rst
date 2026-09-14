@@ -62,7 +62,7 @@ instance with our user-data:
 
 .. code-block:: shell-session
 
-    $ lxc launch ubuntu:focal my-test --config=user.user-data="$(cat /tmp/my-user-data)"
+    $ lxc launch ubuntu:focal my-test --config=cloud-init.user-data="$(cat /tmp/my-user-data)"
 
 Verify that cloud-init ran successfully
 -------------------------------------------
