@@ -1033,6 +1033,57 @@
     "cc_apk_configure": {
       "type": "object",
       "properties": {
+        "apk": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "properties": {
+            "preserve_repositories": {
+              "type": "boolean",
+              "default": false,
+              "description": "Preserve the repositories file from the pristine image instead of writing ``/etc/apk/repositories``. This overrides both ``apk.repositories`` and ``apk_repos``."
+            },
+            "repositories": {
+              "type": "array",
+              "minItems": 1,
+              "description": "Repository URLs or repository definitions to write to ``/etc/apk/repositories``. The list replaces the file contents.",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "description": "A complete APK repository URL."
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "base_url": {
+                        "type": "string",
+                        "default": "https://dl-cdn.alpinelinux.org/alpine",
+                        "description": "The base URL of an Alpine repository mirror."
+                      },
+                      "repos": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Alpine repository names to enable, such as ``main`` and ``community``."
+                      },
+                      "version": {
+                        "type": "string",
+                        "description": "The Alpine version to use. If omitted, cloud-init derives the repository branch from ``/etc/alpine-release``."
+                      }
+                    },
+                    "required": [
+                      "repos"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
         "apk_repos": {
           "type": "object",
           "minProperties": 1,
@@ -4189,6 +4240,7 @@
   "properties": {
     "allow_public_ssh_keys": {},
     "ansible": {},
+    "apk": {},
     "apk_repos": {},
     "apt": {},
     "apt_pipelining": {},
