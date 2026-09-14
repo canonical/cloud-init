@@ -18,11 +18,13 @@ Cloud-init will provide SRU support for the current active interim releases
 and the most recent 2 long-term support (LTS) releases as documented in the
 `Ubuntu Release Cycle`_
 
-Expanded Security Maintenance (ESM) releases
-============================================
-Although latest cloud-init is not backported to Ubuntu LTS which are not within
-standard support, the `Ubuntu ESM CVE policy`_
-governs when CVEs are mitigated on LTS releases supported under ESM.
+Security Updates
+================
+The `Ubuntu CVE policy`_ governs how Ubuntu mitigates CVEs in upstream and
+the standard support Ubuntu releases. In addition to the SRU policy to
+backport cloud-init upstream releases, Ubuntu's
+`Expanded Security Maintenance`_ provides CVE mitigation for Ubuntu LTS
+which are no longer covered under standard support.
 
 
 SRU package version
@@ -60,7 +62,8 @@ The `integration test suite` used for validation follows these steps:
 .. LINKS
 .. include:: ../links.txt
 .. _Ubuntu Release Cycle: https://ubuntu.com/about/release-cycle
-.. _Ubuntu ESM CVE policy: https://ubuntu.com/security/cves/about
+.. _Ubuntu CVE policy: https://ubuntu.com/security/cves/about
+.. _Expanded Security Maintenance: https://ubuntu.com/security/esm
 .. _SRU: https://wiki.ubuntu.com/StableReleaseUpdates
 .. _CloudinitUpdates: https://wiki.ubuntu.com/CloudinitUpdates
 .. _integration test suite: https://github.com/canonical/cloud-init/tree/main/tests/integration_tests
