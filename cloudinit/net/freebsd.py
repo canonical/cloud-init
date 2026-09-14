@@ -3,7 +3,7 @@
 import logging
 
 import cloudinit.net.bsd
-from cloudinit import distros, net, subp, util
+from cloudinit import net, subp, util
 
 LOG = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
     def rename_interface(self, cur_name, device_name):
         self.set_rc_config_value("ifconfig_%s_name" % cur_name, device_name)
 
-    def write_config(self):
+    def write_config(self, target=None):
         for device_name, v in self.interface_configurations.items():
             if isinstance(v, dict):
                 net_config = "inet %s netmask %s" % (
@@ -25,20 +25,17 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
                 )
                 mtu = v.get("mtu")
                 if mtu:
-                    net_config += " mtu %d" % mtu
+                    net_config += f" mtu {mtu}"
             elif v == "DHCP":
                 net_config = "DHCP"
             self.set_rc_config_value("ifconfig_" + device_name, net_config)
 
         for device_name, v in self.interface_configurations_ipv6.items():
             if isinstance(v, dict):
-                net_config = "inet6 %s/%d" % (
-                    v.get("address"),
-                    v.get("prefix"),
-                )
+                net_config = f"inet6 {v.get('address')}/{v.get('prefix')}"
                 mtu = v.get("mtu")
                 if mtu:
-                    net_config += " mtu %d" % mtu
+                    net_config += f" mtu {mtu}"
             self.set_rc_config_value(
                 "ifconfig_%s_ipv6" % device_name, net_config
             )
@@ -48,11 +45,13 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
             LOG.debug("freebsd generate postcmd disabled")
             return
 
+        import cloudinit.distros.freebsd
+
         for dhcp_interface in self.dhcp_interfaces():
             # Observed on DragonFlyBSD 6. If we use the "restart" parameter,
             # the routes are not recreated.
             net.dhcp.IscDhclient.stop_service(
-                dhcp_interface, distros.freebsd.Distro
+                dhcp_interface, cloudinit.distros.freebsd.Distro
             )
 
         subp.subp(["service", "netif", "restart"], capture=True)
@@ -66,7 +65,7 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
 
         for dhcp_interface in self.dhcp_interfaces():
             net.dhcp.IscDhclient.start_service(
-                dhcp_interface, distros.freebsd.Distro
+                dhcp_interface, cloudinit.distros.freebsd.Distro
             )
 
     def set_route(self, network, netmask, gateway):
