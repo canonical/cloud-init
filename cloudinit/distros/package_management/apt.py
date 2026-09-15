@@ -118,13 +118,45 @@ class Apt(PackageManager):
 
     @functools.lru_cache(maxsize=1)
     def get_all_packages(self):
-        resp: str = subp.subp(["apt-cache", "pkgnames"]).stdout
+        # apt-cache pkgnames only reports packages for the primary
+        # architecture. Packages available only under a foreign architecture
+        # (enabled via `dpkg --add-architecture`, e.g. i386 on amd64) are
+        # absent from this list, so query each foreign architecture and join
+        # the results so multi-arch packages are not wrongly reported as
+        # unavailable. See GH-7077.
+        packages = set(
+            subp.subp(["apt-cache", "pkgnames"]).stdout.splitlines()
+        )
+
+        try:
+            foreign_archs = subp.subp(
+                ["dpkg", "--print-foreign-architectures"]
+            ).stdout.splitlines()
+        except subp.ProcessExecutionError:
+            return packages
+
+        for arch in foreign_archs:
+            arch = arch.strip()
+            if not arch:
+                continue
+            try:
+                arch_packages = subp.subp(
+                    [
+                        "apt-cache",
+                        "-o",
+                        f"APT::Architecture={arch}",
+                        "pkgnames",
+                    ]
+                ).stdout
+            except subp.ProcessExecutionError:
+                continue
+            packages.update(arch_packages.splitlines())
 
         # Searching the string directly and searching a list are both
         # linear searches. Converting to a set takes some extra up front
         # time, but resulting searches become binary searches and are much
         # faster
-        return set(resp.splitlines())
+        return packages
 
     def get_unavailable_packages(self, pkglist: Iterable[str]):
         # Packages ending with `-` signify to apt to not install a transitive
