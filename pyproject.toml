@@ -54,7 +54,6 @@ module = [
     "cloudinit.sources.DataSourceEc2",
     "cloudinit.sources.DataSourceExoscale",
     "cloudinit.sources.DataSourceGCE",
-    "cloudinit.sources.DataSourceHetzner",
     "cloudinit.sources.DataSourceNoCloud",
     "cloudinit.sources.DataSourceOVF",
     "cloudinit.sources.DataSourceOpenStack",
