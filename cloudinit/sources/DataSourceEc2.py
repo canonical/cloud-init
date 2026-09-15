@@ -31,6 +31,7 @@ LOG = logging.getLogger(__name__)
 
 STRICT_ID_PATH = ("datasource", "Ec2", "strict_id")
 STRICT_ID_DEFAULT = "warn"
+NULL_UUID = "00000000-0000-0000-0000-000000000000"
 
 
 class CloudNames:
@@ -878,6 +879,11 @@ def _collect_platform_data():
     uuid = None
     with suppress(OSError, UnicodeDecodeError):
         uuid = util.load_text_file("/sys/hypervisor/uuid").strip()
+
+    # A Xen dom0 reports an all-zero uuid here, which carries no platform
+    # information but is truthy, so ignore it and fall back to DMI.
+    if uuid == NULL_UUID:
+        uuid = None
 
     uuid = uuid or dmi.read_dmi_data("system-uuid") or ""
     serial = dmi.read_dmi_data("system-serial-number") or ""
