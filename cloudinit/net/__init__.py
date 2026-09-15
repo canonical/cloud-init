@@ -11,9 +11,10 @@ import ipaddress
 import logging
 import os
 import re
+import time
 from typing import Callable, Dict, List, Optional, Tuple
 
-from cloudinit import subp, util
+from cloudinit import performance, subp, util
 from cloudinit.net.netops.iproute2 import Iproute2
 
 LOG = logging.getLogger(__name__)
@@ -409,6 +410,57 @@ def find_candidate_nics() -> List[str]:
         return find_candidate_nics_on_netbsd_or_openbsd()
     else:
         return find_candidate_nics_on_linux()
+
+
+def wait_for_candidate_nics(
+    timeout: int = 60, sleep_interval: float = 1.0
+) -> List[str]:
+    """Poll for candidate NICs which have carrier until at least one appears
+       or timeout.
+
+    @param timeout: Maximum number of seconds to wait after initial discovery.
+    @param sleep_interval: Number of seconds to sleep between retries.
+    @return: List of candidate NICs, which may be empty on timeout.
+    """
+    candidate_nics = find_candidate_nics()
+    if candidate_nics:
+        return candidate_nics
+
+    with performance.Timed("Waiting for candidate NICs", log_mode="skip") as t:
+        start = time.monotonic()
+        deadline = start + timeout
+        if timeout > 0:
+            LOG.debug(
+                "Waiting for candidate NICs with carrier for up to %s "
+                "seconds",
+                timeout,
+            )
+
+        while not candidate_nics and time.monotonic() < deadline:
+            LOG.debug(
+                "No primary NICs found with carrier, waiting %s "
+                "seconds to retry",
+                sleep_interval,
+            )
+            time.sleep(sleep_interval)
+            candidate_nics = find_candidate_nics()
+
+        if not candidate_nics and timeout > 0 and time.monotonic() >= deadline:
+            LOG.debug(
+                "Timed out after %s seconds waiting for primary NICs with "
+                "carrier",
+                timeout,
+            )
+
+    LOG.debug(
+        "Candidate NIC polling completed in %.3f seconds "
+        "(timeout=%s, sleep_interval=%s): %s",
+        t.delta,
+        timeout,
+        sleep_interval,
+        candidate_nics,
+    )
+    return candidate_nics
 
 
 def find_fallback_nic() -> Optional[str]:
