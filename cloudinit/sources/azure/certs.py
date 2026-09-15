@@ -143,3 +143,37 @@ def convert_x509_to_openssh(certificate: str) -> str:
 
     LOG.debug("Successfully converted x509 certificate to OpenSSH format.")
     return ssh_key
+
+
+def normalize_ssh_public_key(key: str) -> str:
+    """Normalize an IMDS-provided public key into OpenSSH format.
+
+    Keys provided by IMDS may already be in OpenSSH format or may be x509
+    certificates. x509 certificates are converted to OpenSSH format.
+
+    :param key: The public key data as provided by IMDS.
+
+    :raises ValueError: if the key is not in a supported format or an x509
+        certificate cannot be converted to OpenSSH format.
+
+    :returns: The public key in OpenSSH format.
+    """
+    key = key.strip()
+    if "\r\n" in key:
+        LOG.debug(
+            "SSH key contains embedded CRLF sequence(s) which are being "
+            "removed."
+        )
+        key = key.replace("\r\n", "")
+    if is_openssh_formatted(key):
+        return key
+
+    if is_x509_certificate(key):
+        try:
+            return convert_x509_to_openssh(key).strip()
+        except subp.ProcessExecutionError as error:
+            raise ValueError(
+                "Failed to convert x509 certificate to OpenSSH format"
+            ) from error
+
+    raise ValueError("Key is not in a supported format")
