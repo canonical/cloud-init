@@ -286,12 +286,12 @@ image is configured using the ``OS_IMAGE`` variable; see
 `Configuration`_ for details of how configuration works.
 
 ``OS_IMAGE`` can take two types of value: an Ubuntu series name (e.g.
-"focal"), or an image specification. If an Ubuntu series name is
+"resolute"), or an image specification. If an Ubuntu series name is
 given, then the most recent image for that series on the target cloud
 will be used. For other use cases, an image specification is used.
 
 In its simplest form, an image specification can simply be a cloud's
-image ID (e.g., "ami-deadbeef", "ubuntu:focal"). In this case, the
+image ID (e.g., "ami-deadbeef", "ubuntu:resolute"). In this case, the
 identified image will be used as the basis for this testing run.
 
 This has a drawback, however. As we do not know what OS or release is
