@@ -194,6 +194,41 @@ class TestNoCloudDataSource:
         assert dsrc.vendordata_raw == vd
         assert ret
 
+    @pytest.mark.usefixtures("fake_filesystem")
+    def test_seedfrom_platform_substitution(self, mocker, paths):
+        """Ensure platform substitution is applied after dmi substitution."""
+        # Prepare a DataSource with seedfrom in config
+        seed_url = "http://example.com/XXX"
+
+        sys_cfg = {"datasource": {"NoCloud": {"seedfrom": seed_url}}}
+        ds = DataSourceNoCloudNet(sys_cfg=sys_cfg, distro=None, paths=paths)
+
+        # Mock dmi.sub_dmi_vars to return an intermediate value
+        mocker.patch(
+            "cloudinit.dmi.sub_dmi_vars",
+            return_value=seed_url + "__platform.secureboot__",
+        )
+        # Avoid device discovery (blkid) during this test
+        mocker.patch("cloudinit.util.find_devs_with", return_value=[])
+        # Create efivars SecureBoot file so the real platform.sub_platform_vars
+        # replaces __platform.secureboot__ with "true"
+        from cloudinit import util as _util
+
+        _util.ensure_dir(os.path.join("sys", "firmware", "efi", "efivars"))
+        _util.write_file("/sys/firmware/efi/efivars/SecureBoot-1", b"x")
+
+        # Mock util.read_seeded to capture the seed argument
+        called = {}
+
+        def _read_seeded(seedfrom, timeout=None):
+            called["seedfrom"] = seedfrom
+            return ({}, b"", b"", None)
+
+        mocker.patch("cloudinit.util.read_seeded", side_effect=_read_seeded)
+
+        assert ds.get_data()
+        assert called.get("seedfrom") == seed_url + "true"
+
     def test_nocloud_no_vendordata(self, paths):
         populate_dir(
             os.path.join(paths.seed_dir, "nocloud"),
