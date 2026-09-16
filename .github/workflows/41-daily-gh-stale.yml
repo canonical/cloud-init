@@ -11,8 +11,6 @@ jobs:
     if: github.repository == 'canonical/cloud-init'
     
     permissions:
-      actions: write
-      issues: write
       pull-requests: write
 
     steps:
