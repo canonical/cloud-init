@@ -7,7 +7,9 @@ import os
 import select
 import socket
 import struct
+import sys
 from collections import namedtuple
+from typing import Callable, List, Optional, Tuple
 
 from cloudinit import util
 
@@ -54,33 +56,41 @@ class NetlinkCreateSocketError(RuntimeError):
     """Raised if netlink socket fails during create or bind."""
 
 
-def create_bound_netlink_socket():
+def create_bound_netlink_socket() -> socket.socket:
     """Creates netlink socket and bind on netlink group to catch interface
     down/up events. The socket will bound only on RTMGRP_LINK (which only
     includes RTM_NEWLINK/RTM_DELLINK/RTM_GETLINK events). The socket is set to
     non-blocking mode since we're only receiving messages.
 
-    :returns: netlink socket in non-blocking mode
+    :returns: A :class:`socket.socket` instance bound to the netlink protocol
+              in non-blocking mode.
     :raises: NetlinkCreateSocketError
     """
-    try:
-        netlink_socket = socket.socket(
-            socket.AF_NETLINK, socket.SOCK_RAW, socket.NETLINK_ROUTE
-        )
-        netlink_socket.bind((os.getpid(), RTMGRP_LINK))
-        netlink_socket.setblocking(False)
-    except socket.error as e:
-        msg = "Exception during netlink socket create: %s" % e
-        raise NetlinkCreateSocketError(msg) from e
-    LOG.debug("Created netlink socket")
-    return netlink_socket
+    if sys.platform == "linux":
+        try:
+            netlink_socket = socket.socket(
+                socket.AF_NETLINK,
+                socket.SOCK_RAW,
+                socket.NETLINK_ROUTE,
+            )
+            netlink_socket.bind((os.getpid(), RTMGRP_LINK))
+            netlink_socket.setblocking(False)
+        except socket.error as e:
+            msg = "Exception during netlink socket create: %s" % e
+            raise NetlinkCreateSocketError(msg) from e
+        LOG.debug("Created netlink socket")
+        return netlink_socket
+    raise NetlinkCreateSocketError(
+        "Netlink sockets are only supported on Linux"
+    )
 
 
-def get_netlink_msg_header(data):
+def get_netlink_msg_header(data: bytes) -> NetlinkHeader:
     """Gets netlink message type and length
 
     :param: data read from netlink socket
-    :returns: netlink message type
+    :returns: A :class:`NetlinkHeader` namedtuple containing message length,
+              type, flags, sequence number, and pid.
     :raises: AssertionError if data is None or data is not >= NLMSGHDR_SIZE
     struct nlmsghdr {
                __u32 nlmsg_len;    /* Length of message including header */
@@ -94,14 +104,17 @@ def get_netlink_msg_header(data):
     assert (
         len(data) >= NLMSGHDR_SIZE
     ), "data is smaller than netlink message header"
-    msg_len, msg_type, flags, seq, pid = struct.unpack(
+    netlink_msg: Tuple[int, int, int, int, int] = struct.unpack(
         NLMSGHDR_FMT, data[:MSG_TYPE_OFFSET]
     )
+    msg_len, msg_type, flags, seq, pid = netlink_msg
     LOG.debug("Got netlink msg of type %d", msg_type)
     return NetlinkHeader(msg_len, msg_type, flags, seq, pid)
 
 
-def read_netlink_socket(netlink_socket, timeout=None):
+def read_netlink_socket(
+    netlink_socket: socket.socket, timeout: Optional[int] = None
+) -> Optional[bytes]:
     """Select and read from the netlink socket if ready.
 
     :param: netlink_socket: specify which socket object to read from
@@ -118,13 +131,10 @@ def read_netlink_socket(netlink_socket, timeout=None):
     if netlink_socket not in read_set:
         return None
     LOG.debug("netlink socket ready for read")
-    data = netlink_socket.recv(MAX_SIZE)
-    if data is None:
-        LOG.error("Reading from Netlink socket returned no data")
-    return data
+    return netlink_socket.recv(MAX_SIZE)
 
 
-def unpack_rta_attr(data, offset):
+def unpack_rta_attr(data: bytes, offset: int) -> Optional[RTAAttr]:
     """Unpack a single rta attribute.
 
     :param: data: string of data read from netlink socket
@@ -150,7 +160,7 @@ def unpack_rta_attr(data, offset):
     return RTAAttr(length, rta_type, attr_data)
 
 
-def read_rta_oper_state(data):
+def read_rta_oper_state(data: bytes) -> Optional[InterfaceOperstate]:
     """Reads Interface name and operational state from RTA Data.
 
     :param: data: string of data read from netlink socket
@@ -187,7 +197,9 @@ def read_rta_oper_state(data):
     return InterfaceOperstate(ifname, operstate)
 
 
-def wait_for_nic_attach_event(netlink_socket, existing_nics):
+def wait_for_nic_attach_event(
+    netlink_socket: socket.socket, existing_nics: List[str]
+) -> Optional[str]:
     """Block until a single nic is attached.
 
     :param: netlink_socket: netlink_socket to receive events
@@ -197,7 +209,7 @@ def wait_for_nic_attach_event(netlink_socket, existing_nics):
     LOG.debug("Preparing to wait for nic attach.")
     ifname = None
 
-    def should_continue_cb(iname, carrier, prevCarrier):
+    def should_continue_cb(iname: str, carrier: int, prevCarrier: int) -> bool:
         if iname in existing_nics:
             return True
         nonlocal ifname
@@ -216,7 +228,7 @@ def wait_for_nic_attach_event(netlink_socket, existing_nics):
     return ifname
 
 
-def wait_for_nic_detach_event(netlink_socket):
+def wait_for_nic_detach_event(netlink_socket: socket.socket) -> Optional[str]:
     """Block until a single nic is detached and its operational state is down.
 
     :param: netlink_socket: netlink_socket to receive events.
@@ -224,7 +236,7 @@ def wait_for_nic_detach_event(netlink_socket):
     LOG.debug("Preparing to wait for nic detach.")
     ifname = None
 
-    def should_continue_cb(iname, carrier, prevCarrier):
+    def should_continue_cb(iname: str, carrier: int, prevCarrier: int) -> bool:
         nonlocal ifname
         ifname = iname
         return False
@@ -235,7 +247,9 @@ def wait_for_nic_detach_event(netlink_socket):
     return ifname
 
 
-def wait_for_media_disconnect_connect(netlink_socket, ifname):
+def wait_for_media_disconnect_connect(
+    netlink_socket: socket.socket, ifname: str
+) -> None:
     """Block until media disconnect and connect has happened on an interface.
     Listens on netlink socket to receive netlink events and when the carrier
     changes from 0 to 1, it considers event has happened and
@@ -249,7 +263,7 @@ def wait_for_media_disconnect_connect(netlink_socket, ifname):
     assert ifname is not None, "interface name is none"
     assert len(ifname) > 0, "interface name cannot be empty"
 
-    def should_continue_cb(iname, carrier, prevCarrier):
+    def should_continue_cb(iname: str, carrier: int, prevCarrier: int) -> bool:
         # check for carrier down, up sequence
         isVnetSwitch = (prevCarrier == OPER_DOWN) and (carrier == OPER_UP)
         if isVnetSwitch:
@@ -268,12 +282,12 @@ def wait_for_media_disconnect_connect(netlink_socket, ifname):
 
 
 def read_netlink_messages(
-    netlink_socket,
-    ifname_filter,
-    rtm_types,
-    operstates,
-    should_continue_callback,
-):
+    netlink_socket: socket.socket,
+    ifname_filter: Optional[str],
+    rtm_types: List[int],
+    operstates: List[int],
+    should_continue_callback: Callable[[str, int, int], bool],
+) -> None:
     """Reads from the netlink socket until the condition specified by
     the continuation callback is met.
 
