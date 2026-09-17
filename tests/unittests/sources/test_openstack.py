@@ -15,6 +15,7 @@ import pytest
 import responses
 
 from cloudinit import settings, util
+from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.sources import UNSET, BrokenMetadata
 from cloudinit.sources import DataSourceOpenStack as ds
 from cloudinit.sources import convert_vendordata
@@ -75,6 +76,9 @@ EC2_VERSIONS = [
 ]
 
 MOCK_PATH = "cloudinit.sources.DataSourceOpenStack."
+
+UNFILTERED_INTERFACES = ["lo", "dummy", "ens3", "ens4"]
+FILTERED_INTERFACES = ["lo", "ens3", "ens4"]
 
 
 @pytest.fixture(autouse=True)
@@ -329,10 +333,11 @@ class TestOpenStackDataSource:
         m_dhcp.assert_not_called()
 
     @responses.activate
+    @mock.patch("cloudinit.sources.DataSourceOpenStack.DataSourceOpenStack.get_interface_list")
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
     @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
     @pytest.mark.usefixtures("disable_netdev_info")
-    def test_local_datasource(self, m_dhcp, m_net, paths, tmp_path):
+    def test_local_datasource(self, m_dhcp, m_net, m_get_ifaces, paths, tmp_path):
         """OpenStackLocal calls EphemeralDHCPNetwork and gets instance data."""
         _register_uris(
             self.VERSION,
@@ -346,14 +351,14 @@ class TestOpenStackDataSource:
         ds_os_local = ds.DataSourceOpenStackLocal(
             settings.CFG_BUILTIN, distro, paths
         )
-        distro.fallback_interface = "eth9"  # Monkey patch for dhcp
         m_dhcp.return_value = {
-            "interface": "eth9",
+            "interface": FILTERED_INTERFACES[1],
             "fixed-address": "192.168.2.9",
             "routers": "192.168.2.1",
             "subnet-mask": "255.255.255.0",
             "broadcast-address": "192.168.2.255",
         }
+        m_get_ifaces.return_value = [FILTERED_INTERFACES[1]]
 
         assert ds_os_local.version is None
         with mock.patch.object(
@@ -370,7 +375,7 @@ class TestOpenStackDataSource:
         assert USER_DATA == ds_os_local.userdata_raw
         assert 2 == len(ds_os_local.files)
         assert ds_os_local.vendordata_raw is None
-        m_dhcp.assert_called_with(distro, "eth9", None)
+        m_dhcp.assert_called_with(distro, FILTERED_INTERFACES[1], None)
 
     @responses.activate
     def test_bad_datasource_meta(self, caplog, ds_os):
@@ -484,7 +489,7 @@ class TestOpenStackDataSource:
             OS_FILES,
             responses_mock=responses,
         )
-        crawled_data = ds_os._crawl_metadata()
+        crawled_data = ds_os._crawl_metadata(FILTERED_INTERFACES[1])
         assert UNSET == ds_os.ec2_metadata
         assert ds_os.userdata_raw is None
         assert 0 == len(ds_os.files)
@@ -515,6 +520,98 @@ class TestOpenStackDataSource:
         assert VENDOR_DATA == crawled_data["vendordata"]
         assert VENDOR_DATA2 == crawled_data["vendordata2"]
         assert 2 == crawled_data["version"]
+
+    # EphemeralDHCPv4 override
+    def override_enter(self):
+        return
+
+    # EphemeralDHCPv4 override
+    def override_exit(self, exc_type, exc_value, exc_tb):
+        return
+
+    @mock.patch('cloudinit.util.logexc')
+    @mock.patch(
+        "cloudinit.net.ephemeral.EphemeralDHCPv4.__init__",
+        side_effect=(NoDHCPLeaseError("Mock failed to get dhcp lease.")),
+    )
+    @mock.patch(
+        "cloudinit.net.ephemeral.EphemeralDHCPv4.__enter__", override_enter
+    )
+    @mock.patch(
+        "cloudinit.net.ephemeral.EphemeralDHCPv4.__exit__", override_exit
+    )
+    @mock.patch("cloudinit.sources.DataSourceOpenStack.DataSourceOpenStack.get_interface_list")
+    def test_local_datasource_no_dhcp_iface(
+        self,
+        m_interface_list,
+        m_eph_init,
+        m_logexc,
+        paths,
+        tmp_path
+    ):
+        m_interface_list.return_value = FILTERED_INTERFACES[1:2]
+        distro = mock.MagicMock()
+        distro.get_tmp_exec_path = str(tmp_path)
+        ds_os_local = ds.DataSourceOpenStackLocal(
+            settings.CFG_BUILTIN, distro, paths
+        )
+
+        assert ds_os_local._get_data() == False
+        assert m_logexc.call_args[0][1] == "Mock failed to get dhcp lease."
+
+    @responses.activate
+    @mock.patch('cloudinit.util.logexc')
+    @mock.patch(
+        "cloudinit.net.ephemeral.EphemeralDHCPv4.__init__",
+        side_effect=[NoDHCPLeaseError("Mock failed to get dhcp lease."), None],
+    )
+    @mock.patch(
+        "cloudinit.net.ephemeral.EphemeralDHCPv4.__enter__", override_enter
+    )
+    @mock.patch(
+        "cloudinit.net.ephemeral.EphemeralDHCPv4.__exit__", override_exit
+    )
+    @mock.patch("cloudinit.sources.DataSourceOpenStack.DataSourceOpenStack._crawl_metadata")
+    @mock.patch("cloudinit.sources.DataSourceOpenStack.DataSourceOpenStack.get_interface_list")
+    def test_local_datasource_no_dhcp_and_dhcp_iface(
+        self,
+        m_interface_list,
+        m_crawl_meta,
+        m_eph_init,
+        m_logexc,
+        paths,
+        tmp_path
+    ):
+        # setup
+        _register_uris(
+            self.VERSION,
+            EC2_FILES,
+            EC2_META,
+            OS_FILES,
+            responses_mock=responses,
+        )
+        m_crawl_meta.return_value = _read_metadata_service()
+        m_interface_list.return_value = FILTERED_INTERFACES[1:3]
+        distro = mock.MagicMock()
+        distro.get_tmp_exec_path = str(tmp_path)
+        ds_os_local = ds.DataSourceOpenStackLocal(
+            settings.CFG_BUILTIN, distro, paths
+        )
+
+        # eventually, we should succeed in getting data
+        assert ds_os_local._get_data() == True
+        # crawl meta should only be called once with 3rd iface
+        assert m_crawl_meta.call_count == 1
+        assert m_crawl_meta.call_args[0][0] == FILTERED_INTERFACES[2]
+        # first call to m_eph_init should fail, but we don't raise
+        # so we can only check via logexc
+        assert m_logexc.call_args[0][1] == "Mock failed to get dhcp lease."
+
+    @mock.patch("cloudinit.net.find_candidate_nics")
+    def test_get_interface_list(self, m_findnics, ds_os):
+        m_findnics.return_value = UNFILTERED_INTERFACES
+
+        assert ds_os.get_interface_list() == FILTERED_INTERFACES
 
 
 class TestVendorDataLoading:
