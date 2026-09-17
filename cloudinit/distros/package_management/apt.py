@@ -117,13 +117,15 @@ class Apt(PackageManager):
         )
 
     @functools.lru_cache(maxsize=1)
-    def get_all_packages(self):
-        # apt-cache pkgnames only reports packages for the primary
-        # architecture. Packages available only under a foreign architecture
-        # (enabled via `dpkg --add-architecture`, e.g. i386 on amd64) are
-        # absent from this list, so query each foreign architecture and join
-        # the results so multi-arch packages are not wrongly reported as
-        # unavailable. See GH-7077.
+    def get_all_packages(self) -> Iterable[str]:
+        """Return the set of all package names known to apt.
+
+        `apt-cache pkgnames` only reports packages for the primary
+        architecture. Packages available only under a foreign architecture
+        (enabled via `dpkg --add-architecture`, e.g. i386 on amd64) are absent
+        from this list. Query each foreign architecture and join the results
+        so multi-arch packages are not wrongly reported as unavailable.
+        """
         packages = set(
             subp.subp(["apt-cache", "pkgnames"]).stdout.splitlines()
         )
