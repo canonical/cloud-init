@@ -25,3 +25,4 @@ jobs:
 
           (If the pull request is closed and you would like to continue working on it, please do tag blackboxsw to reopen it.)
         stale-pr-label: 'stale-pr'
+        operations-per-run: 90
