@@ -5,7 +5,16 @@ import logging
 import os
 import re
 import time
-from typing import Any, Iterable, List, Mapping, Optional, Sequence, cast
+from typing import (
+    Any,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Union,
+    cast,
+)
 
 from cloudinit import helpers, subp, util
 from cloudinit.distros.package_management.package_manager import (
@@ -81,7 +90,7 @@ class Apt(PackageManager):
         apt_get_wrapper_command: Sequence[str] = (),
         apt_get_command: Optional[Sequence[str]] = None,
         apt_get_upgrade_subcommand: Optional[str] = None,
-    ):
+    ) -> None:
         super().__init__(runner)
         if apt_get_command is None:
             self.apt_get_command = APT_GET_COMMAND
@@ -108,7 +117,7 @@ class Apt(PackageManager):
     def available(self) -> bool:
         return bool(subp.which(self.apt_get_command[0]))
 
-    def update_package_sources(self, *, force=False):
+    def update_package_sources(self, *, force: bool = False) -> None:
         self.runner.run(
             "update-sources",
             self.run_package_command,
@@ -160,7 +169,7 @@ class Apt(PackageManager):
         # faster
         return packages
 
-    def get_unavailable_packages(self, pkglist: Iterable[str]):
+    def get_unavailable_packages(self, pkglist: Iterable[str]) -> List[str]:
         # Packages ending with `-` signify to apt to not install a transitive
         # dependency.
         # Packages ending with '^' signify to apt to install a Task.
@@ -174,7 +183,7 @@ class Apt(PackageManager):
             not in self.get_all_packages()
         ]
 
-    def install_packages(self, pkglist: Iterable) -> UninstalledPackages:
+    def install_packages(self, pkglist: Iterable[str]) -> UninstalledPackages:
         self.update_package_sources()
         pkglist = util.expand_package_list("%s=%s", list(pkglist))
         unavailable = self.get_unavailable_packages(
@@ -191,7 +200,12 @@ class Apt(PackageManager):
             self.run_package_command("install", pkgs=to_install)
         return unavailable
 
-    def run_package_command(self, command, args=None, pkgs=None):
+    def run_package_command(
+        self,
+        command: str,
+        args: Optional[Union[str, List[str]]] = None,
+        pkgs: Optional[List[str]] = None,
+    ) -> None:
         if pkgs is None:
             pkgs = []
         full_command = list(self.apt_command)
@@ -215,7 +229,7 @@ class Apt(PackageManager):
             },
         )
 
-    def _apt_lock_available(self):
+    def _apt_lock_available(self) -> bool:
         """Determines if another process holds any apt locks.
 
         If all locks are clear, return True else False.
@@ -232,8 +246,10 @@ class Apt(PackageManager):
         return True
 
     def _wait_for_apt_command(
-        self, subp_kwargs, timeout=APT_LOCK_WAIT_TIMEOUT
-    ):
+        self,
+        subp_kwargs: Mapping[str, Any],
+        timeout: int = APT_LOCK_WAIT_TIMEOUT,
+    ) -> subp.SubpResult:
         """Wait for apt install to complete.
 
         subp_kwargs: kwargs to pass to subp
