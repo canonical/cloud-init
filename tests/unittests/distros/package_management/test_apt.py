@@ -159,3 +159,71 @@ class TestUpdatePackageSources:
         instance.update_package_sources()
         assert 1 == len(m_subp.call_args_list)
         TMP_DIR.cleanup()
+
+
+class TestGetAllPackages:
+    @mock.patch.object(apt.subp, "which", return_value=True)
+    @mock.patch.object(apt.subp, "subp")
+    def test_joins_foreign_architecture_packages(self, m_subp, m_which):
+        """Foreign-arch packages are included in the available set."""
+
+        def fake_subp(args, **kwargs):
+            if args == ["apt-cache", "pkgnames"]:
+                return mock.Mock(stdout="amd64-only\n")
+            if args == ["dpkg", "--print-foreign-architectures"]:
+                return mock.Mock(stdout="i386\narm64\n")
+            if args == [
+                "apt-cache",
+                "-o",
+                "APT::Architecture=i386",
+                "pkgnames",
+            ]:
+                return mock.Mock(stdout="i386-only\n")
+            if args == [
+                "apt-cache",
+                "-o",
+                "APT::Architecture=arm64",
+                "pkgnames",
+            ]:
+                return mock.Mock(stdout="arm64-only\n")
+            raise AssertionError(f"unexpected args: {args}")
+
+        m_subp.side_effect = fake_subp
+        instance = apt.Apt(mock.Mock())
+        assert {
+            "amd64-only",
+            "i386-only",
+            "arm64-only",
+        } == instance.get_all_packages()
+
+    @mock.patch.object(apt.subp, "which", return_value=True)
+    @mock.patch.object(apt.subp, "subp")
+    def test_no_foreign_architectures(self, m_subp, m_which):
+        """An empty foreign-arch list leaves the primary set untouched."""
+
+        def fake_subp(args, **kwargs):
+            if args == ["apt-cache", "pkgnames"]:
+                return mock.Mock(stdout="amd64-only\n")
+            if args == ["dpkg", "--print-foreign-architectures"]:
+                return mock.Mock(stdout="")
+            raise AssertionError(f"unexpected args: {args}")
+
+        m_subp.side_effect = fake_subp
+        instance = apt.Apt(mock.Mock())
+        assert {"amd64-only"} == instance.get_all_packages()
+
+    @mock.patch.object(apt.subp, "which", return_value=True)
+    @mock.patch.object(apt.subp, "subp")
+    def test_dpkg_failure_falls_back_to_primary(self, m_subp, m_which):
+        """A dpkg query failure only yields the primary architecture."""
+
+        def fake_subp(args, **kwargs):
+            if args == ["apt-cache", "pkgnames"]:
+                return mock.Mock(stdout="amd64-only\n")
+            if args == ["dpkg", "--print-foreign-architectures"]:
+                raise subp.ProcessExecutionError(stderr="boom")
+            raise AssertionError(f"unexpected args: {args}")
+
+        m_subp.side_effect = fake_subp
+        instance = apt.Apt(mock.Mock())
+        assert {"amd64-only"} == instance.get_all_packages()
