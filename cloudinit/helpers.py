@@ -220,7 +220,24 @@ class ConfigMerger:
             cc_fn = self._paths.get_ipath_cur(cc_p)
             if cc_fn and os.path.isfile(cc_fn):
                 try:
-                    i_cfgs.append(util.read_conf(cc_fn))
+                    cfg = util.read_conf(cc_fn)
+                    if cc_p in (
+                        "vendor_cloud_config",
+                        "vendor2_cloud_config",
+                    ):
+                        if getattr(self._ds, "append_vendor_list_data", False):
+                            LOG.debug(
+                                "Datasource %s requested appending"
+                                " vendor-data lists to user-data;"
+                                " setting non-default vendor"
+                                " merge strategy.",
+                                getattr(self._ds, "name", self._ds),
+                            )
+                            cfg.setdefault(
+                                "merge_how",
+                                "list(append)+dict(no_replace,recurse_list)+str()",
+                            )
+                    i_cfgs.append(cfg)
                 except PermissionError:
                     LOG.debug(
                         "Skipped loading cloud-config from %s due to"
