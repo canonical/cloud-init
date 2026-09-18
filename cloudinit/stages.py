@@ -447,9 +447,19 @@ class Init:
         network_link = self.paths.get_runpath("network_config")
         if os.path.exists(ncfg_instance_path):
             # Compare and only write on delta of current network-config
-            if netcfg != util.load_json(
-                util.load_text_file(ncfg_instance_path)
-            ):
+            try:
+                cur_netcfg = util.load_json(
+                    util.load_text_file(ncfg_instance_path)
+                )
+            except (json.JSONDecodeError, TypeError, ValueError) as exc:
+                LOG.warning(
+                    "Failed to parse cached network config at %s: %s. "
+                    "Rewriting cache.",
+                    ncfg_instance_path,
+                    exc,
+                )
+                cur_netcfg = None
+            if netcfg != cur_netcfg:
                 atomic_helper.write_json(
                     ncfg_instance_path, netcfg, mode=0o600
                 )
