@@ -375,7 +375,12 @@ class TestMain:
         if features.MANUAL_NETWORK_WAIT and expected_add_wait:
             m_nm.assert_called_once()
             m_subp.assert_called_with(
-                ["systemctl", "start", "systemd-networkd-wait-online.service"]
+                [
+                    "systemctl",
+                    "start",
+                    "systemd-networkd-wait-online.service",
+                    "--job-mode=ignore-dependencies",
+                ]
             )
         else:
             m_nm.assert_not_called()
