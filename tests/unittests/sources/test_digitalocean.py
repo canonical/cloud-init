@@ -248,6 +248,15 @@ class TestDataSourceDigitalOcean:
         assert metadata["public_keys"] == ds.get_public_ssh_keys()
         assert isinstance(ds.get_public_ssh_keys(), list)
 
+    def test_network_config_requires_full_metadata(self, get_ds):
+        ds = get_ds()
+        ds.metadata["interfaces"] = DO_META["interfaces"]
+
+        with pytest.raises(
+            RuntimeError, match="Unable to get meta-data from server"
+        ):
+            _ = ds.network_config
+
 
 class TestNetworkConvert:
     def _get_networking(self):

@@ -307,6 +307,66 @@ class TestDataSourceVultr:
             interf
         )
 
+    @mock.patch("cloudinit.sources.helpers.vultr.url_helper.readurl")
+    def test_read_metadata_failure_includes_url_and_status(self, m_readurl):
+        m_readurl.return_value.ok.return_value = False
+        m_readurl.return_value.code = 503
+
+        with pytest.raises(RuntimeError) as exc_info:
+            vultr.read_metadata(
+                "http://169.254.169.254", 5, 3, 1, "cloud-init"
+            )
+
+        assert exc_info.value.args == (
+            "Failed to connect to http://169.254.169.254/v1.json: Code: 503",
+        )
+
+    @pytest.mark.parametrize(
+        ("interface", "expected_subnet"),
+        (
+            (
+                {
+                    "ipv4": {
+                        "additional": [
+                            {
+                                "address": "192.0.2.10",
+                                "netmask": "255.255.255.0",
+                            }
+                        ]
+                    }
+                },
+                {
+                    "type": "static",
+                    "control": "auto",
+                    "address": "192.0.2.10",
+                    "netmask": "255.255.255.0",
+                },
+            ),
+            (
+                {
+                    "ipv6": {
+                        "additional": [
+                            {"network": "2001:db8::", "prefix": "64"}
+                        ]
+                    }
+                },
+                {
+                    "type": "static6",
+                    "control": "auto",
+                    "address": "2001:db8::/64",
+                },
+            ),
+        ),
+    )
+    def test_additional_addresses_allow_missing_address_family(
+        self, interface, expected_subnet
+    ):
+        netcfg = {"subnets": []}
+
+        vultr.generate_interface_additional_addresses(interface, netcfg)
+
+        assert netcfg["subnets"] == [expected_subnet]
+
     # Test Private Networking config generation
     @mock.patch("cloudinit.net.get_interfaces_by_mac")
     def test_private_network_config(self, mock_netmap):

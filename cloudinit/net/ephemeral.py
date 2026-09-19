@@ -5,7 +5,16 @@
 import contextlib
 import logging
 from functools import partial
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Literal,
+    Mapping,
+    Optional,
+    Tuple,
+)
 
 import cloudinit.net as net
 import cloudinit.netinfo as netinfo
@@ -132,8 +141,8 @@ class EphemeralIPv4Network:
             self.cidr,
             self.broadcast,
         )
-        interface_addrs_after_dhcp = netinfo.netdev_info().get(
-            self.interface, {}
+        interface_addrs_after_dhcp: Mapping[str, Any] = (
+            netinfo.netdev_info().get(self.interface, {})
         )
         has_link = interface_addrs_after_dhcp.get("up")
         had_link = self.interface_addrs_before_dhcp.get("up")
@@ -374,22 +383,24 @@ class EphemeralDHCPv4:
         return self.lease
 
     def extract_dhcp_options_mapping(self, nmap):
-        result = {}
+        lease = self.lease or {}
+        result: Dict[str, Any] = {}
         for internal_reference, lease_option_names in nmap.items():
             if isinstance(lease_option_names, list):
                 self.get_first_option_value(
                     internal_reference, lease_option_names, result
                 )
             else:
-                result[internal_reference] = self.lease.get(lease_option_names)
+                result[internal_reference] = lease.get(lease_option_names)
         return result
 
     def get_first_option_value(
         self, internal_mapping, lease_option_names, result
     ):
+        lease = self.lease or {}
         for different_names in lease_option_names:
             if not result.get(internal_mapping):
-                result[internal_mapping] = self.lease.get(different_names)
+                result[internal_mapping] = lease.get(different_names)
 
 
 class EphemeralIPNetwork:
@@ -426,7 +437,7 @@ class EphemeralIPNetwork:
         self.stack = contextlib.ExitStack()
         self.state_msg: str = ""
         self.distro = distro
-        self.connectivity_urls_data = connectivity_urls_data
+        self.connectivity_urls_data = connectivity_urls_data or []
 
     def __enter__(self):
         if not self.ipv4 and not self.ipv6:
