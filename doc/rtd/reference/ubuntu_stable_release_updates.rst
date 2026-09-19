@@ -3,8 +3,8 @@
 Stable Release Updates (SRU)
 ****************************
 
-Once upstream cloud-init has released a new version, the Ubuntu Server team
-backports cloud-init to previous releases via a special procedure called a
+Once upstream cloud-init has released a new version, the team
+backports cloud-init to previous Ubuntu releases via a procedure called a
 "Stable Release Update" (`SRU`_). This helps ensure that new versions of
 cloud-init on existing releases of Ubuntu will not experience breaking
 changes. Breaking changes are allowed when transitioning from one Ubuntu
@@ -17,6 +17,15 @@ SRU supported releases
 Cloud-init will provide SRU support for the current active interim releases
 and the most recent 2 long-term support (LTS) releases as documented in the
 `Ubuntu Release Cycle`_
+
+Security Updates
+================
+The `Ubuntu CVE policy`_ governs how Ubuntu mitigates CVEs in upstream and
+the standard support Ubuntu releases. In addition to the SRU policy to
+backport cloud-init upstream releases, Ubuntu's
+`Expanded Security Maintenance`_ provides CVE mitigation for Ubuntu LTS
+which are no longer covered under standard support.
+
 
 SRU package version
 ===================
@@ -53,6 +62,8 @@ The `integration test suite` used for validation follows these steps:
 .. LINKS
 .. include:: ../links.txt
 .. _Ubuntu Release Cycle: https://ubuntu.com/about/release-cycle
+.. _Ubuntu CVE policy: https://ubuntu.com/security/cves/about
+.. _Expanded Security Maintenance: https://ubuntu.com/security/esm
 .. _SRU: https://wiki.ubuntu.com/StableReleaseUpdates
 .. _CloudinitUpdates: https://wiki.ubuntu.com/CloudinitUpdates
 .. _integration test suite: https://github.com/canonical/cloud-init/tree/main/tests/integration_tests

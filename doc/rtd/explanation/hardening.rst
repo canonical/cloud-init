@@ -16,16 +16,14 @@ SSH public/private key pairs.
 Updated packages
 ================
 
-To ensure the available security fixes are applied to you VMs images upon
-launch, it is recommended by `Ubuntu security team guidelines`_ to update
-the packages
+To ensure the available security fixes are applied to images at launch,
+it is recommended by `Ubuntu security team guidelines`_ to update the packages
 
 .. note::
 
-  Ubuntu cloud images are configured by default to enable unattended-upgrades,
-  thus this is resolved this issue when the update gets triggered. One can
-  still apply this recommendation to cloud that gap and update the packages
-  on first boot.
+  Some cloud images (such as Ubuntu) are configured to automatically receive
+  the latest security updates. Other images should use cloud-init to update
+  packages on first boot.
 
 .. code-block:: yaml
 
