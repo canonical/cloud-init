@@ -1,4 +1,5 @@
 import json
+from typing import Any, Dict
 from unittest import mock
 
 import pytest
@@ -15,7 +16,7 @@ CRYPTO_PASS = (
     "tToyGP41.s1"
 )
 
-CLOUD_METADATA = {
+CLOUD_METADATA: Dict[str, Any] = {
     "vm": {
         "memory": 4,
         "cpu": 2,
@@ -94,6 +95,18 @@ class TestRbxDataSource:
         results = ds.read_user_data_callback(paths.seed_dir)
 
         assert results is None
+
+    @mock.patch(DS_PATH + ".util.find_devs_with", return_value=[])
+    def test_get_md_without_devices_returns_none(self, m_find_devs):
+        assert ds.get_md() is None
+        assert m_find_devs.call_count == 2
+
+    @mock.patch(DS_PATH + ".get_md", return_value=None)
+    def test_get_data_without_metadata_returns_false(self, m_get_md):
+        datasource = object.__new__(ds.DataSourceRbxCloud)
+
+        assert datasource._get_data() is False
+        m_get_md.assert_called_once_with()
 
     def test_seed_read_user_data_callback_valid_disk(self, paths):
         populate_user_metadata(paths.seed_dir, "")
