@@ -2168,7 +2168,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                         routes:
                         -   to: default
                             via: 192.168.0.1
-        """).rstrip(" "),
+        """).rstrip(" "),  # noqa: E501
         "expected_sysconfig_opensuse": {
             "ifcfg-bond0": textwrap.dedent(
                 """\
