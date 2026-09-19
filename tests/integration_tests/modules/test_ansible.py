@@ -284,7 +284,7 @@ def _test_ansible_pull_from_local_server(my_client):
     assert not setup.return_code
     my_client.execute("cloud-init clean --logs")
     my_client.restart()
-    wait_for_cloud_init(my_client)
+    wait_for_cloud_init(my_client, num_retries=120)
     log = my_client.read_from_file("/var/log/cloud-init.log")
     verify_clean_log(log)
     verify_clean_boot(my_client)

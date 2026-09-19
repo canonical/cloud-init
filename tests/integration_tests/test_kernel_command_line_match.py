@@ -92,7 +92,13 @@ def test_lxd_datasource_kernel_override_nocloud_net(
     ) as client:
         # We know this will be an LXD instance due to our pytest mark
         client.instance.execute_via_ssh = False  # pyright: ignore
-        assert wait_for_cloud_init(client, num_retries=60).ok
+        result = wait_for_cloud_init(client, num_retries=60)
+        # With security.devlxd: False the /dev/lxd/sock socket is absent, so
+        # DataSourceLXD's ds_detect logs a warning and the boot is legitimately
+        # degraded (exit 2). Tolerate that, mirroring the sibling test in
+        # datasources/test_lxd_discovery.py.
+        if not result.ok and result.return_code != 2:
+            raise AssertionError(f"cloud-init failed:\n{result.stderr}")
         if source.installs_new_version():
             client.install_new_cloud_init(source, clean=False)
         override_kernel_command_line(ds_str, client)

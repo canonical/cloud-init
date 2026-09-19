@@ -29,7 +29,7 @@ def test_ds_identify(client: IntegrationInstance):
     assert client.execute(f"rm {DATASOURCE_LIST_FILE}")
     assert client.execute("cloud-init clean --logs")
     client.restart()
-    wait_for_cloud_init(client)
+    wait_for_cloud_init(client, num_retries=120)
     verify_clean_log(client.execute("cat /var/log/cloud-init.log"))
     verify_clean_boot(client)
     assert client.execute("cloud-init status --wait")
