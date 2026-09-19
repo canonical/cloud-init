@@ -656,6 +656,270 @@ class TestInit:
         )
 
 
+class TestInit_ReflectCurInstance:
+    """Tests for Init._reflect_cur_instance and
+    Init._remove_stale_instance_link.
+
+    Regression coverage for the class of bug where paths.instance_link
+    (/var/lib/cloud/instance by default) is found to be a real directory
+    instead of the symlink cloud-init always expects it to be (or absent).
+    Previously this made the unconditional util.del_file() call in
+    _reflect_cur_instance raise an uncaught IsADirectoryError, aborting the
+    entire 'init' stage before any cloud-config modules could run. See
+    GH-3710/LP:#1883903 (a confirmed prior instance of this exact mechanism,
+    via cc_final_message) and GH-4282 (an unresolved recurrence of the same
+    symptom in a later cloud-init version).
+    """
+
+    @pytest.fixture
+    def init(self, paths):
+        """A stages.Init wired with a real (tmpdir-backed) Paths object and
+        a FakeDataSource, so _get_ipath()/_reflect_cur_instance() can run
+        end-to-end against real filesystem state.
+
+        Paths.get_ipath() (which _get_ipath()/_reflect_cur_instance() rely
+        on) reads paths.datasource directly, a separate attribute from
+        Init.datasource, so both must be set to the same datasource here.
+
+        _cfg is set to a non-empty dict rather than {}: Init.read_cfg()'s
+        guard is `if not self._cfg`, so an empty-but-set dict is still
+        treated as "not yet read" and would trigger a real (unmocked)
+        config load -- including a subp call -- the first time something
+        in _reflect_cur_instance()/_write_to_cache() touches self.cfg.
+        """
+        init = stages.Init()
+        init._cfg = {"i_dont_care": "about-this-value"}
+        init._paths = paths
+        ds = FakeDataSource(paths=paths)
+        init.datasource = ds
+        paths.datasource = ds
+        return init
+
+    # _remove_stale_instance_link is exercised end-to-end through both of
+    # its callers below, but it's also tested here in isolation: it's a
+    # single-responsibility helper with its own contract (heal a directory,
+    # otherwise behave exactly like the plain del_file it replaced), and
+    # testing it directly documents that contract independently of either
+    # caller's surrounding logic.
+    def test_remove_stale_instance_link_heals_real_directory(
+        self, init, caplog
+    ):
+        instance_link = init.paths.instance_link
+        os.makedirs(instance_link)
+
+        init._remove_stale_instance_link()
+
+        assert not os.path.exists(instance_link)
+        assert (
+            "unexpectedly exists as a directory rather than a symlink"
+            in caplog.text
+        )
+
+    def test_remove_stale_instance_link_removes_symlink_silently(
+        self, init, tmpdir, caplog
+    ):
+        """A valid symlink (even to a nonexistent target, as when a
+        previous instance directory was already cleaned up) is removed
+        via the original plain del_file path, with no warning logged."""
+        instance_link = init.paths.instance_link
+        os.symlink(str(tmpdir.join("some-instance-dir")), instance_link)
+
+        init._remove_stale_instance_link()
+
+        assert not os.path.exists(instance_link)
+        assert "unexpectedly exists as a directory" not in caplog.text
+
+    def test_remove_stale_instance_link_absent_is_a_noop(self, init, caplog):
+        instance_link = init.paths.instance_link
+        assert not os.path.exists(instance_link)
+
+        init._remove_stale_instance_link()
+
+        assert not os.path.exists(instance_link)
+        assert "unexpectedly exists as a directory" not in caplog.text
+
+    def test_remove_stale_instance_link_does_not_follow_nested_symlinks(
+        self, init, tmpdir
+    ):
+        """Safety property: healing a real directory at instance_link
+        must never delete anything a symlink *inside* it points to --
+        only the symlink entry itself. shutil.rmtree() already guarantees
+        this (verified independently against the stdlib), but this test
+        pins the guarantee against this specific code path so a future
+        change to how the directory is removed can't silently regress it.
+        """
+        important_elsewhere = tmpdir.mkdir("important_elsewhere")
+        important_elsewhere.join("precious.txt").write("precious data")
+
+        instance_link = init.paths.instance_link
+        os.makedirs(instance_link)
+        os.symlink(
+            str(important_elsewhere),
+            os.path.join(instance_link, "nested_symlink"),
+        )
+
+        init._remove_stale_instance_link()
+
+        assert not os.path.exists(instance_link)
+        assert important_elsewhere.exists()
+        assert important_elsewhere.join("precious.txt").exists()
+
+    def test_remove_stale_instance_link_refuses_to_rmtree_a_mount_point(
+        self, init
+    ):
+        """Safety property: a mount point at instance_link must never be
+        recursively deleted -- rmtree has no filesystem-boundary
+        awareness and would delete the mounted filesystem's *contents*
+        before failing on the mount point itself, a strictly larger
+        blast radius than this function is meant to have. Falls through
+        to the plain (non-destructive) del_file() path instead, which
+        reproduces the original IsADirectoryError for this one case --
+        a real mount point can't be created without root, so this is
+        exercised via a targeted mock instead."""
+        instance_link = init.paths.instance_link
+        os.makedirs(instance_link)
+
+        with mock.patch("os.path.ismount", return_value=True):
+            with pytest.raises(IsADirectoryError):
+                init._remove_stale_instance_link()
+
+        # Nothing was deleted: del_file's plain os.unlink() failed
+        # immediately and left the (simulated) mount point fully intact.
+        assert os.path.isdir(instance_link)
+
+    # _get_data_source() has two more call sites for the same instance_link
+    # removal, reached well before _reflect_cur_instance()/purge_cache() in
+    # a real boot. Exercising it end-to-end would require mocking the whole
+    # datasource-discovery machinery (_restore_from_checked_cache,
+    # sources.find_source, etc. -- none of which has any existing test
+    # coverage in this file to build on), which is disproportionate given
+    # _remove_stale_instance_link()'s own behavior is already fully covered
+    # above. Instead, these two tests only confirm each call site is wired
+    # to the shared, already-tested helper -- not full filesystem behavior.
+    def test_get_data_source_removes_stale_instance_link_after_new_source(
+        self, init
+    ):
+        init.datasource = None
+        with mock.patch.object(
+            init, "_restore_from_checked_cache", return_value=(None, "n/a")
+        ), mock.patch.object(
+            init, "_remove_stale_instance_link"
+        ) as m_remove, mock.patch.object(
+            sources, "find_source", return_value=(FakeDataSource(), "Fake")
+        ):
+            init._get_data_source(existing="trust")
+
+        m_remove.assert_called_once()
+
+    def test_get_data_source_removes_stale_instance_link_on_no_fallback(
+        self, init
+    ):
+        init.datasource = None
+        with mock.patch.object(
+            init, "_restore_from_checked_cache", return_value=(None, "n/a")
+        ), mock.patch.object(
+            init, "_remove_stale_instance_link"
+        ) as m_remove, mock.patch.object(
+            sources,
+            "find_source",
+            side_effect=sources.DataSourceNotFoundException(),
+        ), mock.patch.object(
+            init, "_restore_from_cache", return_value=None
+        ):
+            with pytest.raises(sources.DataSourceNotFoundException):
+                init._get_data_source(existing="check")
+
+        m_remove.assert_called_once()
+
+    def test_reflect_cur_instance_normal_case(self, init):
+        """Baseline: instance_link absent beforehand (the common case on a
+        VM's first boot) ends up as a symlink to the instance directory."""
+        instance_link = init.paths.instance_link
+        assert not os.path.exists(instance_link)
+        # Captured before the call: _reflect_cur_instance() resets cached
+        # cfg/paths at the end, so a *second* call to _get_ipath() after it
+        # would trigger a real (unmocked) config re-read.
+        expected_idir = init._get_ipath()
+
+        init._reflect_cur_instance()
+
+        assert os.path.islink(instance_link)
+        assert os.path.realpath(instance_link) == os.path.realpath(
+            expected_idir
+        )
+
+    def test_reflect_cur_instance_replaces_existing_symlink(
+        self, init, tmpdir
+    ):
+        """A pre-existing (stale, e.g. prior-instance) symlink is replaced
+        without error -- this is the expected steady-state behavior."""
+        instance_link = init.paths.instance_link
+        stale_target = tmpdir.mkdir("stale-target")
+        os.symlink(str(stale_target), instance_link)
+        expected_idir = init._get_ipath()
+
+        init._reflect_cur_instance()
+
+        assert os.path.islink(instance_link)
+        assert os.path.realpath(instance_link) == os.path.realpath(
+            expected_idir
+        )
+
+    def test_reflect_cur_instance_heals_stale_directory(self, init, caplog):
+        """Regression test: if instance_link is a real directory instead of
+        a symlink (the promotion bug -- e.g. from some code writing into a
+        path under it via ensure_dir_exists=True before the symlink was
+        (re)created), _reflect_cur_instance must heal it rather than crash
+        with IsADirectoryError."""
+        instance_link = init.paths.instance_link
+        os.makedirs(instance_link)
+        # Simulate a stray write that landed in the wrongly-promoted
+        # directory, matching real-world reports of this failure.
+        with open(os.path.join(instance_link, "some-stray-file"), "w") as f:
+            f.write("stray")
+        expected_idir = init._get_ipath()
+
+        init._reflect_cur_instance()
+
+        assert os.path.islink(instance_link)
+        assert os.path.realpath(instance_link) == os.path.realpath(
+            expected_idir
+        )
+        assert (
+            "unexpectedly exists as a directory rather than a symlink"
+            in caplog.text
+        )
+
+    def test_purge_cache_heals_stale_directory(self, init):
+        """purge_cache(rm_instance_lnk=True) exercises the same
+        instance_link removal path (this is the call site that a separate
+        real-world report, GH-4282, crashed in) and must be equally
+        tolerant of the directory case."""
+        instance_link = init.paths.instance_link
+        os.makedirs(instance_link)
+
+        count = init.purge_cache(rm_instance_lnk=True)
+
+        assert not os.path.exists(instance_link)
+        # 2 == len([boot_finished]) + 1 for instance_link: purge_cache's
+        # return value is a count of paths purged, unrelated to this
+        # fix's own behavior, but pinned here so a future change to that
+        # contract doesn't silently drift unnoticed.
+        assert count == 2
+
+    def test_purge_cache_missing_instance_link_is_a_noop(self, init):
+        """purge_cache(rm_instance_lnk=True) must not raise when
+        instance_link does not exist at all (the common case)."""
+        instance_link = init.paths.instance_link
+        assert not os.path.exists(instance_link)
+
+        count = init.purge_cache(rm_instance_lnk=True)
+
+        assert not os.path.exists(instance_link)
+        # See test_purge_cache_heals_stale_directory for why 2.
+        assert count == 2
+
+
 class TestInit_InitializeFilesystem:
     """Tests for cloudinit.stages.Init._initialize_filesystem.
 

@@ -228,11 +228,11 @@ class Init:
 
     def purge_cache(self, rm_instance_lnk=False):
         rm_list = [self.paths.boot_finished]
-        if rm_instance_lnk:
-            rm_list.append(self.paths.instance_link)
         for f in rm_list:
             util.del_file(f)
-        return len(rm_list)
+        if rm_instance_lnk:
+            self._remove_stale_instance_link()
+        return len(rm_list) + int(rm_instance_lnk)
 
     def initialize(self):
         self._initialize_filesystem()
@@ -397,7 +397,7 @@ class Init:
                     pkg_list,
                     self.reporter,
                 )
-                util.del_file(self.paths.instance_link)
+                self._remove_stale_instance_link()
                 LOG.info("Loaded datasource %s - %s", dsname, ds)
             except sources.DataSourceNotFoundException as e:
                 if existing != "check":
@@ -409,7 +409,7 @@ class Init:
                         ds,
                     )
                 else:
-                    util.del_file(self.paths.instance_link)
+                    self._remove_stale_instance_link()
                     raise e
         self.datasource = ds
         # Ensure we adjust our path members datasource
@@ -458,6 +458,77 @@ class Init:
         if not os.path.islink(network_link):
             util.sym_link(ncfg_instance_path, network_link)
 
+    def _remove_stale_instance_link(self):
+        """Best-effort removal of paths.instance_link.
+
+        paths.instance_link (/var/lib/cloud/instance by default) is only
+        ever supposed to be a symlink into instances/<iid>, or absent --
+        cloud-init itself never creates it as a plain directory. In
+        practice, though, it has been observed as a real directory in a
+        handful of separate reports over the years (GH-3710/LP:#1883903,
+        GH-4282), typically because something -- inside or outside
+        cloud-init -- wrote into a path nested under it (e.g. via
+        write_file(..., ensure_dir_exists=True), whose default silently
+        creates the missing parent as a plain directory) before the
+        symlink had been (re-)created for the current boot.
+
+        When that happens, a plain os.unlink() (what util.del_file does)
+        raises an uncaught IsADirectoryError, aborting the entire boot
+        stage before any further modules can run -- a disproportionate
+        failure mode for what is, by definition, always safe to remove
+        and recreate: nothing is meant to persist at this path itself,
+        only beneath the real instance directory it points to.
+
+        We cannot always prevent whatever caused the promotion (it may
+        originate outside cloud-init's control), but every consumer of
+        this invariant only ever needs the removal itself to succeed --
+        whether it goes on to immediately recreate the symlink (as
+        _reflect_cur_instance does) or deliberately leaves the path
+        absent until a later stage recreates it (as purge_cache and
+        _get_data_source do) -- so healing it at the point of removal is
+        sufficient to stop cloud-init itself from crashing on it,
+        regardless of which caller reaches it first. This does not
+        silence the underlying cause -- it is logged at WARNING so it
+        remains visible/greppable for anyone diagnosing why it happened.
+
+        Used by every place in this class that unconditionally relies on
+        the "symlink or absent" invariant: _get_data_source() (both after
+        a fresh find_source() and in the no-fallback exception path),
+        purge_cache(rm_instance_lnk=True), and _reflect_cur_instance().
+
+        Safety: util.del_dir() (shutil.rmtree()) never follows a
+        top-level symlink (raises instead -- and we've already excluded
+        that case via the islink() check below regardless), and never
+        follows any symlinks *nested inside* the directory being removed
+        into their targets -- it only unlinks the symlink entries
+        themselves, so a stray symlink planted inside this path cannot
+        cause anything outside of it to be deleted. The one case
+        deliberately excluded from the directory branch below is a
+        mount point: rmtree has no filesystem-boundary awareness and
+        would recurse into (and delete the contents of) whatever is
+        mounted there before failing on the mount point itself, which
+        would be a strictly larger blast radius than this function ever
+        had before. Falling through to the plain del_file() branch for
+        that case reproduces the original (safe, non-destructive,
+        loudly-failing) IsADirectoryError behavior instead.
+        """
+        path = self.paths.instance_link
+        if (
+            os.path.isdir(path)
+            and not os.path.islink(path)
+            and not os.path.ismount(path)
+        ):
+            LOG.warning(
+                "%s unexpectedly exists as a directory rather than a "
+                "symlink; removing it so it can be recreated. This "
+                "usually means something wrote into this path before "
+                "cloud-init (re-)created the instance symlink here.",
+                path,
+            )
+            util.del_dir(path)
+        else:
+            util.del_file(path)
+
     def _reflect_cur_instance(self):
         # Remove the old symlink and attach a new one so
         # that further reads/writes connect into the right location
@@ -467,7 +538,7 @@ class Init:
         if already_instancified:
             LOG.info("Instance link already exists, not recreating it.")
         else:
-            util.del_file(self.paths.instance_link)
+            self._remove_stale_instance_link()
             util.sym_link(idir, self.paths.instance_link)
 
         # Ensures these dirs exist
