@@ -43,6 +43,32 @@ configure_file(
   install_tag: 'python-runtime',
 )
 
+# JSON schemas are architecture-independent data, not Python code, so they
+# are installed under datadir rather than alongside the cloudinit package.
+# The location is recorded in meson_paths.py so that cloudinit can find them
+# at runtime without hardcoding a prefix.
+schema_dir = get_option('prefix') / get_option('datadir') / 'cloud-init' / 'schemas'
+install_data(
+  [
+    'schemas/schema-cloud-config-v1.json',
+    'schemas/schema-network-config-v1.json',
+    'schemas/schema-network-config-v2.json',
+    'schemas/versions.schema.cloud-config.json',
+  ],
+  install_dir: schema_dir,
+  install_mode: 'rw-r--r--',
+  install_tag: 'python-runtime',
+)
+configure_file(
+  input: 'meson_paths.py.in',
+  output: 'meson_paths.py',
+  configuration: {
+    'SCHEMA_DIR': schema_dir,
+  },
+  install_dir: python.get_install_dir()  / 'cloudinit',
+  install_tag: 'python-runtime',
+)
+
 
 # Binaries and script entrypoints
 if get_option('bash_completion') and is_readthedocs != 'True'

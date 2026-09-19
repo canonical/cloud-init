@@ -7,7 +7,7 @@ documentation:
   - changed-files:
     - any-glob-to-any-file:
       - 'doc/**'
-      - 'cloudinit/config/schemas/**'
+      - 'schemas/**'
   - base-branch: ['main']
 packaging:
 - any:
