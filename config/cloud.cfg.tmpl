@@ -166,7 +166,7 @@ cloud_config_modules:
   - rh_subscription
 {% endif %}
 {% if variant not in ["amazon", "azurelinux", "mariner", "photon"] %}
-  - spacewalk
+  - spacewalk  # deprecated: removal in 31.2
 {% endif %}
   - yum_add_repo
 {% elif variant == "suse" %}
@@ -177,7 +177,7 @@ cloud_config_modules:
 {% if variant == "raspberry-pi-os" %}
   - raspberry_pi
 {% endif %}
-  - disable_ec2_metadata
+  - disable_ec2_metadata  # deprecated: removal in 31.2
   - runcmd
 {% if variant in ["debian", "ubuntu", "unknown"] %}
   - byobu
@@ -198,11 +198,9 @@ cloud_final_modules:
   - puppet
   - chef
   - ansible
-  - mcollective
+  - mcollective  # deprecated: removal in 31.2
   - salt_minion
-{% if variant not in ["alpine"] %}
-  - reset_rmc
-{% endif %}
+{# SRU_BLOCKER: retain reset_rmc on non Alpine to avoid change in behavior on stable releases #}
   - scripts_vendor
   - scripts_per_once
   - scripts_per_boot

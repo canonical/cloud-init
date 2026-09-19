@@ -83,12 +83,6 @@ ssh_keys:
 
   rsa_public: ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEAoPRhIfLvedSDKw7XdewmZ3h8eIXJD7TRHtVW7aJX1ByifYtlL/HVzJ09nilCl+MSFrpbFnqjxyL8Rr/DSf7QcY/BrGUQbZn2Kc22PemAWthxHO18QJvWPocKJtlsDNi3 smoser@localhost
 
-# remove access to the ec2 metadata service early in boot via null route
-#  the null route can be removed (by root) with:
-#    route del -host 169.254.169.254 reject
-# default: false (service available)
-disable_ec2_metadata: true
-
 # run commands
 # default: none
 # runcmd contains a list of either lists or a string
@@ -139,7 +133,6 @@ cloud_config_modules:
  - grub_dpkg
  - [ apt_update_upgrade, always ]
  - puppet
- - disable_ec2_metadata
  - runcmd
  - byobu
 
