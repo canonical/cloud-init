@@ -1550,6 +1550,70 @@ class TestOvfEnvXml:
     def test_valid_ovf_scenarios(self, ovf, expected):
         assert azure_helper.OvfEnvXml.parse_text(ovf) == expected
 
+    def test_empty_custom_data_passes(self):
+        ovf = construct_ovf_env(custom_data="")
+
+        parsed = azure_helper.OvfEnvXml.parse_text(ovf)
+
+        assert parsed.custom_data is None
+
+    @pytest.mark.parametrize(
+        "custom_data,expected_exception",
+        [
+            (
+                "ABCDE",  # invalid length
+                "Invalid base64-encoded string: number of data characters "
+                "(5) cannot be 1 more than a multiple of 4",
+            ),
+            (
+                "ab",  # incorrect padding
+                "Incorrect padding",
+            ),
+            (
+                "not_base64",  # bad character stripped away
+                "Invalid base64-encoded string: number of data characters "
+                "(9) cannot be 1 more than a multiple of 4",
+            ),
+        ],
+    )
+    def test_invalid_base64_custom_data_fails(
+        self, custom_data, expected_exception
+    ):
+        ovf = f"""\
+            <ns0:Environment xmlns="http://schemas.dmtf.org/ovf/environment/1"
+             xmlns:ns0="http://schemas.dmtf.org/ovf/environment/1"
+             xmlns:ns1="http://schemas.microsoft.com/windowsazure"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <ns1:ProvisioningSection>
+            <ns1:Version>1.0</ns1:Version>
+            <ns1:LinuxProvisioningConfigurationSet>
+            <ns1:ConfigurationSetType>
+            LinuxProvisioningConfiguration
+            </ns1:ConfigurationSetType>
+            <ns1:HostName>test-host</ns1:HostName>
+            <ns1:UserName>test-user</ns1:UserName>
+            <ns1:CustomData>{custom_data}</ns1:CustomData>
+            </ns1:LinuxProvisioningConfigurationSet>
+            </ns1:ProvisioningSection>
+            <ns1:PlatformSettingsSection>
+            <ns1:Version>1.0</ns1:Version>
+            <ns1:PlatformSettings>
+            </ns1:PlatformSettings>
+            </ns1:PlatformSettingsSection>
+            </ns0:Environment>"""
+
+        with pytest.raises(errors.ReportableErrorOvfInvalidBase64) as exc_info:
+            azure_helper.OvfEnvXml.parse_text(ovf)
+
+        assert exc_info.value.reason == (
+            "failure to decode ovf-env.xml field=CustomData"
+        )
+        assert exc_info.value.supporting_data["field"] == "CustomData"
+        assert exc_info.value.supporting_data["length"] == len(custom_data)
+        assert (
+            exc_info.value.supporting_data["exception"] == expected_exception
+        )
+
     @pytest.mark.parametrize(
         "ovf,error",
         [
