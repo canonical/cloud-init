@@ -685,10 +685,16 @@ def add_apt_sources(
         'source': 'deb [signed-by=$KEY_FILE] $MIRROR $RELEASE main',
         'keyid': 'B59D 5F15 97A5 04B7 E230  6DCA 0620 BBCF 0368 3F77',
         'keyserver': 'pgp.mit.edu'
+        },
+    'microsoft-vscode': {
+        'source': "Types: deb" \
+            "\nURIs: https://packages.microsoft.com/repos/code" \
+            "\nSigned-By: /usr/share/keyrings/microsoft.gpg" \
+            "\nSuites: stable" \
+            "\nComponents: main" \
+            "\nArchitectures: amd64,arm64,armhf"
         }
     }
-
-    Note: Deb822 format is not supported
     """
     if template_params is None:
         template_params = {}
@@ -720,8 +726,11 @@ def add_apt_sources(
             ent["filename"] = os.path.join(
                 "/etc/apt/sources.list.d/", ent["filename"]
             )
-        if not ent["filename"].endswith(".list"):
+        is_deb822 = is_deb822_sources_format(source)
+        if not is_deb822 and not ent["filename"].endswith(".list"):
             ent["filename"] += ".list"
+        if is_deb822 and not ent["filename"].endswith(".sources"):
+            ent["filename"] += ".sources"
 
         if aa_repo_match(source):
             try:
