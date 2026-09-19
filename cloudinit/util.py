@@ -1219,6 +1219,13 @@ def get_hostname_fqdn(cfg, cloud, metadata_only=False):
         fqdn = str(cfg["fqdn"])
         hostname = get_cfg_option_str(cfg, "hostname", fqdn.split(".")[0])
     else:
+        if "hostname" in cfg and not isinstance(cfg["hostname"], str):
+            LOG.warning(
+                "Invalid hostname type: expected string, got %s",
+                type(cfg["hostname"]).__name__,
+            )
+            return HostnameFqdnInfo("", "", False)
+
         if "hostname" in cfg and cfg["hostname"].find(".") > 0:
             # user specified hostname, and it had '.' in it
             # be nice to them.  set fqdn and hostname from that
