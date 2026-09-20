@@ -78,6 +78,7 @@ OSFAMILIES = {
         "cloudlinux",
         "eurolinux",
         "fedora",
+        "kylin",
         "mariner",
         "miraclelinux",
         "openmandriva",

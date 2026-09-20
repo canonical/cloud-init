@@ -27,6 +27,7 @@ meta: MetaSchema = {
         "cloudlinux",
         "eurolinux",
         "fedora",
+        "kylin",
         "mariner",
         "openeuler",
         "OpenCloudOS",

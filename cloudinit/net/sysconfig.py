@@ -26,6 +26,7 @@ KNOWN_DISTROS = [
     "cloudlinux",
     "eurolinux",
     "fedora",
+    "kylin",
     "miraclelinux",
     "openeuler",
     "OpenCloudOS",
