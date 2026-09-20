@@ -276,6 +276,17 @@ OS_RELEASE_TENCENTOS_3 = dedent("""\
     CPE_NAME="cpe:/o:tencentos:tencentos:3"
 """)
 
+OS_RELEASE_KYLIN = dedent("""\
+    NAME="Kylin"
+    VERSION="V10"
+    ID="kylin"
+    ID_LIKE="rhel fedora"
+    VERSION_ID="V10"
+    PRETTY_NAME="Kylin Linux Advanced Server V10"
+    ANSI_COLOR="0;31"
+    CPE_NAME="cpe:/o:kylin:kylin_linux:V10"
+""")
+
 REDHAT_RELEASE_CENTOS_6 = "CentOS release 6.10 (Final)"
 REDHAT_RELEASE_CENTOS_7 = "CentOS Linux release 7.5.1804 (Core)"
 REDHAT_RELEASE_REDHAT_6 = (
@@ -1187,6 +1198,14 @@ class TestGetLinuxDistro:
         assert ("TencentOS", "3.1", "") == dist
 
     @mock.patch(M_PATH + "load_text_file")
+    def test_get_linux_kylin(self, m_os_release, m_path_exists):
+        """Verify get the correct name and release name on Kylin."""
+        m_os_release.return_value = OS_RELEASE_KYLIN
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        assert ("kylin", "V10", "") == dist
+
+    @mock.patch(M_PATH + "load_text_file")
     def test_get_linux_opensuse(self, m_os_release, m_path_exists):
         """Verify we get the correct name and machine arch on openSUSE
         prior to openSUSE Leap 15.
@@ -1288,6 +1307,7 @@ class TestGetVariant:
             ({"system": "linux", "dist": ("rocky",)}, "rocky"),
             ({"system": "linux", "dist": ("suse",)}, "suse"),
             ({"system": "linux", "dist": ("TencentOS",)}, "tencentos"),
+            ({"system": "linux", "dist": ("kylin",)}, "kylin"),
             ({"system": "linux", "dist": ("virtuozzo",)}, "virtuozzo"),
             ({"system": "linux", "dist": ("ubuntu",)}, "ubuntu"),
             ({"system": "linux", "dist": ("linuxmint",)}, "ubuntu"),
