@@ -165,6 +165,7 @@ def normalize_ssh_public_key(key: str) -> str:
             "removed."
         )
         key = key.replace("\r\n", "")
+
     if is_openssh_formatted(key):
         return key
 
