@@ -70,7 +70,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     lifecycle.deprecate(
         deprecated="Module cc_reset_rmc",
-        deprecated_version="26.2",
+        deprecated_version="26.3",
     )
 
     orig_path = os.environ.get("PATH")

@@ -63,8 +63,8 @@ class TestSpacewalkSchema:
                 {"spacewalk": {"server": "localhost"}},
                 re.escape(
                     "Cloud config schema deprecations: spacewalk:  "
-                    "Deprecated in version 26.2. The spacewalk module is "
-                    "deprecated and will be removed in a future release."
+                    "Deprecated in version 26.3. The spacewalk module is "
+                    "deprecated and scheduled to be removed in 31.3."
                 ),
             ),
         ),

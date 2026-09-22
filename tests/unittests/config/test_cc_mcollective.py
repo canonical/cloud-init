@@ -169,8 +169,8 @@ class TestMcollectiveSchema:
                 {"mcollective": {"conf": {"customkey": 1}}},
                 re.escape(
                     "Cloud config schema deprecations: mcollective:  "
-                    "Deprecated in version 26.2. The mcollective module is "
-                    "deprecated and will be removed in a future release."
+                    "Deprecated in version 26.3. The mcollective module is "
+                    "deprecated and scheduled to be removed in 31.3."
                 ),
             ),
             # Don't allow undocumented keys that don't match expected type
@@ -187,8 +187,8 @@ class TestMcollectiveSchema:
                 {"mcollective": {"conf": {"loglevel": "debug"}}},
                 re.escape(
                     "Cloud config schema deprecations: mcollective:  "
-                    "Deprecated in version 26.2. The mcollective module is "
-                    "deprecated and will be removed in a future release."
+                    "Deprecated in version 26.3. The mcollective module is "
+                    "deprecated and scheduled to be removed in 31.3."
                 ),
             ),
         ],

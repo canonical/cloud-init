@@ -67,9 +67,9 @@ class TestDisableEc2MetadataSchema:
                 {"disable_ec2_metadata": True},
                 re.escape(
                     "Cloud config schema deprecations: "
-                    "disable_ec2_metadata:  Deprecated in version 26.2. "
-                    "The disable_ec2_metadata module is deprecated and will "
-                    "be removed in a future release."
+                    "disable_ec2_metadata:  Deprecated in version 26.3. "
+                    "The disable_ec2_metadata module is deprecated and "
+                    "scheduled to be removed in 31.3."
                 ),
             ),
             # Invalid schemas

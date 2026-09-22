@@ -108,7 +108,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         return
     lifecycle.deprecate(
         deprecated="Module cc_mcollective",
-        deprecated_version="26.2",
+        deprecated_version="26.3",
     )
 
     mcollective_cfg = cfg["mcollective"]

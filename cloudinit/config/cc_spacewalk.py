@@ -70,7 +70,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         return
     lifecycle.deprecate(
         deprecated="Module cc_spacewalk",
-        deprecated_version="26.2",
+        deprecated_version="26.3",
     )
     cfg = cfg["spacewalk"]
     spacewalk_server = cfg.get("server")

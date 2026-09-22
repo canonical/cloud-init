@@ -35,7 +35,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if disabled:
         lifecycle.deprecate(
             deprecated="Module cc_disable_ec2_metadata",
-            deprecated_version="26.2",
+            deprecated_version="26.3",
         )
         reject_cmd = None
         if subp.which("ip"):

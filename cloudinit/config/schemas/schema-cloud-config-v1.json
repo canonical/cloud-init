@@ -1460,8 +1460,8 @@
             },
             {
               "deprecated": true,
-              "deprecated_version": "26.2",
-              "deprecated_description": "The disable_ec2_metadata module is deprecated and scheduled to be removed in 31.2."
+              "deprecated_version": "26.3",
+              "deprecated_description": "The disable_ec2_metadata module is deprecated and scheduled to be removed in 31.3."
             }
           ]
         }
@@ -2107,8 +2107,8 @@
             },
             {
               "deprecated": true,
-              "deprecated_version": "26.2",
-              "deprecated_description": "The mcollective module is deprecated and scheduled to be removed in 31.2."
+              "deprecated_version": "26.3",
+              "deprecated_description": "The mcollective module is deprecated and scheduled to be removed in 31.3."
             }
           ]
         }
@@ -2592,8 +2592,8 @@
             },
             {
               "deprecated": true,
-              "deprecated_version": "26.2",
-              "deprecated_description": "The reset_rmc module is deprecated and scheduled to be removed in 31.2."
+              "deprecated_version": "26.3",
+              "deprecated_description": "The reset_rmc module is deprecated and scheduled to be removed in 31.3."
             }
           ]
         }
@@ -3335,8 +3335,8 @@
             },
             {
               "deprecated": true,
-              "deprecated_version": "26.2",
-              "deprecated_description": "The spacewalk module is deprecated and scheduled to be removed in 31.2."
+              "deprecated_version": "26.3",
+              "deprecated_description": "The spacewalk module is deprecated and scheduled to be removed in 31.3."
             }
           ]
         }
