@@ -39,6 +39,11 @@ def common_mocks(mocker):
         return_value=True,
     )
     mocker.patch(
+        "cloudinit.distros.package_management.apt.Apt."
+        "_get_foreign_architectures",
+        return_value=[],
+    )
+    mocker.patch(
         "cloudinit.distros.package_management.apt.Apt.available",
         return_value=True,
     )

@@ -94,17 +94,31 @@ class TestPackageCommand:
             apt._wait_for_apt_command({"args": "stub2"}, timeout=5)
 
     def test_search_stem(self, m_subp, m_which, mocker):
-        """Test that containing `-`, `^`, `/`, or `=` is handled correctly."""
+        """Test that `-`, `^`, `/`, `=`, or `:` in a package is handled."""
         mocker.patch(f"{M_PATH}update_package_sources")
         mocker.patch(
             f"{M_PATH}get_all_packages",
-            return_value=["cloud-init", "pkg2", "pkg3", "pkg4", "pkg5"],
+            return_value=[
+                "cloud-init",
+                "pkg2",
+                "pkg3",
+                "pkg4",
+                "pkg5",
+                "pkg6",
+            ],
         )
         m_install = mocker.patch(f"{M_PATH}run_package_command")
 
         apt = Apt(runner=mock.Mock())
         apt.install_packages(
-            ["cloud-init", "pkg2-", "pkg3/jammy-updates", "pkg4=1.2", "pkg5^"]
+            [
+                "cloud-init",
+                "pkg2-",
+                "pkg3/jammy-updates",
+                "pkg4=1.2",
+                "pkg5^",
+                "pkg6:i386",
+            ]
         )
         m_install.assert_called_with(
             "install",
@@ -114,8 +128,77 @@ class TestPackageCommand:
                 "pkg3/jammy-updates",
                 "pkg4=1.2",
                 "pkg5^",
+                "pkg6:i386",
             ],
         )
+
+    def test_get_all_packages_includes_foreign_architectures(
+        self, m_subp, m_which
+    ):
+        """Packages only available for a foreign architecture are found."""
+        outputs = {
+            ("dpkg", "--print-foreign-architectures"): "i386\narmhf\n",
+            ("apt-cache", "pkgnames"): "cloud-init\nlibc6\n",
+            (
+                "apt-cache",
+                "--option=APT::Architecture=i386",
+                "pkgnames",
+            ): "libc6\nsteamcmd\n",
+            (
+                "apt-cache",
+                "--option=APT::Architecture=armhf",
+                "pkgnames",
+            ): "libc6\n",
+        }
+        m_subp.side_effect = lambda args, **_: subp.SubpResult(
+            outputs[tuple(args)], ""
+        )
+
+        apt = Apt(runner=mock.Mock())
+        assert apt.get_all_packages() == {"cloud-init", "libc6", "steamcmd"}
+        assert m_subp.call_args_list == [
+            mock.call(["dpkg", "--print-foreign-architectures"]),
+            mock.call(["apt-cache", "pkgnames"]),
+            mock.call(
+                ["apt-cache", "--option=APT::Architecture=i386", "pkgnames"]
+            ),
+            mock.call(
+                ["apt-cache", "--option=APT::Architecture=armhf", "pkgnames"]
+            ),
+        ]
+
+    def test_get_all_packages_without_foreign_architectures(
+        self, m_subp, m_which
+    ):
+        """Only the native architecture is queried when none are foreign."""
+        m_subp.side_effect = [
+            subp.SubpResult("", ""),
+            subp.SubpResult("cloud-init\nlibc6\n", ""),
+        ]
+
+        apt = Apt(runner=mock.Mock())
+        assert apt.get_all_packages() == {"cloud-init", "libc6"}
+        assert m_subp.call_args_list == [
+            mock.call(["dpkg", "--print-foreign-architectures"]),
+            mock.call(["apt-cache", "pkgnames"]),
+        ]
+
+    def test_get_all_packages_foreign_architectures_error(
+        self, m_subp, m_which, caplog
+    ):
+        """A failing dpkg call falls back to the native architecture only."""
+        m_subp.side_effect = [
+            subp.ProcessExecutionError(exit_code=2, stderr="dpkg failed"),
+            subp.SubpResult("cloud-init\n", ""),
+        ]
+
+        apt = Apt(runner=mock.Mock())
+        assert apt.get_all_packages() == {"cloud-init"}
+        assert m_subp.call_args_list == [
+            mock.call(["dpkg", "--print-foreign-architectures"]),
+            mock.call(["apt-cache", "pkgnames"]),
+        ]
+        assert "Failed to get dpkg foreign architectures" in caplog.text
 
 
 @pytest.fixture(scope="function")
