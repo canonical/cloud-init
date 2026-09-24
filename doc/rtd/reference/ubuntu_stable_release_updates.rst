@@ -21,10 +21,8 @@ and the most recent 2 long-term support (LTS) releases as documented in the
 Security Updates
 ================
 The `Ubuntu CVE policy`_ governs how Ubuntu mitigates CVEs in upstream and
-the standard support Ubuntu releases. In addition to the SRU policy to
-backport cloud-init upstream releases, Ubuntu's
-`Expanded Security Maintenance`_ provides CVE mitigation for Ubuntu LTS
-which are no longer covered under standard support.
+the standard support Ubuntu releases and releases covered by
+`Expanded Security Maintenance`_.
 
 SRU package version
 ===================
