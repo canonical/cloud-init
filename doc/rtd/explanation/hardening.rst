@@ -16,14 +16,9 @@ SSH public/private key pairs.
 Updated packages
 ================
 
-To ensure the available security fixes are applied to images at launch,
-it is recommended by `Ubuntu security team guidelines`_ to update the packages
-
-.. note::
-
-  Some cloud images (such as Ubuntu) are configured to automatically receive
-  the latest security updates. Other images should use cloud-init to update
-  packages on first boot.
+Some cloud images (such as Ubuntu) are configured to automatically receive
+the latest security updates. Other images should use cloud-init to update
+packages on first boot.
 
 .. code-block:: yaml
 
@@ -78,5 +73,4 @@ intended to launch, and not being intercepted by a man-in-the-middle (MITM)
 attack.
 
 
-.. _Ubuntu security team guidelines: https://documentation.ubuntu.com/server/explanation/security/security_suggestions/#keep-your-system-up-to-date
 .. _managing SSH-keys for openssh-server: https://documentation.ubuntu.com/server/how-to/security/openssh-server/#ssh-keys
