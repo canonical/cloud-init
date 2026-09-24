@@ -13,6 +13,7 @@ when transitioning from one Ubuntu series to the next (Focal -> Jammy).
 
 SRU supported releases
 ======================
+
 Cloud-init will provide SRU support for the current active interim releases
 and the most recent 2 long-term support (LTS) releases as documented in the
 `Ubuntu Release Cycle`_
@@ -24,7 +25,6 @@ the standard support Ubuntu releases. In addition to the SRU policy to
 backport cloud-init upstream releases, Ubuntu's
 `Expanded Security Maintenance`_ provides CVE mitigation for Ubuntu LTS
 which are no longer covered under standard support.
-
 
 SRU package version
 ===================
