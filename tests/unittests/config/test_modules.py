@@ -5,7 +5,7 @@ import importlib
 import inspect
 import logging
 from pathlib import Path
-from typing import List
+from typing import List, cast
 from unittest import mock
 
 import pytest
@@ -69,14 +69,17 @@ class TestModules:
         self, activate_by_schema_keys, cfg, active, frequency
     ):
         module = mock.Mock()
-        module.meta = MetaSchema(
-            name="module_name",
-            id="cc_module_name",
-            title="title",
-            description="description",
-            distros=[ALL_DISTROS],
-            examples=["example_0", "example_1"],
-            frequency=frequency,
+        module.meta = cast(
+            MetaSchema,
+            {
+                "name": "module_name",
+                "id": "cc_module_name",
+                "title": "title",
+                "description": "description",
+                "distros": [ALL_DISTROS],
+                "examples": ["example_0", "example_1"],
+                "frequency": frequency,
+            },
         )
         if activate_by_schema_keys is not None:
             module.meta["activate_by_schema_keys"] = activate_by_schema_keys
@@ -93,7 +96,7 @@ class TestModules:
         module_details = ModuleDetails(
             module=module,
             name=mod_name,
-            frequency=["always"],
+            frequency="always",
             run_args=[],
         )
         assert True is _is_active(module_details, util.load_yaml(example))
@@ -109,14 +112,17 @@ class TestModules:
         mods._cached_cfg = {}
         raw_name = "my_module"
         module = mock.Mock()
-        module.meta = MetaSchema(
-            name=raw_name,
-            id=f"cc_{raw_name}",
-            title="title",
-            description="description",
-            distros=[ALL_DISTROS],
-            examples=["example_0", "example_1"],
-            frequency=frequency,
+        module.meta = cast(
+            MetaSchema,
+            {
+                "name": raw_name,
+                "id": f"cc_{raw_name}",
+                "title": "title",
+                "description": "description",
+                "distros": [ALL_DISTROS],
+                "examples": ["example_0", "example_1"],
+                "frequency": frequency,
+            },
         )
         module_details = ModuleDetails(
             module=module,
@@ -160,7 +166,7 @@ class TestModules:
         module_details = ModuleDetails(
             module=module,
             name=mod_name,
-            frequency=["always"],
+            frequency="always",
             run_args=[],
         )
         mocker.patch.object(
@@ -192,10 +198,11 @@ class TestModules:
         module_details = ModuleDetails(
             module=module,
             name="mod_name",
-            frequency=["always"],
+            frequency="always",
             run_args=[],
         )
-        m_cc = mods.init.cloudify.return_value
+        m_cc = mock.MagicMock()
+        cast(mock.MagicMock, mods.init.cloudify).return_value = m_cc
         m_cc.run.return_value = (1, "doesnotmatter")
 
         mods._run_modules([module_details])
@@ -211,7 +218,7 @@ class TestModules:
                     "args": [],
                     "log": mock.ANY,
                 },
-                freq=["always"],
+                freq="always",
             )
         ] == m_cc.run.call_args_list
 
