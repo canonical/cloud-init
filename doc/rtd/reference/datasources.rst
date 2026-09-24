@@ -57,6 +57,7 @@ The following is a page for each supported datasource:
    datasources/openstack.rst
    datasources/oracle.rst
    datasources/ovf.rst
+   datasources/qemufwcfg.rst
    datasources/rbxcloud.rst
    datasources/scaleway.rst
    datasources/smartos.rst
