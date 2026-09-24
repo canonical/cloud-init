@@ -3,12 +3,11 @@
 Stable Release Updates (SRU)
 ****************************
 
-Once upstream cloud-init has released a new version, the team
-backports cloud-init to previous Ubuntu releases via a procedure called a
-"Stable Release Update" (`SRU`_). This helps ensure that new versions of
-cloud-init on existing releases of Ubuntu will not experience breaking
-changes. Breaking changes are allowed when transitioning from one Ubuntu
-series to the next (Focal -> Jammy).
+For each upstream cloud-init release, a backport is preformed to
+previous Ubuntu releases via a "Stable Release Update" (`SRU`_).
+Each SRU ensures that new versions of cloud-init on existing releases
+of Ubuntu will not experience breaking changes. Breaking changes are allowed
+when transitioning from one Ubuntu series to the next (Focal -> Jammy).
 
 .. _sru_supported_releases:
 
@@ -38,7 +37,7 @@ SRU testing for cloud-init
 ==========================
 
 The cloud-init project has a specific process it follows when validating
-a cloud-init SRU, which is documented in the `CloudinitUpdates`_ wiki page.
+a cloud-init SRU, which is documented in the `CloudinitUpdates`_ documentation.
 
 An SRU test of cloud-init performs the following:
 
@@ -64,7 +63,7 @@ The `integration test suite` used for validation follows these steps:
 .. _Ubuntu Release Cycle: https://ubuntu.com/about/release-cycle
 .. _Ubuntu CVE policy: https://ubuntu.com/security/cves/about
 .. _Expanded Security Maintenance: https://ubuntu.com/security/esm
-.. _SRU: https://wiki.ubuntu.com/StableReleaseUpdates
-.. _CloudinitUpdates: https://wiki.ubuntu.com/CloudinitUpdates
+.. _SRU: https://ubuntu.com/project/docs/SRU/stable-release-updates/
+.. _CloudinitUpdates: https://ubuntu.com/project/docs/SRU/reference/exception-Cloudinit-Updates/
 .. _integration test suite: https://github.com/canonical/cloud-init/tree/main/tests/integration_tests
 .. _SRU release version: https://github.com/canonical/ubuntu-maintainers-handbook/blob/main/VersionStrings.md#version-adding-a-change-in-ubuntu-as-a-stable-release-update

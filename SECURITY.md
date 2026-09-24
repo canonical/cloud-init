@@ -26,4 +26,4 @@ determined time for disclosure has arrived the following will occur:
 
 ## Downstream CVE mitigation
 
-- Ubuntu provides for CVE mitigation as part of the [Ubuntu Expanded Security Maintenance](https://docs.cloud-init.io/en/latest/reference/ubuntu_stable_release_updates.html#expanded-security-maintenance-esm-releases).
+- [Ubuntu](https://ubuntu.com/security/cves/about)
