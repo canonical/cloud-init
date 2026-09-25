@@ -24,3 +24,8 @@ jsonpatch
 
 # For validating cloud-config sections per schema definitions
 jsonschema
+
+# Used directly by cloudinit/config/schema.py to build a jsonschema
+# Registry. Currently pulled in transitively by jsonschema, but not
+# guaranteed to remain so.
+referencing
