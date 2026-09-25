@@ -3,6 +3,7 @@
 import json
 import os
 import stat
+from unittest import mock
 
 from cloudinit import atomic_helper
 
@@ -67,4 +68,25 @@ class TestAtomicHelper:
         path = tmp_path / "ensure_dirs" / "ensure/dir"
         contents = b"Hey there\n"
         atomic_helper.write_file(path, contents)
+        self.check_file(path, contents)
+
+    def test_write_file_fsyncs(self, tmp_path):
+        """write_file flushes and fsyncs the tempfile before renaming."""
+        path = tmp_path / "test_write_file_fsyncs"
+        contents = b"Hey there\n"
+        with mock.patch.object(
+            atomic_helper.os, "fsync", return_value=None
+        ) as m_fsync:
+            atomic_helper.write_file(path, contents)
+        assert m_fsync.call_count == 1
+        self.check_file(path, contents)
+
+    def test_write_file_fsync_error_is_ignored(self, tmp_path):
+        """write_file still succeeds if fsync() raises OSError."""
+        path = tmp_path / "test_write_file_fsync_error_is_ignored"
+        contents = b"Hey there\n"
+        with mock.patch.object(
+            atomic_helper.os, "fsync", side_effect=OSError("boom")
+        ):
+            atomic_helper.write_file(path, contents)
         self.check_file(path, contents)
