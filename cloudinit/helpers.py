@@ -14,6 +14,17 @@ import os
 from configparser import NoOptionError, NoSectionError, RawConfigParser
 from io import StringIO
 from time import time
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+)
 
 from cloudinit import persistence, settings, type_utils, util
 from cloudinit.settings import CFG_ENV_NAME, PER_ALWAYS, PER_INSTANCE, PER_ONCE
@@ -34,34 +45,38 @@ class DummySemaphores:
         pass
 
     @contextlib.contextmanager
-    def lock(self, _name, _freq, _clear_on_fail=False):
+    def lock(
+        self, _name: str, _freq: Optional[str], _clear_on_fail: bool = False
+    ) -> Iterator[DummyLock]:
         yield DummyLock()
 
-    def has_run(self, _name, _freq):
+    def has_run(self, _name: str, _freq: Optional[str]) -> bool:
         return False
 
-    def clear(self, _name, _freq):
+    def clear(self, _name: str, _freq: Optional[str]) -> bool:
         return True
 
 
 class FileLock:
-    def __init__(self, fn):
+    def __init__(self, fn: str):
         self.fn = fn
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "<%s using file %r>" % (type_utils.obj_name(self), self.fn)
 
 
-def canon_sem_name(name):
+def canon_sem_name(name: str) -> str:
     return name.replace("-", "_")
 
 
 class FileSemaphores:
-    def __init__(self, sem_path):
+    def __init__(self, sem_path: str):
         self.sem_path = sem_path
 
     @contextlib.contextmanager
-    def lock(self, name, freq, clear_on_fail=False):
+    def lock(
+        self, name: str, freq: Optional[str], clear_on_fail: bool = False
+    ) -> Iterator[Optional[FileLock]]:
         name = canon_sem_name(name)
         try:
             yield self._acquire(name, freq)
@@ -70,7 +85,7 @@ class FileSemaphores:
                 self.clear(name, freq)
             raise
 
-    def clear(self, name, freq):
+    def clear(self, name: str, freq: Optional[str]) -> bool:
         name = canon_sem_name(name)
         sem_file = self._get_path(name, freq)
         try:
@@ -80,7 +95,7 @@ class FileSemaphores:
             return False
         return True
 
-    def _acquire(self, name, freq):
+    def _acquire(self, name: str, freq: Optional[str]) -> Optional[FileLock]:
         # Check again if its been already gotten
         if self.has_run(name, freq):
             return None
@@ -96,7 +111,7 @@ class FileSemaphores:
             return None
         return FileLock(sem_file)
 
-    def has_run(self, name, freq):
+    def has_run(self, name: str, freq: Optional[str]) -> bool:
         if not freq or freq == PER_ALWAYS:
             return False
 
@@ -106,7 +121,7 @@ class FileSemaphores:
         # but it suffices for where and when cloudinit runs
         return os.path.exists(sem_file)
 
-    def _get_path(self, name, freq):
+    def _get_path(self, name: str, freq: Optional[str]) -> str:
         sem_path = self.sem_path
         if not freq or freq == PER_INSTANCE:
             return os.path.join(sem_path, name)
@@ -117,9 +132,9 @@ class FileSemaphores:
 class Runners:
     def __init__(self, paths):
         self.paths = paths
-        self.sems = {}
+        self.sems: Dict[str, FileSemaphores] = {}
 
-    def _get_sem(self, freq):
+    def _get_sem(self, freq: Optional[str]) -> Optional[FileSemaphores]:
         if freq == PER_ALWAYS or not freq:
             return None
         sem_path = None
@@ -138,8 +153,17 @@ class Runners:
             self.sems[sem_path] = FileSemaphores(sem_path)
         return self.sems[sem_path]
 
-    def run(self, name, functor, args, freq=None, clear_on_fail=False):
-        sem = self._get_sem(freq)
+    def run(
+        self,
+        name: str,
+        functor: Callable,
+        args,
+        freq: Optional[str] = None,
+        clear_on_fail: bool = False,
+    ) -> Tuple[bool, Any]:
+        sem: Optional[Union[FileSemaphores, DummySemaphores]] = self._get_sem(
+            freq
+        )
         if not sem:
             sem = DummySemaphores()
         if not args:
@@ -164,9 +188,9 @@ class ConfigMerger:
         self,
         paths=None,
         datasource=None,
-        additional_fns=None,
-        base_cfg=None,
-        include_vendor=True,
+        additional_fns: Optional[List[str]] = None,
+        base_cfg: Optional[Dict] = None,
+        include_vendor: bool = True,
     ):
         self._paths = paths
         self._ds = datasource
@@ -174,10 +198,10 @@ class ConfigMerger:
         self._base_cfg = base_cfg
         self._include_vendor = include_vendor
         # Created on first use
-        self._cfg = None
+        self._cfg: Optional[Dict] = None
 
-    def _get_datasource_configs(self):
-        d_cfgs = []
+    def _get_datasource_configs(self) -> List[Dict]:
+        d_cfgs: List[Dict] = []
         if self._ds:
             try:
                 ds_cfg = self._ds.get_config_obj()
@@ -191,8 +215,8 @@ class ConfigMerger:
                 )
         return d_cfgs
 
-    def _get_env_configs(self):
-        e_cfgs = []
+    def _get_env_configs(self) -> List[Dict]:
+        e_cfgs: List[Dict] = []
         if CFG_ENV_NAME in os.environ:
             e_fn = os.environ[CFG_ENV_NAME]
             try:
@@ -201,8 +225,8 @@ class ConfigMerger:
                 util.logexc(LOG, "Failed loading of env. config from %s", e_fn)
         return e_cfgs
 
-    def _get_instance_configs(self):
-        i_cfgs = []
+    def _get_instance_configs(self) -> List[Dict]:
+        i_cfgs: List[Dict] = []
         # If cloud-config was written, pick it up as
         # a configuration file to use when running...
         if not self._paths:
@@ -258,7 +282,7 @@ class ConfigMerger:
         return util.mergemanydict(cfgs)
 
     @property
-    def cfg(self):
+    def cfg(self) -> Dict:
         # None check to avoid empty case causing re-reading
         if self._cfg is None:
             self._cfg = self._read_cfg()
@@ -267,20 +291,25 @@ class ConfigMerger:
 
 class ContentHandlers:
     def __init__(self):
-        self.registered = {}
-        self.initialized = []
+        self.registered: Dict[str, Any] = {}
+        self.initialized: List[Any] = []
 
-    def __contains__(self, item):
+    def __contains__(self, item) -> bool:
         return self.is_registered(item)
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str):
         return self._get_handler(key)
 
-    def is_registered(self, content_type):
+    def is_registered(self, content_type: str) -> bool:
         return content_type in self.registered
 
-    def register(self, mod, initialized=False, overwrite=True):
-        types = set()
+    def register(
+        self,
+        mod,
+        initialized: bool = False,
+        overwrite: bool = True,
+    ) -> Set[str]:
+        types: Set[str] = set()
         for t in mod.list_types():
             if overwrite:
                 types.add(t)
@@ -293,10 +322,10 @@ class ContentHandlers:
             self.initialized.append(mod)
         return types
 
-    def _get_handler(self, content_type):
+    def _get_handler(self, content_type: str):
         return self.registered[content_type]
 
-    def items(self):
+    def items(self) -> List[Tuple[str, Any]]:
         return list(self.registered.items())
 
 
@@ -381,17 +410,17 @@ class Paths(persistence.CloudInitPickleMixin):
             self.lookups["hotplug.enabled"] = "hotplug.enabled"
 
     # get_ipath_cur: get the current instance path for an item
-    def get_ipath_cur(self, name=None):
+    def get_ipath_cur(self, name: Optional[str] = None) -> Optional[str]:
         return self._get_path(self.instance_link, name)
 
     # get_cpath : get the "clouddir" (/var/lib/cloud/<name>)
     # for a name in dirmap
-    def get_cpath(self, name=None):
+    def get_cpath(self, name: Optional[str] = None) -> Optional[str]:
         return self._get_path(self.cloud_dir, name)
 
     # _get_ipath : get the instance path for a name in pathmap
     # (/var/lib/cloud/instances/<instance>/<name>)
-    def _get_ipath(self, name=None):
+    def _get_ipath(self, name: Optional[str] = None) -> Optional[str]:
         if not self.datasource:
             return None
         iid = self.datasource.get_instance_id()
@@ -399,7 +428,7 @@ class Paths(persistence.CloudInitPickleMixin):
             return None
         path_safe_iid = str(iid).replace(os.sep, "_")
         ipath = os.path.join(self.cloud_dir, "instances", path_safe_iid)
-        add_on = self.lookups.get(name)
+        add_on = self.lookups.get(name) if name else None
         if add_on:
             ipath = os.path.join(ipath, add_on)
         return ipath
@@ -407,7 +436,7 @@ class Paths(persistence.CloudInitPickleMixin):
     # get_ipath : get the instance path for a name in pathmap
     # (/var/lib/cloud/instances/<instance>/<name>)
     # returns None + warns if no active datasource....
-    def get_ipath(self, name=None):
+    def get_ipath(self, name: Optional[str] = None) -> Optional[str]:
         ipath = self._get_ipath(name)
         if not ipath:
             LOG.warning(
@@ -418,12 +447,14 @@ class Paths(persistence.CloudInitPickleMixin):
         else:
             return ipath
 
-    def _get_path(self, base: str, name=None):
+    def _get_path(
+        self, base: str, name: Optional[str] = None
+    ) -> Optional[str]:
         if name is None:
             return base
         return os.path.join(base, self.lookups[name])
 
-    def get_runpath(self, name=None):
+    def get_runpath(self, name: Optional[str] = None) -> Optional[str]:
         return self._get_path(self.run_dir, name)
 
 
@@ -477,7 +508,7 @@ class DefaultingConfigParser(RawConfigParser):
             return self.DEF_INT
         return RawConfigParser.getint(self, section, option)
 
-    def stringify(self, header=None):
+    def stringify(self, header: Optional[str] = None) -> str:
         contents = ""
         outputstream = StringIO()
         self.write(outputstream)

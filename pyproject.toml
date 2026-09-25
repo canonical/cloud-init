@@ -33,6 +33,13 @@ module = [
 ignore_missing_imports = true
 no_implicit_optional = true
 
+# DefaultingConfigParser intentionally overrides RawConfigParser methods
+# with narrower, defaulting signatures (dropping raw/vars/fallback kwargs),
+# which violates the Liskov substitution principle by design.
+[[tool.mypy.overrides]]
+module = "cloudinit.helpers"
+disable_error_code = ["override"]
+
 # See GH-5445
 [[tool.mypy.overrides]]
 module = [
@@ -42,7 +49,6 @@ module = [
     "cloudinit.distros.opensuse",
     "cloudinit.distros.parsers.hostname",
     "cloudinit.distros.parsers.resolv_conf",
-    "cloudinit.helpers",
     "cloudinit.net.freebsd",
     "cloudinit.net.netbsd",
     "cloudinit.net.network_manager",
