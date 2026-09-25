@@ -35,13 +35,11 @@ from cloudinit.sources import DataSourceSmartOS
 from cloudinit.sources.DataSourceSmartOS import (
     SERIAL_DEVICE,
     SMARTOS_ENV_KVM,
+    get_smartos_environ,
+    identify_file,
 )
 from cloudinit.sources.DataSourceSmartOS import (
     convert_smartos_network_data as convert_net,
-)
-from cloudinit.sources.DataSourceSmartOS import (
-    get_smartos_environ,
-    identify_file,
 )
 from cloudinit.subp import ProcessExecutionError, subp, which
 from cloudinit.util import write_file

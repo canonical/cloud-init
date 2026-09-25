@@ -5,9 +5,8 @@
 import json
 import logging
 
-from cloudinit import dmi
+from cloudinit import dmi, url_helper
 from cloudinit import net as cloudnet
-from cloudinit import url_helper
 
 LOG = logging.getLogger(__name__)
 

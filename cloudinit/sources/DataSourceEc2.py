@@ -16,9 +16,8 @@ import uuid
 from contextlib import suppress
 from typing import Dict, List, Literal
 
-from cloudinit import dmi, net, sources
+from cloudinit import dmi, net, sources, util, warnings
 from cloudinit import url_helper as uhelp
-from cloudinit import util, warnings
 from cloudinit.distros import Distro
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import device_driver, netplan

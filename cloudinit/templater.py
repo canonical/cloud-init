@@ -20,9 +20,8 @@ import sys
 from jinja2 import DebugUndefined, TemplateSyntaxError
 from jinja2.sandbox import SandboxedEnvironment
 
-from cloudinit import performance
+from cloudinit import performance, util
 from cloudinit import type_utils as tu
-from cloudinit import util
 from cloudinit.atomic_helper import write_file
 
 LOG = logging.getLogger(__name__)

@@ -14,11 +14,9 @@ from cloudinit import (
     helpers,
     lifecycle,
     temp_utils,
-)
-from cloudinit import user_data as ud
-from cloudinit import (
     util,
 )
+from cloudinit import user_data as ud
 from cloudinit.gpg import GPG
 from cloudinit.log import loggers
 from tests.unittests.helpers import (

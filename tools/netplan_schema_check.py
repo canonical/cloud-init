@@ -1,7 +1,7 @@
 import argparse
 import os
-import yaml
 
+import yaml
 from jsonschema import Draft4Validator
 
 

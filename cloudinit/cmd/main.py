@@ -14,39 +14,43 @@
 
 import argparse
 import json
+import logging
 import os
 import sys
 import traceback
-import logging
-import yaml
-from typing import Any, Optional, Tuple, Callable, Union
+from typing import Any, Callable, Optional, Tuple, Union
 
-from cloudinit import features, netinfo
-from cloudinit import signal_handler
-from cloudinit import sources
-from cloudinit import socket
-from cloudinit import stages
-from cloudinit import url_helper
-from cloudinit import util
-from cloudinit import performance
-from cloudinit import version
-from cloudinit import warnings
-from cloudinit import reporting
-from cloudinit import atomic_helper
-from cloudinit import lifecycle
-from cloudinit import handlers
-from cloudinit.log import log_util, loggers
+import yaml
+
+from cloudinit import (
+    atomic_helper,
+    features,
+    handlers,
+    lifecycle,
+    netinfo,
+    performance,
+    reporting,
+    signal_handler,
+    socket,
+    sources,
+    stages,
+    url_helper,
+    util,
+    version,
+    warnings,
+)
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.config import cc_set_hostname
 from cloudinit.config.modules import Modules
 from cloudinit.config.schema import validate_cloudconfig_schema
 from cloudinit.lifecycle import log_with_downgradable_level
+from cloudinit.log import log_util, loggers
 from cloudinit.reporting import events
 from cloudinit.settings import (
-    PER_INSTANCE,
-    PER_ALWAYS,
-    PER_ONCE,
     CLOUD_CONFIG,
+    PER_ALWAYS,
+    PER_INSTANCE,
+    PER_ONCE,
 )
 
 Reason = str
@@ -1278,6 +1282,8 @@ def main(sysv_args=None):
         elif subcommand == "collect-logs":
             from cloudinit.cmd.devel.logs import (
                 get_parser as logs_parser,
+            )
+            from cloudinit.cmd.devel.logs import (
                 handle_collect_logs_args,
             )
 
@@ -1288,6 +1294,8 @@ def main(sysv_args=None):
         elif subcommand == "clean":
             from cloudinit.cmd.clean import (
                 get_parser as clean_parser,
+            )
+            from cloudinit.cmd.clean import (
                 handle_clean_args,
             )
 
@@ -1296,6 +1304,8 @@ def main(sysv_args=None):
         elif subcommand == "query":
             from cloudinit.cmd.query import (
                 get_parser as query_parser,
+            )
+            from cloudinit.cmd.query import (
                 handle_args as handle_query_args,
             )
 
@@ -1304,6 +1314,8 @@ def main(sysv_args=None):
         elif subcommand == "schema":
             from cloudinit.config.schema import (
                 get_parser as schema_parser,
+            )
+            from cloudinit.config.schema import (
                 handle_schema_args,
             )
 
@@ -1312,6 +1324,8 @@ def main(sysv_args=None):
         elif subcommand == "status":
             from cloudinit.cmd.status import (
                 get_parser as status_parser,
+            )
+            from cloudinit.cmd.status import (
                 handle_status_args,
             )
 

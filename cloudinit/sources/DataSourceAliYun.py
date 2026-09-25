@@ -4,9 +4,8 @@ import copy
 import logging
 from typing import List, Union
 
-from cloudinit import dmi, sources
+from cloudinit import dmi, sources, util
 from cloudinit import url_helper as uhelp
-from cloudinit import util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralIPNetwork

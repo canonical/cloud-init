@@ -11,9 +11,8 @@ from unittest import mock
 import pytest
 import yaml
 
-from cloudinit.sources import UNSET
+from cloudinit.sources import UNSET, InvalidMetaDataException
 from cloudinit.sources import DataSourceLXD as lxd
-from cloudinit.sources import InvalidMetaDataException
 from cloudinit.sources.DataSourceLXD import MetaDataKeys
 
 DS_PATH = "cloudinit.sources.DataSourceLXD."

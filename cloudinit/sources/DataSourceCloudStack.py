@@ -20,9 +20,8 @@ from socket import gaierror, getaddrinfo, inet_ntoa
 from struct import pack
 from typing import Any, ContextManager, Dict
 
-from cloudinit import dmi, net, performance, sources
+from cloudinit import dmi, net, performance, sources, util
 from cloudinit import url_helper as uhelp
-from cloudinit import util
 from cloudinit.net import dhcp
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralIPNetwork

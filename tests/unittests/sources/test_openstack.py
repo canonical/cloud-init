@@ -15,9 +15,8 @@ import pytest
 import responses
 
 from cloudinit import settings, util
-from cloudinit.sources import UNSET, BrokenMetadata
+from cloudinit.sources import UNSET, BrokenMetadata, convert_vendordata
 from cloudinit.sources import DataSourceOpenStack as ds
-from cloudinit.sources import convert_vendordata
 from cloudinit.sources.helpers import openstack
 from tests.unittests import util as test_util
 

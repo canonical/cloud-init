@@ -16,11 +16,9 @@ from unittest import mock
 import pytest
 import responses
 
-from cloudinit import handlers
+from cloudinit import handlers, safeyaml, stages, util
 from cloudinit import helpers as c_helpers
-from cloudinit import safeyaml, stages
 from cloudinit import user_data as ud
-from cloudinit import util
 from cloudinit.config.modules import Modules
 from cloudinit.settings import DEFAULT_RUN_DIR, PER_INSTANCE
 from tests.unittests.util import FakeDataSource

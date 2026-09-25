@@ -155,6 +155,7 @@ lint.select = [
     "G",   # flake8-logging-format
     "PIE", # flake8-pie
     "Q",   # flake8-quotes
+    "I",   # isort
 ]
 lint.ignore = [
     "D100", # docstring: public module
