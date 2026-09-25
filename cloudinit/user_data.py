@@ -8,7 +8,6 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import email
 import logging
 import os
 from email.mime.base import MIMEBase
@@ -381,7 +380,7 @@ def convert_string(raw_data, content_type=NOT_MULTIPART_TYPE):
         bdata = raw_data
     bdata = util.decomp_gzip(bdata, decode=False)
     if b"mime-version:" in bdata[0:4096].lower():
-        msg = email.message_from_bytes(bdata)
+        msg = util.message_from_string(bdata.decode("utf-8"))
     else:
         msg = create_binmsg(bdata, content_type)
 

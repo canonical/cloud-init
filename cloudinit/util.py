@@ -171,7 +171,19 @@ def fully_decoded_payload(part):
     # according to any charset in the Content-Type.  So, if we end up with
     # bytes, first try to decode to str via CT charset, and failing that, try
     # utf-8 using surrogate escapes.
-    cte_payload = part.get_payload(decode=True)
+    payload = part.get_payload()
+    cte = str(part.get("Content-Transfer-Encoding", "")).strip().lower()
+    if (
+        part.get_content_maintype() == "text"
+        and isinstance(payload, str)
+        and cte in ("", "7bit", "8bit", "binary")
+    ):
+        # Text that is not transfer-encoded is already decoded.  For such
+        # payloads get_payload(decode=True) encodes non-ASCII characters
+        # with raw-unicode-escape, so "é" would become b"\xe9".
+        cte_payload = payload.encode("utf-8", "surrogateescape")
+    else:
+        cte_payload = part.get_payload(decode=True)
     if part.get_content_maintype() == "text" and isinstance(
         cte_payload, bytes
     ):

@@ -819,6 +819,8 @@ class TestUDProcess:
         assert util.load_yaml(payloads[0]) == {
             "users": [{"gecos": "José Müller 你好"}]
         }
+        # The processed message is written to user-data.txt.i as str
+        assert "gecos: José Müller 你好\n" in str(message)
 
 
 class TestConvertString:
