@@ -396,7 +396,9 @@ p: 1
         cloud_cfg.handle_part(
             None, handlers.CONTENT_END, None, None, None, None
         )
-        contents = util.load_text_file(paths.get_ipath("cloud_config"))
+        cloud_config_fn = paths.get_ipath("cloud_config")
+        assert cloud_config_fn is not None
+        contents = util.load_text_file(cloud_config_fn)
         contents = util.load_yaml(contents)
         assert contents["run"], ["b", "c", "stuff", "morestuff"]
         assert contents["a"] == "be"

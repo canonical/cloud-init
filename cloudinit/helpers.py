@@ -410,12 +410,12 @@ class Paths(persistence.CloudInitPickleMixin):
             self.lookups["hotplug.enabled"] = "hotplug.enabled"
 
     # get_ipath_cur: get the current instance path for an item
-    def get_ipath_cur(self, name: Optional[str] = None) -> Optional[str]:
+    def get_ipath_cur(self, name: Optional[str] = None) -> str:
         return self._get_path(self.instance_link, name)
 
     # get_cpath : get the "clouddir" (/var/lib/cloud/<name>)
     # for a name in dirmap
-    def get_cpath(self, name: Optional[str] = None) -> Optional[str]:
+    def get_cpath(self, name: Optional[str] = None) -> str:
         return self._get_path(self.cloud_dir, name)
 
     # _get_ipath : get the instance path for a name in pathmap
@@ -447,14 +447,12 @@ class Paths(persistence.CloudInitPickleMixin):
         else:
             return ipath
 
-    def _get_path(
-        self, base: str, name: Optional[str] = None
-    ) -> Optional[str]:
+    def _get_path(self, base: str, name: Optional[str] = None) -> str:
         if name is None:
             return base
         return os.path.join(base, self.lookups[name])
 
-    def get_runpath(self, name: Optional[str] = None) -> Optional[str]:
+    def get_runpath(self, name: Optional[str] = None) -> str:
         return self._get_path(self.run_dir, name)
 
 
