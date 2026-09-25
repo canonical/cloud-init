@@ -788,6 +788,40 @@ class TestUDProcess:
         message = ud_proc.process(msg)
         assert count_messages(message) == 1
 
+    @pytest.mark.parametrize("compress", [False, True])
+    @pytest.mark.parametrize("transfer_encoding", [None, "7bit", "8bit"])
+    def test_mime_part_with_unencoded_utf8_text(
+        self, transfer_encoding, compress, ud_proc
+    ):
+        """Non-ASCII text in parts without base64 encoding is preserved."""
+        cloud_config = "#cloud-config\nusers:\n  - gecos: José Müller 你好\n"
+        cte_header = (
+            f"Content-Transfer-Encoding: {transfer_encoding}\n"
+            if transfer_encoding
+            else ""
+        )
+        blob = (
+            'Content-Type: multipart/mixed; boundary="BOUNDARY"\n'
+            "MIME-Version: 1.0\n\n"
+            "--BOUNDARY\n"
+            "Content-Type: text/cloud-config\n"
+            f"{cte_header}\n"
+            f"{cloud_config}\n"
+            "--BOUNDARY--\n"
+        )
+        message = ud_proc.process(gzip_text(blob) if compress else blob)
+        payloads = [
+            util.fully_decoded_payload(part)
+            for part in message.walk()
+            if not ud.is_skippable(part)
+        ]
+        assert payloads == [cloud_config]
+        assert util.load_yaml(payloads[0]) == {
+            "users": [{"gecos": "José Müller 你好"}]
+        }
+        # The processed message is written to user-data.txt.i as str
+        assert "gecos: José Müller 你好\n" in str(message)
+
 
 class TestConvertString:
     def test_handles_binary_non_utf8_decodable(self):
