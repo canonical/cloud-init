@@ -1,6 +1,7 @@
 [build-system]  # See meson.build. Empty build-system to avoid RTD builds
 build-backend = ""
 requires = []
+requires-python = ">=3.9"
 
 [tool.black]
 line-length = 79
