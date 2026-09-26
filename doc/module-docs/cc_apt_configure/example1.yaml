@@ -63,3 +63,9 @@ apt:
               ------BEGIN PGP PUBLIC KEY BLOCK-------
               <key data>
               ------END PGP PUBLIC KEY BLOCK-------
+      source5:
+          source: |
+              Types: deb
+              URIs: http://archive.ubuntu.com/ubuntu/
+              Suites: karmic-backports
+              Components: main universe multiverse restricted
