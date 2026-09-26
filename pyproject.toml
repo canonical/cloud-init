@@ -63,7 +63,6 @@ module = [
     "cloudinit.sources.helpers.azure",
     "cloudinit.sources.helpers.openstack",
     "cloudinit.sources.helpers.vmware.imc.config_file",
-    "cloudinit.sources.helpers.vmware.imc.config_nic",
     "cloudinit.user_data",
     "tests.unittests.analyze.test_show",
     "tests.unittests.config.test_apt_configure_sources_list_v3",
