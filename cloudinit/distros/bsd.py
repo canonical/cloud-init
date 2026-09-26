@@ -1,7 +1,7 @@
 import logging
 import platform
 import re
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, TypedDict
 
 import cloudinit.net.netops.bsd_netops as bsd_netops
 from cloudinit import distros, helpers, net, subp, util
@@ -9,6 +9,11 @@ from cloudinit.distros import PackageList, bsd_utils
 from cloudinit.distros.networking import BSDNetworking
 
 LOG = logging.getLogger(__name__)
+
+
+class NetworkConfig(TypedDict):
+    version: int
+    config: List[Dict[str, Any]]
 
 
 class BSD(distros.Distro):
@@ -92,8 +97,8 @@ class BSD(distros.Distro):
                     LOG, "Failed to add user '%s' to group '%s'", member, name
                 )
 
-    def generate_fallback_config(self):
-        nconf = {"config": [], "version": 1}
+    def generate_fallback_config(self) -> NetworkConfig:
+        nconf: NetworkConfig = NetworkConfig(config=[], version=1)
         for mac, name in net.get_interfaces_by_mac().items():
             nconf["config"].append(
                 {
