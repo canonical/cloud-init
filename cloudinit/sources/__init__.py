@@ -209,7 +209,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     _cloud_name: Optional[str] = None
 
     # Cached cloud platform api type: e.g. ec2, openstack, kvm, lxd, azure etc.
-    _platform_type = None
+    _platform_type: Optional[str] = None
 
     # More details about the cloud platform:
     #  - metadata (http://169.254.169.254/)
