@@ -21,7 +21,7 @@ from urllib3.poolmanager import PoolManager
 
 from cloudinit import dmi, performance, sources, url_helper, util
 from cloudinit.event import EventScope, EventType
-from cloudinit.net.dhcp import NoDHCPLeaseError
+from cloudinit.net.dhcp import InvalidDHCPLeaseFileError, NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralDHCPv4, EphemeralIPv6Network
 from cloudinit.sources import DataSourceHostname
 from cloudinit.subp import ProcessExecutionError
@@ -279,6 +279,7 @@ class DataSourceScaleway(sources.DataSource):
                     self.ephemeral_fixed_address = ipv4["fixed-address"]
                     self.metadata["net_in_use"] = "ipv4"
             except (
+                InvalidDHCPLeaseFileError,
                 NoDHCPLeaseError,
                 ConnectionError,
                 ProcessExecutionError,
