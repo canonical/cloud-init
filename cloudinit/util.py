@@ -327,11 +327,14 @@ def read_conf(fname, *, instance_data_file=None) -> Dict:
 
     if instance_data_file and os.path.exists(instance_data_file):
         try:
-            config_file = render_jinja_payload_from_file(
+            rendered_config = render_jinja_payload_from_file(
                 config_file,
                 fname,
                 instance_data_file,
             )
+            if rendered_config is None:
+                return {}
+            config_file = rendered_config
             LOG.debug(
                 "Applied instance data in '%s' to "
                 "configuration loaded from '%s'",
@@ -356,7 +359,7 @@ def read_conf(fname, *, instance_data_file=None) -> Dict:
                 config_file,
                 repr(e),
             )
-    return load_yaml(config_file, default={})  # pyright: ignore
+    return load_yaml(config_file, default={})
 
 
 # Merges X lists, and then keeps the
