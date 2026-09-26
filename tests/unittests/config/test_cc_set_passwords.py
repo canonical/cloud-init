@@ -52,6 +52,21 @@ class TestHandleSSHPwauth:
         assert SYSTEMD_RESTART_CALL not in m_subp.call_args_list
         assert SERVICE_RESTART_CALL not in m_subp.call_args_list
 
+    def test_restart_ssh_daemon_failure_logs_warning(self, mocker, caplog):
+        cloud = get_cloud("ubuntu")
+        mocker.patch.object(
+            cloud.distro,
+            "manage_service",
+            side_effect=subp.ProcessExecutionError(
+                stdout="",
+                stderr="restart failed",
+                exit_code=1,
+                cmd=["systemctl", "restart", "ssh"],
+            ),
+        )
+        setpass._restart_ssh_daemon(cloud.distro, "ssh")
+        assert "unable to restart SSH daemon" in caplog.text
+
     @pytest.mark.parametrize(
         "uses_systemd,ssh_updated,systemd_state",
         (
