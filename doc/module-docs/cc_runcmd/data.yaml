@@ -10,7 +10,10 @@ cc_runcmd:
 
     The ``runcmd`` module only writes the script to be run later. The module
     that actually runs the script is ``scripts_user`` in the
-    :ref:`Final boot stage <boot-Final>`.
+    :ref:`Final boot stage <boot-Final>`. Because commands are written
+    line-by-line to a shell script executed by ``/bin/sh``, the overall exit
+    status of ``runcmd`` is determined by the exit status of the last executed
+    command.
 
     .. note::
        All commands must be proper YAML, so you must quote any characters YAML
