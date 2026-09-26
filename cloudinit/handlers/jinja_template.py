@@ -85,7 +85,7 @@ class JinjaTemplatePartHandler(handlers.Handler):
 
 def render_jinja_payload_from_file(
     payload, payload_fn, instance_data_file, debug=False
-):
+) -> Optional[str]:
     r"""Render a jinja template sourcing variables from jinja_vars_path.
 
     @param payload: String of jinja template content. Should begin with
@@ -128,7 +128,9 @@ def render_jinja_payload_from_file(
     return rendered_payload
 
 
-def render_jinja_payload(payload, payload_fn, instance_data, debug=False):
+def render_jinja_payload(
+    payload, payload_fn, instance_data, debug=False
+) -> Optional[str]:
     instance_jinja_vars = convert_jinja_instance_data(
         instance_data,
         decode_paths=instance_data.get("base64-encoded-keys", []),

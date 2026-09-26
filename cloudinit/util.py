@@ -327,11 +327,19 @@ def read_conf(fname, *, instance_data_file=None) -> Dict:
 
     if instance_data_file and os.path.exists(instance_data_file):
         try:
-            config_file = render_jinja_payload_from_file(
+            rendered = render_jinja_payload_from_file(
                 config_file,
                 fname,
                 instance_data_file,
             )
+            if rendered is None:
+                LOG.warning(
+                    "Skipping jinja config file '%s'. "
+                    "Failed to render template.",
+                    fname,
+                )
+                return {}
+            config_file = rendered
             LOG.debug(
                 "Applied instance data in '%s' to "
                 "configuration loaded from '%s'",
