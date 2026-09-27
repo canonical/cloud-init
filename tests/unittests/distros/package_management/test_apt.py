@@ -152,6 +152,15 @@ class TestUpdatePackageSources:
 
     @mock.patch.object(apt.subp, "which", return_value=True)
     @mock.patch.object(apt.subp, "subp")
+    def test_force_update_is_recorded(self, m_subp, m_which, apt_paths):
+        """Ensure that a forced update isn't repeated by a later call"""
+        instance = apt.Apt(helpers.Runners(apt_paths))
+        instance.update_package_sources(force=True)
+        instance.update_package_sources()
+        assert 1 == len(m_subp.call_args_list)
+
+    @mock.patch.object(apt.subp, "which", return_value=True)
+    @mock.patch.object(apt.subp, "subp")
     def test_no_force_update_calls_once(self, m_subp, m_which, apt_paths):
         """Ensure that apt-get update calls are deduped unless expected"""
         instance = apt.Apt(helpers.Runners(apt_paths))
