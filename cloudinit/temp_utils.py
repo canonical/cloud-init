@@ -12,6 +12,10 @@ from cloudinit import util
 LOG = logging.getLogger(__name__)
 _ROOT_TMPDIR = "/run/cloud-init/tmp"
 _EXE_ROOT_TMPDIR = "/var/tmp/cloud-init"
+# Shared system directories which must remain world-writable and sticky
+# when cloud-init is the one creating them, which can happen if it runs
+# before systemd-tmpfiles-setup.service.
+_SYSTEM_TMPDIRS = ("/tmp", "/var/tmp")
 
 
 def get_tmp_ancestor(odir=None, needs_exe: bool = False):
@@ -44,7 +48,10 @@ def _tempfile_dir_arg(odir=None, needs_exe: bool = False):
     tdir = get_tmp_ancestor(odir, needs_exe)
     if not os.path.isdir(tdir):
         os.makedirs(tdir)
-        os.chmod(tdir, 0o700)
+        if os.path.normpath(tdir) in _SYSTEM_TMPDIRS:
+            os.chmod(tdir, 0o1777)
+        else:
+            os.chmod(tdir, 0o700)
 
     if needs_exe:
         if util.has_mount_opt(tdir, "noexec"):
