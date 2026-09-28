@@ -32,9 +32,11 @@ runs:
   steps:
     - name: Assert required repo secrets are set
       shell: bash
-      env:
-        CLOUD_INIT_PLATFORM: ${{ inputs.platform }}
       run: |
+        if [ -z "$GITHUB_TOKEN" ]; then
+           echo "ERROR: Missing required GITHUB_TOKEN environment variable to render CTRF test reports."
+           exit 1
+        fi
         if [ -z "$REQUIRED_SECRET" ]; then
            echo "ERROR: Missing required repo secret. Please provide PYCLOUDLIB_TOML_B64 repo secret at ${{ github.repository }}/settings/secrets/actions."
            exit 1
@@ -119,8 +121,6 @@ runs:
         upload-artifact: true
         github-report: true
         artifact-name: ctrf-report-${{ inputs.platform }}-${{ inputs.release }}
-      env:
-        GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
     - name: Upload failure artifacts
       if: ${{ failure() }}
       uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
