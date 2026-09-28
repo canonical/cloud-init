@@ -24,6 +24,6 @@ determined time for disclosure has arrived the following will occur:
   mitigations and where to obtain the fix
 * An announcement is made to [GitHub Discussions](https://github.com/canonical/cloud-init/discussions)
 
-## Downstream CVE mitigation
+## Downstream security policies
 
 - [Ubuntu](https://ubuntu.com/security/cves/about)
