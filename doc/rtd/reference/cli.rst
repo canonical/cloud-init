@@ -95,34 +95,33 @@ Logs collected include:
    Ubuntu users can file bugs using :command:`ubuntu-bug cloud-init` to
    automatically attach these logs to a bug report.
 
- 
-:command:`query`
------------------
+.. _cli_devel:
+
+:command:`devel`
+----------------
+
+Run development tools. See :command:`cloud-init devel --help` for the full
+list of subcommands, which includes :command:`hotplug-hook`,
+:command:`make-mime`, :command:`net-convert` and :command:`render`.
+
 .. _cli_devel_hotplug_hook:
- 
-Query if hotplug is enabled for a given subsystem.
+
 :command:`devel hotplug-hook`
-------------------------------
- 
-:command:`handle`
-------------------
-These are subcommands of :command:`devel hotplug-hook`, not top-level
-``cloud-init`` commands, and each requires ``-s/--subsystem`` on the parent
-command:
- 
-Respond to newly added system devices by retrieving updated system meta-data
-and bringing up/down the corresponding device.
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Handle reconfiguration on hotplug events. The following are subcommands of
+:command:`devel hotplug-hook`, not top-level ``cloud-init`` commands. Each
+requires the ``-s/--subsystem`` option on the parent command:
+
 .. code-block:: shell-session
- 
-:command:`enable`
-------------------
-   $ cloud-init devel hotplug-hook --subsystem <subsystem> <query|handle|enable> [options]
+
+    $ cloud-init devel hotplug-hook --subsystem <subsystem> <query|handle|enable>
 
 * :command:`query`: Query if hotplug is enabled for a given subsystem.
 
   .. code-block:: shell-session
 
-     $ cloud-init devel hotplug-hook --subsystem net query
+      $ cloud-init devel hotplug-hook --subsystem net query
 
 * :command:`handle`: Respond to newly added system devices by retrieving
   updated system meta-data and bringing up/down the corresponding device.
@@ -131,7 +130,8 @@ and bringing up/down the corresponding device.
 
   .. code-block:: shell-session
 
-     $ cloud-init devel hotplug-hook --subsystem net handle --devpath /sys/class/net/eth1 --udevaction add
+      $ cloud-init devel hotplug-hook --subsystem net handle \
+          --devpath /sys/class/net/eth1 --udevaction add
 
 * :command:`enable`: Enable hotplug for a given subsystem. This is a last
   resort command for administrators to enable hotplug in running instances.
@@ -139,14 +139,11 @@ and bringing up/down the corresponding device.
   default in the active datasource.
 
   .. code-block:: shell-session
- 
-Enable hotplug for a given subsystem. This is a last resort command for
-administrators to enable hotplug in running instances. The recommended
-method is configuring :ref:`events`, if not enabled by default in the active
-datasource.
-     $ cloud-init devel hotplug-hook --subsystem net enable
- 
- .. _cli_query:
+
+      $ cloud-init devel hotplug-hook --subsystem net enable
+
+.. _cli_query:
+
 :command:`query`
 ----------------
 
