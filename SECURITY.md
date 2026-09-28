@@ -26,4 +26,4 @@ determined time for disclosure has arrived the following will occur:
 
 ## Downstream security policies
 
-- [Ubuntu](https://ubuntu.com/security/cves/about)
+* [Ubuntu](https://ubuntu.com/security/cves/about)
