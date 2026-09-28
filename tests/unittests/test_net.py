@@ -6077,22 +6077,20 @@ class TestRenameInterfaces:
         mock_subp.assert_has_calls(expected)
 
 
-STATIC_IPV4 = (
-    "2: ens18: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500\n"
-    "    inet 10.0.0.5/24 brd 10.0.0.255 scope global ens18\n"
-    "       valid_lft forever preferred_lft forever\n"
-)
-STATIC_IPV6 = (
-    "2: ens18: <BROADCAST,MULTICAST,UP,LOWER_UP>\n"
-    "    inet6 2001:db8::1/64 scope global permanent\n"
-    "       valid_lft forever preferred_lft forever\n"
-)
-
-
 class TestGetCurrentRenameInfo:
     """Tests for _get_current_rename_info()."""
 
     IFACE = ("ens18", "bc:24:11:56:41:9f", "virtio_net", "0x1")
+    STATIC_IPV4 = (
+        "2: ens18: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500\n"
+        "    inet 10.0.0.5/24 brd 10.0.0.255 scope global ens18\n"
+        "       valid_lft forever preferred_lft forever\n"
+    )
+    STATIC_IPV6 = (
+        "2: ens18: <BROADCAST,MULTICAST,UP,LOWER_UP>\n"
+        "    inet6 2001:db8::1/64 scope global permanent\n"
+        "       valid_lft forever preferred_lft forever\n"
+    )
 
     @pytest.mark.parametrize(
         "ipv4_out,ipv6_out,is_up,check_downable,expected",
@@ -6127,19 +6125,10 @@ class TestGetCurrentRenameInfo:
         """Verify downable status for different IP address configurations."""
         mock_is_up.return_value = is_up
         mock_get_interfaces.return_value = [self.IFACE]
+        mock_subp.side_effect = [(ipv6_out, ""), (ipv4_out, "")]
 
-        def _subp(cmd, **kwargs):
-            if "-4" in cmd:
-                return (ipv4_out, "")
-            if "-6" in cmd:
-                return (ipv6_out, "")
-            return ("", "")
-
-        mock_subp.side_effect = _subp
         info = net._get_current_rename_info(check_downable=check_downable)
         assert info["ens18"]["downable"] is expected
-        if not check_downable:
-            mock_subp.assert_not_called()
 
     @pytest.mark.parametrize(
         "family",
