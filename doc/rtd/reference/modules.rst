@@ -7,8 +7,7 @@ What is a module?
 =================
 
 Cloud-init modules are features in cloud-config user-data, typically
-organized under a top-level key such as ``packages`` or ``runcmd``. The
-code for each module lives under :file:`cloudinit/config/` in a ``cc_*.py`` file.
+organized under a top-level key such as ``packages`` or ``runcmd``.
 
 Deprecation schedule and versions
 =================================
