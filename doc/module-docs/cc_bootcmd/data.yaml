@@ -4,7 +4,7 @@ cc_bootcmd:
     slightly after a boothook would run. This is very similar to a boothook,
     but more user friendly. Commands can be
     specified either as lists or strings. For invocation details, see
-    ``runcmd``.
+    :ref:`runcmd<mod_cc_runcmd>`.
 
     .. note::
        ``bootcmd`` should only be used for things that could not be done later
