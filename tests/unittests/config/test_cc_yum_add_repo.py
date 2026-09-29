@@ -200,10 +200,13 @@ class TestAddYumRepoSchema:
                 {"yum_repos": {}},
                 re.escape("yum_repos: {} ") + helpers.SCHEMA_EMPTY_ERROR,
             ),
-            # baseurl required
+            # one of baseurl, metalink or mirrorlist required
             (
                 {"yum_repos": {"My-Repo": {}}},
-                "yum_repos.My-Repo: 'baseurl' is a required",
+                (
+                    "yum_repos.My-Repo: 'baseurl', 'metalink' or 'mirrorlist'"
+                    " is a required property"
+                ),
             ),
             # patternProperties don't override type of explicit property names
             (

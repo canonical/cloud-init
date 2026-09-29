@@ -761,7 +761,10 @@ class TestSetPasswordsSchema:
                 {"chpasswd": {"users": [{"name": "."}]}},
                 pytest.raises(
                     SchemaValidationError,
-                    match="is not valid under any of the given schemas",
+                    match=(
+                        "chpasswd.users.0: 'type' or 'password' is a required"
+                        " property"
+                    ),
                 ),
             ),
             # Test regex

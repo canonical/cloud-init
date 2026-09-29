@@ -329,6 +329,26 @@ def _validator(
         yield error_type(msg, schema.get("deprecated_version", "devel"))
 
 
+def _missing_required_property(
+    errors: List[ValidationError], instance
+) -> Optional[str]:
+    """Return the property name if errors only report that instance lacks
+    one required property, otherwise None.
+    """
+    if len(errors) != 1:
+        return None
+    error = errors[0]
+    required = error.validator_value
+    if (
+        error.validator != "required"
+        or error.path
+        or not isinstance(required, list)
+    ):
+        return None
+    missing = [prop for prop in required if prop not in instance]
+    return missing[0] if len(missing) == 1 else None
+
+
 def _anyOf(
     validator,
     anyOf,
@@ -358,12 +378,17 @@ def _anyOf(
     one of the failing schema objects in an anyOf clause has a name of the
     format anyOf_type_XXX, raise those schema errors instead of calling
     best_match.
+
+    When every subschema fails only because it lacks a single required
+    property, as in anyOf: [{required: [a]}, {required: [b]}], best_match
+    would name just one of them. Report all of those properties instead.
     """
     from jsonschema.exceptions import best_match
 
     all_errors = []
     all_deprecations = []
     skip_best_match = False
+    missing_required: List[Optional[str]] = []
     for index, subschema in enumerate(anyOf):
         all_errs = list(
             validator.descend(instance, subschema, schema_path=index)
@@ -386,13 +411,25 @@ def _anyOf(
                 skip_best_match = True
                 yield from errs
         all_errors.extend(errs)
+        missing_required.append(_missing_required_property(errs, instance))
     else:
-        if not skip_best_match:
-            yield best_match(all_errors)
-        yield ValidationError(
-            "%r is not valid under any of the given schemas" % (instance,),
-            context=all_errors,
-        )
+        if (
+            not skip_best_match
+            and missing_required
+            and None not in missing_required
+        ):
+            props = [repr(p) for p in dict.fromkeys(missing_required)]
+            alternatives = props[-1]
+            if len(props) > 1:
+                alternatives = f"{', '.join(props[:-1])} or {alternatives}"
+            yield ValidationError(f"{alternatives} is a required property")
+        else:
+            if not skip_best_match:
+                yield best_match(all_errors)
+            yield ValidationError(
+                "%r is not valid under any of the given schemas" % (instance,),
+                context=all_errors,
+            )
     yield from all_deprecations
 
 
