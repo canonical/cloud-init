@@ -2,7 +2,7 @@
 
 import logging
 import re
-from typing import Optional
+from typing import Any, Optional
 
 from cloudinit import net, subp, util
 from cloudinit.distros import bsd_utils
@@ -20,23 +20,23 @@ class BSDRenderer(renderer.Renderer):
     route_names = ""
     route6_names = ""
 
-    def get_rc_config_value(self, key):
+    def get_rc_config_value(self, key: str) -> None:
         fn = subp.target_path(self.target, self.rc_conf_fn)
         bsd_utils.get_rc_config_value(key, fn=fn)
 
-    def set_rc_config_value(self, key, value):
+    def set_rc_config_value(self, key: str, value: str) -> None:
         fn = subp.target_path(self.target, self.rc_conf_fn)
         bsd_utils.set_rc_config_value(key, value, fn=fn)
 
-    def __init__(self, config=None):
+    def __init__(self, config: Optional[dict] = None) -> None:
         if not config:
             config = {}
-        self.target = None
-        self.interface_configurations = {}
-        self.interface_configurations_ipv6 = {}
+        self.target: Optional[str] = None
+        self.interface_configurations: dict[str, Any] = {}
+        self.interface_configurations_ipv6: dict[str, Any] = {}
         self._postcmds = config.get("postcmds", True)
 
-    def _ifconfig_entries(self, settings):
+    def _ifconfig_entries(self, settings: NetworkState) -> None:
         ifname_by_mac = net.get_interfaces_by_mac()
         for interface in settings.iter_interfaces():
             device_name = interface.get("name")
@@ -112,7 +112,7 @@ class BSDRenderer(renderer.Renderer):
                 ):
                     self.interface_configurations[device_name] = "DHCP"
 
-    def _route_entries(self, settings):
+    def _route_entries(self, settings: NetworkState) -> None:
         routes = list(settings.iter_routes())
         for interface in settings.iter_interfaces():
             subnets = interface.get("subnets", [])
@@ -154,7 +154,7 @@ class BSDRenderer(renderer.Renderer):
             gateway = route.get("gateway")
             self.set_route(network, netmask, gateway)
 
-    def _resolve_conf(self, settings):
+    def _resolve_conf(self, settings: NetworkState) -> None:
         nameservers = settings.dns_nameservers
         searchdomains = settings.dns_searchdomains
         for interface in settings.iter_interfaces():
@@ -204,7 +204,7 @@ class BSDRenderer(renderer.Renderer):
         self,
         network_state: NetworkState,
         templates: Optional[dict] = None,
-        target=None,
+        target: Optional[str] = None,
     ) -> None:
         if target:
             self.target = target
@@ -215,18 +215,20 @@ class BSDRenderer(renderer.Renderer):
         self.write_config()
         self.start_services(run=self._postcmds)
 
-    def dhcp_interfaces(self):
+    def dhcp_interfaces(self) -> list[str]:
         ic = self.interface_configurations.items
         return [k for k, v in ic() if v == "DHCP"]
 
-    def start_services(self, run=False):
+    def start_services(self, run: bool = False) -> None:
         raise NotImplementedError()
 
-    def write_config(self, target=None):
+    def write_config(self, target: Optional[str] = None) -> None:
         raise NotImplementedError()
 
-    def rename_interface(self, cur_name, device_name):
+    def rename_interface(self, cur_name: str, device_name: str) -> None:
         raise NotImplementedError()
 
-    def set_route(self, network, netmask, gateway):
+    def set_route(
+        self, network: str, netmask: Optional[str], gateway: Optional[str]
+    ) -> None:
         raise NotImplementedError()
