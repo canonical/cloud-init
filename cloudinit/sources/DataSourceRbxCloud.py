@@ -14,17 +14,52 @@ import errno
 import logging
 import os
 import os.path
-import typing
 from ipaddress import IPv4Address
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    TypedDict,
+    Union,
+)
 
 from cloudinit import sources, subp, util
+from cloudinit.distros import Distro
 from cloudinit.event import EventScope, EventType
 
 LOG = logging.getLogger(__name__)
 ETC_HOSTS = "/etc/hosts"
 
 
-def get_manage_etc_hosts():
+class GratuitousArpItem(TypedDict):
+    source: str
+    destination: str
+
+
+class NetworkConfig(TypedDict):
+    version: int
+    config: List[Dict[str, Any]]
+
+
+class RbxConfig(TypedDict):
+    ssh_pwauth: bool
+    disable_root: bool
+    system_info: Dict[str, Any]
+    network_config: NetworkConfig
+    manage_etc_hosts: bool
+
+
+class RbxData(TypedDict):
+    userdata: str
+    metadata: Dict[str, Any]
+    gratuitous_arp: List[GratuitousArpItem]
+    cfg: RbxConfig
+
+
+def get_manage_etc_hosts() -> bool:
     hosts = util.load_text_file(ETC_HOSTS, quiet=True)
     if hosts:
         LOG.debug("/etc/hosts exists - setting manage_etc_hosts to False")
@@ -33,11 +68,11 @@ def get_manage_etc_hosts():
     return True
 
 
-def increment_ip(addr, inc: int) -> str:
+def increment_ip(addr: str, inc: int) -> str:
     return str(IPv4Address(int(IPv4Address(addr)) + inc))
 
 
-def get_three_ips(addr) -> typing.List[str]:
+def get_three_ips(addr: str) -> List[str]:
     """Return a list of 3 IP addresses: [addr, addr + 2, addr + 3]
 
     @param addr: an object that is passed to IPvAddress
@@ -50,7 +85,7 @@ def get_three_ips(addr) -> typing.List[str]:
     ]
 
 
-def _sub_arp(cmd):
+def _sub_arp(cmd: List[str]) -> subp.SubpResult:
     """
     Uses the preferred cloud-init subprocess def of subp.subp
     and runs arping.  Breaking this to a separate function
@@ -59,7 +94,10 @@ def _sub_arp(cmd):
     return subp.subp(["arping"] + cmd)
 
 
-def gratuitous_arp(items, distro):
+def gratuitous_arp(
+    items: Iterable[Union[GratuitousArpItem, Mapping[str, str]]],
+    distro: Distro,
+) -> None:
     source_param = "-S"
     if distro.name in ["fedora", "centos", "rhel"]:
         source_param = "-s"
@@ -80,14 +118,14 @@ def gratuitous_arp(items, distro):
             )
 
 
-def get_md():
-    """Returns False (not found or error) or a dictionary with metadata."""
+def get_md() -> Optional[RbxData]:
+    """Return metadata, or None when it cannot be found or read."""
     devices = set(
         util.find_devs_with("LABEL=CLOUDMD")
         + util.find_devs_with("LABEL=cloudmd")
     )
     if not devices:
-        return False
+        return None
     for device in devices:
         try:
             rbx_data = util.mount_cb(
@@ -108,10 +146,12 @@ def get_md():
     LOG.debug(
         "Did not find RbxCloud data, searched devices: %s", ",".join(devices)
     )
-    return False
+    return None
 
 
-def generate_network_config(netadps):
+def generate_network_config(
+    netadps: Iterable[Dict[str, Any]],
+) -> NetworkConfig:
     """Generate network configuration
 
     @param netadps: A list of network adapter settings
@@ -144,7 +184,7 @@ def generate_network_config(netadps):
     }
 
 
-def read_user_data_callback(mount_dir):
+def read_user_data_callback(mount_dir: str) -> Optional[RbxData]:
     """This callback will be applied by util.mount_cb() on the mounted
     drive.
 
@@ -171,7 +211,7 @@ def read_user_data_callback(mount_dir):
 
     network = generate_network_config(meta_data["netadp"])
 
-    data = {
+    data: RbxData = {
         "userdata": user_data,
         "metadata": {
             "instance-id": meta_data["vm"]["_id"],
@@ -221,8 +261,8 @@ class DataSourceRbxCloud(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.seed = None
-        self.gratuitous_arp = None
-        self.cfg = None
+        self.gratuitous_arp: Optional[List[GratuitousArpItem]] = None
+        self.cfg: Optional[RbxConfig] = None
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -234,7 +274,7 @@ class DataSourceRbxCloud(sources.DataSource):
         is used to perform instance configuration.
         """
         rbx_data = get_md()
-        if rbx_data is False:
+        if rbx_data is None:
             return False
         self.userdata_raw = rbx_data["userdata"]
         self.metadata = rbx_data["metadata"]
@@ -243,7 +283,9 @@ class DataSourceRbxCloud(sources.DataSource):
         return True
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[NetworkConfig]:
+        if self.cfg is None:
+            return None
         return self.cfg["network_config"]
 
     def get_public_ssh_keys(self):
@@ -256,7 +298,8 @@ class DataSourceRbxCloud(sources.DataSource):
         return self.cfg
 
     def activate(self, cfg, is_new_instance):
-        gratuitous_arp(self.gratuitous_arp, self.distro)
+        if self.gratuitous_arp is not None:
+            gratuitous_arp(self.gratuitous_arp, self.distro)
 
 
 # Used to match classes to dependencies
