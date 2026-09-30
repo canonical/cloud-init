@@ -186,6 +186,9 @@ cloud_config_modules:
 # The modules that run in the 'final' stage
 cloud_final_modules:
   - package_update_upgrade_install
+{% if is_rhel %}
+  - rhel
+{% endif %}
 {% if variant in ["debian", "ubuntu", "unknown"] %}
   - fan
   - landscape
