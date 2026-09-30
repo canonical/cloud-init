@@ -7,7 +7,7 @@ For each upstream cloud-init release, a backport is performed to
 previous Ubuntu releases via a "Stable Release Update" (`SRU`_).
 Each SRU ensures that new versions of cloud-init on existing releases
 of Ubuntu will not experience breaking changes. Breaking changes are allowed
-when transitioning from one Ubuntu series to the next (Focal -> Jammy).
+when transitioning from one Ubuntu series to the next (Noble -> Resolute).
 
 .. _sru_supported_releases:
 
@@ -51,7 +51,7 @@ Test process:
 The `integration test suite` used for validation follows these steps:
 
 * :ref:`Install a pre-release version of cloud-init<ubuntu_test_pre_release>`
-  from the **-proposed** APT pocket (e.g., **jammy-proposed**).
+  from the **-proposed** APT pocket (e.g., **resolute-proposed**).
 * Upgrade cloud-init and attempt a clean run of cloud-init to assert
   that the new version works properly on the specific platform and Ubuntu
   series.
