@@ -8,9 +8,8 @@
 
 import logging
 import os
-import time
 
-from cloudinit import subp, util
+from cloudinit import util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -19,7 +18,6 @@ from cloudinit.log.loggers import flush_loggers
 from cloudinit.settings import PER_INSTANCE
 
 REBOOT_FILES = ("/var/run/reboot-required", "/run/reboot-needed")
-REBOOT_CMD = ["/sbin/reboot"]
 
 meta: MetaSchema = {
     "id": "cc_package_update_upgrade_install",
@@ -42,25 +40,6 @@ def _multi_cfg_bool_get(cfg, *keys):
         if util.get_cfg_option_bool(cfg, k, False):
             return True
     return False
-
-
-def _fire_reboot(
-    wait_attempts: int = 6, initial_sleep: int = 1, backoff: int = 2
-):
-    """Run a reboot command and panic if it doesn't happen fast enough."""
-    subp.subp(REBOOT_CMD)
-    start = time.monotonic()
-    wait_time = initial_sleep
-    for _i in range(wait_attempts):
-        time.sleep(wait_time)
-        wait_time *= backoff
-        elapsed = time.monotonic() - start
-        LOG.debug("Rebooted, but still running after %s seconds", int(elapsed))
-    # If we got here, not good
-    elapsed = time.monotonic() - start
-    raise RuntimeError(
-        "Reboot did not happen after %s seconds!" % (int(elapsed))
-    )
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
@@ -112,7 +91,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             )
             # Flush the above warning + anything else out...
             flush_loggers(LOG)
-            _fire_reboot()
+            util.fire_reboot()
         except Exception as e:
             util.logexc(LOG, "Requested reboot did not happen!")
             errors.append(e)
