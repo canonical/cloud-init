@@ -23,8 +23,13 @@ jobs:
   jammy-lxd_container:
     runs-on: ubuntu-latest
     if: github.repository == 'canonical/cloud-init'
+    permissions:
+      # Least-privilege scopes required by ctrf-io/github-test-reporter:
+      checks: write   # check-run reports
+      actions: read   # insights for flaky test delta
+      contents: read  # checkout
     env:
-      REQUIRED_SECRET: ${{ secrets.PYCLOUDLIB_TOML_B64 }}
+      PYCLOUDLIB_TOML_B64: ${{ secrets.PYCLOUDLIB_TOML_B64 }}
       SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

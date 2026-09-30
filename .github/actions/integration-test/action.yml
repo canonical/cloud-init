@@ -37,7 +37,7 @@ runs:
            echo "ERROR: Missing required GITHUB_TOKEN environment variable to render CTRF test reports."
            exit 1
         fi
-        if [ -z "$REQUIRED_SECRET" ]; then
+        if [ -z "$PYCLOUDLIB_TOML_B64" ]; then
            echo "ERROR: Missing required repo secret. Please provide PYCLOUDLIB_TOML_B64 repo secret at ${{ github.repository }}/settings/secrets/actions."
            exit 1
         fi
@@ -76,12 +76,25 @@ runs:
       env:
         PYCLOUDLIB_CONFIG: ${{ runner.temp }}/pycloudlib.toml
       run: |
-        sh -c 'echo "$REQUIRED_SECRET" | base64 -d > "$PYCLOUDLIB_CONFIG"'
+        sh -c 'echo "$PYCLOUDLIB_TOML_B64" | base64 -d > "$PYCLOUDLIB_CONFIG"'
     - name: Install Dependencies
       shell: bash
       run: |
         sudo DEBIAN_FRONTEND=noninteractive apt-get -qy update
         sudo DEBIAN_FRONTEND=noninteractive apt-get -qy install tox distro-info-data devscripts
+    - name: Validate inputs
+      # Defend filter_tests against shell injection, restrict it to test path/node-id characters.
+      if: ${{ inputs.filter_tests != '' }}
+      shell: bash
+      env:
+        FILTER_TESTS: ${{ inputs.filter_tests }}
+      run: |
+        if ! [[ "$FILTER_TESTS" =~ ^[A-Za-z0-9_./:[:space:]-]+$ ]]; then
+          echo "ERROR: filter_tests contains disallowed characters. Only"
+          echo "alphanumerics, '/', '.', '_', '-', ':' and whitespace are allowed"
+          echo "(test paths and pytest node IDs)."
+          exit 1
+        fi
     - name: Run integration Tests
       shell: bash
       env:
@@ -91,8 +104,15 @@ runs:
         CLOUD_INIT_CLOUD_INIT_SOURCE: ${{ inputs.install_source }}
         CLOUD_INIT_LOCAL_LOG_PATH: ${{ github.workspace }}/cloud_init_test_logs
         PYCLOUDLIB_CONFIG: ${{ runner.temp }}/pycloudlib.toml
+        FILTER_TESTS: ${{ inputs.filter_tests }}
       run: |
-        tox -e integration-tests -- --junitxml="${{ github.workspace }}/junit-report.xml" --color=yes ${{ inputs.filter_tests || 'tests/integration_tests' }}
+        # Split filter_tests on whitespace into an array so each test path
+        # or node ID is passed as a single, safely-quoted argument to tox.
+        TEST_ARGS=()
+        if [ -n "$FILTER_TESTS" ]; then
+          read -r -a TEST_ARGS <<< "$FILTER_TESTS"
+        fi
+        tox -e integration-tests -- --junitxml="${{ github.workspace }}/junit-report.xml" --color=yes "${TEST_ARGS[@]}"
     - name: Publish Test Report with Insights
       if: ${{ always() }}
       uses: ctrf-io/github-test-reporter@024bc4b64d997ca9da86833c6b9548c55c620e40 # v1.0.26
