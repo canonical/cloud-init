@@ -6,7 +6,12 @@ from unittest.mock import call
 import pytest
 
 from cloudinit import settings
-from cloudinit.cmd.devel.hotplug_hook import enable_hotplug, handle_hotplug
+from cloudinit.cmd.devel.hotplug_hook import (
+    enable_hotplug,
+    get_parser,
+    handle_args,
+    handle_hotplug,
+)
 from cloudinit.distros import Distro
 from cloudinit.event import EventScope, EventType
 from cloudinit.net.activators import NetworkActivator
@@ -313,3 +318,51 @@ class TestEnableHotplug:
         m_read_hotplug_enabled_file.assert_called_once()
         assert [] == m_write_file.call_args_list
         assert [] == m_install_hotplug.call_args_list
+
+
+class TestGetParser:
+    @pytest.mark.parametrize(
+        "argv",
+        (
+            pytest.param(["-s", "net", "query"], id="before_action"),
+            pytest.param(["query", "-s", "net"], id="after_action"),
+            pytest.param(
+                [
+                    "--subsystem=net",
+                    "handle",
+                    "--devpath=/devices/net/eth1",
+                    "--udevaction=add",
+                ],
+                id="before_action_as_hook_hotplug_calls_it",
+            ),
+            pytest.param(
+                [
+                    "handle",
+                    "--devpath=/devices/net/eth1",
+                    "--udevaction=add",
+                    "--subsystem=net",
+                ],
+                id="after_action_arguments",
+            ),
+        ),
+    )
+    def test_subsystem_before_or_after_action(self, argv):
+        assert "net" == get_parser().parse_args(argv).subsystem
+
+    @pytest.mark.parametrize("action", ["query", "handle", "enable"])
+    def test_action_help_lists_subsystem(self, action, capsys):
+        with pytest.raises(SystemExit):
+            get_parser().parse_args([action, "--help"])
+        assert "--subsystem {net}" in capsys.readouterr().out
+
+    def test_missing_subsystem(self, capsys):
+        args = get_parser().parse_args(["query"])
+        with mock.patch(M_PATH + "Init") as m_init:
+            with pytest.raises(SystemExit) as exc_info:
+                handle_args("hotplug-hook", args)
+        assert 2 == exc_info.value.code
+        assert 0 == m_init.call_count
+        assert (
+            "hotplug-hook: error: the following arguments are required: "
+            "-s/--subsystem" in capsys.readouterr().err
+        )
