@@ -176,3 +176,15 @@ extend-include = ["*read-dependencies", "*bddeb", "*brpm"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "pep257"
+
+[tool.rstcheck]
+report_level = "WARNING"
+ignore_directives = [
+    "automodule",          # sphinx.ext.autodoc
+    "datatemplate:yaml",   # sphinxcontrib-datatemplates
+    "dropdown",            # sphinx-design
+    "grid",                # sphinx-design
+    "mdinclude",           # m2r2
+    "spelling:word-list",  # sphinxcontrib-spelling
+    "tab-set",             # sphinx-design
+]
