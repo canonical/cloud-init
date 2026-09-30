@@ -37,7 +37,6 @@ no_implicit_optional = true
 [[tool.mypy.overrides]]
 module = [
     "cloudinit.distros.alpine",
-    "cloudinit.distros.azurelinux",
     "cloudinit.distros.bsd",
     "cloudinit.distros.opensuse",
     "cloudinit.distros.parsers.hostname",
