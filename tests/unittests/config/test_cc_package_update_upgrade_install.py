@@ -25,6 +25,7 @@ from tests.unittests.helpers import (
 from tests.unittests.util import get_cloud
 
 M_PATH = "cloudinit.config.cc_package_update_upgrade_install."
+UTIL_PATH = "cloudinit.util."
 
 
 @pytest.fixture
@@ -126,7 +127,7 @@ class TestRebootIfRequired:
             "cloudinit.subp.subp", return_value=SubpResult("{}", "fakeerr")
         ) as m_subp:
             with mock.patch("os.path.isfile", side_effect=_isfile):
-                with mock.patch(M_PATH + "time.sleep") as m_sleep:
+                with mock.patch(UTIL_PATH + "time.sleep") as m_sleep:
                     with mock.patch(M_PATH + "flush_loggers"):
                         with expectation:
                             handle("", cloud_cfg, cloud, [])
