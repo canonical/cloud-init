@@ -51,6 +51,7 @@
         "resolv_conf",
         "rh-subscription",
         "rh_subscription",
+        "rhel",
         "rsyslog",
         "runcmd",
         "salt-minion",
@@ -2854,6 +2855,23 @@
         }
       }
     },
+    "cc_rhel": {
+      "type": "object",
+      "properties": {
+        "rhel": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "fips_mode": {
+              "type": "boolean",
+              "default": false,
+              "description": "Whether or not to enable fips mode. To enable, set it to ``true``. Default: ``false``."
+            }
+          }
+        }
+      }
+    },
     "cc_rsyslog": {
       "type": "object",
       "properties": {
@@ -4122,6 +4140,9 @@
       "$ref": "#/$defs/cc_rh_subscription"
     },
     {
+      "$ref": "#/$defs/cc_rhel"
+    },
+    {
       "$ref": "#/$defs/cc_rsyslog"
     },
     {
@@ -4262,6 +4283,7 @@
     "resize_rootfs": {},
     "resolv_conf": {},
     "rh_subscription": {},
+    "rhel": {},
     "rpi": {},
     "rsyslog": {},
     "runcmd": {},
