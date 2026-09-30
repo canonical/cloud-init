@@ -140,7 +140,7 @@ runs:
         slowest-report: true
         upload-artifact: true
         github-report: true
-        artifact-name: ctrf-report-${{ inputs.platform }}-${{ inputs.release }}
+        artifact-name: ctrf-report-${{ inputs.platform }}-${{ inputs.release }}-${{ inputs.image_type }}
     - name: Upload failure artifacts
       if: ${{ failure() }}
       uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
