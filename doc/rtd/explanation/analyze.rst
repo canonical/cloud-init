@@ -189,6 +189,7 @@ Example output:
 
 .. :force: specified to allow ellipsis interjection
            without breaking syntax highlighting
+.. rstcheck: ignore-next-code-block
 .. code-block:: json
     :force:
 

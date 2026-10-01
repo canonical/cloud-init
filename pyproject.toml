@@ -179,6 +179,8 @@ convention = "pep257"
 
 [tool.rstcheck]
 report_level = "WARNING"
+# rstcheck currently ignores our ..include:: links.txt, producing erroneous warnings
+ignore_messages = "Indirect hyperlink target|Unknown target name"
 ignore_directives = [
     "automodule",          # sphinx.ext.autodoc
     "datatemplate:yaml",   # sphinxcontrib-datatemplates

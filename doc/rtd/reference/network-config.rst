@@ -292,7 +292,7 @@ Example of converting V2 to sysconfig:
 
 Example output:
 
-.. code-block:: yaml
+.. code-block:: text
 
    # Created by cloud-init automatically, do not edit.
    #

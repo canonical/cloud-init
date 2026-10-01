@@ -6,7 +6,7 @@ MIME multi-part archive
 Example
 -------
 
-.. code-block:: yaml
+.. code-block:: text
 
     Content-Type: multipart/mixed; boundary="===============2389165605550749110=="
     MIME-Version: 1.0
