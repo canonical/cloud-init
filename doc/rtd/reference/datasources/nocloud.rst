@@ -390,7 +390,7 @@ sufficient disk by following the following example.
       * 2b) Option 2: the ``mtools`` package provides ``mcopy``, which can
         access ``vfat`` filesystems without mounting them:
 
-        .. code-block::
+        .. code-block:: shell-session
 
            $ mcopy -oi seed.iso user-data meta-data ::
 
