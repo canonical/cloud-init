@@ -21,24 +21,24 @@ NETWORK_FILE_HEADER = """\
 
 
 class Distro(rhel.Distro):
+    network_conf_dir = "/etc/systemd/network/"
+    systemd_locale_conf_fn = "/etc/locale.conf"
+    resolve_conf_fn = "/etc/systemd/resolved.conf"
+
+    network_conf_fn = {"netplan": CLOUDINIT_NETPLAN_FILE}  # type: ignore[assignment]
+    renderer_configs = {
+        "networkd": {
+            "resolv_conf_fn": resolve_conf_fn,
+            "network_conf_dir": network_conf_dir,
+        },
+        "netplan": {
+            "netplan_path": network_conf_fn["netplan"],
+            "netplan_header": NETWORK_FILE_HEADER,
+            "postcmds": "True",
+        },
+    }
+
     def __init__(self, name, cfg, paths):
         super().__init__(name, cfg, paths)
         self.osfamily = "azurelinux"
-
-        self.network_conf_dir = "/etc/systemd/network/"
-        self.systemd_locale_conf_fn = "/etc/locale.conf"
-        self.resolve_conf_fn = "/etc/systemd/resolved.conf"
         self.init_cmd = ["systemctl"]
-
-        self.network_conf_fn = {"netplan": CLOUDINIT_NETPLAN_FILE}
-        self.renderer_configs = {
-            "networkd": {
-                "resolv_conf_fn": self.resolve_conf_fn,
-                "network_conf_dir": self.network_conf_dir,
-            },
-            "netplan": {
-                "netplan_path": self.network_conf_fn["netplan"],
-                "netplan_header": NETWORK_FILE_HEADER,
-                "postcmds": "True",
-            },
-        }
