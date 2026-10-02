@@ -64,7 +64,7 @@ class TestSpacewalkSchema:
                 re.escape(
                     "Cloud config schema deprecations: spacewalk:  "
                     "Deprecated in version 26.3. The spacewalk module is "
-                    "deprecated and scheduled to be removed in 31.3."
+                    "deprecated and scheduled to be removed in 27.3."
                 ),
             ),
         ),

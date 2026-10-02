@@ -1452,18 +1452,9 @@
       "type": "object",
       "properties": {
         "disable_ec2_metadata": {
-          "allOf": [
-            {
-              "default": false,
-              "description": "Set true to disable IPv4 routes to EC2 metadata. Default: ``false``.",
-              "type": "boolean"
-            },
-            {
-              "deprecated": true,
-              "deprecated_version": "26.3",
-              "deprecated_description": "The disable_ec2_metadata module is deprecated and scheduled to be removed in 31.3."
-            }
-          ]
+          "default": false,
+          "description": "Set true to disable IPv4 routes to EC2 metadata. Default: ``false``.",
+          "type": "boolean"
         }
       }
     },
@@ -2108,7 +2099,7 @@
             {
               "deprecated": true,
               "deprecated_version": "26.3",
-              "deprecated_description": "The mcollective module is deprecated and scheduled to be removed in 31.3."
+              "deprecated_description": "The mcollective module is deprecated and scheduled to be removed in 27.3."
             }
           ]
         }
@@ -3336,7 +3327,7 @@
             {
               "deprecated": true,
               "deprecated_version": "26.3",
-              "deprecated_description": "The spacewalk module is deprecated and scheduled to be removed in 31.3."
+              "deprecated_description": "The spacewalk module is deprecated and scheduled to be removed in 27.3."
             }
           ]
         }

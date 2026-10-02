@@ -170,7 +170,7 @@ class TestMcollectiveSchema:
                 re.escape(
                     "Cloud config schema deprecations: mcollective:  "
                     "Deprecated in version 26.3. The mcollective module is "
-                    "deprecated and scheduled to be removed in 31.3."
+                    "deprecated and scheduled to be removed in 27.3."
                 ),
             ),
             # Don't allow undocumented keys that don't match expected type
@@ -188,7 +188,7 @@ class TestMcollectiveSchema:
                 re.escape(
                     "Cloud config schema deprecations: mcollective:  "
                     "Deprecated in version 26.3. The mcollective module is "
-                    "deprecated and scheduled to be removed in 31.3."
+                    "deprecated and scheduled to be removed in 27.3."
                 ),
             ),
         ],

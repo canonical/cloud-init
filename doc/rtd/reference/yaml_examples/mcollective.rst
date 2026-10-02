@@ -4,7 +4,7 @@ Install and configure MCollective
 *********************************
 
 .. note::
-   This module is depreceated in 26.3 and scheduled for removal in 31.3.
+   This module is deprecated in 26.3 and scheduled for removal in 27.3.
 
 This example shows how MCollective can be installed, configured and started.
 For a full list of keys, refer to the
@@ -22,5 +22,3 @@ config settings in ``/etc/mcollective/server.cfg``:
 .. literalinclude:: ../../../module-docs/cc_mcollective/example1.yaml
    :language: yaml
    :linenos:
-
-

@@ -71,6 +71,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     lifecycle.deprecate(
         deprecated="Module cc_spacewalk",
         deprecated_version="26.3",
+        schedule=1,  # Accelerated schedule because spacewalk is EOL in 2020
     )
     cfg = cfg["spacewalk"]
     spacewalk_server = cfg.get("server")
