@@ -118,13 +118,37 @@ class Apt(PackageManager):
 
     @functools.lru_cache(maxsize=1)
     def get_all_packages(self):
-        resp: str = subp.subp(["apt-cache", "pkgnames"]).stdout
+        # `apt-cache pkgnames` only lists packages available for the native
+        # architecture, so also query the cache for each foreign
+        # architecture (see `dpkg --add-architecture`). Using
+        # `apt-cache --all-names pkgnames` instead would also list virtual
+        # packages, which cannot be installed.
+        packages = set()
+        for arch in [None, *self._get_foreign_architectures()]:
+            command = ["apt-cache"]
+            if arch:
+                command.append(f"--option=APT::Architecture={arch}")
+            command.append("pkgnames")
+            resp: str = subp.subp(command).stdout
 
-        # Searching the string directly and searching a list are both
-        # linear searches. Converting to a set takes some extra up front
-        # time, but resulting searches become binary searches and are much
-        # faster
-        return set(resp.splitlines())
+            # Searching the string directly and searching a list are both
+            # linear searches. Converting to a set takes some extra up front
+            # time, but resulting searches become binary searches and are
+            # much faster
+            packages.update(resp.splitlines())
+        return packages
+
+    @staticmethod
+    def _get_foreign_architectures() -> List[str]:
+        """Return the foreign architectures configured in dpkg, if any."""
+        try:
+            resp: str = subp.subp(
+                ["dpkg", "--print-foreign-architectures"]
+            ).stdout
+        except subp.ProcessExecutionError as e:
+            LOG.debug("Failed to get dpkg foreign architectures: %s", e)
+            return []
+        return resp.split()
 
     def get_unavailable_packages(self, pkglist: Iterable[str]):
         # Packages ending with `-` signify to apt to not install a transitive
@@ -132,11 +156,12 @@ class Apt(PackageManager):
         # Packages ending with '^' signify to apt to install a Task.
         # Anything after "/" refers to a target release
         # "=" allows specifying a specific version
+        # ":" allows specifying a target architecture
         # Strip all off when checking for availability
         return [
             pkg
             for pkg in pkglist
-            if re.split("/|=", pkg)[0].rstrip("-^")
+            if re.split("/|=|:", pkg)[0].rstrip("-^")
             not in self.get_all_packages()
         ]
 
