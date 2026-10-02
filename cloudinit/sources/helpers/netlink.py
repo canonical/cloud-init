@@ -101,9 +101,9 @@ def get_netlink_msg_header(data: bytes) -> NetlinkHeader:
     };
     """
     assert data is not None, "data is none"
-    assert (
-        len(data) >= NLMSGHDR_SIZE
-    ), "data is smaller than netlink message header"
+    assert len(data) >= NLMSGHDR_SIZE, (
+        "data is smaller than netlink message header"
+    )
     netlink_msg: Tuple[int, int, int, int, int] = struct.unpack(
         NLMSGHDR_FMT, data[:MSG_TYPE_OFFSET]
     )
@@ -144,9 +144,9 @@ def unpack_rta_attr(data: bytes, offset: int) -> Optional[RTAAttr]:
     """
     assert data is not None, "data is none"
     assert isinstance(offset, int), "offset is not integer"
-    assert (
-        offset >= RTATTR_START_OFFSET
-    ), "rta offset is less than expected length"
+    assert offset >= RTATTR_START_OFFSET, (
+        "rta offset is less than expected length"
+    )
     length = rta_type = 0
     attr_data = None
     try:
@@ -171,9 +171,9 @@ def read_rta_oper_state(data: bytes) -> Optional[InterfaceOperstate]:
              smaller than RTATTR_START_OFFSET.
     """
     assert data is not None, "data is none"
-    assert (
-        len(data) > RTATTR_START_OFFSET
-    ), "length of data is smaller than RTATTR_START_OFFSET"
+    assert len(data) > RTATTR_START_OFFSET, (
+        "length of data is smaller than RTATTR_START_OFFSET"
+    )
     ifname = operstate = None
     offset = RTATTR_START_OFFSET
     while offset <= len(data):
