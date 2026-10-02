@@ -218,6 +218,7 @@ class DataSourceCloudStack(sources.DataSource):
             LOG.debug("Using seeded cloudstack data from: %s", self.seed_dir)
             return True
         network_context: ContextManager
+        primary_nic = None
         if self.perform_dhcp_setup:
             primary_nic = net.find_fallback_nic()
             LOG.debug("Attempting DHCP on: %s", primary_nic)
