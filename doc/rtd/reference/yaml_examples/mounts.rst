@@ -64,6 +64,8 @@ To remove a previously-listed mount (i.e., a default one), list only the
   ``hd``, or ``vd``.
 - If an entry does not have all 6 fields, they will be filled in with values
   from the ``mount_default_fields`` below.
+- Overlay mounts automatically create the directories referenced by
+  ``upperdir=`` and ``workdir=`` before cloud-init applies the mount.
 
 .. note::
     You should set ``nofail`` (see ``man fstab``) for volumes that may not
