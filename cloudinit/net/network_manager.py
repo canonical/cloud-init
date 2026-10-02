@@ -52,8 +52,11 @@ class NMConnection:
         CI_NM_UUID = uuid.UUID("a3924cb8-09e0-43e9-890b-77972a800108")
 
         self.config = configparser.ConfigParser()
-        # Identity option name mapping, to achieve case sensitivity
-        self.config.optionxform = str
+        # Identity option name mapping, to achieve case sensitivity.
+        # Assigning the builtin str as the optionxform transform is the
+        # documented configparser idiom; mypy cannot express assigning a
+        # class to a method, hence the ignore.
+        self.config.optionxform = str  # type: ignore [method-assign, assignment]
 
         self.config["connection"] = {
             "id": f"cloud-init {con_id}",
