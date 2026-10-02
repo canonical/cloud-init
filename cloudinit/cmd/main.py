@@ -78,6 +78,8 @@ STAGE_NAME = {
 
 LOG = logging.getLogger(__name__)
 
+DISABLE_LOCAL_MARKER = "/etc/cloud/cloud-init-local.disabled"
+
 
 class SubcommandAwareArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args, **kwargs):
@@ -1331,25 +1333,33 @@ def all_stages(parser):
     """Run all stages in a single process using an ordering protocol."""
     LOG.info("Running cloud-init in single process mode.")
 
+    # Allow for skipping local stage if desired
+    skip_local = os.path.exists(DISABLE_LOCAL_MARKER)
+    stages = ["network", "config", "final"]
+    if not skip_local:
+        stages.insert(0, "local")
     # this _must_ be called before sd_notify is called otherwise netcat may
     # attempt to send "start" before a socket exists
-    sync = socket.SocketSync("local", "network", "config", "final")
+    sync = socket.SocketSync(*stages)
 
     # notify systemd that this stage has completed
     socket.sd_notify("READY=1")
-    # wait for cloud-init-local.service to start
-    with sync("local"):
-        # set up logger
-        args = parser.parse_args(args=["init", "--local"])
-        args.skip_log_setup = False
-        # run local stage
-        sync.systemd_exit_code = sub_main(args, parser)
+
+    if not skip_local:
+        # wait for cloud-init-local.service to start
+        with sync("local"):
+            # set up logger
+            args = parser.parse_args(args=["init", "--local"])
+            args.skip_log_setup = False
+            # run local stage
+            sync.systemd_exit_code = sub_main(args, parser)
 
     # wait for cloud-init-network.service to start
     with sync("network"):
         # skip re-setting up logger
         args = parser.parse_args(args=["init"])
-        args.skip_log_setup = True
+        # if local stage does not run, this will setup log
+        args.skip_log_setup = not skip_local
         # run init stage
         sync.systemd_exit_code = sub_main(args, parser)
 
