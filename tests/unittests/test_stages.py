@@ -655,6 +655,33 @@ class TestInit:
             "network update allowed" in caplog.text
         )
 
+    @pytest.mark.parametrize(
+        "cached_content",
+        [
+            pytest.param("", id="empty_file"),
+            pytest.param("{not valid json", id="truncated_json"),
+            pytest.param("null", id="valid_json_wrong_type"),
+        ],
+    )
+    def test_write_network_config_json_recovers_from_corrupt_cache(
+        self, cached_content, caplog
+    ):
+        """A 0-byte or corrupt network-config.json cache is not fatal.
+
+        Regression test: a sudden reboot/power-loss can leave a 0-byte
+        or partially-written network-config.json cache, which previously
+        caused an unhandled JSONDecodeError or TypeError.
+        """
+        ncfg_instance_path = self.init.paths.get_ipath_cur("network_config")
+        write_file(ncfg_instance_path, cached_content)
+        netcfg = {"version": 1, "config": []}
+
+        self.init._write_network_config_json(netcfg)
+
+        assert "Failed to parse cached network config" in caplog.text
+        with open(ncfg_instance_path) as fp:
+            assert netcfg == json.load(fp)
+
 
 class TestInit_InitializeFilesystem:
     """Tests for cloudinit.stages.Init._initialize_filesystem.
