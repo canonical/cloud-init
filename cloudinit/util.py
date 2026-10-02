@@ -627,6 +627,11 @@ def _get_variant(info):
             variant = "ubuntu"
         elif linux_dist == "redhat":
             variant = "rhel"
+        elif linux_dist == "rosa":
+            # ROSA Linux is RPM/dnf-based with NetworkManager; reuse the
+            # Fedora structure: ds-identify under /usr/libexec, NetworkManager
+            # unit ordering and the sysconfig network renderer.
+            variant = "fedora"
         elif linux_dist in (
             "opensuse",
             "opensuse-leap",
