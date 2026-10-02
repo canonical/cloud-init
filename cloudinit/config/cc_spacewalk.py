@@ -11,14 +11,14 @@ from cloudinit.settings import PER_INSTANCE
 
 meta: MetaSchema = {
     "id": "cc_spacewalk",
-    "distros": ["rhel", "fedora", "openeuler"],
+    "distros": ["rhel", "fedora", "openeuler", "kylin"],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["spacewalk"],
 }
 
 LOG = logging.getLogger(__name__)
 
-distros = ["redhat", "fedora", "openeuler"]
+distros = ["redhat", "fedora", "openeuler", "kylin"]
 required_packages = ["rhn-setup"]
 def_ca_cert_path = "/usr/share/rhn/RHN-ORG-TRUSTED-SSL-CERT"
 

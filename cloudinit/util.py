@@ -621,6 +621,7 @@ def _get_variant(info):
             "suse",
             "tencentos",
             "virtuozzo",
+            "kylin",
         ):
             variant = linux_dist
         elif linux_dist in ("ubuntu", "linuxmint", "mint"):
