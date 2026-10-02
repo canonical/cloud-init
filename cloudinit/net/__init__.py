@@ -76,7 +76,9 @@ def read_sys_net(
         contents = util.load_text_file(dev_path)
     except (OSError, IOError) as e:
         e_errno = getattr(e, "errno", None)
-        if e_errno in (errno.ENOENT, errno.ENOTDIR):
+        # EISDIR: some devices link an attribute to a directory, like
+        # device/device of mac802154_hwsim WPAN interfaces.
+        if e_errno in (errno.ENOENT, errno.ENOTDIR, errno.EISDIR):
             if on_enoent is not None:
                 return on_enoent(e)
         if e_errno in (errno.EINVAL,):
