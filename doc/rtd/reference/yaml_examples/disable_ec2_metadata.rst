@@ -3,6 +3,9 @@
 Disable AWS EC2 IMDS
 ********************
 
+.. note::
+   This module is depreceated in 26.3 and scheduled for removal in 31.3.
+
 The default value for this module is ``false``. Setting it to ``true`` disables
 the IPv4 routes to EC2 IMDS.
 
