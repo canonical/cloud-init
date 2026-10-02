@@ -1,0 +1,3 @@
+#cloud-config
+rhel:
+  fips_mode: true
