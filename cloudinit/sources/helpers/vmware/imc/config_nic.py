@@ -12,7 +12,7 @@ import ipaddress
 import logging
 import os
 import re
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 from cloudinit import subp, util
 from cloudinit.net import dhcp
@@ -20,14 +20,19 @@ from cloudinit.net.network_state import (
     ipv4_mask_to_net_prefix,
     ipv6_mask_to_net_prefix,
 )
+from cloudinit.sources.helpers.vmware.imc.nic import Nic
 
 logger = logging.getLogger(__name__)
 
 
 class NicConfigurator:
     def __init__(
-        self, nics, name_servers, dns_suffixes, use_system_devices=True
-    ):
+        self,
+        nics: List[Nic],
+        name_servers: List[str],
+        dns_suffixes: List[str],
+        use_system_devices: bool = True,
+    ) -> None:
         """
         Initialize the Nic Configurator
         @param nics (list) an array of nics to configure
@@ -38,7 +43,7 @@ class NicConfigurator:
         self.nics = nics
         self.name_servers = name_servers
         self.dns_suffixes = dns_suffixes
-        self.mac2Name = {}
+        self.mac2Name: Dict[str, str] = {}
 
         if use_system_devices:
             self.find_devices()
@@ -46,9 +51,9 @@ class NicConfigurator:
             for nic in self.nics:
                 self.mac2Name[nic.mac.lower()] = nic.name
 
-        self._primaryNic = self.get_primary_nic()
+        self._primaryNic: Optional[Nic] = self.get_primary_nic()
 
-    def get_primary_nic(self):
+    def get_primary_nic(self) -> Optional[Nic]:
         """
         Retrieve the primary nic if it exists
         @return (NicBase): the primary nic if exists, None otherwise
@@ -64,7 +69,7 @@ class NicConfigurator:
         else:
             return primary_nics[0]
 
-    def find_devices(self):
+    def find_devices(self) -> None:
         """
         Create the mac2Name dictionary
         The mac address(es) are in the lower case
@@ -82,7 +87,7 @@ class NicConfigurator:
             name = section.split(":", 1)[0]
             self.mac2Name[mac] = name
 
-    def gen_one_nic_v2(self, nic):
+    def gen_one_nic_v2(self, nic: Nic) -> Dict[str, Dict[str, Any]]:
         """
         Return the config dict needed to configure a nic
         @return (dict): the config dict to configure the nic
@@ -93,8 +98,8 @@ class NicConfigurator:
         if not name:
             raise ValueError("No known device has MACADDR: %s" % nic.mac)
 
-        nic_config_dict = {}
-        generators = [
+        nic_config_dict: Dict[str, Any] = {}
+        generators: List[Dict[str, Any]] = [
             self.gen_match(mac),
             self.gen_set_name(name),
             self.gen_wakeonlan(nic),
@@ -110,16 +115,16 @@ class NicConfigurator:
 
         return {name: nic_config_dict}
 
-    def gen_match(self, mac):
+    def gen_match(self, mac: str) -> Dict[str, Dict[str, str]]:
         return {"match": {"macaddress": mac}}
 
-    def gen_set_name(self, name):
+    def gen_set_name(self, name: str) -> Dict[str, str]:
         return {"set-name": name}
 
-    def gen_wakeonlan(self, nic):
+    def gen_wakeonlan(self, nic: Nic) -> Dict[str, bool]:
         return {"wakeonlan": nic.onboot}
 
-    def gen_dhcp4(self, nic):
+    def gen_dhcp4(self, nic: Nic) -> Dict[str, Any]:
         dhcp4: Dict[str, Any] = {}
         bootproto = nic.bootProto.lower()
         if nic.ipv4_mode.lower() == "disabled":
@@ -133,7 +138,7 @@ class NicConfigurator:
             dhcp4.update({"dhcp4": False})
         return dhcp4
 
-    def gen_dhcp6(self, nic):
+    def gen_dhcp6(self, nic: Nic) -> Dict[str, bool]:
         dhcp6 = {}
         if nic.staticIpv6:
             dhcp6.update({"dhcp6": False})
@@ -141,8 +146,8 @@ class NicConfigurator:
         # TODO: set dhcp6-overrides
         return dhcp6
 
-    def gen_addresses(self, nic):
-        address_list = []
+    def gen_addresses(self, nic: Nic) -> Dict[str, List[str]]:
+        address_list: List[str] = []
         v4_cidr = 32
 
         # Static Ipv4
@@ -165,8 +170,8 @@ class NicConfigurator:
         else:
             return {}
 
-    def gen_routes(self, nic):
-        route_list = []
+    def gen_routes(self, nic: Nic) -> Dict[str, List[Dict[str, str]]]:
+        route_list: List[Dict[str, str]] = []
         v4_cidr = 32
 
         # Ipv4 routes
@@ -207,10 +212,10 @@ class NicConfigurator:
         else:
             return {}
 
-    def gen_nameservers(self):
-        nameservers_dict = {}
-        search_list = []
-        addresses_list = []
+    def gen_nameservers(self) -> Dict[str, Dict[str, List[str]]]:
+        nameservers_dict: Dict[str, List[str]] = {}
+        search_list: List[str] = []
+        addresses_list: List[str] = []
         if self.dns_suffixes:
             for dns_suffix in self.dns_suffixes:
                 search_list.append(dns_suffix)
@@ -227,24 +232,26 @@ class NicConfigurator:
         else:
             return {}
 
-    def generate(self, configure=False, osfamily=None):
+    def generate(
+        self, configure: bool = False, osfamily: Optional[str] = None
+    ) -> Dict[str, Dict[str, Any]]:
         """Return the config elements that are needed to configure the nics"""
         if configure:
             logger.info("Configuring the interfaces file")
             self.configure(osfamily)
 
-        ethernets_dict = {}
+        ethernets_dict: Dict[str, Dict[str, Any]] = {}
 
         for nic in self.nics:
             ethernets_dict.update(self.gen_one_nic_v2(nic))
 
         return ethernets_dict
 
-    def clear_dhcp(self):
+    def clear_dhcp(self) -> None:
         logger.info("Clearing DHCP leases")
         dhcp.IscDhclient.clear_leases()
 
-    def configure(self, osfamily=None):
+    def configure(self, osfamily: Optional[str] = None) -> None:
         """
         Configure the /etc/network/interfaces
         Make a back up of the original
