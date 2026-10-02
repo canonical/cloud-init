@@ -37,12 +37,23 @@ def get_parser(parser=None):
         parser = argparse.ArgumentParser(prog=NAME, description=__doc__)
 
     parser.description = __doc__
+    # --subsystem may be given before or after the hotplug action, so it
+    # cannot be marked as required. handle_args() checks it was provided.
     parser.add_argument(
         "-s",
         "--subsystem",
-        required=True,
         help="subsystem to act on",
         choices=["net"],
+    )
+    # SUPPRESS keeps a hotplug action without --subsystem from overwriting
+    # the value given before the action.
+    subsystem_parser = argparse.ArgumentParser(add_help=False)
+    subsystem_parser.add_argument(
+        "-s",
+        "--subsystem",
+        help="subsystem to act on",
+        choices=["net"],
+        default=argparse.SUPPRESS,
     )
 
     subparsers = parser.add_subparsers(
@@ -51,11 +62,13 @@ def get_parser(parser=None):
     subparsers.required = True
 
     subparsers.add_parser(
-        "query", help="Query if hotplug is enabled for given subsystem."
+        "query",
+        parents=[subsystem_parser],
+        help="Query if hotplug is enabled for given subsystem.",
     )
 
     parser_handle = subparsers.add_parser(
-        "handle", help="Handle the hotplug event."
+        "handle", parents=[subsystem_parser], help="Handle the hotplug event."
     )
     parser_handle.add_argument(
         "-d",
@@ -73,7 +86,9 @@ def get_parser(parser=None):
     )
 
     subparsers.add_parser(
-        "enable", help="Enable hotplug for a given subsystem."
+        "enable",
+        parents=[subsystem_parser],
+        help="Enable hotplug for a given subsystem.",
     )
 
     return parser
@@ -287,6 +302,14 @@ def enable_hotplug(hotplug_init: Init, subsystem) -> bool:
 
 
 def handle_args(name, args):
+    if not args.subsystem:
+        print(
+            f"{name}: error: the following arguments are required: "
+            "-s/--subsystem",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
     # Note that if an exception happens between now and when logging is
     # setup, we'll only see it in the journal
     hotplug_reporter = events.ReportEventStack(
