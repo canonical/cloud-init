@@ -6,6 +6,7 @@
 
 import logging
 from io import StringIO
+from typing import Optional
 
 from cloudinit import util
 from cloudinit.distros.parsers import chop_comment
@@ -17,11 +18,12 @@ LOG = logging.getLogger(__name__)
 class ResolvConf:
     def __init__(self, text):
         self._text = text
-        self._contents = None
+        self._contents: Optional[list] = None
 
-    def parse(self):
+    def parse(self) -> list:
         if self._contents is None:
             self._contents = self._parse(self._text)
+        return self._contents
 
     @property
     def nameservers(self):
@@ -38,9 +40,8 @@ class ResolvConf:
 
     @local_domain.setter
     def local_domain(self, domain):
-        self.parse()
         self._remove_option("domain")
-        self._contents.append(("option", ["domain", str(domain), ""]))
+        self.parse().append(("option", ["domain", str(domain), ""]))
         return domain
 
     @property
@@ -55,9 +56,8 @@ class ResolvConf:
         return flat_sds
 
     def __str__(self):
-        self.parse()
         contents = StringIO()
-        for line_type, components in self._contents:
+        for line_type, components in self.parse():
             if line_type == "blank":
                 contents.write("\n")
             elif line_type == "all_comment":
@@ -72,7 +72,7 @@ class ResolvConf:
 
     def _retr_option(self, opt_name):
         found = []
-        for line_type, components in self._contents:
+        for line_type, components in self.parse():
             if line_type == "option":
                 cfg_opt, cfg_value, _comment_tail = components
                 if cfg_opt == opt_name:
@@ -88,8 +88,9 @@ class ResolvConf:
         if len(new_ns) == len(current_ns):
             return current_ns
         self._remove_option("nameserver")
+        parsed = self.parse()
         for n in new_ns:
-            self._contents.append(("option", ["nameserver", n, ""]))
+            parsed.append(("option", ["nameserver", n, ""]))
         return new_ns
 
     def _remove_option(self, opt_name):
@@ -103,7 +104,7 @@ class ResolvConf:
             return True
 
         new_contents = []
-        for c in self._contents:
+        for c in self.parse():
             if not remove_opt(c):
                 new_contents.append(c)
         self._contents = new_contents
@@ -129,7 +130,7 @@ class ResolvConf:
                 "256 maximum search list character limit" % (search_domain)
             )
         self._remove_option("search")
-        self._contents.append(("option", ["search", s_list, ""]))
+        self.parse().append(("option", ["search", s_list, ""]))
         return flat_sds
 
     def _parse(self, contents):
