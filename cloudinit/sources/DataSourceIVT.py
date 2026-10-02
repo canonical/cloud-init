@@ -1,8 +1,6 @@
 # Author: invirtuate.com <hello@invirtuate.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
-#
-# Replaced with IVT datasource, deprecated, will remove in the future
 
 import logging
 
@@ -25,9 +23,9 @@ MD_TIMEOUT = 5
 MD_WAIT_RETRY = 5
 
 
-class DataSourceNWCS(sources.DataSource):
+class DataSourceIVT(sources.DataSource):
 
-    dsname = "NWCS"
+    dsname = "IVT"
 
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
@@ -35,7 +33,7 @@ class DataSourceNWCS(sources.DataSource):
         self.metadata = dict()
         self.ds_cfg = util.mergemanydict(
             [
-                util.get_cfg_by_path(sys_cfg, ["datasource", "NWCS"], {}),
+                util.get_cfg_by_path(sys_cfg, ["datasource", "IVT"], {}),
                 BUILTIN_DS_CONFIG,
             ]
         )
@@ -124,7 +122,7 @@ class DataSourceNWCS(sources.DataSource):
 
     @staticmethod
     def ds_detect():
-        return "NWCS" == dmi.read_dmi_data("system-manufacturer")
+        return "IVT" == dmi.read_dmi_data("system-manufacturer")
 
 
 def get_interface_name(mac):
@@ -154,5 +152,5 @@ def read_metadata(url, timeout=2, sec_between=2, retries=30):
 
 # Used to match classes to dependencies
 datasources = [
-    (DataSourceNWCS, (sources.DEP_FILESYSTEM,)),
+    (DataSourceIVT, (sources.DEP_FILESYSTEM,)),
 ]

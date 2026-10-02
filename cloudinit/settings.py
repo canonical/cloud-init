@@ -48,6 +48,7 @@ CFG_BUILTIN = {
         "RbxCloud",
         "UpCloud",
         "NWCS",
+        "IVT",
         "Akamai",
         "WSL",
         "CloudCIX",
