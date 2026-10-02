@@ -4,6 +4,7 @@ import configparser
 import glob
 import logging
 import os
+from unittest import mock
 
 import pytest
 
@@ -154,7 +155,7 @@ class TestConfig:
         root_d = str(tmp_path)
         os.makedirs("%s/etc/zypp/repos.d" % root_d)
         helpers.populate_dir(root_d, {ZYPP_CONF: "# Zypp config\n"})
-        cc_zypper_add_repo.handle("zypper_add_repo", cfg, None, [])
+        cc_zypper_add_repo.handle("zypper_add_repo", cfg, mock.Mock(), [])
         cfg_out = os.path.join(root_d, ZYPP_CONF)
         contents = util.load_text_file(cfg_out)
         expected = [
