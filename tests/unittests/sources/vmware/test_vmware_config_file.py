@@ -205,23 +205,27 @@ class TestVmwareConfigFile:
         assert isinstance(ethernets_dict, dict)
         assert 2 == len(ethernets_dict), "number of ethernets"
 
-        for name, config in ethernets_dict.items():
+        for name, nic_config in ethernets_dict.items():
             if name == "NIC1":
-                assert "00:50:56:a6:8c:08" == config.get("match").get(
+                assert "00:50:56:a6:8c:08" == nic_config.get("match", {}).get(
                     "macaddress"
                 ), "mac address of NIC1"
-                assert True is config.get("wakeonlan"), "wakeonlan of NIC1"
-                assert True is config.get("dhcp4"), "DHCPv4 enablement of NIC1"
-                assert False is config.get("dhcp4-overrides").get(
+                assert True is nic_config.get("wakeonlan"), "wakeonlan of NIC1"
+                assert True is nic_config.get(
+                    "dhcp4"
+                ), "DHCPv4 enablement of NIC1"
+                assert False is nic_config.get("dhcp4-overrides", {}).get(
                     "use-dns"
                 ), "use-dns enablement for dhcp4-overrides of NIC1"
             if name == "NIC2":
-                assert "00:50:56:a6:5a:de" == config.get("match").get(
+                assert "00:50:56:a6:5a:de" == nic_config.get("match", {}).get(
                     "macaddress"
                 ), "mac address of NIC2"
-                assert True is config.get("wakeonlan"), "wakeonlan of NIC2"
-                assert True is config.get("dhcp4"), "DHCPv4 enablement of NIC2"
-                assert False is config.get("dhcp4-overrides").get(
+                assert True is nic_config.get("wakeonlan"), "wakeonlan of NIC2"
+                assert True is nic_config.get(
+                    "dhcp4"
+                ), "DHCPv4 enablement of NIC2"
+                assert False is nic_config.get("dhcp4-overrides", {}).get(
                     "use-dns"
                 ), "use-dns enablement for dhcp4-overrides of NIC2"
 
@@ -240,23 +244,23 @@ class TestVmwareConfigFile:
         assert isinstance(ethernets_dict, dict)
         assert 2 == len(ethernets_dict), "number of ethernets"
 
-        for name, config in ethernets_dict.items():
-            print(config)
+        for name, nic_config in ethernets_dict.items():
+            print(nic_config)
             if name == "NIC1":
-                assert "00:50:56:a6:8c:08" == config.get("match").get(
+                assert "00:50:56:a6:8c:08" == nic_config.get("match", {}).get(
                     "macaddress"
                 ), "mac address of NIC1"
-                assert True is config.get("wakeonlan"), "wakeonlan of NIC1"
-                assert False is config.get(
+                assert True is nic_config.get("wakeonlan"), "wakeonlan of NIC1"
+                assert False is nic_config.get(
                     "dhcp4"
                 ), "DHCPv4 enablement of NIC1"
-                assert False is config.get(
+                assert False is nic_config.get(
                     "dhcp6"
                 ), "DHCPv6 enablement of NIC1"
                 assert [
                     "10.20.87.154/22",
                     "fc00:10:20:87::154/64",
-                ] == config.get("addresses"), "IP addresses of NIC1"
+                ] == nic_config.get("addresses"), "IP addresses of NIC1"
                 assert [
                     {"to": "10.20.84.0/22", "via": "10.20.87.253"},
                     {"to": "10.20.84.0/22", "via": "10.20.87.105"},
@@ -264,21 +268,21 @@ class TestVmwareConfigFile:
                         "to": "fc00:10:20:87::/64",
                         "via": "fc00:10:20:87::253",
                     },
-                ] == config.get("routes"), "routes of NIC1"
+                ] == nic_config.get("routes"), "routes of NIC1"
             if name == "NIC2":
-                assert "00:50:56:a6:ef:7d" == config.get("match").get(
+                assert "00:50:56:a6:ef:7d" == nic_config.get("match", {}).get(
                     "macaddress"
                 ), "mac address of NIC2"
-                assert True is config.get("wakeonlan"), "wakeonlan of NIC2"
-                assert False is config.get(
+                assert True is nic_config.get("wakeonlan"), "wakeonlan of NIC2"
+                assert False is nic_config.get(
                     "dhcp4"
                 ), "DHCPv4 enablement of NIC2"
-                assert ["192.168.6.102/16"] == config.get(
+                assert ["192.168.6.102/16"] == nic_config.get(
                     "addresses"
                 ), "IP addresses of NIC2"
                 assert [
                     {"to": "192.168.0.0/16", "via": "192.168.0.10"},
-                ] == config.get("routes"), "routes of NIC2"
+                ] == nic_config.get("routes"), "routes of NIC2"
 
     def test_custom_script(self):
         cf = ConfigFile("tests/data/vmware/cust-dhcp-2nic.cfg")
