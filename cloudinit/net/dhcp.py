@@ -12,11 +12,12 @@ import re
 import signal
 import socket
 import struct
+import threading
 import time
 from contextlib import suppress
 from io import StringIO
 from subprocess import TimeoutExpired
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Type
 
 import configobj
 
@@ -503,6 +504,159 @@ class IscDhclient(DhcpClient):
             return lease
         raise InvalidDHCPLeaseFileError()
 
+    def dhcp6_discovery(
+        self,
+        interface: str,
+        dhcp_log_func: Optional[Callable[[str, str, str], None]] = None,
+        distro=None,
+    ) -> Optional[str]:
+        """Solicit a stateful DHCPv6 address without filesystem artifacts.
+
+        Where the router advertisement sets the managed flag and offers no
+        autoconfigurable prefix, SLAAC never yields a global address, so a
+        stateful DHCPv6 lease is the only way to obtain a routable source
+        address before a network manager has started.
+
+        The interface must already be up with a link-local address that has
+        finished duplicate address detection, otherwise dhclient cannot bind
+        its DHCPv6 socket. See EphemeralIPv6Network(enable_ra=True).
+
+        @param interface: Name of the network interface to solicit on.
+        @param dhcp_log_func: Callable accepting the interface and client's
+            stdout, stderr streams.
+        @param distro: a distro object for network interface manipulation.
+        @return: the IA_NA address from the lease.
+        @raises: NoDHCPLeaseError when no address could be obtained.
+        """
+        LOG.debug("Performing a dhcp6 discovery on %s", interface)
+
+        pid_file = "/run/dhclient6.pid"
+        lease_file = "/run/dhclient6.lease"
+        sleep_time = 0.01
+        sleep_cycles = int(self.timeout / sleep_time)
+        maxwait = int(self.timeout / 2)
+
+        with suppress(FileNotFoundError):
+            os.remove(pid_file)
+            os.remove(lease_file)
+
+        # dhcp_client_path is set in __init__ (which raises if the binary is
+        # absent), so narrow Optional[str] to str for the command list below.
+        assert self.dhcp_client_path
+        # -sf /bin/true avoids dhclient-script side effects, mirroring the
+        # IPv4 path. The address from the lease is configured by the caller.
+        cmd = [
+            self.dhcp_client_path,
+            "-6",
+            "-1",
+            "-v",
+            "-lf",
+            lease_file,
+            "-pf",
+            pid_file,
+            "-sf",
+            "/bin/true",
+            interface,
+        ]
+        try:
+            out, err = subp.subp(cmd)
+        except subp.ProcessExecutionError as error:
+            LOG.debug(
+                "dhclient -6 exited with code: %s stderr: %r stdout: %r",
+                error.exit_code,
+                error.stderr,
+                error.stdout,
+            )
+            raise NoDHCPLeaseError from error
+
+        missing = util.wait_for_files(
+            [pid_file, lease_file], maxwait=maxwait, naplen=0.01
+        )
+        if missing:
+            LOG.warning(
+                "dhclient did not produce expected files: %s",
+                ", ".join(os.path.basename(f) for f in missing),
+            )
+            raise NoDHCPLeaseError()
+
+        # Wait for the process named by the pid file to daemonize (reparent
+        # to init) so the lease is fully written, then kill it. Mirrors the
+        # tail of dhcp_discovery().
+        ppid = "unknown"
+        daemonized = False
+        pid_content = None
+        debug_msg = ""
+        for _ in range(sleep_cycles):
+            try:
+                pid_content = util.load_text_file(pid_file).strip()
+                pid = int(pid_content)
+            except FileNotFoundError:
+                debug_msg = (
+                    f"No PID file found at {pid_file}, "
+                    "dhclient is still running"
+                )
+            except ValueError:
+                debug_msg = (
+                    f"PID file contained [{pid_content}], "
+                    "dhclient is still running"
+                )
+            else:
+                ppid = distro.get_proc_ppid(pid)
+                if ppid == 1:
+                    LOG.debug("killing dhclient with pid=%s", pid)
+                    os.kill(pid, signal.SIGKILL)
+                    daemonized = True
+                    break
+            time.sleep(sleep_time)
+        else:
+            LOG.debug(debug_msg)
+
+        if not daemonized:
+            LOG.error(
+                "dhclient(pid=%s, parentpid=%s) failed to daemonize after "
+                "%s seconds",
+                pid_content,
+                ppid,
+                self.timeout,
+            )
+        if dhcp_log_func is not None:
+            dhcp_log_func(interface, out, err)
+        address = self.parse_dhcp6_lease_file(lease_file)
+        if not address:
+            LOG.warning(
+                "dhclient -6 wrote %s but it holds no address", lease_file
+            )
+            raise NoDHCPLeaseError()
+        LOG.debug("Received dhcp6 lease on %s for %s", interface, address)
+        return address
+
+    @staticmethod
+    def parse_dhcp6_lease_file(lease_file: str) -> Optional[str]:
+        """Return the most recent IA_NA address from a DHCPv6 lease file.
+
+        dhclient -6 writes nested blocks rather than the flat option list of
+        an IPv4 lease::
+
+            lease6 {
+              interface "eth0";
+              ia-na 3e:0d:cf:8b {
+                iaaddr 2408:4002:30bf:6d16::1 {
+                  preferred-life 3600;
+                }
+              }
+            }
+
+        Only the address is needed here, and the last one written is the
+        current one. Returns None when the file is absent or holds no
+        address.
+        """
+        try:
+            content = util.load_text_file(lease_file)
+        except (IOError, OSError):
+            return None
+        addresses = re.findall(r"iaaddr\s+([0-9a-fA-F:]+)\s*\{", content)
+        return addresses[-1] if addresses else None
+
     @staticmethod
     def parse_static_routes(routes: str) -> List[Tuple[str, str]]:
         """
@@ -690,6 +844,121 @@ class Dhcpcd(DhcpClient):
     client_name = "dhcpcd"
     timeout = 300
 
+    def __init__(self):
+        super().__init__()
+        self._reset_transient_state()
+
+    def __getstate__(self) -> Dict[str, Any]:
+        """Exclude process-local synchronization state from persistence."""
+        state = self.__dict__.copy()
+        state.pop("_stop_lock", None)
+        state.pop("_stopped_families", None)
+        return state
+
+    def __setstate__(self, state: Dict[str, Any]) -> None:
+        """Restore persistent state and recreate process-local state."""
+        self.__dict__.update(state)
+        self._reset_transient_state()
+
+    def _reset_transient_state(self) -> None:
+        """Initialize synchronization state for the current process."""
+        self._stop_lock = threading.Lock()
+        self._stopped_families: Set[Tuple[str, str]] = set()
+
+    def _mark_running(self, interface: str, ip_version: str) -> None:
+        """Allow a new invocation after an earlier one was stopped."""
+        with self._stop_lock:
+            self._stopped_families.discard((interface, ip_version))
+
+    def _build_command(self, interface: str, ip_version: str) -> List[str]:
+        """Build a dhcpcd command whose arguments determine its pidfile."""
+        if ip_version not in ("ipv4", "ipv6"):
+            raise ValueError(f"Unsupported IP version: {ip_version}")
+        command = [
+            self.client_name,
+            "--ipv6only" if ip_version == "ipv6" else "--ipv4only",
+            "--waitip",
+            "--persistent",
+        ]
+        if ip_version == "ipv4":
+            command.append("--noarp")
+        command.extend(["--debug", "--script=/bin/true"])
+        if ip_version == "ipv4" and is_ib_interface(interface):
+            command.append("--clientid")
+        command.append(interface)
+        return command
+
+    def _stop_daemon(
+        self,
+        command,
+        distro,
+        interface: str,
+        ip_version: str,
+        max_wait: float = 1.0,
+    ) -> bool:
+        """Idempotently stop the dhcpcd process group for one IP family."""
+        family = (interface, ip_version)
+        with self._stop_lock:
+            if family in self._stopped_families:
+                LOG.debug(
+                    "dhcpcd for %s/%s is already stopped",
+                    interface,
+                    ip_version,
+                )
+                return True
+            try:
+                pid_file = subp.subp([*command, "-P"]).stdout.strip()
+            except (subp.ProcessExecutionError, OSError) as error:
+                LOG.debug("Could not determine dhcpcd pidfile: %s", error)
+                return False
+            wait = max_wait
+            sleep_time = 0.01
+            sleep_cycles = max(1, int(wait / sleep_time))
+            pid_content = None
+            debug_msg = ""
+            for _ in range(sleep_cycles):
+                try:
+                    pid_content = util.load_text_file(pid_file).strip()
+                    pid = int(pid_content)
+                    gid = distro.get_proc_pgid(pid)
+                    if gid:
+                        LOG.debug(
+                            "killing dhcpcd with pid=%s gid=%s", pid, gid
+                        )
+                        os.killpg(gid, signal.SIGKILL)
+                    with suppress(FileNotFoundError):
+                        os.remove(pid_file)
+                    self._stopped_families.add(family)
+                    return True
+                except ProcessLookupError:
+                    with suppress(FileNotFoundError):
+                        os.remove(pid_file)
+                    self._stopped_families.add(family)
+                    return True
+                except FileNotFoundError:
+                    debug_msg = (
+                        f"No PID file found at {pid_file}, "
+                        "dhcpcd is still running"
+                    )
+                except ValueError:
+                    debug_msg = (
+                        f"PID file contained [{pid_content}], "
+                        "dhcpcd is still running"
+                    )
+                except OSError as error:
+                    LOG.debug(
+                        "Could not stop dhcpcd using %s: %s", pid_file, error
+                    )
+                    return False
+                time.sleep(sleep_time)
+            LOG.debug(debug_msg)
+            return False
+
+    def stop_ephemeral(self, interface: str, ip_version: str, distro) -> bool:
+        """Stop one address family's ephemeral dhcpcd process group."""
+        command = self._build_command(interface, ip_version)
+        return self._stop_daemon(command, distro, interface, ip_version)
+
     def dhcp_discovery(
         self,
         interface: str,
@@ -707,92 +976,32 @@ class Dhcpcd(DhcpClient):
             parsed from the dhclient.lease file
         """
         LOG.debug("Performing a dhcp discovery on %s", interface)
-        sleep_time = 0.01
-        sleep_cycles = int(self.timeout / sleep_time)
-        infiniband_argument = []
 
         # dhcpcd needs the interface up to send initial discovery packets
         # Generally dhclient relies on dhclient-script PREINIT action to bring
         # the link up before attempting discovery. Since we are using
         # -sf /bin/true, we need to do that "link up" ourselves first.
         distro.net_ops.link_up(interface)
+        # Currently dhcpcd doesn't have a workable --oneshot lease parsing
+        # story. All non-daemon lease parsing options on dhcpcd appear broken:
+        #
+        #   https://github.com/NetworkConfiguration/dhcpcd/issues/285
+        #   https://github.com/NetworkConfiguration/dhcpcd/issues/286
+        #   https://github.com/NetworkConfiguration/dhcpcd/issues/287
+        #
+        # Until fixed, we allow dhcpcd to spawn background processes so
+        # that we can use --dumplease, but when any option above is fixed,
+        # it would be safer to avoid spawning processes using --oneshot
+        command = self._build_command(interface, "ipv4")
+        self._mark_running(interface, "ipv4")
         try:
-            # Currently dhcpcd doesn't have a workable --oneshot lease parsing
-            # story. All non-daemon lease parsing options on dhcpcd appear
-            # broken:
-            #
-            #   https://github.com/NetworkConfiguration/dhcpcd/issues/285
-            #   https://github.com/NetworkConfiguration/dhcpcd/issues/286
-            #   https://github.com/NetworkConfiguration/dhcpcd/issues/287
-            #
-            # Until fixed, we allow dhcpcd to spawn background processes so
-            # that we can use --dumplease, but when any option above is fixed,
-            # it would be safer to avoid spawning processes using --oneshot
-            if is_ib_interface(interface):
-                infiniband_argument = ["--clientid"]
-            command = [
-                self.client_name,
-                "--ipv4only",  # only attempt configuring ipv4
-                "--waitip",  # wait for ipv4 to be configured
-                "--persistent",  # don't deconfigure when dhcpcd exits
-                "--noarp",  # don't be slow
-                "--debug",  # verbose logging for debugging
-                "--script=/bin/true",  # disable hooks
-                *infiniband_argument,
-                interface,
-            ]
-            out, err = subp.subp(
-                command,
-                timeout=self.timeout,
-            )
+            out, err = subp.subp(command, timeout=self.timeout)
             if dhcp_log_func is not None:
                 dhcp_log_func(interface, out, err)
             lease = self.get_newest_lease(interface)
-            # Attempt cleanup and leave breadcrumbs if it fails, but return
-            # the lease regardless of failure to clean up dhcpcd.
             if lease:
-                # Note: the pid file location depends on the arguments passed
-                # it can be discovered with the -P flag
-                pid_file = subp.subp([*command, "-P"]).stdout.strip()
-                pid_content = None
-                gid = False
-                debug_msg = ""
-                for _ in range(sleep_cycles):
-                    try:
-                        pid_content = util.load_text_file(pid_file).strip()
-                        pid = int(pid_content)
-                        gid = distro.get_proc_pgid(pid)
-                        if gid:
-                            LOG.debug(
-                                "killing dhcpcd with pid=%s gid=%s", pid, gid
-                            )
-                            os.killpg(gid, signal.SIGKILL)
-                            break
-                    except ProcessLookupError:
-                        LOG.debug(
-                            "Process group id [%s] has already exited, "
-                            "nothing to kill",
-                            gid,
-                        )
-                        break
-                    except FileNotFoundError:
-                        debug_msg = (
-                            f"No PID file found at {pid_file}, "
-                            "dhcpcd is still running"
-                        )
-                    except ValueError:
-                        debug_msg = (
-                            f"PID file contained [{pid_content}], "
-                            "dhcpcd is still running"
-                        )
-                    else:
-                        return lease
-                    time.sleep(sleep_time)
-                else:
-                    LOG.debug(debug_msg)
                 return lease
             raise NoDHCPLeaseError("No lease found")
-
         except TimeoutExpired as error:
             LOG.debug(
                 "dhcpcd timed out after %s seconds: stderr: %r stdout: %r",
@@ -809,6 +1018,98 @@ class Dhcpcd(DhcpClient):
                 error.stdout,
             )
             raise NoDHCPLeaseError from error
+        finally:
+            self._stop_daemon(command, distro, interface, "ipv4")
+
+    def dhcp6_discovery(
+        self,
+        interface: str,
+        dhcp_log_func: Optional[Callable[[str, str, str], None]] = None,
+        distro=None,
+    ) -> Optional[str]:
+        """Solicit a stateful DHCPv6 address on the interface using dhcpcd.
+
+        Unlike dhclient, dhcpcd processes router advertisements and solicits
+        DHCPv6 itself, configuring both the leased address and the RA-provided
+        default route directly on the interface. It is run only long enough to
+        bring up a routable address, then stopped, leaving that configuration
+        in place (--persistent) for the caller to use and later tear down.
+        This mirrors dhcp_discovery(); --ipv6only is the counterpart of the
+        --ipv4only used there.
+
+        @param interface: Name of the network interface to solicit on.
+        @param dhcp_log_func: Callable accepting the interface and client's
+            stdout, stderr streams.
+        @param distro: a distro object for network interface manipulation.
+        @return: the global IPv6 address dhcpcd configured.
+        @raises: NoDHCPLeaseError when no address could be obtained.
+        """
+        LOG.debug("Performing a dhcp6 discovery on %s", interface)
+
+        # dhcpcd needs the interface up to send its solicit, the same reason
+        # dhcp_discovery() brings it up for IPv4.
+        distro.net_ops.link_up(interface)
+        command = self._build_command(interface, "ipv6")
+        self._mark_running(interface, "ipv6")
+        try:
+            out, err = subp.subp(command, timeout=self.timeout)
+            if dhcp_log_func is not None:
+                dhcp_log_func(interface, out, err)
+
+            address = self.get_newest_dhcp6_address(interface)
+            if not address:
+                raise NoDHCPLeaseError(
+                    "dhcpcd exited without configuring an IPv6 address"
+                )
+
+            LOG.debug("Received dhcp6 lease on %s for %s", interface, address)
+            return address
+        except TimeoutExpired as error:
+            LOG.debug(
+                "dhcpcd timed out after %s seconds: stderr: %r stdout: %r",
+                error.timeout,
+                error.stderr,
+                error.stdout,
+            )
+            raise NoDHCPLeaseError from error
+        except subp.ProcessExecutionError as error:
+            LOG.debug(
+                "dhcpcd exited with code: %s stderr: %r stdout: %r",
+                error.exit_code,
+                error.stderr,
+                error.stdout,
+            )
+            raise NoDHCPLeaseError from error
+        finally:
+            # --persistent leaves the acquired address and route in place.
+            self._stop_daemon(command, distro, interface, "ipv6")
+
+    @staticmethod
+    def get_newest_dhcp6_address(interface: str) -> Optional[str]:
+        """Return the global IPv6 address dhcpcd configured on interface.
+
+        dhcpcd assigns the DHCPv6 IA_NA address to the interface directly, so
+        it is read back from /proc/net/if_inet6 rather than parsed out of a
+        lease file, whose DHCPv6 format differs across dhcpcd versions. The
+        columns are address, ifindex, prefixlen, scope, flags and device; the
+        address and flags are unprefixed hex. Scope 00 is global, and the
+        tentative (0x40) and dadfailed (0x08) flags mark an address that is
+        not yet usable. See include/uapi/linux/if_addr.h.
+        """
+        try:
+            with open("/proc/net/if_inet6") as fp:
+                rows = [line.split() for line in fp]
+        except OSError:
+            return None
+        for fields in rows:
+            if len(fields) < 6 or fields[5] != interface:
+                continue
+            if fields[3] != "00":  # not global scope
+                continue
+            if int(fields[4], 16) & (0x40 | 0x08):  # tentative or dadfailed
+                continue
+            return socket.inet_ntop(socket.AF_INET6, bytes.fromhex(fields[0]))
+        return None
 
     @staticmethod
     def parse_unknown_options_from_packet(

@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import os
+import pickle
 import signal
 import socket
 import subprocess
@@ -381,12 +382,15 @@ class TestDHCPDiscoveryClean:
         m_subp.side_effect = [
             ("", ""),
             subp.ProcessExecutionError(exit_code=-5),
+            subp.ProcessExecutionError(exit_code=1),
         ]
 
         with pytest.raises(NoDHCPLeaseError):
             maybe_perform_dhcp_discovery(Distro("fake but not", {}, None))
 
         assert "DHCP client selected: dhcpcd" in caplog.text
+        assert "Could not determine dhcpcd pidfile" in caplog.text
+        assert 3 == m_subp.call_count
 
     @mock.patch("cloudinit.distros.net.find_fallback_nic", return_value="eth9")
     @mock.patch("cloudinit.net.dhcp.os.remove")
@@ -1277,6 +1281,170 @@ class TestDhcpcd:
             ("169.254.169.254/32", "10.0.0.1"),
         ] == Dhcpcd.parse_static_routes(parsed_lease["static_routes"])
 
+    @pytest.mark.parametrize(
+        "ip_version, family_flag, pid_file",
+        (
+            ("ipv4", "--ipv4only", "/run/dhcpcd/eth0-4.pid"),
+            ("ipv6", "--ipv6only", "/run/dhcpcd/eth0-6.pid"),
+        ),
+    )
+    def test_stop_ephemeral_kills_family_process_group(
+        self, ip_version, family_flag, pid_file
+    ):
+        """Reap a losing dhcpcd family by pidfile and process group."""
+        with mock.patch(
+            "cloudinit.net.dhcp.subp.which", return_value="/sbin/dhcpcd"
+        ), mock.patch(
+            "cloudinit.net.dhcp.is_ib_interface", return_value=False
+        ), mock.patch(
+            "cloudinit.net.dhcp.subp.subp",
+            return_value=SubpResult(pid_file, ""),
+        ) as m_subp, mock.patch(
+            "cloudinit.net.dhcp.util.load_text_file", return_value="1377"
+        ), mock.patch(
+            "cloudinit.net.dhcp.os.killpg"
+        ) as m_killpg, mock.patch(
+            "cloudinit.net.dhcp.os.remove"
+        ) as m_remove:
+            assert Dhcpcd().stop_ephemeral("eth0", ip_version, MockDistro())
+
+        pid_query = m_subp.call_args.args[0]
+        assert family_flag in pid_query
+        assert pid_query[-2:] == ["eth0", "-P"]
+        m_killpg.assert_called_once_with(99999, signal.SIGKILL)
+        m_remove.assert_called_once_with(pid_file)
+
+    def test_stop_ephemeral_is_idempotent_and_rearmed(self, caplog):
+        """Repeated cleanup is skipped until a new invocation starts."""
+        pid_file = "/run/dhcpcd/eth0-4.pid"
+        with mock.patch(
+            "cloudinit.net.dhcp.subp.which", return_value="/sbin/dhcpcd"
+        ), mock.patch(
+            "cloudinit.net.dhcp.is_ib_interface", return_value=False
+        ), mock.patch(
+            "cloudinit.net.dhcp.subp.subp",
+            return_value=SubpResult(pid_file, ""),
+        ) as m_subp, mock.patch(
+            "cloudinit.net.dhcp.util.load_text_file", return_value="1377"
+        ) as m_load, mock.patch(
+            "cloudinit.net.dhcp.os.killpg"
+        ) as m_killpg, mock.patch(
+            "cloudinit.net.dhcp.os.remove"
+        ):
+            client = Dhcpcd()
+            distro = MockDistro()
+            assert client.stop_ephemeral("eth0", "ipv4", distro)
+            assert client.stop_ephemeral("eth0", "ipv4", distro)
+
+            assert 1 == m_subp.call_count
+            assert 1 == m_load.call_count
+            assert 1 == m_killpg.call_count
+            assert "dhcpcd for eth0/ipv4 is already stopped" in caplog.text
+
+            client._mark_running("eth0", "ipv4")
+            assert client.stop_ephemeral("eth0", "ipv4", distro)
+
+            assert 2 == m_subp.call_count
+            assert 2 == m_load.call_count
+            assert 2 == m_killpg.call_count
+
+    @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/dhcpcd")
+    def test_pickle_recreates_transient_cleanup_state(self, _m_which):
+        """Dhcpcd remains pickleable after initializing cleanup state."""
+        client = Dhcpcd()
+        client._stopped_families.add(("eth0", "ipv4"))
+
+        restored = pickle.loads(pickle.dumps(client))
+
+        assert "/sbin/dhcpcd" == restored.dhcp_client_path
+        assert set() == restored._stopped_families
+        assert restored._stop_lock is not client._stop_lock
+        assert restored._stop_lock.acquire(blocking=False)
+        restored._stop_lock.release()
+
+    @mock.patch("time.sleep", mock.MagicMock())
+    @mock.patch("cloudinit.util.load_text_file", return_value="42")
+    @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/dhcpcd")
+    @mock.patch("cloudinit.net.dhcp.os.killpg")
+    @mock.patch("cloudinit.net.dhcp.subp.subp")
+    def test_dhcp6_discovery_returns_configured_address(
+        self, m_subp, m_killpg, m_which, m_load
+    ):
+        """dhcpcd is run --ipv6only and the address it configured returned."""
+        m_subp.side_effect = [
+            SubpResult("", ""),  # ip link set up
+            SubpResult("", ""),  # dhcpcd --ipv6only ...
+            SubpResult("/run/dhcpcd/eth0.pid", ""),  # dhcpcd ... -P
+        ]
+        addr = "2408:4002:30bf:6d16::1"
+        with mock.patch.object(
+            Dhcpcd, "get_newest_dhcp6_address", return_value=addr
+        ):
+            got = Dhcpcd().dhcp6_discovery("eth0", distro=MockDistro())
+        assert addr == got
+        # The counterpart of --ipv4only, with hooks disabled like the v4 path.
+        solicit = m_subp.call_args_list[1][0][0]
+        assert "--ipv6only" in solicit
+        assert "--ipv4only" not in solicit
+        assert ["--script=/bin/true", "eth0"] == solicit[-2:]
+        # The daemonized dhcpcd is stopped, leaving its --persistent config.
+        m_killpg.assert_called_once()
+
+    @mock.patch("time.sleep", mock.MagicMock())
+    @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/dhcpcd")
+    @mock.patch(
+        "cloudinit.net.dhcp.subp.subp", return_value=SubpResult("", "")
+    )
+    def test_dhcp6_discovery_raises_without_address(self, m_subp, m_which):
+        """dhcpcd bringing up no global address is a lease failure."""
+        with mock.patch.object(
+            Dhcpcd, "get_newest_dhcp6_address", return_value=None
+        ):
+            with pytest.raises(NoDHCPLeaseError):
+                Dhcpcd().dhcp6_discovery("eth0", distro=MockDistro())
+
+    @mock.patch("time.sleep", mock.MagicMock())
+    @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/dhcpcd")
+    @mock.patch("cloudinit.net.dhcp.subp.subp")
+    def test_dhcp6_discovery_raises_on_dhcpcd_error(self, m_subp, m_which):
+        """A non-zero dhcpcd exit becomes NoDHCPLeaseError, not a crash."""
+        # First subp call is link_up; the dhcpcd solicit is what must fail.
+        m_subp.side_effect = [
+            SubpResult("", ""),
+            subp.ProcessExecutionError(),
+            SubpResult("/run/dhcpcd/eth0-6.pid", ""),
+        ]
+        with pytest.raises(NoDHCPLeaseError):
+            Dhcpcd().dhcp6_discovery("eth0", distro=MockDistro())
+
+    def test_get_newest_dhcp6_address_reads_if_inet6(self):
+        """The first usable global address on the interface is returned.
+
+        Link-local (scope 20) and tentative (flag 0x40) entries are skipped,
+        as is any row for another interface.
+        """
+        content = (
+            # link-local on eth0 (scope 20) -- ignored
+            "fe80000000000000021643fffe0706e0 02 40 20 80 eth0\n"
+            # tentative global on eth0 (flag 0x40) -- ignored
+            "20010db8000000000000000000000002 02 80 00 40 eth0\n"
+            # usable global on eth1 (wrong interface) -- ignored
+            "2408400230160000000000000000beef 03 80 00 00 eth1\n"
+            # usable global on eth0 -- returned
+            "240840023016c3002fe0350ce220b010 02 80 00 00 eth0\n"
+        )
+        with mock.patch("builtins.open", mock.mock_open(read_data=content)):
+            assert (
+                "2408:4002:3016:c300:2fe0:350c:e220:b010"
+                == Dhcpcd.get_newest_dhcp6_address("eth0")
+            )
+
+    def test_get_newest_dhcp6_address_returns_none_without_if_inet6(self):
+        """No /proc/net/if_inet6 (IPv6 disabled) yields no address."""
+        with mock.patch("builtins.open", side_effect=OSError):
+            assert Dhcpcd.get_newest_dhcp6_address("eth0") is None
+
+    @mock.patch("time.sleep", mock.MagicMock())
     @mock.patch("cloudinit.net.dhcp.is_ib_interface", return_value=True)
     @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/dhcpcd")
     @mock.patch("cloudinit.net.dhcp.os.killpg")
@@ -1320,6 +1488,7 @@ class TestDhcpcd:
             ]
         )
 
+    @mock.patch("time.sleep", mock.MagicMock())
     @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/dhcpcd")
     @mock.patch("cloudinit.net.dhcp.os.killpg")
     @mock.patch("cloudinit.net.dhcp.subp.subp")
@@ -1341,6 +1510,7 @@ class TestDhcpcd:
             subprocess.TimeoutExpired(
                 "/sbin/dhcpcd", timeout=6, output="testout", stderr="testerr"
             ),
+            SubpResult("/run/dhcpcd/eth0-4.pid", ""),
         ]
         with pytest.raises(NoDHCPLeaseError):
             Dhcpcd().dhcp_discovery("eth0", distro=MockDistro())
@@ -1447,3 +1617,102 @@ class TestNMDhcpLeases:
                 ),
             ]
         )
+
+
+class TestParseDHCP6LeaseFile:
+    def test_parse_missing_lease6_file(self, tmp_path):
+        """No lease file means no address, not an exception."""
+        assert (
+            IscDhclient.parse_dhcp6_lease_file(str(tmp_path / "absent"))
+            is None
+        )
+
+    def test_parse_lease6_file_without_address(self, tmp_path):
+        """A lease that advertised no IA_NA yields no address."""
+        lease_file = tmp_path / "leases6"
+        lease_file.write_text(dedent("""\
+                lease6 {
+                  interface "eth0";
+                  option dhcp6.name-servers 2400:3200::1;
+                }
+                """))
+        assert IscDhclient.parse_dhcp6_lease_file(str(lease_file)) is None
+
+    def test_parse_lease6_file_returns_latest_address(self, tmp_path):
+        """dhclient appends; the last iaaddr written is the current one."""
+        lease_file = tmp_path / "leases6"
+        lease_file.write_text(dedent("""\
+                lease6 {
+                  interface "eth0";
+                  ia-na 3e:0d:cf:8a {
+                    iaaddr 2408:4002:30bf:6d16::dead {
+                      preferred-life 3600;
+                    }
+                  }
+                }
+                lease6 {
+                  interface "eth0";
+                  ia-na 3e:0d:cf:8b {
+                    iaaddr 2408:4002:30bf:6d16:fa1:5ff2:ce2:126a {
+                      preferred-life 3600;
+                    }
+                  }
+                }
+                """))
+        assert (
+            "2408:4002:30bf:6d16:fa1:5ff2:ce2:126a"
+            == IscDhclient.parse_dhcp6_lease_file(str(lease_file))
+        )
+
+
+@mock.patch("cloudinit.net.dhcp.os.remove")
+@mock.patch("time.sleep", mock.MagicMock())
+@mock.patch("cloudinit.net.dhcp.os.kill")
+@mock.patch("cloudinit.net.dhcp.subp.subp")
+@mock.patch("cloudinit.net.dhcp.subp.which", return_value="/sbin/dhclient")
+class TestDHCP6Discovery:
+    def test_dhcp6_discovery_returns_address(
+        self, m_which, m_subp, m_kill, m_remove
+    ):
+        """On success the IA_NA address is returned and dhclient is reaped."""
+        m_subp.return_value = ("", "")
+        lease = dedent("""\
+            lease6 {
+              interface "eth0";
+              ia-na 3e:0d:cf:8b {
+                iaaddr 2408:4002:30bf:6d16::1 { preferred-life 3600; }
+              }
+            }
+            """)
+        with mock.patch(
+            "cloudinit.net.dhcp.util.wait_for_files", return_value=False
+        ), mock.patch(
+            "cloudinit.util.load_text_file", side_effect=["42", lease]
+        ):
+            addr = IscDhclient().dhcp6_discovery("eth0", distro=MockDistro())
+        assert "2408:4002:30bf:6d16::1" == addr
+        # -6 is passed and dhclient-script is bypassed.
+        called = m_subp.call_args_list[0][0][0]
+        assert "-6" in called
+        assert ["-sf", "/bin/true", "eth0"] == called[-3:]
+        m_kill.assert_called_once_with(42, signal.SIGKILL)
+
+    def test_dhcp6_discovery_raises_when_no_lease_files(
+        self, m_which, m_subp, m_kill, m_remove
+    ):
+        """dhclient producing no files is a lease failure, not a crash."""
+        m_subp.return_value = ("", "")
+        with mock.patch(
+            "cloudinit.net.dhcp.util.wait_for_files",
+            return_value=["/run/dhclient6.pid"],
+        ):
+            with pytest.raises(NoDHCPLeaseError):
+                IscDhclient().dhcp6_discovery("eth0", distro=MockDistro())
+
+    def test_dhcp6_discovery_raises_on_dhclient_error(
+        self, m_which, m_subp, m_kill, m_remove
+    ):
+        """A non-zero dhclient exit becomes NoDHCPLeaseError."""
+        m_subp.side_effect = subp.ProcessExecutionError()
+        with pytest.raises(NoDHCPLeaseError):
+            IscDhclient().dhcp6_discovery("eth0", distro=MockDistro())
