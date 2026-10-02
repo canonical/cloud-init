@@ -25,6 +25,8 @@ it works, read our :ref:`high-level introduction<introduction>`.
 
 -----
 
+.. rstcheck: silence "Document may not end with transition" warning
+
 .. grid:: 1 1 2 2
    :gutter: 3
 

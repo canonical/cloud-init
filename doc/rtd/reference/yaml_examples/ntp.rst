@@ -20,14 +20,14 @@ Available keys:
 
 Each server in the list will be added in list-order in the format:
 
-.. code-block:: yaml
+.. code-block:: text
 
    [pool|server] <server entry> iburst
 
 If no servers or pools are defined but NTP is enabled, then cloud-init will
 render the distro default list of pools:
 
-.. code-block:: yaml
+.. code-block:: text
 
     pools = [
        '0.{distro}.pool.ntp.org',
@@ -38,7 +38,7 @@ render the distro default list of pools:
 
 So putting these together, we can see a straightforward example:
 
-.. code-block:: yaml
+.. code-block:: text
 
     #cloud-config
     ntp:
