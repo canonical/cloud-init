@@ -6,14 +6,14 @@ Config drive
 The configuration drive datasource supports the `OpenStack`_ configuration
 drive disk.
 
-By default, ``cloud-init`` *always* considers this source to be a
-fully-fledged datasource. Instead, the typical behavior is to assume it is
-really only present to provide networking information. ``Cloud-init`` will
-copy the network information, apply it to the system, and then continue on.
-The "full" datasource could then be found in the EC2 instance metadata service.
-If this is not the case then the files contained on the located drive must
-provide equivalents to what the EC2 instance metadata service would provide
-(which is typical of the version 2 support listed below).
+By default, ``cloud-init`` considers this source to be a fully-fledged
+datasource: it reads the meta-data and user-data from the drive and stops
+searching for other datasources. This is controlled by the ``dsmode`` key
+described below, which defaults to ``net``.
+
+A drive used this way must provide equivalents to what the EC2 instance
+metadata service would provide, which is typical of the version 2 support
+listed below.
 
 .. note::
    See `the config drive extension`_ and `meta-data introduction`_ in the
@@ -80,22 +80,33 @@ Keys and values
 ``Cloud-init``'s behaviour can be modified by keys found in the
 :file:`meta.js` (version 1 only) file in the following ways.
 
-``ds-mode``
------------
+``dsmode``
+----------
 
 ::
 
    dsmode:
-     values: local, net, pass
-     default: pass
+     values: local, net, disabled
+     default: net
 
-This is what indicates if config drive is a final datasource or not. By
-default it is 'pass', meaning this datasource should not be read. Set it to
-'local' or 'net' to stop ``cloud-init`` from continuing to search for other
-datasources after network config.
+This indicates whether the config drive is a final datasource, and at which
+stage it is read. With the default of 'net', ``cloud-init`` reads the drive
+and stops searching for other datasources.
 
 The difference between 'local' and 'net' is that local will not require
-networking to be up before user-data actions are run.
+networking to be up before user-data actions are run. Setting 'disabled'
+stops the datasource from being used at all.
+
+For a version 2 drive this key is read from the ``meta`` object in
+:file:`meta_data.json`. For a version 1 drive it is read from
+:file:`meta.js`. It can also be set in system configuration under
+``datasource/ConfigDrive/dsmode``.
+
+.. note::
+   Earlier versions of this page listed a 'pass' value, described as
+   applying only the networking information from the drive without
+   claiming the datasource. ``cloud-init`` does not accept 'pass'. If it
+   is supplied, a warning is logged and the default of 'net' is used.
 
 ``instance-id``
 ---------------
