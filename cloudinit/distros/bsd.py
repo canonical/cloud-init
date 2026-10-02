@@ -1,14 +1,20 @@
 import logging
 import platform
 import re
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, TypedDict
 
 import cloudinit.net.netops.bsd_netops as bsd_netops
 from cloudinit import distros, helpers, net, subp, util
 from cloudinit.distros import PackageList, bsd_utils
 from cloudinit.distros.networking import BSDNetworking
 
+
 LOG = logging.getLogger(__name__)
+
+
+class NetworkConfig(TypedDict):
+    version: int
+    config: List[Dict[str, Any]]
 
 
 class BSD(distros.Distro):
@@ -49,24 +55,24 @@ class BSD(distros.Distro):
         # this needs to be after the super class _unpickle to override it
         self.is_linux = False
 
-    def _read_system_hostname(self):
-        sys_hostname = self._read_hostname(self.hostname_conf_fn)
-        return (self.hostname_conf_fn, sys_hostname)
+    def _read_system_hostname(self) -> tuple[str, str]:
+        sys_hostname: str = self._read_hostname(self.hostname_conf_fn)
+        return self.hostname_conf_fn, sys_hostname
 
-    def _read_hostname(self, filename, default=None):
+    def _read_hostname(self, filename: str, default=None) -> str:
         return bsd_utils.get_rc_config_value("hostname")
 
-    def _get_add_member_to_group_cmd(self, member_name, group_name):
+    def _get_add_member_to_group_cmd(self, member_name: str, group_name: str):
         raise NotImplementedError("Return list cmd to add member to group")
 
-    def _write_hostname(self, hostname, filename):
+    def _write_hostname(self, hostname: str, filename: str) -> None:
         bsd_utils.set_rc_config_value("hostname", hostname, fn="/etc/rc.conf")
 
-    def create_group(self, name, members=None):
+    def create_group(self, name: str, members=None) -> None:
         if util.is_group(name):
             LOG.warning("Skipping creation of existing group '%s'", name)
         else:
-            group_add_cmd = self.group_add_cmd_prefix + [name]
+            group_add_cmd: List[str] = self.group_add_cmd_prefix + [name]
             try:
                 subp.subp(group_add_cmd)
                 LOG.info("Created new group %s", name)
@@ -92,8 +98,8 @@ class BSD(distros.Distro):
                     LOG, "Failed to add user '%s' to group '%s'", member, name
                 )
 
-    def generate_fallback_config(self):
-        nconf = {"config": [], "version": 1}
+    def generate_fallback_config(self) -> NetworkConfig:
+        nconf: NetworkConfig = NetworkConfig(config=[], version=1)
         for mac, name in net.get_interfaces_by_mac().items():
             nconf["config"].append(
                 {
@@ -105,7 +111,7 @@ class BSD(distros.Distro):
             )
         return nconf
 
-    def install_packages(self, pkglist: PackageList):
+    def install_packages(self, pkglist: PackageList) -> None:
         self.update_package_sources()
         self.package_command("install", pkgs=pkglist)
 
@@ -113,7 +119,7 @@ class BSD(distros.Distro):
         """Return environment vars used in *BSD package_command operations"""
         raise NotImplementedError("BSD subclasses return a dict of env vars")
 
-    def package_command(self, command, args=None, pkgs=None):
+    def package_command(self, command, args=None, pkgs=None) -> None:
         if pkgs is None:
             pkgs = []
 
@@ -130,7 +136,7 @@ class BSD(distros.Distro):
                 return
             cmd = self.pkg_cmd_upgrade_prefix
         else:
-            cmd = []
+            cmd  = []
 
         if args and isinstance(args, str):
             cmd.append(args)
@@ -143,18 +149,18 @@ class BSD(distros.Distro):
         # Allow the output of this to flow outwards (ie not be captured)
         subp.subp(cmd, update_env=self._get_pkg_cmd_environ(), capture=False)
 
-    def set_timezone(self, tz):
+    def set_timezone(self, tz) -> None:
         distros.set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
 
     def apply_locale(self, locale, out_fn=None):
         LOG.debug("Cannot set the locale.")
 
-    def chpasswd(self, plist_in: list, hashed: bool):
+    def chpasswd(self, plist_in: list, hashed: bool) -> None:
         for name, password in plist_in:
             self.set_passwd(name, password, hashed=hashed)
 
     @staticmethod
-    def get_proc_ppid(pid):
+    def get_proc_ppid(pid) -> int:
         """
         Return the parent pid of a process by checking ps
         """
@@ -166,10 +172,10 @@ class BSD(distros.Distro):
         return None
 
     @staticmethod
-    def device_part_info(devpath: str) -> tuple:
+    def device_part_info(devpath: str) -> tuple[str, str]:
         # FreeBSD doesn't know of sysfs so just get everything we need from
         # the device, like /dev/vtbd0p2.
-        part = util.find_freebsd_part(devpath)
+        part: str = util.find_freebsd_part(devpath)
         if part:
             fpart = f"/dev/{part}"
             # Handle both GPT partitions and MBR slices with partitions
@@ -177,7 +183,7 @@ class BSD(distros.Distro):
                 r"^(?P<dev>/dev/.+)[sp](?P<part_slice>\d+[a-z]*)$", fpart
             )
             if m:
-                return m["dev"], m["part_slice"]
+                return (m["dev"], m["part_slice"])
 
         # the input is bogus and we need to bail
         raise ValueError(f"Invalid value for devpath: '{devpath}'")
