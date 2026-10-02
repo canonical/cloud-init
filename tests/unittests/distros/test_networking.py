@@ -13,7 +13,7 @@ from cloudinit.distros.networking import (
     LinuxNetworking,
     Networking,
 )
-from tests.unittests.helpers import does_not_raise, readResource
+from tests.unittests.helpers import does_not_raise, populate_dir, readResource
 
 
 @pytest.fixture
@@ -280,6 +280,39 @@ class TestNetworkingWaitForPhysDevs:
             5 * len(wait_for_physdevs_netcfg["ethernets"])
             == m_settle.call_count
         )
+
+    @mock.patch(
+        "cloudinit.net.is_openvswitch_internal_interface",
+        mock.Mock(return_value=False),
+    )
+    def test_linux_duplicate_macs_are_present(self, sys_class_net, tmpdir):
+        mac = "24:fb:e3:25:bc:cd"
+        nics = {"enp0s31f6": "e1000e", "enx24fbe325bccd": "r8152"}
+        for name, driver in nics.items():
+            populate_dir(
+                sys_class_net.join(name).strpath,
+                {"address": mac, "addr_assign_type": "0"},
+            )
+            driver_path = tmpdir.join(f"module/{driver}")
+            driver_path.ensure_dir()
+            device_path = sys_class_net.join(f"{name}/device")
+            device_path.ensure_dir()
+            device_path.join("driver").mksymlinkto(driver_path)
+        netcfg = {
+            "version": 2,
+            "ethernets": {
+                "enx24fbe325bccd": {
+                    "set-name": "enx24fbe325bccd",
+                    "match": {"macaddress": mac},
+                },
+            },
+        }
+        networking = LinuxNetworking()
+        with mock.patch.object(
+            networking, "settle", autospec=True
+        ) as m_settle:
+            networking.wait_for_physdevs(netcfg)
+        assert 0 == m_settle.call_count
 
 
 class TestLinuxNetworkingApplyNetworkCfgNames:
