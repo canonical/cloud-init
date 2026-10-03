@@ -153,6 +153,18 @@ class TestHandler:
             "restart",
         ]
 
+    @pytest.mark.usefixtures("clear_deprecation_log")
+    @mock.patch("cloudinit.config.cc_mcollective.subp")
+    @mock.patch("cloudinit.config.cc_mcollective.util")
+    def test_deprecate_module_warning(self, mock_util, mock_subp, caplog):
+        """Assert warning is logged for deprecated module."""
+        cc = get_cloud()
+        mock_util.load_binary_file.return_value = b""
+        mycfg = {"mcollective": {"conf": {"loglevel": "debug"}}}
+        cc_mcollective.handle("cc_mcollective", mycfg, cc, [])
+        assert "Module cc_mcollective is deprecated in" in caplog.text
+        assert "deprecat" in caplog.text
+
 
 @pytest.mark.usefixtures("clear_deprecation_log")
 class TestMcollectiveSchema:
@@ -200,15 +212,3 @@ class TestMcollectiveSchema:
         else:
             with pytest.raises(SchemaValidationError, match=error_msg):
                 validate_cloudconfig_schema(config, get_schema(), strict=True)
-
-    @mock.patch("cloudinit.config.cc_mcollective.subp")
-    @mock.patch("cloudinit.config.cc_mcollective.util")
-    def test_deprecate_module_warning(self, mock_util, mock_subp, caplog):
-        """Assert warning is logged for deprecated module."""
-        cc = get_cloud()
-        cc.distro = mock.MagicMock()
-        mock_util.load_binary_file.return_value = b""
-        mycfg = {"mcollective": {"conf": {"loglevel": "debug"}}}
-        cc_mcollective.handle("cc_mcollective", mycfg, cc, [])
-        assert "Module cc_mcollective is deprecated in" in caplog.text
-        assert "deprecat" in caplog.text
