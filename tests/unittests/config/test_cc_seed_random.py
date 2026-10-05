@@ -12,6 +12,7 @@ import gzip
 import logging
 import tempfile
 from io import BytesIO
+import re
 from unittest import mock
 
 import pytest
@@ -222,6 +223,31 @@ class TestRandomSeed:
             ["foo"], update_env={"RANDOM_SEED_FILE": mock.ANY}, capture=False
         )
 
+    @pytest.mark.usefixtures("clear_deprecation_log")
+    def test_deprecate_module_warning(self, caplog):
+        """Assert warning is logged when 'random_seed' key is in config."""
+        cfg = {
+            "random_seed": {
+                "file": self._seed_file,
+                "data": "tiny-tim-was-here",
+            }
+        }
+        cc_seed_random.handle("test", cfg, get_cloud("ubuntu"), [])
+        assert "Module cc_seed_random is deprecated in" in caplog.text
+        assert "deprecat" in caplog.text
+
+    @pytest.mark.usefixtures("clear_deprecation_log")
+    def test_no_deprecation_with_metadata_only(self, caplog):
+        """Assert no warning when seed data comes from datasource metadata.
+
+        Datasources (e.g. Azure, OpenStack, IBMCloud) provide random_seed
+        metadata on every boot; the module must not emit deprecation
+        warnings for those instances.
+        """
+        c = get_cloud("ubuntu", metadata={"random_seed": "-so-was-josh"})
+        cc_seed_random.handle("test", {}, c, [])
+        assert "deprecat" not in caplog.text
+
 
 def apply_patches(patches):
     ret = []
@@ -234,10 +260,20 @@ def apply_patches(patches):
     return ret
 
 
+@pytest.mark.usefixtures("clear_deprecation_log")
 class TestSeedRandomSchema:
     @pytest.mark.parametrize(
         "config, error_msg",
         [
+            # Valid, yet deprecated schema
+            (
+                {"random_seed": {"file": "/dev/urandom"}},
+                re.escape(
+                    "Cloud config schema deprecations: random_seed:  "
+                    "Deprecated in version 26.3. The seed_random module "
+                    "is deprecated and scheduled to be removed in 31.3."
+                ),
+            ),
             (
                 {"random_seed": {"encoding": "bad"}},
                 (
