@@ -404,6 +404,7 @@ A subset of the integration tests are run when a pull request
 is submitted on GitHub. The tests run on these continuous
 integration (CI) runs are given a ``pytest`` mark:
 
+.. rstcheck: ignore-next-code-block
 .. code-block:: python
 
     @pytest.mark.ci
