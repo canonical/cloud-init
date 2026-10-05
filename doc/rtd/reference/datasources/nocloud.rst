@@ -359,10 +359,10 @@ sufficient disk by following the following example.
 1. Create the :file:`user-data` and :file:`meta-data` files that will be used
    to modify the image on first boot.
 
-.. code-block:: sh
+   .. code-block:: sh
 
-   $ echo -e "instance-id: iid-local01\nlocal-hostname: cloudimg" > meta-data
-   $ echo -e "#cloud-config\npassword: passw0rd\nchpasswd: { expire: False }\nssh_pwauth: True\ncreate_hostname_file: true\n" > user-data
+      $ echo -e "instance-id: iid-local01\nlocal-hostname: cloudimg" > meta-data
+      $ echo -e "#cloud-config\npassword: passw0rd\nchpasswd: { expire: False }\nssh_pwauth: True\ncreate_hostname_file: true\n" > user-data
 
 2. At this stage you have three options:
 
@@ -396,18 +396,18 @@ sufficient disk by following the following example.
 
 3. Create a new qcow image to boot, backed by your original image:
 
-.. code-block:: sh
+   .. code-block:: sh
 
-   $ qemu-img create -f qcow2 -b disk.img -F qcow2 boot-disk.img
+      $ qemu-img create -f qcow2 -b disk.img -F qcow2 boot-disk.img
 
 4. Boot the image and log in as "Ubuntu" with password "passw0rd":
 
-.. code-block:: sh
+   .. code-block:: sh
 
-   $ kvm -m 256 \
-      -net nic -net user,hostfwd=tcp::2222-:22 \
-      -drive file=boot-disk.img,if=virtio \
-      -drive driver=raw,file=seed.iso,if=virtio
+      $ kvm -m 256 \
+         -net nic -net user,hostfwd=tcp::2222-:22 \
+         -drive file=boot-disk.img,if=virtio \
+         -drive driver=raw,file=seed.iso,if=virtio
 
 .. note::
    Note that "passw0rd" was set as password through the user-data above. There
