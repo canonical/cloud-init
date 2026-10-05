@@ -10,9 +10,9 @@
 # pylint: disable=attribute-defined-outside-init
 import gzip
 import logging
+import re
 import tempfile
 from io import BytesIO
-import re
 from unittest import mock
 
 import pytest
