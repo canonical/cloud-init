@@ -57,7 +57,7 @@ class TestPackageCommand:
     ):
         apt = Apt(runner=mock.Mock(), apt_get_wrapper_command=("dontcare",))
         with pytest.raises(TimeoutError):
-            apt._wait_for_apt_command("stub2", timeout=5)
+            apt._wait_for_apt_command({"args": "stub2"}, timeout=5)
         assert m_subp.call_args_list == []
 
     @mock.patch(
