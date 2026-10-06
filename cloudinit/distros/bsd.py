@@ -8,7 +8,6 @@ from cloudinit import distros, helpers, net, subp, util
 from cloudinit.distros import PackageList, bsd_utils
 from cloudinit.distros.networking import BSDNetworking
 
-
 LOG = logging.getLogger(__name__)
 
 
@@ -136,7 +135,7 @@ class BSD(distros.Distro):
                 return
             cmd = self.pkg_cmd_upgrade_prefix
         else:
-            cmd  = []
+            cmd = []
 
         if args and isinstance(args, str):
             cmd.append(args)
