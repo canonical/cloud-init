@@ -77,32 +77,6 @@ class GPG:
             ["gpg", "--dearmor"], data=key, decode=False, update_env=self.env
         ).stdout
 
-    def list_keys(self, key_file: str, human_output=False) -> str:
-        """List keys from a keyring with fingerprints. Default to a
-        stable machine parseable format.
-
-        @param key_file: a string containing a filepath to a key
-        @param human_output: return output intended for human parsing
-        """
-        cmd = [
-            "gpg",
-            "--no-options",
-            "--with-fingerprint",
-            "--no-default-keyring",
-            "--list-keys",
-            "--keyring",
-        ]
-        if not human_output:
-            cmd.append("--with-colons")
-
-        cmd.append(key_file)
-        stdout, stderr = subp.subp(cmd, update_env=self.env, capture=True)
-        if stderr:
-            LOG.warning(
-                'Failed to export armoured key "%s": %s', key_file, stderr
-            )
-        return stdout
-
     def recv_key(self, key: str, keyserver: str, retries=(1, 1)) -> None:
         """Receive gpg key from the specified keyserver.
 
