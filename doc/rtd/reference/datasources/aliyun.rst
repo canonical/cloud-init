@@ -9,9 +9,13 @@ present in ``cloud-init`` since 0.7.9.
 Instance metadata service
 =========================
 
-The Alibaba Cloud instance metadata service is available at the well known URL
-:file:`http://100.100.100.200/`. For more information see Alibaba Cloud ECS
-on `meta-data`_.
+The Alibaba Cloud instance metadata service is available over IPv4 at the
+well known URL :file:`http://100.100.100.200/`. On instances that have IPv6
+configured it is also reachable over IPv6 at
+:file:`http://[fd00:100::100:200]/`, and both endpoints serve the same
+metadata. ``Cloud-init`` tries both, so an IPv6-only instance (an ENI with no
+IPv4 address) can still reach the metadata service. For more information see
+Alibaba Cloud ECS on `meta-data`_.
 
 Configuration
 =============
@@ -26,9 +30,23 @@ An example configuration with the default values is provided below:
 
    datasource:
      AliYun:
-       metadata_urls: ["http://100.100.100.200"]
+       metadata_urls: ["http://100.100.100.200", "http://[fd00:100::100:200]"]
        timeout: 50
        max_wait: 120
+
+Network configuration
+---------------------
+
+``Cloud-init`` renders per-interface network configuration from the ENI
+metadata under ``network/interfaces/macs/[mac]/``:
+
+- ``dhcp4`` is enabled when the interface has ``private-ipv4s`` and disabled
+  otherwise, so an IPv6-only ENI does not wait for a DHCPv4 lease that will
+  never arrive.
+- ``dhcp6`` is enabled when the interface has ``ipv6s``.
+
+This yields ``dhcp4: true`` for an IPv4-only interface, both enabled for a
+dual-stack interface, and ``dhcp6`` only for an IPv6-only interface.
 
 Versions
 --------
