@@ -22,7 +22,8 @@ class HostnameConf:
 
     def __str__(self) -> str:
         self.parse()
-        assert self._contents is not None
+        if self._contents is None:
+            return ""
         contents = StringIO()
         for line_type, components in self._contents:
             if line_type == "blank":
@@ -41,7 +42,8 @@ class HostnameConf:
     @property
     def hostname(self) -> Optional[str]:
         self.parse()
-        assert self._contents is not None
+        if self._contents is None:
+            return None
         for line_type, components in self._contents:
             if line_type == "hostname":
                 return components[0]
@@ -52,7 +54,8 @@ class HostnameConf:
         if not your_hostname:
             return
         self.parse()
-        assert self._contents is not None
+        if self._contents is None:
+            return
         replaced = False
         for line_type, components in self._contents:
             if line_type == "hostname":

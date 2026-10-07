@@ -40,7 +40,8 @@ class ResolvConf:
     @local_domain.setter
     def local_domain(self, domain: str) -> None:
         self.parse()
-        assert self._contents is not None
+        if self._contents is None:
+            return
         self._remove_option("domain")
         self._contents.append(("option", ["domain", str(domain), ""]))
 
@@ -57,7 +58,8 @@ class ResolvConf:
 
     def __str__(self) -> str:
         self.parse()
-        assert self._contents is not None
+        if self._contents is None:
+            return ""
         contents = StringIO()
         for line_type, components in self._contents:
             if line_type == "blank":
@@ -74,7 +76,8 @@ class ResolvConf:
 
     def _retr_option(self, opt_name: str) -> List[str]:
         self.parse()
-        assert self._contents is not None
+        if self._contents is None:
+            return []
         found: List[str] = []
         for line_type, components in self._contents:
             if line_type == "option":
@@ -85,7 +88,8 @@ class ResolvConf:
 
     def add_nameserver(self, ns: str) -> List[str]:
         self.parse()
-        assert self._contents is not None
+        if self._contents is None:
+            return []
         current_ns = self._retr_option("nameserver")
         new_ns = list(current_ns)
         new_ns.append(str(ns))
@@ -107,7 +111,8 @@ class ResolvConf:
                 return False
             return True
 
-        assert self._contents is not None
+        if self._contents is None:
+            return
         new_contents: List[Tuple[str, List[Any]]] = []
         for c in self._contents:
             if not remove_opt(c):
@@ -135,7 +140,8 @@ class ResolvConf:
                 "256 maximum search list character limit" % (search_domain)
             )
         self._remove_option("search")
-        assert self._contents is not None
+        if self._contents is None:
+            return flat_sds
         self._contents.append(("option", ["search", s_list, ""]))
         return flat_sds
 
