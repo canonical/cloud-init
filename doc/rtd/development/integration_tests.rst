@@ -67,7 +67,7 @@ providing an environment variable of the same name prepended with
 
 .. code-block:: bash
 
-    CLOUD_INIT_PLATFORM='ec2' tox -e integration_tests -- tests/integration_tests/
+    CLOUD_INIT_PLATFORM='ec2' tox -e integration-tests -- tests/integration_tests/
 
 
 Common integration test run configurations
@@ -87,7 +87,7 @@ to ``True``.
 
         .. code-block:: bash
 
-            CLOUD_INIT_KEEP_INSTANCE=True tox -e integration_tests
+            CLOUD_INIT_KEEP_INSTANCE=True tox -e integration-tests
 
     .. tab-item:: user_settings.py file
 
@@ -104,7 +104,7 @@ variable to ``ON_ERROR``.
 
         .. code-block:: bash
 
-            CLOUD_INIT_KEEP_INSTANCE=ON_ERROR tox -e integration_tests
+            CLOUD_INIT_KEEP_INSTANCE=ON_ERROR tox -e integration-tests
 
     .. tab-item:: user_settings.py file
 
@@ -129,7 +129,7 @@ installation code since the source code is mounted directly.
 
         .. code-block:: bash
 
-            CLOUD_INIT_CLOUD_INIT_SOURCE=IN_PLACE tox -e integration_tests
+            CLOUD_INIT_CLOUD_INIT_SOURCE=IN_PLACE tox -e integration-tests
 
     .. tab-item:: user_settings.py file
 
@@ -155,7 +155,7 @@ the desired path.
 
         .. code-block:: bash
 
-            CLOUD_INIT_COLLECT_LOGS=ALWAYS CLOUD_INIT_LOCAL_LOG_PATH=/tmp/your-local-directory tox -e integration_tests
+            CLOUD_INIT_COLLECT_LOGS=ALWAYS CLOUD_INIT_LOCAL_LOG_PATH=/tmp/your-local-directory tox -e integration-tests
 
     .. tab-item:: user_settings.py file
 
@@ -179,7 +179,7 @@ by ``LOCAL_LOG_PATH``.
 
         .. code-block:: bash
 
-            CLOUD_INIT_INCLUDE_COVERAGE=True tox -e integration_tests
+            CLOUD_INIT_INCLUDE_COVERAGE=True tox -e integration-tests
 
     .. tab-item:: user_settings.py file
 
@@ -199,7 +199,7 @@ test run, and the report will be stored in the directory specified by
 
         .. code-block:: bash
 
-            CLOUD_INIT_INCLUDE_PROFILE=True tox -e integration_tests
+            CLOUD_INIT_INCLUDE_PROFILE=True tox -e integration-tests
 
     .. tab-item:: user_settings.py file
 
@@ -245,7 +245,7 @@ on of:
 
         .. code-block:: bash
 
-            CLOUD_INIT_PLATFORM='lxd_container' tox -e integration_tests
+            CLOUD_INIT_PLATFORM='lxd_container' tox -e integration-tests
 
     .. tab-item:: user_settings.py file
 
@@ -269,7 +269,7 @@ testing against.
 
         .. code-block:: bash
 
-            CLOUD_INIT_PLATFORM=ec2 CLOUD_INIT_INSTANCE_TYPE='t2.micro' tox -e integration_tests
+            CLOUD_INIT_PLATFORM=ec2 CLOUD_INIT_INSTANCE_TYPE='t2.micro' tox -e integration-tests
 
     .. tab-item:: user_settings.py file
 
@@ -317,7 +317,7 @@ variable to be the desired image specification.
 
         .. code-block:: bash
 
-            CLOUD_INIT_OS_IMAGE='jammy' tox -e integration_tests
+            CLOUD_INIT_OS_IMAGE='jammy' tox -e integration-tests
 
     .. tab-item:: user_settings.py file
 
@@ -341,7 +341,7 @@ To run integration tests on a specific type/family of image, modify the
 
         .. code-block:: bash
 
-            CLOUD_INIT_PLATFORM=lxd_container CLOUD_INIT_OS_IMAGE=noble CLOUD_INIT_OS_IMAGE_TYPE=minimal tox -e integration_tests
+            CLOUD_INIT_PLATFORM=lxd_container CLOUD_INIT_OS_IMAGE=noble CLOUD_INIT_OS_IMAGE_TYPE=minimal tox -e integration-tests
 
     .. tab-item:: user_settings.py file
 
@@ -380,7 +380,7 @@ for further use by setting the ``KEEP_IMAGE`` variable to ``True``.
 
         .. code-block:: bash
 
-            CLOUD_INIT_KEEP_IMAGE=True tox -e integration_tests
+            CLOUD_INIT_KEEP_IMAGE=True tox -e integration-tests
 
     .. tab-item:: user_settings.py file
 
