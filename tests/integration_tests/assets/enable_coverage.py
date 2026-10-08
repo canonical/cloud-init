@@ -16,7 +16,7 @@ services = [
 service_dir = Path("/lib/systemd/system/")
 
 # Prepend the ExecStart= line with 'python3 -m coverage run'
-patched = []
+patched = False
 for service in services:
     file_path = service_dir / service
     if not file_path.is_file():
@@ -32,7 +32,7 @@ for service in services:
         ),
     )
     file_path.write_text(content)
-    patched.append(service)
+    patched = True
 
 if not patched:
     print(f"Error: no service in {service_dir} runs cloud-init from /usr")
