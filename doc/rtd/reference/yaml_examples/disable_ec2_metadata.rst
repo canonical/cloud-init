@@ -12,4 +12,3 @@ For more details, refer to the
 .. literalinclude:: ../../../module-docs/cc_disable_ec2_metadata/example1.yaml
    :language: yaml
    :linenos:
-

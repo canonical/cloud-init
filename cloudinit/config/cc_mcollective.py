@@ -17,7 +17,7 @@ import logging
 # and doesn't need a top level section
 from configobj import ConfigObj
 
-from cloudinit import subp, util
+from cloudinit import lifecycle, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -106,6 +106,11 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             name,
         )
         return
+    lifecycle.deprecate(
+        deprecated="Module cc_mcollective",
+        deprecated_version="26.3",
+        schedule=1,  # Accelerated schedule due to mcollective is EOL in 2018
+    )
 
     mcollective_cfg = cfg["mcollective"]
 
