@@ -21,6 +21,7 @@ DEFAULT_RUN_DIR = "/run/cloud-init"
 # What u get if no config is provided
 CFG_BUILTIN = {
     "datasource_list": [
+        "QemuFwCfg",
         "NoCloud",
         "ConfigDrive",
         "LXD",

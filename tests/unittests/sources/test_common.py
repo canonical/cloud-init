@@ -28,6 +28,7 @@ from cloudinit.sources import DataSourceOpenNebula as OpenNebula
 from cloudinit.sources import DataSourceOpenStack as OpenStack
 from cloudinit.sources import DataSourceOracle as Oracle
 from cloudinit.sources import DataSourceOVF as OVF
+from cloudinit.sources import DataSourceQemuFwCfg as QemuFwCfg
 from cloudinit.sources import DataSourceRbxCloud as RbxCloud
 from cloudinit.sources import DataSourceScaleway as Scaleway
 from cloudinit.sources import DataSourceSmartOS as SmartOS
@@ -51,6 +52,7 @@ DEFAULT_LOCAL = [
     OpenNebula.DataSourceOpenNebula,
     Oracle.DataSourceOracle,
     OVF.DataSourceOVF,
+    QemuFwCfg.DataSourceQemuFwCfg,
     SmartOS.DataSourceSmartOS,
     Vultr.DataSourceVultr,
     Ec2.DataSourceEc2Local,
