@@ -6,6 +6,7 @@
 
 import logging
 from io import StringIO
+from typing import Any, List, Optional, Tuple
 
 from cloudinit import util
 from cloudinit.distros.parsers import chop_comment
@@ -15,21 +16,21 @@ LOG = logging.getLogger(__name__)
 
 # See: man resolv.conf
 class ResolvConf:
-    def __init__(self, text):
+    def __init__(self, text: str) -> None:
         self._text = text
-        self._contents = None
+        self._contents: Optional[List[Tuple[str, List[Any]]]] = None
 
-    def parse(self):
+    def parse(self) -> None:
         if self._contents is None:
             self._contents = self._parse(self._text)
 
     @property
-    def nameservers(self):
+    def nameservers(self) -> List[str]:
         self.parse()
         return self._retr_option("nameserver")
 
     @property
-    def local_domain(self):
+    def local_domain(self) -> Optional[str]:
         self.parse()
         dm = self._retr_option("domain")
         if dm:
@@ -37,25 +38,28 @@ class ResolvConf:
         return None
 
     @local_domain.setter
-    def local_domain(self, domain):
+    def local_domain(self, domain: str) -> None:
         self.parse()
+        if self._contents is None:
+            return
         self._remove_option("domain")
         self._contents.append(("option", ["domain", str(domain), ""]))
-        return domain
 
     @property
-    def search_domains(self):
+    def search_domains(self) -> List[str]:
         self.parse()
         current_sds = self._retr_option("search")
-        flat_sds = []
+        flat_sds: List[str] = []
         for sdlist in current_sds:
             for sd in sdlist.split(None):
                 if sd:
                     flat_sds.append(sd)
         return flat_sds
 
-    def __str__(self):
+    def __str__(self) -> str:
         self.parse()
+        if self._contents is None:
+            return ""
         contents = StringIO()
         for line_type, components in self._contents:
             if line_type == "blank":
@@ -70,8 +74,11 @@ class ResolvConf:
                 contents.write("%s\n" % (line))
         return contents.getvalue()
 
-    def _retr_option(self, opt_name):
-        found = []
+    def _retr_option(self, opt_name: str) -> List[str]:
+        self.parse()
+        if self._contents is None:
+            return []
+        found: List[str] = []
         for line_type, components in self._contents:
             if line_type == "option":
                 cfg_opt, cfg_value, _comment_tail = components
@@ -79,8 +86,10 @@ class ResolvConf:
                     found.append(cfg_value)
         return found
 
-    def add_nameserver(self, ns):
+    def add_nameserver(self, ns: str) -> List[str]:
         self.parse()
+        if self._contents is None:
+            return []
         current_ns = self._retr_option("nameserver")
         new_ns = list(current_ns)
         new_ns.append(str(ns))
@@ -92,8 +101,8 @@ class ResolvConf:
             self._contents.append(("option", ["nameserver", n, ""]))
         return new_ns
 
-    def _remove_option(self, opt_name):
-        def remove_opt(item):
+    def _remove_option(self, opt_name: str) -> None:
+        def remove_opt(item: Tuple[str, List[Any]]) -> bool:
             line_type, components = item
             if line_type != "option":
                 return False
@@ -102,13 +111,15 @@ class ResolvConf:
                 return False
             return True
 
-        new_contents = []
+        if self._contents is None:
+            return
+        new_contents: List[Tuple[str, List[Any]]] = []
         for c in self._contents:
             if not remove_opt(c):
                 new_contents.append(c)
         self._contents = new_contents
 
-    def add_search_domain(self, search_domain):
+    def add_search_domain(self, search_domain: str) -> List[str]:
         flat_sds = self.search_domains
         new_sds = list(flat_sds)
         new_sds.append(str(search_domain))
@@ -129,11 +140,13 @@ class ResolvConf:
                 "256 maximum search list character limit" % (search_domain)
             )
         self._remove_option("search")
+        if self._contents is None:
+            return flat_sds
         self._contents.append(("option", ["search", s_list, ""]))
         return flat_sds
 
-    def _parse(self, contents):
-        entries = []
+    def _parse(self, contents: str) -> List[Tuple[str, List[Any]]]:
+        entries: List[Tuple[str, List[Any]]] = []
         for i, line in enumerate(contents.splitlines()):
             sline = line.strip()
             if not sline:
