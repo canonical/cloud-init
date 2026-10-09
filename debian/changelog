@@ -1,3 +1,10 @@
+cloud-init (26.2-0ubuntu2) stonking; urgency=medium
+
+  * d/p/udev-settle-after-mkfs.patch: perform udevadm settle when
+    cloud-init performs disk setup to avoid mount errors: (LP: #2169908)
+
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 08 Oct 2026 18:09:26 -0600
+
 cloud-init (26.2-0ubuntu1) stonking; urgency=medium
 
   * Upstream snapshot based on 26.2.
