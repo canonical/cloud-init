@@ -38,7 +38,6 @@ no_implicit_optional = true
 module = [
     "cloudinit.distros.alpine",
     "cloudinit.distros.azurelinux",
-    "cloudinit.distros.bsd",
     "cloudinit.distros.opensuse",
     "cloudinit.distros.parsers.hostname",
     "cloudinit.distros.parsers.resolv_conf",
