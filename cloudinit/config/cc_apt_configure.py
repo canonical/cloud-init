@@ -17,7 +17,7 @@ import shutil
 from textwrap import indent
 from typing import Any, Callable, Dict, List, Mapping, Optional, Set
 
-from cloudinit import features, lifecycle, subp, templater, util
+from cloudinit import features, lifecycle, subp, templater, url_helper, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -595,7 +595,10 @@ def add_apt_key_raw(key, file_name, gpg, hardened=False):
     actual adding of a key as defined in key argument
     to the system
     """
-    LOG.debug("Adding key:\n'%s'", key)
+    if isinstance(key, bytes):
+        LOG.debug("Adding binary key (%d bytes)", len(key))
+    else:
+        LOG.debug("Adding key:\n'%s'", key)
     try:
         name = pathlib.Path(file_name).stem
         return apt_key(
@@ -629,11 +632,11 @@ def _ensure_dependencies(
                 # Include gpg when mirror_key non-empty list and any item
                 # defines key or keyid.
                 for mirror_item in cfg[mirror_key]:
-                    if {"key", "keyid"}.intersection(mirror_item):
+                    if {"key", "keyid", "keyurl"}.intersection(mirror_item):
                         required_cmds.add("gpg")
     apt_sources_dict = cfg.get("sources", {})
     for ent in apt_sources_dict.values():
-        if {"key", "keyid"}.intersection(ent):
+        if {"key", "keyid", "keyurl"}.intersection(ent):
             required_cmds.add("gpg")
         if aa_repo_match and aa_repo_match(ent.get("source", "")):
             required_cmds.add("add-apt-repository")
@@ -647,9 +650,12 @@ def _ensure_dependencies(
 def add_apt_key(ent, cloud, gpg, hardened=False, file_name=None):
     """
     Add key to the system as defined in ent (if any).
-    Supports raw keys or keyid's
-    The latter will as a first step fetched to get the raw key
+    Supports raw keys, keyid's and keyurl's
+    The latter two will as a first step be fetched to get the raw key
     """
+    if "keyurl" in ent and not {"key", "keyid", "keyserver"} & ent.keys():
+        ent["key"] = get_key_by_url(ent["keyurl"], cloud)
+
     if "keyid" in ent and "key" not in ent:
         keyserver = DEFAULT_KEYSERVER
         if "keyserver" in ent:
@@ -661,6 +667,29 @@ def add_apt_key(ent, cloud, gpg, hardened=False, file_name=None):
         return add_apt_key_raw(
             ent["key"], file_name or ent["filename"], gpg, hardened=hardened
         )
+
+
+def get_key_by_url(url: str, cloud: Cloud):
+    """Fetch the PGP key at url.
+
+    Return the key as text when it is ASCII-armored, else as the raw bytes of
+    a binary key. ``gpg --dearmor`` accepts both, so either can be added.
+    """
+    try:
+        # NOTE: These retry parameters match those used by write_files.
+        contents = url_helper.read_file_or_url(
+            url,
+            retries=3,
+            sec_between=3,
+            ssl_details=util.fetch_ssl_details(cloud.paths),
+        ).contents
+    except url_helper.UrlError:
+        LOG.exception("Failed to obtain apt key from %s", url)
+        raise
+    try:
+        return contents.decode("utf-8")
+    except UnicodeDecodeError:
+        return contents
 
 
 def add_apt_sources(
