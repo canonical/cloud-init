@@ -55,7 +55,6 @@ module = [
     "cloudinit.sources.DataSourceGCE",
     "cloudinit.sources.DataSourceHetzner",
     "cloudinit.sources.DataSourceNoCloud",
-    "cloudinit.sources.DataSourceOVF",
     "cloudinit.sources.DataSourceOpenStack",
     "cloudinit.sources.DataSourceScaleway",
     "cloudinit.sources.DataSourceSmartOS",
