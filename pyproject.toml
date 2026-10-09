@@ -56,7 +56,6 @@ module = [
     "cloudinit.sources.DataSourceHetzner",
     "cloudinit.sources.DataSourceNoCloud",
     "cloudinit.sources.DataSourceOVF",
-    "cloudinit.sources.DataSourceOpenStack",
     "cloudinit.sources.DataSourceScaleway",
     "cloudinit.sources.DataSourceSmartOS",
     "cloudinit.sources.helpers.azure",
