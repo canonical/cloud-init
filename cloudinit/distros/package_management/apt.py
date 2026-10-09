@@ -12,7 +12,7 @@ from cloudinit.distros.package_management.package_manager import (
     PackageManager,
     UninstalledPackages,
 )
-from cloudinit.settings import PER_ALWAYS, PER_INSTANCE
+from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
@@ -113,7 +113,8 @@ class Apt(PackageManager):
             "update-sources",
             self.run_package_command,
             ["update"],
-            freq=PER_ALWAYS if force else PER_INSTANCE,
+            freq=PER_INSTANCE,
+            force=force,
         )
 
     @functools.lru_cache(maxsize=1)

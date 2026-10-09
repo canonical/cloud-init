@@ -7,7 +7,7 @@ import logging
 from cloudinit import distros, helpers, net, subp, util
 from cloudinit.distros import PackageList
 from cloudinit.distros import rhel_util as rhutil
-from cloudinit.settings import PER_ALWAYS, PER_INSTANCE
+from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
@@ -161,5 +161,6 @@ class Distro(distros.Distro):
             "update-sources",
             self.package_command,
             ["makecache"],
-            freq=PER_ALWAYS if force else PER_INSTANCE,
+            freq=PER_INSTANCE,
+            force=force,
         )
