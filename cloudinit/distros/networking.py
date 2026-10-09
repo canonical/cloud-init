@@ -71,6 +71,9 @@ class Networking(metaclass=abc.ABCMeta):
     def get_master(self, devname: DeviceName):
         return net.get_master(devname)
 
+    def get_present_macs(self) -> set:
+        return set(self.get_interfaces_by_mac().keys())
+
     def interface_has_own_mac(
         self, devname: DeviceName, *, strict: bool = False
     ) -> bool:
@@ -137,7 +140,7 @@ class Networking(metaclass=abc.ABCMeta):
         expected_macs = set(expected_ifaces.keys())
 
         # set of current macs
-        present_macs = self.get_interfaces_by_mac().keys()
+        present_macs = self.get_present_macs()
 
         # compare the set of expected mac address values to
         # the current macs present; we only check MAC as cloud-init
@@ -158,7 +161,7 @@ class Networking(metaclass=abc.ABCMeta):
                     self.settle(exists=devname)
 
             # update present_macs after settles
-            present_macs = self.get_interfaces_by_mac().keys()
+            present_macs = self.get_present_macs()
 
         msg = "Not all expected physical devices present: %s" % missing
         LOG.warning(msg)
@@ -273,6 +276,9 @@ class LinuxNetworking(Networking):
 
     def get_dev_features(self, devname: DeviceName) -> str:
         return net.get_dev_features(devname)
+
+    def get_present_macs(self) -> set:
+        return net.get_present_macs_on_linux()
 
     def has_netfail_standby_feature(self, devname: DeviceName) -> bool:
         return net.has_netfail_standby_feature(devname)
