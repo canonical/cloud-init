@@ -384,3 +384,36 @@ class TestDebugSchema:
         """Assert expected schema validation and no error messages."""
         schema = get_schema()
         validate_cloudconfig_schema(config, schema, strict=True)
+
+    @pytest.mark.parametrize("partition", (1, 2, "auto", "any", "none"))
+    @skipUnlessJsonSchema()
+    def test_fs_setup_partition_valid(self, partition):
+        """fs_setup.partition accepts a partition number or a keyword."""
+        config = {
+            "fs_setup": [
+                {
+                    "device": "/dev/sdb",
+                    "filesystem": "ext4",
+                    "partition": partition,
+                }
+            ]
+        }
+        validate_cloudconfig_schema(config, get_schema(), strict=True)
+
+    @pytest.mark.parametrize("partition", ("bogus", "1", 1.5, True))
+    @skipUnlessJsonSchema()
+    def test_fs_setup_partition_invalid(self, partition):
+        """fs_setup.partition still rejects other values."""
+        config = {
+            "fs_setup": [
+                {
+                    "device": "/dev/sdb",
+                    "filesystem": "ext4",
+                    "partition": partition,
+                }
+            ]
+        }
+        with pytest.raises(
+            SchemaValidationError, match="fs_setup.0.partition"
+        ):
+            validate_cloudconfig_schema(config, get_schema(), strict=True)
