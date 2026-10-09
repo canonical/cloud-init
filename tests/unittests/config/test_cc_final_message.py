@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from cloudinit.config.cc_final_message import handle
+from cloudinit.helpers import Paths
 from tests.unittests.util import get_cloud
 
 
@@ -22,20 +23,19 @@ class TestHandle:
     )
     def test_boot_finished_written(
         self,
-        instance_dir_exists,
-        file_is_written,
-        expected_log_substring,
-        caplog,
-        paths,
-        tmpdir,
-    ):
+        instance_dir_exists: bool,
+        file_is_written: bool,
+        expected_log_substring: str | None,
+        caplog: pytest.LogCaptureFixture,
+        paths: Paths,
+    ) -> None:
         instance_dir = Path(paths.get_ipath_cur())
         if instance_dir_exists:
             instance_dir.mkdir()
         boot_finished = instance_dir / "boot-finished"
 
         m_cloud = get_cloud(paths=paths)
-        handle("cc_final_message", {}, m_cloud, [])
+        handle("", {}, m_cloud, [])
 
         # We should not change the status of the instance directory
         assert instance_dir_exists == instance_dir.exists()
@@ -54,13 +54,13 @@ class TestHandle:
     )
     def test_only_warn_when_datasourcenone_is_fallback_in_datasource_list(
         self,
-        dsname,
-        datasource_list,
-        expected_log,
-        log_level,
-        caplog,
-        paths,
-    ):
+        dsname: str,
+        datasource_list: list[str],
+        expected_log: str | None,
+        log_level: int,
+        caplog: pytest.LogCaptureFixture,
+        paths: Paths,
+    ) -> None:
         """Only warn when None is a fallback in multi-item datasource_list.
 
         It is not a warning when datasource_list: [ None ] is configured.
@@ -69,7 +69,7 @@ class TestHandle:
         m_cloud.datasource.dsname = dsname
         Path(paths.get_ipath_cur()).mkdir()
         with caplog.at_level(log_level):
-            handle("cc_final_message", {}, m_cloud, [])
+            handle("", {}, m_cloud, [])
 
         # We should not change the status of the instance directory
         if expected_log:
