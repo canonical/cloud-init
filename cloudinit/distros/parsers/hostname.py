@@ -5,6 +5,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from io import StringIO
+from typing import Optional
 
 from cloudinit.distros.parsers import chop_comment
 
@@ -13,16 +14,16 @@ from cloudinit.distros.parsers import chop_comment
 class HostnameConf:
     def __init__(self, text):
         self._text = text
-        self._contents = None
+        self._contents: Optional[list] = None
 
-    def parse(self):
+    def parse(self) -> list:
         if self._contents is None:
             self._contents = self._parse(self._text)
+        return self._contents
 
     def __str__(self):
-        self.parse()
         contents = StringIO()
-        for line_type, components in self._contents:
+        for line_type, components in self.parse():
             if line_type == "blank":
                 contents.write("%s\n" % (components[0]))
             elif line_type == "all_comment":
@@ -38,8 +39,7 @@ class HostnameConf:
 
     @property
     def hostname(self):
-        self.parse()
-        for line_type, components in self._contents:
+        for line_type, components in self.parse():
             if line_type == "hostname":
                 return components[0]
         return None
@@ -48,14 +48,14 @@ class HostnameConf:
         your_hostname = your_hostname.strip()
         if not your_hostname:
             return
-        self.parse()
+        parsed = self.parse()
         replaced = False
-        for line_type, components in self._contents:
+        for line_type, components in parsed:
             if line_type == "hostname":
                 components[0] = str(your_hostname)
                 replaced = True
         if not replaced:
-            self._contents.append(("hostname", [str(your_hostname), ""]))
+            parsed.append(("hostname", [str(your_hostname), ""]))
 
     def _parse(self, contents):
         entries = []
