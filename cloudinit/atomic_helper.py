@@ -73,6 +73,11 @@ def _write_file(
             len(content),
         )
         tf.write(content)
+        tf.flush()
+        try:
+            os.fsync(tf.fileno())
+        except OSError:
+            pass
         tf.close()
         os.chmod(tf.name, mode)
         os.rename(tf.name, filename)
