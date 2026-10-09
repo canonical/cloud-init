@@ -1,0 +1,126 @@
+Description: Fix failed mount of ext4-formatted ephemeral disks with udevadm settle
+ Cloud-init is unable to mount Azure ephemeral disks in images with util-linux v.2.42
+ which leaves systemctl status in a degraded state and the ephemeral disk unmounted.
+ This failure is due to changes in util-linux behavior to use a stale udev device cache
+ to determine filesystem type before auto-mounting. While awaiting a recommendation from
+ upstream util-linux on GH issue util-linux/#4527 for this change in behavior, Ubuntu
+ will provide a downstream patch which invokes `udevam settle` when cloud-init is
+ responsible for formatting a given device. This ensures the udev cache will be updated
+ to persist any changed formatting of a device before `mount -a` is called.
+Author: chad.smith@canonical.com
+Origin: other
+Bug: https://bugs.launchpad.net/ubuntu/+source/cloud-init/+bug/2169908
+Last-Update: 2026-10-09
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/cloudinit/config/cc_disk_setup.py
++++ b/cloudinit/config/cc_disk_setup.py
+@@ -61,6 +61,7 @@ def handle(name: str, cfg: Config, cloud
+ 
+     fs_setup = cfg.get("fs_setup")
+     if isinstance(fs_setup, list):
++        created_filesystem = False
+         LOG.debug("setting up filesystems: %s", str(fs_setup))
+         update_fs_setup_devices(fs_setup, alias_to_device)
+         for definition in fs_setup:
+@@ -71,8 +72,11 @@ def handle(name: str, cfg: Config, cloud
+             try:
+                 with performance.Timed("Creating new filesystem"):
+                     mkfs(definition)
++                created_filesystem = True
+             except Exception as e:
+                 util.logexc(LOG, "Failed during filesystem operation\n%s" % e)
++        if created_filesystem:
++            util.udevadm_settle()
+ 
+ 
+ def update_disk_setup_devices(disk_setup, tformer):
+--- a/tests/unittests/config/test_cc_disk_setup.py
++++ b/tests/unittests/config/test_cc_disk_setup.py
+@@ -337,6 +337,86 @@ class TestMkfsCommandHandling:
+         )
+ 
+ 
++@mock.patch(
++    "cloudinit.config.cc_disk_setup.update_fs_setup_devices",
++    return_value=None,
++)
++@mock.patch("cloudinit.config.cc_disk_setup.mkfs", return_value=None)
++@mock.patch("cloudinit.config.cc_disk_setup.subp.subp")
++class TestHandleFsSetup:
++    @pytest.mark.parametrize(
++        "fs_setup, expected_mkfs, expected_log",
++        (
++            pytest.param(
++                [
++                    {
++                        "partition": "auto",
++                        "device": "/dev/xvdb1",
++                        "filesystem": "ext4",
++                        "label": "test",
++                        "overwrite": False,
++                    },
++                    "invalid_definition",
++                    {
++                        "partition": "auto",
++                        "device": "/dev/xvdc1",
++                        "filesystem": "xfs",
++                        "label": "test2",
++                        "overwrite": False,
++                    },
++                ],
++                # mkfs called for each dict definition
++                # (first and third entries)
++                2,
++                [],
++                id="valid_definitions_mixed_with_invalid",
++            ),
++            pytest.param(
++                ["invalid_definition", 1],
++                0,
++                [
++                    "Invalid file system definition: invalid_definition",
++                    "Invalid file system definition: 1",
++                ],
++                id="only_invalid_definitions",
++            ),
++            pytest.param(
++                "bogus",
++                0,
++                [],
++                id="non_list_fs_setup_is_noop",
++            ),
++        ),
++    )
++    def test_handle_fs_setup(
++        self, m_subp, m_mkfs, m_update, caplog, fs_setup, expected_mkfs, expected_log
++    ):
++        """handle calls mkfs for each valid fs_setup definition and logs a
++        warning for invalid definitions."""
++        cfg = {"fs_setup": fs_setup}
++        cloud = mock.Mock()
++
++        cc_disk_setup.handle("disk_setup", cfg, cloud, [])
++
++        if isinstance(fs_setup, list):
++            m_update.assert_called_once_with(fs_setup, mock.ANY)
++            assert expected_mkfs == m_mkfs.call_count
++            if expected_mkfs:
++                m_subp.assert_called_once_with(["udevadm", "settle"])
++            else:
++                m_subp.assert_not_called()
++            assert [
++                mock.call(d)
++                for d in fs_setup
++                if isinstance(d, dict)
++            ] == m_mkfs.call_args_list
++        else:
++            assert m_mkfs.call_count == 0
++            assert m_update.call_count == 0
++        for msg in expected_log:
++            assert msg in caplog.text
++
++
+ @skipUnlessJsonSchema()
+ class TestDebugSchema:
+     """Directly test schema rather than through handle."""
