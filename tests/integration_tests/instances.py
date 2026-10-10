@@ -1,11 +1,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+import importlib.metadata
 import logging
 import os
 import re
 import time
 import uuid
 from enum import Enum
-from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Union
 
@@ -14,7 +14,6 @@ from pycloudlib.instance import BaseInstance
 from pycloudlib.lxd.instance import LXDInstance
 from pycloudlib.result import Result
 
-from tests.helpers import cloud_init_project_dir
 from tests.integration_tests import integration_settings
 from tests.integration_tests.decorators import retry
 from tests.integration_tests.util import ASSETS_DIR
@@ -149,25 +148,20 @@ class IntegrationInstance:
         return image_id
 
     def install_coverage(self):
-        # Determine coverage version from integration-requirements.txt
-        integration_requirements = Path(
-            cloud_init_project_dir("integration-requirements.txt")
-        ).read_text()
-        coverage_version = ""
-        for line in integration_requirements.splitlines():
-            if line.startswith("coverage=="):
-                coverage_version = line.split("==")[1]
-                break
-        else:
-            raise RuntimeError(
-                "Could not find coverage in integration-requirements.txt"
-            )
+        # Install the coverage version that combines the collected data
+        # locally, as integration-requirements.txt does not pin it.
+        coverage_version = importlib.metadata.version("coverage")
 
         # Update and install coverage from pip
         # We use pip because the versions between distros are incompatible
         self.update_package_cache()
         self.execute("apt-get install -qy python3-pip")
-        self.execute(f"pip3 install coverage=={coverage_version}")
+        # Releases implementing PEP 668 refuse to install into the system
+        # Python without this. Older pip ignores the variable.
+        assert self.execute(
+            "PIP_BREAK_SYSTEM_PACKAGES=1 pip3 install "
+            f"coverage=={coverage_version}"
+        ).ok
         self.push_file(
             local_path=ASSETS_DIR / "enable_coverage.py",
             remote_path="/var/tmp/enable_coverage.py",
