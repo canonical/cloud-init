@@ -17,6 +17,7 @@ import base64
 import logging
 import os
 import re
+from typing import Callable, List, Optional, Tuple
 from xml.dom import minidom  # nosec B408
 
 import yaml
@@ -61,11 +62,12 @@ class DataSourceOVF(sources.DataSource):
             self.environment = contents
             found.append(seed)
         else:
-            np = [
+            np: List[Tuple[str, Callable[[], Optional[str]]]] = [
                 ("com.vmware.guestInfo", transport_vmware_guestinfo),
                 ("iso", transport_iso9660),
             ]
-            name = None
+            # The name bound by this loop is only read when contents
+            # was set by one of its calls, so it is always bound.
             for name, transfunc in np:
                 contents = transfunc()
                 if contents:
@@ -83,7 +85,7 @@ class DataSourceOVF(sources.DataSource):
 
         if "seedfrom" in md and md["seedfrom"]:
             seedfrom = md["seedfrom"]
-            seedfound = False
+            seedfound: Optional[str] = None
             for proto in self.supported_seed_starts:
                 if seedfrom.startswith(proto):
                     seedfound = proto
@@ -347,7 +349,7 @@ def transport_vmware_guestinfo():
 
 
 def find_child(node, filter_func):
-    ret = []
+    ret: List[minidom.Node] = []
     if not node.hasChildNodes():
         return ret
     for child in node.childNodes:
@@ -358,10 +360,11 @@ def find_child(node, filter_func):
 
 def get_properties(contents):
     dom = minidom.parseString(contents)  # nosec B318
-    if dom.documentElement.localName != "Environment":
+    document_element = dom.documentElement
+    if document_element is None or document_element.localName != "Environment":
         raise XmlError("No Environment Node")
 
-    if not dom.documentElement.hasChildNodes():
+    if not document_element.hasChildNodes():
         raise XmlError("No Child Nodes")
 
     envNsURI = "http://schemas.dmtf.org/ovf/environment/1"
@@ -369,7 +372,7 @@ def get_properties(contents):
     # could also check here that elem.namespaceURI ==
     #   "http://schemas.dmtf.org/ovf/environment/1"
     propSections = find_child(
-        dom.documentElement, lambda n: n.localName == "PropertySection"
+        document_element, lambda n: n.localName == "PropertySection"
     )
 
     if not propSections:
