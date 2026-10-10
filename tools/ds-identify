@@ -48,7 +48,11 @@
 #
 #      notfound: (default=disabled)
 #         disabled: disable cloud-init
-#         enabled: enable cloud-init
+#         enabled: enable cloud-init.
+#         enabled-ds-none: enable cloud-init, but write a datasource_list
+#                  containing only 'None' to /run/cloud-init/cloud.cfg.
+#                  cloud-init then runs with the None datasource rather than
+#                  re-searching every datasource itself.
 #
 # ci.datasource.ec2.strict_id: (true|false|warn[,0-9])
 #     if ec2 datasource does not strictly match,
@@ -63,6 +67,7 @@ CR="
 "
 ERROR="error"
 DI_ENABLED="enabled"
+DI_ENABLED_DS_NONE="enabled-ds-none"
 DI_DISABLED="disabled"
 
 DI_DEBUG_LEVEL="${DEBUG_LEVEL:-1}"
@@ -2115,7 +2120,7 @@ parse_policy() {
             "${DI_ENABLED}" | "${DI_DISABLED}" | search | report) mode=$tok ;;
             found=all | found=first) found=$val ;;
             maybe=all | maybe=none) maybe=$val ;;
-            notfound="${DI_ENABLED}" | notfound="${DI_DISABLED}") notfound=$val ;;
+            notfound="${DI_ENABLED}" | notfound="${DI_DISABLED}" | notfound="${DI_ENABLED_DS_NONE}") notfound=$val ;;
             found=*)
                 parse_warn found "$val" "${_def_found}"
                 found=${_def_found}
@@ -2333,6 +2338,11 @@ _main() {
             msg="$basemsg Would enable cloud-init [$ret_en]"
             ret=$ret_en
             ;;
+        report:"${DI_ENABLED_DS_NONE}")
+            msg="$basemsg Would write fallback datasource list and enable cloud-init [$ret_en]."
+            found None --
+            ret=$ret_en
+            ;;
         search:"${DI_DISABLED}")
             msg="$basemsg Disabled cloud-init [$ret_dis]"
             ret=$ret_dis
@@ -2340,6 +2350,15 @@ _main() {
         search:"${DI_ENABLED}")
             msg="$basemsg Enabled cloud-init [$ret_en]"
             ret=$ret_en
+            ;;
+        search:"${DI_ENABLED_DS_NONE}")
+            if found None --; then
+                msg="$basemsg Writing fallback datasource list and enabling cloud-init [$ret_en]."
+                ret=$ret_en
+            else
+                msg="$basemsg Failed to write fallback datasource list. Disabling cloud-init [$ret_dis]."
+                ret=$ret_dis
+            fi
             ;;
         *) error "Unexpected result" ;;
     esac
