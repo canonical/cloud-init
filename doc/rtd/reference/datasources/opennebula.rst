@@ -69,10 +69,12 @@ the OpenNebula documentation.
     ETH<x>_DNS
     ETH<x>_SEARCH_DOMAIN
     ETH<x>_MTU
+    ETH<x>_METHOD
     ETH<x>_IP6
     ETH<x>_IP6_ULA
     ETH<x>_IP6_PREFIX_LENGTH
     ETH<x>_IP6_GATEWAY
+    ETH<x>_IP6_METHOD
     ETH<x>_ROUTES
 
 Static `network configuration`_. ``DNS`` and ``SEARCH_DOMAIN`` are global
@@ -81,6 +83,19 @@ values applied to every interface. Per-interface ``ETH<x>_DNS`` and
 duplicate entries across both levels are suppressed.
 
 .. _context-linux: https://github.com/OpenNebula/one-apps/blob/v7.0.0/context-linux/src/etc/one-context.d/loc-10-network.d/functions#L463-L466
+
+``ETH<x>_METHOD`` controls the IPv4 configuration method for interface
+``ETH<x>``. Accepted values are ``static`` (default), ``dhcp``, and
+``skip``. When set to ``dhcp``, ``dhcp4: true`` is emitted and no static
+address is configured. When set to ``skip``, the interface is omitted
+from the Netplan output entirely.
+
+``ETH<x>_IP6_METHOD`` controls the IPv6 configuration method. Accepted
+values are ``static`` (default when ``ETH<x>_IP6`` or ``ETH<x>_IP6_GATEWAY``
+is present), ``dhcp`` / ``dhcp6``, ``auto`` / ``slaac``, ``disable``, and
+``skip``. ``dhcp``/``dhcp6`` emits ``dhcp6: true``; ``auto``/``slaac``
+emits ``accept-ra: true``; ``disable`` and ``skip`` both suppress all IPv6
+configuration while keeping the interface present for IPv4.
 
 ``ETH<x>_ROUTES`` is a comma-separated list of static routes in the form
 ``NETWORK via GATEWAY``. For example::
