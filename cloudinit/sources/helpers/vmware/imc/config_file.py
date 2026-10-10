@@ -58,7 +58,10 @@ class ConfigFile(ConfigSource, dict):
         logger.info("Parsing the config file %s.", filename)
 
         config = configparser.ConfigParser()
-        config.optionxform = str
+        # Assigning the builtin str as the optionxform transform is the
+        # documented configparser idiom for preserving key case; mypy
+        # cannot express assigning a class to a method, hence the ignore.
+        config.optionxform = str  # type: ignore [method-assign, assignment]
         config.read(filename)
 
         self.clear()
