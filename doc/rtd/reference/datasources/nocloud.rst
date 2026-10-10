@@ -22,29 +22,29 @@ discovery configuration can be delivered to cloud-init in different ways, but
 is different from the configurations that cloud-init uses to configure the
 instance at runtime.
 
-user-data
----------
+user-data (required)
+--------------------
 
 User-data is a :ref:`configuration format<user_data_formats>` that allows a
 user to configure an instance.
 
-meta-data
----------
+meta-data (required)
+--------------------
 
 The ``meta-data`` file is a YAML-formatted file which contains cloud-provided
 information to the instance. This is required to contain an ``instance-id``,
 with other cloud-specific keys available.
 
-vendor-data
------------
+vendor-data (optional)
+----------------------
 
 Vendor-data may be used to provide default cloud-specific configurations which
 may be overridden by user-data. This may be useful, for example, to configure
 an instance with a cloud provider's repository mirror for faster package
 installation.
 
-network-config
---------------
+network-config (optional)
+-------------------------
 
 Network configuration typically comes from the cloud provider to set
 cloud-specific network configurations, or a reasonable default is set by
@@ -205,25 +205,39 @@ Source files
 ------------
 
 The base path pointed to by the URI in the above sources provides content
-using the following final path components:
+using the following path components:
 
-* ``user-data``
-* ``meta-data``
-* ``vendor-data``
-* ``network-config``
+* **Required files:**
 
-For example, if the ``seedfrom`` value of ``seedfrom`` is
-``https://10.42.42.42/``, then the following files will be fetched from the
-webserver at first boot:
+  * ``meta-data``: Contains cloud-instance information.
+    It is recommended to define a unique ``instance-id``.
+  * ``user-data``: Contains user configuration instructions
+    (can be empty if no configuration is needed).
 
-.. code-block:: sh
+* **Optional files:**
+
+  * ``vendor-data``: Used for cloud provider defaults.
+  * ``network-config``: Network configuration if differing
+    from defaults.
+
+.. note::
+
+   Both ``user-data`` and ``meta-data`` must be present. If either of these
+   required files is missing, the NoCloud datasource will treat the seed as
+   invalid and skip it while logging a warning.
+
+For example, if the ``seedfrom`` value is ``https://10.42.42.42/``, then
+the following files will be fetched from the webserver at first boot:
+
+.. code-block:: text
 
     https://10.42.42.42/user-data
-    https://10.42.42.42/vendor-data
     https://10.42.42.42/meta-data
+    https://10.42.42.42/vendor-data
     https://10.42.42.42/network-config
 
-If the required files don't exist, this datasource will be skipped.
+If the required files (``user-data`` and ``meta-data``) do not exist,
+this datasource will be skipped.
 
 .. _line_config_detail:
 
