@@ -1562,8 +1562,10 @@ class TestOvfEnvXml:
         [
             (
                 "ABCDE",  # invalid length
-                "Invalid base64-encoded string: number of data characters "
-                "(5) cannot be 1 more than a multiple of 4",
+                (
+                    "Invalid base64-encoded string: number of data characters "
+                    "(5) cannot be 1 more than a multiple of 4"
+                ),
             ),
             (
                 "ab",  # incorrect padding
@@ -1571,8 +1573,10 @@ class TestOvfEnvXml:
             ),
             (
                 "not_base64",  # bad character stripped away
-                "Invalid base64-encoded string: number of data characters "
-                "(9) cannot be 1 more than a multiple of 4",
+                (
+                    "Invalid base64-encoded string: number of data characters "
+                    "(9) cannot be 1 more than a multiple of 4"
+                ),
             ),
         ],
     )
