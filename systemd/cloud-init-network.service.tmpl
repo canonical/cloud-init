@@ -2,7 +2,7 @@
 [Unit]
 # https://docs.cloud-init.io/en/latest/explanation/boot.html
 Description=Cloud-init: Network Stage
-{% if variant not in ["almalinux", "azurelinux", "cloudlinux", "photon", "rhel"] %}
+{% if variant not in ["almalinux", "azurelinux", "cloudlinux", "kylin", "photon", "rhel"] %}
 DefaultDependencies=no
 {% endif %}
 Wants=cloud-init-local.service
@@ -16,7 +16,7 @@ After=systemd-networkd-wait-online.service
 After=networking.service
 {% endif %}
 {% if variant in ["almalinux", "azurelinux", "centos", "cloudlinux", "eurolinux", "fedora",
-                  "miraclelinux", "openeuler", "OpenCloudOS", "openmandriva",
+                  "kylin", "miraclelinux", "openeuler", "OpenCloudOS", "openmandriva",
                   "rhel", "rocky", "suse", "TencentOS", "virtuozzo"] %}
 After=NetworkManager.service
 After=NetworkManager-wait-online.service

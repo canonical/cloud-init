@@ -35,6 +35,7 @@ KNOWN_DISTROS = [
     "suse",
     "TencentOS",
     "virtuozzo",
+    "kylin",
 ]
 
 
