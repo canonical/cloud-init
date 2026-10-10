@@ -3,6 +3,7 @@
 
 import json
 import socket
+from typing import Optional
 from unittest import mock
 from urllib.parse import SplitResult, urlsplit
 
@@ -174,9 +175,10 @@ def get_source_address_adapter(*args, **kwargs):
     return requests.adapters.HTTPAdapter(*args, **kwargs)
 
 
-def _fix_mocking_url(url: str) -> str:
+def _fix_mocking_url(url: Optional[str]) -> str:
     # Workaround https://github.com/getsentry/responses/pull/166
     # This function can be removed when Bionic is EOL
+    assert url is not None
     split_result = urlsplit(url)
     return SplitResult(
         scheme=split_result.scheme,
@@ -191,7 +193,9 @@ class TestDataSourceScaleway:
     @pytest.fixture(autouse=True)
     def fixtures(self, mocker, paths, tmp_path):
         distro = ubuntu.Distro("", {}, {})
-        distro.get_tmp_exec_path = str(tmp_path)
+        mocker.patch.object(
+            distro, "get_tmp_exec_path", return_value=str(tmp_path)
+        )
         self.datasource = DataSourceScaleway.DataSourceScaleway(
             settings.CFG_BUILTIN, distro, paths
         )
@@ -223,6 +227,7 @@ class TestDataSourceScaleway:
 
         self.datasource._set_metadata_url([self.base_urls[0]])
 
+        assert self.datasource.metadata_url is not None
         assert self.base_urls[0] in self.datasource.metadata_url
 
     @responses.activate
@@ -230,6 +235,7 @@ class TestDataSourceScaleway:
 
         self.datasource._set_metadata_url([self.base_urls[1]])
 
+        assert self.datasource.metadata_url is not None
         assert self.base_urls[1] in self.datasource.metadata_url
 
     @responses.activate

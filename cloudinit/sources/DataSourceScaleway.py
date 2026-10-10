@@ -10,6 +10,7 @@ import logging
 import os
 import socket
 import time
+from typing import Any, Dict, Optional, Tuple, Union
 from urllib.parse import urlparse
 
 import requests
@@ -40,20 +41,27 @@ class SourceAddressAdapter(requests.adapters.HTTPAdapter):
     Adapter for requests to choose the local address to bind to.
     """
 
-    def __init__(self, source_address, **kwargs):
+    def __init__(self, source_address: Tuple[str, int], **kwargs: Any) -> None:
         self.source_address = source_address
         super(SourceAddressAdapter, self).__init__(**kwargs)
 
-    def init_poolmanager(self, connections, maxsize, block=False):
+    def init_poolmanager(
+        self,
+        connections: int,
+        maxsize: int,
+        block: bool = False,
+        **pool_kwargs: Any,
+    ) -> None:
         socket_options = HTTPConnection.default_socket_options + [
             (socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         ]
+        pool_kwargs["source_address"] = self.source_address
+        pool_kwargs["socket_options"] = socket_options
         self.poolmanager = PoolManager(
             num_pools=connections,
             maxsize=maxsize,
             block=block,
-            source_address=self.source_address,
-            socket_options=socket_options,
+            **pool_kwargs,
         )
 
 
@@ -171,7 +179,9 @@ class DataSourceScaleway(sources.DataSource):
         self.retries = int(self.ds_cfg.get("retries", DEF_MD_RETRIES))
         self.timeout = int(self.ds_cfg.get("timeout", DEF_MD_TIMEOUT))
         self.max_wait = int(self.ds_cfg.get("max_wait", DEF_MD_MAX_WAIT))
-        self._network_config = sources.UNSET
+        self._network_config: Optional[Union[Dict[str, Any], str]] = (
+            sources.UNSET
+        )
         self.metadata_urls = DS_BASE_URLS
         self.metadata_url = None
         self.userdata_url = None
@@ -322,8 +332,8 @@ class DataSourceScaleway(sources.DataSource):
         if self._network_config != sources.UNSET:
             return self._network_config
 
-        netcfg = {}
-        ip_cfg = {}
+        netcfg: Dict[str, Any] = {}
+        ip_cfg: Dict[str, Any] = {}
         for ip in self.metadata["public_ips"]:
             # Use DHCP for primary address
             if ip["address"] == self.ephemeral_fixed_address:
