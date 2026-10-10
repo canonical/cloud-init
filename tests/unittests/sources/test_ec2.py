@@ -948,6 +948,82 @@ class TestEc2:
         )
         m_find_candidate_nics.assert_not_called()
 
+    @pytest.mark.parametrize(
+        "product_name,should_wait",
+        [
+            ("m8g.medium", True),
+            ("c7g.2xlarge", True),
+            ("r8g.large", True),
+            ("t4g.medium", True),
+            ("c6g.xlarge", True),
+            ("t3.micro", False),
+        ],
+    )
+    @mock.patch("cloudinit.sources.DataSourceEc2.net.wait_for_candidate_nics")
+    @mock.patch("cloudinit.sources.DataSourceEc2.net.find_candidate_nics")
+    @mock.patch("cloudinit.sources.DataSourceEc2.dmi.read_dmi_data")
+    @mock.patch("cloudinit.sources.DataSourceEc2.util.is_FreeBSD")
+    def test_ec2_local_waits_for_graviton_product(
+        self,
+        m_is_freebsd,
+        m_read_dmi,
+        m_find_candidate_nics,
+        m_wait_for_candidate_nics,
+        product_name,
+        should_wait,
+        mocker,
+        tmpdir,
+    ):
+        self.datasource = ec2.DataSourceEc2Local
+        ds = self._setup_ds(
+            platform_data=self.valid_platform_data,
+            sys_cfg={"datasource": {"Ec2": {"strict_id": False}}},
+            md=None,
+            mocker=mocker,
+            tmpdir=tmpdir,
+        )
+        m_is_freebsd.return_value = False
+        m_read_dmi.return_value = product_name
+        m_find_candidate_nics.return_value = []
+        m_wait_for_candidate_nics.return_value = []
+
+        assert ds.get_data() is False
+        if should_wait:
+            m_wait_for_candidate_nics.assert_called_once_with(
+                timeout=60, sleep_interval=1
+            )
+            m_find_candidate_nics.assert_not_called()
+        else:
+            m_wait_for_candidate_nics.assert_not_called()
+            m_find_candidate_nics.assert_called_once_with()
+
+    @pytest.mark.parametrize(
+        "product_name,expected",
+        [
+            ("hpc7a.96xlarge", True),
+            ("m8g.medium", True),
+            ("r8g.large", True),
+            ("c8g.xlarge", True),
+            ("c7g.2xlarge", True),
+            ("m7g.metal", True),
+            ("r7g.4xlarge", True),
+            ("c6g.large", True),
+            ("m6g.xlarge", True),
+            ("r6g.2xlarge", True),
+            ("t4g.medium", True),
+            ("t4g.nano", True),
+            ("m7i.48xlarge", False),
+            ("t3.micro", False),
+            ("c5.large", False),
+            (None, False),
+            ("", False),
+        ],
+    )
+    def test_is_nic_polling_product(self, product_name, expected):
+        from cloudinit.sources.DataSourceEc2 import _is_nic_polling_product
+
+        assert _is_nic_polling_product(product_name) is expected
+
     @mock.patch("cloudinit.sources.DataSourceEc2.net.wait_for_candidate_nics")
     @mock.patch("cloudinit.sources.DataSourceEc2.net.find_candidate_nics")
     @mock.patch("cloudinit.sources.DataSourceEc2.dmi.read_dmi_data")
