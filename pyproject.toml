@@ -24,7 +24,6 @@ exclude = []
 [[tool.mypy.overrides]]
 module = [
     "apport.*",
-    "configobj",
     "debconf",
     "jsonpatch",
     "tests.integration_tests.user_settings",
