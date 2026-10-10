@@ -31,7 +31,7 @@ MD_SLEEP_TIME = 2
 # Do not re-configure the network on non-Hetzner network interface
 # changes. Currently, Hetzner private network addresses start with 0x86.
 EXTRA_HOTPLUG_UDEV_RULES = """
-SUBSYSTEM=="net", ATTR{address}=="86:*", GOTO="cloudinit_hook"
+SUBSYSTEM=="net", ATTR{address}=="86:00:00:*", GOTO="cloudinit_hook"
 GOTO="cloudinit_end"
 """
 
