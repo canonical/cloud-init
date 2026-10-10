@@ -120,6 +120,24 @@ class TestReadSysNet:
         """read_sys_net_safe returns False on file not found failures."""
         assert not net.read_sys_net_safe("dev", "attr")
 
+    def test_read_sys_net_handles_directory_with_on_enoent(self):
+        """read_sys_net handles a directory at path with on_enoent."""
+        os.makedirs(os.path.join(self.sysdir, "dev", "attr"))
+        handled_errors = []
+        net.read_sys_net("dev", "attr", on_enoent=handled_errors.append)
+        assert [errno.EISDIR] == [e.errno for e in handled_errors]
+
+    def test_device_devid_is_none_when_device_is_a_directory(self, tmp_path):
+        """device_devid is None when device/device is not a file.
+
+        mac802154_hwsim WPAN interfaces link device/device to a directory.
+        """
+        os.makedirs(os.path.join(self.sysdir, "wpan1", "device"))
+        os.symlink(
+            tmp_path, os.path.join(self.sysdir, "wpan1", "device", "device")
+        )
+        assert net.device_devid("wpan1") is None
+
     def test_read_sys_net_int_returns_none_on_error(self):
         """read_sys_net_safe returns None on failures."""
         assert not net.read_sys_net_int("dev", "attr")
@@ -721,6 +739,24 @@ class TestGetInterfaceMAC:
         write_file(os.path.join(self.sysdir, "eth2", "address"), mac2)
         expected = [("eth2", mac2, None, None)]
         assert expected == net.get_interfaces()
+
+    def test_get_interfaces_with_device_linked_to_a_directory(self, tmp_path):
+        """A device/device linking to a directory does not break listing.
+
+        mac802154_hwsim WPAN interfaces link device/device to a directory.
+        """
+        mac = "aa:bb:cc:aa:bb:cc"
+        write_file(os.path.join(self.sysdir, "eth1", "addr_assign_type"), "0")
+        write_file(os.path.join(self.sysdir, "eth1", "address"), mac)
+        wpan_mac = "12:34:56:78:9a:bc:de:f0"
+        write_file(os.path.join(self.sysdir, "wpan1", "addr_assign_type"), "0")
+        write_file(os.path.join(self.sysdir, "wpan1", "address"), wpan_mac)
+        os.makedirs(os.path.join(self.sysdir, "wpan1", "device"))
+        os.symlink(
+            tmp_path, os.path.join(self.sysdir, "wpan1", "device", "device")
+        )
+        expected = [("eth1", mac, None, None), ("wpan1", wpan_mac, None, None)]
+        assert expected == sorted(net.get_interfaces())
 
     @mock.patch("cloudinit.net.is_netfailover")
     def test_get_interfaces_by_mac_skips_netfailvoer(self, m_netfail):
