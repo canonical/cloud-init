@@ -128,6 +128,15 @@ class TestUpgrade:
             "timeout",
             "wait_retry",
         },
+        "IVT": {
+            "_network_config",
+            "dsmode",
+            "metadata_address",
+            "metadata_full",
+            "retries",
+            "timeout",
+            "wait_retry",
+        },
         "OpenNebula": {"network", "seed", "seed_dir"},
         "OpenStack": {
             "ec2_metadata",
