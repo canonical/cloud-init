@@ -40,8 +40,6 @@ module = [
     "cloudinit.distros.azurelinux",
     "cloudinit.distros.bsd",
     "cloudinit.distros.opensuse",
-    "cloudinit.distros.parsers.hostname",
-    "cloudinit.distros.parsers.resolv_conf",
     "cloudinit.helpers",
     "cloudinit.net.freebsd",
     "cloudinit.net.netbsd",
