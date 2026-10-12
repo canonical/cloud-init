@@ -3,6 +3,7 @@
 # TODO: Importing this file without first importing
 # cloudinit.sources.azure.errors will result in a circular import.
 import base64
+import binascii
 import json
 import logging
 import os
@@ -302,8 +303,7 @@ def build_minimal_ovf(
 
     ns_hostname = f"<ns1:HostName>{hostname}</ns1:HostName>"
 
-    return textwrap.dedent(
-        f"""\
+    return textwrap.dedent(f"""\
         <ns0:Environment xmlns:ns0="http://schemas.dmtf.org/ovf/environment/1"
          xmlns:ns1="http://schemas.microsoft.com/windowsazure"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
@@ -324,8 +324,7 @@ def build_minimal_ovf(
             </ns1:PlatformSettings>
           </ns1:PlatformSettingsSection>
         </ns0:Environment>
-        """
-    ).encode("utf-8")
+        """).encode("utf-8")
 
 
 class AzureEndpointHttpClient:
@@ -546,8 +545,7 @@ class OpenSSLManager:
 
 
 class GoalStateHealthReporter:
-    HEALTH_REPORT_XML_TEMPLATE = textwrap.dedent(
-        """\
+    HEALTH_REPORT_XML_TEMPLATE = textwrap.dedent("""\
         <?xml version="1.0" encoding="utf-8"?>
         <Health xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xmlns:xsd="http://www.w3.org/2001/XMLSchema">
@@ -565,17 +563,14 @@ class GoalStateHealthReporter:
             </RoleInstanceList>
           </Container>
         </Health>
-        """
-    )
+        """)
 
-    HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE = textwrap.dedent(
-        """\
+    HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE = textwrap.dedent("""\
         <Details>
           <SubStatus>{health_substatus}</SubStatus>
           <Description>{health_description}</Description>
         </Details>
-        """
-    )
+        """)
 
     PROVISIONING_SUCCESS_STATUS = "Ready"
     PROVISIONING_NOT_READY_STATUS = "NotReady"
@@ -1083,7 +1078,14 @@ class OvfEnvXml:
             value = default
 
         if decode_base64 and value is not None:
-            value = base64.b64decode("".join(value.split()))
+            try:
+                value = base64.b64decode(value)
+            except binascii.Error as error:
+                raise errors.ReportableErrorOvfInvalidBase64(
+                    field=name,
+                    error=error,
+                    length=len(value),
+                ) from error
 
         if parse_bool:
             value = util.translate_bool(value)
@@ -1112,6 +1114,13 @@ class OvfEnvXml:
         self.password = self._parse_property(
             config_set, "UserPassword", required=False
         )
+        if (
+            self.password is not None
+            and len(self.password) > errors.MAX_PASSWORD_LENGTH
+        ):
+            raise errors.ReportableErrorOsProfilePasswordTooLong(
+                length=len(self.password)
+            )
         self.hostname = self._parse_property(
             config_set, "HostName", required=True
         )

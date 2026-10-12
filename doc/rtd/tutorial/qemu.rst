@@ -60,7 +60,7 @@ server image using :command:`wcurl`:
 
 .. code-block:: bash
 
-    $ wcurl https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
+    $ wcurl https://cloud-images.ubuntu.com/resolute/current/resolute-server-cloudimg-amd64.img
 
 .. note::
    This example uses emulated CPU instructions on non-x86 hosts, so it may be
@@ -189,7 +189,7 @@ take a few moments to complete.
         -machine accel=kvm:tcg                                      \
         -m 512                                                      \
         -nographic                                                  \
-        -hda noble-server-cloudimg-amd64.img                        \
+        -hda resolute-server-cloudimg-amd64.img                     \
         -smbios type=1,serial=ds='nocloud;s=http://10.0.2.2:8000/'
 
 .. note::
@@ -201,7 +201,7 @@ line. Many things may be configured: memory size, graphical output, networking
 information, hard drives and more.
 
 Let us examine the final two lines of our previous command. The first of them,
-:command:`-hda noble-server-cloudimg-amd64.img`, tells QEMU to use the cloud
+:command:`-hda resolute-server-cloudimg-amd64.img`, tells QEMU to use the cloud
 image as a virtual hard drive. This will cause the virtual machine to
 boot Ubuntu, which already has cloud-init installed.
 

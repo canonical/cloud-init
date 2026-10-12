@@ -566,7 +566,7 @@ class Renderer(renderer.Renderer):
                         # <interface> <value> -> <interface>: int(<value>)
                         newvalue = {}
                         for val in value:
-                            (port, portval) = val.split()
+                            port, portval = val.split()
                             newvalue[port] = int(portval)
                         br_config.update({newname: newvalue})
 

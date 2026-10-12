@@ -749,8 +749,10 @@ class TestFetchReprovisionData:
             (
                 LOG_PATH,
                 logging.WARNING,
-                f"Polling IMDS failed attempt {i} with exception: "
-                f"{wrapped_error!r}",
+                (
+                    f"Polling IMDS failed attempt {i} with exception: "
+                    f"{wrapped_error!r}"
+                ),
             )
             for i in range(1, failures + 1)
             if i == 1 or math.log2(i).is_integer()
@@ -817,8 +819,10 @@ class TestFetchReprovisionData:
             (
                 LOG_PATH,
                 logging.WARNING,
-                f"Polling IMDS failed attempt {i} with exception: "
-                f"{wrapped_error!r}",
+                (
+                    f"Polling IMDS failed attempt {i} with exception: "
+                    f"{wrapped_error!r}"
+                ),
             )
             for i in range(1, failures + 1)
             if i == 1 or math.log2(i).is_integer()
@@ -827,8 +831,10 @@ class TestFetchReprovisionData:
             (
                 LOG_PATH,
                 logging.WARNING,
-                f"Polling IMDS failed attempt {failures+1} with exception: "
-                f"{exc_info.value!r}",
+                (
+                    f"Polling IMDS failed attempt {failures+1} with"
+                    f" exception: {exc_info.value!r}"
+                ),
             ),
         ]
 
@@ -863,8 +869,10 @@ class TestFetchReprovisionData:
             (
                 LOG_PATH,
                 logging.WARNING,
-                "Polling IMDS failed attempt 1 with exception: "
-                f"{exc_info.value!r}",
+                (
+                    "Polling IMDS failed attempt 1 with exception: "
+                    f"{exc_info.value!r}"
+                ),
             ),
         ]
 

@@ -92,6 +92,7 @@ TODO:
    it seems it is not the same as data's uuid in the os_code case
    but is in the template case.
 """
+
 import base64
 import json
 import logging

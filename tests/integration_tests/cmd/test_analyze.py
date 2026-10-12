@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Tests for `cloud-init analyze`"""
+
 import pytest
 
 from cloudinit.distros import uses_systemd

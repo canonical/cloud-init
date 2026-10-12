@@ -240,8 +240,10 @@ class TestSeedRandomSchema:
         [
             (
                 {"random_seed": {"encoding": "bad"}},
-                "'bad' is not one of "
-                r"\['raw', 'base64', 'b64', 'gzip', 'gz'\]",
+                (
+                    "'bad' is not one of "
+                    r"\['raw', 'base64', 'b64', 'gzip', 'gz'\]"
+                ),
             ),
             (
                 {"random_seed": {"command": "foo"}},

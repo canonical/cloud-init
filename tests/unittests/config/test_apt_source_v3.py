@@ -5,6 +5,7 @@
 Testing various config variations of the apt_source custom config
 This tries to call all in the new v3 format and cares about new features
 """
+
 import logging
 import os
 import pathlib
@@ -1618,9 +1619,11 @@ class TestIsDeb822SourcesFormat:
                 "#Something neither deb/deb-src nor deb822\n",
                 False,
                 [
-                    "apt.sources_list value does not match either deb822"
-                    " source keys or deb/deb-src list keys. Assuming APT"
-                    " deb/deb-src list format."
+                    (
+                        "apt.sources_list value does not match either deb822"
+                        " source keys or deb/deb-src list keys. Assuming APT"
+                        " deb/deb-src list format."
+                    )
                 ],
                 id="neither_deb822_keys_nor_deb_deb_src_warn_and_not_deb822",
             ),

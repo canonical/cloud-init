@@ -60,7 +60,7 @@ class DataSourceUpCloud(sources.DataSource):
         )
 
     def _get_data(self):
-        (is_upcloud, server_uuid) = self._get_sysinfo()
+        is_upcloud, server_uuid = self._get_sysinfo()
 
         # only proceed if we know we are on UpCloud
         if not is_upcloud:

@@ -503,16 +503,24 @@ class TestReadMetadata:
                     "network-config": "net-config",
                 },
                 [
-                    "Skipping http://lxd/1.0/config/user.vendor-data on"
-                    " [HTTP:404]",
-                    "Skipping http://lxd/1.0/config/user.meta-data on"
-                    " [HTTP:404]",
-                    "Skipping http://lxd/1.0/config/user.user-data on"
-                    " [HTTP:404]",
+                    (
+                        "Skipping http://lxd/1.0/config/user.vendor-data on"
+                        " [HTTP:404]"
+                    ),
+                    (
+                        "Skipping http://lxd/1.0/config/user.meta-data on"
+                        " [HTTP:404]"
+                    ),
+                    (
+                        "Skipping http://lxd/1.0/config/user.user-data on"
+                        " [HTTP:404]"
+                    ),
                     "[GET] [HTTP:200] http://lxd/1.0/config",
                     "[GET] [HTTP:200] http://lxd/1.0/config/user.custom1",
-                    "[GET] [HTTP:200]"
-                    " http://lxd/1.0/config/user.network-config",
+                    (
+                        "[GET] [HTTP:200]"
+                        " http://lxd/1.0/config/user.network-config"
+                    ),
                 ],
             ),
             (  # Assert all CONFIG_KEY_ALIASES promoted to top-level keys
@@ -551,8 +559,10 @@ class TestReadMetadata:
                     "[GET] [HTTP:200] http://lxd/1.0/config",
                     "[GET] [HTTP:200] http://lxd/1.0/config/user.custom1",
                     "[GET] [HTTP:200] http://lxd/1.0/config/user.meta-data",
-                    "[GET] [HTTP:200]"
-                    " http://lxd/1.0/config/user.network-config",
+                    (
+                        "[GET] [HTTP:200]"
+                        " http://lxd/1.0/config/user.network-config"
+                    ),
                     "[GET] [HTTP:200] http://lxd/1.0/config/user.user-data",
                     "[GET] [HTTP:200] http://lxd/1.0/config/user.vendor-data",
                 ],
@@ -613,22 +623,36 @@ class TestReadMetadata:
                     "[GET] [HTTP:200] http://lxd/1.0/meta-data",
                     "[GET] [HTTP:200] http://lxd/1.0/config",
                     "[GET] [HTTP:200] http://lxd/1.0/config/user.meta-data",
-                    "[GET] [HTTP:200]"
-                    " http://lxd/1.0/config/user.network-config",
+                    (
+                        "[GET] [HTTP:200]"
+                        " http://lxd/1.0/config/user.network-config"
+                    ),
                     "[GET] [HTTP:200] http://lxd/1.0/config/user.user-data",
                     "[GET] [HTTP:200] http://lxd/1.0/config/user.vendor-data",
-                    "[GET] [HTTP:200]"
-                    " http://lxd/1.0/config/cloud-init.network-config",
-                    "[GET] [HTTP:200]"
-                    " http://lxd/1.0/config/cloud-init.user-data",
-                    "[GET] [HTTP:200]"
-                    " http://lxd/1.0/config/cloud-init.vendor-data",
-                    "Ignoring LXD config user.user-data in favor of"
-                    " cloud-init.user-data value.",
-                    "Ignoring LXD config user.network-config in favor of"
-                    " cloud-init.network-config value.",
-                    "Ignoring LXD config user.vendor-data in favor of"
-                    " cloud-init.vendor-data value.",
+                    (
+                        "[GET] [HTTP:200]"
+                        " http://lxd/1.0/config/cloud-init.network-config"
+                    ),
+                    (
+                        "[GET] [HTTP:200]"
+                        " http://lxd/1.0/config/cloud-init.user-data"
+                    ),
+                    (
+                        "[GET] [HTTP:200]"
+                        " http://lxd/1.0/config/cloud-init.vendor-data"
+                    ),
+                    (
+                        "Ignoring LXD config user.user-data in favor of"
+                        " cloud-init.user-data value."
+                    ),
+                    (
+                        "Ignoring LXD config user.network-config in favor of"
+                        " cloud-init.network-config value."
+                    ),
+                    (
+                        "Ignoring LXD config user.vendor-data in favor of"
+                        " cloud-init.vendor-data value."
+                    ),
                 ],
             ),
         ),

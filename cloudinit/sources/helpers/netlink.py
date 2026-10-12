@@ -68,7 +68,7 @@ def create_bound_netlink_socket():
             socket.AF_NETLINK, socket.SOCK_RAW, socket.NETLINK_ROUTE
         )
         netlink_socket.bind((os.getpid(), RTMGRP_LINK))
-        netlink_socket.setblocking(0)
+        netlink_socket.setblocking(False)
     except socket.error as e:
         msg = "Exception during netlink socket create: %s" % e
         raise NetlinkCreateSocketError(msg) from e

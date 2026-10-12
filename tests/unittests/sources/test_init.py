@@ -928,8 +928,10 @@ class TestDataSource:
         assert (
             mock.ANY,
             logging.DEBUG,
-            "Update datasource metadata and network config due to"
-            " events: boot-new-instance",
+            (
+                "Update datasource metadata and network config due to"
+                " events: boot-new-instance"
+            ),
         ) in caplog.record_tuples
 
 

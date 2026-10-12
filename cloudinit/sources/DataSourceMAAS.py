@@ -438,9 +438,9 @@ if __name__ == "__main__":
             sys.stderr.write("Checking seed at %s\n" % args.url)
             readurl = oauth_helper.readurl
             if args.url[0] == "/" or args.url.startswith("file://"):
-                (userdata, metadata, vd) = read_maas_seed_dir(args.url)
+                userdata, metadata, vd = read_maas_seed_dir(args.url)
             else:
-                (userdata, metadata, vd) = read_maas_seed_url(
+                userdata, metadata, vd = read_maas_seed_url(
                     args.url,
                     version=args.apiver,
                     read_file_or_url=readurl,

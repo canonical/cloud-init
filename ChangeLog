@@ -1,3 +1,132 @@
+26.2
+ - refactor(azure): Extract SSH key cert handling to new certs module
+   (#6802) [Peyton Robertson]
+ - fix(alpine): Use Alpine CDN as default APK mirror (#6947) [Natanael Copa]
+ - fix(oracle): detect iSCSI root via iBFT for dracut images (#6921)
+   [Gisaldjo Purbollari] (GH: 6915)
+ - Harden Jinja template rendering with sandboxing (#6888)
+   [Tyler Coatsworth]
+ - fix(mounts): escape special characters in fstab mount paths (#6911)
+   [Eugene Kalinin] (GH: 3603)
+ - net: add route-metric support in NetworkManager renderer (#6886)
+   [Harshavardhan Lankipalli]
+ - test: fix expected empty stderr on cloud-init analyze boot (#6925)
+ - feat: Fix import error (#6926) [Chloé E.M. Smith] (GH: 6924)
+ - fix(analyze): warn before GNU date fallback (#6879)
+   [nanookclaw] (GH: 4357)
+ - fix(debian): update debian backports suite for bullseye (#6885)
+   [Challvy Tee]
+ - test(opennebula): validate gen_conf() output against network-config-v2
+   schema (#6855) [Mickaël Canévet]
+ - ci: add scheduled integration runners for stonking and drop questing
+ - ci: update PR workflows from questing to latest released ubuntu series
+   resolute
+ - ci: bump labeler ver add pull-request write permission for labeling
+   (#6919)
+ - fix(tests): make user_groups integration tests distro-aware (#6889)
+   [Medha Mummigatti]
+ - chore: bump pylint version, dropping deprecated argparse.FileType
+   lints (#6917)
+ - fix(analyze): return integer exit code from analyze_boot (#6863)
+   [nanookclaw]
+ - chore: add type annotations to cloudinit.distros.parsers.hosts (#6916)
+   [ph1n3y]
+ - test: apt resolute gpg remove accounts for gpg-from-sq (#6902)
+ - feat(azure): add apply_network_config_set_name option to disable
+   renames (#6807) [Chris Patterson]
+ - test: pytest fix strict_parametrization_ids providing required id (#6908)
+ - docs: fix chpasswd user entries in cloud-config example (#6905)
+   [Wai Hlyan Min Thein] (GH: 6765)
+ - fix(distros): clarify misleading ssh_redirect_user warning (#6906)
+   [Sandhya-d] (GH: 3924)
+ - chore(ci): address review comments, single operation PRIVATE_KEY creation
+ - ci: standardize input/dispatch defaults, errors for missing secrets
+ - ci: rename PYCLOUDLIB_TOML_B64 to indicate base64-encoded
+ - ci: update image_type defaults, validate required secrets set perms
+ - ci: switch to pytest-json-ctrf and refactor job env/defaults
+ - ci: add lxd_vm and EC2 integration test workflows
+ - ci: require PYCLOUDLIB_TOML and SSH key secrets, write config to
+   runner temp
+ - chore(ci): rename and renumber workflow files to 1xx scheme
+ - feat(opennebula): support global SEARCH_DOMAIN for all interfaces
+   (#6813) [Mickaël Canévet]
+ - feat(azure): report failure if missing customdata (#6779) [Cade Jacobson]
+ - docs: make password lock explicit in users-groups example 3 (#6869)
+   [Clinton Phillips]
+ - docs: clarify default user entry in users examples (#6894)
+   [alan747271363-art] (GH: 6702)
+ - fix(cmd): enable mypy strict checking for cloudinit.cmd (#6861)
+   [Borja Velasco Santamaría]
+ - ai: copilot review comment resolution
+ - tests: simplify get_syslog_or_console to get_journal_syslog for
+   systemd-v255
+ - test: prefer reading journalctl transport=syslog over /var/log/syslog
+ - docs: fix invalid badge URLs (#6900) [Richard Coker] (GH: 6899)
+ - fix(azurelinux): support Azure Linux 4.0 (#6874) [Dan Streetman]
+ - tests: expect intermittent warning accessing Azure IMDS. Avoid
+   client.destroy
+ - fix(cloudstack): get vr information from network manager leases (#6829)
+   [Ani Sinha]
+ - fix(cloudstack): get domain name information from network manager
+   leases (#6829) [Ani Sinha]
+ - test: fix test_get_domainname_isc_dhclient mock leak (#6829) [Ani Sinha]
+ - feat(dhcp): Add network manager lease parsing capability (#6829)
+   [Ani Sinha]
+ - test: logger specifically configure localhost:514 destination (#6897)
+ - fix(ug_util): prioritize user-data.users over the default user config
+   (#6860) [Mostafa Abdelwahab] (GH: 6703)
+ - ci: fix alpine edge python3.14 tox missing dep py3-python-discovery
+   (#6864)
+ - fix(docs): correct users and groups examples 3, 4 and 7 (#6858)
+   [Bastien Traverse] (GH: 6857)
+ - feat(opennebula): support ETHx_ROUTES static routes in network config
+   (#6810) [Mickaël Canévet]
+ - fix(opennebula): coerce MTU to int in gen_conf() (#6856)
+   [Mickaël Canévet]
+ - Enable Amazon Linux to yum_add_repo and ca_certs. (#6767) [joe-usa]
+ - fix: add single retry of ssh-import-id on exit 1 (#6805)
+ - fix:(disk_setup):handle empty disk in check_partition_gpt_layout_sfdisk
+   (#6728) [Amy Chen] (GH: 6682)
+ - chore(opennebula): enable mypy type checking (#6827) [Mickaël Canévet]
+ - fix(net): do not resolve IPs when netloc contains a port (#6841)
+   [Orukaria Ndukiye]
+ - test: Add new `fake_fs` fixture backed by pyfakefs (#6785)
+ - feat(bsd): add OpenBSD support to Meson build (#6789)
+   [Hyacinthe Cartiaux]
+ - ci: move ssh-import-id tests to github instead of launchpad keys (#6830)
+ - fix: increase raspberry pi usb timeout (#6823) [Nick Brown]
+ - fix(debian): Fix locale generation (#6472) [Paul] (GH: 6471)
+ - fix(ubuntu): Configure arm64 to use archive.ubuntu.com (#6826)
+   [Dave Jones] (LP: 6825, #2147101)
+ - test: fix integration test_combined for rhel (#6791) [Amy Chen]
+ - test: fix test_schema when the schema validation takes longer (#6822)
+   [Ani Sinha]
+ - tools: fix brpm script to use correct builddir in temp directory (#6809)
+ - chore: drop unnecessary pylint ignore settings, use pytest --strict-markers
+   (#6817)
+ - ci: disable daily jobs on forks (#6821)
+ - fix(openbsd): specify the correct usr_lib_exec path (#6793)
+   [Hyacinthe Cartiaux]
+ - test: fix missing mocker of rmtree for redhat unittests (#6808)
+ - chore: drop outdated code (#6798)
+ - ci: fix integration test CLOUD_INIT_LOCAL_LOG_PATH. drop hashFiles
+   (#6804)
+ - chore: auto-format shell (#6780)
+ - chore(net): log when klibc is parsed (#6799)
+ - ci: add cloud-init integration test logs upon failure (#6803)
+ - fix(bsd): correct the _ROOT_TMPDIR path for *BSD system (#6794)
+   [Hyacinthe Cartiaux] (GH: 5789)
+ - fix(azure): catch import error as reportable (#6714)
+   [Cade Jacobson] (GH: 6770)
+ - WSL: Subprocess cmd.exe with /U to output UTF-16LE (#6717)
+   [Carlos Nihelton] (GH: 6716)
+ - feat(util): fail early when hostname is not resolvable in is_resolvable
+   (#6772) [Alejandro Perez]
+ - feat(azure): introduce experimental skip_ready_report for Azure (#6771)
+   [Chris Patterson]
+ - test: apt tests need to wait_for_cloud_init on potentially slow VMs
+ - test: use rmadison form devscripts to determine hello pkg version
+
 26.1
  - test: update hello package tested using rmadison (#6774)
  - test: add details about failing package status to aid in debug (#6775)

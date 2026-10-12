@@ -390,9 +390,11 @@ class TestNetplanValidateNetworkSchema:
                     column=12,
                     message="incorrect YAML value: yes for dhcp value",
                 ),
-                r"network-config failed schema validation!.*format-l1.c12: "
-                "Invalid netplan schema. incorrect YAML value: yes for dhcp "
-                "value",
+                (
+                    r"network-config failed schema validation!.*format-l1.c12:"
+                    " Invalid netplan schema. incorrect YAML value: yes for"
+                    " dhcp value"
+                ),
             ),
         ),
     )
@@ -526,9 +528,12 @@ class TestValidateCloudConfigSchema:
             (
                 {"required": ["a", "b"]},
                 True,
-                "Cloud config schema errors: : ({'a': 5, 'b': 6} should not"
-                r" be valid under {'required': \['a', 'b'\]}|{'required': "
-                r"\['a', 'b'\]} is not allowed for {'a': 5, 'b': 6})",
+                (
+                    "Cloud config schema errors: : ({'a': 5, 'b': 6} should"
+                    r" not be valid under {'required': \['a', 'b'\]}|"
+                    r"{'required': \['a', 'b'\]} is not allowed for"
+                    " {'a': 5, 'b': 6})"
+                ),
             ),
             (
                 {"required": ["a", "c"]},
@@ -538,8 +543,10 @@ class TestValidateCloudConfigSchema:
             (
                 {"required": ["d", "c"]},
                 False,
-                "Cloud config schema errors: : 'c' is a required property, :"
-                " 'd' is a required property",
+                (
+                    "Cloud config schema errors: : 'c' is a required property,"
+                    " : 'd' is a required property"
+                ),
             ),
         ],
     )
@@ -554,7 +561,7 @@ class TestValidateCloudConfigSchema:
         """
         cfg_to_test = {"a": 5, "b": 6}
         not_schema = {"not": schema}
-        (schema_to_succeed, schema_to_fail) = (
+        schema_to_succeed, schema_to_fail = (
             (schema, not_schema)
             if should_succeed_validating
             else (not_schema, schema)
@@ -626,8 +633,10 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"a-b": "asdf"},
-                "Deprecated cloud-config provided: a-b: <desc> "
-                "Deprecated in version 22.1.",
+                (
+                    "Deprecated cloud-config provided: a-b: <desc> "
+                    "Deprecated in version 22.1."
+                ),
             ),
             (
                 {
@@ -647,8 +656,10 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "+5"},
-                "Deprecated cloud-config provided: x: <desc> "
-                "Deprecated in version 22.1.",
+                (
+                    "Deprecated cloud-config provided: x: <desc> "
+                    "Deprecated in version 22.1."
+                ),
             ),
             (
                 {
@@ -668,8 +679,10 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "5"},
-                "Deprecated cloud-config provided: x: <desc> "
-                "Deprecated in version 22.1. <dep desc>",
+                (
+                    "Deprecated cloud-config provided: x: <desc> "
+                    "Deprecated in version 22.1. <dep desc>"
+                ),
             ),
             (
                 {
@@ -689,8 +702,10 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "5"},
-                "Deprecated cloud-config provided: x: <desc> "
-                "Deprecated in version 22.1.",
+                (
+                    "Deprecated cloud-config provided: x: <desc> "
+                    "Deprecated in version 22.1."
+                ),
             ),
             (
                 {
@@ -705,8 +720,10 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "+5"},
-                "Deprecated cloud-config provided: x: <desc> "
-                "Deprecated in version 22.1.",
+                (
+                    "Deprecated cloud-config provided: x: <desc> "
+                    "Deprecated in version 22.1."
+                ),
             ),
             (
                 {
@@ -742,8 +759,10 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "+5"},
-                "Deprecated cloud-config provided: x: <desc> "
-                "Deprecated in version 32.3.",
+                (
+                    "Deprecated cloud-config provided: x: <desc> "
+                    "Deprecated in version 32.3."
+                ),
             ),
             (
                 {
@@ -767,8 +786,10 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"x": "+5"},
-                "Deprecated cloud-config provided: x:  Deprecated in "
-                "version 27.2.",
+                (
+                    "Deprecated cloud-config provided: x:  Deprecated in "
+                    "version 27.2."
+                ),
             ),
             (
                 {
@@ -783,8 +804,10 @@ class TestValidateCloudConfigSchema:
                     },
                 },
                 {"a-b": "asdf"},
-                "Deprecated cloud-config provided: a-b: <desc> "
-                "Deprecated in version 27.2.",
+                (
+                    "Deprecated cloud-config provided: a-b: <desc> "
+                    "Deprecated in version 27.2."
+                ),
             ),
             pytest.param(
                 {
@@ -1034,16 +1057,13 @@ class TestAnnotatedCloudconfigFile:
 
     def test_annotated_cloudconfig_file_schema_annotates_and_adds_footer(self):
         """With schema_errors, error lines are annotated and a footer added."""
-        content = dedent(
-            """\
+        content = dedent("""\
             #cloud-config
             # comment
             ntp:
               pools: [-99, 75]
-            """
-        )
-        expected = dedent(
-            """\
+            """)
+        expected = dedent("""\
             #cloud-config
             # comment
             ntp:		# E1
@@ -1054,8 +1074,7 @@ class TestAnnotatedCloudconfigFile:
             # E2: -99 is not a string
             # E3: 75 is not a string
 
-            """
-        )
+            """)
         _, schemamarks = load_with_marks(content[13:])
         schema_errors = [
             SchemaProblem("ntp", "Some type error"),
@@ -1070,24 +1089,20 @@ class TestAnnotatedCloudconfigFile:
 
     def test_annotated_cloudconfig_file_annotates_separate_line_items(self):
         """Errors are annotated for lists with items on separate lines."""
-        content = dedent(
-            """\
+        content = dedent("""\
             #cloud-config
             # comment
             ntp:
               pools:
                 - -99
                 - 75
-            """
-        )
-        expected = dedent(
-            """\
+            """)
+        expected = dedent("""\
             ntp:
               pools:
                 - -99		# E1
                 - 75		# E2
-            """
-        )
+            """)
         _, schemamarks = load_with_marks(content[13:])
         schema_errors = [
             SchemaProblem("ntp.pools.0", "-99 is not a string"),
@@ -1101,15 +1116,13 @@ class TestAnnotatedCloudconfigFile:
 
     @skipUnlessJsonSchema()
     def test_annotated_invalid_top_level_key(self, tmp_path: Path, capsys):
-        expected_err = dedent(
-            """\
+        expected_err = dedent("""\
             #cloud-config
             invalid_key: value		# E1
 
             # Errors: -------------
             # E1: Additional properties are not allowed ('invalid_key' was unexpected)
-            """  # noqa: E501
-        )
+            """)  # noqa: E501
         config_file = tmp_path / "my.yaml"
         config_file.write_text("#cloud-config\ninvalid_key: value\n")
         with pytest.raises(
@@ -1389,8 +1402,7 @@ class TestMain:
                 " Nothing to validate."
             )
 
-        expected = dedent(
-            f"""\
+        expected = dedent(f"""\
         Found cloud-config data types: {data_types}
 
         1. user-data at {expected_paths["ud_key"]}:
@@ -1404,8 +1416,7 @@ class TestMain:
 
         4. network-config at {expected_paths['net_key']}:
           Valid schema network-config
-        """
-        )
+        """)
         myargs = ["mycmd", "--system"]
         with mock.patch("sys.argv", myargs):
             main()
@@ -1492,8 +1503,7 @@ class TestMain:
 
         net_output = net_output.format(network_file=network_file)
         data_types = "user-data, vendor-data, vendor2-data, network-config"
-        expected = dedent(
-            f"""\
+        expected = dedent(f"""\
         Found cloud-config data types: {data_types}
 
         1. user-data at {cloud_config_file}:
@@ -1507,8 +1517,7 @@ class TestMain:
 
         4. network-config at {network_file}:
         {net_output}
-        """
-        )
+        """)
         assert expected == out
 
     @mock.patch(M_PATH + "os.getuid", return_value=1000)
@@ -1911,7 +1920,7 @@ class TestStrictMetaschema:
     @skipUnlessJsonSchema()
     def test_modules(self):
         """Validate all modules with a stricter metaschema"""
-        (validator, _) = get_jsonschema_validator()
+        validator, _ = get_jsonschema_validator()
         for name, value in get_schemas().items():
             if value:
                 validate_cloudconfig_metaschema(validator, value)
@@ -1925,7 +1934,7 @@ class TestStrictMetaschema:
         item should be 'items' and is therefore interpreted as an additional
         property which is invalid with a strict metaschema
         """
-        (validator, _) = get_jsonschema_validator()
+        validator, _ = get_jsonschema_validator()
         schema = {
             "type": "array",
             "item": {
@@ -1988,14 +1997,10 @@ class TestHandleSchemaArgs:
         read_cfg_paths.side_effect = [failure, paths]
         user_data_fn = tmpdir.join("user-data")
         with open(user_data_fn, "w") as f:
-            f.write(
-                dedent(
-                    """\
+            f.write(dedent("""\
                     #cloud-config
                     packages: [sl]
-                    """
-                )
-            )
+                    """))
         args = self.Args(
             config_file=str(user_data_fn),
             schema_type="cloud-config",
@@ -2015,8 +2020,7 @@ class TestHandleSchemaArgs:
             pytest.param(
                 True,
                 "devel",
-                dedent(
-                    """\
+                dedent("""\
                     #cloud-config
                     packages:
                     - htop
@@ -2030,15 +2034,13 @@ class TestHandleSchemaArgs:
                     # D3: Deprecated in version 22.2. Use **package_reboot_if_required** instead.
 
                     Valid schema {cfg_file}
-                    """  # noqa: E501
-                ),
+                    """),  # noqa: E501
                 id="test_annotated_deprecation_info_boundary_devel_shows",
             ),
             pytest.param(
                 True,
                 "22.1",
-                dedent(
-                    """\
+                dedent("""\
                     #cloud-config
                     packages:
                     - htop
@@ -2052,23 +2054,20 @@ class TestHandleSchemaArgs:
                     # D3: Deprecated in version 22.2. Use **package_reboot_if_required** instead.
 
                     Valid schema {cfg_file}
-                    """  # noqa: E501
-                ),
+                    """),  # noqa: E501
                 id="test_annotated_deprecation_info_boundary_below_unredacted",
             ),
             pytest.param(
                 False,
                 "18.2",
-                dedent(
-                    """\
+                dedent("""\
                     Cloud config schema deprecations: \
 apt_reboot_if_required: Deprecated in version 22.2. Use\
  **package_reboot_if_required** instead., apt_update: Deprecated in version\
  22.2. Use **package_update** instead., apt_upgrade: Deprecated in version\
  22.2. Use **package_upgrade** instead.\
                     Valid schema {cfg_file}
-                    """  # noqa: E501
-                ),
+                    """),  # noqa: E501
                 id="test_deprecation_info_boundary_does_unannotated_unredacted",
             ),
         ],
@@ -2090,18 +2089,14 @@ apt_reboot_if_required: Deprecated in version 22.2. Use\
         read_cfg_paths.return_value = paths
         user_data_fn = tmpdir.join("user-data")
         with open(user_data_fn, "w") as f:
-            f.write(
-                dedent(
-                    """\
+            f.write(dedent("""\
                     #cloud-config
                     packages:
                     - htop
                     apt_update: true
                     apt_upgrade: true
                     apt_reboot_if_required: true
-                    """
-                )
-            )
+                    """))
         mocker.patch.object(
             features, "DEPRECATION_INFO_BOUNDARY", deprecation_info_boundary
         )
@@ -2128,8 +2123,7 @@ apt_reboot_if_required: Deprecated in version 22.2. Use\
             pytest.param(
                 0,
                 True,
-                dedent(
-                    """\
+                dedent("""\
                     #cloud-config
                     hostname: 123		# E1
 
@@ -2137,8 +2131,7 @@ apt_reboot_if_required: Deprecated in version 22.2. Use\
                     # E1: 123 is not of type 'string'
 
 
-                    """  # noqa: E501
-                ),
+                    """),  # noqa: E501
                 """Error: Invalid schema: user-data\n\n""",
                 pytest.raises(SystemExit),
                 id="root_annotate_errors_with_exception",
@@ -2146,19 +2139,15 @@ apt_reboot_if_required: Deprecated in version 22.2. Use\
             pytest.param(
                 0,
                 False,
-                dedent(
-                    """\
+                dedent("""\
                     Invalid user-data {cfg_file}
-                    """  # noqa: E501
-                ),
-                dedent(
-                    """\
+                    """),  # noqa: E501
+                dedent("""\
                     Error: Cloud config schema errors: hostname: 123 is not of type 'string'
 
                     Error: Invalid schema: user-data
 
-                    """  # noqa: E501
-                ),
+                    """),  # noqa: E501
                 pytest.raises(SystemExit),
                 id="root_no_annotate_exception_with_unique_errors",
             ),
@@ -2191,15 +2180,11 @@ apt_reboot_if_required: Deprecated in version 22.2. Use\
         with open(id_path, "w") as f:
             f.write(json.dumps({"ds": {"asdf": 123}}))
         with open(user_data_fn, "w") as f:
-            f.write(
-                dedent(
-                    """\
+            f.write(dedent("""\
                     ## template: jinja
                     #cloud-config
                     hostname: {{ ds.asdf }}
-                    """
-                )
-            )
+                    """))
         args = self.Args(
             config_file=str(user_data_fn),
             schema_type="cloud-config",
@@ -2228,20 +2213,16 @@ apt_reboot_if_required: Deprecated in version 22.2. Use\
             pytest.param(
                 0,
                 False,
-                dedent(
-                    """\
+                dedent("""\
                     Invalid user-data {cfg_file}
-                    """  # noqa: E501
-                ),
-                dedent(
-                    """\
+                    """),  # noqa: E501
+                dedent("""\
                     Error: Cloud config schema errors: format-l1.c1: Unrecognized user-data header in {cfg_file}: "#bogus-config".
                     Expected first line to be one of: #!, ## template: jinja, #cloud-boothook, #cloud-config, #cloud-config-archive, #cloud-config-jsonp, #include, #include-once, #part-handler
 
                     Error: Invalid schema: user-data
 
-                    """  # noqa: E501
-                ),
+                    """),  # noqa: E501
                 pytest.raises(SystemExit),
                 id="root_no_annotate_exception_with_unique_errors",
             ),
@@ -2272,14 +2253,10 @@ apt_reboot_if_required: Deprecated in version 22.2. Use\
         else:
             id_path = paths.get_runpath("instance_data")
         with open(user_data_fn, "w") as f:
-            f.write(
-                dedent(
-                    """\
+            f.write(dedent("""\
                     #bogus-config
                     hostname: notgonnamakeit
-                    """
-                )
-            )
+                    """))
         args = self.Args(
             config_file=str(user_data_fn),
             schema_type=None,
