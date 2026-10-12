@@ -1010,6 +1010,28 @@ class TestValidateCloudConfigFile:
         )
 
     @pytest.mark.parametrize("annotate", (True, False))
+    def test_validateconfig_file_raises_jinja_render_error(
+        self, annotate, tmpdir, mocker, capsys
+    ):
+        invalid_jinja_template = (
+            '## template: jinja\n#cloud-config\nfoo: "{{ missing.value }}"'
+        )
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch(
+            "cloudinit.handlers.jinja_template.load_text_file",
+            return_value="{}",
+        )
+        config_file = tmpdir.join("my.yaml")
+        config_file.write(invalid_jinja_template)
+
+        with pytest.raises(SystemExit) as context_manager:
+            validate_cloudconfig_file(config_file.strpath, {}, annotate)
+
+        assert 1 == context_manager.value.code
+        _out, err = capsys.readouterr()
+        assert "Error:\nFailed to render templated user-data.\n" == err
+
+    @pytest.mark.parametrize("annotate", (True, False))
     def test_validateconfig_file_raises_jinja_syntax_error(
         self, annotate, tmpdir, mocker, capsys
     ):
