@@ -362,7 +362,7 @@ def get_vr_address(distro):
             LOG.debug("Found SERVER_ADDRESS '%s' via nmcli", latest_address)
             return latest_address
 
-    with suppress(FileNotFoundError):
+    with suppress(FileNotFoundError, dhcp.NoDHCPLeaseError):
         latest_lease = distro.dhcp_client.get_newest_lease(
             distro.fallback_interface
         )

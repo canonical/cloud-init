@@ -553,6 +553,31 @@ class TestGetVrAddress:
             "dhcp_server_identifier"
         )
 
+    def test_get_vr_addr_falls_back_to_default_gateway_on_no_dhcp_lease(
+        self,
+        m_nm_get_option_from_leases,
+        m_networkd_option_from_leases,
+        m_get_data_server,
+        mocker,
+    ):
+        m_get_data_server.return_value = None
+        m_networkd_option_from_leases.return_value = None
+        m_nm_get_option_from_leases.return_value = None
+        mocker.patch(
+            DHCP_MOD_PATH + ".IscDhclient.get_key_from_latest_lease",
+            return_value=None,
+        )
+        distro = MockDistro()
+        mocker.patch.object(
+            distro.dhcp_client,
+            "get_newest_lease",
+            side_effect=NoDHCPLeaseError,
+        )
+        mocker.patch(
+            MOD_PATH + ".get_default_gateway", return_value="10.1.37.1"
+        )
+        assert "10.1.37.1" == get_vr_address(distro)
+
 
 @pytest.mark.usefixtures("dhclient_exists")
 @mock.patch(MOD_PATH + ".dmi.read_dmi_data", return_value=CLOUD_STACK_DMI_NAME)
