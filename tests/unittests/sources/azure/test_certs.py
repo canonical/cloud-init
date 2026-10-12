@@ -397,7 +397,7 @@ class TestConvertX509ToOpenssh:
 class TestNormalizeSshPublicKey:
     """Test normalize_ssh_public_key() function."""
 
-    def test_openssh_key_returned_sanitized(self):
+    def test_openssh_key_returned_unchanged(self):
         """An OpenSSH-formatted key is returned unchanged."""
         assert certs.normalize_ssh_public_key(_VALID_RSA_KEY) == _VALID_RSA_KEY
 
@@ -440,6 +440,25 @@ class TestNormalizeSshPublicKey:
 
         assert "Failed to convert x509 certificate" in str(exc_info.value)
         assert isinstance(exc_info.value.__cause__, subp.ProcessExecutionError)
+
+    @pytest.mark.skipif(
+        shutil.which("openssl") is None or shutil.which("ssh-keygen") is None,
+        reason="openssl or ssh-keygen not available",
+    )
+    @pytest.mark.allow_subp_for("openssl", "ssh-keygen")
+    def test_x509_certificate_with_crlf_integration(
+        self, cert_data, data_file_path
+    ):
+        """Integration test: A CRLF-terminated certificate is converted."""
+        key_file = data_file_path("pubkey_extract_ssh_key")
+        if not key_file.exists():
+            pytest.skip("Test data files not found")
+
+        crlf_cert = cert_data.replace("\r\n", "\n").replace("\n", "\r\n")
+        assert "\r\n" in crlf_cert
+
+        result = certs.normalize_ssh_public_key(crlf_cert)
+        assert result == key_file.read_text().strip()
 
     @mock.patch("cloudinit.sources.azure.certs.is_x509_certificate")
     @mock.patch("cloudinit.sources.azure.certs.is_openssh_formatted")

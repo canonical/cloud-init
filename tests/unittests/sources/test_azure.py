@@ -2446,6 +2446,10 @@ scbus-1 on xpt0 bus 0
         # The OpenSSH key is returned verbatim (not routed through
         # conversion); only the x509 cert is converted.
         assert m_convert.called
+        assert all(
+            call.args[0].startswith("-----BEGIN CERTIFICATE-----")
+            for call in m_convert.call_args_list
+        )
         assert m_parse_certificates.call_count == 0
 
     @mock.patch(

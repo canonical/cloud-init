@@ -30,7 +30,10 @@ def sanitize_openssh_key(key: str) -> str:
     """
     key = key.strip()
     if "\r\n" in key:
-        LOG.debug("SSH key contains embedded CRLF sequences, sanitizing.")
+        LOG.debug(
+            "SSH key contains embedded CRLF sequence(s) which are being "
+            "removed."
+        )
         key = key.replace("\r\n", "")
     return key
 
@@ -159,15 +162,9 @@ def normalize_ssh_public_key(key: str) -> str:
     :returns: The public key in OpenSSH format.
     """
     key = key.strip()
-    if "\r\n" in key:
-        LOG.debug(
-            "SSH key contains embedded CRLF sequence(s) which are being "
-            "removed."
-        )
-        key = key.replace("\r\n", "")
-
-    if is_openssh_formatted(key):
-        return key
+    openssh_key = sanitize_openssh_key(key)
+    if is_openssh_formatted(openssh_key):
+        return openssh_key
 
     if is_x509_certificate(key):
         try:
