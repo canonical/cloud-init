@@ -1454,7 +1454,7 @@ NETWORK_CONFIGS = {
                 version: 2
                 ethernets:
                     iface0:
-                        dhcp6: true
+                        accept-ra: true
         """).rstrip(" "),
         "yaml": textwrap.dedent("""\
             version: 1
