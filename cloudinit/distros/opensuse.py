@@ -10,6 +10,7 @@
 
 import logging
 import os
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from cloudinit import distros, helpers, subp, util
 from cloudinit.distros import PackageList
@@ -44,18 +45,21 @@ class Distro(distros.Distro):
         }
     }
 
-    def __init__(self, name, cfg, paths):
+    def __init__(
+        self, name: str, cfg: Dict[str, Any], paths: "helpers.Paths"
+    ) -> None:
         distros.Distro.__init__(self, name, cfg, paths)
         self._runner = helpers.Runners(paths)
         self.osfamily = "suse"
-        self.update_method = None
+        # None until _set_update_method decides: "zypper" or "transactional".
+        self.update_method: Optional[str] = None
         self.read_only_root = False
         cfg["ssh_svcname"] = "sshd"
         if self.uses_systemd():
             self.init_cmd = ["systemctl"]
             cfg["ssh_svcname"] = "sshd.service"
 
-    def apply_locale(self, locale, out_fn=None):
+    def apply_locale(self, locale: str, out_fn: Optional[str] = None) -> None:
         if self.uses_systemd():
             if not out_fn:
                 out_fn = self.systemd_locale_conf_fn
@@ -66,17 +70,22 @@ class Distro(distros.Distro):
             locale_cfg = {"RC_LANG": locale}
         rhutil.update_sysconfig_file(out_fn, locale_cfg)
 
-    def install_packages(self, pkglist: PackageList):
+    def install_packages(self, pkglist: PackageList) -> None:
         self.package_command(
             "install", args="--auto-agree-with-licenses", pkgs=pkglist
         )
 
-    def package_command(self, command, args=None, pkgs=None):
+    def package_command(
+        self,
+        command: str,
+        args: Optional[Union[str, List[str]]] = None,
+        pkgs: Optional[PackageList] = None,
+    ) -> None:
         if pkgs is None:
             pkgs = []
 
         self._set_update_method()
-        if self.read_only_root and not self.update_method == "transactional":
+        if self.read_only_root and self.update_method != "transactional":
             LOG.error(
                 "Package operation requested but read only root "
                 "without btrfs and transactional-updata"
@@ -132,7 +141,7 @@ class Distro(distros.Distro):
                 "To use/activate the installed packages reboot the system"
             )
 
-    def set_timezone(self, tz):
+    def set_timezone(self, tz: str) -> None:
         tz_file = self._find_tz_file(tz)
         if self.uses_systemd():
             # Currently, timedatectl complains if invoked during startup
@@ -148,7 +157,7 @@ class Distro(distros.Distro):
             # This ensures that the correct tz will be used for the system
             util.copy(tz_file, self.tz_local_fn)
 
-    def update_package_sources(self, *, force=False):
+    def update_package_sources(self, *, force: bool = False) -> None:
         self._runner.run(
             "update-sources",
             self.package_command,
@@ -156,7 +165,9 @@ class Distro(distros.Distro):
             freq=PER_ALWAYS if force else PER_INSTANCE,
         )
 
-    def _read_hostname(self, filename, default=None):
+    def _read_hostname(
+        self, filename: str, default: Optional[str] = None
+    ) -> Optional[str]:
         if self.uses_systemd() and filename.endswith("/previous-hostname"):
             return util.load_text_file(filename).strip()
         elif self.uses_systemd():
@@ -170,27 +181,27 @@ class Distro(distros.Distro):
                 conf = self._read_hostname_conf(filename)
                 hostname = conf.hostname
             except IOError:
-                pass
+                hostname = None
             if not hostname:
                 return default
             return hostname
 
-    def _get_localhost_ip(self):
+    def _get_localhost_ip(self) -> str:
         return "127.0.1.1"
 
-    def _read_hostname_conf(self, filename):
+    def _read_hostname_conf(self, filename: str) -> HostnameConf:
         conf = HostnameConf(util.load_text_file(filename))
         conf.parse()
         return conf
 
-    def _read_system_hostname(self):
+    def _read_system_hostname(self) -> Tuple[str, Optional[str]]:
         if self.uses_systemd():
             host_fn = self.systemd_hostname_conf_fn
         else:
             host_fn = self.hostname_conf_fn
         return (host_fn, self._read_hostname(host_fn))
 
-    def _set_update_method(self):
+    def _set_update_method(self) -> None:
         """Decide if we want to use transactional-update or zypper"""
         if self.update_method is None:
             result = util.get_mount_info("/")
@@ -218,7 +229,7 @@ class Distro(distros.Distro):
                 )
                 self.update_method = "zypper"
 
-    def _write_hostname(self, hostname, filename):
+    def _write_hostname(self, hostname: str, filename: str) -> None:
         create_hostname_file = util.get_cfg_option_bool(
             self._cfg, "create_hostname_file", True
         )
@@ -257,7 +268,7 @@ class Distro(distros.Distro):
             util.write_file(filename, str(conf), 0o644)
 
     @property
-    def preferred_ntp_clients(self):
+    def preferred_ntp_clients(self) -> List[str]:
         """The preferred ntp client is dependent on the version."""
 
         # Allow distro to determine the preferred ntp client list
