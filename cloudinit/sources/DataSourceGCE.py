@@ -194,12 +194,10 @@ class DataSourceGCE(sources.DataSource):
         for key in hostkeys:
             _write_host_key_to_guest_attributes(*key)
 
-    def get_hostname(
-        self,
-        fqdn: bool = False,
-        resolve_ip: bool = False,
-        metadata_only: bool = False,
-    ) -> DataSourceHostname:
+    # Signature matches the untyped DataSource.get_hostname exactly:
+    # test_init.py::test_get_hostname_subclass_support compares
+    # inspect.getfullargspec across the override, annotations included.
+    def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
         # GCE has long FDQN's and has asked for short hostnames.
         return DataSourceHostname(
             self.metadata["local-hostname"].split(".")[0], False
