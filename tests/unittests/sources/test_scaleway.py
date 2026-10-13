@@ -3,7 +3,6 @@
 
 import json
 import socket
-from typing import Optional
 from unittest import mock
 from urllib.parse import SplitResult, urlsplit
 
@@ -175,10 +174,9 @@ def get_source_address_adapter(*args, **kwargs):
     return requests.adapters.HTTPAdapter(*args, **kwargs)
 
 
-def _fix_mocking_url(url: Optional[str]) -> str:
+def _fix_mocking_url(url: str) -> str:
     # Workaround https://github.com/getsentry/responses/pull/166
     # This function can be removed when Bionic is EOL
-    assert url is not None
     split_result = urlsplit(url)
     return SplitResult(
         scheme=split_result.scheme,
@@ -442,6 +440,9 @@ class TestDataSourceScaleway:
         ds_detect.return_value = True
 
         self.datasource._set_metadata_url([self.base_urls[0]])
+        assert self.datasource.metadata_url is not None
+        assert self.datasource.userdata_url is not None
+        assert self.datasource.vendordata_url is not None
 
         # Make user and vendor data APIs return HTTP/404, which means there is
         # no user / vendor data for the server.
@@ -569,6 +570,9 @@ class TestDataSourceScaleway:
         ds_detect.return_value = True
 
         self.datasource._set_metadata_url([self.base_urls[0]])
+        assert self.datasource.metadata_url is not None
+        assert self.datasource.userdata_url is not None
+        assert self.datasource.vendordata_url is not None
 
         responses.add_callback(
             responses.GET,
