@@ -16,28 +16,6 @@ _CERTIFICATE_BLOCK_RE = re.compile(
 )
 
 
-def sanitize_openssh_key(key: str) -> str:
-    r"""Sanitize an OpenSSH key by removing embedded CRLF sequences.
-
-    Azure-generated SSH keys may contain CRLF (\r\n) sequences embedded
-    in the base64 key data. This strips those sequences so the key can
-    be properly parsed and written to authorized_keys.
-
-    Note: Azure no longer generates keys with embedded CRLF sequences,
-    but previously provisioned keys may still be in use.
-
-    See https://bugs.launchpad.net/cloud-init/+bug/1910835
-    """
-    key = key.strip()
-    if "\r\n" in key:
-        LOG.debug(
-            "SSH key contains embedded CRLF sequence(s) which are being "
-            "removed."
-        )
-        key = key.replace("\r\n", "")
-    return key
-
-
 def is_openssh_formatted(key: str) -> bool:
     """Validate whether or not the key is OpenSSH-formatted.
 
@@ -50,12 +28,7 @@ def is_openssh_formatted(key: str) -> bool:
         return False
 
     parser = ssh_util.AuthKeyLineParser()
-    try:
-        akl = parser.parse(key)
-    except TypeError:
-        LOG.debug("SSH key could not be parsed.")
-        return False
-
+    akl = parser.parse(key)
     if akl.keytype is None:
         LOG.debug("SSH key type is missing.")
         return False
@@ -152,21 +125,30 @@ def normalize_ssh_public_key(key: str) -> str:
     """Normalize an IMDS-provided public key into OpenSSH format.
 
     Keys provided by IMDS may already be in OpenSSH format or may be x509
-    certificates. x509 certificates are converted to OpenSSH format.
+    certificates:
+
+    - x509 certificates are converted to OpenSSH format. The certificate is
+      passed to the conversion unmodified, since PEM is multi-line and CRLF
+      line endings are valid.
+    - OpenSSH keys are a single line. Surrounding whitespace is stripped and
+      any embedded CRLF is removed with a warning. At one point, IMDS
+      returned Azure-generated keys with a CRLF every 64 characters, which
+      broke authorized_keys and SSH logins when written as-is:
+      https://bugs.launchpad.net/cloud-init/+bug/1910835
+      This is no longer expected, but the CRLF is still removed so that any
+      such key keeps working instead of breaking authorized_keys.
 
     :param key: The public key data as provided by IMDS.
 
-    :raises ValueError: if the key is not in a supported format or an x509
-        certificate cannot be converted to OpenSSH format.
+    :raises ValueError: if the key is not a string, is not a valid OpenSSH
+        key, or is an x509 certificate that cannot be converted.
 
     :returns: The public key in OpenSSH format.
     """
-    key = key.strip()
-    openssh_key = sanitize_openssh_key(key)
-    if is_openssh_formatted(openssh_key):
-        return openssh_key
+    if not isinstance(key, str):
+        raise ValueError(f"Key is not a string: {type(key).__name__}")
 
-    if is_x509_certificate(key):
+    if "-----BEGIN CERTIFICATE-----" in key:
         try:
             return convert_x509_to_openssh(key).strip()
         except subp.ProcessExecutionError as error:
@@ -174,4 +156,15 @@ def normalize_ssh_public_key(key: str) -> str:
                 "Failed to convert x509 certificate to OpenSSH format"
             ) from error
 
-    raise ValueError("Key is not in a supported format")
+    key = key.strip()
+    if "\r\n" in key:
+        LOG.warning(
+            "SSH key contains embedded CRLF sequence(s) which are being "
+            "removed."
+        )
+        key = key.replace("\r\n", "")
+
+    if not is_openssh_formatted(key):
+        raise ValueError("Key is not in a supported format")
+
+    return key

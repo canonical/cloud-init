@@ -1067,7 +1067,8 @@ class DataSourceAzure(sources.DataSource):
         certificates. x509 certificates are converted to OpenSSH format.
 
         :raises KeyError: if IMDS metadata is malformed/missing.
-        :raises ValueError: if key format is not supported.
+        :raises ValueError: if any key is not supported or cannot be
+            converted.
 
         :returns: List of keys.
         """
@@ -1089,7 +1090,7 @@ class DataSourceAzure(sources.DataSource):
                 log_msg = (
                     f"Failed to process IMDS public key index={i}: {error}"
                 )
-                report_diagnostic_event(log_msg, logger_func=LOG.warning)
+                report_diagnostic_event(log_msg, logger_func=LOG.error)
                 raise
 
         log_msg = "Retrieved {} keys from IMDS".format(len(ssh_keys))
