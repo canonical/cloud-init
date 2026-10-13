@@ -1201,31 +1201,40 @@
       "type": "object",
       "properties": {
         "apt_pipelining": {
-          "oneOf": [
+          "allOf": [
             {
-              "type": "integer"
-            },
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "string",
               "oneOf": [
                 {
-                  "enum": [
-                    "os"
-                  ]
+                  "type": "integer"
                 },
                 {
-                  "deprecated": true,
-                  "deprecated_version": "22.4",
-                  "deprecated_description": "Use **os** instead.",
-                  "enum": [
-                    "none",
-                    "unchanged"
+                  "type": "boolean"
+                },
+                {
+                  "type": "string",
+                  "oneOf": [
+                    {
+                      "enum": [
+                        "os"
+                      ]
+                    },
+                    {
+                      "deprecated": true,
+                      "deprecated_version": "22.4",
+                      "deprecated_description": "Use **os** instead.",
+                      "enum": [
+                        "none",
+                        "unchanged"
+                      ]
+                    }
                   ]
                 }
               ]
+            },
+            {
+              "deprecated": true,
+              "deprecated_version": "26.3",
+              "deprecated_description": "The apt_pipelining module is deprecated and scheduled to be removed in 31.3."
             }
           ]
         }
@@ -2067,40 +2076,49 @@
       "type": "object",
       "properties": {
         "mcollective": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "conf": {
+          "allOf": [
+            {
               "type": "object",
               "additionalProperties": false,
               "properties": {
-                "public-cert": {
-                  "type": "string",
-                  "description": "Optional value of server public certificate which will be written to ``/etc/mcollective/ssl/server-public.pem``."
-                },
-                "private-cert": {
-                  "type": "string",
-                  "description": "Optional value of server private certificate which will be written to ``/etc/mcollective/ssl/server-private.pem``."
-                }
-              },
-              "patternProperties": {
-                "^.+$": {
-                  "description": "Optional config key: value pairs which will be appended to ``/etc/mcollective/server.cfg``.",
-                  "oneOf": [
-                    {
-                      "type": "boolean"
+                "conf": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "public-cert": {
+                      "type": "string",
+                      "description": "Optional value of server public certificate which will be written to ``/etc/mcollective/ssl/server-public.pem``."
                     },
-                    {
-                      "type": "integer"
-                    },
-                    {
-                      "type": "string"
+                    "private-cert": {
+                      "type": "string",
+                      "description": "Optional value of server private certificate which will be written to ``/etc/mcollective/ssl/server-private.pem``."
                     }
-                  ]
+                  },
+                  "patternProperties": {
+                    "^.+$": {
+                      "description": "Optional config key: value pairs which will be appended to ``/etc/mcollective/server.cfg``.",
+                      "oneOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ]
+                    }
+                  }
                 }
               }
+            },
+            {
+              "deprecated": true,
+              "deprecated_version": "26.3",
+              "deprecated_description": "The mcollective module is deprecated and scheduled to be removed in 27.3."
             }
-          }
+          ]
         }
       }
     },
@@ -2568,6 +2586,24 @@
               }
             }
           }
+        }
+      }
+    },
+    "cc_reset_rmc": {
+      "type": "object",
+      "properties": {
+        "reset_rmc": {
+          "allOf": [
+            {
+              "type": "boolean",
+              "description": "Reset the RSCT node id."
+            },
+            {
+              "deprecated": true,
+              "deprecated_version": "26.3",
+              "deprecated_description": "The reset_rmc module is deprecated and scheduled to be removed in 31.3."
+            }
+          ]
         }
       }
     },
@@ -3047,43 +3083,52 @@
       "type": "object",
       "properties": {
         "random_seed": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "file": {
-              "type": "string",
-              "default": "/dev/urandom",
-              "description": "File to write random data to. Default: ``/dev/urandom``."
+          "allOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "file": {
+                  "type": "string",
+                  "default": "/dev/urandom",
+                  "description": "File to write random data to. Default: ``/dev/urandom``."
+                },
+                "data": {
+                  "type": "string",
+                  "description": "This data will be written to **file** before data from the datasource. When using a multi-line value or specifying binary data, be sure to follow YAML syntax and use the ``|`` and ``!binary`` YAML format specifiers when appropriate."
+                },
+                "encoding": {
+                  "type": "string",
+                  "default": "raw",
+                  "enum": [
+                    "raw",
+                    "base64",
+                    "b64",
+                    "gzip",
+                    "gz"
+                  ],
+                  "description": "Used to decode **data** provided. Allowed values are ``raw``, ``base64``, ``b64``, ``gzip``, or ``gz``.  Default: ``raw``."
+                },
+                "command": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Execute this command to seed random. The command will have RANDOM_SEED_FILE in its environment set to the value of **file** above."
+                },
+                "command_required": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "If true, and **command** is not available to be run then an exception is raised and cloud-init will record failure. Otherwise, only debug error is mentioned. Default: ``false``."
+                }
+              }
             },
-            "data": {
-              "type": "string",
-              "description": "This data will be written to **file** before data from the datasource. When using a multi-line value or specifying binary data, be sure to follow YAML syntax and use the ``|`` and ``!binary`` YAML format specifiers when appropriate."
-            },
-            "encoding": {
-              "type": "string",
-              "default": "raw",
-              "enum": [
-                "raw",
-                "base64",
-                "b64",
-                "gzip",
-                "gz"
-              ],
-              "description": "Used to decode **data** provided. Allowed values are ``raw``, ``base64``, ``b64``, ``gzip``, or ``gz``.  Default: ``raw``."
-            },
-            "command": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "description": "Execute this command to seed random. The command will have RANDOM_SEED_FILE in its environment set to the value of **file** above."
-            },
-            "command_required": {
-              "type": "boolean",
-              "default": false,
-              "description": "If true, and **command** is not available to be run then an exception is raised and cloud-init will record failure. Otherwise, only debug error is mentioned. Default: ``false``."
+            {
+              "deprecated": true,
+              "deprecated_version": "26.3",
+              "deprecated_description": "The seed_random module is deprecated and scheduled to be removed in 31.3."
             }
-          }
+          ]
         }
       }
     },
@@ -3286,22 +3331,31 @@
       "type": "object",
       "properties": {
         "spacewalk": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "server": {
-              "type": "string",
-              "description": "The Spacewalk server to use."
+          "allOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "server": {
+                  "type": "string",
+                  "description": "The Spacewalk server to use."
+                },
+                "proxy": {
+                  "type": "string",
+                  "description": "The proxy to use when connecting to Spacewalk."
+                },
+                "activation_key": {
+                  "type": "string",
+                  "description": "The activation key to use when registering with Spacewalk."
+                }
+              }
             },
-            "proxy": {
-              "type": "string",
-              "description": "The proxy to use when connecting to Spacewalk."
-            },
-            "activation_key": {
-              "type": "string",
-              "description": "The activation key to use when registering with Spacewalk."
+            {
+              "deprecated": true,
+              "deprecated_version": "26.3",
+              "deprecated_description": "The spacewalk module is deprecated and scheduled to be removed in 27.3."
             }
-          }
+          ]
         }
       }
     },
@@ -4119,6 +4173,9 @@
       "$ref": "#/$defs/cc_resolv_conf"
     },
     {
+      "$ref": "#/$defs/cc_reset_rmc"
+    },
+    {
       "$ref": "#/$defs/cc_rh_subscription"
     },
     {
@@ -4259,6 +4316,7 @@
     "puppet": {},
     "random_seed": {},
     "reporting": {},
+    "reset_rmc": {},
     "resize_rootfs": {},
     "resolv_conf": {},
     "rh_subscription": {},

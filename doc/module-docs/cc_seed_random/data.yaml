@@ -1,5 +1,9 @@
 cc_seed_random:
   description: |
+    .. warning::
+       Deprecated in 26.3. The seed_random module is deprecated and scheduled to
+       be removed in 31.3
+
     All cloud instances started from the same image will produce similar data
     when they are first booted as they are all starting with the same
     seed for the kernel's entropy keyring. To avoid this, random seed data can

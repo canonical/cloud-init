@@ -8,7 +8,7 @@
 
 import logging
 
-from cloudinit import util
+from cloudinit import lifecycle, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -35,6 +35,17 @@ meta: MetaSchema = {
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
+    if "apt_pipelining" not in cfg:
+        LOG.debug(
+            "Skipping module named %s, no 'apt_pipelining' key in"
+            " configuration",
+            name,
+        )
+        return
+    lifecycle.deprecate(
+        deprecated="Module cc_apt_pipelining",
+        deprecated_version="26.3",
+    )
     apt_pipe_value = cfg.get("apt_pipelining", "os")
     apt_pipe_value_s = str(apt_pipe_value).lower().strip()
 
