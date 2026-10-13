@@ -156,7 +156,7 @@ class Runners:
     def run(
         self,
         name: str,
-        functor: Callable,
+        functor: Callable[..., Any],
         args,
         freq: Optional[str] = None,
         clear_on_fail: bool = False,
