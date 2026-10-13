@@ -2,6 +2,7 @@
 # pylint: disable=attribute-defined-outside-init
 
 import random
+import re
 import tempfile
 from contextlib import ExitStack
 from unittest import mock
@@ -337,6 +338,19 @@ class TestMkfsCommandHandling:
         )
 
 
+def _fs_setup_partition(partition):
+    """Return a minimal fs_setup config using the given partition value."""
+    return {
+        "fs_setup": [
+            {
+                "device": "/dev/sdb",
+                "filesystem": "ext4",
+                "partition": partition,
+            }
+        ]
+    }
+
+
 @skipUnlessJsonSchema()
 class TestDebugSchema:
     """Directly test schema rather than through handle."""
@@ -344,27 +358,7 @@ class TestDebugSchema:
     @pytest.mark.parametrize(
         "config, error_msg",
         (
-            # Valid schemas tested by meta.examples in test_schema
-            # Invalid schemas
-            ({"disk_setup": 1}, "disk_setup: 1 is not of type 'object'"),
-            ({"fs_setup": 1}, "fs_setup: 1 is not of type 'array'"),
-            (
-                {"device_aliases": 1},
-                "device_aliases: 1 is not of type 'object'",
-            ),
-        ),
-    )
-    @skipUnlessJsonSchema()
-    def test_schema_validation(self, config, error_msg):
-        """Assert expected schema validation and error messages."""
-        # New-style schema $defs exist in config/cloud-init-schema*.json
-        schema = get_schema()
-        with pytest.raises(SchemaValidationError, match=error_msg):
-            validate_cloudconfig_schema(config, schema, strict=True)
-
-    @pytest.mark.parametrize(
-        "config",
-        (
+            # Valid schemas
             (
                 {
                     "disk_setup": {
@@ -375,45 +369,62 @@ class TestDebugSchema:
                             ],
                         }
                     }
-                }
+                },
+                None,
+            ),
+            (_fs_setup_partition(1), None),
+            (_fs_setup_partition(2), None),
+            (_fs_setup_partition("auto"), None),
+            (_fs_setup_partition("any"), None),
+            (_fs_setup_partition("none"), None),
+            # Invalid schemas
+            ({"disk_setup": 1}, "disk_setup: 1 is not of type 'object'"),
+            ({"fs_setup": 1}, "fs_setup: 1 is not of type 'array'"),
+            (
+                {"device_aliases": 1},
+                "device_aliases: 1 is not of type 'object'",
+            ),
+            (
+                _fs_setup_partition("bogus"),
+                re.escape(
+                    "Cloud config schema errors:"
+                    " fs_setup.0.partition: 'bogus' is not of type 'integer',"
+                    " fs_setup.0.partition: 'bogus' is not one of"
+                    " ['auto', 'any', 'none']"
+                ),
+            ),
+            (
+                _fs_setup_partition("1"),
+                re.escape(
+                    "Cloud config schema errors:"
+                    " fs_setup.0.partition: '1' is not of type 'integer',"
+                    " fs_setup.0.partition: '1' is not one of"
+                    " ['auto', 'any', 'none']"
+                ),
+            ),
+            (
+                _fs_setup_partition(1.5),
+                re.escape(
+                    "Cloud config schema errors:"
+                    " fs_setup.0.partition: 1.5 is not of type 'integer'"
+                ),
+            ),
+            (
+                _fs_setup_partition(True),
+                re.escape(
+                    "Cloud config schema errors:"
+                    " fs_setup.0.partition: True is not of type 'integer'"
+                ),
             ),
         ),
     )
     @skipUnlessJsonSchema()
-    def test_valid_schema(self, config):
-        """Assert expected schema validation and no error messages."""
+    def test_schema_validation(self, config, error_msg):
+        """Assert expected schema validation and error messages."""
+        # New-style schema $defs exist in config/cloud-init-schema*.json
         schema = get_schema()
-        validate_cloudconfig_schema(config, schema, strict=True)
-
-    @pytest.mark.parametrize("partition", (1, 2, "auto", "any", "none"))
-    @skipUnlessJsonSchema()
-    def test_fs_setup_partition_valid(self, partition):
-        """fs_setup.partition accepts a partition number or a keyword."""
-        config = {
-            "fs_setup": [
-                {
-                    "device": "/dev/sdb",
-                    "filesystem": "ext4",
-                    "partition": partition,
-                }
-            ]
-        }
-        validate_cloudconfig_schema(config, get_schema(), strict=True)
-
-    @pytest.mark.parametrize("partition", ("bogus", "1", 1.5, True))
-    @skipUnlessJsonSchema()
-    def test_fs_setup_partition_invalid(self, partition):
-        """fs_setup.partition still rejects other values."""
-        config = {
-            "fs_setup": [
-                {
-                    "device": "/dev/sdb",
-                    "filesystem": "ext4",
-                    "partition": partition,
-                }
-            ]
-        }
-        with pytest.raises(
-            SchemaValidationError, match="fs_setup.0.partition"
-        ):
-            validate_cloudconfig_schema(config, get_schema(), strict=True)
+        if error_msg is None:
+            validate_cloudconfig_schema(config, schema, strict=True)
+        else:
+            with pytest.raises(SchemaValidationError, match=error_msg):
+                validate_cloudconfig_schema(config, schema, strict=True)
