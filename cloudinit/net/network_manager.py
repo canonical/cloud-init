@@ -12,7 +12,7 @@ import itertools
 import logging
 import os
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, MutableMapping, Optional
 
 from cloudinit import subp, util
 from cloudinit.net import (
@@ -588,7 +588,9 @@ class Renderer(renderer.Renderer):
     See https://networkmanager.dev/docs/api/latest/nm-settings-keyfile.html
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(
+        self, config: Optional[MutableMapping[str, Any]] = None
+    ) -> None:
         self.connections: Dict[str, NMConnection] = {}
         self.config = config
 
