@@ -63,8 +63,8 @@ _X509_CERT = dedent("""\
     -----END CERTIFICATE-----
     """)
 
-# Azure-generated keys were once returned by IMDS with a CRLF after every 64
-# characters and at the end (LP: #1910835).
+# Some Azure-generated keys contained a CRLF after every 64 characters and
+# at the end (LP: #1910835).
 _AZURE_KEY = _VALID_RSA_KEY + " generated-by-azure"
 _AZURE_CRLF_KEY = (
     "\r\n".join(_AZURE_KEY[i : i + 64] for i in range(0, len(_AZURE_KEY), 64))
@@ -114,6 +114,16 @@ class TestIsOpensshFormatted:
     def test_invalid(self, value):
         """Non-OpenSSH strings should return False."""
         assert certs.is_openssh_formatted(value) is False
+
+    @mock.patch.object(certs.ssh_util.AuthKeyLineParser, "parse")
+    def test_parser_type_error(self, m_parse, caplog):
+        m_parse.side_effect = TypeError("Cannot parse key")
+        caplog.set_level(logging.DEBUG)
+
+        assert certs.is_openssh_formatted(_VALID_RSA_KEY) is False
+
+        m_parse.assert_called_once_with(_VALID_RSA_KEY)
+        assert "SSH key could not be parsed." in caplog.text
 
 
 class TestIsX509Certificate:
@@ -400,19 +410,6 @@ class TestNormalizeSshPublicKey:
     @pytest.mark.parametrize(
         "key",
         [
-            pytest.param(None, id="none"),
-            pytest.param(123, id="int"),
-            pytest.param(b"ssh-rsa AAAA", id="bytes"),
-        ],
-    )
-    def test_non_string_key_raises_value_error(self, key):
-        """Non-string key data raises a ValueError, not a TypeError."""
-        with pytest.raises(ValueError, match="Key is not a string"):
-            certs.normalize_ssh_public_key(key)
-
-    @pytest.mark.parametrize(
-        "key",
-        [
             pytest.param("", id="empty"),
             pytest.param("not-a-supported-key", id="unsupported"),
         ],
@@ -421,6 +418,15 @@ class TestNormalizeSshPublicKey:
         """A key that is neither OpenSSH nor x509 raises a ValueError."""
         with pytest.raises(ValueError, match="not in a supported format"):
             certs.normalize_ssh_public_key(key)
+
+    @mock.patch.object(certs.ssh_util.AuthKeyLineParser, "parse")
+    def test_parser_type_error_raises_value_error(self, m_parse):
+        m_parse.side_effect = TypeError("Cannot parse key")
+
+        with pytest.raises(ValueError, match="not in a supported format"):
+            certs.normalize_ssh_public_key(_VALID_RSA_KEY)
+
+        m_parse.assert_called_once_with(_VALID_RSA_KEY)
 
     @pytest.mark.parametrize(
         "cert",

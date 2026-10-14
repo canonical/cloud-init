@@ -28,7 +28,12 @@ def is_openssh_formatted(key: str) -> bool:
         return False
 
     parser = ssh_util.AuthKeyLineParser()
-    akl = parser.parse(key)
+    try:
+        akl = parser.parse(key)
+    except TypeError:
+        LOG.debug("SSH key could not be parsed.")
+        return False
+
     if akl.keytype is None:
         LOG.debug("SSH key type is missing.")
         return False
@@ -130,24 +135,22 @@ def normalize_ssh_public_key(key: str) -> str:
     - x509 certificates are converted to OpenSSH format. The certificate is
       passed to the conversion unmodified, since PEM is multi-line and CRLF
       line endings are valid.
-    - OpenSSH keys are a single line. Surrounding whitespace is stripped and
-      any embedded CRLF is removed with a warning. At one point, IMDS
-      returned Azure-generated keys with a CRLF every 64 characters, which
-      broke authorized_keys and SSH logins when written as-is:
+    - OpenSSH keys must be single-line, so surrounding whitespace is stripped
+      and embedded CRLF is removed with a warning. Some Azure-generated keys
+      included CRLF every 64 characters and needed this cleanup for use in
+      authorized_keys. The x509 fallback worked because conversion removed
+      the line breaks. See:
       https://bugs.launchpad.net/cloud-init/+bug/1910835
       This is no longer expected, but the CRLF is still removed so that any
       such key keeps working instead of breaking authorized_keys.
 
     :param key: The public key data as provided by IMDS.
 
-    :raises ValueError: if the key is not a string, is not a valid OpenSSH
-        key, or is an x509 certificate that cannot be converted.
+    :raises ValueError: if the key is not a valid OpenSSH key, or is an
+        x509 certificate that cannot be converted.
 
     :returns: The public key in OpenSSH format.
     """
-    if not isinstance(key, str):
-        raise ValueError(f"Key is not a string: {type(key).__name__}")
-
     if "-----BEGIN CERTIFICATE-----" in key:
         try:
             return convert_x509_to_openssh(key).strip()

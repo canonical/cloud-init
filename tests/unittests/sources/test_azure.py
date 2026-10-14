@@ -2570,25 +2570,6 @@ scbus-1 on xpt0 bus 0
             ),
         ) in caplog.record_tuples
 
-    def test_get_public_ssh_keys_with_non_string_imds_key_falls_back(
-        self, get_ds, mocker, caplog
-    ):
-        """Non-string IMDS key data is logged and falls back to Wireserver."""
-        ssh_keys, m_parse_certificates = self._boot_with_imds_public_keys(
-            get_ds, mocker, [{"keyData": None, "path": "path1"}]
-        )
-
-        assert ssh_keys == ["ssh-rsa wireserver-key", "ssh-rsa ovf-key"]
-        m_parse_certificates.assert_called_once()
-        assert (
-            MOCKPATH[:-1],
-            logging.ERROR,
-            (
-                "Failed to process IMDS public key index=0: Key is not a "
-                "string: NoneType"
-            ),
-        ) in caplog.record_tuples
-
     def test_get_public_ssh_keys_without_imds(self, get_ds):
         self.m_fetch.return_value = dict()
         sys_cfg = {"datasource": {"Azure": {"apply_network_config": True}}}
