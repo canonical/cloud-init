@@ -4,7 +4,7 @@
 
 import logging
 
-from cloudinit import distros, helpers, net, subp, util
+from cloudinit import distros, helpers, subp, util
 from cloudinit.distros import PackageList
 from cloudinit.distros import rhel_util as rhutil
 from cloudinit.settings import PER_ALWAYS, PER_INSTANCE
@@ -53,17 +53,15 @@ class Distro(distros.Distro):
 
     def generate_fallback_config(self):
         key = "disable_fallback_netcfg"
-        disable_fallback_netcfg = self._cfg.get(key, True)
-        LOG.debug("%s value is: %s", key, disable_fallback_netcfg)
-
-        if not disable_fallback_netcfg:
-            return net.generate_fallback_config()
-
-        LOG.info(
-            "Skipping generate_fallback_config. Rely on PhotonOS default "
-            "network config"
-        )
-        return None
+        # Photon defaults to True (rely on distro default network config).
+        # The base class default is False (generate fallback when not set).
+        if self._cfg.get(key, True):
+            LOG.info(
+                "Skipping generate_fallback_config. Rely on PhotonOS default "
+                "network config"
+            )
+            return None
+        return super().generate_fallback_config()
 
     def apply_locale(self, locale, out_fn=None):
         # This has a dependency on glibc-i18n, user need to manually install it
