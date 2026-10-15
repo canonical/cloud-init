@@ -9,9 +9,9 @@ Bug: https://bugs.launchpad.net/ubuntu/+source/cloud-init/+bug/2064300
 Last-Update: 2024-04-30 <YYYY-MM-DD, last update of the meta-information, optional>
 --- a/cloudinit/cmd/main.py
 +++ b/cloudinit/cmd/main.py
-@@ -163,6 +163,11 @@ def extract_fns(args):
-     # since it would of broke if it couldn't have
-     # read that file already...
+@@ -162,6 +162,11 @@ def close_stdin(logger: Callable[[str],
+ 
+ def extract_fns(args):
      fn_cfgs = []
 +    if args.main_files:
 +        # Append common --file argument to beginning of list when present.
@@ -19,9 +19,9 @@ Last-Update: 2024-04-30 <YYYY-MM-DD, last update of the meta-information, option
 +        for fh in args.main_files:
 +            fn_cfgs.append(os.path.realpath(fh.name))
      if args.files:
-         for fh in args.files:
+         for filepath in args.files:
              # The realpath is more useful in logging
-@@ -1089,6 +1094,17 @@ def main(sysv_args=None):
+@@ -1107,6 +1112,17 @@ def main(sysv_args=None):
          default=False,
      )
      parser.add_argument(
@@ -67,7 +67,7 @@ Last-Update: 2024-04-30 <YYYY-MM-DD, last update of the meta-information, option
              files=None,
              force=False,
              local=False,
-@@ -372,6 +375,7 @@ class TestMain:
+@@ -364,6 +367,7 @@ class TestMain:
          write_file(cloud_cfg_file, safeyaml.dumps(cfg))
          cmdargs = MyArgs(
              debug=False,

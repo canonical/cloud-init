@@ -53,9 +53,9 @@ Last-Update: 2025-08-25
 +[build-system]
 +requires = ["setuptools"]
 +build-backend = "setuptools.build_meta"
+ requires-python = ">=3.9"
  
  [tool.black]
- line-length = 79
 --- /dev/null
 +++ b/setup.py
 @@ -0,0 +1,342 @@
@@ -473,12 +473,12 @@ Last-Update: 2025-08-25
  responses
 -packaging
  passlib
+ pyfakefs
  
- # This one is currently used only by the CloudSigma and SmartOS datasources.
 --- a/tox.ini
 +++ b/tox.ini
-@@ -33,6 +33,7 @@ deps =
-     types-passlib
+@@ -35,6 +35,7 @@ deps =
+     types-pyserial
      types-PyYAML
      types-requests
 +    types-setuptools

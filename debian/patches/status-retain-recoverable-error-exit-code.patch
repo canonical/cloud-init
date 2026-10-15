@@ -17,7 +17,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  
 --- a/tests/unittests/cmd/test_status.py
 +++ b/tests/unittests/cmd/test_status.py
-@@ -730,7 +730,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
+@@ -722,7 +722,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
                  },
                  None,
                  MyArgs(long=False, wait=False, format="json"),

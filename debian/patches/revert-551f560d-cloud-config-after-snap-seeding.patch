@@ -67,7 +67,7 @@ Last-Update: 2024-02-14
  
  if TYPE_CHECKING:
      # Avoid circular import
-@@ -3021,18 +3021,6 @@ def wait_for_files(flist, maxwait, naple
+@@ -3064,18 +3064,6 @@ def wait_for_files(flist, maxwait, naple
      return need
  
  
@@ -179,7 +179,7 @@ Last-Update: 2024-02-14
          data = {
 --- a/tests/unittests/config/test_cc_snap.py
 +++ b/tests/unittests/config/test_cc_snap.py
-@@ -295,11 +295,8 @@ class TestSnapSchema:
+@@ -297,11 +297,8 @@ class TestSnapSchema:
  
  
  class TestHandle:
@@ -192,7 +192,7 @@ Last-Update: 2024-02-14
          """Any configured snap assertions are provided to add_assertions."""
          assert_file = os.path.join(
              fake_cloud.paths.get_ipath_cur(), "snapd.assertions"
-@@ -314,4 +311,3 @@ class TestHandle:
+@@ -316,4 +313,3 @@ class TestHandle:
          assert util.load_text_file(compare_file) == util.load_text_file(
              assert_file
          )
@@ -207,8 +207,8 @@ Last-Update: 2024-02-14
  from tests.unittests.helpers import skipUnlessJsonSchema
  from tests.unittests.util import get_cloud
  
-@@ -38,13 +37,12 @@ ubuntu-desktop-installer 22.06.01
- )
+@@ -32,13 +31,12 @@ ubuntu-desktop-installer 22.06.01
+ """
  
  
 -@mock.patch(MODPATH + "util.wait_for_snap_seeded")
@@ -222,25 +222,25 @@ Last-Update: 2024-02-14
          [
              pytest.param(
                  {"autoinstall": {"version": 1}},
-@@ -55,7 +53,6 @@ class TestHandleAutoinstall:
-                     " installer snap packages to be present: subiquity,"
-                     " ubuntu-desktop-installer"
+@@ -51,7 +49,6 @@ class TestHandleAutoinstall:
+                         " subiquity, ubuntu-desktop-installer"
+                     )
                  ],
 -                True,
                  id="valid_autoinstall_schema_checks_snaps",
              ),
              pytest.param(
-@@ -66,7 +63,6 @@ class TestHandleAutoinstall:
-                     "Valid autoinstall schema. Config will be processed by"
-                     " subiquity"
+@@ -64,7 +61,6 @@ class TestHandleAutoinstall:
+                         " subiquity"
+                     )
                  ],
 -                True,
                  id="valid_autoinstall_schema_sees_subiquity",
              ),
              pytest.param(
 @@ -77,33 +73,19 @@ class TestHandleAutoinstall:
-                     "Valid autoinstall schema. Config will be processed by"
-                     " ubuntu-desktop-installer"
+                         " ubuntu-desktop-installer"
+                     )
                  ],
 -                True,
                  id="valid_autoinstall_schema_sees_desktop_installer",
@@ -286,4 +286,4 @@ Last-Update: 2024-02-14
 +    return cloud.Cloud(myds, paths, sys_cfg, mydist, None)
  
  
- def abstract_to_concrete(abclass):
+ def abstract_to_concrete(abclass: Type):

@@ -1,0 +1,19 @@
+Description: Revert DNS resolution performance regression during local stage
+  Partial revert of 72809f8046f7abb5157e864a903cc5cc3c70ecbb. Retaining only
+  the original metadata service url http://instance-data.:8773 to avoid
+  change in behavior for potential IMDS DNS entries. Leave in early exit based on
+  IP address metadata_urls as this does not represent functional changes and simplifies
+  patch delta.
+Author: Nicholas Lindsey <nicholas.lindsey@canonical.com>
+Bug: https://github.com/canonical/cloud-init/issues/6641
+Last-Update: 2026-10-15
+--- a/cloudinit/sources/DataSourceEc2.py
++++ b/cloudinit/sources/DataSourceEc2.py
+@@ -86,6 +86,7 @@ class DataSourceEc2(sources.DataSource):
+     metadata_urls = [
+         "http://169.254.169.254",
+         "http://[fd00:ec2::254]",
++        "http://instance-data.:8773",
+     ]
+ 
+     # The minimum supported metadata_version from the ec2 metadata apis

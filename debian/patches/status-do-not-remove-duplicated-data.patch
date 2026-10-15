@@ -19,15 +19,15 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  
 --- a/tests/unittests/cmd/test_status.py
 +++ b/tests/unittests/cmd/test_status.py
-@@ -507,6 +507,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
-                 dedent(
-                     """\
+@@ -500,6 +500,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
+                 0,
+                 dedent("""\
                     ---
 +                   _schema_version: '1'
                     boot_status_code: enabled-by-kernel-command-line
                     datasource: ''
                     detail: 'Running in stage: init'
-@@ -520,6 +521,23 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
+@@ -513,6 +514,23 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
                         start: 123.45
                     last_update: Thu, 01 Jan 1970 00:02:04 +0000
                     recoverable_errors: {}
@@ -51,7 +51,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                     stage: init
                     status: running
                     ...
-@@ -552,6 +570,27 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
+@@ -544,6 +562,27 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
                      "init-local": {"finished": 123.46, "start": 123.45},
                      "last_update": "Thu, 01 Jan 1970 00:02:04 +0000",
                      "recoverable_errors": {},
@@ -79,7 +79,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                      "stage": "init",
                  },
                  id="running_json_format",
-@@ -583,6 +622,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
+@@ -575,6 +614,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
                  MyArgs(long=False, wait=False, format="json"),
                  1,
                  {
@@ -87,7 +87,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                      "boot_status_code": "enabled-by-kernel-command-line",
                      "datasource": "nocloud",
                      "detail": (
-@@ -604,6 +644,32 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
+@@ -596,6 +636,32 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
                      },
                      "last_update": "Thu, 01 Jan 1970 00:02:05 +0000",
                      "recoverable_errors": {},
@@ -120,7 +120,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                      "stage": None,
                  },
                  id="running_json_format_with_errors",
-@@ -666,6 +732,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
+@@ -658,6 +724,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
                  MyArgs(long=False, wait=False, format="json"),
                  2,
                  {
@@ -128,7 +128,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                      "boot_status_code": "enabled-by-kernel-command-line",
                      "datasource": "nocloud",
                      "detail": (
-@@ -725,6 +792,91 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
+@@ -717,6 +784,91 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr
                              "don't try to open the hatch or we'll all be soup"
                          ],
                      },
