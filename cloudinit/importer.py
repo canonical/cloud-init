@@ -8,7 +8,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import importlib
+import importlib.util
 from types import ModuleType
 from typing import Optional, Sequence
 
@@ -42,10 +42,7 @@ def match_case_insensitive_module_name(mod_name: str) -> str:
     if not mod_name.startswith("DataSource"):
         mod_name = f"DataSource{mod_name}"
     modules = {}
-    # mypy is right to warn here. This isn't a documented method.
-    # However it has worked for years without issue, so fixing it is not
-    # a high priority. We'll fix it when it breaks.
-    spec = importlib.util.find_spec("cloudinit.sources")  # type: ignore
+    spec = importlib.util.find_spec("cloudinit.sources")
     if spec and spec.submodule_search_locations:
         for dir in spec.submodule_search_locations:
             modules.update(util.get_modules_from_dir(dir))
@@ -70,10 +67,7 @@ def find_module(
         # Add base name to search paths. Filter out empty paths.
         full_path = ".".join(filter(None, [path, base_name]))
         lookup_paths.append(full_path)
-        # mypy is right to warn here. This isn't a documented method.
-        # However it has worked for years without issue, so fixing it is not
-        # a high priority. We'll fix it when it breaks.
-        if not importlib.util.find_spec(full_path):  # type: ignore
+        if not importlib.util.find_spec(full_path):
             continue
         # Check that required_attrs are all present within the module.
         if _count_attrs(full_path, required_attrs) == len(required_attrs):

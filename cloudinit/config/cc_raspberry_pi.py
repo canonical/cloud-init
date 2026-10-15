@@ -63,7 +63,7 @@ def configure_usb_gadget(enable: bool) -> bool:
                 "-f",
             ],
             capture=False,
-            timeout=15,
+            timeout=30,
         )
 
         return True

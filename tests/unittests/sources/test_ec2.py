@@ -743,8 +743,10 @@ class TestEc2:
             (
                 mock.ANY,
                 logging.WARNING,
-                "Ec2 IMDS endpoint returned a 403 error. HTTP endpoint is"
-                " disabled. Aborting.",
+                (
+                    "Ec2 IMDS endpoint returned a 403 error. HTTP endpoint is"
+                    " disabled. Aborting."
+                ),
             ),
             (
                 mock.ANY,
@@ -914,18 +916,87 @@ class TestEc2:
             "FreeBSD doesn't support running dhclient with -sf" in caplog.text
         )
 
+    @mock.patch("cloudinit.sources.DataSourceEc2.net.wait_for_candidate_nics")
+    @mock.patch("cloudinit.sources.DataSourceEc2.net.find_candidate_nics")
+    @mock.patch("cloudinit.sources.DataSourceEc2.dmi.read_dmi_data")
+    @mock.patch("cloudinit.sources.DataSourceEc2.util.is_FreeBSD")
+    def test_ec2_local_waits_for_allowlisted_product(
+        self,
+        m_is_freebsd,
+        m_read_dmi,
+        m_find_candidate_nics,
+        m_wait_for_candidate_nics,
+        mocker,
+        tmpdir,
+    ):
+        self.datasource = ec2.DataSourceEc2Local
+        ds = self._setup_ds(
+            platform_data=self.valid_platform_data,
+            sys_cfg={"datasource": {"Ec2": {"strict_id": False}}},
+            md=None,
+            mocker=mocker,
+            tmpdir=tmpdir,
+        )
+        m_is_freebsd.return_value = False
+        m_read_dmi.return_value = "hpc7a.96xlarge"
+        m_find_candidate_nics.return_value = []
+        m_wait_for_candidate_nics.return_value = []
+
+        assert ds.get_data() is False
+        m_wait_for_candidate_nics.assert_called_once_with(
+            timeout=60, sleep_interval=1
+        )
+        m_find_candidate_nics.assert_not_called()
+
+    @mock.patch("cloudinit.sources.DataSourceEc2.net.wait_for_candidate_nics")
+    @mock.patch("cloudinit.sources.DataSourceEc2.net.find_candidate_nics")
+    @mock.patch("cloudinit.sources.DataSourceEc2.dmi.read_dmi_data")
+    @mock.patch("cloudinit.sources.DataSourceEc2.util.is_FreeBSD")
+    def test_ec2_local_does_not_wait_for_non_allowlisted_product(
+        self,
+        m_is_freebsd,
+        m_read_dmi,
+        m_find_candidate_nics,
+        m_wait_for_candidate_nics,
+        mocker,
+        tmpdir,
+    ):
+        self.datasource = ec2.DataSourceEc2Local
+        ds = self._setup_ds(
+            platform_data=self.valid_platform_data,
+            sys_cfg={"datasource": {"Ec2": {"strict_id": False}}},
+            md=None,
+            mocker=mocker,
+            tmpdir=tmpdir,
+        )
+        m_is_freebsd.return_value = False
+        m_read_dmi.return_value = "m7i.48xlarge"
+        m_find_candidate_nics.return_value = []
+
+        assert ds.get_data() is False
+        m_wait_for_candidate_nics.assert_not_called()
+        m_find_candidate_nics.assert_called_once_with()
+
     @responses.activate
     @pytest.mark.usefixtures("disable_netdev_info")
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv6Network")
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
-    @mock.patch("cloudinit.distros.net.find_candidate_nics")
+    @mock.patch(
+        "cloudinit.sources.DataSourceEc2.net.find_candidate_nics",
+        return_value=["eth9"],
+    )
+    @mock.patch(
+        "cloudinit.sources.DataSourceEc2.dmi.read_dmi_data",
+        return_value="m7i.48xlarge",
+    )
     @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
     @mock.patch("cloudinit.sources.DataSourceEc2.util.is_FreeBSD")
     def test_ec2_local_performs_dhcp_on_non_bsd(
         self,
         m_is_bsd,
         m_dhcp,
-        m_candidate_nics,
+        _m_read_dmi,
+        _m_find_candidate_nics,
         m_net4,
         m_net6,
         caplog,
@@ -940,7 +1011,6 @@ class TestEc2:
         When the platform data is valid, return True.
         """
 
-        m_candidate_nics.return_value = ["eth9"]
         m_is_bsd.return_value = False
         m_dhcp.return_value = {
             "interface": "eth9",
@@ -977,14 +1047,22 @@ class TestEc2:
     @pytest.mark.usefixtures("disable_netdev_info")
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv6Network")
     @mock.patch("cloudinit.net.ephemeral.EphemeralIPv4Network")
-    @mock.patch("cloudinit.distros.net.find_candidate_nics")
+    @mock.patch(
+        "cloudinit.sources.DataSourceEc2.net.find_candidate_nics",
+        return_value=["eth0", "eth1", "eth2"],
+    )
+    @mock.patch(
+        "cloudinit.sources.DataSourceEc2.dmi.read_dmi_data",
+        return_value="m7i.48xlarge",
+    )
     @mock.patch("cloudinit.net.ephemeral.maybe_perform_dhcp_discovery")
     @mock.patch("cloudinit.sources.DataSourceEc2.util.is_FreeBSD")
     def test_ec2_local_get_metadata_via_iterating_nics(
         self,
         m_is_bsd,
         m_dhcp,
-        m_candidate_nics,
+        _m_read_dmi,
+        _m_find_candidate_nics,
         m_net4,
         m_net6,
         caplog,
@@ -995,7 +1073,6 @@ class TestEc2:
         """DataSourceEc2Local iterates over candidate NICs and fetches metadata
         until successful"""
 
-        m_candidate_nics.return_value = ["eth0", "eth1", "eth2"]
         m_is_bsd.return_value = False
         m_dhcp.side_effect = (
             {
@@ -1088,16 +1165,20 @@ class TestGetSecondaryAddresses:
             (
                 mock.ANY,
                 logging.WARNING,
-                "Could not parse subnet-ipv4-cidr-block"
-                " something-unexpected for mac 06:17:04:d7:26:ff."
-                " ipv4 network config prefix defaults to /24",
+                (
+                    "Could not parse subnet-ipv4-cidr-block"
+                    " something-unexpected for mac 06:17:04:d7:26:ff."
+                    " ipv4 network config prefix defaults to /24"
+                ),
             ),
             (
                 mock.ANY,
                 logging.WARNING,
-                "Could not parse subnet-ipv6-cidr-block"
-                " not/sure/what/this/is for mac 06:17:04:d7:26:ff."
-                " ipv6 network config prefix defaults to /128",
+                (
+                    "Could not parse subnet-ipv6-cidr-block"
+                    " not/sure/what/this/is for mac 06:17:04:d7:26:ff."
+                    " ipv6 network config prefix defaults to /128"
+                ),
             ),
         ]
         for log in expected_logs:
@@ -1411,7 +1492,7 @@ class TestBuildNicOrder:
                     "0a:0d:dd:44:cd:7b": 1,
                     "0a:f7:8d:96:f2:a2": 2,
                 },
-                id="no-device-number-info-subset-sort-by-nic-name",
+                id="no-device-number-info-extra-mac-sort-by-nic-name",
             ),
         ],
     )

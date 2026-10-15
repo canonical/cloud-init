@@ -5,6 +5,7 @@ import logging
 import os
 import re
 from typing import Any, Dict
+from unittest import mock
 
 import pytest
 
@@ -15,7 +16,7 @@ from cloudinit.config.schema import (
     validate_cloudconfig_schema,
 )
 from cloudinit.subp import ProcessExecutionError
-from tests.unittests.helpers import mock, skipUnlessJsonSchema
+from tests.unittests.helpers import skipUnlessJsonSchema
 
 MPATH = "cloudinit.config.cc_ubuntu_drivers."
 M_TMP_PATH = MPATH + "temp_utils.mkdtemp"
@@ -403,8 +404,10 @@ class TestUbuntuAdvantageSchema:
             # Strict boolean license-accepted
             (
                 {"drivers": {"nvidia": {"license-accepted": "TRUE"}}},
-                "drivers.nvidia.license-accepted: 'TRUE' is not of type"
-                " 'boolean'",
+                (
+                    "drivers.nvidia.license-accepted: 'TRUE' is not of type"
+                    " 'boolean'"
+                ),
             ),
             # Additional properties disallowed
             (

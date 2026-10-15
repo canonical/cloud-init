@@ -2,6 +2,7 @@
 
 """Tests cc_disable_ec2_metadata handler"""
 
+from unittest import mock
 
 import pytest
 
@@ -11,7 +12,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import mock, skipUnlessJsonSchema
+from tests.unittests.helpers import skipUnlessJsonSchema
 
 DISABLE_CFG = {"disable_ec2_metadata": "true"}
 

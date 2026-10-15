@@ -20,7 +20,7 @@ from tests.unittests.helpers import SCHEMA_EMPTY_ERROR, skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
 REPO_FILE = "/etc/apk/repositories"
-DEFAULT_MIRROR_URL = "https://alpine.global.ssl.fastly.net/alpine"
+DEFAULT_MIRROR_URL = "https://dl-cdn.alpinelinux.org/alpine"
 CC_APK = "cloudinit.config.cc_apk_configure"
 
 
@@ -57,8 +57,7 @@ class TestApkConfigure:
 
         cc_apk_configure.handle("", config, get_cloud(), [])
 
-        expected_content = textwrap.dedent(
-            """\
+        expected_content = textwrap.dedent("""\
             #
             # Created by cloud-init
             #
@@ -67,10 +66,7 @@ class TestApkConfigure:
 
             {0}/{1}/main
 
-            """.format(
-                DEFAULT_MIRROR_URL, alpine_version
-            )
-        )
+            """.format(DEFAULT_MIRROR_URL, alpine_version))
 
         assert util.load_text_file(REPO_FILE) == expected_content
 
@@ -91,8 +87,7 @@ class TestApkConfigure:
 
         cc_apk_configure.handle("", config, get_cloud(), [])
 
-        expected_content = textwrap.dedent(
-            """\
+        expected_content = textwrap.dedent("""\
             #
             # Created by cloud-init
             #
@@ -102,10 +97,7 @@ class TestApkConfigure:
             {0}/{1}/main
             {0}/{1}/community
 
-            """.format(
-                DEFAULT_MIRROR_URL, alpine_version
-            )
-        )
+            """.format(DEFAULT_MIRROR_URL, alpine_version))
 
         assert util.load_text_file(REPO_FILE) == expected_content
 
@@ -127,8 +119,7 @@ class TestApkConfigure:
 
         cc_apk_configure.handle("", config, get_cloud(), [])
 
-        expected_content = textwrap.dedent(
-            """\
+        expected_content = textwrap.dedent("""\
             #
             # Created by cloud-init
             #
@@ -142,10 +133,7 @@ class TestApkConfigure:
             #
             {0}/edge/testing
 
-            """.format(
-                DEFAULT_MIRROR_URL, alpine_version
-            )
-        )
+            """.format(DEFAULT_MIRROR_URL, alpine_version))
 
         assert util.load_text_file(REPO_FILE) == expected_content
 
@@ -167,8 +155,7 @@ class TestApkConfigure:
 
         cc_apk_configure.handle("", config, get_cloud(), [])
 
-        expected_content = textwrap.dedent(
-            """\
+        expected_content = textwrap.dedent("""\
             #
             # Created by cloud-init
             #
@@ -179,10 +166,7 @@ class TestApkConfigure:
             {0}/{1}/community
             {0}/{1}/testing
 
-            """.format(
-                DEFAULT_MIRROR_URL, alpine_version
-            )
-        )
+            """.format(DEFAULT_MIRROR_URL, alpine_version))
 
         assert util.load_text_file(REPO_FILE) == expected_content
 
@@ -206,8 +190,7 @@ class TestApkConfigure:
 
         cc_apk_configure.handle("", config, get_cloud(), [])
 
-        expected_content = textwrap.dedent(
-            """\
+        expected_content = textwrap.dedent("""\
             #
             # Created by cloud-init
             #
@@ -226,10 +209,7 @@ class TestApkConfigure:
             #
             {2}/{1}
 
-            """.format(
-                DEFAULT_MIRROR_URL, alpine_version, local_repo_url
-            )
-        )
+            """.format(DEFAULT_MIRROR_URL, alpine_version, local_repo_url))
 
         assert util.load_text_file(REPO_FILE) == expected_content
 
@@ -253,8 +233,7 @@ class TestApkConfigure:
 
         cc_apk_configure.handle("", config, get_cloud(), [])
 
-        expected_content = textwrap.dedent(
-            """\
+        expected_content = textwrap.dedent("""\
             #
             # Created by cloud-init
             #
@@ -270,10 +249,7 @@ class TestApkConfigure:
             #
             {2}/{1}
 
-            """.format(
-                DEFAULT_MIRROR_URL, alpine_version, local_repo_url
-            )
-        )
+            """.format(DEFAULT_MIRROR_URL, alpine_version, local_repo_url))
 
         assert util.load_text_file(REPO_FILE) == expected_content
 
@@ -318,8 +294,10 @@ class TestApkConfigureSchema:
             ),
             (
                 {"apk_repos": {"alpine_repo": {}}},
-                "apk_repos.alpine_repo: 'version' is a required property,"
-                f" apk_repos.alpine_repo: {{}} {SCHEMA_EMPTY_ERROR}",
+                (
+                    "apk_repos.alpine_repo: 'version' is a required property,"
+                    f" apk_repos.alpine_repo: {{}} {SCHEMA_EMPTY_ERROR}"
+                ),
             ),
             (
                 {"apk_repos": {"alpine_repo": True}},
@@ -327,8 +305,10 @@ class TestApkConfigureSchema:
             ),
             (
                 {"apk_repos": {"preserve_repositories": "wrongtype"}},
-                "apk_repos.preserve_repositories: 'wrongtype' is not of type"
-                " 'boolean'",
+                (
+                    "apk_repos.preserve_repositories: 'wrongtype' is not of"
+                    " type 'boolean'"
+                ),
             ),
             (
                 {"apk_repos": {}},

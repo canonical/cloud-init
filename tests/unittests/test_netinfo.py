@@ -4,6 +4,7 @@
 
 import json
 from copy import copy
+from unittest import mock
 
 import pytest
 
@@ -14,7 +15,7 @@ from cloudinit.netinfo import (
     netdev_pformat,
     route_pformat,
 )
-from tests.unittests.helpers import mock, readResource
+from tests.unittests.helpers import readResource
 
 # Example ifconfig and route output
 SAMPLE_OLD_IFCONFIG_OUT = readResource("netinfo/old-ifconfig-output")

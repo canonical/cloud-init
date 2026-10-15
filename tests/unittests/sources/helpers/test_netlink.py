@@ -5,6 +5,7 @@
 import codecs
 import socket
 import struct
+from unittest import mock
 
 import pytest
 
@@ -31,7 +32,6 @@ from cloudinit.sources.helpers.netlink import (
     wait_for_nic_attach_event,
     wait_for_nic_detach_event,
 )
-from tests.unittests.helpers import mock
 
 
 def int_to_bytes(i):

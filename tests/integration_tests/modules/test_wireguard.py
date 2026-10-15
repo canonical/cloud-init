@@ -8,9 +8,17 @@ from pycloudlib.lxd.instance import LXDInstance
 from cloudinit.subp import subp
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import PLATFORM
-from tests.integration_tests.releases import IS_UBUNTU
+from tests.integration_tests.releases import (
+    CURRENT_RELEASE,
+    IS_UBUNTU,
+    RESOLUTE,
+)
 
-ASCII_TEXT = "ASCII text"
+ASCII_TEXT = (
+    "ASCII text"
+    if CURRENT_RELEASE <= RESOLUTE
+    else "Generic INItialization configuration"
+)
 
 USER_DATA = """\
 #cloud-config
@@ -90,8 +98,10 @@ class TestWireguard:
             # sha256sum check
             (
                 "sha256sum </etc/wireguard/wg1.conf",
-                "8443055d1442d051588beb03f7895b58"
-                "269196eb9916617969dc5220c1a90d54",
+                (
+                    "8443055d1442d051588beb03f7895b58"
+                    "269196eb9916617969dc5220c1a90d54"
+                ),
             ),
             # check if systemd started wg0
             (

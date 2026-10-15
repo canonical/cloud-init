@@ -38,8 +38,8 @@ INSTANCE_TYPE: Optional[str] = None
 # This can be the name of an Ubuntu release, or in the format
 # <image_id>[::<os>::<release>::<version>].  If given, os and release should
 # describe the image specified by image_id.  (Ubuntu releases are converted
-# to this format internally; in this case, to "None::ubuntu::focal::20.04".)
-OS_IMAGE = "focal"
+# to this format internally; in this case, to "None::ubuntu::resolute::26.04".)
+OS_IMAGE = "resolute"
 
 
 # Determines unique image type or flavor to exercise if the cloud supports
@@ -55,6 +55,10 @@ OS_IMAGE_TYPE = "generic"
 # Populate if you want to use a pre-launched instance instead of
 # creating a new one. The exact contents will be platform dependent
 EXISTING_INSTANCE_ID: Optional[str] = None
+
+# Username to use when launching the instance.
+# If not set, the default username for the platform will be used.
+LAUNCH_USERNAME: Optional[str] = None
 
 ##################################################################
 # IMAGE GENERATION SETTINGS

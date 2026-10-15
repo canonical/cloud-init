@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
+from unittest import mock
 
 import pytest
 
@@ -10,7 +11,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import mock, skipUnlessJsonSchema
+from tests.unittests.helpers import skipUnlessJsonSchema
 
 NL = "\n"
 # Module path used in mocks

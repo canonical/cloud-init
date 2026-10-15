@@ -1,6 +1,7 @@
 """Tests for cc_keys_to_console."""
 
 import re
+from unittest import mock
 
 import pytest
 
@@ -10,7 +11,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import mock, skipUnlessJsonSchema
+from tests.unittests.helpers import skipUnlessJsonSchema
 
 
 class TestHandle:
@@ -55,55 +56,76 @@ class TestKeysToConsoleSchema:
             # Invalid schemas
             (
                 {"ssh": {}},
-                "Cloud config schema errors: ssh: 'emit_keys_to_console' is"
-                " a required property",
-            ),
-            (  # Avoid common failure giving a string 'false' instead of false
-                {"ssh": {"emit_keys_to_console": "false"}},
-                "Cloud config schema errors: ssh.emit_keys_to_console: 'false'"
-                " is not of type 'boolean'",
-            ),
-            (
-                {"ssh": {"noextraprop": False, "emit_keys_to_console": False}},
-                re.escape(
-                    "Cloud config schema errors: ssh: Additional properties"
-                    " are not allowed ('noextraprop' was unexpected)"
+                (
+                    "Cloud config schema errors: ssh:"
+                    " 'emit_keys_to_console' is a required property"
                 ),
             ),
             (  # Avoid common failure giving a string 'false' instead of false
                 {"ssh": {"emit_keys_to_console": "false"}},
-                "Cloud config schema errors: ssh.emit_keys_to_console: 'false'"
-                " is not of type 'boolean'",
+                (
+                    "Cloud config schema errors:"
+                    " ssh.emit_keys_to_console: 'false'"
+                    " is not of type 'boolean'"
+                ),
+            ),
+            (
+                {"ssh": {"noextraprop": False, "emit_keys_to_console": False}},
+                re.escape(
+                    "Cloud config schema errors: ssh:"
+                    " Additional properties are not allowed"
+                    " ('noextraprop' was unexpected)"
+                ),
+            ),
+            (  # Avoid common failure giving a string 'false' instead of false
+                {"ssh": {"emit_keys_to_console": "false"}},
+                (
+                    "Cloud config schema errors:"
+                    " ssh.emit_keys_to_console: 'false'"
+                    " is not of type 'boolean'"
+                ),
             ),
             (  # Avoid common failure giving a string 'false' instead of false
                 {"ssh_key_console_blacklist": False},
-                "Cloud config schema errors: ssh_key_console_blacklist: False"
-                " is not of type 'array'",
+                (
+                    "Cloud config schema errors:"
+                    " ssh_key_console_blacklist: False is not of type 'array'"
+                ),
             ),
             (  # Avoid common failure giving a string 'false' instead of false
                 {"ssh_key_console_blacklist": [1]},
-                "Cloud config schema errors: ssh_key_console_blacklist.0: 1 is"
-                " not of type 'string'",
+                (
+                    "Cloud config schema errors:"
+                    " ssh_key_console_blacklist.0: 1 is not of type 'string'"
+                ),
             ),
             (  # Avoid common failure giving a string 'false' instead of false
                 {"ssh_key_console_blacklist": [1]},
-                "Cloud config schema errors: ssh_key_console_blacklist.0: 1 is"
-                " not of type 'string'",
+                (
+                    "Cloud config schema errors:"
+                    " ssh_key_console_blacklist.0: 1 is not of type 'string'"
+                ),
             ),
             (  # Avoid common failure giving a string 'false' instead of false
                 {"ssh_fp_console_blacklist": None},
-                "Cloud config schema errors: ssh_fp_console_blacklist: None"
-                " is not of type 'array'",
+                (
+                    "Cloud config schema errors:"
+                    " ssh_fp_console_blacklist: None is not of type 'array'"
+                ),
             ),
             (  # Avoid common failure giving a string 'false' instead of false
                 {"ssh_fp_console_blacklist": [1]},
-                "Cloud config schema errors: ssh_fp_console_blacklist.0: 1 is"
-                " not of type 'string'",
+                (
+                    "Cloud config schema errors:"
+                    " ssh_fp_console_blacklist.0: 1 is not of type 'string'"
+                ),
             ),
             (  # Avoid common failure giving a string 'false' instead of false
                 {"ssh_fp_console_blacklist": [1]},
-                "Cloud config schema errors: ssh_fp_console_blacklist.0: 1 is"
-                " not of type 'string'",
+                (
+                    "Cloud config schema errors:"
+                    " ssh_fp_console_blacklist.0: 1 is not of type 'string'"
+                ),
             ),
         ),
     )

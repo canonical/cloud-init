@@ -28,15 +28,15 @@ def create_mime_message(files):
         contents = fh.read()
         sub_message = MIMEText(contents, format_type, sys.getdefaultencoding())
         sub_message.add_header(
-            "Content-Disposition", 'attachment; filename="%s"' % (filename)
+            "Content-Disposition", "attachment", filename=filename
         )
         content_type = sub_message.get_content_type().lower()
         if content_type not in get_content_types():
-            msg = ("content type %r for attachment %s may be incorrect!") % (
-                content_type,
-                i + 1,
+            err_msg = (
+                f"content type {content_type!r} for attachment"
+                f" {i + 1} may be incorrect!"
             )
-            errors.append(msg)
+            errors.append(err_msg)
         sub_messages.append(sub_message)
     combined_message = MIMEMultipart()
     for msg in sub_messages:

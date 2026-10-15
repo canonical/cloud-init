@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import sys
+from unittest import mock
 
 import pytest
 
@@ -11,7 +12,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import mock, skipUnlessJsonSchema
+from tests.unittests.helpers import skipUnlessJsonSchema
 
 
 @pytest.fixture
@@ -25,14 +26,12 @@ class TestLoadPowerState:
 
     def test_no_config(self, dist):
         # completely empty config should mean do nothing
-        (cmd, _timeout, _condition) = psc.load_power_state({}, dist)
+        cmd, _timeout, _condition = psc.load_power_state({}, dist)
         assert cmd is None
 
     def test_irrelevant_config(self, dist):
         # no power_state field in config should return None for cmd
-        (cmd, _timeout, _condition) = psc.load_power_state(
-            {"foo": "bar"}, dist
-        )
+        cmd, _timeout, _condition = psc.load_power_state({"foo": "bar"}, dist)
         assert cmd is None
 
     def test_invalid_mode(self, dist):
@@ -76,7 +75,7 @@ class TestLoadPowerState:
     def test_no_message(self, dist):
         # if message is not present, then no argument should be passed for it
         cfg = {"power_state": {"mode": "poweroff"}}
-        (cmd, _timeout, _condition) = psc.load_power_state(cfg, dist)
+        cmd, _timeout, _condition = psc.load_power_state(cfg, dist)
         assert "" not in cmd
         check_lps_ret(psc.load_power_state(cfg, dist))
         assert len(cmd) == 3

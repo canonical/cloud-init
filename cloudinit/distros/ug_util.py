@@ -10,6 +10,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
+from typing import Any, Dict, List
 
 from cloudinit import lifecycle, type_utils, util
 
@@ -26,7 +27,7 @@ def _normalize_groups(grp_cfg):
         grp_cfg = grp_cfg.strip().split(",")
 
     if isinstance(grp_cfg, list):
-        c_grp_cfg = {}
+        c_grp_cfg: Dict[str, List[str]] = {}
         for i in grp_cfg:
             if isinstance(i, dict):
                 for k, v in i.items():
@@ -72,7 +73,7 @@ def _normalize_groups(grp_cfg):
 # marked false.
 def _normalize_users(u_cfg, def_user_cfg=None):
     if isinstance(u_cfg, dict):
-        ad_ucfg = []
+        ad_ucfg: List[Any] = []
         for k, v in u_cfg.items():
             if isinstance(v, (bool, int, float, str)):
                 if util.is_true(v):
@@ -89,7 +90,7 @@ def _normalize_users(u_cfg, def_user_cfg=None):
     elif isinstance(u_cfg, str):
         u_cfg = util.uniq_merge_sorted(u_cfg)
 
-    users = {}
+    users: Dict[str, Dict[str, Any]] = {}
     for user_config in u_cfg:
         if isinstance(user_config, (list, str)):
             for u in util.uniq_merge(user_config):
@@ -134,13 +135,14 @@ def _normalize_users(u_cfg, def_user_cfg=None):
             # Now merge the extracted groups with the default config provided
             users_groups = util.uniq_merge_sorted(parsed_groups, def_groups)
             parsed_config["groups"] = ",".join(users_groups)
-            # The real config for the default user is the combination of the
-            # default user config provided by the distro, the default user
-            # config provided by the above merging for the user 'default' and
-            # then the parsed config from the user's 'real name' which does not
-            # have to be 'default' (but could be)
+            # The real config for the default user is the combination of:
+            # - the parsed config from the user's 'real name' which does
+            #   not have to be 'default' (but could be)
+            # - then the default user config provided by the above merging
+            #   for the user 'default'
+            # - then the default user config provided by the distro
             users[def_user] = util.mergemanydict(
-                [def_user_cfg, def_config, parsed_config]
+                [parsed_config, def_config, def_user_cfg]
             )
 
     # Ensure that only the default user that we found (if any) is actually

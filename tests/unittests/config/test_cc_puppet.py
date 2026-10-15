@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import textwrap
+from unittest import mock
 
 import pytest
 import responses
@@ -13,7 +14,7 @@ from cloudinit.config.schema import (
 )
 from cloudinit.distros import PackageInstallerError
 from cloudinit.subp import ProcessExecutionError
-from tests.unittests.helpers import mock, skipUnlessJsonSchema
+from tests.unittests.helpers import skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
 
@@ -72,11 +73,11 @@ class TestManagePuppetServices:
         assert expected_calls == m_subp.call_args_list
 
 
-@pytest.mark.usefixtures("fake_filesystem")
+@pytest.mark.usefixtures("fake_fs")
 @mock.patch("cloudinit.config.cc_puppet._manage_puppet_services")
 class TestPuppetHandle:
-    CONF = "puppet.conf"
-    CSR_ATTRIBUTES_PATH = "csr_attributes.yaml"
+    CONF = "/etc/puppet/puppet.conf"
+    CSR_ATTRIBUTES_PATH = "/etc/puppet/csr_attributes.yaml"
 
     def test_skips_missing_puppet_key_in_cloudconfig(
         self, m_man_puppet, caplog
@@ -237,21 +238,14 @@ class TestPuppetHandle:
             mock.call([["puppet-agent", "3.8"]])
         ] == cloud.distro.install_packages.call_args_list
 
-    @mock.patch("cloudinit.config.cc_puppet.get_config_value")
     @mock.patch("cloudinit.config.cc_puppet.subp.subp", return_value=("", ""))
-    def test_puppet_config_updates_puppet_conf(
-        self, m_subp, m_default, m_man_puppet
-    ):
+    def test_puppet_config_updates_puppet_conf(self, m_subp, m_man_puppet):
         """When 'conf' is provided update values in PUPPET_CONF_PATH."""
-
-        def _fake_get_config_value(puppet_bin, setting):
-            return self.CONF
-
-        m_default.side_effect = _fake_get_config_value
 
         cfg = {
             "puppet": {
-                "conf": {"agent": {"server": "puppetserver.example.org"}}
+                "conf": {"agent": {"server": "puppetserver.example.org"}},
+                "conf_file": self.CONF,
             }
         }
         util.write_file(self.CONF, "[agent]\nserver = origpuppet\nother = 3")
@@ -296,16 +290,14 @@ class TestPuppetHandle:
         }
         cc_puppet.handle("notimportant", cfg, get_cloud(), None)
         content = util.load_text_file(self.CSR_ATTRIBUTES_PATH)
-        expected = textwrap.dedent(
-            """\
+        expected = textwrap.dedent("""\
             custom_attributes:
               1.2.840.113549.1.9.7: 342thbjkt82094y0uthhor289jnqthpc2290
             extension_requests:
               pp_image_name: my_ami_image
               pp_preshared_key: 342thbjkt82094y0uthhor289jnqthpc2290
               pp_uuid: ED803750-E3C7-44F5-BB08-41A04433FE2E
-            """
-        )
+            """)
         assert expected == content
 
     @mock.patch("cloudinit.config.cc_puppet.subp.subp", return_value=("", ""))

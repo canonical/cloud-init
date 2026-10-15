@@ -2,7 +2,6 @@
 
 """Tests cc_keyboard module"""
 
-import os
 import re
 from unittest import mock
 
@@ -14,7 +13,7 @@ from cloudinit.config.schema import (
     get_schema,
     validate_cloudconfig_schema,
 )
-from tests.unittests.helpers import populate_dir, skipUnlessJsonSchema
+from tests.unittests.helpers import skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
 
@@ -27,23 +26,31 @@ class TestKeyboardSchema:
             # Invalid schemas
             (
                 {"keyboard": {}},
-                "Cloud config schema errors: keyboard: 'layout' is a"
-                " required property",
+                (
+                    "Cloud config schema errors: keyboard: 'layout' is a"
+                    " required property"
+                ),
             ),
             (
                 {"keyboard": "bogus"},
-                "Cloud config schema errors: keyboard: 'bogus' is not"
-                " of type 'object'",
+                (
+                    "Cloud config schema errors: keyboard: 'bogus' is not"
+                    " of type 'object'"
+                ),
             ),
             (
                 {"keyboard": {"layout": 1}},
-                "Cloud config schema errors: keyboard.layout: 1 is not"
-                " of type 'string'",
+                (
+                    "Cloud config schema errors: keyboard.layout: 1 is not"
+                    " of type 'string'"
+                ),
             ),
             (
                 {"keyboard": {"layout": "somestr", "model": None}},
-                "Cloud config schema errors: keyboard.model: None is not"
-                " of type 'string'",
+                (
+                    "Cloud config schema errors: keyboard.model: None is not"
+                    " of type 'string'"
+                ),
             ),
             (
                 {"keyboard": {"layout": "somestr", "variant": [1]}},
@@ -54,8 +61,10 @@ class TestKeyboardSchema:
             ),
             (
                 {"keyboard": {"layout": "somestr", "options": {}}},
-                "Cloud config schema errors: keyboard.options: {} is not"
-                " of type 'string'",
+                (
+                    "Cloud config schema errors: keyboard.options: {} is not"
+                    " of type 'string'"
+                ),
             ),
             (
                 {"keyboard": {"layout": "somestr", "extraprop": "somestr"}},
@@ -78,7 +87,7 @@ class TestKeyboardSchema:
                 validate_cloudconfig_schema(config, schema, strict=True)
 
 
-@pytest.mark.usefixtures("fake_filesystem")
+@pytest.mark.usefixtures("fake_fs")
 class TestKeyboard:
     @mock.patch("cloudinit.distros.Distro.uses_systemd")
     @mock.patch("cloudinit.distros.subp.subp")
@@ -122,7 +131,7 @@ class TestKeyboard:
         )
 
     @mock.patch("cloudinit.distros.subp.subp")
-    def test_alpine_linux_cmd(self, m_subp, tmpdir):
+    def test_alpine_linux_cmd(self, m_subp, fake_fs):
         """Alpine Linux runs setup-keymap"""
         cfg = {"keyboard": {"layout": "us", "variant": "us"}}
         layout = "us"
@@ -133,14 +142,13 @@ class TestKeyboard:
         keymap_dir = "/usr/share/bkeymaps/%s" % "us"
         keymap_file = "%s/%s.bmap.gz" % (keymap_dir, "us")
 
-        os.makedirs(tmpdir.join(keymap_dir))
-        populate_dir(str(tmpdir), {keymap_file: "# Test\n"})
+        fake_fs.create_file(keymap_file)
 
         cc_keyboard.handle("cc_keyboard", cfg, cloud, [])
         m_subp.assert_called_once_with(["setup-keymap", layout, variant])
 
     @mock.patch("cloudinit.distros.subp.subp")
-    def test_alpine_linux_ignore_model(self, m_subp, caplog, tmpdir):
+    def test_alpine_linux_ignore_model(self, m_subp, caplog, fake_fs):
         """Alpine Linux ignores model setting"""
         cfg = {
             "keyboard": {
@@ -155,8 +163,7 @@ class TestKeyboard:
 
         keymap_dir = "/usr/share/bkeymaps/%s" % "us"
         keymap_file = "%s/%s.bmap.gz" % (keymap_dir, "us")
-        os.makedirs(tmpdir.join(keymap_dir))
-        populate_dir(str(tmpdir), {keymap_file: "# Test\n"})
+        fake_fs.create_file(keymap_file)
 
         cc_keyboard.handle("cc_keyboard", cfg, cloud, [])
         assert "Keyboard model is ignored for Alpine Linux." in caplog.text

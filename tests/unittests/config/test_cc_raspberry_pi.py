@@ -1,5 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+from unittest import mock
+
 import pytest
 
 import cloudinit.config.cc_raspberry_pi as cc_rpi
@@ -15,7 +17,7 @@ from cloudinit.config.schema import (
     validate_cloudconfig_schema,
 )
 from cloudinit.subp import ProcessExecutionError
-from tests.unittests.helpers import mock, skipUnlessJsonSchema
+from tests.unittests.helpers import skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
 M_PATH = "cloudinit.config.cc_raspberry_pi."
@@ -111,7 +113,7 @@ class TestRaspberryPiMethods:
         with mock.patch("os.path.exists", return_value=True):
             cc_rpi.configure_usb_gadget(True)
         m_subp.assert_called_once_with(
-            [RPI_USB_GADGET_SCRIPT, "on", "-f"], capture=False, timeout=15
+            [RPI_USB_GADGET_SCRIPT, "on", "-f"], capture=False, timeout=30
         )
 
     @mock.patch("cloudinit.subp.subp")
@@ -150,7 +152,7 @@ class TestRaspberryPiMethods:
 
         # Subprocess should have been invoked once
         m_subp.assert_called_once_with(
-            [RPI_USB_GADGET_SCRIPT, "on", "-f"], capture=False, timeout=15
+            [RPI_USB_GADGET_SCRIPT, "on", "-f"], capture=False, timeout=30
         )
 
         # Error log should contain failure message
@@ -252,8 +254,10 @@ class TestRaspberryPiSchema:
             ),
             (
                 {RPI_BASE_KEY: {RPI_INTERFACES_KEY: {"spi": "true"}}},
-                f"{RPI_BASE_KEY}.{RPI_INTERFACES_KEY}.spi: 'true'"
-                " is not of type 'boolean'",
+                (
+                    f"{RPI_BASE_KEY}.{RPI_INTERFACES_KEY}.spi: 'true'"
+                    " is not of type 'boolean'"
+                ),
             ),
             (
                 {
@@ -271,14 +275,18 @@ class TestRaspberryPiSchema:
                         RPI_INTERFACES_KEY: {"serial": {"console": 123}}
                     }
                 },
-                f"{RPI_BASE_KEY}.{RPI_INTERFACES_KEY}.serial.console: "
-                "123 is not of type 'boolean'",
+                (
+                    f"{RPI_BASE_KEY}.{RPI_INTERFACES_KEY}.serial.console: "
+                    "123 is not of type 'boolean'"
+                ),
             ),
             ({RPI_BASE_KEY: {ENABLE_USB_GADGET_KEY: True}}, None),
             (
                 {RPI_BASE_KEY: {ENABLE_USB_GADGET_KEY: "true"}},
-                f"{RPI_BASE_KEY}.{ENABLE_USB_GADGET_KEY}: 'true'"
-                " is not of type 'boolean'",
+                (
+                    f"{RPI_BASE_KEY}.{ENABLE_USB_GADGET_KEY}: 'true'"
+                    " is not of type 'boolean'"
+                ),
             ),
         ],
     )

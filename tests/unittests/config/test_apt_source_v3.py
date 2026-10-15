@@ -5,6 +5,7 @@
 Testing various config variations of the apt_source custom config
 This tries to call all in the new v3 format and cares about new features
 """
+
 import logging
 import os
 import pathlib
@@ -927,20 +928,32 @@ class TestAptSourceConfig:
         # former tests can leave this set (or not if the test is ran directly)
         # do a hard reset to ensure a stable result
         util._DNS_REDIRECT_IP = None
+        badnames = (
+            "does-not-exist.example.com.",
+            "example.invalid.",
+            "__cloud_init_expected_not_found__",
+        )
         bad = [(None, None, None, "badname", ["10.3.2.1"])]
         good = [(None, None, None, "goodname", ["10.2.3.4"])]
         with mock.patch.object(
-            socket, "getaddrinfo", side_effect=[bad, bad, bad, good, good]
+            socket, "getaddrinfo", side_effect=[good, bad, bad, bad]
         ) as mocksock:
             ret = util.is_resolvable_url("http://us.archive.ubuntu.com/ubuntu")
-            ret2 = util.is_resolvable_url("http://1.2.3.4/ubuntu")
-        mocksock.assert_any_call(
-            "does-not-exist.example.com.", None, 0, 0, 1, 2
-        )
-        mocksock.assert_any_call("example.invalid.", None, 0, 0, 1, 2)
+        for badname in badnames:
+            mocksock.assert_any_call(badname, None, 0, 0, 1, 2)
         mocksock.assert_any_call("us.archive.ubuntu.com", None)
-
         assert ret is True
+
+        # IP addresses skip DNS checks entirely
+        with mock.patch.object(socket, "getaddrinfo") as mocksock:
+            ret2 = util.is_resolvable_url("http://1.2.3.4/ubuntu")
+            mocksock.assert_not_called()
+            # Verify badnames were NOT checked for IP addresses
+            for badname in badnames:
+                assert (
+                    mock.call(badname, None, 0, 0, 1, 2)
+                    not in mocksock.call_args_list
+                )
         assert ret2 is True
 
         # side effect need only bad ret after initial call
@@ -951,6 +964,15 @@ class TestAptSourceConfig:
         calls = [call("failme.com", None)]
         mocksock.assert_has_calls(calls)
         assert ret3 is False
+
+        # Test unresolvable hostname
+        with mock.patch.object(
+            socket, "getaddrinfo", side_effect=[bad]
+        ) as mocksock:
+            ret4 = util.is_resolvable_url("http://instance.:3336")
+        calls = [call("instance.", None)]
+        mocksock.assert_has_calls(calls)
+        assert ret4 is False
 
     def test_apt_v3_disable_suites(self):
         """test_disable_suites - disable_suites with many configurations"""
@@ -1597,9 +1619,11 @@ class TestIsDeb822SourcesFormat:
                 "#Something neither deb/deb-src nor deb822\n",
                 False,
                 [
-                    "apt.sources_list value does not match either deb822"
-                    " source keys or deb/deb-src list keys. Assuming APT"
-                    " deb/deb-src list format."
+                    (
+                        "apt.sources_list value does not match either deb822"
+                        " source keys or deb/deb-src list keys. Assuming APT"
+                        " deb/deb-src list format."
+                    )
                 ],
                 id="neither_deb822_keys_nor_deb_deb_src_warn_and_not_deb822",
             ),

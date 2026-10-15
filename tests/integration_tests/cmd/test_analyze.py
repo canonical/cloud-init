@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Tests for `cloud-init analyze`"""
+
 import pytest
 
 from cloudinit.distros import uses_systemd
@@ -21,7 +22,10 @@ class TestAnalyzeCommand:
         """
         assert module_client.execute("cloud-init status --wait --long").ok
         result = module_client.execute("cloud-init analyze boot")
-        assert result.stderr == "container"
+        assert (
+            result.ok
+        ), f"cloud-init analyze boot unexpected exit [{result.return_code}]"
+        assert result.stderr == ""
 
         container_start_time = get_datetime_from_string(
             result.stdout, "^\\s*Container started at: (.+?)$"

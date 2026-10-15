@@ -5,12 +5,14 @@ of the test would be unlikely to affect the running of another test using
 the same instance launch. Most independent module coherence tests can go
 here.
 """
+
 import glob
 import importlib
 import json
 import re
 import uuid
 from pathlib import Path
+from typing import List
 
 import pytest
 from pycloudlib.ec2.instance import EC2Instance
@@ -20,13 +22,17 @@ import cloudinit.config
 from cloudinit import lifecycle
 from cloudinit.util import is_true
 from tests.integration_tests.clouds import Ec2Cloud
-from tests.integration_tests.decorators import retry
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.integration_settings import (
     OS_IMAGE_TYPE,
     PLATFORM,
 )
-from tests.integration_tests.releases import CURRENT_RELEASE, IS_UBUNTU, NOBLE
+from tests.integration_tests.releases import (
+    CURRENT_RELEASE,
+    IS_RHEL,
+    IS_UBUNTU,
+    NOBLE,
+)
 from tests.integration_tests.util import (
     get_feature_flag_value,
     get_inactive_modules,
@@ -37,7 +43,27 @@ from tests.integration_tests.util import (
     verify_ordered_items_in_text,
 )
 
-USER_DATA = """\
+UNWANTED_WORDS = [
+    "Traceback",
+    "DEPRECATED",
+    "WARNING",
+    "CRITICAL",
+    "ERROR",
+]
+UNWANTED_WORDS_DEPRECATED_EXPECTED = [
+    "Traceback",
+    "WARNING",
+    "CRITICAL",
+    "ERROR",
+]
+UNWANTED_WORDS_WARNING_EXPECTED = [
+    "Traceback",
+    "DEPRECATED",
+    "CRITICAL",
+    "ERROR",
+]
+
+USER_DATA_UBUNTU = """\
 #cloud-config
 users:
 - default
@@ -72,6 +98,50 @@ rsyslog:
         input(type="imtcp" port="514")
         $template RemoteLogs,"/var/spool/rsyslog/cloudinit.log"
         *.* ?RemoteLogs
+        & stop
+  remotes:
+    me: "127.0.0.1"
+runcmd:
+  - echo 'hello world' > /var/tmp/runcmd_output
+  - echo '💩' > /var/tmp/unicode_data
+
+  - #
+  - logger --server localhost --tcp --port 514 "My test log"
+snap:
+  commands:
+    - snap install hello-world
+
+timezone: Europe/Madrid
+"""
+
+USER_DATA_RHEL = """\
+#cloud-config
+users:
+- default
+- name: craig
+  sudo: false  # make sure craig doesn't get elevated perms
+final_message: |
+  This is my final message!
+  $version
+  $timestamp
+  $datasource
+  $uptime
+locale: en_GB.UTF-8
+locale_configfile: /etc/locale.conf
+package_update: true
+random_seed:
+  data: 'MYUb34023nD:LFDK10913jk;dfnk:Df'
+  encoding: raw
+  file: /root/seed
+rsyslog:
+  configs:
+    - "*.* @@127.0.0.1"
+    - filename: 0-basic-config.conf
+      content: |
+        module(load="imtcp")
+        input(type="imtcp" port="514")
+        $template RemoteLogs,"/var/log/rsyslog-cloudinit.log"
+        *.* ?RemoteLogs
         & ~
   remotes:
     me: "127.0.0.1"
@@ -81,14 +151,23 @@ runcmd:
 
   - #
   - logger "My test log"
-snap:
-  commands:
-    - snap install hello-world
-ssh_import_id:
-  - lp:smoser
 
 timezone: Europe/Madrid
 """
+# Update this dict with proper user data to support new distros
+USER_DATA_BY_DISTRO = {
+    "ubuntu": USER_DATA_UBUNTU,
+    "rhel": USER_DATA_RHEL,
+    "centos": USER_DATA_RHEL,
+}
+
+if CURRENT_RELEASE.os not in USER_DATA_BY_DISTRO:
+    raise KeyError(
+        f"No USER_DATA for distro {CURRENT_RELEASE.os!r}. "
+        f"Add an entry to USER_DATA_BY_DISTRO for this distro."
+    )
+
+USER_DATA = USER_DATA_BY_DISTRO[CURRENT_RELEASE.os]
 
 
 @pytest.mark.ci
@@ -163,6 +242,7 @@ class TestCombined:
             ignore_warnings=True,
         )
 
+    @pytest.mark.skipif(IS_RHEL, reason="rhel does not support ntp module")
     def test_ntp_with_apt(self, class_client: IntegrationInstance):
         """LP #1628337.
 
@@ -175,6 +255,9 @@ class TestCombined:
         assert "W: Some index files failed to download" not in log
         assert "E: Unable to locate package ntp" not in log
 
+    @pytest.mark.skipif(
+        IS_RHEL, reason="rhel does not enable byobu by default"
+    )
     def test_byobu(self, class_client: IntegrationInstance):
         """Test byobu configured as enabled by default."""
         client = class_client
@@ -183,9 +266,13 @@ class TestCombined:
     def test_configured_locale(self, class_client: IntegrationInstance):
         """Test locale can be configured correctly."""
         client = class_client
-        default_locale = client.read_from_file("/etc/default/locale")
+        default_locale_file = (
+            "/etc/locale.conf" if IS_RHEL else "/etc/default/locale"
+        )
+        default_locale = client.read_from_file(default_locale_file)
         assert "LANG=en_GB.UTF-8" in default_locale
-
+        if IS_RHEL:
+            return
         locale_a = client.execute("locale -a")
         locale_gen = client.execute("grep -v '^#' /etc/locale.gen | uniq")
         if OS_IMAGE_TYPE == "minimal":
@@ -214,16 +301,21 @@ class TestCombined:
 
     def test_rsyslog(self, class_client: IntegrationInstance):
         """Test rsyslog is configured correctly when applicable."""
+        # /var/spool/rsylog is not created on rhel by default
+        log_file = (
+            "/var/log/rsyslog-cloudinit.log"
+            if IS_RHEL
+            else "/var/spool/rsyslog/cloudinit.log"
+        )
         if class_client.execute("command -v rsyslogd").ok:
-            assert "My test log" in class_client.read_from_file(
-                "/var/spool/rsyslog/cloudinit.log"
-            )
+            assert "My test log" in class_client.read_from_file(log_file)
 
     def test_runcmd(self, class_client: IntegrationInstance):
         """Test runcmd works as expected"""
         client = class_client
         assert "hello world" == client.read_from_file("/var/tmp/runcmd_output")
 
+    @pytest.mark.skipif(IS_RHEL, reason="rhel does not support snap module")
     def test_snap(self, class_client: IntegrationInstance):
         """Integration test for the snap module.
 
@@ -276,19 +368,31 @@ class TestCombined:
         verify_clean_boot(
             client, ignore_deprecations=True, require_warnings=require_warnings
         )
-        requested_modules = {
-            "apt_configure",
-            "byobu",
-            "final_message",
-            "locale",
-            "ntp",
-            "seed_random",
-            "rsyslog",
-            "runcmd",
-            "snap",
-            "ssh_import_id",
-            "timezone",
-        }
+        # remove modules that are not supported on rhel
+        requested_modules = (
+            {
+                "byobu",
+                "final_message",
+                "locale",
+                "seed_random",
+                "rsyslog",
+                "runcmd",
+                "timezone",
+            }
+            if IS_RHEL
+            else {
+                "apt_configure",
+                "byobu",
+                "final_message",
+                "locale",
+                "ntp",
+                "seed_random",
+                "rsyslog",
+                "runcmd",
+                "snap",
+                "timezone",
+            }
+        )
         inactive_modules = get_inactive_modules(log)
         assert not requested_modules.intersection(inactive_modules), (
             f"Expected active modules:"
@@ -574,21 +678,186 @@ class TestCombined:
             client.read_from_file("/var/log/cloud-init.log")
         )
 
+    def test_cli(self, class_client: IntegrationInstance):
+        """Check that various commands work as expected
 
-@pytest.mark.user_data(USER_DATA)
-class TestCombinedNoCI:
-    @retry(tries=30, delay=1)
+        The following checks are pretty quick and check a couple of basic
+        expectations for the happy path of these commands. The strategy
+        employed is not to test every possible combination, but to test
+        each one individually as well as at least one call with a
+        combination of flags and arguments.
+        """
+
+        for command in [
+            # collect-logs generate file in expected location
+            (
+                "cloud-init collect-logs --redact-sensitive --tarfile "
+                "/root/redacted.tar.gz"
+            ),
+            "ls /root/redacted.tar.gz",
+            # single subcommands
+            "cloud-init single --name cc_write_files --frequency always",
+            "cloud-init single --name cc_write_files --frequency instance",
+            "cloud-init single --name cc_write_files --frequency once",
+            (
+                "cloud-init single --name cc_write_files --frequency once "
+                "--report"
+            ),
+            # single subcommands
+            "cloud-init schema --system",
+            "cloud-init schema --system --annotate",
+            "cloud-init schema --config-file /dev/null",
+            "cloud-init schema --config-file /dev/null --annotate",
+            (
+                "cloud-init schema --config-file /dev/null --annotate "
+                "--instance-data /run/cloud-init/instance-data.json"
+            ),
+            (
+                "cloud-init schema "
+                "--config-file /etc/netplan/50-cloud-init.yaml "
+                "--schema-type network-config"
+            ),
+            # analyze subcommands
+            "cloud-init analyze blame",
+            "cloud-init analyze show",
+            "cloud-init analyze dump",
+            # query subcommands
+            "cloud-init query userdata",
+            "cloud-init query --list-keys",
+            "cloud-init query --format '{{v1.cloud_name}}'",
+            (
+                "cloud-init query userdata --instance-data "
+                "/run/cloud-init/instance-data.json"
+            ),
+            (
+                "cloud-init query userdata --vendor-data "
+                "/var/lib/cloud/instance/vendor-data.txt"
+            ),
+            (
+                "cloud-init query userdata --user-data "
+                "/var/lib/cloud/instance/user-data.txt"
+            ),
+            (
+                "cloud-init query userdata --format '{{v1.cloud_name}}' "
+                "--instance-data /run/cloud-init/instance-data.json "
+                "--vendor-data /var/lib/cloud/instance/vendor-data.txt "
+                "--user-data /var/lib/cloud/instance/user-data.txt"
+            ),
+        ]:
+            check_for_unwanted(
+                class_client.execute(command),
+                command,
+                text=UNWANTED_WORDS,
+            )
+
+        # status subcommands
+        for command in [
+            "cloud-init status --long",
+            "cloud-init status --format json",
+            "cloud-init status --format yaml",
+            "cloud-init status --format tabular",
+            "cloud-init status --wait --long",
+            "cloud-init status",
+        ]:
+            # the user-data used in this test has deprecated keys, so assert 2
+            check_for_unwanted(
+                class_client.execute(command, get_pty=True),
+                command,
+                text=UNWANTED_WORDS_DEPRECATED_EXPECTED,
+                return_code=2,
+            )
+
+        # These commands include "WARNING", but it would be easier
+        # to test them if they just said "Warning!" or something like
+        # that because then we could just have one list above to test.
+        for command in [
+            "cloud-init collect-logs",
+            "cloud-init collect-logs --tarfile tmp",
+            "ls tmp cloud-init.tar.gz",
+        ]:
+            result = class_client.execute(command)
+            check_for_unwanted(
+                result,
+                command,
+                text=UNWANTED_WORDS_WARNING_EXPECTED,
+            )
+
+        # test clean commands after running manual entry point
+        for command in [
+            "cloud-init clean",
+            "cloud-init clean --logs",
+            "cloud-init clean --seed",
+            "cloud-init clean --machine-id",
+            "cloud-init clean --configs ssh_config",
+            "cloud-init clean --configs datasource",
+            "cloud-init clean --configs fstab",
+            "cloud-init clean --configs network",
+            "cloud-init clean --configs all",
+            "cloud-init clean --configs all --machine-id --seed --logs",
+        ]:
+            check_for_unwanted(
+                class_client.execute(command),
+                command,
+                text=UNWANTED_WORDS,
+                return_code=0,
+            )
+
+    # TODO: add tests for commands as an unprivileged user
+    #
+    # cloud-init schema -c file.yml
+    # cloud-init devel render
+    # cloud-init devel make-mime
+    # cloud-init devel net-convert
+
+
+SSH_IMPORT_ID_USER_DATA = """\
+#cloud-config
+ssh_import_id:
+  - gh:blackboxsw
+"""
+
+
+@pytest.mark.user_data(SSH_IMPORT_ID_USER_DATA)
+@pytest.mark.skipif(IS_RHEL, reason="rhel skips ssh_import_id module")
+class TestSshImportId:
     def test_ssh_import_id(self, class_client: IntegrationInstance):
         """Integration test for the ssh_import_id module.
 
         This test specifies ssh keys to be imported by the ``ssh_import_id``
-        module and then checks that if the ssh keys were successfully imported.
+        module and then checks that the ssh keys were successfully imported.
 
-        TODO:
-        * This test assumes that SSH keys will be imported into the
-        /home/ubuntu; this will need modification to run on other OSes.
+        ssh-import-id calls the GitHub REST API, which rate-limits (HTTP 403)
+        the CI runners' shared IP on an hourly window. When that happens the
+        key is never written, so detect the rate-limit signature and skip
+        rather than hard-failing (the failure is environmental, not a
+        cloud-init regression).
         """
-        client = class_client
-        ssh_output = client.read_from_file("/home/ubuntu/.ssh/authorized_keys")
+        output_log = class_client.read_from_file(
+            "/var/log/cloud-init-output.log"
+        )
+        if "GitHub REST API rate-limited" in output_log:
+            pytest.skip("skipped: GitHub API rate-limited")
+        ssh_output = class_client.read_from_file(
+            "/home/ubuntu/.ssh/authorized_keys"
+        )
 
-        assert "# ssh-import-id lp:smoser" in ssh_output
+        assert "# ssh-import-id gh:blackboxsw" in ssh_output
+
+
+def check_for_unwanted(
+    result, command: str, text: List[str], return_code: int = 0
+):
+    assert return_code == result.return_code, (
+        f"Unexpected return code ({result.return_code}) while running "
+        f"'{command}', expected {return_code}. Command produced stdout:"
+        f"\n{result.stdout}\nstderr:\n{result.stderr}"
+    )
+    for unwanted_text in text:
+        assert unwanted_text not in result.stdout, (
+            f"{command} resulted in unwanted text "
+            f"{unwanted_text} in stdout:\n{result.stdout}"
+        )
+        assert unwanted_text not in result.stderr, (
+            f"{command} resulted in unwanted text "
+            f"{unwanted_text} in stderr:\n{result.stderr}"
+        )

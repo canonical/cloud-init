@@ -33,7 +33,7 @@ you can upload:
 
 Example output:
 
-.. code-block::
+.. code-block:: text
 
    Wrote /home/ubuntu/cloud-init.tar.gz
 

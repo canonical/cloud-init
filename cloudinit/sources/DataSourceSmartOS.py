@@ -754,7 +754,7 @@ def identify_file(content_f):
     cmd = ["file", "--brief", "--mime-type", content_f]
     f_type = None
     try:
-        (f_type, _err) = subp.subp(cmd)
+        f_type, _err = subp.subp(cmd)
         LOG.debug("script %s mime type is %s", content_f, f_type)
     except subp.ProcessExecutionError as e:
         util.logexc(

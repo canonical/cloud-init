@@ -23,15 +23,20 @@ cc_users_groups:
     ``default_user key``.
 
     Each ``users`` dictionary item must contain either a ``name`` or
-    ``snapuser`` key, otherwise it will be ignored. Omission of ``default`` as
-    the first item in the ``users`` list skips creation the default user. If
-    no ``users`` key is provided, the default behavior is to create the
-    default user via this config:
+    ``snapuser`` key, otherwise it will be ignored. If no ``users`` key is
+    provided, the default behavior is to create the default user via this
+    config:
 
     .. code-block:: yaml
 
        users:
        - default
+
+    .. note::
+       If you provide a ``users`` list and still want cloud-init to create the
+       default distribution user, keep ``default`` as the first item in the
+       list. Omitting ``default`` skips creation of the default user and can
+       prevent cloud-provided SSH keys from being installed for that user.
 
     .. note::
        Specifying a hash of a user's password with ``passwd`` is a security
@@ -77,8 +82,6 @@ cc_users_groups:
     file: cc_users_groups/example3.yaml
   - comment: >
       Example 4: Skip creation of the ``default`` user and only create
-      ``newsuper``. Password-based login is rejected, but the GitHub user
-      ``TheRealFalcon`` and the Launchpad user ``falcojr`` can SSH as
       ``newsuper``. ``doas``/``opendoas`` is configured to permit this user to
       run commands as other users (without being prompted for a password)
       except not as root.
@@ -97,8 +100,9 @@ cc_users_groups:
   - comment: >
       Example 7: Override any ``default_user`` config in
       ``/etc/cloud/cloud.cfg`` with supplemental config options. This config
-      will make the default user ``mynewdefault`` and change the user to not
-      have ``sudo`` rights.
+      will make the default user ``mynewdefault``, change the user to not
+      have ``sudo`` rights and allow the Launchpad user ``chad.smith`` to
+      SSH as ``mynewdefault``.
     file: cc_users_groups/example7.yaml
   - comment: >
       Example 8: Avoid creating any ``default_user``.

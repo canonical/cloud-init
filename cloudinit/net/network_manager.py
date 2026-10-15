@@ -434,6 +434,9 @@ class NMConnection:
                 self.config[family]["gateway"] = subnet["gateway"]
             for route in subnet["routes"]:
                 self._add_route(route)
+            # metric may apply to both dhcp and static config
+            if "metric" in subnet:
+                self.config[family]["route-metric"] = str(subnet["metric"])
             # Add subnet-level DNS
             if "dns_nameservers" in subnet:
                 found_nameservers.extend(subnet["dns_nameservers"])
@@ -489,6 +492,13 @@ class NMConnection:
 
         # Parse type-specific properties
         for nm_prop, key in _prop_map[if_type].items():
+            # Either dashes or underscores may separate the words in a
+            # bond option name: v1 config uses underscores
+            # (bond-fail_over_mac) while v2-derived config uses dashes
+            # (bond-fail-over-mac). Accept both spellings, as the
+            # sysconfig and eni renderers already do.
+            if key not in iface:
+                key = key.replace("_", "-")
             if key not in iface:
                 continue
             if iface[key] is None:
@@ -515,10 +525,16 @@ class NMConnection:
             self.config["vlan"]["parent"] = renderer.con_ref(
                 iface["vlan-raw-device"]
             )
-        if if_type == "bond" and ipv4_mtu is not None:
-            if "ethernet" not in self.config:
-                self.config["ethernet"] = {}
-            self.config["ethernet"]["mtu"] = str(ipv4_mtu)
+        if if_type == "bond":
+            if ipv4_mtu is not None or iface["mac_address"] is not None:
+                if "ethernet" not in self.config:
+                    self.config["ethernet"] = {}
+            if ipv4_mtu is not None:
+                self.config["ethernet"]["mtu"] = str(ipv4_mtu)
+            if iface["mac_address"] is not None:
+                self.config["ethernet"]["cloned-mac-address"] = self.mac_addr(
+                    iface["mac_address"]
+                )
         if if_type == "bridge":
             # Bridge is ass-backwards compared to bond
             for port in iface["bridge_ports"]:

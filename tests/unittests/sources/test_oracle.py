@@ -233,7 +233,7 @@ ipv4_v2_instance_url = oracle.IPV4_METADATA_PATTERN.format(
     path="instance",
     version=2,
 )
-connectivity_urls_data = (
+connectivity_urls_data = [
     {
         "url": oracle.IPV4_METADATA_PATTERN.format(version=2, path="instance"),
         "headers": oracle.V2_HEADERS,
@@ -248,7 +248,7 @@ connectivity_urls_data = (
     {
         "url": oracle.IPV6_METADATA_PATTERN.format(version=1, path="instance"),
     },
-)
+]
 
 
 @pytest.fixture
@@ -379,6 +379,48 @@ class TestIsPlatformViable:
         ) as m_read_dmi_data:
             assert platform_viable == oracle.DataSourceOracle.ds_detect()
         m_read_dmi_data.assert_has_calls([mock.call("chassis-asset-tag")])
+
+
+class TestIbftHasIscsiBootTarget:
+    @pytest.mark.parametrize(
+        "flags_contents, is_iscsi_root",
+        [
+            # Valid and firmware-boot-selected target is an iSCSI root.
+            (["3"], True),
+            # Valid but not boot-selected is not.
+            (["1"], False),
+            # Neither valid nor boot-selected is not.
+            (["0"], False),
+            # Boot-selected but not valid is not.
+            (["2"], False),
+            # Any valid and boot-selected target among several wins.
+            (["0", "3"], True),
+            (["1", "2"], False),
+            # Malformed flag contents are ignored.
+            (["garbage"], False),
+            # No iBFT targets present.
+            ([], False),
+        ],
+    )
+    def test_flag_values(self, flags_contents, is_iscsi_root, mocker):
+        paths = [
+            f"/sys/firmware/ibft/target{i}/flags"
+            for i in range(len(flags_contents))
+        ]
+        mocker.patch(DS_PATH + ".glob.glob", return_value=paths)
+        mocker.patch(
+            DS_PATH + ".util.load_text_file", side_effect=flags_contents
+        )
+        assert is_iscsi_root == oracle._ibft_has_iscsi_boot_target()
+
+    @pytest.mark.parametrize("error", [FileNotFoundError, PermissionError])
+    def test_unreadable_flags_are_skipped(self, error, mocker):
+        mocker.patch(
+            DS_PATH + ".glob.glob",
+            return_value=["/sys/firmware/ibft/target0/flags"],
+        )
+        mocker.patch(DS_PATH + ".util.load_text_file", side_effect=error)
+        assert not oracle._ibft_has_iscsi_boot_target()
 
 
 @pytest.mark.is_iscsi(False)
@@ -587,8 +629,10 @@ class TestNetworkConfigFromOpcImds:
 
         assert (
             logging.DEBUG,
-            "Could not obtain network configuration from initramfs."
-            " Falling back to IMDS.",
+            (
+                "Could not obtain network configuration from initramfs."
+                " Falling back to IMDS."
+            ),
         ) == caplog.record_tuples[log_initramfs_index][1:]
 
 
@@ -1099,8 +1143,10 @@ class TestCommon_GetDataBehaviour:
             ("local-hostname", "instance-20200320-1400"),
             (
                 "instance-id",
-                "ocid1.instance.oc1.phx"
-                ".anyhqljtniwq6syc3nex55sep5w34qbwmw6TRUNCATED",
+                (
+                    "ocid1.instance.oc1.phx"
+                    ".anyhqljtniwq6syc3nex55sep5w34qbwmw6TRUNCATED"
+                ),
             ),
             ("name", "instance-20200320-1400"),
             (
@@ -1411,6 +1457,50 @@ class TestNetworkConfig:
         assert 1 == oracle_ds._get_iscsi_config.call_count
         oracle_ds.network_config  # pylint: disable=pointless-statement
         assert 1 == oracle_ds._get_iscsi_config.call_count
+
+    @pytest.mark.is_iscsi(True)
+    def test_keep_configuration_set_from_iscsi_klibc(
+        self, m_get_interfaces_by_mac, oracle_ds
+    ):
+        """iSCSI root config from initramfs marks the primary NIC critical."""
+        netcfg = oracle_ds.network_config
+        assert netcfg["config"][0]["keep_configuration"] is True
+
+    @pytest.mark.is_iscsi(True)
+    def test_keep_configuration_set_from_imds_fallback(
+        self, m_get_interfaces_by_mac, oracle_ds, mocker
+    ):
+        """iSCSI root with no klibc config (dracut) still marks the
+        primary NIC critical when config comes from IMDS."""
+        m_get_interfaces_by_mac.return_value = {
+            "02:00:17:05:d1:db": "ens3",
+            "00:00:17:02:2b:b1": "ens4",
+        }
+        mocker.patch.object(
+            oracle_ds._network_config_source,
+            "is_applicable",
+            return_value=False,
+        )
+        oracle_ds._vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)
+
+        netcfg = oracle_ds.network_config
+
+        assert netcfg["config"][0]["keep_configuration"] is True
+
+    @pytest.mark.is_iscsi(False)
+    def test_keep_configuration_not_set_without_iscsi(
+        self, m_get_interfaces_by_mac, oracle_ds
+    ):
+        """Non-iSCSI instances do not mark the primary NIC critical."""
+        m_get_interfaces_by_mac.return_value = {
+            "02:00:17:05:d1:db": "ens3",
+            "00:00:17:02:2b:b1": "ens4",
+        }
+        oracle_ds._vnics_data = json.loads(OPC_VM_SECONDARY_VNIC_RESPONSE)
+
+        netcfg = oracle_ds.network_config
+
+        assert "keep_configuration" not in netcfg["config"][0]
 
     @pytest.mark.parametrize(
         "configure_secondary_nics,is_iscsi,expected_set_primary",

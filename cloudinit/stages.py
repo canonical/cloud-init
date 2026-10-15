@@ -558,10 +558,8 @@ class Init:
             or previous != self.ds.get_instance_id()
         )
 
-    def fetch(self, existing="check"):
-        """optionally load datasource from cache, otherwise discover
-        datasource
-        """
+    def fetch(self, existing="check") -> sources.DataSource:
+        """Load datasource from cache, otherwise discover datasource"""
         return self._get_data_source(existing=existing)
 
     def instancify(self):

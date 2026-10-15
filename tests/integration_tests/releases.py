@@ -100,8 +100,13 @@ NOBLE = Release("ubuntu", "noble", "24.04")
 ORACULAR = Release("ubuntu", "oracular", "24.10")
 PLUCKY = Release("ubuntu", "plucky", "25.04")
 QUESTING = Release("ubuntu", "questing", "25.10")
+RESOLUTE = Release("ubuntu", "resolute", "26.04")
 
 UBUNTU_STABLE = (FOCAL, JAMMY, MANTIC, NOBLE)
 
 CURRENT_RELEASE = Release.from_os_image()
 IS_UBUNTU = CURRENT_RELEASE.os == "ubuntu"
+IS_RHEL = CURRENT_RELEASE.os in (
+    "rhel",
+    "centos",
+)  # will add other RHEL-like distros later

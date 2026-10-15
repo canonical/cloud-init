@@ -4,7 +4,7 @@
 # Purpose: show user warnings on login.
 
 cloud_init_warnings() {
-    command -v local >/dev/null && local _local="local" ||
+    command -v local > /dev/null && local _local="local" ||
         typeset _local="typeset"
     $_local warning="" idir="/var/lib/cloud/instance" n=0
     $_local warndir="$idir/warnings"
@@ -16,7 +16,7 @@ cloud_init_warnings() {
     for warning in "$warndir"/*; do
         [ -f "$warning" ] || continue
         cat "$warning"
-        n=$((n+1))
+        n=$((n + 1))
     done
     [ $n -eq 0 ] && return 0
     echo ""

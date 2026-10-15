@@ -10,13 +10,17 @@ import re
 import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.integration_settings import CLOUD_INIT_SOURCE
 from tests.integration_tests.releases import (
     CURRENT_RELEASE,
     IS_UBUNTU,
     JAMMY,
     NOBLE,
 )
-from tests.integration_tests.util import verify_clean_boot
+from tests.integration_tests.util import (
+    fetch_and_parse_etc_shadow,
+    verify_clean_boot,
+)
 
 USER_DATA = """\
 #cloud-config
@@ -115,6 +119,10 @@ class TestUsersGroups:
             )
         )
 
+    @pytest.mark.skipif(
+        not IS_UBUNTU,
+        reason="Warning expectations are Ubuntu-specific",
+    )
     def test_initial_warnings(self, class_client):
         """Check for initial warnings."""
         warnings = (
@@ -134,6 +142,10 @@ class TestUsersGroups:
         groups = groups_str.split()
         assert "secret" in groups
 
+    @pytest.mark.skipif(
+        not IS_UBUNTU,
+        reason="Password unlock warning behavior differs across distros",
+    )
     def test_nopassword_unlock_warnings(self, class_client):
         """Verify warnings for empty passwords for new and existing users."""
         # Fake admin clearing and unlocking and empty unlocked password foobar
@@ -161,8 +173,8 @@ class TestUsersGroups:
 
 @pytest.mark.user_data(USER_DATA)
 @pytest.mark.skipif(
-    CURRENT_RELEASE < JAMMY,
-    reason="Requires version of sudo not available in older releases",
+    IS_UBUNTU and CURRENT_RELEASE < JAMMY,
+    reason="Requires version of sudo not available in older Ubuntu releases",
 )
 def test_sudoers_includedir(client: IntegrationInstance):
     """Ensure we don't add additional #includedir to sudoers.
@@ -192,3 +204,62 @@ def test_sudoers_includedir(client: IntegrationInstance):
         "/etc/sudoers.d/90-cloud-init-users"
     ).splitlines()[1:]
     assert sudoers_content_before == sudoers_content_after
+
+
+USER_DATA_OVERRIDE = """\
+#cloud-config
+users:
+  - default
+  - name: ubuntu
+    shell: /bin/sh
+    lock_passwd: false
+    hashed_passwd: $5$xZ$B2YGGEx2AOf4PeW48KC6.QyT1W2B4rZ9Qbltudtha89
+"""
+
+
+@pytest.mark.ci
+@pytest.mark.skipif(not IS_UBUNTU, reason="Test is Ubuntu specific")
+@pytest.mark.user_data(USER_DATA_OVERRIDE)
+def test_default_user_settings_override(client: IntegrationInstance):
+    """
+    Test that the default user settings are correctly overridden.
+    """
+    # Check shell
+    shell_set = (
+        client.execute(["getent", "passwd", "ubuntu"])
+        .stdout.strip()
+        .split(":")[-1]
+    )
+    if CLOUD_INIT_SOURCE in ["NONE", "IN_PLACE"]:
+        assert (
+            "/bin/sh" == shell_set
+        ), "Shell setting not overriden even though the user is new"
+    else:
+        assert (
+            "/bin/bash" == shell_set
+        ), "Shell setting overriden even though user already exists"
+    # Check password is not locked
+    passwd_status = client.execute(["passwd", "-S", "ubuntu"]).stdout
+    assert re.search(r"^ubuntu\s+P\b", passwd_status)
+    expected_passwd_hash = "$5$xZ$B2YGGEx2AOf4PeW48KC6.QyT1W2B4rZ9Qbltudtha89"
+    parsed_shadow, _ = fetch_and_parse_etc_shadow(client)
+    assert parsed_shadow["ubuntu"] == expected_passwd_hash
+
+
+@pytest.mark.skipif(not IS_UBUNTU, reason="Test is Ubuntu specific")
+def test_default_user_settings(client: IntegrationInstance):
+    """
+    This test serves as a "negative control" for
+    test_default_user_settings_override, confirming the default
+    user settings are as expected when not overridden by user-data.
+    """
+    # Check shel
+    shell_set = (
+        client.execute(["getent", "passwd", "ubuntu"])
+        .stdout.strip()
+        .split(":")[-1]
+    )
+    assert "/bin/bash" == shell_set
+    # Check password is not locked
+    passwd_status = client.execute(["passwd", "-S", "ubuntu"]).stdout
+    assert re.search(r"^ubuntu\s+L\b", passwd_status)

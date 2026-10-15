@@ -5,14 +5,13 @@ import base64
 import copy
 import json
 from textwrap import dedent
+from unittest import mock
 
 import pytest
 
 from cloudinit import util
 from cloudinit.sources import DataSourceIBMCloud as ibm
 from tests.unittests import helpers as test_helpers
-
-mock = test_helpers.mock
 
 D_PATH = "cloudinit.sources.DataSourceIBMCloud."
 
@@ -133,8 +132,7 @@ class TestReadMD:
         "public_keys": {"1091307": "ssh-rsa AAAAB3N..Hw== ci-pubkey"},
     }
 
-    content_interfaces = dedent(
-        """\
+    content_interfaces = dedent("""\
         auto lo
         iface lo inet loopback
 
@@ -143,8 +141,7 @@ class TestReadMD:
         iface eth0 inet static
         address 10.82.43.5
         netmask 255.255.255.192
-        """
-    )
+        """)
 
     userdata = b"#!/bin/sh\necho hi mom\n"
     # meta.js file gets json encoded userdata as a list.

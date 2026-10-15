@@ -8,7 +8,10 @@
 
 set -eux
 
-fail() { echo "FAILED:" "$@" 1>&2; exit 1; }
+fail() {
+    echo "FAILED:" "$@" 1>&2
+    exit 1
+}
 
 PYTHON="${PYTHON:-python3}"
 if [ ! $(which ${PYTHON}) ]; then

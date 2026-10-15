@@ -4,6 +4,7 @@
 """test_apt_custom_sources_list
 Test templating of custom sources list
 """
+
 import stat
 
 import pytest

@@ -99,6 +99,25 @@
          "sudo"
       ]
    },
+   "openbsd": {
+      "renames" : {
+         "pyserial"    : "py3-serial",
+         "pyyaml"      : "py3-yaml",
+         "pytest"      : "py3-test",
+         "pytest-cov"  : "py3-test-cov",
+         "pytest-mock" : "py3-test-mock",
+         "pytest-xdist": "py3-test-xdist"
+      },
+      "build-requires" : [
+         "bash",
+         "bash-completion",
+         "meson"
+      ],
+      "requires" : [
+         "e2fsprogs",
+         "sudo--"
+      ]
+   },
    "suse" : {
       "renames" : {
          "jinja2" : "python3-Jinja2",

@@ -20,8 +20,11 @@ from cloudinit.net.dhcp import (
     NoDHCPLeaseInterfaceError,
     NoDHCPLeaseMissingDhclientError,
     Udhcpc,
+    find_correct_device_nmcli,
     maybe_perform_dhcp_discovery,
+    network_manager_load_leases,
     networkd_load_leases,
+    run_nmcli,
 )
 from cloudinit.net.ephemeral import EphemeralDHCPv4
 from cloudinit.subp import SubpResult
@@ -108,8 +111,7 @@ class TestParseDHCPLeasesFile:
         """IscDhclient().get_newest_lease returns the latest lease
         within.
         """
-        content = dedent(
-            """
+        content = dedent("""
             lease {
               interface "wlp3s0";
               fixed-address 192.168.2.74;
@@ -126,8 +128,7 @@ class TestParseDHCPLeasesFile:
               option subnet-mask 255.255.255.0;
               option routers 192.168.2.1;
             }
-        """
-        )
+        """)
         expected = {
             "interface": "wlp3s0",
             "fixed-address": "192.168.2.74",
@@ -151,8 +152,7 @@ class TestDHCPRFC3442:
         """
         write_file(
             isc_dh_cli.lease_file,
-            dedent(
-                """
+            dedent("""
             lease {
               interface "wlp3s0";
               fixed-address 192.168.2.74;
@@ -162,8 +162,7 @@ class TestDHCPRFC3442:
               renew 4 2017/07/27 18:02:30;
               expire 5 2017/07/28 07:08:15;
             }
-            """
-            ),
+            """),
         )
         expected = {
             "interface": "wlp3s0",
@@ -181,8 +180,7 @@ class TestDHCPRFC3442:
         IscDhclient().get_newest_lease returns classless-static-routes
         for Centos lease format.
         """
-        content = dedent(
-            """
+        content = dedent("""
             lease {
               interface "wlp3s0";
               fixed-address 192.168.2.74;
@@ -192,8 +190,7 @@ class TestDHCPRFC3442:
               renew 4 2017/07/27 18:02:30;
               expire 5 2017/07/28 07:08:15;
             }
-        """
-        )
+        """)
         expected = {
             "interface": "wlp3s0",
             "fixed-address": "192.168.2.74",
@@ -441,16 +438,14 @@ class TestDHCPDiscoveryClean:
         """
         m_subp.return_value = ("", "")
 
-        lease_content = dedent(
-            """
+        lease_content = dedent("""
             lease {
               interface "eth9";
               fixed-address 192.168.2.74;
               option subnet-mask 255.255.255.0;
               option routers 192.168.2.1;
             }
-        """
-        )
+        """)
 
         with mock.patch(
             "cloudinit.util.load_text_file", return_value=lease_content
@@ -513,16 +508,14 @@ class TestDHCPDiscoveryClean:
         It also returns the parsed dhcp.leases file.
         """
         m_subp.return_value = ("", "")
-        lease_content = dedent(
-            """
+        lease_content = dedent("""
             lease {
               interface "eth9";
               fixed-address 192.168.2.74;
               option subnet-mask 255.255.255.0;
               option routers 192.168.2.1;
             }
-        """
-        )
+        """)
         my_pid = 1
         with mock.patch(
             "cloudinit.util.load_text_file", side_effect=["1", lease_content]
@@ -586,16 +579,14 @@ class TestDHCPDiscoveryClean:
 
         It also returns the parsed dhcp.leases file.
         """
-        lease_content = dedent(
-            """
+        lease_content = dedent("""
             lease {
               interface "ib0";
               fixed-address 192.168.2.74;
               option subnet-mask 255.255.255.0;
               option routers 192.168.2.1;
             }
-        """
-        )
+        """)
         my_pid = 1
         with mock.patch(
             "cloudinit.util.load_text_file", side_effect=["1", lease_content]
@@ -653,16 +644,14 @@ class TestDHCPDiscoveryClean:
         dhclient_err = "FAKE DHCLIENT ERROR"
         dhclient_out = "FAKE DHCLIENT OUT"
         m_subp.return_value = (dhclient_out, dhclient_err)
-        lease_content = dedent(
-            """
+        lease_content = dedent("""
                 lease {
                   interface "eth9";
                   fixed-address 192.168.2.74;
                   option subnet-mask 255.255.255.0;
                   option routers 192.168.2.1;
                 }
-            """
-        )
+            """)
         lease_file = os.path.join(tmpdir, "dhcp.leases")
         write_file(lease_file, lease_content)
         pid_file = os.path.join(tmpdir, "dhclient.pid")
@@ -680,8 +669,7 @@ class TestDHCPDiscoveryClean:
 
 
 class TestSystemdParseLeases:
-    lxd_lease = dedent(
-        """\
+    lxd_lease = dedent("""\
     # This is private data. Do not parse.
     ADDRESS=10.75.205.242
     NETMASK=255.255.255.0
@@ -696,8 +684,7 @@ class TestSystemdParseLeases:
     DOMAINNAME=lxd
     HOSTNAME=a1
     CLIENTID=ffe617693400020000ab110c65a6a0866931c2
-    """
-    )
+    """)
 
     lxd_parsed = {
         "ADDRESS": "10.75.205.242",
@@ -715,8 +702,7 @@ class TestSystemdParseLeases:
         "CLIENTID": "ffe617693400020000ab110c65a6a0866931c2",
     }
 
-    azure_lease = dedent(
-        """\
+    azure_lease = dedent("""\
     # This is private data. Do not parse.
     ADDRESS=10.132.0.5
     NETMASK=255.255.255.255
@@ -735,8 +721,7 @@ class TestSystemdParseLeases:
     ROUTES=10.132.0.1/32,0.0.0.0 0.0.0.0/0,10.132.0.1
     CLIENTID=ff405663a200020000ab11332859494d7a8b4c
     OPTION_245=624c3620
-    """
-    )
+    """)
 
     azure_parsed = {
         "ADDRESS": "10.132.0.5",
@@ -839,7 +824,6 @@ class TestEphemeralDhcpNoNetworkSetup:
 @pytest.mark.parametrize(
     "error_class",
     [
-        NoDHCPLeaseInterfaceError,
         NoDHCPLeaseInterfaceError,
         NoDHCPLeaseMissingDhclientError,
     ],
@@ -1162,8 +1146,7 @@ class TestISCDHClient:
 
 class TestDhcpcd:
     def test_parse_lease_dump(self):
-        lease = dedent(
-            """
+        lease = dedent("""
             broadcast_address='192.168.15.255'
             dhcp_lease_time='3600'
             dhcp_message_type='5'
@@ -1177,8 +1160,7 @@ class TestDhcpcd:
             routers='192.168.0.1'
             subnet_cidr='20'
             subnet_mask='255.255.240.0'
-            """
-        )
+            """)
         with mock.patch("cloudinit.net.dhcp.util.load_binary_file"):
             parsed_lease = Dhcpcd.parse_dhcpcd_lease(lease, "eth0")
         assert "eth0" == parsed_lease["interface"]
@@ -1244,11 +1226,9 @@ class TestDhcpcd:
 
         with pytest.raises(InvalidDHCPLeaseFileError):
             with mock.patch("cloudinit.net.dhcp.util.load_binary_file"):
-                lease = dedent(
-                    """
+                lease = dedent("""
                     fail
-                    """
-                )
+                    """)
                 Dhcpcd.parse_dhcpcd_lease(lease, "eth0")
 
     @pytest.mark.parametrize(
@@ -1392,3 +1372,78 @@ class TestMaybePerformDhcpDiscovery:
         with pytest.raises(NoDHCPLeaseInterfaceError):
             distro = mock.Mock(fallback_interface=None)
             maybe_perform_dhcp_discovery(distro, None)
+
+
+class TestNMDhcpLeases:
+    def test_find_correct_connected_device_first_match(self):
+        with mock.patch(
+            "cloudinit.net.dhcp.run_nmcli",
+            return_value=dedent("""
+                   ens150:ethernet:unavailable:
+                   p2p-dev-wlp:wifi-p2p:disconnected:
+                   ens160:ethernet:connected:Wired connection 2
+                   ens256:ethernet:connected:Wired connection 3
+                   lo:loopback:connected (externally):lo
+                """),
+        ):
+            ret = find_correct_device_nmcli()
+        assert ret == "ens160"
+
+    def test_network_manager_load_leases(self):
+        expected_return = {
+            "broadcast_address": "172.16.127.255",
+            "dhcp_client_identifier": "01:00:0c:29:bf:c5:56",
+            "dhcp_lease_time": "1800",
+            "dhcp_server_identifier": "172.16.127.254",
+        }
+        with mock.patch(
+            "cloudinit.net.dhcp.run_nmcli",
+            return_value=dedent("""
+                DHCP4.OPTION[1]: broadcast_address = 172.16.127.255
+                DHCP4.OPTION[2]: dhcp_client_identifier = 01:00:0c:29:bf:c5:56
+                DHCP4.OPTION[3]: dhcp_lease_time = 1800
+                DHCP4.OPTION[4]: dhcp_server_identifier = 172.16.127.254
+                """),
+        ):
+            ret = network_manager_load_leases("ens10")
+            assert ret == expected_return
+
+    @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/usr/bin/nmcli")
+    @mock.patch("cloudinit.net.dhcp.subp.subp")
+    def test_run_nmcli(self, m_subp, m_which):
+        expected_return = dedent("""
+                DHCP4.OPTION[1]: broadcast_address = 172.16.127.255
+                DHCP4.OPTION[2]: dhcp_client_identifier = 01:00:0c:29:bf:c5:56
+                DHCP4.OPTION[3]: dhcp_lease_time = 1800
+                DHCP4.OPTION[4]: dhcp_server_identifier = 172.16.127.254
+                """)
+        m_subp.return_value = (expected_return, "")
+        ret = run_nmcli(["show"])
+        assert ret == expected_return
+
+    @mock.patch("cloudinit.net.dhcp.subp.which", return_value=None)
+    def test_run_nmcli_missing_nmcli(self, m_which):
+        """verify that absence of nmcli binary can result in
+        raising NoDHCPLeaseMissingDhclientError"""
+
+        with pytest.raises(NoDHCPLeaseMissingDhclientError):
+            run_nmcli(["show"])
+
+    @mock.patch("cloudinit.net.dhcp.subp.which", return_value="/usr/bin/nmcli")
+    @mock.patch("cloudinit.net.dhcp.subp.subp")
+    def test_run_nmcli_subp_err(self, m_subp, m_which):
+        """verify that when subp.ProcessExecutionError is raised while
+        running nmcli, it results in run_nmcli raising NoDHCPLeaseError"""
+
+        m_subp.side_effect = subp.ProcessExecutionError(exit_code=-5)
+
+        with pytest.raises(NoDHCPLeaseError):
+            run_nmcli(["--fields", "all", "device", "show"])
+
+        m_subp.assert_has_calls(
+            [
+                mock.call(
+                    ["/usr/bin/nmcli", "--fields", "all", "device", "show"],
+                ),
+            ]
+        )

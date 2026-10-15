@@ -1,6 +1,6 @@
 project(
   'cloud-init',
-  version: '26.1',
+  version: '26.2',
   meson_version: '>=0.63.0', # rockylinux/9
   license: 'GPL-3 OR Apache-2.0',
   default_options: [
@@ -221,6 +221,27 @@ elif init_system == 'sysvinit_freebsd'
   endforeach
   # Enable cloud-init on reboot
   meson.add_install_script('sh', '-c', '/usr/sbin/sysrc cloudinit_enable=YES')
+elif init_system == 'sysvinit_openbsd'
+  rcd_templates = run_command(find, 'sysvinit/openbsd', '-type', 'f', check: true)
+  foreach template : rcd_templates.stdout().strip().split('\n')
+    custom_target(
+      input: template,
+      output: '@BASENAME@',
+      command: [
+        render_tmpl,
+        '@INPUT@',
+        meson.current_build_dir() / '@OUTPUT@',
+      ],
+      install: true,
+      install_dir: sysconfdir / 'rc.d',
+      install_mode: 'r-xr-xr-x',
+      install_tag: 'sysvinit',
+    )
+  endforeach
+  meson.add_install_script('/usr/sbin/rcctl', 'enable', 'cloudinitlocal')
+  meson.add_install_script('/usr/sbin/rcctl', 'enable', 'cloudinit')
+  meson.add_install_script('/usr/sbin/rcctl', 'enable', 'cloudconfig')
+  meson.add_install_script('/usr/sbin/rcctl', 'enable', 'cloudfinal')
 endif
 
 custom_target(

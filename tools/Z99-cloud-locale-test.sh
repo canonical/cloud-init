@@ -6,12 +6,12 @@
 # (c) 2012, Canonical Group, Ltd.
 #
 # This file is part of cloud-init. See LICENSE file for license information.
- 
+
 # Purpose: Detect invalid locale settings and inform the user
 #  of how to fix them.
 
 locale_warn() {
-    command -v local >/dev/null && local _local="local" ||
+    command -v local > /dev/null && local _local="local" ||
         typeset _local="typeset"
 
     $_local bad_names="" bad_lcs="" key="" val="" var="" vars="" bad_kv=""
@@ -27,13 +27,14 @@ locale_warn() {
     # locale: Cannot set LC_SOMETHING to default locale
     while read -r w1 w2 w3 w4 remain; do
         case "$w1" in
-            locale:) bad_names="${bad_names} ${w4}";;
+            locale:) bad_names="${bad_names} ${w4}" ;;
             *)
                 key=${w1%%=*}
                 val=${w1#*=}
                 val=${val#\"}
                 val=${val%\"}
-                vars="${vars} $key=$val";;
+                vars="${vars} $key=$val"
+                ;;
         esac
     done
     for bad in $bad_names; do
@@ -93,7 +94,7 @@ locale_warn() {
     printf "_____________________________________________________________________\n\n"
 
     # only show the message once
-    : > ~/.cloud-locale-test.skip 2>/dev/null || :
+    : > ~/.cloud-locale-test.skip 2> /dev/null || :
 }
 
 [ -f ~/.cloud-locale-test.skip -o -f /var/lib/cloud/instance/locale-check.skip ] ||

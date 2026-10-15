@@ -13,6 +13,7 @@ import io
 import logging
 import os
 import shlex
+from typing import Any, Dict
 
 from cloudinit import util
 from cloudinit.net import get_devicelist, read_sys_net_safe
@@ -63,9 +64,14 @@ class KlibcNetworkConfigSource(InitramfsNetworkConfigSource):
                     self._mac_addrs[k] = mac_addr
 
     def is_applicable(self) -> bool:
-        """
-        Return whether this system has klibc initramfs network config or not
+        """Return whether this system has klibc initramfs network config."""
 
+        if is_applicable := self._is_applicable():
+            LOG.debug("Using initramfs network config from klibc")
+        return is_applicable
+
+    def _is_applicable(self) -> bool:
+        """
         Will return True if:
             (a) klibc files exist in /run, AND
             (b) either:
@@ -196,7 +202,7 @@ def config_from_klibc_net_cfg(files=None, mac_addrs=None):
         files = _get_klibc_net_cfg_files()
 
     entries = []
-    names = {}
+    names: Dict[str, Dict[str, Any]] = {}
     for cfg_file in files:
         name, entry = _klibc_to_config_entry(
             util.load_text_file(cfg_file), mac_addrs=mac_addrs

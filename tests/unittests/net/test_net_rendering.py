@@ -28,6 +28,7 @@ become too large to be maintainable.
 import glob
 from enum import Flag, auto
 from pathlib import Path
+from unittest import mock
 
 import pytest
 import yaml
@@ -36,7 +37,6 @@ from cloudinit.net.netplan import Renderer as NetplanRenderer
 from cloudinit.net.network_manager import Renderer as NetworkManagerRenderer
 from cloudinit.net.network_state import NetworkState, parse_net_config_data
 from cloudinit.net.networkd import Renderer as NetworkdRenderer
-from tests.unittests.helpers import mock
 
 ARTIFACT_DIR = Path(__file__).parent.absolute() / "artifacts"
 

@@ -231,7 +231,6 @@ def maybe_install_cloud_init(session_cloud: IntegrationCloud):
 
         client.install_new_cloud_init(source)
         session_cloud.snapshot_id = client.snapshot()
-        client.destroy()
 
     return {"image_id": session_cloud.snapshot_id}
 
@@ -251,8 +250,6 @@ class TestUbuntuAdvantagePro:
             user_data=AUTO_ATTACH_CUSTOM_SERVICES,
             launch_kwargs=launch_kwargs,
         ) as client:
-            log = client.read_from_file("/var/log/cloud-init.log")
-            verify_clean_log(log)
             verify_clean_boot(client)
             assert_ua_service_noop(client)
             assert is_attached(client)

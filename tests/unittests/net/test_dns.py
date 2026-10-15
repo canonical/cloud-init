@@ -15,9 +15,7 @@ class TestNetDns:
     ):
         by_mac_state.return_value = {"00:11:22:33:44:55": "foobar"}
         by_mac_init.return_value = {"00:11:22:33:44:55": "foobar"}
-        state = network_state.parse_net_config_data(
-            yaml.safe_load(
-                """\
+        state = network_state.parse_net_config_data(yaml.safe_load("""\
 version: 2
 ethernets:
   eth:
@@ -27,9 +25,7 @@ ethernets:
     gateway4: 10.0.0.1
     nameservers:
       addresses: [10.0.0.3]
-"""
-            )
-        )
+"""))
         assert (
             "10.0.0.3" in next(state.iter_interfaces())["dns"]["nameservers"]
         )

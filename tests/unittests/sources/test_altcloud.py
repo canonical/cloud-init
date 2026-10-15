@@ -12,12 +12,12 @@ This test file exercises the code in sources DataSourceAltCloud.py
 
 import os
 import shutil
+from unittest import mock
 
 import pytest
 
 import cloudinit.sources.DataSourceAltCloud as dsac
 from cloudinit import subp, util
-from tests.unittests.helpers import mock
 
 OS_UNAME_ORIG = getattr(os, "uname")
 

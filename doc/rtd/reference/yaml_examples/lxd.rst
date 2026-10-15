@@ -55,4 +55,4 @@ behavior for sub-projects.
    :linenos:
 
 .. LINKS
-.. _non-interactive LXD configuration: https://documentation.ubuntu.com/lxd/en/latest/howto/initialize/#non-interactive-configuration
+.. _non-interactive LXD configuration: https://canonical.com/lxd/docs/latest/howto/initialize/#non-interactive-configuration

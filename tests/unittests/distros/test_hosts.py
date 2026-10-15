@@ -21,8 +21,8 @@ class TestHostsHelper:
             ["foo.mydomain.org", "foo"],
             ["bar.mydomain.org", "bar"],
         ]
-        eh = str(eh)
-        assert eh.startswith("# Example")
+        eh_str = str(eh)
+        assert eh_str.startswith("# Example")
 
     def test_add(self):
         eh = hosts.HostsConf(BASE_ETC)

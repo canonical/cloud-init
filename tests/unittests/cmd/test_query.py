@@ -8,6 +8,7 @@ from collections import namedtuple
 from io import BytesIO
 from pathlib import Path
 from textwrap import dedent
+from unittest import mock
 
 import pytest
 
@@ -17,7 +18,6 @@ from cloudinit.helpers import Paths
 from cloudinit.sources import REDACT_SENSITIVE_VALUE
 from cloudinit.templater import JinjaSyntaxParsingException
 from cloudinit.util import write_file
-from tests.unittests.helpers import mock
 
 M_PATH = "cloudinit.cmd.query."
 
@@ -258,6 +258,7 @@ class TestQuery:
             (_gzip_data(b"ud"), "ud", _gzip_data(b"vd"), "vd"),
             (_gzip_data("ud".encode("utf-8")), "ud", _gzip_data(b"vd"), "vd"),
         ),
+        ids=("plain-text", "bytes", "gzip-bytes", "gzip-encoded-bytes"),
     )
     def test_handle_args_root_processes_user_data(
         self, ud_src, ud_expected, vd_src, vd_expected, capsys, tmpdir
@@ -416,8 +417,10 @@ class TestQuery:
             ),
             # Assert no jinja underscore-delimited aliases are reported on CLI
             (
-                '{"v1": {"something-hyphenated": {"no.underscores":"x",'
-                ' "no-alias": "y"}}, "my-var": "it worked"}',
+                (
+                    '{"v1": {"something-hyphenated": {"no.underscores":"x",'
+                    ' "no-alias": "y"}}, "my-var": "it worked"}'
+                ),
                 "v1.something_hyphenated",
                 '{\n "no-alias": "y",\n "no.underscores": "x"\n}\n',
             ),
@@ -454,8 +457,7 @@ class TestQuery:
             '{"v1": {"v1_1": "val1.1"}, "v2": {"v2_2": "val2.2"},'
             ' "top": "gun"}'
         )
-        expected = dedent(
-            """\
+        expected = dedent("""\
             {
              "combined_cloud_config": "<redacted for non-root user> %s",
              "top": "gun",
@@ -470,9 +472,7 @@ class TestQuery:
              "v2_2": "val2.2",
              "vendordata": "<redacted for non-root user> file:vd"
             }
-        """
-            % "file:/run/cloud-init/combined-cloud-config.json"
-        )
+        """ % "file:/run/cloud-init/combined-cloud-config.json")
         args = self.Args(
             debug=False,
             dump_all=True,
@@ -614,7 +614,7 @@ class TestQuery:
             "Failed to render templated data. "
             + JinjaSyntaxParsingException.format_error_message(
                 syntax_error="unexpected '}'",
-                line_number="2",
+                line_number=2,
                 line_content="v1_1: {{ v1.v1_1 } }",
             )
         )

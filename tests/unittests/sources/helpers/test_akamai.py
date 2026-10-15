@@ -1,9 +1,9 @@
 from typing import Any, Dict
+from unittest import mock
 
 import pytest
 
 from cloudinit.sources.helpers.akamai import get_dmi_config, is_on_akamai
-from tests.unittests.helpers import mock
 
 
 class TestAkamaiHelper:

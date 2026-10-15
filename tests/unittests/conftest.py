@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest import mock
 
 import pytest
+from pyfakefs.fake_filesystem import FakeFilesystem
 
 from cloudinit import (
     atomic_helper,
@@ -41,7 +42,6 @@ def m_gpg():
     MockGPG = mock.Mock(spec=GPG)
     MockGPG.configure_mock(**{"getkeybyid.return_value": "fakekey"})
     gpg = MockGPG()
-    gpg.list_keys = mock.Mock(return_value="<mocked: list_keys>")
     gpg.getkeybyid = mock.Mock(return_value="<mocked: getkeybyid>")
 
     # to make tests for cc_apt_configure behave, we need the mocked GPG
@@ -119,7 +119,9 @@ def fake_filesystem_hook():
 
 @pytest.fixture
 def fake_filesystem(mocker, tmpdir, fake_filesystem_hook):
-    """Mocks fs functions to operate under `tmpdir`
+    """This fixture is DEPRECATED for new tests. Use fake_fs instead.
+
+    Mocks fs functions to operate under `tmpdir`.
 
     This fixture is sorted after fix_cloud_init_hook to allow fixtures sorted
     before fake_cloud_init_hook to access the real filesystem.
@@ -146,6 +148,14 @@ def fake_filesystem(mocker, tmpdir, fake_filesystem_hook):
             mocker.patch.object(mod, var_name, new_var_val)
 
     yield str(tmpdir)
+
+
+@pytest.fixture
+def fake_fs(fs: FakeFilesystem):
+    """Mocks fs and pathlib functions to operate under a fake filesystem.
+
+    See https://pytest-pyfakefs.readthedocs.io"""
+    yield fs
 
 
 @pytest.fixture(scope="session", autouse=True)

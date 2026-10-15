@@ -116,7 +116,7 @@ class TestHappyPath:
             mock.call(["repos", "--enable=repo1"])
         ]
 
-    def test_full_registration(self, m_sman_cli, caplog):
+    def test_full_registration(self, m_sman_cli, caplog, mocker):
         """
         Registration with auto_attach, service_level, adding pools,
         enabling and disabling yum repos and setting release_version
@@ -147,7 +147,7 @@ class TestHappyPath:
         # to avoid deleting the actual cache files
         # (triggered by the presence of the release_version key)
         # on the host running the tests
-        mock.patch("shutil.rmtree")
+        mocker.patch("shutil.rmtree")
 
         cc_rh_subscription.handle(NAME, self.CONFIG_FULL, None, [])
         assert m_sman_cli.call_count == 10
@@ -250,9 +250,11 @@ class TestBadInput:
             (
                 CONFIG_SERVICE,
                 [
-                    "The service_level key must be used in conjunction with"
-                    " the auto_attach key.  Please re-run with"
-                    " auto_attach: True",
+                    (
+                        "The service_level key must be used in conjunction"
+                        " with the auto_attach key.  Please re-run with"
+                        " auto_attach: True"
+                    ),
                     "rh_subscription plugin did not complete successfully",
                 ],
             ),
@@ -399,10 +401,12 @@ class TestRhSubscriptionSchema:
             # add-pool are added
             (
                 {"rh_subscription": {"add_pool": ["1"], "add-pool": ["2"]}},
-                r"({'add_pool': \['1'\], 'add-pool': \['2'\]} should not be"
-                r" valid under {'required': \['add_pool', 'add-pool'\]}|"
-                r"{'required': \['add_pool', 'add-pool'\]} is not allowed"
-                r" for {'add_pool': \['1'\], 'add-pool': \['2'\]})",
+                (
+                    r"({'add_pool': \['1'\], 'add-pool': \['2'\]} should not"
+                    r" be valid under {'required': \['add_pool', 'add-pool'\]}"
+                    r"|{'required': \['add_pool', 'add-pool'\]} is not allowed"
+                    r" for {'add_pool': \['1'\], 'add-pool': \['2'\]})"
+                ),
             ),
             (
                 {"rh_subscription": {"enable_repo": "name"}},
@@ -427,8 +431,10 @@ class TestRhSubscriptionSchema:
             ),
             (
                 {"rh_subscription": {"activation_key": "foobar", "org": 314}},
-                "Deprecated in version 24.2. Use of type integer for this"
-                " value is deprecated. Use a string instead.",
+                (
+                    "Deprecated in version 24.2. Use of type integer for this"
+                    " value is deprecated. Use a string instead."
+                ),
             ),
         ],
     )

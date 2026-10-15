@@ -28,6 +28,7 @@ jobs:
         run: tox -e hypothesis-slow
   devel_tests:
     name: "Tip: Python"
+    if: github.repository == 'canonical/cloud-init'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -44,14 +45,15 @@ jobs:
       - name: Run unittest
         run: tox -e py3 -- --color=yes
   format_tip:
+    name: "Tip: Lint"
+    if: github.repository == 'canonical/cloud-init'
+    runs-on: ubuntu-latest
     env:
       FORCE_COLOR: 1
     strategy:
       fail-fast: false
       matrix:
         env: [tip-ruff, tip-mypy, tip-pylint, tip-black, tip-isort, py3-fast]
-    name: "Tip: Lint"
-    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
@@ -65,6 +67,7 @@ jobs:
         run: tox
   macos:
     name: Python ${{matrix.python-version}} ${{ matrix.slug }}
+    if: github.repository == 'canonical/cloud-init'
     runs-on: macos-latest
     strategy:
       matrix:
