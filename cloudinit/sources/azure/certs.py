@@ -28,12 +28,7 @@ def is_openssh_formatted(key: str) -> bool:
         return False
 
     parser = ssh_util.AuthKeyLineParser()
-    try:
-        akl = parser.parse(key)
-    except TypeError:
-        LOG.debug("SSH key could not be parsed.")
-        return False
-
+    akl = parser.parse(key)
     if akl.keytype is None:
         LOG.debug("SSH key type is missing.")
         return False

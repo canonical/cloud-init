@@ -2418,7 +2418,7 @@ scbus-1 on xpt0 bus 0
         self.m_get_metadata_from_fabric.side_effect = (
             azure_helper.get_metadata_from_fabric
         )
-        dsrc.get_data()
+        assert dsrc.get_data()
         dsrc.setup(True)
         return dsrc.get_public_ssh_keys(), m_parse_certificates
 
@@ -2538,17 +2538,17 @@ scbus-1 on xpt0 bus 0
         assert ssh_keys == []
         m_parse_certificates.assert_not_called()
 
-    @mock.patch(
-        "cloudinit.sources.DataSourceAzure.certs.convert_x509_to_openssh"
+    @pytest.mark.skipif(
+        shutil.which("openssl") is None, reason="openssl not available"
     )
+    @pytest.mark.allow_subp_for("openssl")
     def test_get_public_ssh_keys_with_x509_conversion_failure_falls_back(
-        self, m_convert, get_ds, mocker, caplog
+        self, get_ds, mocker, caplog
     ):
-        """If any IMDS key cannot be used, all keys come from Wireserver."""
+        """Malformed IMDS PEM triggers fallback for the entire key list."""
         cert = (
-            "-----BEGIN CERTIFICATE-----\nMIIBcert\n-----END CERTIFICATE-----"
+            "-----BEGIN CERTIFICATE-----\nINVALID\n-----END CERTIFICATE-----"
         )
-        m_convert.side_effect = subp.ProcessExecutionError("conversion failed")
 
         ssh_keys, m_parse_certificates = self._boot_with_imds_public_keys(
             get_ds,
@@ -2567,6 +2567,37 @@ scbus-1 on xpt0 bus 0
             (
                 "Failed to process IMDS public key index=1: Failed to convert "
                 "x509 certificate to OpenSSH format"
+            ),
+        ) in caplog.record_tuples
+
+    @pytest.mark.parametrize(
+        "key, key_type",
+        [
+            pytest.param(None, "<class 'NoneType'>", id="null"),
+            pytest.param(123, "<class 'int'>", id="number"),
+        ],
+    )
+    def test_get_public_ssh_keys_with_non_string_imds_key_falls_back(
+        self, key, key_type, get_ds, mocker, caplog
+    ):
+        """Non-string key data causes fallback for the entire key list."""
+        ssh_keys, m_parse_certificates = self._boot_with_imds_public_keys(
+            get_ds,
+            mocker,
+            [
+                {"keyData": "ssh-rsa openssh-key", "path": "path1"},
+                {"keyData": key, "path": "path2"},
+            ],
+        )
+
+        assert ssh_keys == ["ssh-rsa wireserver-key", "ssh-rsa ovf-key"]
+        m_parse_certificates.assert_called_once()
+        assert (
+            MOCKPATH[:-1],
+            logging.ERROR,
+            (
+                "Failed to process IMDS public key index=1: "
+                f"Key is not a string: {key_type}"
             ),
         ) in caplog.record_tuples
 

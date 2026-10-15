@@ -1067,8 +1067,8 @@ class DataSourceAzure(sources.DataSource):
         certificates. x509 certificates are converted to OpenSSH format.
 
         :raises KeyError: if IMDS metadata is malformed/missing.
-        :raises ValueError: if any key is not supported or cannot be
-            converted.
+        :raises ValueError: if any key is not a string, has an unsupported
+            format, or cannot be converted.
 
         :returns: List of keys.
         """
@@ -1085,6 +1085,8 @@ class DataSourceAzure(sources.DataSource):
         ssh_keys = []
         for i, key in enumerate(public_keys):
             try:
+                if not isinstance(key, str):
+                    raise ValueError(f"Key is not a string: {type(key)}")
                 ssh_keys.append(certs.normalize_ssh_public_key(key))
             except ValueError as error:
                 log_msg = (

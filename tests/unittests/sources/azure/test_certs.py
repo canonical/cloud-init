@@ -105,6 +105,7 @@ class TestIsOpensshFormatted:
             pytest.param(_X509_CERT, id="x509-certificate"),
             pytest.param("", id="empty-string"),
             pytest.param("this is not a key", id="random-string"),
+            pytest.param("ssh-rsa", id="missing-key-data"),
             pytest.param(
                 "not-a-key-type AAAAB3NzaC1yc2EAAAADAQABAAABAQ",
                 id="malformed-key-type",
@@ -114,16 +115,6 @@ class TestIsOpensshFormatted:
     def test_invalid(self, value):
         """Non-OpenSSH strings should return False."""
         assert certs.is_openssh_formatted(value) is False
-
-    @mock.patch.object(certs.ssh_util.AuthKeyLineParser, "parse")
-    def test_parser_type_error(self, m_parse, caplog):
-        m_parse.side_effect = TypeError("Cannot parse key")
-        caplog.set_level(logging.DEBUG)
-
-        assert certs.is_openssh_formatted(_VALID_RSA_KEY) is False
-
-        m_parse.assert_called_once_with(_VALID_RSA_KEY)
-        assert "SSH key could not be parsed." in caplog.text
 
 
 class TestIsX509Certificate:
@@ -412,21 +403,13 @@ class TestNormalizeSshPublicKey:
         [
             pytest.param("", id="empty"),
             pytest.param("not-a-supported-key", id="unsupported"),
+            pytest.param("ssh-rsa", id="missing-key-data"),
         ],
     )
     def test_unsupported_key_raises_value_error(self, key):
         """A key that is neither OpenSSH nor x509 raises a ValueError."""
         with pytest.raises(ValueError, match="not in a supported format"):
             certs.normalize_ssh_public_key(key)
-
-    @mock.patch.object(certs.ssh_util.AuthKeyLineParser, "parse")
-    def test_parser_type_error_raises_value_error(self, m_parse):
-        m_parse.side_effect = TypeError("Cannot parse key")
-
-        with pytest.raises(ValueError, match="not in a supported format"):
-            certs.normalize_ssh_public_key(_VALID_RSA_KEY)
-
-        m_parse.assert_called_once_with(_VALID_RSA_KEY)
 
     @pytest.mark.parametrize(
         "cert",
@@ -453,15 +436,16 @@ class TestNormalizeSshPublicKey:
         m_convert.assert_called_once_with(cert)
         assert "CRLF" not in caplog.text
 
-    @mock.patch("cloudinit.sources.azure.certs.convert_x509_to_openssh")
-    def test_x509_conversion_failure_raises_value_error(self, m_convert):
-        """A certificate that cannot be converted raises a ValueError."""
-        m_convert.side_effect = subp.ProcessExecutionError("conversion failed")
-
+    @pytest.mark.skipif(
+        shutil.which("openssl") is None, reason="openssl not available"
+    )
+    @pytest.mark.allow_subp_for("openssl")
+    def test_x509_conversion_failure_raises_value_error(self):
+        """Malformed PEM fails real conversion and raises a ValueError."""
         with pytest.raises(
             ValueError, match="Failed to convert x509 certificate"
         ) as exc_info:
-            certs.normalize_ssh_public_key(_X509_CERT)
+            certs.normalize_ssh_public_key(_INVALID_X509_CERT)
 
         assert isinstance(exc_info.value.__cause__, subp.ProcessExecutionError)
 
