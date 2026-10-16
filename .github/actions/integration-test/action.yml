@@ -33,6 +33,7 @@ runs:
   using: composite
   steps:
     - name: Assert required repo secrets are set
+      id: check-secrets
       shell: bash
       run: |
         errors=()
@@ -49,6 +50,7 @@ runs:
           exit 1
         fi
     - name: Validate inputs
+      id: validate-inputs
       # Defend filter_tests against shell injection, restrict it to test path/node-id characters.
       if: ${{ inputs.filter_tests != '' }}
       shell: bash
@@ -113,7 +115,9 @@ runs:
         fi
         tox -e integration-tests -- --junitxml="${{ github.workspace }}/junit-report.xml" --color=yes "${TEST_ARGS[@]}"
     - name: Publish Test Report with Insights
-      if: ${{ always() }}
+      # Run even when tests fail (to publish the failure report), but skip
+      # when validation failed: there is no report to publish
+      if: ${{ always() && steps.check-secrets.outcome == 'success' && steps.validate-inputs.outcome != 'failure' }}
       uses: ctrf-io/github-test-reporter@024bc4b64d997ca9da86833c6b9548c55c620e40 # v1.0.26
       with:
         report-path: '${{ github.workspace }}/junit-report.xml'
