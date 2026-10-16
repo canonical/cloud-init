@@ -508,6 +508,7 @@ def mount_if_needed(
         do_mount = bool(set(dirs).difference(mount_points))
 
     if do_mount:
+        util.udevadm_settle()
         subp.subp(["mount", "-a"])
         if uses_systemd:
             subp.subp(["systemctl", "daemon-reload"])
