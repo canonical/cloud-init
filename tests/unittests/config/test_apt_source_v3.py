@@ -16,7 +16,7 @@ from unittest.mock import call
 
 import pytest
 
-from cloudinit import gpg, subp, util
+from cloudinit import gpg, subp, url_helper, util
 from cloudinit.config import cc_apt_configure
 from tests.unittests.helpers import skipIfAptPkg
 from tests.unittests.util import get_cloud
@@ -1239,6 +1239,110 @@ deb http://ubuntu.com/ubuntu/ xenial-proposed main"""
         assert mirrors["MIRROR"] == pmir
         assert mirrors["PRIMARY"] == pmir
         assert mirrors["SECURITY"] == smir
+
+    @pytest.mark.parametrize(
+        "contents, expected_key",
+        [
+            pytest.param(EXPECTEDKEY.encode(), EXPECTEDKEY, id="armored"),
+            pytest.param(
+                b"\x99\x01\x0dbinary", b"\x99\x01\x0dbinary", id="binary"
+            ),
+        ],
+    )
+    def test_apt_v3_src_keyurl(self, mocker, m_gpg, contents, expected_key):
+        """test_apt_v3_src_keyurl - Test fetching a key from keyurl"""
+        url = "https://example.com/key.gpg"
+        m_read = mocker.patch(
+            f"{M_PATH}url_helper.read_file_or_url",
+            return_value=mock.Mock(contents=contents),
+        )
+        mocker.patch(f"{M_PATH}util.fetch_ssl_details", return_value=None)
+        cfg = {self.aptlistfile: {"keyurl": url}}
+
+        with mock.patch.object(cc_apt_configure, "add_apt_key_raw") as mockadd:
+            self._add_apt_sources(
+                cfg,
+                cloud=mock.Mock(),
+                gpg=m_gpg,
+                template_params=self._get_default_params(),
+                aa_repo_match=self.matcher,
+            )
+
+        m_read.assert_called_once_with(
+            url, retries=3, sec_between=3, ssl_details=None
+        )
+        mockadd.assert_called_once_with(
+            expected_key, self.aptlistfile, m_gpg, hardened=False
+        )
+
+    def test_apt_v3_src_keyurl_failure(self, mocker, m_gpg, caplog):
+        """test_apt_v3_src_keyurl_failure - A failed fetch is raised"""
+        url = "https://example.com/missing.gpg"
+        mocker.patch(
+            f"{M_PATH}url_helper.read_file_or_url",
+            side_effect=url_helper.UrlError("not found", code=404, url=url),
+        )
+        mocker.patch(f"{M_PATH}util.fetch_ssl_details", return_value=None)
+        cfg = {self.aptlistfile: {"keyurl": url}}
+
+        with mock.patch.object(cc_apt_configure, "add_apt_key_raw") as mockadd:
+            with pytest.raises(url_helper.UrlError):
+                self._add_apt_sources(
+                    cfg,
+                    cloud=mock.Mock(),
+                    gpg=m_gpg,
+                    template_params=self._get_default_params(),
+                    aa_repo_match=self.matcher,
+                )
+        mockadd.assert_not_called()
+        assert f"Failed to obtain apt key from {url}" in caplog.text
+
+    def test_apt_v3_src_keyurl_ignored_with_keyid(self, mocker, m_gpg):
+        """test_apt_v3_src_keyurl_ignored_with_keyid - keyid takes priority"""
+        m_read = mocker.patch(f"{M_PATH}url_helper.read_file_or_url")
+        cfg = {
+            self.aptlistfile: {
+                "keyurl": "https://example.com/key.gpg",
+                "keyid": "03683F77",
+            }
+        }
+
+        with mock.patch.object(cc_apt_configure, "add_apt_key_raw") as mockadd:
+            self._add_apt_sources(
+                cfg,
+                cloud=mock.Mock(),
+                gpg=m_gpg,
+                template_params=self._get_default_params(),
+                aa_repo_match=self.matcher,
+            )
+
+        m_read.assert_not_called()
+        mockadd.assert_called_once_with(
+            "<mocked: getkeybyid>", self.aptlistfile, m_gpg, hardened=False
+        )
+
+    def test_apt_v3_add_mirror_keyurl(self, mocker, m_gpg):
+        """test_apt_v3_add_mirror_keyurl - Test keyurl for mirrors"""
+        mocker.patch(
+            f"{M_PATH}url_helper.read_file_or_url",
+            return_value=mock.Mock(contents=EXPECTEDKEY.encode()),
+        )
+        mocker.patch(f"{M_PATH}util.fetch_ssl_details", return_value=None)
+        cfg = {
+            "primary": [
+                {
+                    "arches": ["amd64"],
+                    "uri": "http://test.ubuntu.com/",
+                    "keyurl": "https://example.com/key.asc",
+                }
+            ]
+        }
+
+        with mock.patch.object(cc_apt_configure, "add_apt_key_raw") as mockadd:
+            cc_apt_configure.add_mirror_keys(cfg, mock.Mock(), m_gpg)
+        mockadd.assert_called_once_with(
+            EXPECTEDKEY, "primary", m_gpg, hardened=False
+        )
 
     def test_apt_v3_add_mirror_keys(self, tmpdir, m_gpg):
         """test_apt_v3_add_mirror_keys - Test adding key for mirrors"""
