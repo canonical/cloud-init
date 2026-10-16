@@ -1,5 +1,6 @@
 cloud-init (26.1-0ubuntu1~22.04.2) UNRELEASED; urgency=medium
 
+  * d/control: add python3-pyfakefs dependency
   * refresh patches:
     - d/p/0001-retain-ec2-instance-data-metadata-url.patch
     - d/p/cli-retain-file-argument-as-main-cmd-arg.patch
