@@ -22,7 +22,7 @@ from tests.unittests.helpers import (
     does_not_raise,
     skipUnlessJsonSchema,
 )
-from tests.unittests.util import get_cloud
+from tests.unittests.util import FakeDataSource, get_cloud
 
 M_PATH = "cloudinit.config.cc_package_update_upgrade_install."
 
@@ -137,6 +137,70 @@ class TestRebootIfRequired:
                 in caplog.text
             )
             m_subp.assert_called_with(subp_call)
+
+
+class TestPackageUpdate:
+    @pytest.mark.parametrize(
+        "cfg", [{"package_update": True}, {"package_upgrade": True}]
+    )
+    def test_update_is_forced(self, cfg, common_mocks, mocker):
+        cloud = get_cloud("ubuntu")
+        m_update = mocker.patch.object(cloud.distro, "update_package_sources")
+        mocker.patch.object(cloud.distro, "package_command")
+        handle("", cfg, cloud, [])
+        m_update.assert_called_once_with(force=True)
+
+    def test_no_update_without_update_or_upgrade(self, common_mocks, mocker):
+        cloud = get_cloud("ubuntu")
+        m_update = mocker.patch.object(cloud.distro, "update_package_sources")
+        mocker.patch.object(cloud.distro, "install_packages")
+        handle("", {"packages": ["pkg1"]}, cloud, [])
+        m_update.assert_not_called()
+
+
+class TestPackageUpdateRerun:
+    """Package sources are updated each time the module runs (GH-3218)."""
+
+    @pytest.fixture
+    def cloud(self, paths, mocker):
+        paths.datasource = FakeDataSource()
+        mocker.patch("os.path.isfile", return_value=False)
+        mocker.patch(
+            "cloudinit.distros.package_management.apt.Apt.available",
+            return_value=True,
+        )
+        mocker.patch(
+            "cloudinit.distros.package_management.apt.Apt._apt_lock_available",
+            return_value=True,
+        )
+        mocker.patch(
+            "cloudinit.distros.package_management.snap.Snap.available",
+            return_value=False,
+        )
+        return get_cloud("ubuntu", paths=paths)
+
+    @staticmethod
+    def _apt_get_updates(m_subp):
+        return [
+            c
+            for c in m_subp.call_args_list
+            if "update" in c.kwargs.get("args", [])
+        ]
+
+    def test_update_runs_on_every_module_run(self, cloud, mocker):
+        m_subp = mocker.patch(
+            "cloudinit.subp.subp", return_value=SubpResult("", "")
+        )
+        handle("", {"package_update": True}, cloud, [])
+        handle("", {"package_update": True}, cloud, [])
+        assert 2 == len(self._apt_get_updates(m_subp))
+
+    def test_single_update_when_installing_packages(self, cloud, mocker):
+        m_subp = mocker.patch(
+            "cloudinit.subp.subp", return_value=SubpResult("pkg1", "")
+        )
+        handle("", {"package_update": True, "packages": ["pkg1"]}, cloud, [])
+        assert 1 == len(self._apt_get_updates(m_subp))
 
 
 class TestMultiplePackageManagers:

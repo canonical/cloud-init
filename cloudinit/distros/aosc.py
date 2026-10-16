@@ -113,6 +113,7 @@ class Distro(distros.Distro):
             self.package_command,
             "refresh",
             freq=PER_INSTANCE,
+            force=force,
         )
 
 
