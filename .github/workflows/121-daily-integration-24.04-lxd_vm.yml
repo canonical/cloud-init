@@ -23,6 +23,11 @@ jobs:
   noble-lxd_vm:
     runs-on: ubuntu-latest
     if: github.repository == 'canonical/cloud-init'
+    permissions:
+      # Least-privilege scopes required by ctrf-io/github-test-reporter:
+      checks: write   # check-run reports
+      actions: read   # insights for flaky test delta
+      contents: read  # checkout
     env:
       PYCLOUDLIB_TOML_B64: ${{ secrets.PYCLOUDLIB_TOML_B64 }}
       SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}

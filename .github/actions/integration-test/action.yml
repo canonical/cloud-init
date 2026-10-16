@@ -33,24 +33,34 @@ runs:
     - name: Assert required repo secrets are set
       shell: bash
       run: |
+        errors=()
         if [ -z "$GITHUB_TOKEN" ]; then
-           echo "ERROR: Missing required GITHUB_TOKEN environment variable to render CTRF test reports."
-           exit 1
+          errors+=("Missing required GITHUB_TOKEN environment variable.")
         fi
-        if [ -z "$PYCLOUDLIB_TOML_B64" ]; then
-           echo "ERROR: Missing required repo secret. Please provide PYCLOUDLIB_TOML_B64 repo secret at ${{ github.repository }}/settings/secrets/actions."
-           exit 1
+        for secret in PYCLOUDLIB_TOML_B64 SSH_PUBLIC_KEY SSH_PRIVATE_KEY; do
+          if [ -z "${!secret}" ]; then
+            errors+=("Missing required repo secret. Please provide $secret repo secret at ${{ github.repository }}/settings/secrets/actions.")
+          fi
+        done
+        if [ "${#errors[@]}" -gt 0 ]; then
+          printf 'ERROR: %s\n' "${errors[@]}"
+          exit 1
         fi
-        if [ -z "$SSH_PUBLIC_KEY" ]; then
-           echo "ERROR: Missing required repo secret. Please provide SSH_PUBLIC_KEY repo secret at ${{ github.repository }}/settings/secrets/actions."
-           exit 1
+    - name: Validate inputs
+      # Defend filter_tests against shell injection, restrict it to test path/node-id characters.
+      if: ${{ inputs.filter_tests != '' }}
+      shell: bash
+      env:
+        FILTER_TESTS: ${{ inputs.filter_tests }}
+      run: |
+        # Parametrized pytest node IDs require '[', ']', and params are preserved verbatim.
+        FILTER_RE='^[][\\\"$%'"'"'+,;<=>?@^{}|A-Za-z0-9_./:[:space:]-]+$'
+        if ! [[ "$FILTER_TESTS" =~ $FILTER_RE ]]; then
+          echo "ERROR: filter_tests contains disallowed characters. Allowed:"
+          echo "alphanumerics and printable ASCII punctuation except backtick,"
+          echo "'(', ')', '&', '*', '!', '#', '~' (test paths and pytest node IDs)."
+          exit 1
         fi
-        if [ -z "$SSH_PRIVATE_KEY" ]; then
-           echo "ERROR: Missing required repo secret. Please provide SSH_PRIVATE_KEY repo secret at ${{ github.repository }}/settings/secrets/actions."
-           exit 1
-        fi
-    - name: Checkout
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
     - name: Setup LXD
       # TODO(Move this to lxd-specific scheduled workflows)
       # This shared action supports platforms including lxd_vm and
@@ -82,19 +92,6 @@ runs:
       run: |
         sudo DEBIAN_FRONTEND=noninteractive apt-get -qy update
         sudo DEBIAN_FRONTEND=noninteractive apt-get -qy install tox distro-info-data devscripts
-    - name: Validate inputs
-      # Defend filter_tests against shell injection, restrict it to test path/node-id characters.
-      if: ${{ inputs.filter_tests != '' }}
-      shell: bash
-      env:
-        FILTER_TESTS: ${{ inputs.filter_tests }}
-      run: |
-        if ! [[ "$FILTER_TESTS" =~ ^[A-Za-z0-9_./:[:space:]-]+$ ]]; then
-          echo "ERROR: filter_tests contains disallowed characters. Only"
-          echo "alphanumerics, '/', '.', '_', '-', ':' and whitespace are allowed"
-          echo "(test paths and pytest node IDs)."
-          exit 1
-        fi
     - name: Run integration Tests
       shell: bash
       env:
