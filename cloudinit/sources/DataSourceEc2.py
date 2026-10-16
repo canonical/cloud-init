@@ -14,7 +14,7 @@ import os
 import time
 import uuid
 from contextlib import suppress
-from typing import Dict, List, Literal
+from typing import Dict, List, Literal, Optional
 
 from cloudinit import dmi, net, sources
 from cloudinit import url_helper as uhelp
@@ -76,6 +76,27 @@ ELASTIC_DRIVERS = ["ena", "efa"]
 NETWORK_POLLING_PRODUCT_ALLOW_LIST = [
     "hpc7a.96xlarge",
 ]
+NETWORK_POLLING_PRODUCT_PREFIXES = (
+    "m8g.",
+    "r8g.",
+    "c8g.",
+    "c7g.",
+    "m7g.",
+    "r7g.",
+    "c6g.",
+    "m6g.",
+    "r6g.",
+    "t4g.",
+)
+
+
+def _is_nic_polling_product(product_name: Optional[str]) -> bool:
+    if not product_name:
+        return False
+    lower = product_name.lower()
+    if lower in NETWORK_POLLING_PRODUCT_ALLOW_LIST:
+        return True
+    return any(lower.startswith(p) for p in NETWORK_POLLING_PRODUCT_PREFIXES)
 
 
 class DataSourceEc2(sources.DataSource):
@@ -169,11 +190,7 @@ class DataSourceEc2(sources.DataSource):
                 LOG.debug("FreeBSD doesn't support running dhclient with -sf")
                 return False
             product_name = dmi.read_dmi_data("system-product-name")
-            wait_for_nics = (
-                product_name is not None
-                and product_name.lower() in NETWORK_POLLING_PRODUCT_ALLOW_LIST
-            )
-            if wait_for_nics:
+            if _is_nic_polling_product(product_name):
                 candidate_nics = net.wait_for_candidate_nics(
                     timeout=60, sleep_interval=1
                 )
