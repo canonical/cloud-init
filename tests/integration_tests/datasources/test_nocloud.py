@@ -149,8 +149,10 @@ def setup_nocloud_local_serial(instance: LXDInstance):
             "config",
             "set",
             instance.name,
-            "raw.qemu=-smbios "
-            f"type=1,serial=ds=nocloud;s=file://{SMBIOS_SEED_DIR};h=myhost",
+            (
+                "raw.qemu=-smbios "
+                f"type=1,serial=ds=nocloud;s=file://{SMBIOS_SEED_DIR};h=myhost"
+            ),
         ]
     )
 
@@ -162,8 +164,10 @@ def setup_nocloud_network_serial(instance: LXDInstance):
             "config",
             "set",
             instance.name,
-            "raw.qemu=-smbios "
-            "type=1,serial=ds=nocloud-net;s=http://0.0.0.0/;h=myhost",
+            (
+                "raw.qemu=-smbios "
+                "type=1,serial=ds=nocloud-net;s=http://0.0.0.0/;h=myhost"
+            ),
         ]
     )
 
@@ -380,8 +384,7 @@ class TestFTP:
 
         client.write_to_file(
             "/lib/systemd/system/local-ftp.service",
-            dedent(
-                """\
+            dedent("""\
                 [Unit]
                 Description=TESTING USE ONLY ftp server
                 Wants=cloud-init-local.service
@@ -400,8 +403,7 @@ class TestFTP:
 
                 [Install]
                 WantedBy=cloud-init.target
-                """
-            ),
+                """),
         )
         assert client.execute(
             "chmod 644 /lib/systemd/system/local-ftp.service"
@@ -411,21 +413,17 @@ class TestFTP:
 
         client.write_to_file(
             "/user-data",
-            dedent(
-                """\
+            dedent("""\
                 #cloud-config
 
                 hostname: ftp-bootstrapper
-                """
-            ),
+                """),
         )
         client.write_to_file(
             "/meta-data",
-            dedent(
-                """\
+            dedent("""\
                 instance-id: ftp-instance
-                """
-            ),
+                """),
         )
         client.write_to_file("/vendor-data", "")
 
@@ -459,12 +457,16 @@ class TestFTP:
             client,
             ignore_warnings=self.expected_warnings,
             require_warnings=[
-                "Getting data from <class 'cloudinit.sources.DataSourc"
-                "eNoCloud.DataSourceNoCloudNet'> failed",
+                (
+                    "Getting data from <class 'cloudinit.sources.DataSourc"
+                    "eNoCloud.DataSourceNoCloudNet'> failed"
+                ),
                 "Used fallback datasource",
-                "Attempted to connect to an insecure ftp server but used"
-                " a scheme of ftps://, which is not allowed. Use ftp:// "
-                "to allow connecting to insecure ftp servers.",
+                (
+                    "Attempted to connect to an insecure ftp server but used"
+                    " a scheme of ftps://, which is not allowed. Use ftp:// "
+                    "to allow connecting to insecure ftp servers."
+                ),
             ],
             ignore_tracebacks=[
                 'ftplib.error_perm: 500 Command "AUTH" not understood.',

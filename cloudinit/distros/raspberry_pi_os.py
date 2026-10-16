@@ -67,20 +67,7 @@ class Distro(debian.Distro):
             else:
                 LOG.error("Failed to set locale %s", locale)
 
-    def add_user(self, name, **kwargs) -> bool:
-        """
-        Add a user to the system using standard GNU tools
-
-        This should be overridden on distros where useradd is not desirable or
-        not available.
-
-        Returns False if user already exists, otherwise True.
-        """
-        result = super().add_user(name, **kwargs)
-
-        if not result:
-            return result
-
+    def _post_add_user(self, name: str, **kwargs) -> None:
         try:
             subp.subp(
                 [
@@ -93,9 +80,7 @@ class Distro(debian.Distro):
 
         except subp.ProcessExecutionError as e:
             LOG.error("Failed to setup user: %s", e)
-            return False
-
-        return True
+            raise
 
     def generate_fallback_config(self):
         # Based on Photon OS implementation

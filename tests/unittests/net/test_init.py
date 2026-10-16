@@ -1259,6 +1259,64 @@ def _mk_v2_phys(mac, name, driver=None, device_id=None):
     return v2_cfg
 
 
+class TestWaitForCandidateNics:
+    def test_returns_immediately_when_nics_are_present(self, mocker):
+        m_find = mocker.patch(
+            "cloudinit.net.find_candidate_nics", return_value=["eth0"]
+        )
+
+        assert ["eth0"] == net.wait_for_candidate_nics()
+        m_find.assert_called_once_with()
+
+    def test_retries_until_nics_appear(self, mocker):
+        m_find = mocker.patch(
+            "cloudinit.net.find_candidate_nics",
+            side_effect=[[], [], ["ens4"]],
+        )
+        m_sleep = mocker.patch("cloudinit.net.time.sleep")
+        mocker.patch("cloudinit.net.time.monotonic", return_value=0)
+
+        assert ["ens4"] == net.wait_for_candidate_nics(
+            timeout=60, sleep_interval=1
+        )
+        assert 3 == m_find.call_count
+        assert [mock.call(1), mock.call(1)] == m_sleep.call_args_list
+
+    def test_timeout_zero_returns_without_retry(self, mocker):
+        m_find = mocker.patch(
+            "cloudinit.net.find_candidate_nics", return_value=[]
+        )
+        m_sleep = mocker.patch("cloudinit.net.time.sleep")
+        mocker.patch("cloudinit.net.time.monotonic", return_value=0)
+
+        assert [] == net.wait_for_candidate_nics(timeout=0, sleep_interval=1)
+        m_find.assert_called_once_with()
+        m_sleep.assert_not_called()
+
+    def test_timeout_logs_when_timeout_is_exceeded(self, mocker, caplog):
+        mocker.patch("cloudinit.net.find_candidate_nics", return_value=[])
+        mocker.patch("cloudinit.net.time.sleep")
+        monotonic_values = iter([0, 0, 1, 1])
+        mocker.patch(
+            "cloudinit.net.time.monotonic",
+            side_effect=lambda: next(monotonic_values, 1),
+        )
+
+        assert [] == net.wait_for_candidate_nics(timeout=1, sleep_interval=1)
+        assert (
+            "Timed out after 1 seconds waiting for primary NICs with carrier"
+            in caplog.text
+        )
+
+    def test_timeout_zero_does_not_log_timeout(self, mocker, caplog):
+        mocker.patch("cloudinit.net.find_candidate_nics", return_value=[])
+        mocker.patch("cloudinit.net.time.sleep")
+        mocker.patch("cloudinit.net.time.monotonic", return_value=0)
+
+        assert [] == net.wait_for_candidate_nics(timeout=0, sleep_interval=1)
+        assert "Timed out after" not in caplog.text
+
+
 class TestExtractPhysdevs:
     @pytest.fixture(autouse=True)
     def fixtures(self, mocker):

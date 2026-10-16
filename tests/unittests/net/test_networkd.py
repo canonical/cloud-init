@@ -142,8 +142,7 @@ DNS=8.8.8.8 2001:4860:4860::8888
 
 """
 
-V2_CONFIG_DHCP_DOMAIN_VS_OVERRIDE = Template(
-    """\
+V2_CONFIG_DHCP_DOMAIN_VS_OVERRIDE = Template("""\
 network:
   version: 2
   ethernets:
@@ -152,11 +151,9 @@ network:
       dhcp${dhcp_version}: true
       dhcp${dhcp_version}-overrides:
         use-domains: route
-"""
-)
+""")
 
-V2_CONFIG_DHCP_OVERRIDES = Template(
-    """\
+V2_CONFIG_DHCP_OVERRIDES = Template("""\
 network:
   version: 2
   ethernets:
@@ -168,11 +165,9 @@ network:
         macaddress: "00:11:22:33:44:55"
       nameservers:
         addresses: ["8.8.8.8", "2001:4860:4860::8888"]
-"""
-)
+""")
 
-V2_CONFIG_DHCP_OVERRIDES_RENDERED = Template(
-    """[DHCPv${dhcp_version}]
+V2_CONFIG_DHCP_OVERRIDES_RENDERED = Template("""[DHCPv${dhcp_version}]
 ${key}=${value}
 
 [Match]
@@ -183,8 +178,7 @@ Name=eth0
 DHCP=ipv${dhcp_version}
 DNS=8.8.8.8 2001:4860:4860::8888
 
-"""
-)
+""")
 
 V1_CONFIG_MULTI_SUBNETS = """
 network:

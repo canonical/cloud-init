@@ -50,7 +50,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if create_hostname_file is not None:
         cloud.distro.set_option("create_hostname_file", create_hostname_file)
 
-    (hostname, fqdn, is_default) = util.get_hostname_fqdn(cfg, cloud)
+    hostname, fqdn, is_default = util.get_hostname_fqdn(cfg, cloud)
     if is_default and hostname == "localhost":
         # https://github.com/systemd/systemd/commit/d39079fcaa05e23540d2b1f0270fa31c22a7e9f1
         LOG.debug("Hostname is localhost. Let other services handle this.")

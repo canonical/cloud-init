@@ -56,13 +56,11 @@ _INVALID_X509_CERT = (
     "-----BEGIN CERTIFICATE-----\nINVALID\n-----END CERTIFICATE-----"
 )
 
-_X509_CERT = dedent(
-    """\
+_X509_CERT = dedent("""\
     -----BEGIN CERTIFICATE-----
     MIIB+TCCAeOgAwIBAgIBATANBgkqhkiG9w0BAQUFADAWMRQwEgYDVQQDDAtSb290
     -----END CERTIFICATE-----
-    """
-)
+    """)
 
 
 class TestIsOpensshFormatted:
@@ -209,20 +207,16 @@ class TestExtractX509Certificates:
     @mock.patch("cloudinit.sources.azure.certs.is_x509_certificate")
     def test_extracts_all_valid_certificates(self, m_is_x509):
         """Should extract and return all valid certificates."""
-        cert1 = dedent(
-            """\
+        cert1 = dedent("""\
             -----BEGIN CERTIFICATE-----
             CERT1DATA
             -----END CERTIFICATE-----
-            """
-        )
-        cert2 = dedent(
-            """\
+            """)
+        cert2 = dedent("""\
             -----BEGIN CERTIFICATE-----
             CERT2DATA
             -----END CERTIFICATE-----
-            """
-        )
+            """)
         bundle = cert1 + "\n" + cert2
 
         m_is_x509.return_value = True
@@ -234,20 +228,16 @@ class TestExtractX509Certificates:
     @mock.patch("cloudinit.sources.azure.certs.is_x509_certificate")
     def test_skips_private_keys(self, m_is_x509):
         """Should skip private keys and extract certificate."""
-        private_key = dedent(
-            """\
+        private_key = dedent("""\
             -----BEGIN PRIVATE KEY-----
             PRIVATEKEYDATA
             -----END PRIVATE KEY-----
-            """
-        )
-        certificate = dedent(
-            """\
+            """)
+        certificate = dedent("""\
             -----BEGIN CERTIFICATE-----
             CERTDATA
             -----END CERTIFICATE-----
-            """
-        )
+            """)
         bundle = private_key + "\n" + certificate
 
         m_is_x509.return_value = True
@@ -259,20 +249,16 @@ class TestExtractX509Certificates:
     @mock.patch("cloudinit.sources.azure.certs.is_x509_certificate")
     def test_skips_invalid_certs(self, m_is_x509):
         """Should skip invalid cert and return only valid ones."""
-        invalid_cert = dedent(
-            """\
+        invalid_cert = dedent("""\
             -----BEGIN CERTIFICATE-----
             INVALID
             -----END CERTIFICATE-----
-            """
-        )
-        valid_cert = dedent(
-            """\
+            """)
+        valid_cert = dedent("""\
             -----BEGIN CERTIFICATE-----
             VALID
             -----END CERTIFICATE-----
-            """
-        )
+            """)
         bundle = invalid_cert + "\n" + valid_cert
 
         m_is_x509.side_effect = [False, True]
@@ -287,13 +273,11 @@ class TestExtractX509Certificates:
     @pytest.mark.allow_subp_for("openssl")
     def test_extraction_from_mixed_bundle_integration(self, cert_data):
         """Integration test: Extract cert from bundle with private key."""
-        private_key = dedent(
-            """\
+        private_key = dedent("""\
             -----BEGIN PRIVATE KEY-----
             MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDExample
             -----END PRIVATE KEY-----
-            """
-        )
+            """)
         bundle = private_key + "\n" + cert_data
 
         result = certs.extract_x509_certificates(bundle)
@@ -307,13 +291,11 @@ class TestConvertX509ToOpenssh:
     @mock.patch("cloudinit.sources.azure.certs.subp.subp")
     def test_conversion_with_mocked_commands(self, m_subp):
         """Test basic conversion flow with mocked subp calls."""
-        cert = dedent(
-            """\
+        cert = dedent("""\
             -----BEGIN CERTIFICATE-----
             MIIB+TCCAeOgAwIBAgIBATANBgkqhkiG9w0BAQUFADAWMRQwEgYDVQQDDAtSb290
             -----END CERTIFICATE-----
-            """
-        )
+            """)
         pubkey = (
             "-----BEGIN PUBLIC KEY-----\nMIIB...\n-----END PUBLIC KEY-----"
         )

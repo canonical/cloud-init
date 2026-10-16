@@ -27,7 +27,7 @@ import os
 import socket
 import sys
 import time
-from typing import Dict, Set
+from typing import Any, Dict, Optional, Set, Tuple
 
 from cloudinit import atomic_helper, dmi, net, netinfo, sources, util
 from cloudinit.event import EventScope, EventType, userdata_to_events
@@ -254,7 +254,7 @@ class DataSourceVMware(sources.DataSource):
         ) in self.possible_data_access_method_list:
             if require_vmware_platform and not is_vmware_platform():
                 continue
-            (md, ud, vd) = get_data_fn()
+            md, ud, vd = get_data_fn()
             if md or ud or vd:
                 self.data_access_method = data_access_method
                 break
@@ -365,7 +365,9 @@ class DataSourceVMware(sources.DataSource):
             }
         return self.metadata["network"]["config"]
 
-    def advertise_update_events(self, cfg):
+    def advertise_update_events(
+        self, cfg: Dict[str, Any]
+    ) -> Tuple[Optional[str], Optional[str]]:
         default_events: Dict[EventScope, Set[EventType]] = copy.deepcopy(
             self.default_update_events
         )
@@ -573,7 +575,7 @@ class DataSourceVMware(sources.DataSource):
         # Get data only if guest customization type and flag matches.
         if is_vmware_cust_cfg and allow_vmware_cust:
             LOG.debug("Getting data via VMware customization configuration")
-            (md, ud, vd, self.cfg) = guestcust_util.get_data_from_imc_cust_cfg(
+            md, ud, vd, self.cfg = guestcust_util.get_data_from_imc_cust_cfg(
                 self.paths.cloud_dir,
                 self.paths.get_cpath("scripts"),
                 cust_cfg,
@@ -585,7 +587,7 @@ class DataSourceVMware(sources.DataSource):
                 "Getting data via VMware raw cloudinit data "
                 "customization configuration"
             )
-            (md, ud, vd) = guestcust_util.get_data_from_imc_raw_data_cust_cfg(
+            md, ud, vd = guestcust_util.get_data_from_imc_raw_data_cust_cfg(
                 cust_cfg
             )
         else:
@@ -770,12 +772,12 @@ def guestinfo_envvar_get_value(key):
 
 
 def exec_vmware_rpctool(rpctool, arg):
-    (stdout, stderr) = subp([rpctool, arg])
+    stdout, stderr = subp([rpctool, arg])
     return (stdout, stderr)
 
 
 def exec_vmtoolsd(rpctool, arg):
-    (stdout, stderr) = subp([rpctool, "--cmd", arg])
+    stdout, stderr = subp([rpctool, "--cmd", arg])
     return (stdout, stderr)
 
 
@@ -798,7 +800,7 @@ def guestinfo_get_value(key, rpctool, rpctool_fn):
     LOG.debug("Getting guestinfo value for key %s", key)
 
     try:
-        (stdout, stderr) = rpctool_fn(
+        stdout, stderr = rpctool_fn(
             rpctool, "info-get " + get_guestinfo_key_name(key)
         )
         if stderr == NOVAL:
@@ -1122,7 +1124,7 @@ def get_host_info():
     """
     Returns host information such as the host name and network interfaces.
     """
-    host_info = {
+    host_info: Dict[str, Any] = {
         "network": {
             "interfaces": {
                 "by-mac": collections.OrderedDict(),
@@ -1164,7 +1166,7 @@ def get_host_info():
 
         if mac and (af_inet4 or af_inet6):
             key = mac
-            val = {}
+            val: Dict[str, Any] = {}
             if af_inet4:
                 af_inet4_vals = []
                 for ip_info in af_inet4:

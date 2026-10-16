@@ -14,8 +14,7 @@ from cloudinit.sources.DataSourceUpCloud import (
 )
 from tests.unittests.helpers import example_netdev
 
-UC_METADATA = json.loads(
-    """
+UC_METADATA = json.loads("""
 {
   "cloud_name": "upcloud",
   "instance_id": "00322b68-0096-4042-9406-faad61922128",
@@ -133,12 +132,9 @@ UC_METADATA = json.loads(
   "user_data": "",
   "vendor_data": ""
 }
-"""
-)
+""")
 
-UC_METADATA[
-    "user_data"
-] = b"""#cloud-config
+UC_METADATA["user_data"] = b"""#cloud-config
 runcmd:
 - [touch, /root/cloud-init-worked ]
 """

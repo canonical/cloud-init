@@ -61,7 +61,7 @@ class TestVmwareConfigFile:
         md1, _ = get_non_network_data_from_vmware_cust_cfg(conf)
         assert "instance-id" not in md1
 
-        (md2, _) = get_non_network_data_from_vmware_cust_cfg(conf)
+        md2, _ = get_non_network_data_from_vmware_cust_cfg(conf)
         assert "instance-id" not in md2
 
     def test_configfile_with_instance_id(self):
@@ -69,10 +69,10 @@ class TestVmwareConfigFile:
         cf = ConfigFile("tests/data/vmware/cust-dhcp-2nic-instance-id.cfg")
         conf = Config(cf)
 
-        (md1, _) = get_non_network_data_from_vmware_cust_cfg(conf)
+        md1, _ = get_non_network_data_from_vmware_cust_cfg(conf)
         assert md1["instance-id"] == conf.instance_id, "instance-id"
 
-        (md2, _) = get_non_network_data_from_vmware_cust_cfg(conf)
+        md2, _ = get_non_network_data_from_vmware_cust_cfg(conf)
         assert md2["instance-id"] == conf.instance_id, "instance-id"
 
     def test_configfile_static_2nics(self):
@@ -205,23 +205,27 @@ class TestVmwareConfigFile:
         assert isinstance(ethernets_dict, dict)
         assert 2 == len(ethernets_dict), "number of ethernets"
 
-        for name, config in ethernets_dict.items():
+        for name, nic_config in ethernets_dict.items():
             if name == "NIC1":
-                assert "00:50:56:a6:8c:08" == config.get("match").get(
+                assert "00:50:56:a6:8c:08" == nic_config.get("match", {}).get(
                     "macaddress"
                 ), "mac address of NIC1"
-                assert True is config.get("wakeonlan"), "wakeonlan of NIC1"
-                assert True is config.get("dhcp4"), "DHCPv4 enablement of NIC1"
-                assert False is config.get("dhcp4-overrides").get(
+                assert True is nic_config.get("wakeonlan"), "wakeonlan of NIC1"
+                assert True is nic_config.get(
+                    "dhcp4"
+                ), "DHCPv4 enablement of NIC1"
+                assert False is nic_config.get("dhcp4-overrides", {}).get(
                     "use-dns"
                 ), "use-dns enablement for dhcp4-overrides of NIC1"
             if name == "NIC2":
-                assert "00:50:56:a6:5a:de" == config.get("match").get(
+                assert "00:50:56:a6:5a:de" == nic_config.get("match", {}).get(
                     "macaddress"
                 ), "mac address of NIC2"
-                assert True is config.get("wakeonlan"), "wakeonlan of NIC2"
-                assert True is config.get("dhcp4"), "DHCPv4 enablement of NIC2"
-                assert False is config.get("dhcp4-overrides").get(
+                assert True is nic_config.get("wakeonlan"), "wakeonlan of NIC2"
+                assert True is nic_config.get(
+                    "dhcp4"
+                ), "DHCPv4 enablement of NIC2"
+                assert False is nic_config.get("dhcp4-overrides", {}).get(
                     "use-dns"
                 ), "use-dns enablement for dhcp4-overrides of NIC2"
 
@@ -240,23 +244,23 @@ class TestVmwareConfigFile:
         assert isinstance(ethernets_dict, dict)
         assert 2 == len(ethernets_dict), "number of ethernets"
 
-        for name, config in ethernets_dict.items():
-            print(config)
+        for name, nic_config in ethernets_dict.items():
+            print(nic_config)
             if name == "NIC1":
-                assert "00:50:56:a6:8c:08" == config.get("match").get(
+                assert "00:50:56:a6:8c:08" == nic_config.get("match", {}).get(
                     "macaddress"
                 ), "mac address of NIC1"
-                assert True is config.get("wakeonlan"), "wakeonlan of NIC1"
-                assert False is config.get(
+                assert True is nic_config.get("wakeonlan"), "wakeonlan of NIC1"
+                assert False is nic_config.get(
                     "dhcp4"
                 ), "DHCPv4 enablement of NIC1"
-                assert False is config.get(
+                assert False is nic_config.get(
                     "dhcp6"
                 ), "DHCPv6 enablement of NIC1"
                 assert [
                     "10.20.87.154/22",
                     "fc00:10:20:87::154/64",
-                ] == config.get("addresses"), "IP addresses of NIC1"
+                ] == nic_config.get("addresses"), "IP addresses of NIC1"
                 assert [
                     {"to": "10.20.84.0/22", "via": "10.20.87.253"},
                     {"to": "10.20.84.0/22", "via": "10.20.87.105"},
@@ -264,21 +268,21 @@ class TestVmwareConfigFile:
                         "to": "fc00:10:20:87::/64",
                         "via": "fc00:10:20:87::253",
                     },
-                ] == config.get("routes"), "routes of NIC1"
+                ] == nic_config.get("routes"), "routes of NIC1"
             if name == "NIC2":
-                assert "00:50:56:a6:ef:7d" == config.get("match").get(
+                assert "00:50:56:a6:ef:7d" == nic_config.get("match", {}).get(
                     "macaddress"
                 ), "mac address of NIC2"
-                assert True is config.get("wakeonlan"), "wakeonlan of NIC2"
-                assert False is config.get(
+                assert True is nic_config.get("wakeonlan"), "wakeonlan of NIC2"
+                assert False is nic_config.get(
                     "dhcp4"
                 ), "DHCPv4 enablement of NIC2"
-                assert ["192.168.6.102/16"] == config.get(
+                assert ["192.168.6.102/16"] == nic_config.get(
                     "addresses"
                 ), "IP addresses of NIC2"
                 assert [
                     {"to": "192.168.0.0/16", "via": "192.168.0.10"},
-                ] == config.get("routes"), "routes of NIC2"
+                ] == nic_config.get("routes"), "routes of NIC2"
 
     def test_custom_script(self):
         cf = ConfigFile("tests/data/vmware/cust-dhcp-2nic.cfg")
@@ -327,8 +331,7 @@ class TestVmwareNetConfig:
 
     def test_static_nic_without_ipv4_netmask(self, tmp_path):
         """netmask is optional for static ipv4 configuration."""
-        config = textwrap.dedent(
-            """\
+        config = textwrap.dedent("""\
             [NETWORK]
             NETWORKING = yes
             BOOTPROTO = dhcp
@@ -344,8 +347,7 @@ class TestVmwareNetConfig:
             IPv4_MODE = BACKWARDS_COMPATIBLE
             BOOTPROTO = static
             IPADDR = 10.20.87.154
-            """
-        )
+            """)
         nc = self._get_NicConfigurator(tmp_path, config)
         assert {
             "NIC1": {
@@ -359,8 +361,7 @@ class TestVmwareNetConfig:
 
     def test_static_nic_without_ipv6_netmask(self, tmp_path):
         """netmask is mandatory for static ipv6 configuration."""
-        config = textwrap.dedent(
-            """\
+        config = textwrap.dedent("""\
             [NETWORK]
             NETWORKING = yes
             BOOTPROTO = dhcp
@@ -377,16 +378,14 @@ class TestVmwareNetConfig:
             BOOTPROTO = static
             IPADDR = 10.20.87.154
             IPv6ADDR|1 = fc00:10:20:87::154
-            """
-        )
+            """)
         nc = self._get_NicConfigurator(tmp_path, config)
         with pytest.raises(ValueError):
             nc.generate()
 
     def test_non_primary_nic_with_gateway(self, tmp_path):
         """A non primary nic set can have a gateway."""
-        config = textwrap.dedent(
-            """\
+        config = textwrap.dedent("""\
             [NETWORK]
             NETWORKING = yes
             BOOTPROTO = dhcp
@@ -404,8 +403,7 @@ class TestVmwareNetConfig:
             IPADDR = 10.20.87.154
             NETMASK = 255.255.252.0
             GATEWAY = 10.20.87.253
-            """
-        )
+            """)
         nc = self._get_NicConfigurator(tmp_path, config)
         assert {
             "NIC1": {
@@ -420,8 +418,7 @@ class TestVmwareNetConfig:
 
     def test_cust_non_primary_nic_with_gateway_(self, tmp_path):
         """A customer non primary nic set can have a gateway."""
-        config = textwrap.dedent(
-            """\
+        config = textwrap.dedent("""\
             [NETWORK]
             NETWORKING = yes
             BOOTPROTO = dhcp
@@ -448,8 +445,7 @@ class TestVmwareNetConfig:
 
             [DATETIME]
             UTC = yes
-            """
-        )
+            """)
         nc = self._get_NicConfigurator(tmp_path, config)
         assert {
             "NIC1": {
@@ -467,8 +463,7 @@ class TestVmwareNetConfig:
 
     def test_a_primary_nic_with_gateway(self, tmp_path):
         """A primary nic set can have a gateway."""
-        config = textwrap.dedent(
-            """\
+        config = textwrap.dedent("""\
             [NETWORK]
             NETWORKING = yes
             BOOTPROTO = dhcp
@@ -487,8 +482,7 @@ class TestVmwareNetConfig:
             NETMASK = 255.255.252.0
             PRIMARY = true
             GATEWAY = 10.20.87.253
-            """
-        )
+            """)
         nc = self._get_NicConfigurator(tmp_path, config)
         assert {
             "NIC1": {

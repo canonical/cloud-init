@@ -84,8 +84,7 @@ class TestReadOvfEnv:
         assert ud is None
 
     def test_with_b64_network_config_enable_read_network(self):
-        network_config = dedent(
-            """\
+        network_config = dedent("""\
         network:
            version: 2
            ethernets:
@@ -102,8 +101,7 @@ class TestReadOvfEnv:
                  dhcp4: false
                  addresses:
                  - 10.10.10.1/24
-        """
-        )
+        """)
         network_config_b64 = base64.b64encode(network_config.encode()).decode()
         props = {
             "network-config": network_config_b64,
@@ -132,8 +130,7 @@ class TestReadOvfEnv:
         assert ud is None
 
     def test_with_non_b64_network_config_enable_read_network(self):
-        network_config = dedent(
-            """\
+        network_config = dedent("""\
         network:
            version: 2
            ethernets:
@@ -150,8 +147,7 @@ class TestReadOvfEnv:
                  dhcp4: false
                  addresses:
                  - 10.10.10.1/24
-        """
-        )
+        """)
         props = {
             "network-config": network_config,
             "password": "passw0rd",
@@ -164,8 +160,7 @@ class TestReadOvfEnv:
         assert ud is None
 
     def test_with_b64_network_config_disable_read_network(self):
-        network_config = dedent(
-            """\
+        network_config = dedent("""\
         network:
            version: 2
            ethernets:
@@ -182,8 +177,7 @@ class TestReadOvfEnv:
                  dhcp4: false
                  addresses:
                  - 10.10.10.1/24
-        """
-        )
+        """)
         network_config_b64 = base64.b64encode(network_config.encode()).decode()
         props = {
             "network-config": network_config_b64,
@@ -231,8 +225,7 @@ class TestDatasourceOVF:
     def test_get_data_vmware_guestinfo_with_network_config(
         self, m_persist, m_subp, guestinfo, iso, ds, paths
     ):
-        network_config = dedent(
-            """\
+        network_config = dedent("""\
         network:
            version: 2
            ethernets:
@@ -248,8 +241,7 @@ class TestDatasourceOVF:
                  dhcp4: false
                  addresses:
                  - 10.10.10.1/24
-        """
-        )
+        """)
         network_config_b64 = base64.b64encode(network_config.encode()).decode()
         props = {
             "network-config": network_config_b64,

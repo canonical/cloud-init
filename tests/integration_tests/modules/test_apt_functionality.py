@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Series of integration tests covering apt functionality."""
+
 import logging
 import re
 from textwrap import dedent
@@ -352,13 +353,11 @@ class TestDefaults:
         else:
             sec_url = "http://security.ubuntu.com/ubuntu"
         if feature_deb822:
-            expected_cfg = dedent(
-                f"""\
+            expected_cfg = dedent(f"""\
                 Types: deb
                 URIs: {sec_url}
                 Suites: {series}-security
-                """
-            )
+                """)
             sources_list = class_client.read_from_file(DEB822_SOURCES_FILE)
             assert expected_cfg in sources_list
         else:
@@ -401,13 +400,11 @@ def test_security_ibm(client: IntegrationInstance):
     )
     sec_url = "http://mirrors.adn.networklayer.com/ubuntu"
     if feature_deb822:
-        expected_cfg = dedent(
-            f"""\
+        expected_cfg = dedent(f"""\
             Types: deb
             URIs: {sec_url}
             Suites: {series}-security
-            """
-        )
+            """)
         sources_list = client.read_from_file(DEB822_SOURCES_FILE)
         assert expected_cfg in sources_list
     else:

@@ -163,8 +163,8 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         expire = util.get_cfg_option_bool(chfg, "expire", expire)
 
     if not (users_list or plist) and password:
-        (users, _groups) = ug_util.normalize_users_groups(cfg, distro)
-        (user, _user_config) = ug_util.extract_default(users)
+        users, _groups = ug_util.normalize_users_groups(cfg, distro)
+        user, _user_config = ug_util.extract_default(users)
         if user:
             plist = ["%s:%s" % (user, password)]
         else:

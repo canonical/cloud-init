@@ -160,7 +160,7 @@ class Distro(distros.Distro):
         if self.uses_systemd() and filename.endswith("/previous-hostname"):
             return util.load_text_file(filename).strip()
         elif self.uses_systemd():
-            (out, _err) = subp.subp(["hostname"])
+            out, _err = subp.subp(["hostname"])
             if len(out):
                 return out
             else:
@@ -196,7 +196,7 @@ class Distro(distros.Distro):
             result = util.get_mount_info("/")
             fs_type = ""
             if result:
-                (devpth, fs_type, mount_point) = result
+                devpth, fs_type, mount_point = result
                 # Check if the file system is read only
                 mounts = util.load_text_file("/proc/mounts").split("\n")
                 for mount in mounts:
@@ -266,11 +266,7 @@ class Distro(distros.Distro):
             name = distro_info[0]
             major_ver = int(distro_info[1].split(".")[0])
 
-            # This is horribly complicated because of a case of
-            # "we do not care if versions should be increasing syndrome"
-            if (major_ver >= 15 and "openSUSE" not in name) or (
-                major_ver >= 15 and "openSUSE" in name and major_ver != 42
-            ):
+            if major_ver >= 15 or "micro" in name.lower():
                 self._preferred_ntp_clients = [
                     "chrony",
                     "systemd-timesyncd",

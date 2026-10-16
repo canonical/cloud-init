@@ -216,13 +216,11 @@ class TestCloudStackHostname:
 
         mocker.patch(
             DHCP_MOD_PATH + ".run_nmcli",
-            return_value=dedent(
-                """
+            return_value=dedent("""
                    ens160:ethernet:connected:Wired connection 1
                    ens256:ethernet:connected:Wired connection 2
                    lo:loopback:connected (externally):lo
-                """
-            ),
+                """),
         )
 
         with patch(
@@ -255,13 +253,11 @@ class TestCloudStackHostname:
 
         mocker.patch(
             DHCP_MOD_PATH + ".run_nmcli",
-            return_value=dedent(
-                """
+            return_value=dedent("""
                    ens160:ethernet:connected:Wired connection 1
                    lo:loopback:connected (externally):lo
                    ens256:ethernet:unavailable:
-                """
-            ),
+                """),
         )
 
         with patch(
@@ -295,12 +291,10 @@ class TestCloudStackHostname:
 
         mocker.patch(
             DHCP_MOD_PATH + ".run_nmcli",
-            return_value=dedent(
-                """
+            return_value=dedent("""
                    lo:loopback:connected (externally):lo
                    ens256:ethernet:unavailable:
-                """
-            ),
+                """),
         )
 
         result = cloudstack_ds._get_domainname()

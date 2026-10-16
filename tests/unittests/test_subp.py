@@ -112,7 +112,7 @@ class TestSubp:
         """subp can run a bytestring command if shell is True."""
         tmp_file = str(tmp_path / "test.out")
         cmd = "echo HI MOM >> {tmp_file}".format(tmp_file=tmp_file)
-        (out, _err) = subp.subp(cmd.encode("utf-8"), shell=True)
+        out, _err = subp.subp(cmd.encode("utf-8"), shell=True)
         assert "" == out
         assert "" == _err
         assert "HI MOM\n" == util.load_text_file(tmp_file)
@@ -121,7 +121,7 @@ class TestSubp:
         """subp can run a string command if shell is True."""
         tmp_file = str(tmp_path / "test.out")
         cmd = "echo HI MOM >> {tmp_file}".format(tmp_file=tmp_file)
-        (out, _err) = subp.subp(cmd, shell=True)
+        out, _err = subp.subp(cmd, shell=True)
         assert "" == out
         assert "" == _err
         assert "HI MOM\n" == util.load_text_file(tmp_file)
@@ -130,11 +130,11 @@ class TestSubp:
         # The given bytes contain utf-8 accented characters as seen in e.g.
         # the "deja dup" package in Ubuntu.
         cmd = self.printf_cmd(self.utf8_valid_2)
-        (out, _err) = subp.subp(cmd, capture=True)
+        out, _err = subp.subp(cmd, capture=True)
         assert out == self.utf8_valid_2.decode("utf-8")
 
     def test_subp_respects_decode_false(self):
-        (out, err) = subp.subp(
+        out, err = subp.subp(
             self.stdin2out, capture=True, decode=False, data=self.utf8_valid
         )
         assert isinstance(out, bytes)
@@ -159,13 +159,13 @@ class TestSubp:
             )
 
     def test_subp_decode_strict_valid_utf8(self):
-        (out, _err) = subp.subp(
+        out, _err = subp.subp(
             self.stdin2out, capture=True, decode="strict", data=self.utf8_valid
         )
         assert out == self.utf8_valid.decode("utf-8")
 
     def test_subp_decode_invalid_utf8_replaces(self):
-        (out, _err) = subp.subp(
+        out, _err = subp.subp(
             self.stdin2out, capture=True, data=self.utf8_invalid
         )
         expected = self.utf8_invalid.decode("utf-8", "replace")
@@ -184,7 +184,7 @@ class TestSubp:
 
     def test_subp_capture_stderr(self):
         data = b"hello world"
-        (out, err) = subp.subp(
+        out, err = subp.subp(
             self.stdin2err,
             capture=True,
             decode=False,
@@ -229,7 +229,7 @@ class TestSubp:
             )
 
     def test_returns_none_if_no_capture(self):
-        (out, err) = subp.subp(self.stdin2out, data=b"", capture=False)
+        out, err = subp.subp(self.stdin2out, data=b"", capture=False)
         assert err is None
         assert out is None
 

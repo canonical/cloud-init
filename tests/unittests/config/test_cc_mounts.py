@@ -460,14 +460,12 @@ class TestFstabHandling:
 
     def test_no_change_fstab_sets_needs_mount_all(self):
         """verify unchanged fstab entries are mounted if not call mount -a"""
-        fstab_original_content = textwrap.dedent(
-            f"""
+        fstab_original_content = textwrap.dedent(f"""
             LABEL=cloudimg-rootfs / ext4 defaults 0 0
             LABEL=UEFI /boot/efi vfat defaults 0 0
             /dev/vdb	/mnt	auto	defaults,noexec,comment=cloudconfig	0	2
             {self.swap_path}	none	swap	sw,comment=cloudconfig	0	0
-            """  # noqa: E501
-        ).strip()
+            """).strip()  # noqa: E501
         cc = {"mounts": [["/dev/vdb", "/mnt", "auto", "defaults,noexec"]]}
         with open(cc_mounts.FSTAB_PATH, "w") as fd:
             fd.write(fstab_original_content)
@@ -520,10 +518,7 @@ class TestFstabHandling:
         with open(cc_mounts.FSTAB_PATH, "r") as fd:
             fstab_new_content = fd.read()
 
-        assert (
-            fstab_new_content.strip()
-            == textwrap.dedent(
-                """
+        assert fstab_new_content.strip() == textwrap.dedent("""
             LABEL=keepme	none	ext4	defaults	0	0
             LABEL=UEFI
             /dev/sda4	/mnt2	auto	nofail,comment=cloudconfig	1	2
@@ -531,9 +526,7 @@ class TestFstabHandling:
             /dev/sda1	/mnt	xfs	auto,comment=cloudconfig	0	2
             /dev/sda3	/mnt4	btrfs	defaults,nofail,x-systemd.after=cloud-init-network.service,_netdev,comment=cloudconfig	0	2
             /dev/sdb1	none	swap	sw,comment=cloudconfig	0	0
-            """  # noqa: E501
-            ).strip()
-        )
+            """).strip()  # noqa: E501
 
     def test_fstab_mountpoint_with_spaces(self):
         """Spaces in the fs_spec and fs_file fields are octal-escaped.

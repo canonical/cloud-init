@@ -62,7 +62,7 @@ instance with our user-data:
 
 .. code-block:: shell-session
 
-    $ lxc launch ubuntu:focal my-test --config=user.user-data="$(cat /tmp/my-user-data)"
+    $ lxc launch ubuntu:resolute my-test --config=cloud-init.user-data="$(cat /tmp/my-user-data)"
 
 Verify that cloud-init ran successfully
 -------------------------------------------
@@ -85,7 +85,7 @@ successfully:
 
 Which provides the following output:
 
-.. code-block::
+.. code-block:: text
 
     status: done
 
@@ -101,7 +101,7 @@ received the expected user-data we provided earlier:
 
 Which should print the following to the terminal window:
 
-.. code-block::
+.. code-block:: yaml
 
     #cloud-config
     runcmd:
@@ -115,7 +115,7 @@ We can also assert the user-data we provided is a valid cloud-config:
 
 Which should print the following:
 
-.. code-block::
+.. code-block:: text
 
     Valid schema user-data
 
@@ -127,7 +127,7 @@ Finally, let us verify that our user-data was applied successfully:
 
 Which should then print:
 
-.. code-block::
+.. code-block:: text
 
     Hello, World!
 
@@ -159,4 +159,4 @@ You can also head over to the :ref:`examples page<yaml_examples>` for
 examples of more common use cases.
 
 .. _LXD: https://ubuntu.com/lxd
-.. _other installation options: https://documentation.ubuntu.com/lxd/en/latest/installing/
+.. _other installation options: https://canonical.com/lxd/docs/latest/installing/

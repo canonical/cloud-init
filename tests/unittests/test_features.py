@@ -3,6 +3,7 @@
 This file is for testing the feature flag functionality itself,
 NOT for testing any individual feature flag
 """
+
 from unittest import mock
 
 from cloudinit import features

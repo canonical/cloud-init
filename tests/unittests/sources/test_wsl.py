@@ -482,13 +482,11 @@ class TestWSLDataSource:
         m_lsb_release.return_value = SAMPLE_LINUX_DISTRO
         data_path = tmpdir.join(".cloud-init", f"{INSTANCE_NAME}.user-data")
         data_path.dirpath().mkdir()
-        data_path.write(
-            """## template: jinja
+        data_path.write("""## template: jinja
 #cloud-config
 write_files:
 - path: /etc/{{ v1.instance_name }}.conf
-"""
-        )
+""")
 
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths
@@ -606,8 +604,7 @@ write_files:
         os.makedirs(ubuntu_pro_tmp, exist_ok=True)
 
         agent_file = ubuntu_pro_tmp.join("agent.yaml")
-        agent_file.write(
-            """#cloud-config
+        agent_file.write("""#cloud-config
 landscape:
     host:
         url: landscape.canonical.com:6554
@@ -617,8 +614,7 @@ landscape:
         ping_url: https://landscape.canonical.com/ping
         tags: wsl
 ubuntu_pro:
-    token: testtoken"""
-        )
+    token: testtoken""")
         SAMPLE_ID = "Nice-ID"
         agent_metadata_path = ubuntu_pro_tmp.join(f"{INSTANCE_NAME}.meta-data")
         agent_metadata_path.write(f'{{"instance-id":"{SAMPLE_ID}"}}')
@@ -652,12 +648,10 @@ ubuntu_pro:
 
         user_file = tmpdir.join(".cloud-init", "ubuntu-24.04.user-data")
         user_file.dirpath().mkdir()
-        user_file.write(
-            """#cloud-config
+        user_file.write("""#cloud-config
 ubuntu_pro:
     token: usertoken
-package_update: true"""
-        )
+package_update: true""")
 
         ubuntu_pro_tmp = tmpdir.join(".ubuntupro", ".cloud-init")
         os.makedirs(ubuntu_pro_tmp, exist_ok=True)
@@ -693,8 +687,7 @@ package_update: true"""
         os.makedirs(ubuntu_pro_tmp, exist_ok=True)
 
         agent_file = ubuntu_pro_tmp.join("agent.yaml")
-        agent_file.write(
-            """#cloud-config
+        agent_file.write("""#cloud-config
 landscape:
     host:
         url: hosted.com:6554
@@ -705,18 +698,15 @@ landscape:
         ssl_public_key: C:\\Users\\User\\server.pem
         tags: wsl
 ubuntu_pro:
-    token: testtoken"""
-        )
+    token: testtoken""")
 
         landscape_file = ubuntu_pro_tmp.join("%s.user-data" % INSTANCE_NAME)
-        landscape_file.write(
-            """#cloud-config
+        landscape_file.write("""#cloud-config
 landscape:
   client:
     account_name: landscapetest
     tags: tag_aiml,tag_dev
-package_update: true"""
-        )
+package_update: true""")
 
         # Run the datasource
         ds = wsl.DataSourceWSL(
@@ -756,8 +746,7 @@ package_update: true"""
         os.makedirs(ubuntu_pro_tmp, exist_ok=True)
 
         agent_file = ubuntu_pro_tmp.join("agent.yaml")
-        agent_file.write(
-            """#cloud-config
+        agent_file.write("""#cloud-config
 landscape:
     host:
         url: hosted.com:6554
@@ -768,8 +757,7 @@ landscape:
         ssl_public_key: C:\\Users\\User\\server.pem
         tags: wsl
 ubuntu_pro:
-    token: agent_token"""
-        )
+    token: agent_token""")
 
         landscape_file = ubuntu_pro_tmp.join("%s.user-data" % INSTANCE_NAME)
         landscape_file.write("")
@@ -802,8 +790,7 @@ ubuntu_pro:
         os.makedirs(ubuntu_pro_tmp, exist_ok=True)
 
         agent_file = ubuntu_pro_tmp.join("agent.yaml")
-        agent_file.write(
-            """#cloud-config
+        agent_file.write("""#cloud-config
 landscape:
     host:
         url: hosted.com:6554
@@ -814,8 +801,7 @@ landscape:
         ssl_public_key: C:\\Users\\User\\server.pem
         tags: wsl
 ubuntu_pro:
-    token: agent_token"""
-        )
+    token: agent_token""")
 
         COMMAND = "echo Hello cloud-init on WSL!"
         landscape_file = ubuntu_pro_tmp.join("%s.user-data" % INSTANCE_NAME)
@@ -855,8 +841,7 @@ ubuntu_pro:
         os.makedirs(ubuntu_pro_tmp, exist_ok=True)
 
         agent_file = ubuntu_pro_tmp.join("agent.yaml")
-        agent_file.write(
-            """#cloud-config
+        agent_file.write("""#cloud-config
 landscape:
     host:
         url: landscape.canonical.com:6554
@@ -866,17 +851,14 @@ landscape:
         ping_url: https://landscape.canonical.com/ping
         tags: wsl
 ubuntu_pro:
-    token: testtoken"""
-        )
+    token: testtoken""")
         # Set up some Landscape provided user data without tags
         landscape_file = ubuntu_pro_tmp.join("%s.user-data" % INSTANCE_NAME)
-        landscape_file.write(
-            """#cloud-config
+        landscape_file.write("""#cloud-config
 landscape:
   client:
     account_name: landscapetest
-package_update: true"""
-        )
+package_update: true""")
 
         # Run the datasource
         ds = wsl.DataSourceWSL(
@@ -910,20 +892,16 @@ package_update: true"""
 
         agent_file = ubuntu_pro_tmp.join("agent.yaml")
         # Make sure we don't crash if there are no tags anywhere.
-        agent_file.write(
-            """#cloud-config
+        agent_file.write("""#cloud-config
 ubuntu_pro:
-    token: up4w_token"""
-        )
+    token: up4w_token""")
         # Set up some Landscape provided user data without tags
         landscape_file = ubuntu_pro_tmp.join("%s.user-data" % INSTANCE_NAME)
-        landscape_file.write(
-            """#cloud-config
+        landscape_file.write("""#cloud-config
 landscape:
   client:
     account_name: landscapetest
-package_update: true"""
-        )
+package_update: true""")
 
         # Run the datasource
         ds = wsl.DataSourceWSL(
@@ -954,23 +932,19 @@ package_update: true"""
         # (That would be a bug in the agent as there is no other config
         # value for landscape outside of landscape.client, so I'm making up
         # some non-sense keys just to make sure we won't crash)
-        agent_file.write(
-            """#cloud-config
+        agent_file.write("""#cloud-config
 landscape:
     server:
         port: 6554
 ubuntu_pro:
-    token: up4w_token"""
-        )
+    token: up4w_token""")
 
         landscape_file = ubuntu_pro_tmp.join("%s.user-data" % INSTANCE_NAME)
-        landscape_file.write(
-            """#cloud-config
+        landscape_file.write("""#cloud-config
 landscape:
   client:
     account_name: landscapetest
-package_update: true"""
-        )
+package_update: true""")
         # Run the datasource
         ds = wsl.DataSourceWSL(
             sys_cfg=SAMPLE_CFG, distro=get_distro("ubuntu"), paths=paths

@@ -315,5 +315,5 @@ def clean_io(*file_handles: IO) -> None:
 if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
-    (name, action_functor) = args.action
+    name, action_functor = args.action
     action_functor(name, args)

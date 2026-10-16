@@ -96,14 +96,12 @@ def get_formatted_health_report_xml_bytes(
     ).encode("utf-8")
 
 
-HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE = dedent(
-    """\
+HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE = dedent("""\
     <Details>
       <SubStatus>{health_substatus}</SubStatus>
       <Description>{health_description}</Description>
     </Details>
-    """
-)
+    """)
 
 HEALTH_REPORT_DESCRIPTION_TRIM_LEN = 512
 MOCKPATH = "cloudinit.sources.helpers.azure."
@@ -411,10 +409,12 @@ class TestHttpWithRetries:
         assert caplog.record_tuples[1] == (
             "cloudinit.sources.helpers.azure",
             10,
-            "Failed HTTP request with Azure endpoint testurl during "
-            "attempt 1 with exception: Failed to establish a new "
-            "connection: [Errno 101] Network is unreachable "
-            "(code=None headers={})",
+            (
+                "Failed HTTP request with Azure endpoint testurl during "
+                "attempt 1 with exception: Failed to establish a new "
+                "connection: [Errno 101] Network is unreachable "
+                "(code=None headers={})"
+            ),
         )
         assert len(caplog.record_tuples) == 3
         assert self.m_time.mock_calls == [mock.call(), mock.call()]
@@ -1429,6 +1429,24 @@ class TestOvfEnvXml:
                     password="test-password",
                 ),
             ),
+            # Password at maximum supported length.
+            (
+                construct_ovf_env(password="a" * errors.MAX_PASSWORD_LENGTH),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    password="a" * errors.MAX_PASSWORD_LENGTH,
+                ),
+            ),
+            # Missing password (SSH-key-only VMs).
+            (
+                construct_ovf_env(password=""),
+                azure_helper.OvfEnvXml(
+                    username="test-user",
+                    hostname="test-host",
+                    password=None,
+                ),
+            ),
             # Hostname.
             (
                 construct_ovf_env(hostname="other-host"),
@@ -1532,13 +1550,79 @@ class TestOvfEnvXml:
     def test_valid_ovf_scenarios(self, ovf, expected):
         assert azure_helper.OvfEnvXml.parse_text(ovf) == expected
 
+    def test_empty_custom_data_passes(self):
+        ovf = construct_ovf_env(custom_data="")
+
+        parsed = azure_helper.OvfEnvXml.parse_text(ovf)
+
+        assert parsed.custom_data is None
+
+    @pytest.mark.parametrize(
+        "custom_data,expected_exception",
+        [
+            (
+                "ABCDE",  # invalid length
+                "Invalid base64-encoded string: number of data characters "
+                "(5) cannot be 1 more than a multiple of 4",
+            ),
+            (
+                "ab",  # incorrect padding
+                "Incorrect padding",
+            ),
+            (
+                "not_base64",  # bad character stripped away
+                "Invalid base64-encoded string: number of data characters "
+                "(9) cannot be 1 more than a multiple of 4",
+            ),
+        ],
+    )
+    def test_invalid_base64_custom_data_fails(
+        self, custom_data, expected_exception
+    ):
+        ovf = f"""\
+            <ns0:Environment xmlns="http://schemas.dmtf.org/ovf/environment/1"
+             xmlns:ns0="http://schemas.dmtf.org/ovf/environment/1"
+             xmlns:ns1="http://schemas.microsoft.com/windowsazure"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <ns1:ProvisioningSection>
+            <ns1:Version>1.0</ns1:Version>
+            <ns1:LinuxProvisioningConfigurationSet>
+            <ns1:ConfigurationSetType>
+            LinuxProvisioningConfiguration
+            </ns1:ConfigurationSetType>
+            <ns1:HostName>test-host</ns1:HostName>
+            <ns1:UserName>test-user</ns1:UserName>
+            <ns1:CustomData>{custom_data}</ns1:CustomData>
+            </ns1:LinuxProvisioningConfigurationSet>
+            </ns1:ProvisioningSection>
+            <ns1:PlatformSettingsSection>
+            <ns1:Version>1.0</ns1:Version>
+            <ns1:PlatformSettings>
+            </ns1:PlatformSettings>
+            </ns1:PlatformSettingsSection>
+            </ns0:Environment>"""
+
+        with pytest.raises(errors.ReportableErrorOvfInvalidBase64) as exc_info:
+            azure_helper.OvfEnvXml.parse_text(ovf)
+
+        assert exc_info.value.reason == (
+            "failure to decode ovf-env.xml field=CustomData"
+        )
+        assert exc_info.value.supporting_data["field"] == "CustomData"
+        assert exc_info.value.supporting_data["length"] == len(custom_data)
+        assert (
+            exc_info.value.supporting_data["exception"] == expected_exception
+        )
+
     @pytest.mark.parametrize(
         "ovf,error",
         [
             (
                 construct_ovf_env(hostname=None),
-                "unexpected metadata parsing ovf-env.xml: "
-                "missing configuration for 'HostName'",
+                (
+                    "unexpected metadata parsing ovf-env.xml: "
+                    "missing configuration for 'HostName'"
+                ),
             ),
         ],
     )
@@ -1549,6 +1633,25 @@ class TestOvfEnvXml:
             azure_helper.OvfEnvXml.parse_text(ovf)
 
         assert str(exc_info.value.reason) == error
+
+    def test_password_too_long(self):
+        length = errors.MAX_PASSWORD_LENGTH + 1
+        ovf = construct_ovf_env(password="a" * length)
+
+        with pytest.raises(
+            errors.ReportableErrorOsProfilePasswordTooLong
+        ) as exc_info:
+            azure_helper.OvfEnvXml.parse_text(ovf)
+
+        assert exc_info.value.reason == (
+            f"unsupported password length={length} "
+            f"max={errors.MAX_PASSWORD_LENGTH}"
+        )
+        assert exc_info.value.supporting_data["length"] == length
+        assert (
+            exc_info.value.supporting_data["max_length"]
+            == errors.MAX_PASSWORD_LENGTH
+        )
 
     def test_multiple_sections_fails(self):
         ovf = """\
@@ -1633,13 +1736,17 @@ class TestOvfEnvXml:
         [
             (
                 "",
-                "error parsing ovf-env.xml: "
-                "no element found: line 1, column 0",
+                (
+                    "error parsing ovf-env.xml: "
+                    "no element found: line 1, column 0"
+                ),
             ),
             (
                 "<!!!!>",
-                "error parsing ovf-env.xml: "
-                "not well-formed (invalid token): line 1, column 2",
+                (
+                    "error parsing ovf-env.xml: "
+                    "not well-formed (invalid token): line 1, column 2"
+                ),
             ),
             (
                 "badxml",
