@@ -23,7 +23,9 @@ inputs:
     description: cloud-init install source (e.g. ppa:cloud-init-dev/daily)
     required: true
   filter_tests:
-    description: Optional test filter expression passed through to tox
+    description: >
+      Optional test filter expression passed through to tox. Defaults to
+      tests/integration_tests (the full integration test suite) when unset.
     required: false
     default: ''
 
@@ -101,7 +103,7 @@ runs:
         CLOUD_INIT_CLOUD_INIT_SOURCE: ${{ inputs.install_source }}
         CLOUD_INIT_LOCAL_LOG_PATH: ${{ github.workspace }}/cloud_init_test_logs
         PYCLOUDLIB_CONFIG: ${{ runner.temp }}/pycloudlib.toml
-        FILTER_TESTS: ${{ inputs.filter_tests }}
+        FILTER_TESTS: ${{ inputs.filter_tests || 'tests/integration_tests' }}
       run: |
         # Split filter_tests on whitespace into an array so each test path
         # or node ID is passed as a single, safely-quoted argument to tox.
