@@ -7,7 +7,7 @@ Bug: https://bugs.launchpad.net/ubuntu/+source/cloud-init/+bug/2094149
 Last-Update: 2025-01-16
 --- a/cloudinit/features.py
 +++ b/cloudinit/features.py
-@@ -87,7 +87,7 @@ On Debian and Ubuntu systems, cc_apt_con
+@@ -88,7 +88,7 @@ On Debian and Ubuntu systems, cc_apt_con
  to write /etc/apt/sources.list directly.
  """
  

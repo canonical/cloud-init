@@ -14,9 +14,9 @@ Last-Update: 2025-08-25
 +[build-system]
 +requires = ["setuptools"]
 +build-backend = "setuptools.build_meta"
+ requires-python = ">=3.9"
  
  [tool.black]
- line-length = 79
 --- /dev/null
 +++ b/setup.py
 @@ -0,0 +1,342 @@

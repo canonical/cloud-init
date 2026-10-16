@@ -19,7 +19,7 @@ Last-Update: 2024-08-02
              stdout = query_systemctl(
 --- a/cloudinit/config/cc_mounts.py
 +++ b/cloudinit/config/cc_mounts.py
-@@ -547,7 +547,7 @@ def handle(name: str, cfg: Config, cloud
+@@ -546,7 +546,7 @@ def handle(name: str, cfg: Config, cloud
      # fs_spec, fs_file, fs_vfstype, fs_mntops, fs_freq, fs_passno
      uses_systemd = cloud.distro.uses_systemd()
      default_mount_options = (
@@ -30,7 +30,7 @@ Last-Update: 2024-08-02
      )
 --- a/cloudinit/config/schemas/schema-cloud-config-v1.json
 +++ b/cloudinit/config/schemas/schema-cloud-config-v1.json
-@@ -2114,12 +2114,12 @@
+@@ -2122,12 +2122,12 @@
          },
          "mount_default_fields": {
            "type": "array",
@@ -304,7 +304,7 @@ Last-Update: 2024-08-02
 +WantedBy=cloud-init.target
 --- a/tests/unittests/config/test_cc_mounts.py
 +++ b/tests/unittests/config/test_cc_mounts.py
-@@ -527,9 +527,9 @@ class TestFstabHandling:
+@@ -522,9 +522,9 @@ class TestFstabHandling:
              LABEL=keepme	none	ext4	defaults	0	0
              LABEL=UEFI
              /dev/sda4	/mnt2	auto	nofail,comment=cloudconfig	1	2
@@ -314,5 +314,5 @@ Last-Update: 2024-08-02
 -            /dev/sda3	/mnt4	btrfs	defaults,nofail,x-systemd.after=cloud-init-network.service,_netdev,comment=cloudconfig	0	2
 +            /dev/sda3	/mnt4	btrfs	defaults,nofail,x-systemd.after=cloud-init.service,_netdev,comment=cloudconfig	0	2
              /dev/sdb1	none	swap	sw,comment=cloudconfig	0	0
-             """  # noqa: E501
-             ).strip()
+             """).strip()  # noqa: E501
+ 

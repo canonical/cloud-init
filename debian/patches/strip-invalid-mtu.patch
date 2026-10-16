@@ -7,7 +7,7 @@ Last-Update: 2025-07-09
 
 --- a/cloudinit/features.py
 +++ b/cloudinit/features.py
-@@ -98,7 +98,7 @@ Note that in addition to this flag, down
+@@ -99,7 +99,7 @@ Note that in addition to this flag, down
  to modify the systemd unit files.
  """
  

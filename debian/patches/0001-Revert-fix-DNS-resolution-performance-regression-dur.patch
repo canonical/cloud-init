@@ -12,7 +12,7 @@ This reverts commit 72809f8046f7abb5157e864a903cc5cc3c70ecbb.
 
 --- a/cloudinit/sources/DataSourceEc2.py
 +++ b/cloudinit/sources/DataSourceEc2.py
-@@ -77,6 +77,7 @@ class DataSourceEc2(sources.DataSource):
+@@ -86,6 +86,7 @@ class DataSourceEc2(sources.DataSource):
      metadata_urls = [
          "http://169.254.169.254",
          "http://[fd00:ec2::254]",
