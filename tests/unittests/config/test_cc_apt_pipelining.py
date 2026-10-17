@@ -3,6 +3,7 @@
 """Tests cc_apt_pipelining handler"""
 
 import re
+from typing import Optional
 from unittest import mock
 
 import pytest
@@ -18,16 +19,20 @@ from tests.unittests.helpers import skipUnlessJsonSchema
 
 class TestAptPipelining:
     @mock.patch("cloudinit.config.cc_apt_pipelining.util.write_file")
-    def test_not_disabled_by_default(self, m_write_file):
+    def test_not_disabled_by_default(
+        self, m_write_file: mock.MagicMock
+    ) -> None:
         """ensure that default behaviour is to not disable pipelining"""
-        cc_apt_pipelining.handle("foo", {}, None, None)
+        cc_apt_pipelining.handle("foo", {}, mock.MagicMock(), [])
         assert 0 == m_write_file.call_count
 
     @mock.patch("cloudinit.config.cc_apt_pipelining.util.write_file")
-    def test_false_disables_pipelining(self, m_write_file):
+    def test_false_disables_pipelining(
+        self, m_write_file: mock.MagicMock
+    ) -> None:
         """ensure that pipelining can be disabled with correct config"""
         cc_apt_pipelining.handle(
-            "foo", {"apt_pipelining": "false"}, None, None
+            "foo", {"apt_pipelining": "false"}, mock.MagicMock(), []
         )
         assert 1 == m_write_file.call_count
         args, _ = m_write_file.call_args
@@ -55,7 +60,9 @@ class TestAptPipelining:
         ),
     )
     @skipUnlessJsonSchema()
-    def test_schema_validation(self, config, error_msg):
+    def test_schema_validation(
+        self, config: dict, error_msg: Optional[str]
+    ) -> None:
         """Assert expected schema validation and error messages."""
         # New-style schema $defs exist in config/cloud-init-schema*.json
         schema = get_schema()
