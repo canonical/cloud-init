@@ -441,6 +441,10 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         )
 
     def generate_fallback_config(self):
+        key = "disable_fallback_netcfg"
+        if self._cfg.get(key, False):
+            LOG.debug("Skipping generate_fallback_config: %s is set", key)
+            return None
         return net.generate_fallback_config()
 
     def apply_network_config(self, netconfig, bring_up=False) -> bool:
