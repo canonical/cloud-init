@@ -6,8 +6,9 @@ import datetime
 import json
 import logging
 from base64 import b64decode
+from typing import Any, Dict, List, Optional
 
-from cloudinit import dmi, net, sources, url_helper, util
+from cloudinit import distros, dmi, helpers, net, sources, url_helper, util
 from cloudinit.distros import ug_util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net.dhcp import NoDHCPLeaseError
@@ -37,13 +38,20 @@ NETWORK_POLLING_BOARD_ALLOW_LIST = [
 
 
 class GoogleMetadataFetcher:
-    def __init__(self, metadata_address, num_retries, sec_between_retries):
+    def __init__(
+        self,
+        metadata_address: str,
+        num_retries: int,
+        sec_between_retries: int,
+    ) -> None:
         self.metadata_address = metadata_address
         self.num_retries = num_retries
         self.sec_between_retries = sec_between_retries
 
-    def get_value(self, path, is_text, is_recursive=False):
-        value = None
+    def get_value(
+        self, path: str, is_text: bool, is_recursive: bool = False
+    ) -> Optional[str]:
+        value: Optional[str] = None
         try:
             url = self.metadata_address + path
             if is_recursive:
@@ -79,13 +87,18 @@ class DataSourceGCE(sources.DataSource):
         }
     }
 
-    def __init__(self, sys_cfg, distro, paths):
+    def __init__(
+        self,
+        sys_cfg: Dict[str, Any],
+        distro: distros.Distro,
+        paths: helpers.Paths,
+    ) -> None:
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
-        self.default_user = None
+        self.default_user: Optional[str] = None
         if distro:
             users, _groups = ug_util.normalize_users_groups(sys_cfg, distro)
             self.default_user, _user_config = ug_util.extract_default(users)
-        self.metadata = dict()
+        self.metadata: Dict[str, Any] = dict()
         self.ds_cfg = util.mergemanydict(
             [
                 util.get_cfg_by_path(sys_cfg, ["datasource", "GCE"], {}),
@@ -94,7 +107,7 @@ class DataSourceGCE(sources.DataSource):
         )
         self.metadata_address = self.ds_cfg["metadata_url"]
 
-    def _get_data(self):
+    def _get_data(self) -> bool:
         url_params = self.get_url_params()
         ret = {}
         if self.perform_dhcp_setup:
@@ -159,26 +172,31 @@ class DataSourceGCE(sources.DataSource):
             else:
                 LOG.debug(ret.get("reason"))
             return False
-        self.metadata = ret.get("meta-data")
+        # read_md only reports success after populating "meta-data",
+        # so the key is guaranteed present here.
+        self.metadata = ret["meta-data"]
         self.userdata_raw = ret.get("user-data")
         return True
 
     @property
-    def launch_index(self):
+    def launch_index(self) -> None:
         # GCE does not provide launch_index property.
         return None
 
-    def get_instance_id(self):
+    def get_instance_id(self) -> str:
         return self.metadata["instance-id"]
 
-    def get_public_ssh_keys(self):
+    def get_public_ssh_keys(self) -> List[str]:
         public_keys_data = self.metadata["public-keys-data"]
         return _parse_public_keys(public_keys_data, self.default_user)
 
-    def publish_host_keys(self, hostkeys):
+    def publish_host_keys(self, hostkeys: List[Any]) -> None:
         for key in hostkeys:
             _write_host_key_to_guest_attributes(*key)
 
+    # Signature matches the untyped DataSource.get_hostname exactly:
+    # test_init.py::test_get_hostname_subclass_support compares
+    # inspect.getfullargspec across the override, annotations included.
     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
         # GCE has long FDQN's and has asked for short hostnames.
         return DataSourceHostname(
@@ -186,11 +204,11 @@ class DataSourceGCE(sources.DataSource):
         )
 
     @property
-    def availability_zone(self):
+    def availability_zone(self) -> str:
         return self.metadata["availability-zone"]
 
     @property
-    def region(self):
+    def region(self) -> str:
         return self.availability_zone.rsplit("-", 1)[0]
 
 
@@ -198,12 +216,12 @@ class DataSourceGCELocal(DataSourceGCE):
     perform_dhcp_setup = True
 
 
-def _write_host_key_to_guest_attributes(key_type, key_value):
+def _write_host_key_to_guest_attributes(key_type: str, key_value: str) -> None:
     url = "%s/%s/%s" % (GUEST_ATTRIBUTES_URL, HOSTKEY_NAMESPACE, key_type)
-    key_value = key_value.encode("utf-8")
+    encoded_value = key_value.encode("utf-8")
     resp = url_helper.readurl(
         url=url,
-        data=key_value,
+        data=encoded_value,
         headers=HEADERS,
         request_method="PUT",
         check_status=False,
@@ -214,7 +232,7 @@ def _write_host_key_to_guest_attributes(key_type, key_value):
         LOG.debug("Unable to write %s host key to guest attributes.", key_type)
 
 
-def _has_expired(public_key):
+def _has_expired(public_key: str) -> bool:
     # Check whether an SSH key is expired. Public key input is a single SSH
     # public key in the GCE specific key format documented here:
     # https://cloud.google.com/compute/docs/instances/adding-removing-ssh-keys#sshkeyformat
@@ -229,7 +247,7 @@ def _has_expired(public_key):
         return False
 
     try:
-        json_obj = json.loads(json_str)
+        json_obj: Dict[str, Any] = json.loads(json_str)
     except ValueError:
         return False
 
@@ -248,12 +266,14 @@ def _has_expired(public_key):
     return datetime.datetime.now(datetime.timezone.utc) > expire_time
 
 
-def _parse_public_keys(public_keys_data, default_user=None):
+def _parse_public_keys(
+    public_keys_data: List[str], default_user: Optional[str] = None
+) -> List[str]:
     # Parse the SSH key data for the default user account. Public keys input is
     # a list containing SSH public keys in the GCE specific key format
     # documented here:
     # https://cloud.google.com/compute/docs/instances/adding-removing-ssh-keys#sshkeyformat
-    public_keys = []
+    public_keys: List[str] = []
     if not public_keys_data:
         return public_keys
     for public_key in public_keys_data:
@@ -268,12 +288,18 @@ def _parse_public_keys(public_keys_data, default_user=None):
     return public_keys
 
 
-def read_md(address=None, url_params=None, platform_check=True):
+def read_md(
+    url_params: sources.URLParams,
+    address: Optional[str] = None,
+    platform_check: bool = True,
+) -> Dict[str, Any]:
 
     if address is None:
         address = MD_V1_URL
 
-    ret = {
+    # The dict carries a mix of None, bool, str, bytes and dict values
+    # depending on which keys were populated, so its values are Any.
+    ret: Dict[str, Any] = {
         "meta-data": None,
         "user-data": None,
         "success": False,
@@ -302,7 +328,7 @@ def read_md(address=None, url_params=None, platform_check=True):
     metadata_fetcher = GoogleMetadataFetcher(
         address, url_params.num_retries, url_params.sec_between_retries
     )
-    md = {}
+    md: Dict[str, Any] = {}
     # Iterate over url_map keys to get metadata items.
     for mkey, paths, required, is_text, is_recursive in url_map:
         value = None
@@ -351,7 +377,7 @@ def read_md(address=None, url_params=None, platform_check=True):
     return ret
 
 
-def platform_reports_gce():
+def platform_reports_gce() -> bool:
     pname = dmi.read_dmi_data("system-product-name") or "N/A"
     if pname == "Google Compute Engine" or pname == "Google":
         return True
@@ -375,7 +401,7 @@ datasources = [
 
 
 # Return a list of data sources that match this set of dependencies.
-def get_datasource_list(depends):
+def get_datasource_list(depends: List[str]) -> List[Any]:
     return sources.list_from_depends(depends, datasources)
 
 
@@ -399,7 +425,14 @@ if __name__ == "__main__":
         default=True,
     )
     args = parser.parse_args()
-    data = read_md(address=args.endpoint, platform_check=args.platform_check)
+    # The datasource defaults from cloudinit.sources: no extra wait, a 10s
+    # timeout, five 404 retries, one second between retries.
+    cli_url_params = sources.URLParams(-1, 10, 5, 1)
+    data = read_md(
+        url_params=cli_url_params,
+        address=args.endpoint,
+        platform_check=args.platform_check,
+    )
     if "user-data" in data:
         # user-data is bytes not string like other things. Handle it specially.
         # If it can be represented as utf-8 then do so. Otherwise print base64
