@@ -1231,23 +1231,27 @@ def get_hostname_fqdn(cfg, cloud, metadata_only=False):
         fqdn = str(cfg["fqdn"])
         hostname = get_cfg_option_str(cfg, "hostname", fqdn.split(".")[0])
     else:
-        if "hostname" in cfg and cfg["hostname"].find(".") > 0:
-            # user specified hostname, and it had '.' in it
-            # be nice to them.  set fqdn and hostname from that
-            fqdn = cfg["hostname"]
-            hostname = cfg["hostname"][: fqdn.find(".")]
+        if "hostname" in cfg:
+            cfg_hostname = str(cfg["hostname"])
+            if cfg_hostname.find(".") > 0:
+                # user specified hostname, and it had '.' in it
+                # be nice to them.  set fqdn and hostname from that
+                fqdn = cfg_hostname
+                hostname = cfg_hostname[: fqdn.find(".")]
+            else:
+                # no fqdn set, get fqdn from cloud.
+                # get hostname from cfg if available otherwise cloud
+                fqdn = cloud.get_hostname(
+                    fqdn=True, metadata_only=metadata_only
+                ).hostname
+                hostname = cfg_hostname
         else:
-            # no fqdn set, get fqdn from cloud.
-            # get hostname from cfg if available otherwise cloud
             fqdn = cloud.get_hostname(
                 fqdn=True, metadata_only=metadata_only
             ).hostname
-            if "hostname" in cfg:
-                hostname = cfg["hostname"]
-            else:
-                hostname, is_default = cloud.get_hostname(
-                    metadata_only=metadata_only
-                )
+            hostname, is_default = cloud.get_hostname(
+                metadata_only=metadata_only
+            )
     return HostnameFqdnInfo(hostname, fqdn, is_default)
 
 
