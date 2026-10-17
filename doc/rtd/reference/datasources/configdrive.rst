@@ -133,6 +133,57 @@ instance. This value overrides the content in ``authorized_keys``.
 This provides ``cloud-init`` user-data. See :ref:`examples <yaml_examples>`
 for details of what needs to be present here.
 
+
+Configuration
+=============
+
+The behavior of ``DataSourceConfigDrive`` can be configured via
+``/etc/cloud/cloud.cfg`` or ``/etc/cloud/cloud.cfg.d/*.cfg`` under the
+``datasource: ConfigDrive:`` key.
+
+``files``
+---------
+
+A dictionary or boolean controlling how injected files provided in the ConfigDrive
+:file:`meta_data.json` ``files`` array are written to the guest on initial boot:
+
+- **enabled**: A boolean specifying whether to write injected files to the guest.
+  Setting this to ``False`` disables all injected file writing. Default: ``True``.
+- **allowlist**: A list of glob patterns (e.g. ``/etc/network/*``) matching paths
+  that are permitted to be written. If specified, any file not matching the
+  allowlist is skipped. (Alias: ``whitelist``). Default: ``None`` (no restriction).
+- **denylist**: A list of glob patterns (e.g. ``/etc/shadow``, ``/root/.ssh/*``)
+  matching paths that must not be written. Takes precedence over the allowlist.
+  (Alias: ``blacklist``). Default: ``[]``.
+- **overwrite**: A boolean specifying whether existing files on the guest
+  filesystem may be overwritten. When set to ``False``, existing files are
+  preserved. Default: ``True``.
+- **mode**: File mode permissions used when writing files (e.g. ``0o644`` or
+  ``"0644"``). Default: ``0o660``.
+
+Alternatively, passing ``files: false`` acts as a shorthand to completely disable
+writing injected files.
+
+Example configuration
+---------------------
+
+.. code-block:: yaml
+
+   datasource:
+     ConfigDrive:
+       files:
+         enabled: true
+         allowlist:
+           - "/etc/network/*"
+           - "/etc/netplan/*"
+         denylist:
+           - "/etc/shadow"
+           - "/etc/sudoers*"
+           - "/root/.ssh/*"
+         overwrite: false
+         mode: 0o644
+
+
 .. _OpenStack: http://www.openstack.org/
 .. _meta-data introduction: https://docs.openstack.org/nova/latest/user/metadata.html#config-drives
 .. _python-novaclient: https://github.com/openstack/python-novaclient
