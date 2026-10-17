@@ -95,24 +95,52 @@ Logs collected include:
    Ubuntu users can file bugs using :command:`ubuntu-bug cloud-init` to
    automatically attach these logs to a bug report.
 
-:command:`query`
+.. _cli_devel:
+
+:command:`devel`
 ----------------
 
-Query if hotplug is enabled for a given subsystem.
+Run development tools. See :command:`cloud-init devel --help` for the full
+list of subcommands, which includes :command:`hotplug-hook`,
+:command:`make-mime`, :command:`net-convert` and :command:`render`.
 
-:command:`handle`
------------------
+.. _cli_devel_hotplug_hook:
 
-Respond to newly added system devices by retrieving updated system meta-data
-and bringing up/down the corresponding device.
+:command:`devel hotplug-hook`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-:command:`enable`
------------------
+Handle reconfiguration on hotplug events. The following are subcommands of
+:command:`devel hotplug-hook`, not top-level ``cloud-init`` commands. Each
+requires the ``-s/--subsystem`` option on the parent command:
 
-Enable hotplug for a given subsystem. This is a last resort command for
-administrators to enable hotplug in running instances. The recommended
-method is configuring :ref:`events`, if not enabled by default in the active
-datasource.
+.. code-block:: shell-session
+
+    $ cloud-init devel hotplug-hook --subsystem <subsystem> <query|handle|enable>
+
+* :command:`query`: Query if hotplug is enabled for a given subsystem.
+
+  .. code-block:: shell-session
+
+      $ cloud-init devel hotplug-hook --subsystem net query
+
+* :command:`handle`: Respond to newly added system devices by retrieving
+  updated system meta-data and bringing up/down the corresponding device.
+  Requires ``-d/--devpath`` (sysfs path to the hotplugged device) and
+  ``-u/--udevaction``.
+
+  .. code-block:: shell-session
+
+      $ cloud-init devel hotplug-hook --subsystem net handle \
+          --devpath /sys/class/net/eth1 --udevaction add
+
+* :command:`enable`: Enable hotplug for a given subsystem. This is a last
+  resort command for administrators to enable hotplug in running instances.
+  The recommended method is configuring :ref:`events`, if not enabled by
+  default in the active datasource.
+
+  .. code-block:: shell-session
+
+      $ cloud-init devel hotplug-hook --subsystem net enable
 
 .. _cli_query:
 
