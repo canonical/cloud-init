@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
 import shutil
 from pathlib import Path
 from textwrap import dedent
@@ -62,6 +63,20 @@ _X509_CERT = dedent("""\
     -----END CERTIFICATE-----
     """)
 
+# Some Azure-generated keys contained a CRLF after every 64 characters and
+# at the end (LP: #1910835).
+_AZURE_KEY = _VALID_RSA_KEY + " generated-by-azure"
+_AZURE_CRLF_KEY = (
+    "\r\n".join(_AZURE_KEY[i : i + 64] for i in range(0, len(_AZURE_KEY), 64))
+    + "\r\n"
+)
+
+_CRLF_WARNING = (
+    "cloudinit.sources.azure.certs",
+    logging.WARNING,
+    "SSH key contains embedded CRLF sequence(s) which are being removed.",
+)
+
 
 class TestIsOpensshFormatted:
     """Test is_openssh_formatted() function."""
@@ -72,9 +87,11 @@ class TestIsOpensshFormatted:
             pytest.param(_VALID_RSA_KEY, id="rsa-without-comment"),
             pytest.param(_VALID_ED25519_KEY, id="ed25519"),
             pytest.param(_VALID_ECDSA_KEY, id="ecdsa"),
+            # The parser treats CRLF as whitespace, so it does not reject
+            # embedded CRLF. normalize_ssh_public_key() removes it instead.
             pytest.param(
                 "ssh-rsa AAAAB3NzaC1yc2EAAAA\r\nBBBB user@host",
-                id="windows-line-endings",
+                id="embedded-crlf-not-detected",
             ),
         ],
     )
@@ -98,38 +115,15 @@ class TestIsOpensshFormatted:
         """Non-OpenSSH strings should return False."""
         assert certs.is_openssh_formatted(value) is False
 
+    @mock.patch.object(certs.ssh_util.AuthKeyLineParser, "parse")
+    def test_parser_type_error(self, m_parse, caplog):
+        m_parse.side_effect = TypeError("Cannot parse key")
+        caplog.set_level(logging.DEBUG)
 
-class TestSanitizeOpensshKey:
-    """Test sanitize_openssh_key() function."""
+        assert certs.is_openssh_formatted(_VALID_RSA_KEY) is False
 
-    @pytest.mark.parametrize(
-        "key, expected",
-        [
-            pytest.param(
-                "ssh-rsa AAAA\r\nBBBB user@host",
-                "ssh-rsa AAAABBBB user@host",
-                id="removes-embedded-crlf",
-            ),
-            pytest.param(
-                "ssh-rsa AAAABBBB user@host\r\n",
-                "ssh-rsa AAAABBBB user@host",
-                id="strips-trailing-crlf",
-            ),
-            pytest.param(
-                "ssh-rsa AAAABBBB user@host",
-                "ssh-rsa AAAABBBB user@host",
-                id="clean-key-unchanged",
-            ),
-            pytest.param(
-                "ssh-rsa AA\r\nAA\r\nBBBB user@host",
-                "ssh-rsa AAAABBBB user@host",
-                id="multiple-crlf-sequences",
-            ),
-        ],
-    )
-    def test_sanitize(self, key, expected):
-        """Sanitized keys should have CRLF sequences removed."""
-        assert certs.sanitize_openssh_key(key) == expected
+        m_parse.assert_called_once_with(_VALID_RSA_KEY)
+        assert "SSH key could not be parsed." in caplog.text
 
 
 class TestIsX509Certificate:
@@ -374,3 +368,120 @@ class TestConvertX509ToOpenssh:
 
         result = certs.convert_x509_to_openssh(cert_data)
         assert result.strip() == expected_key
+
+
+class TestNormalizeSshPublicKey:
+    """Test normalize_ssh_public_key() function."""
+
+    @pytest.mark.parametrize(
+        "key, expected, warns",
+        [
+            pytest.param(
+                _VALID_RSA_KEY, _VALID_RSA_KEY, False, id="unchanged"
+            ),
+            pytest.param(
+                f"  {_VALID_RSA_KEY}\n",
+                _VALID_RSA_KEY,
+                False,
+                id="surrounding-whitespace-stripped",
+            ),
+            pytest.param(
+                f"{_VALID_RSA_KEY}\r\n",
+                _VALID_RSA_KEY,
+                False,
+                id="trailing-crlf-stripped-without-warning",
+            ),
+            pytest.param(
+                _AZURE_CRLF_KEY,
+                _AZURE_KEY,
+                True,
+                id="embedded-crlf-removed-with-warning",
+            ),
+        ],
+    )
+    def test_openssh_key(self, key, expected, warns, caplog):
+        """OpenSSH keys are trimmed and any embedded CRLF is removed.
+
+        Only embedded CRLF logs a warning.
+        """
+        assert certs.normalize_ssh_public_key(key) == expected
+        assert (_CRLF_WARNING in caplog.record_tuples) is warns
+
+    @pytest.mark.parametrize(
+        "key",
+        [
+            pytest.param("", id="empty"),
+            pytest.param("not-a-supported-key", id="unsupported"),
+        ],
+    )
+    def test_unsupported_key_raises_value_error(self, key):
+        """A key that is neither OpenSSH nor x509 raises a ValueError."""
+        with pytest.raises(ValueError, match="not in a supported format"):
+            certs.normalize_ssh_public_key(key)
+
+    @mock.patch.object(certs.ssh_util.AuthKeyLineParser, "parse")
+    def test_parser_type_error_raises_value_error(self, m_parse):
+        m_parse.side_effect = TypeError("Cannot parse key")
+
+        with pytest.raises(ValueError, match="not in a supported format"):
+            certs.normalize_ssh_public_key(_VALID_RSA_KEY)
+
+        m_parse.assert_called_once_with(_VALID_RSA_KEY)
+
+    @pytest.mark.parametrize(
+        "cert",
+        [
+            pytest.param(_X509_CERT, id="lf"),
+            pytest.param(_X509_CERT.replace("\n", "\r\n"), id="crlf"),
+            pytest.param(
+                "\r\n" + _X509_CERT.replace("\n", "\r\n") + "  ",
+                id="crlf-with-surrounding-whitespace",
+            ),
+        ],
+    )
+    @mock.patch("cloudinit.sources.azure.certs.convert_x509_to_openssh")
+    def test_x509_certificate_is_converted_unmodified(
+        self, m_convert, cert, caplog
+    ):
+        """The certificate is passed to the conversion exactly as received."""
+        caplog.set_level(logging.DEBUG)
+        m_convert.return_value = "ssh-rsa converted-from-x509\n"
+
+        result = certs.normalize_ssh_public_key(cert)
+
+        assert result == "ssh-rsa converted-from-x509"
+        m_convert.assert_called_once_with(cert)
+        assert "CRLF" not in caplog.text
+
+    @mock.patch("cloudinit.sources.azure.certs.convert_x509_to_openssh")
+    def test_x509_conversion_failure_raises_value_error(self, m_convert):
+        """A certificate that cannot be converted raises a ValueError."""
+        m_convert.side_effect = subp.ProcessExecutionError("conversion failed")
+
+        with pytest.raises(
+            ValueError, match="Failed to convert x509 certificate"
+        ) as exc_info:
+            certs.normalize_ssh_public_key(_X509_CERT)
+
+        assert isinstance(exc_info.value.__cause__, subp.ProcessExecutionError)
+
+    @pytest.mark.skipif(
+        shutil.which("openssl") is None or shutil.which("ssh-keygen") is None,
+        reason="openssl or ssh-keygen not available",
+    )
+    @pytest.mark.allow_subp_for("openssl", "ssh-keygen")
+    @pytest.mark.parametrize("line_ending", ["\n", "\r\n"], ids=["lf", "crlf"])
+    def test_x509_certificate_integration(
+        self, cert_data, data_file_path, line_ending, caplog
+    ):
+        """Integration test: LF and CRLF certificates are converted."""
+        key_file = data_file_path("pubkey_extract_ssh_key")
+        if not key_file.exists():
+            pytest.skip("Test data files not found")
+        caplog.set_level(logging.DEBUG)
+        cert = cert_data.replace("\n", line_ending)
+
+        result = certs.normalize_ssh_public_key(cert)
+
+        assert result == key_file.read_text().strip()
+        assert "CRLF" not in caplog.text

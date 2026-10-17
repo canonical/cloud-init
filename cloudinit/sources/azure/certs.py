@@ -16,25 +16,6 @@ _CERTIFICATE_BLOCK_RE = re.compile(
 )
 
 
-def sanitize_openssh_key(key: str) -> str:
-    r"""Sanitize an OpenSSH key by removing embedded CRLF sequences.
-
-    Azure-generated SSH keys may contain CRLF (\r\n) sequences embedded
-    in the base64 key data. This strips those sequences so the key can
-    be properly parsed and written to authorized_keys.
-
-    Note: Azure no longer generates keys with embedded CRLF sequences,
-    but previously provisioned keys may still be in use.
-
-    See https://bugs.launchpad.net/cloud-init/+bug/1910835
-    """
-    key = key.strip()
-    if "\r\n" in key:
-        LOG.debug("SSH key contains embedded CRLF sequences, sanitizing.")
-        key = key.replace("\r\n", "")
-    return key
-
-
 def is_openssh_formatted(key: str) -> bool:
     """Validate whether or not the key is OpenSSH-formatted.
 
@@ -143,3 +124,50 @@ def convert_x509_to_openssh(certificate: str) -> str:
 
     LOG.debug("Successfully converted x509 certificate to OpenSSH format.")
     return ssh_key
+
+
+def normalize_ssh_public_key(key: str) -> str:
+    """Normalize an IMDS-provided public key into OpenSSH format.
+
+    Keys provided by IMDS may already be in OpenSSH format or may be x509
+    certificates:
+
+    - x509 certificates are converted to OpenSSH format. The certificate is
+      passed to the conversion unmodified, since PEM is multi-line and CRLF
+      line endings are valid.
+    - OpenSSH keys must be single-line, so surrounding whitespace is stripped
+      and embedded CRLF is removed with a warning. Some Azure-generated keys
+      included CRLF every 64 characters and needed this cleanup for use in
+      authorized_keys. The x509 fallback worked because conversion removed
+      the line breaks. See:
+      https://bugs.launchpad.net/cloud-init/+bug/1910835
+      This is no longer expected, but the CRLF is still removed so that any
+      such key keeps working instead of breaking authorized_keys.
+
+    :param key: The public key data as provided by IMDS.
+
+    :raises ValueError: if the key is not a valid OpenSSH key, or is an
+        x509 certificate that cannot be converted.
+
+    :returns: The public key in OpenSSH format.
+    """
+    if "-----BEGIN CERTIFICATE-----" in key:
+        try:
+            return convert_x509_to_openssh(key).strip()
+        except subp.ProcessExecutionError as error:
+            raise ValueError(
+                "Failed to convert x509 certificate to OpenSSH format"
+            ) from error
+
+    key = key.strip()
+    if "\r\n" in key:
+        LOG.warning(
+            "SSH key contains embedded CRLF sequence(s) which are being "
+            "removed."
+        )
+        key = key.replace("\r\n", "")
+
+    if not is_openssh_formatted(key):
+        raise ValueError("Key is not in a supported format")
+
+    return key
