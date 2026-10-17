@@ -8,6 +8,7 @@
 
 import logging
 import os
+from typing import Any, Callable, Dict, List, Tuple
 
 from cloudinit import lifecycle, sources, subp, util
 from cloudinit.event import EventScope, EventType
@@ -194,6 +195,10 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
 
     def _get_subplatform(self):
         """Return the subplatform metadata source details."""
+        if self.source is None:
+            # Cannot happen: _get_subplatform is only invoked after
+            # get_data() succeeded, which sets source to a path.
+            raise ValueError("Could not determine subplatform: no source")
         if self.source.startswith("/dev"):
             subplatform_type = "config-disk"
         else:
@@ -203,7 +208,7 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
 
 def read_config_drive(source_dir):
     reader = openstack.ConfigDriveReader(source_dir)
-    finders = [
+    finders: List[Tuple[Callable[..., Any], List[Any], Dict[str, Any]]] = [
         (reader.read_v2, [], {}),
         (reader.read_v1, [], {}),
     ]
