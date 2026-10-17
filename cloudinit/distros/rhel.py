@@ -9,6 +9,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
 import os
+from typing import Dict, Union
 
 from cloudinit import distros, helpers, subp, util
 from cloudinit.distros import PackageList, rhel_util
@@ -23,7 +24,7 @@ class Distro(distros.Distro):
     clock_conf_fn = "/etc/sysconfig/clock"
     locale_conf_fn = "/etc/sysconfig/i18n"
     systemd_locale_conf_fn = "/etc/locale.conf"
-    network_conf_fn = "/etc/sysconfig/network"
+    network_conf_fn: Union[str, Dict[str, str]] = "/etc/sysconfig/network"
     hostname_conf_fn = "/etc/sysconfig/network"
     systemd_hostname_conf_fn = "/etc/hostname"
     tz_local_fn = "/etc/localtime"
