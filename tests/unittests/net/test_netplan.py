@@ -103,3 +103,30 @@ class TestMaybeStripInvalidMTU:
     def test__strip_invalid_mtu(self, netcfg, expected, strip_enabled, mocker):
         mocker.patch("cloudinit.features.STRIP_INVALID_MTU", strip_enabled)
         assert expected == netplan._maybe_strip_invalid_mtu(netcfg)
+
+
+class TestExtractAddresses:
+    @pytest.mark.parametrize(
+        "subnets,expected",
+        (
+            pytest.param(
+                [{"type": "ipv6_slaac"}],
+                {"accept-ra": True},
+                id="slaac_does_not_enable_dhcp6",
+            ),
+            pytest.param(
+                [{"type": "dhcp4"}, {"type": "ipv6_slaac"}],
+                {"dhcp4": True, "accept-ra": True},
+                id="dhcp4_and_slaac",
+            ),
+            pytest.param(
+                [{"type": "ipv6_dhcpv6-stateless"}],
+                {"dhcp6": True},
+                id="dhcpv6_stateless_enables_dhcp6",
+            ),
+        ),
+    )
+    def test_ipv6_dynamic_subnets(self, subnets, expected):
+        entry: dict = {}
+        netplan._extract_addresses({"subnets": subnets}, entry, "eth0", list)
+        assert expected == entry
