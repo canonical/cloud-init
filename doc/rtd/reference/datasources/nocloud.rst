@@ -350,6 +350,39 @@ YOUR_SERIAL_NUMBER as seen in :file:`/sys/class/dmi/id/chassis_serial_number`
 the network initialization is complete.
 
 
+Platform-specific variables
+===========================
+
+The NoCloud datasource also supports a small set of platform-specific
+placeholders that may be used in the ``seedfrom`` URL. Placeholders have the
+form ``__platform.<key>__`` and are expanded before cloud-init fetches
+resources. If a platform variable cannot be detected it is replaced with an
+empty string.
+
+.. list-table:: Available platform variables for expansion in ``seedfrom`` URL
+  :widths: 30 70
+  :header-rows: 0
+
+  * - ``__platform.secureboot__``
+    - Expands to ``true`` when a SecureBoot efivars entry matching
+      ``/sys/firmware/efi/efivars/SecureBoot-*`` is present.
+  * - ``__platform.tpm2__``
+    - Expands to ``true`` when ``/dev/tpm0`` is present.
+  * - ``__platform.virtualized__``
+    - Expands to ``hypervisor`` when the ``hypervisor`` flag is present in
+      ``/proc/cpuinfo``.
+
+Example: use SecureBoot presence in a seedfrom URL
+-------------------------------------------------
+
+You can use the SecureBoot placeholder to select provisioning configuration
+based on presence of the SecureBoot efivar entry. For example: ::
+
+  ds=nocloud;s=https://10.10.0.1/profiles/__platform.secureboot__/
+
+If SecureBoot cannot be detected the placeholder expands to an empty string.
+
+
 Example: Creating a disk
 ========================
 
