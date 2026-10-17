@@ -445,15 +445,21 @@ class Init:
             return
         ncfg_instance_path = self.paths.get_ipath_cur("network_config")
         network_link = self.paths.get_runpath("network_config")
+        current_netcfg = None
         if os.path.exists(ncfg_instance_path):
-            # Compare and only write on delta of current network-config
-            if netcfg != util.load_json(
-                util.load_text_file(ncfg_instance_path)
-            ):
-                atomic_helper.write_json(
-                    ncfg_instance_path, netcfg, mode=0o600
+            try:
+                current_netcfg = util.load_json(
+                    util.load_text_file(ncfg_instance_path)
                 )
-        else:
+            except (TypeError, ValueError) as e:
+                # An empty or truncated file, e.g. after a power loss
+                LOG.warning(
+                    "Ignoring invalid cached network config %s: %s",
+                    ncfg_instance_path,
+                    e,
+                )
+        # Compare and only write on delta of current network-config
+        if netcfg != current_netcfg:
             atomic_helper.write_json(ncfg_instance_path, netcfg, mode=0o600)
         if not os.path.islink(network_link):
             util.sym_link(ncfg_instance_path, network_link)

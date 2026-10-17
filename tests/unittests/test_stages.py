@@ -504,6 +504,21 @@ class TestInit:
             ):
                 assert not self.tmpdir.join(path).exists()
 
+    @pytest.mark.parametrize("content", ("", '{"version": 1, "con', "[]"))
+    def test_write_network_config_json_rewrites_invalid_cache(
+        self, content, caplog
+    ):
+        """Rewrite an empty or invalid cached network-config.json."""
+        net_cfg = {"version": 1, "config": []}
+        self.tmpdir.join("instance", "network-config.json").write(content)
+
+        self.init._write_network_config_json(net_cfg)
+
+        assert net_cfg == json.loads(
+            self.tmpdir.join("network-config.json").read()
+        )
+        assert "Ignoring invalid cached network config" in caplog.text
+
     @mock.patch("cloudinit.distros.ubuntu.Distro")
     @mock.patch.dict(
         sources.DataSource.default_update_events,
