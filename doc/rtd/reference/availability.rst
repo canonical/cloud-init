@@ -31,6 +31,7 @@ NetBSD, OpenBSD and DragonFlyBSD:
 - Fedora
 - FreeBSD
 - Gentoo Linux
+- Kylin Linux
 - MarinerOS
 - MIRACLE LINUX
 - NetBSD
