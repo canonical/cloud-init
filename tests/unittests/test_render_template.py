@@ -1,5 +1,6 @@
 """Tests for tools/render-template"""
 
+import shlex
 import sys
 
 import pytest
@@ -126,6 +127,119 @@ class TestRenderCloudCfg:
             system_cfg = util.load_yaml(stream.read())
 
         assert renderers == system_cfg["system_info"]["network"]["renderers"]
+
+
+@pytest.mark.allow_subp_for(sys.executable, "sh")
+class TestRenderCloudInitGenerator:
+    tmpl_path = cloud_init_project_dir("systemd/cloud-init-generator.tmpl")
+
+    @pytest.mark.parametrize("variant", DISTRO_VARIANTS)
+    @pytest.mark.parametrize(
+        "lib_exec_dir",
+        [
+            "/usr/libexec/cloud-init",
+            "/usr/lib/cloud-init",
+            "/opt/custom helpers/cloud-init",
+        ],
+    )
+    def test_configured_helper_directory(
+        self, tmp_path, variant, lib_exec_dir
+    ):
+        outfile = tmp_path / "cloud-init-generator"
+        templater.render_template(
+            variant,
+            self.tmpl_path,
+            str(outfile),
+            is_yaml=False,
+            lib_exec_dir=lib_exec_dir,
+        )
+        assert self.get_dsidentify(outfile.read_text()) == (
+            lib_exec_dir + "/ds-identify"
+        )
+
+    @pytest.mark.parametrize(
+        "variant,expected",
+        [
+            ("photon", "/usr/libexec/cloud-init/ds-identify"),
+            ("fedora", "/usr/libexec/cloud-init/ds-identify"),
+            ("ubuntu", "/usr/lib/cloud-init/ds-identify"),
+            ("unknown", "/usr/lib/cloud-init/ds-identify"),
+            ("benchmark", "/bin/true"),
+        ],
+    )
+    def test_default_helper_directory(self, variant, expected):
+        rendered = templater.render_string(
+            util.load_text_file(self.tmpl_path), {"variant": variant}
+        )
+        assert self.get_dsidentify(rendered) == expected
+
+    @pytest.mark.parametrize("lib_exec_dir", [None, "/opt/helpers/cloud-init"])
+    def test_benchmark_ignores_helper_directory(self, tmp_path, lib_exec_dir):
+        outfile = tmp_path / "cloud-init-generator"
+        templater.render_template(
+            "benchmark",
+            self.tmpl_path,
+            str(outfile),
+            is_yaml=False,
+            lib_exec_dir=lib_exec_dir,
+        )
+        assert self.get_dsidentify(outfile.read_text()) == "/bin/true"
+
+    def test_helper_directory_cli(self, tmp_path):
+        outfile = tmp_path / "cloud-init-generator"
+        lib_exec_dir = "/opt/custom helpers/cloud-init"
+        subp.subp(
+            [
+                sys.executable,
+                cloud_init_project_dir("tools/render-template"),
+                "--variant",
+                "photon",
+                "--lib-exec-dir",
+                lib_exec_dir,
+                self.tmpl_path,
+                str(outfile),
+            ]
+        )
+        assert self.get_dsidentify(outfile.read_text()) == (
+            lib_exec_dir + "/ds-identify"
+        )
+
+    def test_generator_executes_helper_in_custom_directory(self, tmp_path):
+        lib_exec_dir = tmp_path / "custom 'helpers' $dir `name` \\\"quoted\""
+        lib_exec_dir.mkdir()
+        helper = lib_exec_dir / "ds-identify"
+        helper.write_text('#!/bin/sh\nprintf "helper executed\\n"\n')
+        helper.chmod(0o755)
+        outfile = tmp_path / "cloud-init-generator"
+        templater.render_template(
+            "photon",
+            self.tmpl_path,
+            str(outfile),
+            is_yaml=False,
+            lib_exec_dir=str(lib_exec_dir),
+        )
+        # Redirect runtime state into the temporary directory before running.
+        rendered = outfile.read_text().replace(
+            "/run/cloud-init", str(tmp_path / "run")
+        )
+        outfile.write_text(rendered)
+        stdout, _ = subp.subp(
+            ["sh", str(outfile)] + [str(tmp_path / "generator")] * 3
+        )
+        assert stdout == "helper executed\n"
+        assert (tmp_path / "run" / "enabled").exists()
+        assert (
+            tmp_path / "generator/multi-user.target.wants/cloud-init.target"
+        ).is_symlink()
+
+    @staticmethod
+    def get_dsidentify(rendered):
+        assignment = next(
+            line.strip()
+            for line in rendered.splitlines()
+            if line.strip().startswith("dsidentify=")
+        )
+        return shlex.split(assignment.split("=", 1)[1])[0]
 
 
 EXPECTED_DEBIAN = """\
