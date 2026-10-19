@@ -2527,6 +2527,17 @@
                 "type": "string"
               }
             },
+            "allowed_exit_codes": {
+              "type": "array",
+              "description": "A list of ``puppet agent`` exit codes to treat as success if **exec** is ``true``. The default **exec_args** of ``--test`` implies ``--detailed-exitcodes``, which exits ``2`` when changes were applied, ``4`` when some resources failed and ``6`` when changes were applied and some resources failed. Add ``4`` and ``6`` to treat resource failures as success. Default: ``[0, 2]``.",
+              "items": {
+                "type": "integer"
+              },
+              "default": [
+                0,
+                2
+              ]
+            },
             "start_service": {
               "type": "boolean",
               "default": true,
