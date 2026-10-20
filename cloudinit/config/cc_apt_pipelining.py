@@ -35,13 +35,6 @@ meta: MetaSchema = {
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
-    if "apt_pipelining" not in cfg:
-        LOG.debug(
-            "Skipping module named %s, no 'apt_pipelining' key in"
-            " configuration",
-            name,
-        )
-        return
     lifecycle.deprecate(
         deprecated="Module cc_apt_pipelining",
         deprecated_version="26.3",

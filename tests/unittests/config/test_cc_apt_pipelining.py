@@ -44,13 +44,6 @@ class TestAptPipelining:
         assert "Module cc_apt_pipelining is deprecated in" in caplog.text
         assert "deprecat" in caplog.text
 
-    @pytest.mark.usefixtures("clear_deprecation_log")
-    @mock.patch("cloudinit.config.cc_apt_pipelining.util.write_file")
-    def test_no_deprecation_without_config_key(self, m_write_file, caplog):
-        """Assert no warning is logged when key is absent from config."""
-        cc_apt_pipelining.handle("foo", {}, None, None)
-        assert "deprecat" not in caplog.text
-
     @pytest.mark.parametrize(
         "config, error_msg",
         (
