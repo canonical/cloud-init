@@ -282,6 +282,104 @@ class TestAliYunDatasource:
         assert "aliyun" == ds.platform
         assert "metadata (http://100.100.100.200)" == ds.subplatform
 
+    @mock.patch("cloudinit.sources.DataSourceAliYun.EphemeralIPNetwork")
+    @mock.patch("cloudinit.sources.DataSourceAliYun.util.is_FreeBSD")
+    @mock.patch("cloudinit.sources.DataSourceAliYun._is_aliyun")
+    def test_local_get_data_enables_ipv6_when_endpoint_configured(
+        self, m_is_aliyun, m_is_bsd, m_eph, paths
+    ):
+        """A configured IPv6 IMDS endpoint asks for a DHCPv6 lease.
+
+        A link-local address is not enough: the IPv6 IMDS endpoint is off
+        link, and a link-local source address cannot be routed to it. Both
+        families are requested at once so neither has to be waited out.
+        """
+        m_is_aliyun.return_value = True
+        m_is_bsd.return_value = False
+        cfg = {"datasource": {"AliYun": {"timeout": "1", "max_wait": "1"}}}
+        ds = ay.DataSourceAliYunLocal(cfg, mock.MagicMock(), paths)
+        crawled = {"meta-data": {"instance-id": "i-x"}}
+        with mock.patch.object(ds, "crawl_metadata", return_value=crawled):
+            assert ds._get_data() is True
+        kwargs = m_eph.call_args.kwargs
+        assert kwargs["ipv4"] is True
+        assert kwargs["ipv6"] is True
+        assert kwargs["dhcp6"] is True
+        assert kwargs["enable_ra"] is True
+        assert kwargs["connectivity_urls_data"] == [
+            {
+                "url": "http://100.100.100.200/latest/api/token",
+                "headers": {
+                    "X-aliyun-ecs-metadata-token-ttl-seconds": "21600"
+                },
+                "timeout": 2,
+                "request_method": "PUT",
+                "ip_version": "ipv4",
+            },
+            {
+                "url": "http://[fd00:100::100:200]/latest/api/token",
+                "headers": {
+                    "X-aliyun-ecs-metadata-token-ttl-seconds": "21600"
+                },
+                "timeout": 2,
+                "request_method": "PUT",
+                "ip_version": "ipv6",
+            },
+        ]
+
+    @mock.patch("cloudinit.sources.DataSourceAliYun.EphemeralIPNetwork")
+    @mock.patch("cloudinit.sources.DataSourceAliYun.util.is_FreeBSD")
+    @mock.patch("cloudinit.sources.DataSourceAliYun._is_aliyun")
+    def test_local_get_data_skips_ipv6_without_endpoint(
+        self, m_is_aliyun, m_is_bsd, m_eph, paths
+    ):
+        """With only an IPv4 endpoint configured, IPv6 is left alone.
+
+        No IPv6 endpoint means nothing to reach over IPv6, so the DHCPv6
+        solicit is not worth its cost and behaviour stays as it was.
+        """
+        m_is_aliyun.return_value = True
+        m_is_bsd.return_value = False
+        cfg = {
+            "datasource": {
+                "AliYun": {
+                    "timeout": "1",
+                    "max_wait": "1",
+                    "metadata_urls": ["http://100.100.100.200"],
+                }
+            }
+        }
+        ds = ay.DataSourceAliYunLocal(cfg, mock.MagicMock(), paths)
+        crawled = {"meta-data": {"instance-id": "i-x"}}
+        with mock.patch.object(ds, "crawl_metadata", return_value=crawled):
+            assert ds._get_data() is True
+        kwargs = m_eph.call_args.kwargs
+        assert kwargs["ipv6"] is False
+        assert kwargs["dhcp6"] is False
+        assert kwargs["enable_ra"] is False
+        assert kwargs["connectivity_urls_data"] == [
+            {
+                "url": "http://100.100.100.200/latest/api/token",
+                "headers": {
+                    "X-aliyun-ecs-metadata-token-ttl-seconds": "21600"
+                },
+                "timeout": 2,
+                "request_method": "PUT",
+                "ip_version": "ipv4",
+            }
+        ]
+
+    def test_ipv6_metadata_url_reflects_effective_urls(self, ds):
+        """_ipv6_metadata_url is driven by the effective metadata_urls."""
+        assert ds.effective_metadata_urls == [
+            "http://100.100.100.200",
+            "http://[fd00:100::100:200]",
+        ]
+        assert ds._ipv6_metadata_url() == "http://[fd00:100::100:200]"
+        # Dropping the IPv6 endpoint via ds_cfg turns the switch off.
+        ds.ds_cfg["metadata_urls"] = ["http://100.100.100.200"]
+        assert ds._ipv6_metadata_url() is None
+
     @responses.activate
     @pytest.mark.usefixtures("regist_default_server", "regist_json_meta_path")
     @mock.patch("cloudinit.sources.DataSourceAliYun._is_aliyun")
@@ -332,11 +430,13 @@ class TestAliYunDatasource:
                         "00:16:3e:14:59:58": {
                             "ipv6-gateway": "2408:xxxxx",
                             "ipv6s": "[2408:xxxxxx]",
+                            "private-ipv4s": "172.16.101.100",
                             "network-interface-id": "eni-bp13i1xxxxx",
                         },
                         "00:16:3e:39:43:27": {
                             "gateway": "172.16.101.253",
                             "netmask": "255.255.255.0",
+                            "private-ipv4s": "172.16.101.200",
                             "network-interface-id": "eni-bp13i2xxxx",
                         },
                     }
@@ -373,6 +473,7 @@ class TestAliYunDatasource:
                         "00:16:3e:14:59:58": {
                             "gateway": "172.16.101.253",
                             "netmask": "255.255.255.0",
+                            "private-ipv4s": "172.16.101.100",
                             "network-interface-id": "eni-bp13ixxxx",
                         }
                     }
@@ -383,6 +484,114 @@ class TestAliYunDatasource:
         met0 = netcfg["ethernets"]["eth0"]
         # single network card would have no dhcp4-overrides
         assert "dhcp4-overrides" not in met0
+
+    def test_dhcp4_disabled_when_no_private_ipv4s(self):
+        """Test DHCPv4 is disabled when private-ipv4s is absent."""
+        # Multi-NIC: one NIC has private-ipv4s, other does not
+        netcfg = convert_ecs_metadata_network_config(
+            {
+                "interfaces": {
+                    "macs": {
+                        "00:16:3e:14:59:58": {
+                            "private-ipv4s": "172.16.101.100",
+                            "gateway": "172.16.101.253",
+                            "netmask": "255.255.255.0",
+                            "network-interface-id": "eni-bp13i1xxxxx",
+                        },
+                        "00:16:3e:39:43:27": {
+                            "ipv6s": "[2408:xxxxxx]",
+                            "network-interface-id": "eni-bp13i2xxxx",
+                        },
+                    }
+                }
+            },
+            macs_to_nics={
+                "00:16:3e:14:59:58": "eth0",
+                "00:16:3e:39:43:27": "eth1",
+            },
+        )
+
+        # eth0 has private-ipv4s, dhcp4 should be True
+        assert netcfg["ethernets"]["eth0"]["dhcp4"] is True
+        assert "dhcp4-overrides" in netcfg["ethernets"]["eth0"]
+
+        # eth1 has no private-ipv4s, dhcp4 should be False
+        assert netcfg["ethernets"]["eth1"]["dhcp4"] is False
+        assert "dhcp4-overrides" not in netcfg["ethernets"]["eth1"]
+        # eth1 has ipv6s, dhcp6 should be True
+        assert netcfg["ethernets"]["eth1"]["dhcp6"] is True
+
+    def test_dhcp6_enabled_when_ipv6s_present(self):
+        """Test DHCPv6 is enabled when ipv6s field is present."""
+        # Single NIC with ipv6s and private-ipv4s
+        netcfg = convert_ecs_metadata_network_config(
+            {
+                "interfaces": {
+                    "macs": {
+                        "00:16:3e:14:59:58": {
+                            "private-ipv4s": "172.16.101.100",
+                            "ipv6s": "[2408:xxxxxx]",
+                            "network-interface-id": "eni-bp13i1xxxxx",
+                        }
+                    }
+                }
+            },
+            macs_to_nics={"00:16:3e:14:59:58": "eth0"},
+        )
+
+        assert netcfg["ethernets"]["eth0"]["dhcp4"] is True
+        assert netcfg["ethernets"]["eth0"]["dhcp6"] is True
+
+    def test_ipv6_only_nic_config(self):
+        """Test a NIC with only IPv6 (no private-ipv4s)."""
+        netcfg = convert_ecs_metadata_network_config(
+            {
+                "interfaces": {
+                    "macs": {
+                        "00:16:3e:14:59:58": {
+                            "ipv6s": "[2408:xxxxxx]",
+                            "network-interface-id": "eni-bp13i1xxxxx",
+                        }
+                    }
+                }
+            },
+            macs_to_nics={"00:16:3e:14:59:58": "eth0"},
+        )
+
+        # No private-ipv4s: dhcp4 disabled
+        assert netcfg["ethernets"]["eth0"]["dhcp4"] is False
+        # Has ipv6s: dhcp6 enabled
+        assert netcfg["ethernets"]["eth0"]["dhcp6"] is True
+
+    def test_ipv6_only_nic_config_when_full_network_config_disabled(self):
+        """The fallback-only path also derives DHCP families from metadata."""
+        netcfg = convert_ecs_metadata_network_config(
+            {
+                "interfaces": {
+                    "macs": {
+                        "00:16:3e:14:59:58": {
+                            "ipv6s": "[2408:xxxxxx]",
+                            "network-interface-id": "eni-bp13i1xxxxx",
+                        }
+                    }
+                }
+            },
+            macs_to_nics={"00:16:3e:14:59:58": "eth0"},
+            fallback_nic="eth0",
+            full_network_config=False,
+        )
+
+        assert netcfg == {
+            "version": 2,
+            "ethernets": {
+                "eth0": {
+                    "dhcp4": False,
+                    "dhcp6": True,
+                    "match": {"macaddress": "00:16:3e:14:59:58"},
+                    "set-name": "eth0",
+                }
+            },
+        }
 
 
 class TestIsAliYun:
