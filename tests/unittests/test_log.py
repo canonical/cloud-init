@@ -101,7 +101,7 @@ class TestDeprecatedLogs:
     def test_security_log_level(self, caplog):
         logger = cast(loggers.CustomLoggerType, logging.getLogger())
         logger.setLevel(logging.NOTSET)
-        logger.security("security message")
+        logger.security({"message": "security message"})
         assert "SECURITY" == caplog.records[0].levelname
         assert "security message" in caplog.text
 

@@ -150,7 +150,7 @@ def sec_log_user_created(func):
             groups_msg = f" in groups: {groups_suffix}"
             params.append(f"groups:{groups_suffix}")
 
-        response = func(self, name, groups=groups, *args, **kwargs)
+        response = func(self, name, *args, groups=groups, **kwargs)
         log_security_event(
             event_type=OWASPEventType.USER_CREATED,
             level=OWASPEventLevel.INFO,

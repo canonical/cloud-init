@@ -52,10 +52,10 @@ SECURITY_LOG_FILE = "/var/log/cloud-init-security.log"
 
 
 class SecurityOnlyFilter(logging.Filter):
-    """Pass only SECURITY level records."""
+    """Pass only SECURITY level records, which are required ot be dict."""
 
     def filter(self, record) -> bool:
-        return record.levelno == SECURITY
+        return record.levelno == SECURITY and isinstance(record.msg, dict)
 
 
 class NoSecurityFilter(logging.Filter):
