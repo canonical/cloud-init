@@ -60,9 +60,8 @@ runs:
         # Parametrized pytest node IDs require '[', ']', and params are preserved verbatim.
         FILTER_RE='^[][\\\"$%'"'"'+,;<=>?@^{}|A-Za-z0-9_./:[:space:]-]+$'
         if ! [[ "$FILTER_TESTS" =~ $FILTER_RE ]]; then
-          echo "ERROR: filter_tests contains disallowed characters. Allowed:"
-          echo "alphanumerics and printable ASCII punctuation except backtick,"
-          echo "'(', ')', '&', '*', '!', '#', '~' (test paths and pytest node IDs)."
+          echo "ERROR: filter_tests contains one or more unsupported characters."
+          echo "Provide valid test paths or pytest node IDs."
           exit 1
         fi
     - name: Setup LXD
