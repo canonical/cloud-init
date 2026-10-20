@@ -6,6 +6,7 @@ from typing import List
 import pytest
 
 from cloudinit import distros, features, lifecycle, ssh_util
+from cloudinit.distros import sec_log_user_created
 from tests.unittests.helpers import get_distro, mock
 from tests.unittests.util import abstract_to_concrete
 
@@ -34,6 +35,38 @@ def _useradd2call(args: List[str]):
         if args[i] in ("--password",):
             logcmd[i + 1] = "REDACTED"
     return mock.call(args, logstring=logcmd)
+
+
+def test_sec_log_user_created_only_logs_for_new_user(mocker):
+    mock_is_user = mocker.patch(
+        "cloudinit.distros.util.is_user", side_effect=[False, True]
+    )
+    mock_log = mocker.patch("cloudinit.distros.log_security_event")
+
+    @sec_log_user_created
+    def create_user(self, name, **kwargs):
+        return name
+
+    assert create_user(None, USER) == USER
+
+    mock_is_user.assert_has_calls([mock.call(USER), mock.call(USER)])
+    mock_log.assert_called_once()
+
+
+def test_sec_log_user_created_skips_existing_user(mocker):
+    mock_is_user = mocker.patch(
+        "cloudinit.distros.util.is_user", return_value=True
+    )
+    mock_log = mocker.patch("cloudinit.distros.log_security_event")
+
+    @sec_log_user_created
+    def create_user(self, name, **kwargs):
+        return name
+
+    assert create_user(None, USER) == USER
+
+    mock_is_user.assert_called_once_with(USER)
+    mock_log.assert_not_called()
 
 
 @mock.patch("cloudinit.distros.subp.subp")

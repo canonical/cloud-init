@@ -140,6 +140,7 @@ def sec_log_user_created(func):
             raise RuntimeError(
                 "sec_log_user_created requires positional param name or kwarg"
             )
+        user_existed = util.is_user(name)
         params = [name]
         groups_msg = ""
         if groups is None:
@@ -151,12 +152,13 @@ def sec_log_user_created(func):
             params.append(f"groups:{groups_suffix}")
 
         response = func(self, name, *args, groups=groups, **kwargs)
-        log_security_event(
-            event_type=OWASPEventType.USER_CREATED,
-            level=OWASPEventLevel.INFO,
-            description=f"User '{name}' was created{groups_msg}",
-            event_params=params,
-        )
+        if not user_existed and util.is_user(name):
+            log_security_event(
+                event_type=OWASPEventType.USER_CREATED,
+                level=OWASPEventLevel.INFO,
+                description=f"User '{name}' was created{groups_msg}",
+                event_params=params,
+            )
         return response
 
     return decorator
