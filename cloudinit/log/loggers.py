@@ -111,6 +111,13 @@ def setup_security_logging(
         handler = logging.FileHandler(log_file)
     except OSError:
         return
+    try:
+        from cloudinit import util
+
+        util.chmod(log_file, 0o600)
+    except OSError:
+        handler.close()
+        return
     handler.setFormatter(SecurityFormatter())
     handler.addFilter(SecurityOnlyFilter())
     handler.setLevel(SECURITY)

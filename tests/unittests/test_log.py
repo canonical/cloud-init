@@ -6,6 +6,7 @@ import datetime
 import io
 import json
 import logging
+import stat
 import time
 from typing import cast
 
@@ -192,6 +193,7 @@ class TestSecurityLogs:
         message = {"key": "value"}  # Security logs expect python dict
         root.security(message)
         logged_event = json.loads(log_file.read_text())
+        assert stat.S_IMODE(log_file.stat().st_mode) == 0o600
         assert logged_event.pop("datetime"), "Missing expected datetime in log"
         assert logged_event == message
         # SECURITY level logs are not reflected to stderr
