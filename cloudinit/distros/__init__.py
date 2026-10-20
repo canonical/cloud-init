@@ -1698,8 +1698,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
 def _get_elevated_roles(
     *,
-    sudo: Optional[str] = None,
-    doas: Optional[List[str]] = None,
+    sudo: Optional[Union[bool, str, List[str]]] = None,
+    doas: Optional[Union[bool, str, List[str]]] = None,
     **kwargs,
 ) -> List[str]:
     """Return a list of elevated roles provided as keyword arguments."""
