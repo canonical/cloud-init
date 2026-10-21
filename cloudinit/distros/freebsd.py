@@ -158,8 +158,9 @@ class Distro(cloudinit.distros.bsd.BSD):
             util.logexc(LOG, "Failed to set pw expiration for %s", user)
             raise
 
-    @cloudinit.distros.sec_log_password_changed
-    def set_passwd(self, user, passwd, hashed=False):
+    def _set_passwd(
+        self, user: str, passwd: str, hashed: bool = False
+    ) -> None:
         if hashed:
             hash_opt = "-H"
         else:

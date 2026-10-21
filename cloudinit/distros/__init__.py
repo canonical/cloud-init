@@ -1207,7 +1207,15 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     @final
     @sec_log_password_changed
-    def set_passwd(self, user, passwd, hashed=False):
+    def set_passwd(
+        self, user: str, passwd: str, hashed: bool = False
+    ) -> Optional[bool]:
+        return self._set_passwd(user, passwd, hashed)
+
+    def _set_passwd(
+        self, user: str, passwd: str, hashed: bool = False
+    ) -> Optional[bool]:
+        """Set a password using distro-specific tools."""
         pass_string = "%s:%s" % (user, passwd)
         cmd = ["chpasswd"]
 
@@ -1228,8 +1236,12 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return True
 
     @final
-    @sec_log_password_changed_batch
     def chpasswd(self, plist_in: List[Tuple[str, str]], hashed: bool):
+        return self._chpasswd(plist_in, hashed)
+
+    @sec_log_password_changed_batch
+    def _chpasswd(self, plist_in: List[Tuple[str, str]], hashed: bool):
+        """Set passwords in bulk; overridden for per-user BSD operations."""
         payload = (
             "\n".join(
                 (":".join([name, password]) for name, password in plist_in)

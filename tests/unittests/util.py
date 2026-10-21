@@ -71,6 +71,8 @@ def abstract_to_concrete(abclass: Type):
     return type("DummyConcrete" + abclass.__name__, (concreteCls,), {})
 
 
+# Test doubles intentionally bypass final entry points to avoid system changes.
+# pylint: disable=overridden-final-method
 class MockDistro(distros.Distro):
     fallback_interface = "eth9"
 
@@ -143,13 +145,13 @@ class MockDistro(distros.Distro):
     def update_etc_hosts(self, hostname, fqdn):
         pass
 
-    def add_user(self, name, **kwargs):
+    def add_user(self, name, **kwargs):  # type: ignore[misc]
         pass
 
-    def add_snap_user(self, name, **kwargs):
+    def add_snap_user(self, name, **kwargs):  # type: ignore[misc]
         return "snap_user"
 
-    def create_user(self, name, **kwargs):
+    def create_user(self, name, **kwargs):  # type: ignore[misc]
         return True
 
     def lock_passwd(self, name):
@@ -158,7 +160,7 @@ class MockDistro(distros.Distro):
     def expire_passwd(self, user):
         pass
 
-    def set_passwd(self, user, passwd, hashed=False):
+    def set_passwd(self, user, passwd, hashed=False):  # type: ignore[misc]
         return True
 
     def ensure_sudo_dir(self, path, sudo_base="/etc/sudoers"):
@@ -170,7 +172,7 @@ class MockDistro(distros.Distro):
     def create_group(self, name, members=None):
         pass
 
-    @classmethod
+    @classmethod  # type: ignore[misc]
     def shutdown_command(cls, *, mode, delay, message):
         pass
 
@@ -183,6 +185,8 @@ class MockDistro(distros.Distro):
     def do_as(self, command: list, user: str, cwd: str = "", **kwargs):
         return ("stdout", "stderr")
 
+
+# pylint: enable=overridden-final-method
 
 TEST_INSTANCE_ID = "i-testing"
 
