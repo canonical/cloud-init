@@ -130,7 +130,12 @@ PackageList = Union[
 
 
 def sec_log_user_created(func):
-    """A decorator to log a user creation event and group attributes."""
+    """Conditionally log new user creation event and format group attributes.
+
+    The event is logged only if the user did not exist before the create_user
+    function runs and exists afterward. The security log will contain group
+    information and elevated roles.
+    """
 
     @functools.wraps(func)
     def decorator(
@@ -165,6 +170,8 @@ def sec_log_user_created(func):
 
 
 def sec_log_password_changed_batch(func):
+    """Log batched password change events."""
+
     @functools.wraps(func)
     def decorator(self, plist_in: List[Tuple[str, str]], *args, **kwargs):
         response = func(self, plist_in, *args, **kwargs)
@@ -181,7 +188,7 @@ def sec_log_password_changed_batch(func):
 
 
 def sec_log_password_changed(func):
-    """A decorator logging a password change event."""
+    """Log a password change event."""
 
     @functools.wraps(func)
     def decorator(self, user: str, *args, **kwargs):
@@ -198,7 +205,7 @@ def sec_log_password_changed(func):
 
 
 def sec_log_system_shutdown(func):
-    """A decorator logging a system shutdown event."""
+    """Log a system shutdown event."""
 
     @functools.wraps(func)
     def decorator(cls, mode: str, delay: str, message):

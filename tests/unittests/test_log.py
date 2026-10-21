@@ -251,7 +251,9 @@ class TestSecurityLogs:
         assert caplog.records[0].exc_info is None
         assert "Traceback" not in caplog.text
 
-    def test_setup_security_logging_chmod_failure(self, mocker, caplog, tmp_path):
+    def test_setup_security_logging_chmod_failure(
+        self, mocker, caplog, tmp_path
+    ):
         """Permission failures close the handler and report an error."""
         log_file = str(tmp_path / "cloud-init-security.log")
         handler = logging.FileHandler(log_file)
@@ -261,7 +263,9 @@ class TestSecurityLogs:
         )
         close = mocker.spy(handler, "close")
         error = OSError("Permission denied")
-        chmod = mocker.patch("cloudinit.log.loggers.os.chmod", side_effect=error)
+        chmod = mocker.patch(
+            "cloudinit.log.loggers.os.chmod", side_effect=error
+        )
         root = logging.getLogger()
         handlers_before = list(root.handlers)
         loggers.setup_security_logging(root=root, log_file=log_file)
