@@ -272,6 +272,34 @@ class TestCreateUser:
         assert m_subp.call_args_list == expected
 
     @pytest.mark.parametrize(
+        "user_exists,expected",
+        [(False, True), (True, False)],
+        ids=["created", "already-existed"],
+    )
+    def test_create_user_returns_whether_user_was_created(
+        self, m_subp, dist, mocker, user_exists, expected
+    ):
+        mocker.patch(
+            "cloudinit.distros.util.is_user", return_value=user_exists
+        )
+        mocker.patch.object(dist, "lock_passwd")
+        mocker.patch.object(
+            dist, "_shadow_file_has_empty_user_password", return_value=False
+        )
+
+        assert dist.create_user(name=USER, groups=[]) is expected
+
+    def test_create_snap_user_returns_true(self, m_subp, dist, mocker):
+        mock_add_snap_user = mocker.patch.object(dist, "add_snap_user")
+
+        assert (
+            dist.create_user(name=USER, groups=[], snapuser="snap-user")
+            is True
+        )
+
+        mock_add_snap_user.assert_called_once_with(USER, snapuser="snap-user")
+
+    @pytest.mark.parametrize(
         "shadow_content,distro_name,is_snappy,expected_logs",
         (
             pytest.param(

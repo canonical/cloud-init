@@ -951,13 +951,14 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         groups: List[str],
         create_groups: Optional[bool] = True,
         **kwargs,
-    ):
+    ) -> bool:
         """
         Creates or partially updates the ``name`` user in the system.
 
         This defers the actual user creation to ``self.add_user`` or
         ``self.add_snap_user``, and most of the keys in ``kwargs`` will be
         processed there if and only if the user does not already exist.
+        Returns whether this call created the user.
 
         Once the existence of the ``name`` user has been ensured, this method
         then processes these keys (for both just-created and pre-existing
@@ -974,7 +975,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         # Add a snap user, if requested
         if "snapuser" in kwargs:
-            return self.add_snap_user(name, **kwargs)
+            self.add_snap_user(name, **kwargs)
+            return True
 
         pre_existing_user = util.is_user(name)
         if pre_existing_user:
@@ -1134,6 +1136,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 ssh_util.setup_user_keys(
                     set(cloud_keys), name, options=disable_option
                 )
+        return not pre_existing_user
 
     def lock_passwd(self, name):
         """
