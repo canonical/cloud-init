@@ -3,6 +3,9 @@
 APT pipelining
 **************
 
+.. note::
+   This module is deprecated in 26.3.
+
 For a full list of keys, refer to the
 :ref:`APT pipelining module <mod_cc_apt_pipelining>` schema.
 
@@ -32,4 +35,3 @@ Manually specify a pipeline depth of three. This method is not recommended.
 .. literalinclude:: ../../../module-docs/cc_apt_pipelining/example3.yaml
    :language: yaml
    :linenos:
-

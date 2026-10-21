@@ -4,7 +4,7 @@ Install and configure Spacewalk
 *******************************
 
 .. note::
-   This module is deprecated in 26.3 and scheduled for removal in 27.3.
+   This module is deprecated in 26.3.
 
 The example demonstrates the installation and basic configuration of
 `Spacewalk`_.

@@ -3,6 +3,9 @@
 Provide random seed data
 ************************
 
+.. note::
+   This module is deprecated in 26.3.
+
 For a full list of keys, refer to the
 :ref:`seed random module <mod_cc_seed_random>` schema.
 
@@ -22,4 +25,3 @@ and writes that data to ``/dev/urandom``:
 .. literalinclude:: ../../../module-docs/cc_seed_random/example2.yaml
    :language: yaml
    :linenos:
-
