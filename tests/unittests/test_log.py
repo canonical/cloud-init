@@ -273,7 +273,7 @@ class TestSecurityLogs:
         loggers.setup_security_logging(root=root, log_file=log_file)
         chmod.assert_called_once_with(log_file, 0o600)
         close.assert_called_once_with()
-        assert handler.stream is None
+        assert getattr(handler, "stream") is None
         assert root.handlers == handlers_before
         assert caplog.record_tuples == [
             (
