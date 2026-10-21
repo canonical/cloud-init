@@ -12,7 +12,6 @@ on:
         type: choice
         options:
         - generic
-        - minimal
       filter_tests:
         required: false
         type: string
