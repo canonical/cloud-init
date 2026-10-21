@@ -1,6 +1,7 @@
 [build-system]  # See meson.build. Empty build-system to avoid RTD builds
 build-backend = ""
 requires = []
+requires-python = ">=3.9"
 
 [tool.black]
 line-length = 79
@@ -61,7 +62,6 @@ module = [
     "cloudinit.sources.helpers.azure",
     "cloudinit.sources.helpers.openstack",
     "cloudinit.sources.helpers.vmware.imc.config_file",
-    "cloudinit.sources.helpers.vmware.imc.config_nic",
     "tests.unittests.analyze.test_show",
     "tests.unittests.config.test_apt_configure_sources_list_v3",
     "tests.unittests.config.test_apt_source_v1",
@@ -137,7 +137,6 @@ module = [
 check_untyped_defs = false
 
 [tool.ruff]
-target-version = "py38"
 line-length = 79
 # E, W, and F make up the entirety of default flake8
 lint.select = [

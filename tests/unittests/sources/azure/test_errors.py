@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import base64
+import binascii
 import datetime
 from unittest import mock
 from xml.etree import ElementTree as ET
@@ -236,6 +237,19 @@ def test_ovf_parsing_exception():
 def test_ovf_invalid_metadata_exception():
     error = errors.ReportableErrorOvfInvalidMetadata(message="foobar")
     assert error.reason == "unexpected metadata parsing ovf-env.xml: foobar"
+
+
+def test_ovf_invalid_base64():
+    error = errors.ReportableErrorOvfInvalidBase64(
+        field="CustomData",
+        error=binascii.Error("Incorrect padding"),
+        length=5,
+    )
+
+    assert error.reason == "failure to decode ovf-env.xml field=CustomData"
+    assert error.supporting_data["field"] == "CustomData"
+    assert error.supporting_data["exception"] == "Incorrect padding"
+    assert error.supporting_data["length"] == 5
 
 
 def test_os_profile_password_too_long():
