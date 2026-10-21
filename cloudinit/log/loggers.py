@@ -51,7 +51,7 @@ SECURITY_LOG_FILE = "/var/log/cloud-init-security.log"
 
 
 class SecurityOnlyFilter(logging.Filter):
-    """Pass only SECURITY level records, which are required to be dict."""
+    """Pass only SECURITY level records, which must be dictionaries."""
 
     def filter(self, record) -> bool:
         return record.levelno == SECURITY and isinstance(record.msg, dict)
@@ -168,6 +168,7 @@ def setup_logging(cfg=None):
     root_logger = logging.getLogger()
     exporter = LogExporter()
     exporter.setLevel(logging.WARN)
+    exporter.addFilter(NoSecurityFilter())
 
     log_cfgs = []
     log_cfg = cfg.get("logcfg")
