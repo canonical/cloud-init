@@ -57,6 +57,7 @@ def test_sec_log_user_created_logs_after_return(
 
     @sec_log_user_created
     def add_user(self, name, **kwargs):
+        mock_log.assert_not_called()
         return name
 
     assert add_user(None, USER, **kwargs) == USER
@@ -740,7 +741,11 @@ class TestCreateUser:
     ):
         """Log a warning when trying to redirect a user no cloud ssh keys."""
         dist.create_user(USER, groups=[], ssh_redirect_user="someuser")
-        assert caplog.records[1].levelname in ["WARNING", "DEPRECATED"]
+        assert any(
+            record.levelname in ["WARNING", "DEPRECATED"]
+            and "Unable to disable SSH logins for foo_user." in record.message
+            for record in caplog.records
+        )
         assert (
             "Unable to disable SSH logins for foo_user."
             " ssh_redirect_user was set to redirect logins to"

@@ -32,6 +32,7 @@ from typing import (
     Tuple,
     Type,
     Union,
+    final,
 )
 
 import cloudinit.net.netops.iproute2 as iproute2
@@ -197,7 +198,7 @@ def sec_log_password_changed(func):
 
 
 def sec_log_system_shutdown(func):
-    """Log a system shutdown event."""
+    """Log shutdown intent before constructing the shutdown command."""
 
     @functools.wraps(func)
     def decorator(cls, mode: str, delay: str, message):
@@ -756,6 +757,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def get_default_user(self):
         return self.get_option("default_user")
 
+    @final
+    @sec_log_user_created
     def add_user(
         self,
         name: str,
@@ -880,6 +883,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         Overridden to perform distro-specific post-creation steps.
         """
 
+    @final
+    @sec_log_user_created
     def add_snap_user(self, name, **kwargs):
         """
         Add a snappy user to the system using snappy tools
@@ -940,6 +945,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 return True
         return False
 
+    @final
     def create_user(
         self,
         name: str,
@@ -1199,6 +1205,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             LOG.warning("Failed to set 'expire' for %s", user)
             raise
 
+    @final
+    @sec_log_password_changed
     def set_passwd(self, user, passwd, hashed=False):
         pass_string = "%s:%s" % (user, passwd)
         cmd = ["chpasswd"]
@@ -1219,6 +1227,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         return True
 
+    @final
+    @sec_log_password_changed_batch
     def chpasswd(self, plist_in: List[Tuple[str, str]], hashed: bool):
         payload = (
             "\n".join(
@@ -1430,6 +1440,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 LOG.info("Added user '%s' to group '%s'", member, name)
 
     @classmethod
+    @final
+    @sec_log_system_shutdown
     def shutdown_command(
         cls, *, mode: str, delay: Union[int, str], message: str
     ) -> List[str]:

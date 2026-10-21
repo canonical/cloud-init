@@ -122,6 +122,7 @@ class NetBSD(cloudinit.distros.bsd.BSD):
         if passwd is not None:
             self.set_passwd(name, passwd, hashed=True)
 
+    @cloudinit.distros.sec_log_password_changed
     def set_passwd(self, user, passwd, hashed=False):
         if hashed:
             hashed_pw = passwd
