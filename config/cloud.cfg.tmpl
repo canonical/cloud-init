@@ -107,7 +107,7 @@ disable_vmware_customization: false
 # The modules that run in the 'init' stage
 cloud_init_modules:
 {% if variant not in ["netbsd"] %}
-  - seed_random
+  - seed_random  # deprecated
 {% endif %}
   - bootcmd
   - write_files
@@ -155,7 +155,7 @@ cloud_config_modules:
   - apk_configure
 {% elif variant in ["debian", "ubuntu", "unknown"] %}
   - grub_dpkg
-  - apt_pipelining
+  - apt_pipelining  # deprecated
   - apt_configure
 {% if variant == "ubuntu" %}
   - ubuntu_pro
@@ -166,7 +166,7 @@ cloud_config_modules:
   - rh_subscription
 {% endif %}
 {% if variant not in ["amazon", "azurelinux", "mariner", "photon"] %}
-  - spacewalk  # deprecated: removal in 31.3
+  - spacewalk  # deprecated
 {% endif %}
   - yum_add_repo
 {% elif variant == "suse" %}
@@ -198,9 +198,9 @@ cloud_final_modules:
   - puppet
   - chef
   - ansible
-  - mcollective  # deprecated: removal in 31.3
+  - mcollective  # deprecated
   - salt_minion
-{# SRU_BLOCKER: retain reset_rmc on non Alpine to avoid change in behavior on stable releases #}
+{# SRU_BLOCKER: retain reset_rmc on stable Ubuntu releases to avoid change in behavior #}
   - scripts_vendor
   - scripts_per_once
   - scripts_per_boot
