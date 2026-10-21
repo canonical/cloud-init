@@ -43,12 +43,12 @@ jobs:
         shell: bash
         run: |
           if [ -z "$PYCLOUDLIB_OCI_CONFIG_B64" ]; then
-             echo "ERROR: Missing required repo secret. Please provide PYCLOUDLIB_OCI_CONFIG_B64 repo secret at ${{ github.repository }}/settings/secrets/actions."
-             exit 1
+            echo "ERROR: Missing required repo secret. Please provide PYCLOUDLIB_OCI_CONFIG_B64 repo secret at ${{ github.repository }}/settings/secrets/actions."
+            exit 1
           fi
           if [ -z "$PYCLOUDLIB_OCI_KEY_B64" ]; then
-             echo "ERROR: Missing required repo secret. Please provide PYCLOUDLIB_OCI_KEY_B64 repo secret at ${{ github.repository }}/settings/secrets/actions."
-             exit 1
+            echo "ERROR: Missing required repo secret. Please provide PYCLOUDLIB_OCI_KEY_B64 repo secret at ${{ github.repository }}/settings/secrets/actions."
+            exit 1
           fi
       - name: Setup OCI credentials
         shell: bash
@@ -57,7 +57,8 @@ jobs:
           PYCLOUDLIB_OCI_KEY_FILE_PATH: ${{ runner.temp }}/oci/key.pem
         run: |
           mkdir -p "$(dirname "$PYCLOUDLIB_OCI_CONFIG_FILE_PATH")"
-          sh -c 'printf "%s\n" "$PYCLOUDLIB_OCI_CONFIG_B64" | base64 -d > "$PYCLOUDLIB_OCI_CONFIG_FILE_PATH"'
+          # Dump secrets using a subprocess to avoid accidental leaks when using set -x.
+          sh -c 'printf "%s\n" "$PYCLOUDLIB_OCI_CONFIG_B64" | base64 -d | install -m 600 /dev/stdin "$PYCLOUDLIB_OCI_CONFIG_FILE_PATH"'
           sh -c 'printf "%s\n" "$PYCLOUDLIB_OCI_KEY_B64" | base64 -d  | install -m 600 /dev/stdin "$PYCLOUDLIB_OCI_KEY_FILE_PATH"'
       - name: Run integration tests
         uses: ./.github/actions/integration-test
