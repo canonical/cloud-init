@@ -2581,24 +2581,6 @@
         }
       }
     },
-    "cc_reset_rmc": {
-      "type": "object",
-      "properties": {
-        "reset_rmc": {
-          "allOf": [
-            {
-              "type": "boolean",
-              "description": "Reset the RSCT node id."
-            },
-            {
-              "deprecated": true,
-              "deprecated_version": "26.3",
-              "deprecated_description": "The reset_rmc module is deprecated and scheduled to be removed in 31.3."
-            }
-          ]
-        }
-      }
-    },
     "cc_resizefs": {
       "type": "object",
       "properties": {
@@ -4165,9 +4147,6 @@
       "$ref": "#/$defs/cc_resolv_conf"
     },
     {
-      "$ref": "#/$defs/cc_reset_rmc"
-    },
-    {
       "$ref": "#/$defs/cc_rh_subscription"
     },
     {
@@ -4308,7 +4287,6 @@
     "puppet": {},
     "random_seed": {},
     "reporting": {},
-    "reset_rmc": {},
     "resize_rootfs": {},
     "resolv_conf": {},
     "rh_subscription": {},
