@@ -244,8 +244,10 @@ class TestSecurityLogs:
             (
                 "root",
                 logging.ERROR,
-                "Unable to set up compliance logging: cannot open "
-                "/var/log/cloud-init-security.log: Permission denied",
+                (
+                    "Unable to set up compliance logging: cannot open "
+                    "/var/log/cloud-init-security.log: Permission denied"
+                ),
             )
         ]
         assert caplog.records[0].exc_info is None
@@ -277,8 +279,10 @@ class TestSecurityLogs:
             (
                 "root",
                 logging.ERROR,
-                "Unable to set up compliance logging: "
-                f"cannot set permissions on {log_file}: Permission denied",
+                (
+                    "Unable to set up compliance logging: "
+                    f"cannot set permissions on {log_file}: Permission denied"
+                ),
             )
         ]
         assert caplog.records[0].exc_info is None
