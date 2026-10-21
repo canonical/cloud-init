@@ -102,21 +102,30 @@ def setup_basic_logging(level=logging.DEBUG, formatter=None):
 def setup_security_logging(
     root: logging.Logger, log_file: str = SECURITY_LOG_FILE
 ) -> None:
-    """Attach a FileHandler routing SECURITY records to log_file if absent."""
+    """Attach a SECURITY FileHandler if absent, logging setup failures."""
     for h in root.handlers:
         if getattr(h, "baseFilename", None) == log_file:
             return  # handler already attached
 
     try:
         handler = logging.FileHandler(log_file)
-    except OSError:
+    except OSError as error:
+        root.error(
+            "Unable to set up compliance logging: cannot open %s: %s",
+            log_file,
+            error,
+        )
         return
     try:
-        from cloudinit import util
-
-        util.chmod(log_file, 0o600)
-    except OSError:
+        os.chmod(log_file, 0o600)
+    except OSError as error:
         handler.close()
+        root.error(
+            "Unable to set up compliance logging: "
+            "cannot set permissions on %s: %s",
+            log_file,
+            error,
+        )
         return
     handler.setFormatter(SecurityFormatter())
     handler.addFilter(SecurityOnlyFilter())

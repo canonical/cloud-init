@@ -227,17 +227,58 @@ class TestSecurityLogs:
         ]
         assert len(security_handlers) == 1
 
-    def test_setup_security_logging_oserror_is_silent(self, mocker):
-        """setup_security_logging silent return on unwritable log."""
+    def test_setup_security_logging_open_failure(self, mocker, caplog):
+        """An unwritable log reports an error without attaching a handler."""
+        error = OSError("Permission denied")
         mocker.patch(
             "cloudinit.log.loggers.logging.FileHandler",
-            side_effect=OSError("Permission denied"),
+            side_effect=error,
         )
+        chmod = mocker.patch("cloudinit.log.loggers.os.chmod")
         root = logging.getLogger()
         handlers_before = list(root.handlers)
-        loggers.setup_security_logging(root=root, log_file="/any/path")
-        # No new handler should have been attached.
+        loggers.setup_security_logging(root=root)
         assert root.handlers == handlers_before
+        chmod.assert_not_called()
+        assert caplog.record_tuples == [
+            (
+                "root",
+                logging.ERROR,
+                "Unable to set up compliance logging: cannot open "
+                "/var/log/cloud-init-security.log: Permission denied",
+            )
+        ]
+        assert caplog.records[0].exc_info is None
+        assert "Traceback" not in caplog.text
+
+    def test_setup_security_logging_chmod_failure(self, mocker, caplog, tmp_path):
+        """Permission failures close the handler and report an error."""
+        log_file = str(tmp_path / "cloud-init-security.log")
+        handler = logging.FileHandler(log_file)
+        mocker.patch(
+            "cloudinit.log.loggers.logging.FileHandler",
+            return_value=handler,
+        )
+        close = mocker.spy(handler, "close")
+        error = OSError("Permission denied")
+        chmod = mocker.patch("cloudinit.log.loggers.os.chmod", side_effect=error)
+        root = logging.getLogger()
+        handlers_before = list(root.handlers)
+        loggers.setup_security_logging(root=root, log_file=log_file)
+        chmod.assert_called_once_with(log_file, 0o600)
+        close.assert_called_once_with()
+        assert handler.stream is None
+        assert root.handlers == handlers_before
+        assert caplog.record_tuples == [
+            (
+                "root",
+                logging.ERROR,
+                "Unable to set up compliance logging: "
+                f"cannot set permissions on {log_file}: Permission denied",
+            )
+        ]
+        assert caplog.records[0].exc_info is None
+        assert "Traceback" not in caplog.text
 
     def test_security_formatter_datetime_iso8601(self, tmp_path):
         """SecurityFormatter logs an ISO-8601 timestamp with offset."""
