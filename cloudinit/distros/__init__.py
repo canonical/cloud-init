@@ -141,10 +141,6 @@ def sec_log_user_created(func):
     def decorator(
         self, name: str, *args, groups: Optional[List[str]] = None, **kwargs
     ):
-        if not name:
-            raise RuntimeError(
-                "sec_log_user_created requires positional param name or kwarg"
-            )
         user_existed = util.is_user(name)
         params = [name]
         groups_msg = ""
