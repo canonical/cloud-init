@@ -105,6 +105,8 @@ runs:
         CLOUD_INIT_LOCAL_LOG_PATH: ${{ github.workspace }}/cloud_init_test_logs
         PYCLOUDLIB_CONFIG: ${{ runner.temp }}/pycloudlib.toml
         FILTER_TESTS: ${{ inputs.filter_tests || 'tests/integration_tests' }}
+        PYCLOUDLIB_OCI_CONFIG_FILE_PATH: ${{ runner.temp }}/oci/config
+        PYCLOUDLIB_OCI_KEY_FILE_PATH: ${{ runner.temp }}/oci/key.pem
       run: |
         # Split filter_tests on whitespace into an array so each test path
         # or node ID is passed as a single, safely-quoted argument to tox.
@@ -155,4 +157,5 @@ runs:
       shell: bash
       run: |
         rm -f ${{ runner.temp }}/pycloudlib.toml
+        rm -rf ${{ runner.temp }}/oci
         rm -rf ~/.ssh

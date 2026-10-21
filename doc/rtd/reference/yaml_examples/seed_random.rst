@@ -3,6 +3,9 @@
 Provide random seed data
 ************************
 
+.. note::
+   This module is deprecated in 26.3.
+
 For a full list of keys, refer to the
 :ref:`seed random module <mod_cc_seed_random>` schema.
 
