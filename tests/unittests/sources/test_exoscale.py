@@ -5,6 +5,7 @@
 import os
 from unittest import mock
 
+import pytest
 import requests
 import responses
 
@@ -28,6 +29,22 @@ TEST_USERDATA_URL = "{}/{}/user-data".format(METADATA_URL, API_VERSION)
 
 
 class TestDatasourceExoscale:
+    @pytest.mark.parametrize(
+        "product_name,expected",
+        (
+            (None, False),
+            ("", False),
+            ("Other Cloud", False),
+            ("Exoscale Compute", True),
+        ),
+    )
+    @mock.patch("cloudinit.sources.DataSourceExoscale.dmi.read_dmi_data")
+    def test_ds_detect(self, m_read_dmi_data, product_name, expected):
+        """Detect Exoscale only when DMI provides a matching product name."""
+        m_read_dmi_data.return_value = product_name
+
+        assert DataSourceExoscale.ds_detect() is expected
+
     @responses.activate
     def test_password_saved(self):
         """The password is not set when it is not found
