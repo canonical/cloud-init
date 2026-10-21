@@ -3,6 +3,12 @@
 Module reference
 ****************
 
+What is a module?
+=================
+
+Cloud-init modules are features in cloud-config user-data, typically
+organized under a top-level key such as ``packages`` or ``runcmd``.
+
 Deprecation schedule and versions
 =================================
 
