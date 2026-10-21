@@ -52,6 +52,7 @@ distros = [
     "sle-micro",
     "sles",
     "TencentOS",
+    "kylin",
     "ubuntu",
     "virtuozzo",
 ]
