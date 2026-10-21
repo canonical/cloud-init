@@ -10,7 +10,7 @@ cc_apt_pipelining:
     pipeline properly (LP: #948461).
 
     Value configuration options for this module are:
-
+    
     - ``os``: (Default) use distro default
     - ``false``: Disable pipelining altogether
     - ``<number>``: Manually specify pipeline depth. This is not recommended.

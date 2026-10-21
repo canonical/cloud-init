@@ -25,3 +25,4 @@ and writes that data to ``/dev/urandom``:
 .. literalinclude:: ../../../module-docs/cc_seed_random/example2.yaml
    :language: yaml
    :linenos:
+

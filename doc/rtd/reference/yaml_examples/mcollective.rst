@@ -22,3 +22,5 @@ config settings in ``/etc/mcollective/server.cfg``:
 .. literalinclude:: ../../../module-docs/cc_mcollective/example1.yaml
    :language: yaml
    :linenos:
+
+
