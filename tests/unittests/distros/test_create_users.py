@@ -37,36 +37,26 @@ def _useradd2call(args: List[str]):
     return mock.call(args, logstring=logcmd)
 
 
-def test_sec_log_user_created_only_logs_for_new_user(mocker):
-    mock_is_user = mocker.patch(
-        "cloudinit.distros.util.is_user", side_effect=[False, True]
-    )
+@pytest.mark.parametrize(
+    "created",
+    [True, False],
+    ids=["new-user", "existing-user"],
+)
+def test_sec_log_user_created_uses_create_result(mocker, created):
+    mock_is_user = mocker.patch("cloudinit.distros.util.is_user")
     mock_log = mocker.patch("cloudinit.distros.log_security_event")
 
     @sec_log_user_created
     def create_user(self, name, **kwargs):
-        return name
+        return created
 
-    assert create_user(None, USER) == USER
+    assert create_user(None, USER) is created
 
-    mock_is_user.assert_has_calls([mock.call(USER), mock.call(USER)])
-    mock_log.assert_called_once()
-
-
-def test_sec_log_user_created_skips_existing_user(mocker):
-    mock_is_user = mocker.patch(
-        "cloudinit.distros.util.is_user", return_value=True
-    )
-    mock_log = mocker.patch("cloudinit.distros.log_security_event")
-
-    @sec_log_user_created
-    def create_user(self, name, **kwargs):
-        return name
-
-    assert create_user(None, USER) == USER
-
-    mock_is_user.assert_called_once_with(USER)
-    mock_log.assert_not_called()
+    mock_is_user.assert_not_called()
+    if created:
+        mock_log.assert_called_once()
+    else:
+        mock_log.assert_not_called()
 
 
 @mock.patch("cloudinit.distros.subp.subp")
