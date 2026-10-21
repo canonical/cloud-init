@@ -7,6 +7,7 @@ import pytest
 
 from cloudinit import distros, features, lifecycle, ssh_util
 from cloudinit.distros import sec_log_user_created
+from cloudinit.log.security_event_log import OWASPEventLevel, OWASPEventType
 from tests.unittests.helpers import get_distro, mock
 from tests.unittests.util import abstract_to_concrete
 
@@ -37,35 +38,51 @@ def _useradd2call(args: List[str]):
     return mock.call(args, logstring=logcmd)
 
 
-def test_sec_log_user_created_only_logs_for_new_user(mocker):
-    mock_is_user = mocker.patch(
-        "cloudinit.distros.util.is_user", side_effect=[False, True]
-    )
+@pytest.mark.parametrize(
+    "kwargs,expected_groups",
+    [
+        ({}, ""),
+        ({"groups": []}, ""),
+        ({"groups": ["adm"]}, "adm"),
+        (
+            {"groups": ["adm"], "sudo": "ALL=(ALL) ALL", "doas": True},
+            "adm,sudo,doas",
+        ),
+    ],
+)
+def test_sec_log_user_created_logs_after_return(
+    mocker, kwargs, expected_groups
+):
     mock_log = mocker.patch("cloudinit.distros.log_security_event")
 
     @sec_log_user_created
-    def create_user(self, name, **kwargs):
+    def add_user(self, name, **kwargs):
         return name
 
-    assert create_user(None, USER) == USER
+    assert add_user(None, USER, **kwargs) == USER
 
-    mock_is_user.assert_has_calls([mock.call(USER), mock.call(USER)])
-    mock_log.assert_called_once()
-
-
-def test_sec_log_user_created_skips_existing_user(mocker):
-    mock_is_user = mocker.patch(
-        "cloudinit.distros.util.is_user", return_value=True
+    groups_msg = f" in groups: {expected_groups}" if expected_groups else ""
+    params = [USER]
+    if expected_groups:
+        params.append(f"groups:{expected_groups}")
+    mock_log.assert_called_once_with(
+        event_type=OWASPEventType.USER_CREATED,
+        level=OWASPEventLevel.INFO,
+        description=f"User '{USER}' was created{groups_msg}",
+        event_params=params,
     )
+
+
+def test_sec_log_user_created_does_not_log_on_failure(mocker):
     mock_log = mocker.patch("cloudinit.distros.log_security_event")
 
     @sec_log_user_created
-    def create_user(self, name, **kwargs):
-        return name
+    def add_user(self, name, **kwargs):
+        raise RuntimeError("Failed to create user")
 
-    assert create_user(None, USER) == USER
+    with pytest.raises(RuntimeError, match="Failed to create user"):
+        add_user(None, USER)
 
-    mock_is_user.assert_called_once_with(USER)
     mock_log.assert_not_called()
 
 

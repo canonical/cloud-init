@@ -130,18 +130,15 @@ PackageList = Union[
 
 
 def sec_log_user_created(func):
-    """Conditionally log new user creation event and format group attributes.
+    """Log user creation after add_user or add_snap_user returns successfully.
 
-    The event is logged only if the user did not exist before the create_user
-    function runs and exists afterward. The security log will contain group
-    information and elevated roles.
+    The security log will contain group information and elevated roles.
     """
 
     @functools.wraps(func)
     def decorator(
         self, name: str, *args, groups: Optional[List[str]] = None, **kwargs
     ):
-        user_existed = util.is_user(name)
         params = [name]
         groups_msg = ""
         if groups is None:
@@ -153,13 +150,12 @@ def sec_log_user_created(func):
             params.append(f"groups:{groups_suffix}")
 
         response = func(self, name, *args, groups=groups, **kwargs)
-        if not user_existed and util.is_user(name):
-            log_security_event(
-                event_type=OWASPEventType.USER_CREATED,
-                level=OWASPEventLevel.INFO,
-                description=f"User '{name}' was created{groups_msg}",
-                event_params=params,
-            )
+        log_security_event(
+            event_type=OWASPEventType.USER_CREATED,
+            level=OWASPEventLevel.INFO,
+            description=f"User '{name}' was created{groups_msg}",
+            event_params=params,
+        )
         return response
 
     return decorator
