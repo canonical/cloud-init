@@ -23,7 +23,6 @@ from contextlib import suppress
 from typing import DefaultDict
 
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(filename)s[%(levelname)s]: %(message)s"
-SECURITY_LOG_FORMAT = "%(message)s"
 SECURITY = logging.WARNING - 5
 DEPRECATED = 35
 TRACE = logging.DEBUG - 5
@@ -52,7 +51,7 @@ SECURITY_LOG_FILE = "/var/log/cloud-init-security.log"
 
 
 class SecurityOnlyFilter(logging.Filter):
-    """Pass only SECURITY level records, which are required ot be dict."""
+    """Pass only SECURITY level records, which are required to be dict."""
 
     def filter(self, record) -> bool:
         return record.levelno == SECURITY and isinstance(record.msg, dict)
