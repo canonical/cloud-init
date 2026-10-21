@@ -1,9 +1,8 @@
 cc_spacewalk:
   description: |
-
     .. warning::
-       Deprecated in 26.3. The spacewalk module is deprecated and scheduled to
-       be removed in 27.3
+       Deprecated in 26.3. The spacewalk module is deprecated and
+       scheduled to be removed in 27.3.
 
     This module installs Spacewalk and applies basic configuration. If the
     Spacewalk config key is present, Spacewalk will be installed. The server

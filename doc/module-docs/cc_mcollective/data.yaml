@@ -1,9 +1,8 @@
 cc_mcollective:
   description: |
-
     .. warning::
-       Deprecated in 26.3. The mcollective module is deprecated and scheduled to
-       be removed in 31.3
+       Deprecated in 26.3. The mcollective module is deprecated and
+       scheduled to be removed in 27.3.
 
     This module installs, configures and starts MCollective. If the
     ``mcollective`` key is present in config, then MCollective will be

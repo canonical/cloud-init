@@ -1,8 +1,8 @@
 cc_apt_pipelining:
   description: |
     .. warning::
-       Deprecated in 26.3. The apt_pipelining module is deprecated and scheduled to
-       be removed in 31.3
+       Deprecated in 26.3. The apt_pipelining module is deprecated and
+       scheduled to be removed in 31.3.
 
     This module configures APT's ``Acquire::http::Pipeline-Depth`` option,
     which controls how APT handles HTTP pipelining. It may be useful for
