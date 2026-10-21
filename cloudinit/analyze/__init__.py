@@ -115,7 +115,7 @@ def get_parser(
     return parser
 
 
-def analyze_boot(name: str, args: argparse.Namespace) -> str:
+def analyze_boot(name: str, args: argparse.Namespace) -> int:
     """Report a list of how long different boot operations took.
 
     For Example:
@@ -199,7 +199,7 @@ def analyze_boot(name: str, args: argparse.Namespace) -> str:
 
     outfh.write(status_map[status_code].format(**kwargs))
     clean_io(infh, outfh)
-    return status_code
+    return 1 if status_code == show.FAIL_CODE else 0
 
 
 def analyze_blame(name, args: argparse.Namespace) -> None:
@@ -315,5 +315,5 @@ def clean_io(*file_handles: IO) -> None:
 if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
-    (name, action_functor) = args.action
+    name, action_functor = args.action
     action_functor(name, args)

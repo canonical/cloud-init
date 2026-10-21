@@ -1,11 +1,14 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import calendar
+import logging
 import sys
 from datetime import datetime, timezone
 from typing import IO, Any, Dict, List, Optional, TextIO, Tuple
 
 from cloudinit import atomic_helper, subp, util
+
+LOG = logging.getLogger(__name__)
 
 stage_to_description: Dict[str, str] = {
     "finished": "finished running cloud-init",
@@ -76,6 +79,16 @@ def parse_timestamp_from_date(timestampstr: str) -> float:
         raise ValueError(
             f"Unable to parse timestamp without GNU date: [{timestampstr}]"
         )
+    # Transitional: shelling out to GNU date is slated for removal in favor of
+    # native Python parsing. Log the unrecognized timestamp so maintainers can
+    # collect formats that need direct support (see GH-4357).
+    LOG.warning(
+        "analyze: falling back to GNU %s(1) to parse unrecognized "
+        "timestamp %r; please report this format upstream so it can be "
+        "handled natively in Python.",
+        date,
+        timestampstr,
+    )
     return float(
         subp.subp([date, "-u", "+%s.%3N", "-d", timestampstr]).stdout.strip()
     )
@@ -114,7 +127,7 @@ def parse_ci_logline(line: str) -> Optional[Dict[str, Any]]:
     if not found:
         return None
 
-    (timehost, eventstr) = line.split(sep)
+    timehost, eventstr = line.split(sep)
 
     # journalctl -o short-precise
     if timehost.endswith(":"):
@@ -148,7 +161,7 @@ def parse_ci_logline(line: str) -> Optional[Dict[str, Any]]:
             return None
         event_description = stage_to_description[event_name]
     else:
-        (_pymodloglvl, event_type, event_name) = eventstr.split()[0:3]
+        _pymodloglvl, event_type, event_name = eventstr.split()[0:3]
         event_description = eventstr.split(event_name)[1].strip()
 
     event = {

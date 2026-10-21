@@ -6,6 +6,7 @@
 
 import logging
 import os
+from typing import Any, Dict
 
 from cloudinit import lifecycle, subp, util
 from cloudinit.cloud import Cloud
@@ -15,14 +16,14 @@ from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
-DEFAULT_CONFIG = {
+DEFAULT_CONFIG: Dict[str, Any] = {
     "ca_cert_path": None,
     "ca_cert_local_path": "/usr/local/share/ca-certificates/",
     "ca_cert_filename": "cloud-init-ca-cert-{cert_index}.crt",
     "ca_cert_config": "/etc/ca-certificates.conf",
     "ca_cert_update_cmd": ["update-ca-certificates"],
 }
-DISTRO_OVERRIDES = {
+DISTRO_OVERRIDES: Dict[str, Dict[str, Any]] = {
     "aosc": {
         "ca_cert_path": "/etc/ssl/certs/",
         "ca_cert_local_path": "/etc/ssl/certs/",
@@ -156,7 +157,7 @@ def disable_default_ca_certs(distro_name, distro_cfg):
             debconf_sel = (
                 "ca-certificates ca-certificates/trust_new_crts " + "select no"
             )
-            subp.subp(("debconf-set-selections", "-"), data=debconf_sel)
+            subp.subp(["debconf-set-selections", "-"], data=debconf_sel)
 
 
 def disable_system_ca_certs(distro_cfg):

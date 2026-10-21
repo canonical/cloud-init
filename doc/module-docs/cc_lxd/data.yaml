@@ -22,7 +22,7 @@ cc_lxd:
       ``lxd init --preseed``.
 
       See the
-      `LXD non-interactive configuration <https://documentation.ubuntu.com/lxd/en/latest/howto/initialize/#non-interactive-configuration>`_
+      `LXD non-interactive configuration <https://canonical.com/lxd/docs/latest/howto/initialize/#non-interactive-configuration>`_
       or run ``lxd init --dump`` to see viable preseed YAML allowed.
 
       Preseed settings configuring the LXD daemon for HTTPS connections on

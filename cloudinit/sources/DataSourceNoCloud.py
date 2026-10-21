@@ -362,7 +362,7 @@ def parse_cmdline_data(ds_id, fill, cmdline=None):
         if item == "":
             continue
         try:
-            (k, v) = item.split("=", 1)
+            k, v = item.split("=", 1)
         except Exception:
             k = item
             v = None

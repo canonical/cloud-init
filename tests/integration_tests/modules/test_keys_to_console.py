@@ -12,7 +12,7 @@ from tests.integration_tests.integration_settings import PLATFORM
 from tests.integration_tests.util import (
     HAS_CONSOLE_LOG,
     get_console_log,
-    get_syslog_or_console,
+    get_journal_syslog,
 )
 
 BLACKLIST_USER_DATA = """\
@@ -52,16 +52,14 @@ class TestKeysToConsoleBlacklist:
 
     @pytest.mark.parametrize("key_type", ["ECDSA"])
     def test_excluded_keys(self, class_client, key_type):
-        assert "({})".format(key_type) not in get_syslog_or_console(
-            class_client
-        )
+        assert "({})".format(key_type) not in get_journal_syslog(class_client)
 
     # retry decorator here because it can take some time to be reflected
-    # in syslog
+    # in the journal
     @retry(tries=60, delay=1)
     @pytest.mark.parametrize("key_type", ["ED25519", "RSA"])
     def test_included_keys(self, class_client, key_type):
-        assert "({})".format(key_type) in get_syslog_or_console(class_client)
+        assert "({})".format(key_type) in get_journal_syslog(class_client)
 
 
 @pytest.mark.user_data(BLACKLIST_ALL_KEYS_USER_DATA)
@@ -75,12 +73,12 @@ class TestAllKeysToConsoleBlacklist:
     """
 
     def test_header_excluded(self, class_client):
-        assert "BEGIN SSH HOST KEY FINGERPRINTS" not in get_syslog_or_console(
+        assert "BEGIN SSH HOST KEY FINGERPRINTS" not in get_journal_syslog(
             class_client
         )
 
     def test_footer_excluded(self, class_client):
-        assert "END SSH HOST KEY FINGERPRINTS" not in get_syslog_or_console(
+        assert "END SSH HOST KEY FINGERPRINTS" not in get_journal_syslog(
             class_client
         )
 
@@ -95,17 +93,15 @@ class TestKeysToConsoleDisabled:
 
     @pytest.mark.parametrize("key_type", ["ECDSA", "ED25519", "RSA"])
     def test_keys_excluded(self, class_client, key_type):
-        assert "({})".format(key_type) not in get_syslog_or_console(
-            class_client
-        )
+        assert "({})".format(key_type) not in get_journal_syslog(class_client)
 
     def test_header_excluded(self, class_client):
-        assert "BEGIN SSH HOST KEY FINGERPRINTS" not in get_syslog_or_console(
+        assert "BEGIN SSH HOST KEY FINGERPRINTS" not in get_journal_syslog(
             class_client
         )
 
     def test_footer_excluded(self, class_client):
-        assert "END SSH HOST KEY FINGERPRINTS" not in get_syslog_or_console(
+        assert "END SSH HOST KEY FINGERPRINTS" not in get_journal_syslog(
             class_client
         )
 

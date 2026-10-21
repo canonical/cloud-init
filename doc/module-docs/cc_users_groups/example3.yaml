@@ -1,5 +1,6 @@
 #cloud-config
 users:
 - name: newsuper
+  lock_passwd: true
   ssh_import_id: [ gh:TheRealFalcon, lp:falcojr ]
   shell: /bin/bash

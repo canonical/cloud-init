@@ -264,7 +264,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         LOG.warning("Could not determine filesystem type of %s", resize_what)
         return
 
-    (devpth, fs_type, mount_point) = result
+    devpth, fs_type, mount_point = result
 
     # if we have a zfs then our device path at this point
     # is the zfs label. For example: vmzroot/ROOT/freebsd

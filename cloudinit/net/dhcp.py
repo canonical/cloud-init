@@ -29,6 +29,7 @@ NETWORKD_LEASES_DIR = "/run/systemd/netif/leases"
 DHCLIENT_FALLBACK_LEASE_DIR = "/var/lib/dhclient"
 # Match something.lease or something.leases
 DHCLIENT_FALLBACK_LEASE_REGEX = r".+\.leases?$"
+NMCLI = "nmcli"
 UDHCPC_SCRIPT = """#!/bin/sh
 log() {
     echo "udhcpc[$PPID]" "$interface: $2"
@@ -145,6 +146,80 @@ def networkd_get_option_from_leases(keyname, leases_d=None):
         if data.get(keyname):
             return data[keyname]
     return None
+
+
+def run_nmcli(nmcli_opts: List[str]) -> str:
+    nmcli_path = subp.which(NMCLI)
+    if not nmcli_path:
+        raise NoDHCPLeaseMissingDhclientError()
+
+    command = [nmcli_path] + nmcli_opts
+    try:
+        out, _ = subp.subp(
+            command,
+        )
+    except subp.ProcessExecutionError as error:
+        LOG.debug(
+            "nmcli command exited with code: %s stderr: %r stdout: %r",
+            error.exit_code,
+            error.stderr,
+            error.stdout,
+        )
+        raise NoDHCPLeaseError from error
+    return out
+
+
+def network_manager_load_leases(device: str) -> Dict[str, str]:
+    """Return a dictionary of lease options obtained from NM cli"""
+
+    opts = ["--fields", "DHCP4", "device", "show", device]
+    nmcli_out = run_nmcli(opts)
+
+    content = []
+    for line in nmcli_out.splitlines():
+        line = line.partition(":")[2].strip()
+        content.append(line)
+
+    return dict(configobj.ConfigObj(content, list_values=False))
+
+
+def find_correct_device_nmcli() -> Optional[str]:
+    """Return the lease value for
+    the first connected device as returned by 'nmcli'"""
+
+    device_list_opts = ["--terse", "device"]
+    nmcli_out = run_nmcli(device_list_opts)
+
+    for line in nmcli_out.splitlines():
+        if line == "":
+            continue
+        try:
+            dev_name, _, state, _ = line.split(":", 3)
+        except ValueError:
+            LOG.warning(
+                "Unexpected nmcli format: expected 4 colon-delimited"
+                " values, found %s",
+                line,
+            )
+            continue
+
+        # skip devices that are not connected
+        if state != "connected":
+            continue
+        # skip loopback
+        if dev_name == "lo":
+            continue
+        return dev_name
+    return None
+
+
+def network_manager_get_option_from_leases(keyname: str) -> Optional[str]:
+    leases = None
+    dev = find_correct_device_nmcli()
+    if dev:
+        leases = network_manager_load_leases(dev)
+
+    return leases.get(keyname) if leases else None
 
 
 class DhcpClient(abc.ABC):

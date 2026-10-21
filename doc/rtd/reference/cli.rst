@@ -139,7 +139,7 @@ aliases:
 
 Example output:
 
-.. code-block::
+.. code-block:: text
 
     _beta_keys
     availability_zone
@@ -165,7 +165,7 @@ Here are a few examples of how to query standardized meta-data from clouds:
 
 Example output:
 
-.. code-block::
+.. code-block:: yaml
 
    aws  # or openstack, azure, gce etc.
 
@@ -178,7 +178,7 @@ key for convenience:
 
 Example output:
 
-.. code-block::
+.. code-block:: yaml
 
    aws  # or openstack, azure, gce etc.
 
@@ -205,7 +205,7 @@ and region:
 
    $ cloud-init query --format 'custom-{{instance_id}}.{{region}}.{{v1.cloud_name}}.com'
 
-.. code-block::
+.. code-block:: text
 
    custom-i-0e91f69987f37ec74.us-east-2.aws.com
 
@@ -287,7 +287,7 @@ Which shows whether ``cloud-init`` is currently running, done, disabled, or in
 error. Note that the ``extended_status`` key in ``--long`` or ``--format json``
 contains more accurate and complete status information. Example output:
 
-.. code-block::
+.. code-block:: text
 
    status: running
 
@@ -299,7 +299,7 @@ The :command:`--long` option, shown below, provides a more verbose output.
 
 Example output when ``cloud-init`` is running:
 
-.. code-block::
+.. code-block:: text
 
    status: running
    extended_status: running
@@ -311,7 +311,7 @@ Example output when ``cloud-init`` is running:
 
 Example output when ``cloud-init`` is done:
 
-.. code-block::
+.. code-block:: text
 
    status: done
    extended_status: done
@@ -330,7 +330,7 @@ The detailed output can be shown in machine-readable JSON or YAML with the
 
 Which would produce the following example output:
 
-.. code-block::
+.. code-block:: json
 
     {
       "boot_status_code": "enabled-by-generator",

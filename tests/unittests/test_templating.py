@@ -7,6 +7,7 @@
 import textwrap
 
 import pytest
+from jinja2.exceptions import SecurityError
 
 from cloudinit import templater
 from cloudinit.templater import JinjaSyntaxParsingException
@@ -26,21 +27,17 @@ class TestTemplates:
         return "## template: %s\n" % renderer + data
 
     def test_render_basic(self):
-        in_data = textwrap.dedent(
-            """
+        in_data = textwrap.dedent("""
             ${b}
 
             c = d
-            """
-        )
+            """)
         in_data = in_data.strip()
-        expected_data = textwrap.dedent(
-            """
+        expected_data = textwrap.dedent("""
             2
 
             c = d
-            """
-        )
+            """)
         out_data = templater.basic_render(in_data, {"b": 2})
         assert expected_data.strip() == out_data
 
@@ -147,6 +144,15 @@ class TestTemplates:
             ).strip()
             == expected_result
         )
+
+    def test_jinja_blocks_unsafe_attribute_access(self):
+        template = self.add_header(
+            "jinja",
+            "{{ ''.__class__.__mro__[1].__subclasses__()[:3] }}",
+        )
+
+        with pytest.raises(SecurityError):
+            templater.render_string(template, {})
 
 
 class TestJinjaSyntaxParsingException:

@@ -18,6 +18,7 @@ import time
 from contextlib import suppress
 from socket import gaierror, getaddrinfo, inet_ntoa
 from struct import pack
+from typing import Any, ContextManager, Dict
 
 from cloudinit import dmi, net, performance, sources
 from cloudinit import url_helper as uhelp
@@ -90,6 +91,7 @@ class DataSourceCloudStack(sources.DataSource):
         """Try obtaining a "domain-name" DHCP lease parameter:
         - From systemd-networkd lease (case-insensitive)
         - From ISC dhclient
+        - From network manager dhcp client
         - From dhcpcd (ephemeral)
         - Return empty string if not found (non-fatal)
         """
@@ -113,7 +115,19 @@ class DataSourceCloudStack(sources.DataSource):
 
         LOG.debug(
             "Could not obtain FQDN from ISC dhclient leases. Falling back to "
-            "%s",
+            "Network Manager leases"
+        )
+        with suppress(
+            dhcp.NoDHCPLeaseMissingDhclientError, dhcp.NoDHCPLeaseError
+        ):
+            domain_name = dhcp.network_manager_get_option_from_leases(
+                "domain_name"
+            )
+            if domain_name:
+                return domain_name.strip()
+
+        LOG.debug(
+            "Could not obtain FQDN from NM leases. Falling back to %s",
             self.distro.dhcp_client.client_name,
         )
         try:
@@ -197,12 +211,13 @@ class DataSourceCloudStack(sources.DataSource):
         return is_platform_viable()
 
     def _get_data(self):
-        seed_ret = {}
+        seed_ret: Dict[str, Any] = {}
         if util.read_optional_seed(seed_ret, base=(self.seed_dir + "/")):
             self.userdata_raw = seed_ret["user-data"]
             self.metadata = seed_ret["meta-data"]
             LOG.debug("Using seeded cloudstack data from: %s", self.seed_dir)
             return True
+        network_context: ContextManager
         if self.perform_dhcp_setup:
             primary_nic = net.find_fallback_nic()
             LOG.debug("Attempting DHCP on: %s", primary_nic)
@@ -336,6 +351,15 @@ def get_vr_address(distro):
         )
         if latest_address:
             LOG.debug("Found SERVER_ADDRESS '%s' via dhclient", latest_address)
+            return latest_address
+
+    # try network manager DHCP lease information
+    with suppress(dhcp.NoDHCPLeaseMissingDhclientError, dhcp.NoDHCPLeaseError):
+        latest_address = dhcp.network_manager_get_option_from_leases(
+            "dhcp_server_identifier"
+        )
+        if latest_address:
+            LOG.debug("Found SERVER_ADDRESS '%s' via nmcli", latest_address)
             return latest_address
 
     with suppress(FileNotFoundError):

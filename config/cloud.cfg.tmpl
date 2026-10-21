@@ -13,7 +13,6 @@
                  "raspberry-pi-os": "Raspberry Pi OS",
                  "ubuntu": "Ubuntu", "unknown": "Ubuntu"}) %}
 {% set groups = ({"alpine": "adm, wheel", "aosc": "wheel", "arch": "wheel, users",
-                  "azurelinux": "wheel",
                   "debian": "adm, audio, cdrom, dialout, dip, floppy, netdev, plugdev, sudo, video",
                   "gentoo": "users, wheel", "mariner": "wheel",
                   "photon": "wheel",
@@ -25,7 +24,7 @@
 {% set shells = ({"alpine": "/bin/ash", "dragonfly": "/bin/sh",
                   "freebsd": "/bin/tcsh", "netbsd": "/bin/sh",
                   "openbsd": "/bin/ksh"}) %}
-{% set usernames = ({"amazon": "ec2-user", "centos": "cloud-user",
+{% set usernames = ({"amazon": "ec2-user", "azurelinux": "azureuser", "centos": "cloud-user",
                      "openmandriva": "omv", "raspberry-pi-os": "pi",
                      "rhel": "cloud-user",
                      "unknown": "ubuntu"}) %}
@@ -61,7 +60,7 @@ disable_root: false
 disable_root: true
 {% endif %}
 
-{%- if variant in ["alpine", "amazon", "fedora", "OpenCloudOS", "openeuler",
+{%- if variant in ["alpine", "amazon", "azurelinux", "fedora", "OpenCloudOS", "openeuler",
                    "openmandriva", "photon", "TencentOS"] or is_rhel %}
 
 {% if is_rhel %}
@@ -178,9 +177,7 @@ cloud_config_modules:
 {% if variant == "raspberry-pi-os" %}
   - raspberry_pi
 {% endif %}
-{% if variant not in ["azurelinux"] %}
   - disable_ec2_metadata
-{% endif %}
   - runcmd
 {% if variant in ["debian", "ubuntu", "unknown"] %}
   - byobu
@@ -198,17 +195,13 @@ cloud_final_modules:
   - ubuntu_drivers
 {% endif %}
   - write_files_deferred
-{% if variant not in ["azurelinux"] %}
   - puppet
   - chef
-{% endif %}
   - ansible
-{% if variant not in ["azurelinux"] %}
   - mcollective
   - salt_minion
 {% if variant not in ["alpine"] %}
   - reset_rmc
-{% endif %}
 {% endif %}
   - scripts_vendor
   - scripts_per_once
@@ -287,6 +280,9 @@ system_info:
 {% if variant == "alpine" %}
   network:
     renderers: ['eni']
+{% elif variant == "azurelinux" %}
+  network:
+    renderers: ['netplan', 'networkd', 'network-manager']
 {% elif variant == "debian" %}
   network:
     renderers: ['netplan', 'eni', 'networkd']
@@ -300,7 +296,7 @@ system_info:
 {% elif variant in ["freebsd", "netbsd", "openbsd"] %}
   network:
     renderers: ['{{ variant }}']
-{% elif variant in ["azurelinux", "mariner", "photon"] %}
+{% elif variant in ["mariner", "photon"] %}
   network:
     renderers: ['networkd']
 {% elif variant == "openmandriva" %}

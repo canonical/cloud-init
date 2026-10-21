@@ -134,7 +134,7 @@ class TestModules:
         assert mods.run_section("not_matter")
         if active:
             assert [
-                mock.call([list(module_details)])
+                mock.call([module_details])
             ] == m_run_modules.call_args_list
             assert not caplog.text
         else:
@@ -171,9 +171,7 @@ class TestModules:
         mocker.patch.object(module, "handle")
         m_run_modules = mocker.patch.object(mods, "_run_modules")
         assert mods.run_section("not_matter")
-        assert [
-            mock.call([list(module_details)])
-        ] == m_run_modules.call_args_list
+        assert [mock.call([module_details])] == m_run_modules.call_args_list
         assert "Skipping" not in caplog.text
 
     @mock.patch(M_PATH + "signature")

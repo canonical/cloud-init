@@ -93,6 +93,7 @@ class TestRenderCloudCfg:
 
         default_user_exceptions = {
             "amazon": "ec2-user",
+            "azurelinux": "azureuser",
             "rhel": "cloud-user",
             "centos": "cloud-user",
             "raspberry-pi-os": "pi",
