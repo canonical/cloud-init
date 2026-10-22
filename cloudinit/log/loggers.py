@@ -114,7 +114,7 @@ def setup_security_logging(
             log_file,
             error,
         )
-        return
+        sys.exit(2)
     try:
         os.chmod(log_file, 0o600)
     except OSError as error:
@@ -125,7 +125,7 @@ def setup_security_logging(
             log_file,
             error,
         )
-        return
+        sys.exit(2)
     handler.setFormatter(SecurityFormatter())
     handler.addFilter(SecurityOnlyFilter())
     handler.setLevel(SECURITY)

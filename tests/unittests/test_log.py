@@ -237,7 +237,9 @@ class TestSecurityLogs:
         chmod = mocker.patch("cloudinit.log.loggers.os.chmod")
         root = logging.getLogger()
         handlers_before = list(root.handlers)
-        loggers.setup_security_logging(root=root)
+        with pytest.raises(SystemExit) as context_manager:
+            loggers.setup_security_logging(root=root)
+        assert context_manager.value.code == 2
         assert root.handlers == handlers_before
         chmod.assert_not_called()
         assert caplog.record_tuples == [
@@ -270,7 +272,9 @@ class TestSecurityLogs:
         )
         root = logging.getLogger()
         handlers_before = list(root.handlers)
-        loggers.setup_security_logging(root=root, log_file=log_file)
+        with pytest.raises(SystemExit) as context_manager:
+            loggers.setup_security_logging(root=root, log_file=log_file)
+        assert context_manager.value.code == 2
         chmod.assert_called_once_with(log_file, 0o600)
         close.assert_called_once_with()
         assert getattr(handler, "stream") is None
