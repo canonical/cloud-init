@@ -72,6 +72,7 @@ def abstract_to_concrete(abclass: Type):
 
 
 # Test doubles intentionally bypass final entry points to avoid system changes.
+# pylint: disable=overridden-final-method
 class MockDistro(distros.Distro):
     fallback_interface = "eth9"
 
@@ -184,6 +185,8 @@ class MockDistro(distros.Distro):
     def do_as(self, command: list, user: str, cwd: str = "", **kwargs):
         return ("stdout", "stderr")
 
+
+# pylint: enable=overridden-final-method
 
 TEST_INSTANCE_ID = "i-testing"
 
