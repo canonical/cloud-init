@@ -141,6 +141,13 @@ class OWASPEventLevel(Enum):
 class OWASPEventType(Enum):
     """OWASP security event types."""
 
+    # Authentication events [AUTHN]
+    AUTHN_PASSWORD_CHANGE = "authn_password_change"
+
+    # System events [SYS]
+    SYS_SHUTDOWN = "sys_shutdown"
+    SYS_RESTART = "sys_restart"
+
     # User management events [USER]
     USER_CREATED = "user_created"
     # TODO(USER_UPDATED = "user_updated")
@@ -216,6 +223,65 @@ def sec_log_user_created(func):
             event_params=params,
         )
         return response
+
+    return decorator
+
+
+def sec_log_password_changed_batch(func):
+    """Log batched password change events."""
+
+    @functools.wraps(func)
+    def decorator(self, plist_in: List[Tuple[str, str]], *args, **kwargs):
+        response = func(self, plist_in, *args, **kwargs)
+        for userid, _ in plist_in:
+            log_security_event(
+                event_type=OWASPEventType.AUTHN_PASSWORD_CHANGE,
+                level=OWASPEventLevel.INFO,
+                description=f"Password changed for user '{userid}'",
+                event_params=[userid],
+            )
+        return response
+
+    return decorator
+
+
+def sec_log_password_changed(func):
+    """Log a password change event."""
+
+    @functools.wraps(func)
+    def decorator(self, user: str, *args, **kwargs):
+        response = func(self, user, *args, **kwargs)
+        log_security_event(
+            event_type=OWASPEventType.AUTHN_PASSWORD_CHANGE,
+            level=OWASPEventLevel.INFO,
+            description=f"Password changed for user '{user}'",
+            event_params=[user],
+        )
+        return response
+
+    return decorator
+
+
+def sec_log_system_shutdown(func):
+    """Log shutdown intent before constructing the shutdown command."""
+
+    @functools.wraps(func)
+    def decorator(cls, mode: str, delay: str, message: str, *args, **kwargs):
+        if mode == "reboot":
+            event_type = OWASPEventType.SYS_RESTART
+            description = "System restart initiated"
+        else:
+            event_type = OWASPEventType.SYS_SHUTDOWN
+            description = "System shutdown initiated"
+        if message:
+            description += f": {message}"
+
+        log_security_event(
+            event_type=event_type,
+            level=OWASPEventLevel.INFO,
+            description=description,
+        )
+        return func(cls, mode=mode, delay=delay, message=message)
 
     return decorator
 
@@ -1203,7 +1269,17 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             LOG.warning("Failed to set 'expire' for %s", user)
             raise
 
-    def set_passwd(self, user, passwd, hashed=False):
+    @final
+    @sec_log_password_changed
+    def set_passwd(
+        self, user: str, passwd: str, hashed: bool = False
+    ) -> Optional[bool]:
+        return self._set_passwd(user, passwd, hashed)
+
+    def _set_passwd(
+        self, user: str, passwd: str, hashed: bool = False
+    ) -> Optional[bool]:
+        """Set a password using distro-specific tools."""
         pass_string = "%s:%s" % (user, passwd)
         cmd = ["chpasswd"]
 
@@ -1223,7 +1299,13 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         return True
 
+    @final
     def chpasswd(self, plist_in: List[Tuple[str, str]], hashed: bool):
+        return self._chpasswd(plist_in, hashed)
+
+    @sec_log_password_changed_batch
+    def _chpasswd(self, plist_in: List[Tuple[str, str]], hashed: bool):
+        """Set passwords in bulk; overridden for per-user BSD operations."""
         payload = (
             "\n".join(
                 (":".join([name, password]) for name, password in plist_in)
@@ -1434,6 +1516,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 LOG.info("Added user '%s' to group '%s'", member, name)
 
     @classmethod
+    @final
+    @sec_log_system_shutdown
     def shutdown_command(
         cls, *, mode: str, delay: Union[int, str], message: str
     ) -> List[str]:
