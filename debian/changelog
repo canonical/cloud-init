@@ -1,8 +1,9 @@
 cloud-init (26.2-0ubuntu1~24.04.2) noble; urgency=medium
 
-  * New bug fix release:
+  * Correctly set apt sources for arm64 systems to use ports.ubuntu.com as the
+    archive mirror, as archive.ubuntu.com only mirrors arm64 for resolute
+    onwards. (LP: #2171959)
     - d/p/retain-arm64-apt-mirrors-revert-archive-ubuntu-com.patch
-      (LP: #2171959)
 
  -- Chad Smith <chad.smith@canonical.com>  Thu, 22 Oct 2026 09:46:26 -0600
 

@@ -1,10 +1,11 @@
 Description: Retain arm64 apt mirrors to retain original behavior
  This is a revert of upstream commit d4566b1aa35951e6c32da330e627c023785026ea
  which configured arm64 to use archive.ubuntu.com. This is only applicable on
- noble and newer releases.
+ resolute and newer releases.
 Author: Chad Smith <chad.smith@canonical.com>
-Origin: backport
-Bug: https://bugs.launchpad.net/ubuntu/+source/cloud-init/+bug/2171959
+Origin: upstream, https://github.com/canonical/cloud-init/commit/da6e9e9b61dd7d391112ecf465e0de4e1507b890
+Bug: https://github.com/canonical/cloud-init/issues/7176
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/2171959
 Last-Update: 2026-10-22
 --- a/config/cloud.cfg.tmpl
 +++ b/config/cloud.cfg.tmpl
