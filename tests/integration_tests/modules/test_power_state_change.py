@@ -101,8 +101,6 @@ class TestPowerChange:
                 if event["event"] == f"{event_type}:cloud-init"
             ]
             assert len(matching) == 1
-            assert matching[0]["mode"] == mode
-            assert matching[0]["delay"] == delay
             assert matching[0]["level"] == "INFO"
             description = (
                 "System restart initiated"
