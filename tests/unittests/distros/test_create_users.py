@@ -6,8 +6,11 @@ from typing import List
 import pytest
 
 from cloudinit import distros, features, lifecycle, ssh_util
-from cloudinit.distros import sec_log_user_created
-from cloudinit.log.security_event_log import OWASPEventLevel, OWASPEventType
+from cloudinit.distros import (
+    OWASPEventLevel,
+    OWASPEventType,
+    sec_log_user_created,
+)
 from tests.unittests.helpers import get_distro, mock
 from tests.unittests.util import abstract_to_concrete
 

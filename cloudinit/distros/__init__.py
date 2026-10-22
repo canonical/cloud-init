@@ -20,6 +20,7 @@ import string
 import urllib.parse
 from collections import defaultdict
 from contextlib import suppress
+from enum import Enum
 from io import StringIO
 from typing import (
     Any,
@@ -54,11 +55,7 @@ from cloudinit.distros.package_management.utils import known_package_managers
 from cloudinit.distros.parsers import hosts
 from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
 from cloudinit.lifecycle import log_with_downgradable_level
-from cloudinit.log.security_event_log import (
-    OWASPEventLevel,
-    OWASPEventType,
-    log_security_event,
-)
+from cloudinit.log import loggers
 from cloudinit.net import activators, dhcp, renderers
 from cloudinit.net.netops import NetOps
 from cloudinit.net.network_state import parse_net_config_data
@@ -128,6 +125,73 @@ PackageList = Union[
     List[Union[str, List[str]]],
     List[Union[str, List[str], Mapping]],
 ]
+
+# Hard-coded application identifier
+APP_ID = "canonical.cloud-init"
+
+
+class OWASPEventLevel(Enum):
+    """OWASP log levels."""
+
+    INFO = "INFO"
+    WARN = "WARN"
+    CRITICAL = "CRITICAL"
+
+
+class OWASPEventType(Enum):
+    """OWASP security event types."""
+
+    # Authentication events [AUTHN]
+    AUTHN_PASSWORD_CHANGE = "authn_password_change"
+
+    # System events [SYS]
+    SYS_SHUTDOWN = "sys_shutdown"
+    SYS_RESTART = "sys_restart"
+
+    # User management events [USER]
+    USER_CREATED = "user_created"
+    # TODO(USER_UPDATED = "user_updated")
+
+
+def log_security_event(
+    event_type: OWASPEventType,
+    level: OWASPEventLevel,
+    description: str,
+    event_params: Optional[List[str]] = None,
+) -> None:
+    """
+    Log a security event in OWASP format.
+
+    :param event_type: Type of security event.
+    :param level: OWASP Log level (INFO, WARN, CRITICAL).
+    :param description: Human-readable description of the event.
+    :param event_params: Parameters to include in the event string.
+
+    The logging format follows the OWASP Logging Vocabulary Cheat Sheet:
+    https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/Logging_Vocabulary_Cheat_Sheet.md
+
+    Security events are logged in JSON Lines format with standardized fields:
+    - datetime: ISO 8601 timestamp with UTC offset
+    - appid: Application identifier (canonical.cloud-init)
+    - type: "security"
+    - event: Event type with optional parameters (e.g., user_created:root,ubuntu)
+    - level: INFO, WARN, or CRITICAL
+    - description: Human-readable summary
+    - hostname: S
+    """
+    # cloud-init is the default primary 'actor' for any system change operation
+    params = ["cloud-init"]
+    if event_params:
+        params.extend(event_params)
+    event = {
+        "appid": APP_ID,
+        "type": "security",
+        "event": f"{event_type.value}:{','.join(params)}",
+        "level": level.value,
+        "description": description,
+        "hostname": util.get_hostname(),
+    }
+    LOG.log(loggers.SECURITY, event)
 
 
 def sec_log_user_created(func):
