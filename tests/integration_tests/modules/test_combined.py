@@ -222,7 +222,10 @@ class TestCombined:
         version_boundary = get_feature_flag_value(
             class_client, "DEPRECATION_INFO_BOUNDARY"
         )
-        deprecated_messages = ["users.1.sudo:  Changed in version 22.2."]
+        deprecated_messages = [
+            "users.1.sudo:  Changed in version 22.2.",
+            "Module cc_seed_random is deprecated in 26.3",
+        ]
         boundary_message = (
             "The value of 'false' in user craig's 'sudo'"
             " config is deprecated"

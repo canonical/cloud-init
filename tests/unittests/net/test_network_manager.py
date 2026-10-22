@@ -218,6 +218,7 @@ class TestNetworkManagerRenderNetworkState:
 
                 [ethernet]
                 mtu=9000
+                cloned-mac-address=XX:XX:XX:XX:XX:00
 
                 """
             ),
@@ -514,6 +515,7 @@ class TestNetworkManagerRenderNetworkState:
 
                 [ethernet]
                 mtu=9000
+                cloned-mac-address=XX:XX:XX:XX:XX:00
 
                 """
             ),
@@ -686,6 +688,7 @@ class TestNetworkManagerRenderNetworkState:
 
                 [ethernet]
                 mtu=9000
+                cloned-mac-address=XX:XX:XX:XX:XX:00
 
                 """
             ),
@@ -818,6 +821,7 @@ class TestNetworkManagerRenderNetworkState:
 
                 [ethernet]
                 mtu=9000
+                cloned-mac-address=XX:XX:XX:XX:XX:00
 
                 """
             ),
@@ -954,6 +958,7 @@ class TestNetworkManagerRenderNetworkState:
 
                 [ethernet]
                 mtu=9000
+                cloned-mac-address=XX:XX:XX:XX:XX:00
 
                 """
             ),

@@ -22,7 +22,7 @@ USER_DATA = """\
 #cloud-config
 mounts:
 - - server.example:/export
-  - /mnt/Cdrom Drive
+  - /mnt1/Cdrom Drive
   - nfs
   - defaults,noauto
   - "0"
@@ -39,7 +39,7 @@ def test_mount_point_with_space_is_escaped(client: IntegrationInstance):
 
     # The space must be octal-escaped (\040) in the /etc/fstab entry.
     fstab = client.read_from_file("/etc/fstab")
-    assert "/mnt/Cdrom\\040Drive" in fstab
+    assert "/mnt1/Cdrom\\040Drive" in fstab
 
     # The real directory (with a literal space) must have been created.
-    assert client.execute("test -d '/mnt/Cdrom Drive'").ok
+    assert client.execute("test -d '/mnt1/Cdrom Drive'").ok

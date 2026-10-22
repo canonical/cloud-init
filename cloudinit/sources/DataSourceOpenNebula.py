@@ -289,6 +289,44 @@ class OpenNebulaNetwork:
         # allow empty string to return the default.
         return default if val in (None, "") else val
 
+    def get_alias_addresses(self, c_dev: str) -> List[str]:
+        """Return list of alias IP/prefix strings for context device c_dev.
+
+        Scans context for ETHx_ALIASn_IP / ETHx_ALIASn_MASK keys, where x
+        matches c_dev (e.g. 'ETH0').  Missing MASK defaults to /32.
+        Stops at the first gap in the alias index sequence and warns if
+        further alias indices exist beyond that gap, since that likely
+        indicates a misconfigured context.
+        """
+        aliases: List[str] = []
+        prefix = c_dev.upper() + "_ALIAS"
+        key_re = re.compile(r"^%s(\d+)_IP$" % re.escape(prefix))
+        indices = sorted(
+            int(m.group(1)) for m in map(key_re.match, self.context) if m
+        )
+
+        idx = 0
+        skipped = []
+        for i in indices:
+            if i != idx:
+                skipped.append(i)
+                continue
+            ip = self.context["%s%d_IP" % (prefix, i)]
+            mask = self.context.get("%s%d_MASK" % (prefix, i))
+            mask = mask or "255.255.255.255"
+            net_prefix = str(net.ipv4_mask_to_net_prefix(mask))
+            aliases.append("%s/%s" % (ip, net_prefix))
+            idx += 1
+
+        if skipped:
+            LOG.warning(
+                "Ignoring network config keys %s due to missing %s%d_IP",
+                ", ".join("%s%d_IP" % (prefix, i) for i in skipped),
+                prefix,
+                idx,
+            )
+        return aliases
+
     def gen_conf(self) -> Dict[str, Any]:
         netconf: Dict[str, Any] = {"version": 2, "ethernets": {}}
 
@@ -310,6 +348,11 @@ class OpenNebulaNetwork:
             mask = self.get_mask(c_dev)
             prefix = str(net.ipv4_mask_to_net_prefix(mask))
             devconf["addresses"].append(self.get_ip(c_dev, mac) + "/" + prefix)
+
+            # Set alias (anycast) IPv4 addresses
+            alias_addresses: List[str] = self.get_alias_addresses(c_dev)
+            if alias_addresses:
+                devconf["addresses"].extend(alias_addresses)
 
             # Set IPv6 Global and ULA address
             addresses6 = self.get_ip6(c_dev)

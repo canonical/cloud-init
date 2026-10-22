@@ -27,7 +27,7 @@ def sd_notify(message: str):
 
     elif socket_path[0] == "@":
         # abstract
-        socket_path.replace("@", "\0", 1)
+        socket_path = socket_path.replace("@", "\0", 1)
 
     # unix domain
     elif socket_path[0] != "/":

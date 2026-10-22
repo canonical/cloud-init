@@ -3,6 +3,9 @@
 APT pipelining
 **************
 
+.. note::
+   This module is deprecated in 26.3.
+
 For a full list of keys, refer to the
 :ref:`APT pipelining module <mod_cc_apt_pipelining>` schema.
 

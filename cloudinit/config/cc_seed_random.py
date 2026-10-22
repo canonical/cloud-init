@@ -12,7 +12,7 @@ import base64
 import logging
 from io import BytesIO
 
-from cloudinit import subp, util
+from cloudinit import lifecycle, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
@@ -62,6 +62,11 @@ def handle_random_seed_command(command, required, update_env):
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
+    if "random_seed" in cfg:
+        lifecycle.deprecate(
+            deprecated="Module cc_seed_random",
+            deprecated_version="26.3",
+        )
     mycfg = cfg.get("random_seed", {})
     seed_path = mycfg.get("file", "/dev/urandom")
     seed_data = mycfg.get("data", b"")
