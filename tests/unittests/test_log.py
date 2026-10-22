@@ -333,7 +333,7 @@ class TestSecurityLogs:
         loggers.setup_security_logging(root=root, log_file=log_file)
 
         close.assert_called_once_with()
-        assert handler.stream is None
+        assert getattr(handler, "stream") is None
         assert root.handlers == handlers_before
         assert f"cannot set permissions on {log_file}" in caplog.text
 
