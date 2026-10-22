@@ -329,3 +329,36 @@ class TestPackageCommands:
         assert self.distro.read_only_root
         expected_cmd = ["zypper", "--non-interactive", "refresh"]
         m_subp.assert_called_with(expected_cmd, capture=False)
+
+
+@mock.patch("cloudinit.distros.opensuse.subp.subp")
+class TestReadHostname:
+    distro = distros.fetch("opensuse")("opensuse", {}, None)
+
+    def test_strips_trailing_newline_from_hostname_command(self, m_subp):
+        m_subp.return_value = ("myhost\n", "")
+        with mock.patch.object(self.distro, "uses_systemd", return_value=True):
+            assert self.distro._read_hostname("/etc/hostname") == "myhost"
+
+    def test_empty_hostname_command_output_returns_default(self, m_subp):
+        m_subp.return_value = ("\n", "")
+        with mock.patch.object(self.distro, "uses_systemd", return_value=True):
+            assert (
+                self.distro._read_hostname("/etc/hostname", default="dflt")
+                == "dflt"
+            )
+
+    def test_update_hostname_follows_a_changed_hostname(
+        self, m_subp, tmp_path, caplog
+    ):
+        """The unstripped command output never equaled previous-hostname,
+        so update_hostname always took the hostname for user maintained."""
+        prev_fn = tmp_path / "previous-hostname"
+        prev_fn.write_text("oldname")
+        m_subp.return_value = ("oldname\n", "")
+        with mock.patch.object(
+            self.distro, "uses_systemd", return_value=True
+        ), mock.patch.object(self.distro, "_write_hostname") as m_write:
+            self.distro.update_hostname("newname", "newname", str(prev_fn))
+        assert "assuming user maintained hostname" not in caplog.text
+        m_write.assert_any_call("newname", "/etc/hostname")
