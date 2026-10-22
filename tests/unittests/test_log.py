@@ -228,7 +228,8 @@ class TestSecurityLogs:
         assert len(security_handlers) == 1
 
     def test_setup_security_logging_open_failure(self, mocker, caplog):
-        """An unwritable log reports an error without attaching a handler."""
+        """Root exits on an unwritable log without attaching a handler."""
+        mocker.patch("cloudinit.log.loggers.os.geteuid", return_value=0)
         error = OSError("Permission denied")
         mocker.patch(
             "cloudinit.log.loggers.logging.FileHandler",
@@ -255,10 +256,28 @@ class TestSecurityLogs:
         assert caplog.records[0].exc_info is None
         assert "Traceback" not in caplog.text
 
+    def test_setup_security_logging_open_failure_non_root(
+        self, mocker, caplog
+    ):
+        """A non-root caller can continue without a compliance log."""
+        mocker.patch("cloudinit.log.loggers.os.geteuid", return_value=1000)
+        mocker.patch(
+            "cloudinit.log.loggers.logging.FileHandler",
+            side_effect=OSError("Permission denied"),
+        )
+        root = logging.getLogger()
+        handlers_before = list(root.handlers)
+
+        loggers.setup_security_logging(root=root)
+
+        assert root.handlers == handlers_before
+        assert "cannot open /var/log/cloud-init-security.log" in caplog.text
+
     def test_setup_security_logging_chmod_failure(
         self, mocker, caplog, tmp_path
     ):
-        """Permission failures close the handler and report an error."""
+        """Root exits on permission failures after closing the handler."""
+        mocker.patch("cloudinit.log.loggers.os.geteuid", return_value=0)
         log_file = str(tmp_path / "cloud-init-security.log")
         handler = logging.FileHandler(log_file)
         mocker.patch(
@@ -291,6 +310,32 @@ class TestSecurityLogs:
         ]
         assert caplog.records[0].exc_info is None
         assert "Traceback" not in caplog.text
+
+    def test_setup_security_logging_chmod_failure_non_root(
+        self, mocker, caplog, tmp_path
+    ):
+        """A non-root caller can continue after a chmod failure."""
+        mocker.patch("cloudinit.log.loggers.os.geteuid", return_value=1000)
+        log_file = str(tmp_path / "cloud-init-security.log")
+        handler = logging.FileHandler(log_file)
+        mocker.patch(
+            "cloudinit.log.loggers.logging.FileHandler",
+            return_value=handler,
+        )
+        close = mocker.spy(handler, "close")
+        mocker.patch(
+            "cloudinit.log.loggers.os.chmod",
+            side_effect=OSError("Permission denied"),
+        )
+        root = logging.getLogger()
+        handlers_before = list(root.handlers)
+
+        loggers.setup_security_logging(root=root, log_file=log_file)
+
+        close.assert_called_once_with()
+        assert handler.stream is None
+        assert root.handlers == handlers_before
+        assert f"cannot set permissions on {log_file}" in caplog.text
 
     def test_security_formatter_datetime_iso8601(self, tmp_path):
         """SecurityFormatter logs an ISO-8601 timestamp with offset."""
