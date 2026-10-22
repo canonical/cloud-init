@@ -1,4 +1,4 @@
-cloud-init (26.2-0ubuntu1~24.04.1ubuntu1) UNRELEASED; urgency=medium
+cloud-init (26.2-0ubuntu1~24.04.2) noble; urgency=medium
 
   * New bug fix release:
     - d/p/retain-arm64-apt-mirrors-revert-archive-ubuntu-com.patch
