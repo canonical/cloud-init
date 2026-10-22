@@ -19,7 +19,7 @@ Security events are logged in JSON Lines format with standardized fields:
 
 import logging
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from cloudinit import util
 from cloudinit.log import loggers
@@ -58,7 +58,6 @@ def log_security_event(
     level: OWASPEventLevel,
     description: str,
     event_params: Optional[List[str]] = None,
-    additional_data: Optional[Dict[str, Any]] = None,
 ) -> None:
     """
     Log a security event in OWASP format.
@@ -67,7 +66,6 @@ def log_security_event(
     :param level: OWASP Log level (INFO, WARN, CRITICAL).
     :param description: Human-readable description of the event.
     :param event_params: Parameters to include in the event string.
-    :param additional_data: Additional context-specific data.
     """
     # cloud-init is the default primary 'actor' for any system change operation
     params = ["cloud-init"]
@@ -82,9 +80,4 @@ def log_security_event(
         "description": description,
         "hostname": util.get_hostname(),
     }
-    if additional_data:
-        # Merge additional non-empty data but don't overwrite core fields
-        event.update(
-            {k: v for k, v in additional_data.items() if v and k not in event}
-        )
     LOG.log(loggers.SECURITY, event)

@@ -221,11 +221,8 @@ def test_shutdown_entry_point(
         )
         == command
     )
-    extra = {"mode": mode}
-    if delay:
-        extra["delay"] = delay
     assert security_events(caplog) == [
-        expected_event(f"{event}:cloud-init", description, **extra)
+        expected_event(f"{event}:cloud-init", description)
     ]
 
 
@@ -238,7 +235,5 @@ def test_shutdown_logs_intent_before_command_validation(caplog):
         expected_event(
             "sys_restart:cloud-init",
             "System restart initiated",
-            mode="reboot",
-            delay="invalid",
         )
     ]
