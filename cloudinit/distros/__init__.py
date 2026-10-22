@@ -174,7 +174,8 @@ def log_security_event(
     - datetime: ISO 8601 timestamp with UTC offset
     - appid: Application identifier (canonical.cloud-init)
     - type: "security"
-    - event: Event type with optional parameters (e.g., user_created:root,ubuntu)
+    - event: Event type with optional parameters
+      (e.g., user_created:root,ubuntu)
     - level: INFO, WARN, or CRITICAL
     - description: Human-readable summary
     - hostname: S
