@@ -463,3 +463,73 @@ class TestNetworkManagerActivatorBringUp:
         should fail.
         """
         assert not NetworkManagerActivator.bring_up_interface("eth0")
+
+
+class TestActivatorsWaitForNetwork:
+    @patch("cloudinit.subp.subp", return_value=subp.SubpResult("", ""))
+    def test_networkd_wait_starts_networkd_ignoring_dependencies(
+        self, m_subp, available_mocks
+    ):
+        """The wait must not deadlock boot.
+
+        cloud-init's network stage may run before sysinit.target and
+        start systemd-networkd-wait-online.service at runtime. Any unit
+        ordered Before=network-pre.target with default dependencies
+        transitively orders systemd-networkd.service after the very
+        cloud-init service issuing the start, which deadlocks boot
+        forever unless dependencies are ignored (GH-7052).
+        """
+        NetworkdActivator.wait_for_network()
+        assert m_subp.call_args_list == [
+            (
+                (
+                    [
+                        "systemctl",
+                        "start",
+                        "systemd-networkd.service",
+                        "--job-mode=ignore-dependencies",
+                    ],
+                ),
+                {},
+            ),
+            (
+                (
+                    [
+                        "systemctl",
+                        "start",
+                        "systemd-networkd-wait-online.service",
+                        "--job-mode=ignore-dependencies",
+                    ],
+                ),
+                {},
+            ),
+        ]
+
+    @patch("cloudinit.subp.subp", return_value=subp.SubpResult("", ""))
+    @patch(
+        "cloudinit.net.network_manager.available",
+        return_value=False,
+    )
+    def test_netplan_wait_delegates_to_networkd(
+        self, m_nm_available, m_subp, available_mocks
+    ):
+        """Netplan's networkd backend must use the same deadlock-safe wait."""
+        NetplanActivator.wait_for_network()
+        assert [c[0] for c in m_subp.call_args_list] == [
+            (
+                [
+                    "systemctl",
+                    "start",
+                    "systemd-networkd.service",
+                    "--job-mode=ignore-dependencies",
+                ],
+            ),
+            (
+                [
+                    "systemctl",
+                    "start",
+                    "systemd-networkd-wait-online.service",
+                    "--job-mode=ignore-dependencies",
+                ],
+            ),
+        ]
