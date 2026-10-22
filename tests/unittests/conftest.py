@@ -202,7 +202,7 @@ def dhclient_exists():
         yield
 
 
-# Avoid setup_security_logging side-effects affecting which would create
+# Avoid setup_security_logging side-effects which would attempt to create
 # /var/log/cloud-init-security.log if unittests are run as root.
 with mock.patch.object(loggers, "setup_security_logging", autospec=True):
     loggers.configure_root_logger()
