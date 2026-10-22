@@ -160,7 +160,7 @@ class MockDistro(distros.Distro):
     def expire_passwd(self, user):
         pass
 
-    def set_passwd(self, user, passwd, hashed=False):  # type: ignore[misc]
+    def set_passwd(self, user, passwd, hashed=False):
         return True
 
     def ensure_sudo_dir(self, path, sudo_base="/etc/sudoers"):
@@ -172,7 +172,7 @@ class MockDistro(distros.Distro):
     def create_group(self, name, members=None):
         pass
 
-    @classmethod  # type: ignore[misc]
+    @classmethod
     def shutdown_command(cls, *, mode, delay, message):
         pass
 

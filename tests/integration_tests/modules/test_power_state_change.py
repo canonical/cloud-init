@@ -3,7 +3,6 @@
 Test that the power state config options work as expected.
 """
 
-import json
 import re
 import time
 
@@ -88,26 +87,6 @@ class TestPowerChange:
             log = instance.read_from_file("/var/log/cloud-init.log")
             assert _can_connect(instance)
             verify_clean_boot(instance)
-            security_events = [
-                json.loads(line)
-                for line in instance.read_from_file(
-                    "/var/log/cloud-init-security.log"
-                ).splitlines()
-            ]
-            event_type = "sys_restart" if mode == "reboot" else "sys_shutdown"
-            matching = [
-                event
-                for event in security_events
-                if event["event"] == f"{event_type}:cloud-init"
-            ]
-            assert len(matching) == 1
-            assert matching[0]["level"] == "INFO"
-            description = (
-                "System restart initiated"
-                if mode == "reboot"
-                else "System shutdown initiated"
-            )
-            assert matching[0]["description"] == f"{description}: msg"
         lines_to_check = [
             "Running module power_state_change",
             expected,

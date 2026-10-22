@@ -112,17 +112,9 @@ Each record includes a UTC timestamp, application ID, event type, severity,
 description, and hostname. Security events are separate from regular logging
 and console output.
 
-The distro methods for user creation and password changes emit ``INFO``
-events after returning successfully. User-creation events include requested
-groups and elevated roles (``sudo`` and ``doas``). Password-change events
-identify the user without including passwords or password hashes. Bulk
-password changes emit one event per user after the batch succeeds. BSD
-implementations change passwords individually, recording each successful
-change even if a later change fails.
-
-Shutdown and restart events record intent before constructing a shutdown
-command. They do not confirm that shutdown was executed: command validation
-or a later power-state condition can still prevent it.
+The distro methods for user creation emit ``INFO`` events after returning
+successfully. User-creation events include requested groups and elevated
+roles (``sudo`` and ``doas``).
 
 .. _logging_command_output:
 
