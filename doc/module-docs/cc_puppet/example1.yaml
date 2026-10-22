@@ -11,6 +11,7 @@ puppet:
   csr_attributes_path: "/etc/puppet/csr_attributes.yaml"
   exec: true
   exec_args: ['--test']
+  allowed_exit_codes: [0, 2]
   conf:
     agent:
       server: "puppetserver.example.org"
