@@ -75,7 +75,10 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     errors = []
     if update or upgrade:
         try:
-            cloud.distro.update_package_sources()
+            # Force the update so that it also happens when this module runs
+            # again, e.g. with frequency "always". The forced update is still
+            # recorded, so install_packages() below does not update again.
+            cloud.distro.update_package_sources(force=True)
         except Exception as e:
             util.logexc(LOG, "Package update failed")
             errors.append(e)

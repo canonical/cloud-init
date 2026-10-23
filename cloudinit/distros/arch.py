@@ -10,7 +10,7 @@ from cloudinit import distros, helpers, subp, util
 from cloudinit.distros import PackageList
 from cloudinit.distros.parsers.hostname import HostnameConf
 from cloudinit.net.netplan import CLOUDINIT_NETPLAN_FILE
-from cloudinit.settings import PER_ALWAYS, PER_INSTANCE
+from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
@@ -146,5 +146,6 @@ class Distro(distros.Distro):
             "update-sources",
             self.package_command,
             ["-y"],
-            freq=PER_ALWAYS if force else PER_INSTANCE,
+            freq=PER_INSTANCE,
+            force=force,
         )
