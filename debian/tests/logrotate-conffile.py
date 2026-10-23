@@ -9,7 +9,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-
 SOURCE = Path(__file__).resolve().parents[1]
 OLD_PATH = Path("etc/logrotate.d/cloud-init")
 NEW_PATH = Path("etc/logrotate.d/cloud-init-base")
@@ -93,16 +92,23 @@ class TestLogrotateConffile(unittest.TestCase):
             target.chmod(0o755)
         archive = self.work / f"cloud-init_{version}_all.deb"
         self.command(
-            "dpkg-deb", "--build", "--root-owner-group",
-            str(package), str(archive),
+            "dpkg-deb",
+            "--build",
+            "--root-owner-group",
+            str(package),
+            str(archive),
         )
         return archive
 
     def upgrade(self, version=FIXED_VERSION):
         archive = self.package(version)
         return self.command(
-            "dpkg", f"--root={self.root}", "--force-not-root",
-            "--force-script-chrootless", "--install", str(archive),
+            "dpkg",
+            f"--root={self.root}",
+            "--force-not-root",
+            "--force-script-chrootless",
+            "--install",
+            str(archive),
         )
 
     def assert_active_config(self):
@@ -169,8 +175,11 @@ class TestLogrotateConffile(unittest.TestCase):
             for line in self.migration_lines():
                 subprocess.run(
                     ["dpkg-maintscript-helper", *line, "--", *arguments],
-                    check=True, capture_output=True, text=True,
-                    timeout=20, env=env,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=20,
+                    env=env,
                 )
             if script == "preinst":
                 self.assertFalse(
