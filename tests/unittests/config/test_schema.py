@@ -509,6 +509,65 @@ class TestValidateCloudConfigSchema:
             == (str(context_mgr.value))
         )
 
+    @pytest.mark.parametrize(
+        "config, error_msg",
+        (
+            pytest.param(
+                {"x": {}},
+                "x: 'a', 'b' or 'c' is a required property",
+                id="each_alternative_is_listed",
+            ),
+            pytest.param(
+                {"y": {"a": 1}},
+                "y: 'b' or 'c' is a required property",
+                id="only_missing_properties_are_listed",
+            ),
+            pytest.param(
+                {"z": {"b": 1}},
+                "z: 'a' is a required property",
+                id="duplicate_alternatives_are_listed_once",
+            ),
+            pytest.param(
+                {"y": {}},
+                "y: 'a' is a required property, "
+                "y: {} is not valid under any of the given schemas",
+                id="best_match_when_a_subschema_lacks_several_properties",
+            ),
+        ),
+    )
+    @skipUnlessJsonSchema()
+    def test_validateconfig_schema_anyof_required_alternatives(
+        self, config, error_msg
+    ):
+        """anyOf alternatives which each lack one required property are all
+        reported, rather than only the first one."""
+        schema = {
+            "$schema": "http://json-schema.org/draft-04/schema#",
+            "properties": {
+                "x": {
+                    "type": "object",
+                    "anyOf": [
+                        {"required": ["a"]},
+                        {"required": ["b"]},
+                        {"required": ["c"]},
+                    ],
+                },
+                "y": {
+                    "type": "object",
+                    "anyOf": [{"required": ["a", "b"]}, {"required": ["c"]}],
+                },
+                "z": {
+                    "type": "object",
+                    "anyOf": [{"required": ["a"]}, {"required": ["a", "b"]}],
+                },
+            },
+        }
+        with pytest.raises(SchemaValidationError) as context_mgr:
+            validate_cloudconfig_schema(config, schema=schema, strict=True)
+        assert f"Cloud config schema errors: {error_msg}" == str(
+            context_mgr.value
+        )
+
     @skipUnlessJsonSchema()
     def test_validateconfig_schema_honors_formats(self):
         """With strict True, validate_cloudconfig_schema errors on format."""
