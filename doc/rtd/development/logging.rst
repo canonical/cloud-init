@@ -112,10 +112,6 @@ Each record includes a UTC timestamp, application ID, event type, severity,
 description, and hostname. Security events are separate from regular logging
 and console output.
 
-The distro methods for user creation emit ``INFO`` events after returning
-successfully. User-creation events include requested groups and elevated
-roles (``sudo`` and ``doas``).
-
 .. _logging_command_output:
 
 Command output
