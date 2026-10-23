@@ -1,0 +1,62 @@
+name: "Twice weekly 24.04: gce"
+
+on:
+  workflow_dispatch:
+    inputs:
+      install_source:
+        required: false
+        type: string
+        default: 'ppa:cloud-init-dev/daily'
+      filter_tests:
+        required: false
+        type: string
+  schedule:
+    # Run Mon & Thurs to reduce additional cost on shared external tokens
+    - cron: '2 22 * * 1,4'
+
+jobs:
+  noble-gce:
+    runs-on: ubuntu-latest
+    if: github.repository == 'canonical/cloud-init'
+    permissions:
+      # Least-privilege scopes required by ctrf-io/github-test-reporter:
+      checks: write   # check-run reports
+      actions: read   # insights for flaky test delta
+      contents: read  # checkout
+    env:
+      PYCLOUDLIB_TOML_B64: ${{ secrets.PYCLOUDLIB_TOML_B64 }}
+      SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      GCE_CREDENTIALS_B64: ${{ secrets.GCE_CREDENTIALS_B64 }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - name: Setup GCE credentials
+        shell: bash
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gce-credentials.json
+        run: |
+          if [ -z "$GCE_CREDENTIALS_B64" ]; then
+            echo "ERROR: Missing required GCE_CREDENTIALS_B64 repo secret. Please provide GCE_CREDENTIALS_B64 repo secret at ${{ github.repository }}/settings/secrets/actions."
+            exit 1
+          fi
+          # Dump secret using a subprocess to avoid accidental leaks when using set -x.
+          sh -c 'printf "%s\n" "$GCE_CREDENTIALS_B64" | base64 -d | install -m 600 /dev/stdin "$GOOGLE_APPLICATION_CREDENTIALS"'
+          # Expose the credentials path to the integration-test action's steps.
+          printf 'GOOGLE_APPLICATION_CREDENTIALS=%s\n' "$GOOGLE_APPLICATION_CREDENTIALS" >> "$GITHUB_ENV"
+      - name: Run integration tests
+        uses: ./.github/actions/integration-test
+        with:
+          release: noble
+          platform: gce
+          install_source: ${{ inputs.install_source || 'ppa:cloud-init-dev/daily' }}
+          image_type: generic
+          filter_tests: ${{ inputs.filter_tests }}
+      - name: Clean GCE credentials
+        if: ${{ always() }}
+        shell: bash
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gce-credentials.json
+        run: |
+          rm -f "$GOOGLE_APPLICATION_CREDENTIALS"

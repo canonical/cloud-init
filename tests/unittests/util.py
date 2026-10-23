@@ -74,6 +74,8 @@ def abstract_to_concrete(abclass: Type):
 # Test doubles intentionally bypass final entry points to avoid system changes.
 # pylint: disable=overridden-final-method
 class MockDistro(distros.Distro):
+    """Test double that bypasses final entry points to avoid side-effects."""
+
     fallback_interface = "eth9"
 
     # MockDistro is here to test base Distro class implementations

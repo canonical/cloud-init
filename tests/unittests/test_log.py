@@ -228,7 +228,7 @@ class TestSecurityLogs:
         assert len(security_handlers) == 1
 
     def test_setup_security_logging_open_failure(self, mocker, caplog):
-        """Root exits on an unwritable log without attaching a handler."""
+        """An unwritable log emits a warning without attaching a handler."""
         mocker.patch("cloudinit.log.loggers.os.geteuid", return_value=0)
         error = OSError("Permission denied")
         mocker.patch(
@@ -238,15 +238,13 @@ class TestSecurityLogs:
         chmod = mocker.patch("cloudinit.log.loggers.os.chmod")
         root = logging.getLogger()
         handlers_before = list(root.handlers)
-        with pytest.raises(SystemExit) as context_manager:
-            loggers.setup_security_logging(root=root)
-        assert context_manager.value.code == 2
+        loggers.setup_security_logging(root=root)
         assert root.handlers == handlers_before
         chmod.assert_not_called()
         assert caplog.record_tuples == [
             (
                 "root",
-                logging.ERROR,
+                logging.WARNING,
                 (
                     "Unable to set up compliance logging: cannot open "
                     "/var/log/cloud-init-security.log: Permission denied"
@@ -271,12 +269,21 @@ class TestSecurityLogs:
         loggers.setup_security_logging(root=root)
 
         assert root.handlers == handlers_before
-        assert "cannot open /var/log/cloud-init-security.log" in caplog.text
+        assert caplog.record_tuples == [
+            (
+                "root",
+                logging.ERROR,
+                (
+                    "Unable to set up compliance logging: cannot open "
+                    "/var/log/cloud-init-security.log: Permission denied"
+                ),
+            )
+        ]
 
     def test_setup_security_logging_chmod_failure(
         self, mocker, caplog, tmp_path
     ):
-        """Root exits on permission failures after closing the handler."""
+        """A chmod failure warns without attaching the handler."""
         mocker.patch("cloudinit.log.loggers.os.geteuid", return_value=0)
         log_file = str(tmp_path / "cloud-init-security.log")
         handler = logging.FileHandler(log_file)
@@ -291,9 +298,7 @@ class TestSecurityLogs:
         )
         root = logging.getLogger()
         handlers_before = list(root.handlers)
-        with pytest.raises(SystemExit) as context_manager:
-            loggers.setup_security_logging(root=root, log_file=log_file)
-        assert context_manager.value.code == 2
+        loggers.setup_security_logging(root=root, log_file=log_file)
         chmod.assert_called_once_with(log_file, 0o600)
         close.assert_called_once_with()
         assert getattr(handler, "stream") is None
@@ -301,7 +306,7 @@ class TestSecurityLogs:
         assert caplog.record_tuples == [
             (
                 "root",
-                logging.ERROR,
+                logging.WARNING,
                 (
                     "Unable to set up compliance logging: "
                     f"cannot set permissions on {log_file}: Permission denied"
@@ -335,7 +340,16 @@ class TestSecurityLogs:
         close.assert_called_once_with()
         assert getattr(handler, "stream") is None
         assert root.handlers == handlers_before
-        assert f"cannot set permissions on {log_file}" in caplog.text
+        assert caplog.record_tuples == [
+            (
+                "root",
+                logging.ERROR,
+                (
+                    "Unable to set up compliance logging: "
+                    f"cannot set permissions on {log_file}: Permission denied"
+                ),
+            )
+        ]
 
     def test_security_formatter_datetime_iso8601(self, tmp_path):
         """SecurityFormatter logs an ISO-8601 timestamp with offset."""
