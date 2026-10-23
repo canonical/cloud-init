@@ -209,6 +209,9 @@ POLICY_FOUND_ONLY = "search,found=all,maybe=none,notfound=disabled"
 POLICY_FOUND_OR_MAYBE = "search,found=all,maybe=none,notfound=disabled"
 DI_DEFAULT_POLICY = "search,found=all,maybe=none,notfound=disabled"
 DI_DEFAULT_POLICY_NO_DMI = "search,found=all,maybe=none,notfound=disabled"
+POLICY_NOTFOUND_ENABLED_DS_NONE = (
+    "search,found=all,maybe=none,notfound=enabled-ds-none"
+)
 DI_EC2_STRICT_ID_DEFAULT = "true"
 OVF_MATCH_STRING = "http://schemas.dmtf.org/ovf/environment/1"
 
@@ -1063,6 +1066,49 @@ class TestDsIdentify(DsIdentifyBase):
         mydata = copy.deepcopy(VALID_CFG["Ec2-hvm"])
         mydata["files"][P_DSID_CFG] = "\n".join(["policy: disabled", ""])
         self._check_via_dict(mydata, str(tmp_path), rc=RC_NOT_FOUND)
+
+    def test_policy_notfound_enabled_ds_none(self, tmp_path):
+        """notfound=enabled-ds-none writes 'None' and enables cloud-init.
+
+        When nothing is found, cloud-init is enabled (rc=0) and a
+        datasource_list of just 'None' is written so that cloud-init uses
+        the None datasource instead of searching every datasource itself.
+        An empty datasource_list would make cloud-init fail, so 'None' must
+        be present."""
+        mydata = copy.deepcopy(VALID_CFG["Akamai"])
+        # make the only candidate datasource not match
+        mydata["mocks"][0]["RET"] = "Other"
+        ret = self._check_via_dict(
+            mydata,
+            str(tmp_path),
+            rc=RC_FOUND,
+            dslist=[DS_NONE],
+            policy_dmi=POLICY_NOTFOUND_ENABLED_DS_NONE,
+            policy_no_dmi=POLICY_NOTFOUND_ENABLED_DS_NONE,
+        )
+        assert "Writing fallback datasource list" in ret.stderr
+        # the result must not be namespaced under di_report in search mode
+        assert "di_report" not in ret.cfg
+
+    def test_policy_notfound_enabled_ds_none_report(self, tmp_path):
+        """report mode with notfound=enabled-ds-none does not affect boot.
+
+        report is a dry run of search: cloud-init is still enabled (rc=0)
+        but no top level datasource_list may be written."""
+        mydata = copy.deepcopy(VALID_CFG["Akamai"])
+        # make the only candidate datasource not match
+        mydata["mocks"][0]["RET"] = "Other"
+        policy = POLICY_NOTFOUND_ENABLED_DS_NONE.replace("search", "report", 1)
+        ret = self._check_via_dict(
+            mydata,
+            str(tmp_path),
+            rc=RC_FOUND,
+            policy_dmi=policy,
+            policy_no_dmi=policy,
+        )
+        assert "Would write fallback datasource list" in ret.stderr
+        assert "di_report" in ret.cfg
+        assert ret.cfg.get("datasource_list") is None
 
     def test_single_entry_defines_datasource(self, tmp_path):
         """If config has a single entry in datasource_list, that is used.
