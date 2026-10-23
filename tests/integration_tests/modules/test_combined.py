@@ -11,6 +11,7 @@ import importlib
 import json
 import re
 import uuid
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List
 
@@ -312,6 +313,33 @@ class TestCombined:
         )
         if class_client.execute("command -v rsyslogd").ok:
             assert "My test log" in class_client.read_from_file(log_file)
+
+    def test_security_logs(self, class_client: IntegrationInstance):
+        """User creation is recorded as a timestamped security event."""
+        security_logs = []
+        for line in class_client.read_from_file(
+            "/var/log/cloud-init-security.log"
+        ).splitlines():
+            event = json.loads(line)
+            timestamp = datetime.strptime(
+                event.pop("datetime"), "%Y-%m-%dT%H:%M:%S.%f%z"
+            )
+            assert timestamp.utcoffset() == timedelta(0)
+            security_logs.append(event)
+        assert {
+            "appid": "canonical.cloud-init",
+            "description": "User 'craig' was created",
+            "event": "user_created:cloud-init,craig",
+            "type": "security",
+            "level": "INFO",
+            "hostname": class_client.execute("hostname").strip(),
+        } in security_logs
+        assert (
+            class_client.execute(
+                "stat -c %a /var/log/cloud-init-security.log"
+            ).strip()
+            == "600"
+        )
 
     def test_runcmd(self, class_client: IntegrationInstance):
         """Test runcmd works as expected"""

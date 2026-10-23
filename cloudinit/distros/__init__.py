@@ -10,6 +10,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import abc
+import functools
 import logging
 import os
 import re
@@ -19,6 +20,7 @@ import string
 import urllib.parse
 from collections import defaultdict
 from contextlib import suppress
+from enum import Enum
 from io import StringIO
 from typing import (
     Any,
@@ -31,6 +33,7 @@ from typing import (
     Tuple,
     Type,
     Union,
+    final,
 )
 
 import cloudinit.net.netops.iproute2 as iproute2
@@ -52,6 +55,7 @@ from cloudinit.distros.package_management.utils import known_package_managers
 from cloudinit.distros.parsers import hosts
 from cloudinit.features import ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
 from cloudinit.lifecycle import log_with_downgradable_level
+from cloudinit.log import loggers
 from cloudinit.net import activators, dhcp, renderers
 from cloudinit.net.netops import NetOps
 from cloudinit.net.network_state import parse_net_config_data
@@ -121,6 +125,99 @@ PackageList = Union[
     List[Union[str, List[str]]],
     List[Union[str, List[str], Mapping]],
 ]
+
+# Hard-coded application identifier
+APP_ID = "canonical.cloud-init"
+
+
+class OWASPEventLevel(Enum):
+    """OWASP log levels."""
+
+    INFO = "INFO"
+    WARN = "WARN"
+    CRITICAL = "CRITICAL"
+
+
+class OWASPEventType(Enum):
+    """OWASP security event types."""
+
+    # User management events [USER]
+    USER_CREATED = "user_created"
+    # TODO(USER_UPDATED = "user_updated")
+
+
+def log_security_event(
+    event_type: OWASPEventType,
+    level: OWASPEventLevel,
+    description: str,
+    event_params: Optional[List[str]] = None,
+) -> None:
+    """
+    Log a security event in OWASP format.
+
+    :param event_type: Type of security event.
+    :param level: OWASP Log level (INFO, WARN, CRITICAL).
+    :param description: Human-readable description of the event.
+    :param event_params: Parameters to include in the event string.
+
+    The logging format follows the OWASP Logging Vocabulary Cheat Sheet:
+    https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/Logging_Vocabulary_Cheat_Sheet.md
+
+    Security events are logged in JSON Lines format with standardized fields:
+    - datetime: ISO 8601 timestamp with UTC offset
+    - appid: Application identifier (canonical.cloud-init)
+    - type: "security"
+    - event: Event type with optional parameters
+      (e.g., user_created:root,ubuntu)
+    - level: INFO, WARN, or CRITICAL
+    - description: Human-readable summary
+    - hostname: S
+    """
+    # cloud-init is the default primary 'actor' for any system change operation
+    params = ["cloud-init"]
+    if event_params:
+        params.extend(event_params)
+    event = {
+        "appid": APP_ID,
+        "type": "security",
+        "event": f"{event_type.value}:{','.join(params)}",
+        "level": level.value,
+        "description": description,
+        "hostname": util.get_hostname(),
+    }
+    LOG.log(loggers.SECURITY, event)
+
+
+def sec_log_user_created(func):
+    """Log user creation after add_user or add_snap_user returns successfully.
+
+    The security log will contain group information and elevated roles.
+    """
+
+    @functools.wraps(func)
+    def decorator(
+        self, name: str, *args, groups: Optional[List[str]] = None, **kwargs
+    ):
+        params = [name]
+        groups_msg = ""
+        if groups is None:
+            groups = []
+        all_groups = groups + _get_elevated_roles(**kwargs)
+        if all_groups:
+            groups_suffix = ",".join(all_groups)
+            groups_msg = f" in groups: {groups_suffix}"
+            params.append(f"groups:{groups_suffix}")
+
+        response = func(self, name, *args, groups=groups, **kwargs)
+        log_security_event(
+            event_type=OWASPEventType.USER_CREATED,
+            level=OWASPEventLevel.INFO,
+            description=f"User '{name}' was created{groups_msg}",
+            event_params=params,
+        )
+        return response
+
+    return decorator
 
 
 class PackageInstallerError(Exception):
@@ -658,6 +755,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def get_default_user(self):
         return self.get_option("default_user")
 
+    @final
+    @sec_log_user_created
     def add_user(
         self,
         name: str,
@@ -782,6 +881,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         Overridden to perform distro-specific post-creation steps.
         """
 
+    @final
+    @sec_log_user_created
     def add_snap_user(self, name, **kwargs):
         """
         Add a snappy user to the system using snappy tools
@@ -842,6 +943,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 return True
         return False
 
+    @final
     def create_user(
         self,
         name: str,
@@ -1614,6 +1716,21 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         It is called during cloud-init's network stage if it was determined
         that network connectivity is necessary in cloud-init's network stage.
         """
+
+
+def _get_elevated_roles(
+    *,
+    sudo: Optional[Union[bool, str, List[str]]] = None,
+    doas: Optional[Union[bool, str, List[str]]] = None,
+    **kwargs,
+) -> List[str]:
+    """Return a list of elevated roles provided as keyword arguments."""
+    elevated_roles = []
+    if sudo:
+        elevated_roles.append("sudo")
+    if doas:
+        elevated_roles.append("doas")
+    return elevated_roles
 
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):

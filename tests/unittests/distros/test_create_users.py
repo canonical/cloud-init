@@ -6,6 +6,11 @@ from typing import List
 import pytest
 
 from cloudinit import distros, features, lifecycle, ssh_util
+from cloudinit.distros import (
+    OWASPEventLevel,
+    OWASPEventType,
+    sec_log_user_created,
+)
 from tests.unittests.helpers import get_distro, mock
 from tests.unittests.util import abstract_to_concrete
 
@@ -34,6 +39,55 @@ def _useradd2call(args: List[str]):
         if args[i] in ("--password",):
             logcmd[i + 1] = "REDACTED"
     return mock.call(args, logstring=logcmd)
+
+
+@pytest.mark.parametrize(
+    "kwargs,expected_groups",
+    [
+        ({}, ""),
+        ({"groups": []}, ""),
+        ({"groups": ["adm"]}, "adm"),
+        (
+            {"groups": ["adm"], "sudo": "ALL=(ALL) ALL", "doas": True},
+            "adm,sudo,doas",
+        ),
+    ],
+)
+def test_sec_log_user_created_logs_after_return(
+    mocker, kwargs, expected_groups
+):
+    mock_log = mocker.patch("cloudinit.distros.log_security_event")
+
+    @sec_log_user_created
+    def add_user(self, name, **kwargs):
+        mock_log.assert_not_called()
+        return name
+
+    assert add_user(None, USER, **kwargs) == USER
+
+    groups_msg = f" in groups: {expected_groups}" if expected_groups else ""
+    params = [USER]
+    if expected_groups:
+        params.append(f"groups:{expected_groups}")
+    mock_log.assert_called_once_with(
+        event_type=OWASPEventType.USER_CREATED,
+        level=OWASPEventLevel.INFO,
+        description=f"User '{USER}' was created{groups_msg}",
+        event_params=params,
+    )
+
+
+def test_sec_log_user_created_does_not_log_on_failure(mocker):
+    mock_log = mocker.patch("cloudinit.distros.log_security_event")
+
+    @sec_log_user_created
+    def add_user(self, name, **kwargs):
+        raise RuntimeError("Failed to create user")
+
+    with pytest.raises(RuntimeError, match="Failed to create user"):
+        add_user(None, USER)
+
+    mock_log.assert_not_called()
 
 
 @mock.patch("cloudinit.distros.subp.subp")
@@ -690,7 +744,11 @@ class TestCreateUser:
     ):
         """Log a warning when trying to redirect a user no cloud ssh keys."""
         dist.create_user(USER, groups=[], ssh_redirect_user="someuser")
-        assert caplog.records[1].levelname in ["WARNING", "DEPRECATED"]
+        assert any(
+            record.levelname in ["WARNING", "DEPRECATED"]
+            and "Unable to disable SSH logins for foo_user." in record.message
+            for record in caplog.records
+        )
         assert (
             "Unable to disable SSH logins for foo_user."
             " ssh_redirect_user was set to redirect logins to"
