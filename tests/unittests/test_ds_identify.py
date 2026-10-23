@@ -736,6 +736,8 @@ class TestDsIdentify(DsIdentifyBase):
             pytest.param("CloudCIX", True, id="cloudcix_found"),
             # NWCS is identified in sys_vendor.
             pytest.param("NWCS", True, id="nwcs_found"),
+            # IVT is identified in sys_vendor.
+            pytest.param("IVT", True, id="ivt_found"),
             # SmartOS cloud identified by SmartDC in dmi.
             pytest.param("SmartOS-bhyve", True, id="smartos_bhyve"),
             # SmartOS cloud identified on lxbrand container.
@@ -2302,6 +2304,18 @@ VALID_CFG = {
     "NWCS-dmidecode": {
         "ds": "NWCS",
         "mocks": [{"name": "dmi_decode", "ret": 0, "RET": "NWCS"}],
+    },
+    "IVT": {"ds": "IVT", "files": {P_SYS_VENDOR: "IVT\n"}},
+    "IVT-kenv": {
+        "ds": "IVT",
+        "mocks": [
+            MOCK_UNAME_IS_FREEBSD,
+            {"name": "get_kenv_field", "ret": 0, "RET": "IVT"},
+        ],
+    },
+    "IVT-dmidecode": {
+        "ds": "IVT",
+        "mocks": [{"name": "dmi_decode", "ret": 0, "RET": "IVT"}],
     },
     "IBMCloud-metadata": {
         "ds": "IBMCloud",
