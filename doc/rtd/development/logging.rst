@@ -108,9 +108,9 @@ Security events
 
 Cloud-init writes security events as JSON Lines to
 :file:`/var/log/cloud-init-security.log`, with file permissions ``0600``.
-Each record includes a UTC timestamp, application ID, event type, severity,
-description, and hostname. Security events are separate from regular logging
-and console output.
+Each record minimally includes a timestamp, application ID, event type,
+severity, description, and hostname. Security events are separate from
+regular logging and console output.
 
 .. _logging_command_output:
 
