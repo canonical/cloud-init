@@ -106,29 +106,28 @@ def setup_security_logging(
         if getattr(h, "baseFilename", None) == log_file:
             return  # handler already attached
 
+    failure_level = logging.WARNING if os.geteuid() == 0 else logging.ERROR
     try:
         handler = logging.FileHandler(log_file)
     except OSError as error:
-        root.error(
+        root.log(
+            failure_level,
             "Unable to set up compliance logging: cannot open %s: %s",
             log_file,
             error,
         )
-        if os.geteuid() == 0:
-            sys.exit(2)
         return
     try:
         os.chmod(log_file, 0o600)
     except OSError as error:
         handler.close()
-        root.error(
+        root.log(
+            failure_level,
             "Unable to set up compliance logging: "
             "cannot set permissions on %s: %s",
             log_file,
             error,
         )
-        if os.geteuid() == 0:
-            sys.exit(2)
         return
     handler.setFormatter(SecurityFormatter())
     handler.addFilter(SecurityOnlyFilter())
