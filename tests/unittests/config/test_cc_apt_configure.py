@@ -130,8 +130,57 @@ class TestAPTConfigureSchema:
                 "apt.primary.0.keyserver: 1 is not of type 'string'",
             ),
             (
+                {
+                    "apt": {
+                        "primary": [
+                            {
+                                "arches": ["amd64"],
+                                "keyurl": "https://example.com/key.gpg",
+                            }
+                        ]
+                    }
+                },
+                None,
+            ),
+            (
+                {
+                    "apt": {
+                        "primary": [
+                            {"arches": ["amd64"], "keyurl": "u", "key": "k"}
+                        ]
+                    }
+                },
+                "apt.primary.0: .* should not be valid under",
+            ),
+            (
                 {"apt": {"add_apt_repo_match": True}},
                 "apt.add_apt_repo_match: True is not of type 'string'",
+            ),
+            (
+                {
+                    "apt": {
+                        "sources": {
+                            "s1": {"keyurl": "https://example.com/key.gpg"}
+                        }
+                    }
+                },
+                None,
+            ),
+            (
+                {"apt": {"sources": {"s1": {"keyurl": "u", "key": "k"}}}},
+                "apt.sources.s1: .* should not be valid under",
+            ),
+            (
+                {"apt": {"sources": {"s1": {"keyurl": "u", "keyid": "i"}}}},
+                "apt.sources.s1: .* should not be valid under",
+            ),
+            (
+                {
+                    "apt": {
+                        "sources": {"s1": {"keyurl": "u", "keyserver": "s"}}
+                    }
+                },
+                "apt.sources.s1: .* should not be valid under",
             ),
             (
                 {"apt": {"debconf_selections": True}},
@@ -234,6 +283,18 @@ class TestEnsureDependencies:
                 [],
                 ["gnupg"],
                 id="cfg_security_needs_gpg_installs_gnupg_when_absent",
+            ),
+            pytest.param(
+                {"sources": {"s1": {"keyurl": "https://example.com/k"}}},
+                [],
+                ["gnupg"],
+                id="cfg_keyurl_needs_gpg_installs_gnupg_when_absent",
+            ),
+            pytest.param(
+                {"primary": [{"keyurl": "https://example.com/k"}]},
+                [],
+                ["gnupg"],
+                id="cfg_primary_keyurl_installs_gnupg_when_absent",
             ),
             pytest.param(
                 {"sources": {"s1": {"source": "ppa:yep"}}},

@@ -13,7 +13,7 @@ import re
 import signal
 import time
 from tempfile import TemporaryDirectory
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 from cloudinit import subp
 
@@ -68,8 +68,10 @@ class GPG:
             LOG.debug('Failed to export armoured key "%s": %s', key, error)
         return None
 
-    def dearmor(self, key: str) -> str:
+    def dearmor(self, key: Union[str, bytes]) -> str:
         """Dearmor gpg key, dearmored key gets returned
+
+        A binary key is passed through unchanged.
 
         note: man gpg(1) makes no mention of an --armour spelling, only --armor
         """
