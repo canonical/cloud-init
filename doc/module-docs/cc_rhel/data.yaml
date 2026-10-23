@@ -1,0 +1,11 @@
+cc_rhel:
+  description: |
+    This module is used to configure various options for a RHEL-like system.
+    Currently, enabling fips mode is supported through this configuration
+    module.
+  examples:
+  - comment: |
+      Example 1:
+    file: cc_rhel/example1.yaml
+  name: FIPS mode enablement
+  title: Configure FIPS mode
