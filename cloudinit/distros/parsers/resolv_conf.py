@@ -17,11 +17,13 @@ LOG = logging.getLogger(__name__)
 class ResolvConf:
     def __init__(self, text):
         self._text = text
-        self._contents = None
+        self._contents: list = []
+        self._parsed = False
 
-    def parse(self):
-        if self._contents is None:
+    def parse(self) -> None:
+        if not self._parsed:
             self._contents = self._parse(self._text)
+            self._parsed = True
 
     @property
     def nameservers(self):
@@ -71,6 +73,7 @@ class ResolvConf:
         return contents.getvalue()
 
     def _retr_option(self, opt_name):
+        self.parse()
         found = []
         for line_type, components in self._contents:
             if line_type == "option":
@@ -102,6 +105,7 @@ class ResolvConf:
                 return False
             return True
 
+        self.parse()
         new_contents = []
         for c in self._contents:
             if not remove_opt(c):
