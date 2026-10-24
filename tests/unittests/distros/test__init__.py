@@ -533,6 +533,40 @@ class TestDistro:
             assert "/usr_lib_exec/cloud-init/clouddir" == tmp_path
 
 
+class TestGenerateFallbackConfig:
+    """Tests for Distro.generate_fallback_config base-class behaviour."""
+
+    def _make_distro(self, cfg):
+        cls = distros.fetch("ubuntu")
+        d = cls("ubuntu", cfg, None)
+        return d
+
+    @mock.patch(
+        "cloudinit.net.generate_fallback_config", return_value={"v": 1}
+    )
+    def test_fallback_runs_by_default(self, m_fallback):
+        """Without disable_fallback_netcfg, fallback config is generated."""
+        distro = self._make_distro({})
+        assert distro.generate_fallback_config() == {"v": 1}
+        m_fallback.assert_called_once()
+
+    @mock.patch("cloudinit.net.generate_fallback_config")
+    def test_disable_fallback_netcfg_true_skips_fallback(self, m_fallback):
+        """disable_fallback_netcfg=True suppresses fallback config."""
+        distro = self._make_distro({"disable_fallback_netcfg": True})
+        assert distro.generate_fallback_config() is None
+        m_fallback.assert_not_called()
+
+    @mock.patch(
+        "cloudinit.net.generate_fallback_config", return_value={"v": 1}
+    )
+    def test_disable_fallback_netcfg_false_runs_fallback(self, m_fallback):
+        """disable_fallback_netcfg=False explicitly enables fallback."""
+        distro = self._make_distro({"disable_fallback_netcfg": False})
+        assert distro.generate_fallback_config() == {"v": 1}
+        m_fallback.assert_called_once()
+
+
 @pytest.mark.parametrize(
     "chosen_client, config, which_override",
     [
