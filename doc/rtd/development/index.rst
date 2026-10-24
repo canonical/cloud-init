@@ -25,7 +25,7 @@ Clone the repository
 ====================
 
 One must understand `how to use Git and GitHub`_. Create a local clone of the
-repository: ::
+`canonical/cloud-init`_ repository: ::
 
     git clone git@github.com:canonical/cloud-init.git
 
