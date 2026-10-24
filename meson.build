@@ -124,6 +124,7 @@ if init_system == 'systemd' and is_readthedocs != 'True'
     output: '@BASENAME@',
     command: [
       render_tmpl,
+      '--lib-exec-dir', lib_exec_dir,
       '@INPUT@',
       meson.current_build_dir() / '@OUTPUT@',
     ],
