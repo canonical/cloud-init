@@ -7,6 +7,7 @@ import datetime
 import json
 import logging
 import os
+import shutil
 import stat
 import sys
 import xml.etree.ElementTree as ET
@@ -26,6 +27,7 @@ from cloudinit.net import dhcp, ephemeral
 from cloudinit.sources import UNSET
 from cloudinit.sources import DataSourceAzure as dsaz
 from cloudinit.sources.azure import certs, errors, identity, imds
+from cloudinit.sources.helpers import azure as azure_helper
 from cloudinit.sources.helpers import netlink
 from cloudinit.util import (
     MountFailedError,
@@ -2376,6 +2378,228 @@ scbus-1 on xpt0 bus 0
         ssh_keys = dsrc.get_public_ssh_keys()
         assert ssh_keys == []
         assert m_parse_certificates.call_count == 0
+
+    def _boot_with_imds_public_keys(self, get_ds, mocker, public_keys):
+        """Boot with the given IMDS public keys.
+
+        The real Wireserver key path is used; only its network calls and
+        certificate decryption are mocked. The OVF lists a fingerprint whose
+        Wireserver certificate converts to "ssh-rsa wireserver-key" and a
+        value "ssh-rsa ovf-key", so a fallback shows up in the returned keys.
+
+        :returns: (public SSH keys, mocked parse_certificates)
+        """
+        mocker.patch.object(azure_helper, "AzureEndpointHttpClient")
+        m_goal_state = mocker.patch.object(azure_helper, "GoalState")
+        m_goal_state.return_value.incarnation = "incarnation"
+        m_goal_state.return_value.container_id = "container-id"
+        m_goal_state.return_value.instance_id = "instance-id"
+        m_openssl = mocker.patch.object(
+            azure_helper, "OpenSSLManager", autospec=True
+        )
+        m_parse_certificates = m_openssl.return_value.parse_certificates
+        m_parse_certificates.return_value = {"FP1": "ssh-rsa wireserver-key"}
+
+        imds_data = copy.deepcopy(NETWORK_METADATA)
+        imds_data["compute"]["publicKeys"] = public_keys
+        self.m_fetch.return_value = imds_data
+        data = {
+            "ovfcontent": construct_ovf_env(
+                public_keys=[
+                    {"fingerprint": "FP1", "path": "path1"},
+                    {"value": "ssh-rsa ovf-key", "path": "path2"},
+                ]
+            ),
+            "sys_cfg": {
+                "datasource": {"Azure": {"apply_network_config": True}}
+            },
+        }
+        dsrc = get_ds(data)
+        self.m_get_metadata_from_fabric.side_effect = (
+            azure_helper.get_metadata_from_fabric
+        )
+        assert dsrc.get_data()
+        dsrc.setup(True)
+        return dsrc.get_public_ssh_keys(), m_parse_certificates
+
+    @pytest.mark.parametrize("line_ending", ["\n", "\r\n"], ids=["lf", "crlf"])
+    @mock.patch(
+        "cloudinit.sources.DataSourceAzure.certs.convert_x509_to_openssh"
+    )
+    def test_get_public_ssh_keys_with_x509_from_imds(
+        self, m_convert, line_ending, get_ds, mocker
+    ):
+        """An x509 certificate from IMDS is converted unmodified and used."""
+        cert = line_ending.join(
+            [
+                "-----BEGIN CERTIFICATE-----",
+                "MIIBcert",
+                "-----END CERTIFICATE-----",
+                "",
+            ]
+        )
+        m_convert.return_value = "ssh-rsa converted-from-x509\n"
+
+        ssh_keys, m_parse_certificates = self._boot_with_imds_public_keys(
+            get_ds, mocker, [{"keyData": cert, "path": "path1"}]
+        )
+
+        assert ssh_keys == ["ssh-rsa converted-from-x509"]
+        assert {call.args[0] for call in m_convert.call_args_list} == {cert}
+        m_parse_certificates.assert_not_called()
+
+    @pytest.mark.skipif(
+        shutil.which("openssl") is None or shutil.which("ssh-keygen") is None,
+        reason="openssl or ssh-keygen not available",
+    )
+    @pytest.mark.allow_subp_for("openssl", "ssh-keygen")
+    @pytest.mark.parametrize("line_ending", ["\n", "\r\n"], ids=["lf", "crlf"])
+    def test_get_public_ssh_keys_with_x509_from_imds_integration(
+        self, line_ending, get_ds, mocker
+    ):
+        """Integration test: real x509 certificates from IMDS are converted."""
+        data_dir = Path("tests", "data", "azure")
+        cert = (data_dir / "pubkey_extract_cert").read_text()
+        expected_key = (
+            (data_dir / "pubkey_extract_ssh_key").read_text().strip()
+        )
+
+        ssh_keys, m_parse_certificates = self._boot_with_imds_public_keys(
+            get_ds,
+            mocker,
+            [{"keyData": cert.replace("\n", line_ending), "path": "path1"}],
+        )
+
+        assert ssh_keys == [expected_key]
+        m_parse_certificates.assert_not_called()
+
+    def test_get_public_ssh_keys_with_crlf_openssh_key_from_imds(
+        self, get_ds, mocker, caplog
+    ):
+        """Embedded CRLF is removed from an IMDS OpenSSH key with a warning."""
+        ssh_keys, m_parse_certificates = self._boot_with_imds_public_keys(
+            get_ds,
+            mocker,
+            [
+                {
+                    "keyData": "ssh-rsa AAAA\r\nBBBB generated-by-azure\r\n",
+                    "path": "path1",
+                }
+            ],
+        )
+
+        assert ssh_keys == ["ssh-rsa AAAABBBB generated-by-azure"]
+        m_parse_certificates.assert_not_called()
+        assert (
+            "cloudinit.sources.azure.certs",
+            logging.WARNING,
+            (
+                "SSH key contains embedded CRLF sequence(s) which are being "
+                "removed."
+            ),
+        ) in caplog.record_tuples
+
+    @mock.patch(
+        "cloudinit.sources.DataSourceAzure.certs.convert_x509_to_openssh"
+    )
+    def test_get_public_ssh_keys_with_mixed_x509_and_openssh_from_imds(
+        self, m_convert, get_ds, mocker
+    ):
+        """OpenSSH keys are used as-is and x509 certificates are converted."""
+        cert = (
+            "-----BEGIN CERTIFICATE-----\nMIIBcert\n-----END CERTIFICATE-----"
+        )
+        m_convert.return_value = "ssh-rsa converted-from-x509\n"
+
+        ssh_keys, m_parse_certificates = self._boot_with_imds_public_keys(
+            get_ds,
+            mocker,
+            [
+                {"keyData": "ssh-rsa openssh-key", "path": "path1"},
+                {"keyData": cert, "path": "path2"},
+            ],
+        )
+
+        assert ssh_keys == [
+            "ssh-rsa openssh-key",
+            "ssh-rsa converted-from-x509",
+        ]
+        assert {call.args[0] for call in m_convert.call_args_list} == {cert}
+        m_parse_certificates.assert_not_called()
+
+    def test_get_public_ssh_keys_with_empty_imds_keys_does_not_fall_back(
+        self, get_ds, mocker
+    ):
+        """An empty IMDS key list returns no keys and does not fall back."""
+        ssh_keys, m_parse_certificates = self._boot_with_imds_public_keys(
+            get_ds, mocker, []
+        )
+
+        assert ssh_keys == []
+        m_parse_certificates.assert_not_called()
+
+    @pytest.mark.skipif(
+        shutil.which("openssl") is None, reason="openssl not available"
+    )
+    @pytest.mark.allow_subp_for("openssl")
+    def test_get_public_ssh_keys_with_x509_conversion_failure_falls_back(
+        self, get_ds, mocker, caplog
+    ):
+        """Malformed IMDS PEM triggers fallback for the entire key list."""
+        cert = (
+            "-----BEGIN CERTIFICATE-----\nINVALID\n-----END CERTIFICATE-----"
+        )
+
+        ssh_keys, m_parse_certificates = self._boot_with_imds_public_keys(
+            get_ds,
+            mocker,
+            [
+                {"keyData": "ssh-rsa openssh-key", "path": "path1"},
+                {"keyData": cert, "path": "path2"},
+            ],
+        )
+
+        assert ssh_keys == ["ssh-rsa wireserver-key", "ssh-rsa ovf-key"]
+        m_parse_certificates.assert_called_once()
+        assert (
+            MOCKPATH[:-1],
+            logging.ERROR,
+            (
+                "Failed to process IMDS public key index=1: Failed to convert "
+                "x509 certificate to OpenSSH format"
+            ),
+        ) in caplog.record_tuples
+
+    @pytest.mark.parametrize(
+        "key, key_type",
+        [
+            pytest.param(None, "<class 'NoneType'>", id="null"),
+            pytest.param(123, "<class 'int'>", id="number"),
+        ],
+    )
+    def test_get_public_ssh_keys_with_non_string_imds_key_falls_back(
+        self, key, key_type, get_ds, mocker, caplog
+    ):
+        """Non-string key data causes fallback for the entire key list."""
+        ssh_keys, m_parse_certificates = self._boot_with_imds_public_keys(
+            get_ds,
+            mocker,
+            [
+                {"keyData": "ssh-rsa openssh-key", "path": "path1"},
+                {"keyData": key, "path": "path2"},
+            ],
+        )
+
+        assert ssh_keys == ["ssh-rsa wireserver-key", "ssh-rsa ovf-key"]
+        m_parse_certificates.assert_called_once()
+        assert (
+            MOCKPATH[:-1],
+            logging.ERROR,
+            (
+                "Failed to process IMDS public key index=1: "
+                f"Key is not a string: {key_type}"
+            ),
+        ) in caplog.record_tuples
 
     def test_get_public_ssh_keys_without_imds(self, get_ds):
         self.m_fetch.return_value = dict()
