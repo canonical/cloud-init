@@ -8,7 +8,7 @@ Please make sure that you read this guide before starting to contribute. It
 contains all the details you need to know to give your contribution the best
 chance of being accepted.
 
-Cloud-init is hosted and managed on [GitHub](https://github.com). If you're not
+Cloud-init is hosted and managed on [GitHub](https://github.com/canonical/cloud-init). If you're not
 familiar with how GitHub works, their
 [quickstart documentation](https://docs.github.com/en/get-started/quickstart)
 provides an excellent introduction to all the tools and processes you'll need
