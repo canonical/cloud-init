@@ -171,7 +171,13 @@ class Init:
         if not self._distro:
             # Try to find the right class to use
             system_config = self._extract_cfg("system")
-            distro_name = system_config.pop("distro", "ubuntu")
+            distro_name = system_config.pop("distro", None)
+            if distro_name is None:
+                LOG.warning(
+                    "No distro found in system_info config, defaulting to"
+                    " 'ubuntu'. This may cause incorrect behavior."
+                )
+                distro_name = "ubuntu"
             distro_cls = distros.fetch(distro_name)
             LOG.debug("Using distro class %s", distro_cls)
             self._distro = distro_cls(distro_name, system_config, self.paths)
