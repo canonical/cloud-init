@@ -174,6 +174,9 @@ def subp(
     update_env=None,
     cwd=None,
     timeout=None,
+    user=None,
+    group=None,
+    extra_groups=None,
 ) -> SubpResult:
     """Run a subprocess.
 
@@ -202,6 +205,9 @@ def subp(
         change the working directory to cwd before executing the command.
     :param timeout: maximum time for the subprocess to run, passed directly to
         the timeout parameter of Popen.communicate()
+    :param user: user ID or name for the subprocess.
+    :param group: group ID or name for the subprocess.
+    :param extra_groups: extra group IDs or names for the subprocess.
 
     :return
         if not capturing, return is (None, None)
@@ -256,6 +262,13 @@ def subp(
         bytes_args = [
             x if isinstance(x, bytes) else x.encode("utf-8") for x in args
         ]
+    popen_kwargs = {}
+    if user is not None:
+        popen_kwargs["user"] = user
+    if group is not None:
+        popen_kwargs["group"] = group
+    if extra_groups is not None:
+        popen_kwargs["extra_groups"] = extra_groups
     try:
         with performance.Timed(
             "Running {!r}".format(logstring if logstring else args)
@@ -268,6 +281,7 @@ def subp(
                 env=env,
                 shell=shell,
                 cwd=cwd,
+                **popen_kwargs,
             )
             out, err = sp.communicate(data, timeout=timeout)
     except OSError as e:
