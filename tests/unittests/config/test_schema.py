@@ -1135,6 +1135,58 @@ class TestAnnotatedCloudconfigFile:
         out, _err = capsys.readouterr()
         assert out.strip() == expected_err.strip()
 
+    @skipUnlessJsonSchema()
+    def test_annotated_multiple_invalid_top_level_keys(
+        self, tmp_path: Path, capsys
+    ):
+        """Errors on the document root are annotated on the first line."""
+        expected_err = dedent("""\
+            #cloud-config		# E1
+            lvm: 1
+            mount: 2
+
+            # Errors: -------------
+            # E1: Additional properties are not allowed ('lvm', 'mount' were unexpected)
+            """)  # noqa: E501
+        config_file = tmp_path / "my.yaml"
+        config_file.write_text("#cloud-config\nlvm: 1\nmount: 2\n")
+        with pytest.raises(
+            SchemaValidationError,
+            match="errors: : Additional properties are not allowed",
+        ):
+            validate_cloudconfig_file(
+                str(config_file), get_schema(), annotate=True
+            )
+        out, _err = capsys.readouterr()
+        assert out.strip() == expected_err.strip()
+
+    @skipUnlessJsonSchema()
+    def test_annotated_error_under_yaml_alias(self, tmp_path: Path, capsys):
+        """Errors without a schemamark are annotated on the nearest parent."""
+        expected_err = dedent("""\
+            #cloud-config
+            x: &a {install_type: 1}		# E1
+            chef: *a		# E2,E3
+
+            # Errors: -------------
+            # E1: Additional properties are not allowed ('x' was unexpected)
+            # E2: 1 is not of type 'string'
+            # E3: 1 is not one of ['packages', 'gems', 'omnibus']
+            """)
+        config_file = tmp_path / "my.yaml"
+        config_file.write_text(
+            "#cloud-config\nx: &a {install_type: 1}\nchef: *a\n"
+        )
+        with pytest.raises(
+            SchemaValidationError,
+            match="chef.install_type: 1 is not of type 'string'",
+        ):
+            validate_cloudconfig_file(
+                str(config_file), get_schema(), annotate=True
+            )
+        out, _err = capsys.readouterr()
+        assert out.strip() == expected_err.strip()
+
 
 @mock.patch(M_PATH + "read_cfg_paths")  # called by parse_args help docs
 class TestMain:
