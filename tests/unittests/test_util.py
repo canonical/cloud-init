@@ -452,6 +452,22 @@ class TestUtil:
             "from 'cfg_path'"
         ) in caplog.text
 
+    def test_read_conf_with_failed_jinja_render(self, mocker, caplog):
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch(
+            "cloudinit.util.load_text_file",
+            return_value='## template: jinja\n{"a": "{{ missing.value }}"}',
+        )
+        mocker.patch(
+            "cloudinit.handlers.jinja_template.load_text_file",
+            return_value="{}",
+        )
+
+        conf = util.read_conf("cfg_path", instance_data_file="vars_path")
+
+        assert conf == {}
+        assert "Ignoring jinja template for cfg_path" in caplog.text
+
     def test_read_conf_with_failed_config_json(self, mocker, caplog):
         mocker.patch("os.path.exists", return_value=True)
         mocker.patch(
