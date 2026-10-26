@@ -13,7 +13,6 @@ from collections import defaultdict
 from contextlib import suppress
 from copy import deepcopy
 from enum import Enum
-from errno import EACCES
 from functools import partial
 from typing import (
     TYPE_CHECKING,
@@ -33,7 +32,6 @@ from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit.handlers import INCLUSION_TYPES_MAP, type_from_starts_with
 from cloudinit.helpers import Paths
 from cloudinit.log.log_util import error
-from cloudinit.sources import DataSourceNotFoundException
 from cloudinit.temp_utils import mkdtemp
 from cloudinit.util import load_text_file, write_file
 
@@ -1312,6 +1310,7 @@ def _assert_exclusive_args(args):
 
 def get_config_paths_from_args(
     args,
+    paths: Paths,
 ) -> Tuple[str, List[InstanceDataPart]]:
     """Return appropriate instance-data.json and instance data parts
 
@@ -1321,6 +1320,8 @@ def get_config_paths_from_args(
     and network-config for which to validate schema. Avoid returning any
     InstanceDataParts when the expected config_path does not exist.
 
+    :param paths: Paths to look up instance-data.json and, for --system,
+        the instance's user-data, vendor-data and network-config.
     :return: A tuple of the instance-data.json path and a list of
         viable InstanceDataParts present on the system.
     """
@@ -1350,22 +1351,6 @@ def get_config_paths_from_args(
                     return raw_path
         return primary_datapath
 
-    try:
-        paths = read_cfg_paths(fetch_existing_datasource="trust")
-    except (IOError, OSError) as e:
-        if e.errno == EACCES:
-            LOG.debug(
-                "Using default instance-data/user-data paths for non-root user"
-            )
-            paths = read_cfg_paths()
-        else:
-            raise
-    except DataSourceNotFoundException:
-        paths = read_cfg_paths()
-        LOG.warning(
-            "datasource not detected, using default"
-            " instance-data/user-data paths."
-        )
     if args.instance_data:
         instance_data_path = args.instance_data
     elif os.getuid() != 0:
@@ -1435,11 +1420,11 @@ def get_config_paths_from_args(
     return instance_data_path, config_files
 
 
-def handle_schema_args(name, args):
+def handle_schema_args(name, args, paths: Paths):
     """Handle provided schema args and perform the appropriate actions."""
     _assert_exclusive_args(args)
     full_schema = get_schema()
-    instance_data_path, config_files = get_config_paths_from_args(args)
+    instance_data_path, config_files = get_config_paths_from_args(args, paths)
 
     nested_output_prefix = ""
     multi_config_output = bool(len(config_files) > 1)
@@ -1521,8 +1506,10 @@ def get_meta_doc(*_args, **_kwargs) -> str:
 
 def main():
     """Tool to validate schema of a cloud-config file or print schema docs."""
+    from cloudinit.cmd.schema import handle_args
+
     parser = get_parser()
-    handle_schema_args("cloudconfig-schema", parser.parse_args())
+    handle_args("cloudconfig-schema", parser.parse_args())
     return 0
 
 
