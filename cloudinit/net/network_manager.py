@@ -12,7 +12,7 @@ import itertools
 import logging
 import os
 import uuid
-from typing import List, Optional
+from typing import Any, Dict, List, MutableMapping, Optional
 
 from cloudinit import subp, util
 from cloudinit.net import (
@@ -42,7 +42,7 @@ LOG = logging.getLogger(__name__)
 class NMConnection:
     """Represents a NetworkManager connection profile."""
 
-    def __init__(self, con_id):
+    def __init__(self, con_id: str) -> None:
         """
         Initializes the connection with some very basic properties,
         notably the UUID so that the connection can be referred to.
@@ -52,8 +52,11 @@ class NMConnection:
         CI_NM_UUID = uuid.UUID("a3924cb8-09e0-43e9-890b-77972a800108")
 
         self.config = configparser.ConfigParser()
-        # Identity option name mapping, to achieve case sensitivity
-        self.config.optionxform = str
+        # Identity option name mapping, to achieve case sensitivity.
+        # Assigning the builtin str as the optionxform transform is the
+        # documented configparser idiom; mypy cannot express assigning a
+        # class to a method, hence the ignore.
+        self.config.optionxform = str  # type: ignore [method-assign, assignment]
 
         self.config["connection"] = {
             "id": f"cloud-init {con_id}",
@@ -66,7 +69,7 @@ class NMConnection:
             "org.freedesktop.NetworkManager.origin": "cloud-init"
         }
 
-    def _set_default(self, section, option, value):
+    def _set_default(self, section: str, option: str, value: str) -> None:
         """
         Sets a property unless it's already set, ensuring the section
         exists.
@@ -77,7 +80,7 @@ class NMConnection:
         if not self.config.has_option(section, option):
             self.config[section][option] = value
 
-    def _config_option_is_set(self, section, option):
+    def _config_option_is_set(self, section: str, option: str) -> bool:
         """
         Checks if a config option is set. Returns True if it is,
         else returns False.
@@ -86,7 +89,7 @@ class NMConnection:
             section, option
         )
 
-    def _get_config_option(self, section, option):
+    def _get_config_option(self, section: str, option: str) -> Optional[str]:
         """
         Returns the value of a config option if its set,
         else returns None.
@@ -96,7 +99,9 @@ class NMConnection:
         else:
             return None
 
-    def _change_set_config_option(self, section, option, value):
+    def _change_set_config_option(
+        self, section: str, option: str, value: str
+    ) -> None:
         """
         Overrides the value of a config option if its already set.
         Else, if the config option is not set, it does nothing.
@@ -104,7 +109,7 @@ class NMConnection:
         if self._config_option_is_set(section, option):
             self.config[section][option] = value
 
-    def _set_mayfail_true_if_both_false_dhcp(self):
+    def _set_mayfail_true_if_both_false_dhcp(self) -> None:
         """
         If for both ipv4 and ipv6, 'may-fail' is set to be False,
         set it to True for both of them.
@@ -128,7 +133,7 @@ class NMConnection:
         for family in ["ipv4", "ipv6"]:
             self._change_set_config_option(family, "may-fail", "true")
 
-    def _set_ip_method(self, family, subnet_type):
+    def _set_ip_method(self, family: str, subnet_type: Optional[str]) -> None:
         """
         Ensures there's appropriate [ipv4]/[ipv6] for given family
         appropriate for given configuration type
@@ -189,7 +194,7 @@ class NMConnection:
         # that failure with ipv4 or ipv6 can be expected or tolerated.
         self._set_default(family, "may-fail", "false")
 
-    def _get_next_numbered_section(self, section, key_prefix) -> str:
+    def _get_next_numbered_section(self, section: str, key_prefix: str) -> str:
         if not self.config.has_section(section):
             self.config[section] = {}
         for index in itertools.count(1):
@@ -198,7 +203,7 @@ class NMConnection:
                 return key
         return "not_possible"  # for typing
 
-    def _add_numbered(self, section, key_prefix, value):
+    def _add_numbered(self, section: str, key_prefix: str, value: str) -> None:
         """
         Adds a numbered property, such as address<n> or route<n>, ensuring
         the appropriate value gets used for <n>.
@@ -206,7 +211,9 @@ class NMConnection:
         key = self._get_next_numbered_section(section, key_prefix)
         self.config[section][key] = value
 
-    def _add_route_options(self, section, route, key, value):
+    def _add_route_options(
+        self, section: str, route: str, key: str, value: str
+    ) -> None:
         """Add route options to a given route
 
         Example:
@@ -229,7 +236,7 @@ class NMConnection:
             else f"{key}={value}"
         )
 
-    def _add_address(self, family, subnet):
+    def _add_address(self, family: str, subnet: Dict[str, Any]) -> None:
         """
         Adds an ipv[46]address<n> property.
         """
@@ -237,11 +244,11 @@ class NMConnection:
         value = subnet["address"] + "/" + str(subnet["prefix"])
         self._add_numbered(family, "address", value)
 
-    def _is_default_route(self, route):
+    def _is_default_route(self, route: Dict[str, Any]) -> bool:
         default_nets = ("::", "0.0.0.0")
         return route["prefix"] == 0 and route["network"] in default_nets
 
-    def _add_route(self, route):
+    def _add_route(self, route: Dict[str, Any]) -> None:
         """Adds a ipv[46].route<n> property."""
         # Because network v2 route definitions can have mixed v4 and v6
         # routes, determine the family per route based on the network
@@ -287,26 +294,31 @@ class NMConnection:
                     + ";"
                 )
 
-    def con_uuid(self):
+    def con_uuid(self) -> str:
         """
         Returns the connection UUID
         """
         return self.config["connection"]["uuid"]
 
-    def valid(self):
+    def valid(self) -> bool:
         """
         Can this be serialized into a meaningful connection profile?
         """
         return self.config.has_option("connection", "type")
 
     @staticmethod
-    def mac_addr(addr):
+    def mac_addr(addr: str) -> str:
         """
         Sanitize a MAC address.
         """
         return addr.replace("-", ":").upper()
 
-    def render_interface(self, iface, network_state, renderer):
+    def render_interface(
+        self,
+        iface: Dict[str, Any],
+        network_state: NetworkState,
+        renderer: "Renderer",
+    ) -> None:
         """
         Integrate information from network state interface information
         into the connection. Most of the work is done here.
@@ -559,7 +571,7 @@ class NMConnection:
         ):
             self.config["connection"]["interface-name"] = iface["name"]
 
-    def dump(self):
+    def dump(self) -> str:
         """
         Stringify.
         """
@@ -576,14 +588,16 @@ class Renderer(renderer.Renderer):
     See https://networkmanager.dev/docs/api/latest/nm-settings-keyfile.html
     """
 
-    def __init__(self, config=None):
-        self.connections = {}
+    def __init__(
+        self, config: Optional[MutableMapping[str, Any]] = None
+    ) -> None:
+        self.connections: Dict[str, NMConnection] = {}
         self.config = config
 
-    def get_conn(self, con_id):
+    def get_conn(self, con_id: str) -> NMConnection:
         return self.connections[con_id]
 
-    def con_ref(self, con_id):
+    def con_ref(self, con_id: str) -> str:
         if con_id in self.connections:
             return self.connections[con_id].con_uuid()
         else:
@@ -593,8 +607,8 @@ class Renderer(renderer.Renderer):
     def render_network_state(
         self,
         network_state: NetworkState,
-        templates: Optional[dict] = None,
-        target=None,
+        templates: Optional[Dict[str, str]] = None,
+        target: Optional[str] = None,
     ) -> None:
         # First pass makes sure there's NMConnections for all known
         # interfaces that have UUIDs that can be linked to from related
@@ -623,19 +637,19 @@ class Renderer(renderer.Renderer):
         )
 
 
-def nm_conn_filename(con_id, target=None):
+def nm_conn_filename(con_id: str, target: Optional[str] = None) -> str:
     target_con_dir = subp.target_path(target, NM_RUN_DIR)
     con_file = f"cloud-init-{con_id}.nmconnection"
     return f"{target_con_dir}/system-connections/{con_file}"
 
 
-def sysconfig_conn_filename(devname, target=None):
+def sysconfig_conn_filename(devname: str, target: Optional[str] = None) -> str:
     target_con_dir = subp.target_path(target, IFCFG_CFG_FILE)
     con_file = f"ifcfg-{devname}"
     return f"{target_con_dir}/{con_file}"
 
 
-def conn_filename(devname):
+def conn_filename(devname: str) -> Optional[str]:
     """
     This function returns the name of the interface config file.
     It first checks for presence of network manager connection file.
@@ -656,13 +670,13 @@ def conn_filename(devname):
     return conn_file if os.path.isfile(conn_file) else None
 
 
-def cloud_init_nm_conf_filename(target=None):
+def cloud_init_nm_conf_filename(target: Optional[str] = None) -> str:
     target_con_dir = subp.target_path(target, NM_RUN_DIR)
     conf_file = "30-cloud-init-ip6-addr-gen-mode.conf"
     return f"{target_con_dir}/conf.d/{conf_file}"
 
 
-def available():
+def available() -> bool:
     # TODO: Move `uses_systemd` to a more appropriate location
     # It is imported here to avoid circular import
     from cloudinit.distros import uses_systemd
