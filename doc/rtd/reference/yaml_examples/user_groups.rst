@@ -32,6 +32,18 @@ and ``'sys'``, and the empty group ``cloud-users``.
    :language: yaml
    :linenos:
 
+Set the group ID or create a system group
+=========================================
+
+The following example adds ``netdev`` as a system group, which gets a group ID
+from the distribution's system range, and adds ``nfsusers`` with the fixed
+group ID ``2000`` and members ``root`` and ``sys``. These settings are only
+used when the group is created.
+
+.. literalinclude:: ../../../module-docs/cc_users_groups/example9.yaml
+   :language: yaml
+   :linenos:
+
 Add users to the system
 =======================
 

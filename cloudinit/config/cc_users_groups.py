@@ -76,8 +76,13 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     default_user, _user_config = ug_util.extract_default(users)
     cloud_keys = cloud.get_public_ssh_keys() or []
 
-    for name, members in groups.items():
-        cloud.distro.create_group(name, members)
+    for name, group_config in groups.items():
+        cloud.distro.create_group(
+            name,
+            group_config["members"],
+            gid=group_config.get("gid"),
+            system=group_config.get("system", False),
+        )
 
     for user, config in users.items():
 

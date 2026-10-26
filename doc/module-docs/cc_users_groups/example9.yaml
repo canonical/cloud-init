@@ -1,0 +1,6 @@
+#cloud-config
+groups:
+- netdev: {system: true}
+- nfsusers:
+    gid: 2000
+    members: [root, sys]

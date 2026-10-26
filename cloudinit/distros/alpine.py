@@ -495,14 +495,24 @@ class Distro(distros.Distro):
             util.logexc(LOG, "Failed to set 'expire' for %s", user)
 
     def create_group(
-        self, name: str, members: Optional[List[str]] = None
+        self,
+        name: str,
+        members: Optional[List[str]] = None,
+        gid: Optional[int] = None,
+        system: bool = False,
     ) -> None:
         # If 'groupadd' is available then use the generic
         # create_group function from __init__.py instead.
         if subp.which("groupadd"):
-            return super().create_group(name, members)
+            return super().create_group(name, members, gid=gid, system=system)
 
-        group_add_cmd = ["addgroup", name]
+        # Busybox addgroup expects its options before the group name
+        group_add_cmd = ["addgroup"]
+        if gid is not None:
+            group_add_cmd.extend(["-g", str(gid)])
+        if system:
+            group_add_cmd.append("-S")
+        group_add_cmd.append(name)
         if not members:
             members = []
 
