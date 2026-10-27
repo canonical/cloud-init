@@ -1551,6 +1551,12 @@
                   "type": "boolean",
                   "default": false,
                   "description": "Controls whether this module tries to be safe about writing partition tables or not. If ``overwrite: false`` is set, the device will be checked for a partition table and for a file system and if either is found, the operation will be skipped. If ``overwrite: true`` is set, no checks will be performed. Using ``overwrite: true`` is **dangerous** and can lead to data loss, so double check that the correct device has been specified if using this option. Default: ``false``."
+                },
+                "timeout": {
+                  "type": "number",
+                  "minimum": 0,
+                  "default": 0,
+                  "description": "Number of seconds to wait for the device to appear before partitioning it, for disks that may be attached while cloud-init is already running. Default: ``0`` (do not wait)."
                 }
               }
             }
@@ -1621,6 +1627,12 @@
                   "type": "string"
                 },
                 "description": "Optional command to run to create the filesystem. Can include string substitutions of the other **fs_setup** config keys. This is only necessary if you need to override the default command."
+              },
+              "timeout": {
+                "type": "number",
+                "minimum": 0,
+                "default": 0,
+                "description": "Number of seconds to wait for **device** to appear before creating the filesystem, for disks that may be attached while cloud-init is already running. Default: ``0`` (do not wait)."
               }
             }
           }
