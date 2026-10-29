@@ -5,7 +5,7 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import distros, util
+from cloudinit import distros, paths, util
 from cloudinit.distros.ubuntu import Distro
 from cloudinit.net.dhcp import Dhcpcd, IscDhclient, Udhcpc
 
@@ -517,20 +517,33 @@ class TestGetPackageMirrors:
 @pytest.mark.usefixtures("fake_filesystem")
 class TestDistro:
     @pytest.mark.parametrize("is_noexec", [False, True])
+    @pytest.mark.parametrize(
+        "helper_dir",
+        [None, "/usr/libexec/cloud-init", '/custom "helpers"/cloud-init'],
+    )
     @mock.patch(M_PATH + "util.has_mount_opt")
     @mock.patch(M_PATH + "temp_utils.get_tmp_ancestor", return_value="/tmp")
     def test_get_tmp_exec_path(
-        self, m_get_tmp_ancestor, m_has_mount_opt, is_noexec, mocker
+        self,
+        m_get_tmp_ancestor,
+        m_has_mount_opt,
+        is_noexec,
+        helper_dir,
+        mocker,
     ):
         m_has_mount_opt.return_value = not is_noexec
         cls = distros.fetch("ubuntu")
         distro = cls("ubuntu", {}, None)
         mocker.patch.object(distro, "usr_lib_exec", "/usr_lib_exec")
+        mocker.patch.object(paths, "LIB_EXEC_DIR", helper_dir)
         tmp_path = distro.get_tmp_exec_path()
         if is_noexec:
             assert "/tmp" == tmp_path
         else:
-            assert "/usr_lib_exec/cloud-init/clouddir" == tmp_path
+            expected_dir = helper_dir or "/usr_lib_exec/cloud-init"
+            assert f"{expected_dir}/clouddir" == tmp_path
+        m_get_tmp_ancestor.assert_called_once_with(needs_exe=True)
+        m_has_mount_opt.assert_called_once_with("/tmp", "noexec")
 
 
 @pytest.mark.parametrize(
