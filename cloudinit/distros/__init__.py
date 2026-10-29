@@ -60,6 +60,7 @@ from cloudinit.net import activators, dhcp, renderers
 from cloudinit.net.netops import NetOps
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.net.renderer import Renderer
+from cloudinit.paths import get_lib_exec_dir
 
 # Used when a cloud-config module can be run on all cloud-init distributions.
 # The value 'all' is surfaced in module documentation for distro support.
@@ -1521,7 +1522,10 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         tmp_dir = temp_utils.get_tmp_ancestor(needs_exe=True)
         if not util.has_mount_opt(tmp_dir, "noexec"):
             return tmp_dir
-        return os.path.join(self.usr_lib_exec, "cloud-init", "clouddir")
+        helper_dir = get_lib_exec_dir(
+            os.path.join(self.usr_lib_exec, "cloud-init")
+        )
+        return os.path.join(helper_dir, "clouddir")
 
     def do_as(self, command: list, user: str, cwd: str = "", **kwargs):
         """

@@ -16,10 +16,8 @@ from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
 from cloudinit.log import log_util
+from cloudinit.paths import get_lib_exec_dir
 from cloudinit.settings import PER_INSTANCE
-
-# This is a tool that cloud init provides
-HELPER_TOOL_TPL = "%s/cloud-init/write-ssh-key-fingerprints"
 
 meta: MetaSchema = {
     "id": "cc_keys_to_console",
@@ -36,7 +34,8 @@ def _get_helper_tool_path(distro):
         base_lib = distro.usr_lib_exec
     except AttributeError:
         base_lib = "/usr/lib"
-    return HELPER_TOOL_TPL % base_lib
+    helper_dir = get_lib_exec_dir(os.path.join(base_lib, "cloud-init"))
+    return os.path.join(helper_dir, "write-ssh-key-fingerprints")
 
 
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:

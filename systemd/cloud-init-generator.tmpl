@@ -20,11 +20,13 @@ CLOUD_SYSTEM_TARGET="/usr/lib/systemd/system/cloud-init.target"
 {% else %}
 CLOUD_SYSTEM_TARGET="/lib/systemd/system/cloud-init.target"
 {% endif %}
-{% if variant in ["almalinux", "azurelinux", "centos", "cloudlinux", "eurolinux", "fedora",
-                  "miraclelinux", "openeuler", "OpenCloudOS", "openmandriva", "rhel", "rocky", "TencentOS", "virtuozzo"] %}
-    dsidentify="/usr/libexec/cloud-init/ds-identify"
-{% elif variant == "benchmark" %}
+{% if variant == "benchmark" %}
     dsidentify="/bin/true"
+{% elif lib_exec_dir is defined and lib_exec_dir %}
+    dsidentify={{ (lib_exec_dir ~ "/ds-identify") | shell_quote }}
+{% elif variant in ["almalinux", "azurelinux", "centos", "cloudlinux", "eurolinux", "fedora",
+                  "miraclelinux", "openeuler", "OpenCloudOS", "openmandriva", "photon", "rhel", "rocky", "TencentOS", "virtuozzo"] %}
+    dsidentify="/usr/libexec/cloud-init/ds-identify"
 {% else %}
     dsidentify="/usr/lib/cloud-init/ds-identify"
 {% endif %}
@@ -60,7 +62,7 @@ main() {
         debug 1 "no ds-identify in $dsidentify"
         ds=0
     fi
-    $dsidentify
+    "$dsidentify"
     ds=$?
     debug 1 "ds-identify rc=$ds"
 

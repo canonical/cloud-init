@@ -15,6 +15,7 @@
 import collections
 import logging
 import re
+import shlex
 import sys
 
 from jinja2 import DebugUndefined, TemplateSyntaxError
@@ -140,6 +141,7 @@ def detect_template(text):
                     trim_blocks=True,
                     extensions=["jinja2.ext.do"],
                 )
+                jinja_env.filters["shell_quote"] = shlex.quote
                 return jinja_env.from_string(content).render(**params) + add
         except TemplateSyntaxError as template_syntax_error:
             template_syntax_error.lineno += 1
@@ -191,9 +193,15 @@ def render_string(content, params):
     return renderer(content, params)
 
 
-def render_template(variant, template, output, is_yaml, prefix=None):
+def render_template(
+    variant, template, output, is_yaml, prefix=None, lib_exec_dir=None
+):
     contents = util.load_text_file(template)
-    tpl_params = {"variant": variant, "prefix": prefix}
+    tpl_params = {
+        "variant": variant,
+        "prefix": prefix,
+        "lib_exec_dir": lib_exec_dir,
+    }
     contents = (render_string(contents, tpl_params)).rstrip() + "\n"
     if is_yaml:
         out = util.load_yaml(contents, default=True)
