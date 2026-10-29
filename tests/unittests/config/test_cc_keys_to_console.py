@@ -1,25 +1,24 @@
 """Tests for cc_keys_to_console."""
 
 import re
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
 
+from cloudinit import paths
 from cloudinit.config import cc_keys_to_console
 from cloudinit.config.schema import (
     SchemaValidationError,
     get_schema,
     validate_cloudconfig_schema,
 )
+from cloudinit.distros.photon import Distro as PhotonDistro
 from tests.unittests.helpers import skipUnlessJsonSchema
 
 
 class TestHandle:
-    """Tests for cloudinit.config.cc_keys_to_console.handle.
-
-    TODO: These tests only cover the emit_keys_to_console config option, they
-    should be expanded to cover the full functionality.
-    """
+    """Tests for cloudinit.config.cc_keys_to_console.handle."""
 
     @mock.patch("cloudinit.config.cc_keys_to_console.log_util.multi_log")
     @mock.patch("cloudinit.config.cc_keys_to_console.os.path.exists")
@@ -43,9 +42,88 @@ class TestHandle:
         m_path_exists.return_value = True
         m_subp.return_value = ("", "")
 
-        cc_keys_to_console.handle("name", cfg, mock.Mock(), ())
+        cloud = mock.Mock(distro=mock.Mock(usr_lib_exec="/usr/lib"))
+        cc_keys_to_console.handle("name", cfg, cloud, ())
 
         assert subp_called == (m_subp.call_count == 1)
+
+    @pytest.mark.parametrize(
+        "helper_dir", ["usr/libexec/cloud-init", 'custom "helpers"/cloud-init']
+    )
+    def test_photon_uses_configured_helper(self, helper_dir, tmp_path, mocker):
+        helper = tmp_path / helper_dir / "write-ssh-key-fingerprints"
+        helper.parent.mkdir(parents=True)
+        helper.touch(mode=0o755)
+        mocker.patch.object(paths, "LIB_EXEC_DIR", str(helper.parent))
+        m_subp = mocker.patch.object(
+            cc_keys_to_console.subp, "subp", return_value=("fingerprints", "")
+        )
+        m_multi_log = mocker.patch.object(
+            cc_keys_to_console.log_util, "multi_log"
+        )
+        distro = PhotonDistro("photon", {}, None)
+        assert distro.usr_lib_exec == "/usr/libexec"
+
+        cc_keys_to_console.handle(
+            "keys_to_console", {}, SimpleNamespace(distro=distro), []
+        )
+
+        m_subp.assert_called_once_with([str(helper), "", ""])
+        m_multi_log.assert_called_once_with(
+            "fingerprints\n", stderr=False, console=True
+        )
+
+    def test_missing_configured_helper_does_not_use_legacy_path(
+        self, tmp_path, mocker, caplog
+    ):
+        legacy_base = tmp_path / "legacy"
+        legacy_helper = (
+            legacy_base / "cloud-init" / "write-ssh-key-fingerprints"
+        )
+        legacy_helper.parent.mkdir(parents=True)
+        legacy_helper.touch(mode=0o755)
+        configured_dir = tmp_path / "configured" / "cloud-init"
+        mocker.patch.object(paths, "LIB_EXEC_DIR", str(configured_dir))
+        m_subp = mocker.patch.object(cc_keys_to_console.subp, "subp")
+        m_multi_log = mocker.patch.object(
+            cc_keys_to_console.log_util, "multi_log"
+        )
+        cloud = SimpleNamespace(
+            distro=SimpleNamespace(usr_lib_exec=str(legacy_base))
+        )
+
+        cc_keys_to_console.handle("keys_to_console", {}, cloud, [])
+
+        m_subp.assert_not_called()
+        m_multi_log.assert_not_called()
+        assert (
+            "helper tool not found at "
+            f"{configured_dir / 'write-ssh-key-fingerprints'}"
+        ) in caplog.text
+
+
+class TestHelperToolPath:
+    @pytest.mark.parametrize(
+        "distro,expected_base",
+        [
+            (SimpleNamespace(usr_lib_exec="/usr/lib"), "/usr/lib"),
+            (SimpleNamespace(usr_lib_exec="/usr/libexec"), "/usr/libexec"),
+            (SimpleNamespace(usr_lib_exec="/usr/local/lib"), "/usr/local/lib"),
+            (
+                SimpleNamespace(usr_lib_exec="/usr/local/libexec"),
+                "/usr/local/libexec",
+            ),
+            (SimpleNamespace(), "/usr/lib"),
+        ],
+    )
+    def test_source_checkout_preserves_distro_default(
+        self, distro, expected_base, mocker
+    ):
+        mocker.patch.object(paths, "LIB_EXEC_DIR", None)
+
+        assert cc_keys_to_console._get_helper_tool_path(distro) == (
+            f"{expected_base}/cloud-init/write-ssh-key-fingerprints"
+        )
 
 
 class TestKeysToConsoleSchema:
