@@ -202,7 +202,7 @@ class ConfigMerger:
         return e_cfgs
 
     def _get_instance_configs(self):
-        i_cfgs = []
+        i_cfgs: list[dict] = []
         # If cloud-config was written, pick it up as
         # a configuration file to use when running...
         if not self._paths:
@@ -430,11 +430,22 @@ class Paths(persistence.CloudInitPickleMixin):
 # This config parser will not throw when sections don't exist
 # and you are setting values on those sections which is useful
 # when writing to new options that may not have corresponding
-# sections. Also it can default other values when doing gets
+# sections. Also it can default other values when calling
+# get_or_default and other *_or_default functions
 # so that if those sections/options do not exist you will
 # get a default instead of an error. Another useful case where
 # you can avoid catching exceptions that you typically don't
 # care about...
+#
+# get_or_default is intentionally not an override of get because
+# signatures are incompatible:
+#
+#   RawConfigParser.get(self, section, option, *, raw=False, vars=None,
+#                       fallback=...)
+#   DefaultingConfigParser.get_or_default(self, section, option)
+#
+# The same applies to getboolean_or_default, getfloat_or_default,
+# and getint_or_default.
 
 
 class DefaultingConfigParser(RawConfigParser):
@@ -443,7 +454,7 @@ class DefaultingConfigParser(RawConfigParser):
     DEF_BOOLEAN = False
     DEF_BASE = None
 
-    def get(self, section, option):
+    def get_or_default(self, section, option):
         value = self.DEF_BASE
         try:
             value = RawConfigParser.get(self, section, option)
@@ -462,17 +473,17 @@ class DefaultingConfigParser(RawConfigParser):
         if self.has_option(section, option):
             RawConfigParser.remove_option(self, section, option)
 
-    def getboolean(self, section, option):
+    def getboolean_or_default(self, section, option):
         if not self.has_option(section, option):
             return self.DEF_BOOLEAN
         return RawConfigParser.getboolean(self, section, option)
 
-    def getfloat(self, section, option):
+    def getfloat_or_default(self, section, option):
         if not self.has_option(section, option):
             return self.DEF_FLOAT
         return RawConfigParser.getfloat(self, section, option)
 
-    def getint(self, section, option):
+    def getint_or_default(self, section, option):
         if not self.has_option(section, option):
             return self.DEF_INT
         return RawConfigParser.getint(self, section, option)
