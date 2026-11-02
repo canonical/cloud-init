@@ -417,7 +417,7 @@ sufficient disk by following the following example.
    The ``instance-id`` provided (``iid-local01`` above) is what is used to
    determine if this is "first boot". So, if you are making updates to
    user-data you will also have to change the ``instance-id``, or start the
-   disk fresh.
+   disk fresh. See :ref:`instance_id`.
 
 Example ``meta-data``
 ---------------------

@@ -37,7 +37,7 @@ previous boot:
 
 * :file:`instance-id`:
   ID of the instance as discovered by ``cloud-init``. Changing this file has
-  no effect.
+  no effect. See :ref:`instance_id`.
 * :file:`result.json`:
   JSON file showing both the datasource used to set up the instance, and
   whether any errors occurred.
