@@ -208,6 +208,8 @@ class TestMultiplePackageManagers:
         def _new_subp(*args, **kwargs):
             if args and "apt-cache" in args[0]:
                 return SubpResult("pkg1\npkg2\npkg3", None)
+            if args and "dpkg" in args[0]:
+                return SubpResult("", None)
 
         cloud = get_cloud("ubuntu")
         cfg = {"packages": [{"apt": ["pkg1", "pkg2"]}]}
@@ -216,16 +218,21 @@ class TestMultiplePackageManagers:
         ) as m_subp:
             handle("", cfg, cloud, [])
 
-        assert len(m_subp.call_args_list) == 2
+        assert len(m_subp.call_args_list) == 3
         assert m_subp.call_args_list[0] == mock.call(["apt-cache", "pkgnames"])
+        assert m_subp.call_args_list[1] == mock.call(
+            ["dpkg", "--print-foreign-architectures"]
+        )
 
         for arg in ["apt-get", "install", "pkg1", "pkg2"]:
-            assert arg in m_subp.call_args_list[1][1]["args"]
+            assert arg in m_subp.call_args_list[2][1]["args"]
 
     def test_explicit_apt_version(self, common_mocks):
         def _new_subp(*args, **kwargs):
             if args and "apt-cache" in args[0]:
                 return SubpResult("pkg1\npkg2\npkg3", None)
+            if args and "dpkg" in args[0]:
+                return SubpResult("", None)
 
         cloud = get_cloud("ubuntu")
         cfg = {"packages": [{"apt": ["pkg1", ["pkg2", "1.2.3"]]}]}
@@ -234,11 +241,14 @@ class TestMultiplePackageManagers:
         ) as m_subp:
             handle("", cfg, cloud, [])
 
-        assert len(m_subp.call_args_list) == 2
+        assert len(m_subp.call_args_list) == 3
         assert m_subp.call_args_list[0] == mock.call(["apt-cache", "pkgnames"])
+        assert m_subp.call_args_list[1] == mock.call(
+            ["dpkg", "--print-foreign-architectures"]
+        )
 
         for arg in ["apt-get", "install", "pkg1", "pkg2=1.2.3"]:
-            assert arg in m_subp.call_args_list[1][1]["args"]
+            assert arg in m_subp.call_args_list[2][1]["args"]
 
     @mock.patch("cloudinit.subp.subp")
     def test_explicit_snap(self, m_subp, common_mocks):
@@ -271,6 +281,8 @@ class TestMultiplePackageManagers:
         def _new_subp(*args, **kwargs):
             if args and "apt-cache" in args[0]:
                 return SubpResult("pkg2\npkg3\npkg5\npkg6", None)
+            if args and "dpkg" in args[0]:
+                return SubpResult("", None)
 
         cloud = get_cloud("ubuntu")
         cfg = {
@@ -286,10 +298,13 @@ class TestMultiplePackageManagers:
         ) as m_subp:
             handle("", cfg, cloud, [])
 
-        assert len(m_subp.call_args_list) == 5
+        assert len(m_subp.call_args_list) == 6
         assert m_subp.call_args_list[0] == mock.call(["apt-cache", "pkgnames"])
+        assert m_subp.call_args_list[1] == mock.call(
+            ["dpkg", "--print-foreign-architectures"]
+        )
         for arg in ["apt-get", "install", "pkg2", "pkg3=1.2.3", "pkg6"]:
-            assert arg in m_subp.call_args_list[1][1]["args"]
+            assert arg in m_subp.call_args_list[2][1]["args"]
 
         assert mock.call(["snap", "install", "pkg1"]) in m_subp.call_args_list
         assert (
@@ -307,6 +322,8 @@ class TestMultiplePackageManagers:
         def _new_subp(*args, **kwargs):
             if args and "apt-cache" in args[0]:
                 return SubpResult("pkg1", None)
+            if args and "dpkg" in args[0]:
+                return SubpResult("", None)
             if "args" in kwargs and "install" in kwargs["args"]:
                 raise subp.ProcessExecutionError(
                     cmd=kwargs["args"],
@@ -330,6 +347,8 @@ class TestMultiplePackageManagers:
         def _new_subp(*args, **kwargs):
             if args:
                 if "apt-cache" in args[0]:
+                    return SubpResult("", None)
+                if "dpkg" in args[0]:
                     return SubpResult("", None)
                 if "install" in args[0]:
                     raise subp.ProcessExecutionError(

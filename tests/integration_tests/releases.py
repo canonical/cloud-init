@@ -100,6 +100,7 @@ NOBLE = Release("ubuntu", "noble", "24.04")
 ORACULAR = Release("ubuntu", "oracular", "24.10")
 PLUCKY = Release("ubuntu", "plucky", "25.04")
 QUESTING = Release("ubuntu", "questing", "25.10")
+RESOLUTE = Release("ubuntu", "resolute", "26.04")
 
 UBUNTU_STABLE = (FOCAL, JAMMY, MANTIC, NOBLE)
 

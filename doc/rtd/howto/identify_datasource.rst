@@ -13,7 +13,7 @@ To find out which datasource is being used run the :command:`cloud-id` command:
 
 This will tell you which datasource is being used -- for example:
 
-.. code-block::
+.. code-block:: text
 
    nocloud
 

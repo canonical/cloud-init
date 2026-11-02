@@ -1064,33 +1064,16 @@ def apt_key(
     output_file=None,
     data=None,
     hardened=False,
-    human_output=True,
 ):
     """apt-key replacement
 
-    commands implemented: 'add', 'list', 'finger'
+    commands implemented: 'add'
 
     @param output_file: name of output gpg file (without .gpg or .asc)
     @param data: key contents
-    @param human_output: list keys formatted for human parsing
     @param hardened: write keys to to /etc/apt/cloud-init.gpg.d/ (referred to
     with [signed-by] in sources file)
     """
-
-    def _get_key_files():
-        """return all apt keys
-
-        /etc/apt/trusted.gpg (if it exists) and all keyfiles (and symlinks to
-        keyfiles) in /etc/apt/trusted.gpg.d/ are returned
-
-        based on apt-key implementation
-        """
-        key_files = [APT_LOCAL_KEYS] if os.path.isfile(APT_LOCAL_KEYS) else []
-
-        for file in os.listdir(APT_TRUSTED_GPG_DIR):
-            if file.endswith((".gpg", ".asc")):
-                key_files.append(APT_TRUSTED_GPG_DIR + file)
-        return key_files if key_files else ""
 
     def apt_key_add(gpg_context):
         """apt-key add <file>
@@ -1120,30 +1103,10 @@ def apt_key(
                 )
         return file_name
 
-    def apt_key_list(gpg_context):
-        """apt-key list
-
-        returns string of all trusted keys (in /etc/apt/trusted.gpg and
-        /etc/apt/trusted.gpg.d/)
-        """
-        key_list = []
-        for key_file in _get_key_files():
-            try:
-                key_list.append(
-                    gpg_context.list_keys(key_file, human_output=human_output)
-                )
-            except subp.ProcessExecutionError as error:
-                LOG.warning('Failed to list key "%s": %s', key_file, error)
-        return "\n".join(key_list)
-
     if command == "add":
         return apt_key_add(gpg)
-    elif command == "finger" or command == "list":
-        return apt_key_list(gpg)
     else:
-        raise ValueError(
-            "apt_key() commands add, list, and finger are currently supported"
-        )
+        raise ValueError("apt_key() only supports the 'add' command")
 
 
 CONFIG_CLEANERS = {

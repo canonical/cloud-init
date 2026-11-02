@@ -8,6 +8,8 @@ custom / out-of-tree functionality.
 
 -----
 
+.. rstcheck: silence "Document may not end with transition" warning
+
 .. toctree::
    :maxdepth: 1
 

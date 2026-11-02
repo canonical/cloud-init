@@ -50,7 +50,7 @@ You can list the versions available to your instance with:
 
 Example output:
 
-.. code-block::
+.. code-block:: text
 
    2016-01-01
    latest
@@ -67,7 +67,7 @@ The instance metadata service can be queried at
 
 Example output:
 
-.. code-block::
+.. code-block:: text
 
    dns-conf/
    eipv4
@@ -102,7 +102,7 @@ If no user-data is provided, this will return a 404.
 
 Example output:
 
-.. code-block::
+.. code-block:: sh
 
    #!/bin/sh
    echo "Hello World."

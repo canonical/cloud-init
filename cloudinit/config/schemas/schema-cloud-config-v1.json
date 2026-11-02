@@ -628,13 +628,17 @@
             "type": "boolean"
           },
           "keyid": {
-            "type": "string"
+            "type": "string",
+            "description": "A key to import via short ID or fingerprint."
           },
           "key": {
-            "type": "string"
+            "type": "string",
+            "description": "A raw PGP key to import."
           },
           "keyserver": {
-            "type": "string"
+            "type": "string",
+            "default": "keyserver.ubuntu.com",
+            "description": "Keyserver from which to retrieve the key identified by **keyid**."
           }
         }
       },
@@ -1106,7 +1110,7 @@
             },
             "primary": {
               "$ref": "#/$defs/apt_configure.mirror",
-              "description": "The primary and security archive mirrors can be specified using the **primary** and **security** keys, respectively. Both the **primary** and **security** keys take a list of configs, allowing mirrors to be specified on a per-architecture basis. Each config is a dictionary which must have an entry for **arches**, specifying which architectures that config entry is for. The keyword ``default`` applies to any architecture not explicitly listed. The mirror url can be specified with the **uri** key, or a list of mirrors to check can be provided in order, with the first mirror that can be resolved being selected. This allows the same configuration to be used in different environment, with different hosts used for a local APT mirror. If no mirror is provided by **uri** or **search**, **search_dns** may be used to search for dns names in the format ``<distro>-mirror`` in each of the following:\n- fqdn of this host per cloud metadata,\n- localdomain,\n- domains listed in ``/etc/resolv.conf``.\n\nIf there is a dns entry for ``<distro>-mirror``, then it is assumed that there is a distro mirror at ``http://<distro>-mirror.<domain>/<distro>``. If the **primary** key is defined, but not the **security** key, then then configuration for **primary** is also used for **security**. If **search_dns** is used for the **security** key, the search pattern will be ``<distro>-security-mirror``.\n\nEach mirror may also specify a key to import via any of the following optional keys:\n- **keyid**: a key to import via shortid or fingerprint.\n- **key**: a raw PGP key.\n- **keyserver**: alternate keyserver to pull **keyid** key from.\n\nIf no mirrors are specified, or all lookups fail, then default mirrors defined in the datasource are used. If none are present in the datasource either the following defaults are used:\n- **primary** => ``http://archive.ubuntu.com/ubuntu``.\n- **security** => ``http://security.ubuntu.com/ubuntu``."
+              "description": "The primary and security archive mirrors can be specified using the **primary** and **security** keys, respectively. Both the **primary** and **security** keys take a list of configs, allowing mirrors to be specified on a per-architecture basis. Each config is a dictionary which must have an entry for **arches**, specifying which architectures that config entry is for. The keyword ``default`` applies to any architecture not explicitly listed. The mirror url can be specified with the **uri** key, or a list of mirrors to check can be provided in order, with the first mirror that can be resolved being selected. This allows the same configuration to be used in different environment, with different hosts used for a local APT mirror. If no mirror is provided by **uri** or **search**, **search_dns** may be used to search for dns names in the format ``<distro>-mirror`` in each of the following:\n- fqdn of this host per cloud metadata,\n- localdomain,\n- domains listed in ``/etc/resolv.conf``.\n\nIf there is a dns entry for ``<distro>-mirror``, then it is assumed that there is a distro mirror at ``http://<distro>-mirror.<domain>/<distro>``. If the **primary** key is defined, but not the **security** key, then then configuration for **primary** is also used for **security**. If **search_dns** is used for the **security** key, the search pattern will be ``<distro>-security-mirror``.\n\nEach mirror may also specify a key to import via any of the following optional keys:\n- **keyid**: a key to import via short ID or fingerprint.\n- **key**: a raw PGP key to import.\n- **keyserver**: keyserver from which to retrieve the key identified by **keyid**. Default: ``keyserver.ubuntu.com``.\n\nIf no mirrors are specified, or all lookups fail, then default mirrors defined in the datasource are used. If none are present in the datasource either the following defaults are used:\n- **primary** => ``http://archive.ubuntu.com/ubuntu``.\n- **security** => ``http://security.ubuntu.com/ubuntu``."
             },
             "security": {
               "$ref": "#/$defs/apt_configure.mirror",
@@ -1164,13 +1168,17 @@
                       "type": "string"
                     },
                     "keyid": {
-                      "type": "string"
+                      "type": "string",
+                      "description": "A key to import via short ID or fingerprint."
                     },
                     "key": {
-                      "type": "string"
+                      "type": "string",
+                      "description": "A raw PGP key to import."
                     },
                     "keyserver": {
-                      "type": "string"
+                      "type": "string",
+                      "default": "keyserver.ubuntu.com",
+                      "description": "Keyserver from which to retrieve the key identified by **keyid**."
                     },
                     "filename": {
                       "type": "string"
@@ -1183,7 +1191,7 @@
                   "minProperties": 1
                 }
               },
-              "description": "Source list entries can be specified as a dictionary under the **sources** config key, with each key in the dict representing a different source file. The key of each source entry will be used as an id that can be referenced in other config entries, as well as the filename for the source's configuration under ``/etc/apt/sources.list.d``. If the name does not end with ``.list``, it will be appended. If there is no configuration for a key in **sources**, no file will be written, but the key may still be referred to as an id in other **sources** entries.\n\nEach entry under **sources** is a dictionary which may contain any of the following optional keys:\n- **source**: a sources.list entry (some variable replacements apply).\n- **keyid**: a key to import via shortid or fingerprint.\n- **key**: a raw PGP key.\n- **keyserver**: alternate keyserver to pull **keyid** key from.\n- **filename**: specify the name of the list file.\n- **append**: If ``true``, append to sources file, otherwise overwrite it. Default: ``true``.\n\nThe **source** key supports variable replacements for the following strings:\n- ``$MIRROR``\n- ``$PRIMARY``\n- ``$SECURITY``\n- ``$RELEASE``\n- ``$KEY_FILE``"
+              "description": "Source list entries can be specified as a dictionary under the **sources** config key, with each key in the dict representing a different source file. The key of each source entry will be used as an id that can be referenced in other config entries, as well as the filename for the source's configuration under ``/etc/apt/sources.list.d``. If the name does not end with ``.list``, it will be appended. If there is no configuration for a key in **sources**, no file will be written, but the key may still be referred to as an id in other **sources** entries.\n\nEach entry under **sources** is a dictionary which may contain any of the following optional keys:\n- **source**: a sources.list entry (some variable replacements apply).\n- **keyid**: a key to import via short ID or fingerprint.\n- **key**: a raw PGP key to import.\n- **keyserver**: keyserver from which to retrieve the key identified by **keyid**. Default: ``keyserver.ubuntu.com``.\n- **filename**: specify the name of the list file.\n- **append**: If ``true``, append to sources file, otherwise overwrite it. Default: ``true``.\n\nThe **source** key supports variable replacements for the following strings:\n- ``$MIRROR``\n- ``$PRIMARY``\n- ``$SECURITY``\n- ``$RELEASE``\n- ``$KEY_FILE``"
             }
           }
         }
@@ -1193,31 +1201,40 @@
       "type": "object",
       "properties": {
         "apt_pipelining": {
-          "oneOf": [
+          "allOf": [
             {
-              "type": "integer"
-            },
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "string",
               "oneOf": [
                 {
-                  "enum": [
-                    "os"
-                  ]
+                  "type": "integer"
                 },
                 {
-                  "deprecated": true,
-                  "deprecated_version": "22.4",
-                  "deprecated_description": "Use **os** instead.",
-                  "enum": [
-                    "none",
-                    "unchanged"
+                  "type": "boolean"
+                },
+                {
+                  "type": "string",
+                  "oneOf": [
+                    {
+                      "enum": [
+                        "os"
+                      ]
+                    },
+                    {
+                      "deprecated": true,
+                      "deprecated_version": "22.4",
+                      "deprecated_description": "Use **os** instead.",
+                      "enum": [
+                        "none",
+                        "unchanged"
+                      ]
+                    }
                   ]
                 }
               ]
+            },
+            {
+              "deprecated": true,
+              "deprecated_version": "26.3",
+              "deprecated_description": "The apt_pipelining module is deprecated and scheduled to be removed in 31.3."
             }
           ]
         }
@@ -2059,40 +2076,49 @@
       "type": "object",
       "properties": {
         "mcollective": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "conf": {
+          "allOf": [
+            {
               "type": "object",
               "additionalProperties": false,
               "properties": {
-                "public-cert": {
-                  "type": "string",
-                  "description": "Optional value of server public certificate which will be written to ``/etc/mcollective/ssl/server-public.pem``."
-                },
-                "private-cert": {
-                  "type": "string",
-                  "description": "Optional value of server private certificate which will be written to ``/etc/mcollective/ssl/server-private.pem``."
-                }
-              },
-              "patternProperties": {
-                "^.+$": {
-                  "description": "Optional config key: value pairs which will be appended to ``/etc/mcollective/server.cfg``.",
-                  "oneOf": [
-                    {
-                      "type": "boolean"
+                "conf": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "public-cert": {
+                      "type": "string",
+                      "description": "Optional value of server public certificate which will be written to ``/etc/mcollective/ssl/server-public.pem``."
                     },
-                    {
-                      "type": "integer"
-                    },
-                    {
-                      "type": "string"
+                    "private-cert": {
+                      "type": "string",
+                      "description": "Optional value of server private certificate which will be written to ``/etc/mcollective/ssl/server-private.pem``."
                     }
-                  ]
+                  },
+                  "patternProperties": {
+                    "^.+$": {
+                      "description": "Optional config key: value pairs which will be appended to ``/etc/mcollective/server.cfg``.",
+                      "oneOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ]
+                    }
+                  }
                 }
               }
+            },
+            {
+              "deprecated": true,
+              "deprecated_version": "26.3",
+              "deprecated_description": "The mcollective module is deprecated and scheduled to be removed in 27.3."
             }
-          }
+          ]
         }
       }
     },
@@ -3039,43 +3065,52 @@
       "type": "object",
       "properties": {
         "random_seed": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "file": {
-              "type": "string",
-              "default": "/dev/urandom",
-              "description": "File to write random data to. Default: ``/dev/urandom``."
+          "allOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "file": {
+                  "type": "string",
+                  "default": "/dev/urandom",
+                  "description": "File to write random data to. Default: ``/dev/urandom``."
+                },
+                "data": {
+                  "type": "string",
+                  "description": "This data will be written to **file** before data from the datasource. When using a multi-line value or specifying binary data, be sure to follow YAML syntax and use the ``|`` and ``!binary`` YAML format specifiers when appropriate."
+                },
+                "encoding": {
+                  "type": "string",
+                  "default": "raw",
+                  "enum": [
+                    "raw",
+                    "base64",
+                    "b64",
+                    "gzip",
+                    "gz"
+                  ],
+                  "description": "Used to decode **data** provided. Allowed values are ``raw``, ``base64``, ``b64``, ``gzip``, or ``gz``.  Default: ``raw``."
+                },
+                "command": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Execute this command to seed random. The command will have RANDOM_SEED_FILE in its environment set to the value of **file** above."
+                },
+                "command_required": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "If true, and **command** is not available to be run then an exception is raised and cloud-init will record failure. Otherwise, only debug error is mentioned. Default: ``false``."
+                }
+              }
             },
-            "data": {
-              "type": "string",
-              "description": "This data will be written to **file** before data from the datasource. When using a multi-line value or specifying binary data, be sure to follow YAML syntax and use the ``|`` and ``!binary`` YAML format specifiers when appropriate."
-            },
-            "encoding": {
-              "type": "string",
-              "default": "raw",
-              "enum": [
-                "raw",
-                "base64",
-                "b64",
-                "gzip",
-                "gz"
-              ],
-              "description": "Used to decode **data** provided. Allowed values are ``raw``, ``base64``, ``b64``, ``gzip``, or ``gz``.  Default: ``raw``."
-            },
-            "command": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "description": "Execute this command to seed random. The command will have RANDOM_SEED_FILE in its environment set to the value of **file** above."
-            },
-            "command_required": {
-              "type": "boolean",
-              "default": false,
-              "description": "If true, and **command** is not available to be run then an exception is raised and cloud-init will record failure. Otherwise, only debug error is mentioned. Default: ``false``."
+            {
+              "deprecated": true,
+              "deprecated_version": "26.3",
+              "deprecated_description": "The seed_random module is deprecated and scheduled to be removed in 31.3."
             }
-          }
+          ]
         }
       }
     },
@@ -3278,22 +3313,31 @@
       "type": "object",
       "properties": {
         "spacewalk": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "server": {
-              "type": "string",
-              "description": "The Spacewalk server to use."
+          "allOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "server": {
+                  "type": "string",
+                  "description": "The Spacewalk server to use."
+                },
+                "proxy": {
+                  "type": "string",
+                  "description": "The proxy to use when connecting to Spacewalk."
+                },
+                "activation_key": {
+                  "type": "string",
+                  "description": "The activation key to use when registering with Spacewalk."
+                }
+              }
             },
-            "proxy": {
-              "type": "string",
-              "description": "The proxy to use when connecting to Spacewalk."
-            },
-            "activation_key": {
-              "type": "string",
-              "description": "The activation key to use when registering with Spacewalk."
+            {
+              "deprecated": true,
+              "deprecated_version": "26.3",
+              "deprecated_description": "The spacewalk module is deprecated and scheduled to be removed in 27.3."
             }
-          }
+          ]
         }
       }
     },
