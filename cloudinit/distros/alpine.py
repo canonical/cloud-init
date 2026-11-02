@@ -11,7 +11,7 @@ import os
 import re
 import stat
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Tuple, Union
 
 from cloudinit import distros, helpers, subp, util
 from cloudinit.distros.parsers.hostname import HostnameConf
@@ -43,7 +43,9 @@ class Distro(distros.Distro):
     dhclient_lease_directory = "/var/lib/dhcp"
     dhclient_lease_file_regex = r"dhclient\.leases"
 
-    def __init__(self, name, cfg, paths):
+    def __init__(
+        self, name: str, cfg: dict, paths: Optional[helpers.Paths]
+    ) -> None:
         distros.Distro.__init__(self, name, cfg, paths)
         # This will be used to restrict certain
         # calls from repeatedly happening (when they
@@ -53,13 +55,15 @@ class Distro(distros.Distro):
         self.osfamily = "alpine"
         cfg["ssh_svcname"] = "sshd"
 
-    def get_locale(self):
+    def get_locale(self) -> str:
         """The default locale for Alpine Linux is different than
         cloud-init's DataSource default.
         """
         return self.default_locale
 
-    def apply_locale(self, locale, out_fn=None):
+    def apply_locale(
+        self, locale: Optional[str], out_fn: Optional[str] = None
+    ) -> None:
         # Alpine has limited locale support due to musl library limitations
 
         if not locale:
@@ -78,11 +82,11 @@ class Distro(distros.Distro):
         ]
         util.write_file(out_fn, "\n".join(lines), 0o644)
 
-    def install_packages(self, pkglist: distros.PackageList):
+    def install_packages(self, pkglist: distros.PackageList) -> None:
         self.update_package_sources()
         self.package_command("add", pkgs=pkglist)
 
-    def _write_hostname(self, hostname, filename):
+    def _write_hostname(self, hostname: str, filename: str) -> None:
         conf = None
         try:
             # Try to update the previous one
@@ -104,16 +108,18 @@ class Distro(distros.Distro):
         conf.set_hostname(hostname)
         util.write_file(filename, str(conf), 0o644)
 
-    def _read_system_hostname(self):
+    def _read_system_hostname(self) -> Tuple[str, Optional[str]]:
         sys_hostname = self._read_hostname(self.hostname_conf_fn)
         return (self.hostname_conf_fn, sys_hostname)
 
-    def _read_hostname_conf(self, filename):
+    def _read_hostname_conf(self, filename: str) -> HostnameConf:
         conf = HostnameConf(util.load_text_file(filename))
         conf.parse()
         return conf
 
-    def _read_hostname(self, filename, default=None):
+    def _read_hostname(
+        self, filename: str, default: Optional[str] = None
+    ) -> Optional[str]:
         hostname = None
         try:
             conf = self._read_hostname_conf(filename)
@@ -124,10 +130,12 @@ class Distro(distros.Distro):
             return default
         return hostname
 
-    def _get_localhost_ip(self):
+    def _get_localhost_ip(self) -> str:
         return "127.0.1.1"
 
-    def set_keymap(self, layout: str, model: str, variant: str, options: str):
+    def set_keymap(
+        self, layout: str, model: str, variant: str, options: str
+    ) -> None:
         if not layout:
             msg = "Keyboard layout not specified."
             LOG.error(msg)
@@ -161,10 +169,15 @@ class Distro(distros.Distro):
 
         subp.subp(["setup-keymap", layout, variant])
 
-    def set_timezone(self, tz):
+    def set_timezone(self, tz: str) -> None:
         distros.set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
 
-    def package_command(self, command, args=None, pkgs=None):
+    def package_command(
+        self,
+        command: str,
+        args: Optional[Union[str, List[str]]] = None,
+        pkgs: Optional[distros.PackageList] = None,
+    ) -> None:
         if pkgs is None:
             pkgs = []
 
@@ -189,7 +202,7 @@ class Distro(distros.Distro):
         # Allow the output of this to flow outwards (ie not be captured)
         subp.subp(cmd, capture=False)
 
-    def update_package_sources(self, *, force=False):
+    def update_package_sources(self, *, force: bool = False) -> None:
         self._runner.run(
             "update-sources",
             self.package_command,
@@ -198,7 +211,7 @@ class Distro(distros.Distro):
         )
 
     @property
-    def preferred_ntp_clients(self):
+    def preferred_ntp_clients(self) -> List[str]:
         """Allow distro to determine the preferred ntp client list"""
         if not self._preferred_ntp_clients:
             self._preferred_ntp_clients = ["chrony", "ntp"]
@@ -362,7 +375,7 @@ class Distro(distros.Distro):
                 LOG, "Failed to update %s for user %s", shadow_file, name
             )
 
-    def lock_passwd(self, name):
+    def lock_passwd(self, name: str) -> Optional[bool]:
         """
         Lock the password of a user, i.e., disable password logins
         """
@@ -390,7 +403,9 @@ class Distro(distros.Distro):
             util.logexc(LOG, "Failed to disable password for user %s", name)
             raise e
 
-    def unlock_passwd(self, name: str):
+        return None
+
+    def unlock_passwd(self, name: str) -> Optional[bool]:
         """
         Unlock the password of a user, i.e., enable password logins
         """
@@ -420,7 +435,9 @@ class Distro(distros.Distro):
             util.logexc(LOG, "Failed to unlock password for user %s", name)
             raise e
 
-    def expire_passwd(self, user):
+        return None
+
+    def expire_passwd(self, user: str) -> None:
         # Check whether Shadow's or Busybox's version of 'passwd'.
         # If Shadow's 'passwd' is available then use the generic
         # expire_passwd function from __init__.py instead.
@@ -477,7 +494,9 @@ class Distro(distros.Distro):
         else:
             util.logexc(LOG, "Failed to set 'expire' for %s", user)
 
-    def create_group(self, name, members=None):
+    def create_group(
+        self, name: str, members: Optional[List[str]] = None
+    ) -> None:
         # If 'groupadd' is available then use the generic
         # create_group function from __init__.py instead.
         if subp.which("groupadd"):
@@ -535,7 +554,7 @@ class Distro(distros.Distro):
         return command
 
     @staticmethod
-    def uses_systemd():
+    def uses_systemd() -> bool:
         """
         Alpine uses OpenRC, not systemd
         """
@@ -543,8 +562,12 @@ class Distro(distros.Distro):
 
     @classmethod
     def manage_service(
-        cls, action: str, service: str, *extra_args: str, rcs=None
-    ):
+        cls,
+        action: str,
+        service: str,
+        *extra_args: str,
+        rcs: Optional[List[int]] = None,
+    ) -> subp.SubpResult:
         """
         Perform the requested action on a service. This handles OpenRC
         specific implementation details.

@@ -3,20 +3,27 @@
 Stable Release Updates (SRU)
 ****************************
 
-Once upstream cloud-init has released a new version, the Ubuntu Server team
-backports cloud-init to previous releases via a special procedure called a
-"Stable Release Update" (`SRU`_). This helps ensure that new versions of
-cloud-init on existing releases of Ubuntu will not experience breaking
-changes. Breaking changes are allowed when transitioning from one Ubuntu
-series to the next (Focal -> Jammy).
+For each upstream cloud-init release, a backport is performed to
+previous Ubuntu releases via a "Stable Release Update" (`SRU`_).
+Each SRU ensures that new versions of cloud-init on existing releases
+of Ubuntu will not experience breaking changes. Breaking changes are allowed
+when transitioning from one Ubuntu series to the next (Noble -> Resolute).
 
 .. _sru_supported_releases:
 
 SRU supported releases
 ======================
+
 Cloud-init will provide SRU support for the current active interim releases
 and the most recent 2 long-term support (LTS) releases as documented in the
 `Ubuntu Release Cycle`_
+
+Security Updates
+================
+
+The `Ubuntu CVE policy`_ governs how Ubuntu mitigates CVEs in upstream and
+the standard support Ubuntu releases and releases covered by
+`Expanded Security Maintenance`_.
 
 SRU package version
 ===================
@@ -28,8 +35,8 @@ Ubuntu cloud-init packages follow the `SRU release version`_ format.
 SRU testing for cloud-init
 ==========================
 
-The cloud-init project has a specific process it follows when validating
-a cloud-init SRU, which is documented in the `CloudinitUpdates`_ wiki page.
+The cloud-init project follows a specific
+`process to validate a cloud-init SRU`_.
 
 An SRU test of cloud-init performs the following:
 
@@ -44,7 +51,7 @@ Test process:
 The `integration test suite` used for validation follows these steps:
 
 * :ref:`Install a pre-release version of cloud-init<ubuntu_test_pre_release>`
-  from the **-proposed** APT pocket (e.g., **jammy-proposed**).
+  from the **-proposed** APT pocket (e.g., **resolute-proposed**).
 * Upgrade cloud-init and attempt a clean run of cloud-init to assert
   that the new version works properly on the specific platform and Ubuntu
   series.
@@ -53,7 +60,9 @@ The `integration test suite` used for validation follows these steps:
 .. LINKS
 .. include:: ../links.txt
 .. _Ubuntu Release Cycle: https://ubuntu.com/about/release-cycle
-.. _SRU: https://wiki.ubuntu.com/StableReleaseUpdates
-.. _CloudinitUpdates: https://wiki.ubuntu.com/CloudinitUpdates
+.. _Ubuntu CVE policy: https://ubuntu.com/security/cves/about
+.. _Expanded Security Maintenance: https://ubuntu.com/security/esm
+.. _SRU: https://ubuntu.com/project/docs/SRU/stable-release-updates/
+.. _process to validate a cloud-init SRU: https://ubuntu.com/project/docs/SRU/reference/exception-Cloudinit-Updates/
 .. _integration test suite: https://github.com/canonical/cloud-init/tree/main/tests/integration_tests
 .. _SRU release version: https://github.com/canonical/ubuntu-maintainers-handbook/blob/main/VersionStrings.md#version-adding-a-change-in-ubuntu-as-a-stable-release-update

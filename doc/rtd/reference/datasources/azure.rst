@@ -104,6 +104,7 @@ is ``'this is my userdata'``.
 
 Example:
 
+.. rstcheck: ignore-next-code-block
 .. code-block:: xml
 
    <wa:ProvisioningSection>
