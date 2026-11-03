@@ -796,6 +796,29 @@
         "cloud_final_modules": {
           "$ref": "#/$defs/modules_definition"
         },
+        "datasource": {
+          "type": "object",
+          "description": "Deployment-time datasource options supplied in plain cloud-config user-data.",
+          "additionalProperties": false,
+          "properties": {
+            "Azure": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "apply_network_config_set_name": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "Include set-name directives in network configuration."
+                },
+                "experimental_skip_ready_report": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Skip the final Azure ready report."
+                }
+              }
+            }
+          }
+        },
         "launch-index": {
           "type": "integer",
           "description": "The launch index for the specified cloud-config."
@@ -4251,6 +4274,7 @@
     "cloud_final_modules": {},
     "cloud_init_modules": {},
     "create_hostname_file": {},
+    "datasource": {},
     "device_aliases": {},
     "disable_ec2_metadata": {},
     "disable_root": {},

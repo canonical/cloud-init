@@ -23,6 +23,7 @@ from cloudinit import net, performance, sources, subp, util
 from cloudinit.config import cc_mounts
 from cloudinit.distros import Distro
 from cloudinit.event import EventScope, EventType
+from cloudinit.handlers import type_from_starts_with
 from cloudinit.helpers import Paths
 from cloudinit.net import device_driver
 from cloudinit.net.dhcp import (
@@ -343,8 +344,9 @@ class DataSourceAzure(sources.DataSource):
         self.ds_cfg = util.mergemanydict(
             [util.get_cfg_by_path(sys_cfg, DS_CFG_PATH, {}), BUILTIN_DS_CONFIG]
         )
+        self._ds_cfg_overrides: Dict[str, bool] = {}
         self._iso_dev: Optional[str] = None
-        self._network_config: Optional[Dict[str, Any]] = None
+        self._network_config: Optional[Union[str, Dict[str, Any]]] = None
         self._ephemeral_dhcp_ctx: Optional[EphemeralDHCPv4] = None
         self._reported_ready_marker_file = os.path.join(
             paths.cloud_dir, "data", "reported_ready"
@@ -358,6 +360,8 @@ class DataSourceAzure(sources.DataSource):
     def _unpickle(self, ci_pkl_version: int) -> None:
         super()._unpickle(ci_pkl_version)
 
+        if not hasattr(self, "_ds_cfg_overrides"):
+            self._ds_cfg_overrides = {}
         self._ephemeral_dhcp_ctx = None
         self._iso_dev = None
         self._reported_ready_marker_file = os.path.join(
@@ -878,8 +882,18 @@ class DataSourceAzure(sources.DataSource):
             crawled_data["metadata"]["random_seed"] = seed
         crawled_data["metadata"]["instance-id"] = self._iid()
 
+        if not util.get_cfg_option_bool(self.sys_cfg, "allow_userdata", True):
+            self._ds_cfg_overrides = {}
+        elif crawled_data["userdata_raw"] or imds_md:
+            self._ds_cfg_overrides = _ds_cfg_overrides_from_userdata(
+                crawled_data["userdata_raw"]
+            )
+
         if self._negotiated is False and self._is_ephemeral_networking_up():
-            if self.ds_cfg.get("experimental_skip_ready_report", False):
+            if self._ds_cfg_overrides.get(
+                "experimental_skip_ready_report",
+                self.ds_cfg.get("experimental_skip_ready_report", False),
+            ):
                 LOG.debug(
                     "Skipping final health report as "
                     "experimental_skip_ready_report is enabled."
@@ -1661,9 +1675,10 @@ class DataSourceAzure(sources.DataSource):
                     apply_network_config_for_secondary_ips=self.ds_cfg[
                         "apply_network_config_for_secondary_ips"
                     ],
-                    apply_network_config_set_name=self.ds_cfg[
-                        "apply_network_config_set_name"
-                    ],
+                    apply_network_config_set_name=self._ds_cfg_overrides.get(
+                        "apply_network_config_set_name",
+                        self.ds_cfg["apply_network_config_set_name"],
+                    ),
                 )
             except Exception as e:
                 LOG.error(
@@ -1684,7 +1699,7 @@ class DataSourceAzure(sources.DataSource):
     def network_config(self):
         """Provide network configuration v2 dictionary."""
         # Use cached config, if present.
-        if self._network_config:
+        if isinstance(self._network_config, dict) and self._network_config:
             return self._network_config
 
         self._network_config = self._generate_network_config()
@@ -1774,6 +1789,50 @@ def _hascustomdata_from_imds(imds_data: Dict) -> Optional[bool]:
         return imds_data["extended"]["compute"]["hasCustomData"]
     except KeyError:
         return None
+
+
+def _ds_cfg_overrides_from_userdata(
+    userdata_raw: Optional[Union[str, bytes]],
+) -> Dict[str, bool]:
+    if (
+        not userdata_raw
+        or type_from_starts_with(userdata_raw) != "text/cloud-config"
+    ):
+        return {}
+
+    config = util.load_yaml(userdata_raw, default={})
+    for key in DS_CFG_PATH:
+        if key not in config:
+            return {}
+        config = config[key]
+        if not isinstance(config, dict):
+            report_diagnostic_event(
+                "Ignoring Azure datasource options: %s in user-data "
+                "must be a mapping" % key,
+                logger_func=LOG.warning,
+            )
+            return {}
+
+    overrides = {}
+    for key, value in config.items():
+        if key not in (
+            "experimental_skip_ready_report",
+            "apply_network_config_set_name",
+        ):
+            report_diagnostic_event(
+                "Ignoring unsupported Azure datasource option in user-data: "
+                "%s" % key,
+                logger_func=LOG.warning,
+            )
+        elif not isinstance(value, bool):
+            report_diagnostic_event(
+                "Ignoring Azure datasource option %s in user-data: "
+                "expected a boolean" % key,
+                logger_func=LOG.warning,
+            )
+        else:
+            overrides[key] = value
+    return overrides
 
 
 def _hostname_from_imds(imds_data):
