@@ -13,6 +13,19 @@ from cloudinit.net.network_state import NetworkState
 LOG = logging.getLogger(__name__)
 
 
+def _subnet_type(subnet: dict) -> Optional[str]:
+    """Return the subnet type, reporting an IPv6 "static" subnet as "static6".
+
+    network_state keeps type "static" for IPv6 addresses coming from network
+    config v2 and from several datasources (SmartOS, Oracle); the address
+    family is then only known from the address itself.
+    """
+    subnet_type = subnet.get("type")
+    if subnet_type == "static" and net.subnet_is_ipv6(subnet):
+        return "static6"
+    return subnet_type
+
+
 class BSDRenderer(renderer.Renderer):
     resolv_conf_fn = "etc/resolv.conf"
     rc_conf_fn = "etc/rc.conf"
@@ -67,7 +80,8 @@ class BSDRenderer(renderer.Renderer):
             LOG.info("Configuring interface %s", device_name)
 
             for subnet in interface.get("subnets", []):
-                if subnet.get("type") == "static":
+                subnet_type = _subnet_type(subnet)
+                if subnet_type == "static":
                     if not subnet.get("netmask"):
                         LOG.debug(
                             "Skipping IP %s, because there is no netmask",
@@ -87,7 +101,7 @@ class BSDRenderer(renderer.Renderer):
                         "mtu": subnet.get("mtu") or interface.get("mtu"),
                     }
 
-                elif subnet.get("type") == "static6":
+                elif subnet_type == "static6":
                     if not subnet.get("prefix"):
                         LOG.debug(
                             "Skipping IP %s, because there is no prefix",
@@ -117,7 +131,8 @@ class BSDRenderer(renderer.Renderer):
         for interface in settings.iter_interfaces():
             subnets = interface.get("subnets", [])
             for subnet in subnets:
-                if subnet.get("type") == "static":
+                subnet_type = _subnet_type(subnet)
+                if subnet_type == "static":
                     gateway = subnet.get("gateway")
                     if gateway and len(gateway.split(".")) == 4:
                         routes.append(
@@ -127,7 +142,7 @@ class BSDRenderer(renderer.Renderer):
                                 "gateway": gateway,
                             }
                         )
-                elif subnet.get("type") == "static6":
+                elif subnet_type == "static6":
                     gateway = subnet.get("gateway")
                     if gateway and len(gateway.split(":")) > 1:
                         routes.append(

@@ -29,6 +29,31 @@ config:
     type: physical
 version: 1
 """
+# IPv6 given as type "static", the form network config v2 and the SmartOS
+# and Oracle datasources produce.
+V1_STATIC_IPV6 = """
+config:
+-   id: eno1
+    mac_address: 08:94:ef:51:ae:e0
+    name: eno1
+    subnets:
+    -   address: 172.20.80.129/25
+        gateway: 172.20.80.1
+        type: static
+    -   address: fd12:3456:789a:1::2/64
+        gateway: fd12:3456:789a:1::1
+        type: static
+    type: physical
+version: 1
+"""
+V2 = """
+version: 2
+ethernets:
+    eno1:
+        addresses: [172.20.80.129/25, "fd12:3456:789a:1::2/64"]
+        gateway4: 172.20.80.1
+        gateway6: fd12:3456:789a:1::1
+"""
 
 
 class TestInterfacesByMac:
@@ -80,3 +105,24 @@ class TestFreeBSDRoundTrip:
                 "'inet6 fd12:3456:789a:1::1/64 mtu 1470'\n"
             ),
         }
+
+    @pytest.mark.parametrize("config", [V1_STATIC_IPV6, V2])
+    @mock.patch(
+        "cloudinit.subp.subp", return_value=(SAMPLE_FREEBSD_IFCONFIG_OUT, 0)
+    )
+    @mock.patch("cloudinit.util.is_FreeBSD", return_value=True)
+    def test_render_static_ipv6(self, m_is_freebsd, m_subp, config):
+        """An IPv6 subnet of type static is rendered as IPv6, with its route.
+
+        Regression test for GH-5319.
+        """
+        network_config = yaml.safe_load(config)
+        ns = cloudinit.net.network_state.parse_net_config_data(network_config)
+        files = self._render_and_read(ns)
+        assert files["etc/rc.conf"] == (
+            "# dummy rc.conf\n"
+            "defaultrouter=172.20.80.1\n"
+            "ipv6_defaultrouter=fd12:3456:789a:1::1\n"
+            "ifconfig_eno1='inet 172.20.80.129 netmask 255.255.255.128'\n"
+            "ifconfig_eno1_ipv6='inet6 fd12:3456:789a:1::2/64'\n"
+        )
