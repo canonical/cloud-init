@@ -47,6 +47,10 @@ class BSDRenderer(renderer.Renderer):
         self.target: Optional[str] = None
         self.interface_configurations: dict[str, Any] = {}
         self.interface_configurations_ipv6: dict[str, Any] = {}
+        # Addresses beyond the first one of each family, per interface, in
+        # the order they were given. Renderers that support it configure
+        # them as aliases.
+        self.interface_aliases: dict[str, list[dict[str, Any]]] = {}
         self._postcmds = config.get("postcmds", True)
 
     def _ifconfig_entries(self, settings: NetworkState) -> None:
@@ -95,11 +99,15 @@ class BSDRenderer(renderer.Renderer):
                         subnet.get("netmask"),
                     )
 
-                    self.interface_configurations[device_name] = {
+                    config = {
                         "address": subnet.get("address"),
                         "netmask": subnet.get("netmask"),
                         "mtu": subnet.get("mtu") or interface.get("mtu"),
                     }
+                    if device_name in self.interface_configurations:
+                        self._add_alias(device_name, "inet", config)
+                    else:
+                        self.interface_configurations[device_name] = config
 
                 elif subnet_type == "static6":
                     if not subnet.get("prefix"):
@@ -115,16 +123,40 @@ class BSDRenderer(renderer.Renderer):
                         subnet.get("prefix"),
                     )
 
-                    self.interface_configurations_ipv6[device_name] = {
+                    config = {
                         "address": subnet.get("address"),
                         "prefix": subnet.get("prefix"),
                         "mtu": subnet.get("mtu") or interface.get("mtu"),
                     }
+                    ipv6_configurations = self.interface_configurations_ipv6
+                    if device_name in ipv6_configurations:
+                        self._add_alias(device_name, "inet6", config)
+                    else:
+                        ipv6_configurations[device_name] = config
                 elif (
                     subnet.get("type") == "dhcp"
                     or subnet.get("type") == "dhcp4"
                 ):
                     self.interface_configurations[device_name] = "DHCP"
+
+    def _add_alias(
+        self, device_name: str, family: str, config: dict[str, Any]
+    ) -> None:
+        """Record an additional address of an interface.
+
+        :param device_name: interface the address belongs to.
+        :param family: "inet" or "inet6".
+        :param config: the address, with "netmask" for inet or "prefix" for
+            inet6. The MTU is an interface property and is not kept.
+        """
+        LOG.debug(
+            "Configuring dev %s with additional address %s",
+            device_name,
+            config.get("address"),
+        )
+        alias = {k: v for k, v in config.items() if k != "mtu"}
+        alias["family"] = family
+        self.interface_aliases.setdefault(device_name, []).append(alias)
 
     def _route_entries(self, settings: NetworkState) -> None:
         routes = list(settings.iter_routes())

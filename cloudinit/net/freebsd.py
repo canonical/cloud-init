@@ -43,6 +43,24 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
                 "ifconfig_%s_ipv6" % device_name, net_config
             )
 
+        for device_name, aliases in self.interface_aliases.items():
+            # rc(8) stops at the first missing ifconfig_<if>_alias<n>, so
+            # the numbering is contiguous across both address families.
+            for idx, v in enumerate(aliases):
+                if v["family"] == "inet6":
+                    net_config = "inet6 %s/%d" % (
+                        v.get("address"),
+                        v.get("prefix"),
+                    )
+                else:
+                    net_config = "inet %s netmask %s" % (
+                        v.get("address"),
+                        v.get("netmask"),
+                    )
+                self.set_rc_config_value(
+                    "ifconfig_%s_alias%d" % (device_name, idx), net_config
+                )
+
     def start_services(self, run=False):
         if not run:
             LOG.debug("freebsd generate postcmd disabled")
