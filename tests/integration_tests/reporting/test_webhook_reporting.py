@@ -4,6 +4,7 @@
 
 import json
 import re
+from typing import Dict, List, Union
 
 import pytest
 import yaml
@@ -29,8 +30,8 @@ reporting:
 """
 
 SKIPPED_MODULES_RE = re.compile(
-    r"Skipping modules '(?P<modules>[\w,]+)' because "
-    r"(?:no applicable config is provided|tehr are not verified on distro)"
+    r"Skipping modules '(?P<modules>[\w,-]+)' because "
+    r"(?:no applicable config is provided|they are not verified on distro)"
 )
 
 
@@ -40,6 +41,21 @@ def get_skipped_modules(log: str) -> set[str]:
     for match in SKIPPED_MODULES_RE.finditer(log):
         skipped_modules.update(match.groupdict()["modules"].split(","))
     return skipped_modules
+
+
+def module_name_from_entry(entry: Union[Dict, str, List]) -> str:
+    """Return the config module name from a cloud.cfg entry.
+
+    Allowed module config values in /etc/cloud/cloud.cfg are of the form:
+    - module-name
+    - [ module-name, frequency, arguments ]
+    - {"name": "module-name", "freq": PER_ALWAYS, "args": "my args"}
+    """
+    if isinstance(entry, dict):
+        return entry["name"]
+    if isinstance(entry, list):
+        return entry[0]
+    return entry
 
 
 @pytest.mark.user_data(USER_DATA)
@@ -89,9 +105,19 @@ def test_webhook_reporting(client: IntegrationInstance):
     # per distro downstream.
     cloud_cfg = yaml.safe_load(client.read_from_file("/etc/cloud/cloud.cfg"))
     stage_modules = {
-        "init-network": set(cloud_cfg["cloud_init_modules"]),
-        "modules-config": set(cloud_cfg["cloud_config_modules"]),
-        "modules-final": set(cloud_cfg["cloud_final_modules"]),
+        "init-network": set(
+            map(module_name_from_entry, cloud_cfg["cloud_init_modules"])
+        ),
+        "modules-config": set(
+            map(
+                module_name_from_entry, cloud_cfg["cloud_config_modules"],
+            )
+        ),
+        "modules-final": set(
+            map(
+                module_name_from_entry, cloud_cfg["cloud_final_modules"]
+            )
+        ),
     }
     for stage, modules in stage_modules.items():
         for module in modules.difference(skipped_modules):
