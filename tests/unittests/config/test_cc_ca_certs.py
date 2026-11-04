@@ -293,7 +293,13 @@ class TestRemoveDefaultCaCerts:
                     with mock.patch.object(util, "write_file") as mock_write:
                         cc_ca_certs.disable_default_ca_certs(distro_name, conf)
 
-                        if distro_name in ["rhel", "photon"]:
+                        if distro_name in [
+                            "amazon",
+                            "azurelinux",
+                            "mariner",
+                            "photon",
+                            "rhel",
+                        ]:
                             mock_delete.assert_has_calls(
                                 [
                                     mock.call(conf["ca_cert_path"]),
@@ -301,7 +307,13 @@ class TestRemoveDefaultCaCerts:
                                 ]
                             )
                             assert [] == mock_subp.call_args_list
-                        elif distro_name in ["alpine", "debian", "ubuntu"]:
+                        elif distro_name in [
+                            "alpine",
+                            "aosc",
+                            "debian",
+                            "raspberry-pi-os",
+                            "ubuntu",
+                        ]:
                             mock_load.assert_called_once_with(
                                 conf["ca_cert_config"]
                             )
@@ -309,7 +321,11 @@ class TestRemoveDefaultCaCerts:
                                 conf["ca_cert_config"], expected, omode="wb"
                             )
 
-                            if distro_name in ["debian", "ubuntu"]:
+                            if distro_name in [
+                                "debian",
+                                "raspberry-pi-os",
+                                "ubuntu",
+                            ]:
                                 mock_subp.assert_called_once_with(
                                     ["debconf-set-selections", "-"],
                                     data=(
@@ -319,6 +335,11 @@ class TestRemoveDefaultCaCerts:
                                 )
                             else:
                                 assert mock_subp.call_count == 0
+                        else:
+                            mock_delete.assert_not_called()
+                            mock_load.assert_not_called()
+                            mock_subp.assert_not_called()
+                            mock_write.assert_not_called()
 
     @pytest.mark.parametrize("distro_name", cc_ca_certs.distros)
     def test_non_existent_cert_cfg(self, distro_name, setup_test):
