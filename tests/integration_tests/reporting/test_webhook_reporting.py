@@ -3,8 +3,10 @@
 """Tests for testing reporting and event handling."""
 
 import json
+import re
 
 import pytest
+import yaml
 
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import (
@@ -25,6 +27,19 @@ reporting:
     retries: 1
 
 """
+
+SKIPPED_MODULES_RE = re.compile(
+    r"Skipping modules '(?P<modules>[\w,]+)' because "
+    r"(?:no applicable config is provided|tehr are not verified on distro)"
+)
+
+
+def get_skipped_modules(log: str) -> set[str]:
+    """Return a set of all skipped modules from cloud-init.log."""
+    skipped_modules: set[str] = set()
+    for match in SKIPPED_MODULES_RE.finditer(log):
+        skipped_modules.update(match.groupdict()["modules"].split(","))
+    return skipped_modules
 
 
 @pytest.mark.user_data(USER_DATA)
@@ -50,18 +65,41 @@ def test_webhook_reporting(client: IntegrationInstance):
         "cloud-init modules --mode=final; "
         "cloud-init status --wait"
     )
-    verify_clean_log(client.read_from_file("/var/log/cloud-init.log"))
+    log = client.read_from_file("/var/log/cloud-init.log")
+    skipped_modules = get_skipped_modules(log)
+    verify_clean_log(log)
     verify_clean_boot(client)
 
     server_output = client.read_from_file(
         "/var/tmp/echo_server_output"
     ).splitlines()
     events = [json.loads(line) for line in server_output]
+    event_names = [e["name"] for e in events]
 
-    # Only time this should be less is if we remove modules
-    assert len(events) > 50, events
+    for stage in (
+        "init-network",
+        "modules-config",
+        "modules-final",
+    ):
+        assert stage in event_names, f"missing webhook event for {stage}"
 
-    # Assert our first and last expected messages exist
+    # Each config module in the instance's cloud.cfg reported an event in
+    # its boot stage. Reading the config from the instance keeps testing
+    # independent of the module lists in config/cloud.cfg.tmpl, which vary
+    # per distro downstream.
+    cloud_cfg = yaml.safe_load(client.read_from_file("/etc/cloud/cloud.cfg"))
+    stage_modules = {
+        "init-network": set(cloud_cfg["cloud_init_modules"]),
+        "modules-config": set(cloud_cfg["cloud_config_modules"]),
+        "modules-final": set(cloud_cfg["cloud_final_modules"]),
+    }
+    for stage, modules in stage_modules.items():
+        for module in modules.difference(skipped_modules):
+            assert (
+                f"{stage}/config-{module}" in event_names
+            ), f"no webhook event for module '{module}' in stage {stage}"
+
+    # Assert our datasource activation events exist
     ds_events = [
         e for e in events if e["name"] == "init-network/activate-datasource"
     ]
