@@ -16,4 +16,5 @@ other datasources are not matched, then this one will be so that the user is
 not left with an inaccessible instance.
 
 .. note::
-   The instance id that this datasource provides is ``iid-datasource-none``.
+   The :ref:`instance ID <instance_id>` that this datasource provides is
+   ``iid-datasource-none``.
