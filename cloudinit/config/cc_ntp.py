@@ -121,6 +121,14 @@ DISTRO_CLIENT_CONFIG: Dict[str, Dict] = {
     "azurelinux": {
         "chrony": {
             "service_name": "chronyd",
+            "template_name": "chrony.conf.rhel",
+        },
+        "ntp": {
+            "service_name": "ntpd",
+            "template_name": "ntp.conf.rhel",
+        },
+        "ntpdate": {
+            "template_name": "ntp.conf.rhel",
         },
         "systemd-timesyncd": {
             "check_exe": "/usr/lib/systemd/systemd-timesyncd",
@@ -169,6 +177,14 @@ DISTRO_CLIENT_CONFIG: Dict[str, Dict] = {
     "mariner": {
         "chrony": {
             "service_name": "chronyd",
+            "template_name": "chrony.conf.rhel",
+        },
+        "ntp": {
+            "service_name": "ntpd",
+            "template_name": "ntp.conf.rhel",
+        },
+        "ntpdate": {
+            "template_name": "ntp.conf.rhel",
         },
         "systemd-timesyncd": {
             "check_exe": "/usr/lib/systemd/systemd-timesyncd",
