@@ -261,7 +261,7 @@ CLI Interface:
 
 Example output:
 
-.. code-block::
+.. code-block:: yaml
 
    usage: /usr/bin/cloud-init devel net-convert [-h] -p PATH -k {eni,network_data.json,yaml,azure-imds,vmware-imc} -d PATH -D
                                                   {alpine,arch,azurelinux,debian,ubuntu,freebsd,dragonfly,gentoo,cos,netbsd,openbsd,almalinux,amazon,centos,cloudlinux,eurolinux,fedora,mariner,miraclelinux,openmandriva,photon,rhel,rocky,virtuozzo,opensuse,sles,openEuler,raspberry-pi-os}
@@ -292,7 +292,7 @@ Example of converting V2 to sysconfig:
 
 Example output:
 
-.. code-block::
+.. code-block:: text
 
    # Created by cloud-init automatically, do not edit.
    #

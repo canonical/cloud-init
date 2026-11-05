@@ -10,7 +10,10 @@ import re
 import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.integration_settings import CLOUD_INIT_SOURCE
+from tests.integration_tests.integration_settings import (
+    CLOUD_INIT_SOURCE,
+    PLATFORM,
+)
 from tests.integration_tests.releases import (
     CURRENT_RELEASE,
     IS_UBUNTU,
@@ -230,14 +233,21 @@ def test_default_user_settings_override(client: IntegrationInstance):
         .stdout.strip()
         .split(":")[-1]
     )
+    # No user prior to boot in non-snapshot runs
+    # When the user is absent, all overrides will be applied
     if CLOUD_INIT_SOURCE in ["NONE", "IN_PLACE"]:
         assert (
             "/bin/sh" == shell_set
-        ), "Shell setting not overriden even though the user is new"
+        ), f"Expected override /bin/sh but found {shell_set}"
+    elif PLATFORM == "azure":
+        # Azure runs a deprovision, removing the ubuntu user
+        assert (
+            "/bin/sh" == shell_set
+        ), f"Expected override /bin/sh but found {shell_set}"
     else:
         assert (
             "/bin/bash" == shell_set
-        ), "Shell setting overriden even though user already exists"
+        ), f"Expected override /bin/bash but found {shell_set}"
     # Check password is not locked
     passwd_status = client.execute(["passwd", "-S", "ubuntu"]).stdout
     assert re.search(r"^ubuntu\s+P\b", passwd_status)

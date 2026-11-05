@@ -165,7 +165,7 @@ files, please check the following restrictions:
 
 ``C:\Users\Me\.cloud-init\noble-cpp.user-data``
 
-.. code-block::
+.. code-block:: yaml
 
    #include
    /mnt/c/Users/me/.cloud-init/config.user-data

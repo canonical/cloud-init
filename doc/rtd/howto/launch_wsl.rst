@@ -166,7 +166,7 @@ Import the image into WSL, storing it in the ``wsl-images`` directory.
 
 Example output:
 
-.. code-block::
+.. code-block:: text
 
     Import in progress, this may take a few minutes.
     The operation completed successfully.
@@ -257,7 +257,7 @@ it received the expected user-data we provided earlier:
 
 Which should print the following to the terminal window:
 
-.. code-block::
+.. code-block:: yaml
 
     #cloud-config
     write_files:
@@ -274,7 +274,7 @@ We can also assert the user-data we provided is a valid cloud-config:
 
 Which should print the following:
 
-.. code-block::
+.. code-block:: text
 
     Valid schema user-data
 
@@ -286,7 +286,7 @@ Finally, let us verify that our user-data was applied successfully:
 
 Which should then print:
 
-.. code-block::
+.. code-block:: text
 
     Hello from cloud-init
 
