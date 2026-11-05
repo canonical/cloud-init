@@ -8,8 +8,10 @@
 
 import logging
 import os
+from typing import Any, Callable, Dict, List, Optional, Type
 
-from cloudinit import lifecycle, sources, subp, util
+from cloudinit import helpers, lifecycle, sources, subp, util
+from cloudinit.distros import Distro
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import eni
 from cloudinit.sources.DataSourceIBMCloud import get_ibm_platform
@@ -43,28 +45,33 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         }
     }
 
-    def __init__(self, sys_cfg, distro, paths):
+    def __init__(
+        self,
+        sys_cfg: Dict[str, Any],
+        distro: Distro,
+        paths: helpers.Paths,
+    ) -> None:
         super(DataSourceConfigDrive, self).__init__(sys_cfg, distro, paths)
-        self.source = None
+        self.source: Optional[str] = None
         self.seed_dir = os.path.join(paths.seed_dir, "config_drive")
-        self.version = None
-        self.ec2_metadata = None
-        self._network_config = None
-        self.network_json = sources.UNSET
-        self.network_eni = None
-        self.known_macs = None
-        self.files = {}
+        self.version: Optional[int] = None
+        self.ec2_metadata: Optional[Dict[str, Any]] = None
+        self._network_config: Optional[Dict[str, Any]] = None
+        self.network_json: Optional[str] = sources.UNSET
+        self.network_eni: Optional[str] = None
+        self.known_macs: Optional[Dict[str, str]] = None
+        self.files: Dict[str, str] = {}
 
-    def __str__(self):
+    def __str__(self) -> str:
         root = sources.DataSource.__str__(self)
         mstr = "%s [%s,ver=%s]" % (root, self.dsmode, self.version)
         mstr += "[source=%s]" % (self.source)
         return mstr
 
-    def _get_data(self):
-        found = None
-        md = {}
-        results = {}
+    def _get_data(self) -> bool:
+        found: Optional[str] = None
+        md: Dict[str, Any] = {}
+        results: Dict[str, Any] = {}
         for sdir in (self.seed_dir, "/config-drive"):
             if not os.path.isdir(sdir):
                 continue
@@ -78,7 +85,7 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         if not found:
             dslist = self.sys_cfg.get("datasource_list")
             for dev in find_candidate_devs(dslist=dslist):
-                mtype = None
+                mtype: Optional[str] = None
                 if util.is_BSD():
                     if dev.startswith("/dev/cd"):
                         mtype = "cd9660"
@@ -161,12 +168,12 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         self.network_json = results.get("networkdata")
         return True
 
-    def check_instance_id(self, sys_cfg):
+    def check_instance_id(self, sys_cfg: dict) -> bool:
         # quickly (local check only) if self.instance_id is still valid
         return sources.instance_id_matches_system_uuid(self.get_instance_id())
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[Dict[str, Any]]:
         if self._network_config is None:
             if self.network_json not in (None, sources.UNSET):
                 LOG.debug("network config provided via network_json")
@@ -189,11 +196,15 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         return self._network_config
 
     @property
-    def platform(self):
+    def platform(self) -> str:
         return "openstack"
 
-    def _get_subplatform(self):
+    def _get_subplatform(self) -> str:
         """Return the subplatform metadata source details."""
+        if self.source is None:
+            # Cannot happen: _get_subplatform is only invoked after
+            # get_data() succeeded, which sets source to a path.
+            raise ValueError("Could not determine subplatform: no source")
         if self.source.startswith("/dev"):
             subplatform_type = "config-disk"
         else:
@@ -201,22 +212,22 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         return "%s (%s)" % (subplatform_type, self.source)
 
 
-def read_config_drive(source_dir):
+def read_config_drive(source_dir: str) -> Dict[str, Any]:
     reader = openstack.ConfigDriveReader(source_dir)
-    finders = [
-        (reader.read_v2, [], {}),
-        (reader.read_v1, [], {}),
+    finders: List[Callable[[], Dict[str, Any]]] = [
+        reader.read_v2,
+        reader.read_v1,
     ]
-    excps = []
-    for functor, args, kwargs in finders:
+    excps: List[openstack.NonReadable] = []
+    for functor in finders:
         try:
-            return functor(*args, **kwargs)
+            return functor()
         except openstack.NonReadable as e:
             excps.append(e)
     raise excps[-1]
 
 
-def get_previous_iid(paths):
+def get_previous_iid(paths: helpers.Paths) -> Optional[str]:
     # interestingly, for this purpose the "previous" instance-id is the current
     # instance-id.  cloud-init hasn't moved them over yet as this datasource
     # hasn't declared itself found.
@@ -227,7 +238,11 @@ def get_previous_iid(paths):
         return None
 
 
-def on_first_boot(data, distro=None, network=True):
+def on_first_boot(
+    data: Dict[str, Any],
+    distro: Optional[Distro] = None,
+    network: bool = True,
+) -> None:
     """Performs any first-boot actions using data read from a config-drive."""
     if not isinstance(data, dict):
         raise TypeError(
@@ -241,7 +256,7 @@ def on_first_boot(data, distro=None, network=True):
     write_injected_files(data.get("files"))
 
 
-def write_injected_files(files):
+def write_injected_files(files: Optional[Dict[str, str]]) -> None:
     if files:
         LOG.debug("Writing %s injected files", len(files))
         for filename, content in files.items():
@@ -253,7 +268,9 @@ def write_injected_files(files):
                 util.logexc(LOG, "Failed writing file: %s", filename)
 
 
-def find_candidate_devs(probe_optical=True, dslist=None):
+def find_candidate_devs(
+    probe_optical: bool = True, dslist: Optional[List[str]] = None
+) -> List[str]:
     """Return a list of devices that may contain the config drive.
 
     The returned list is sorted by search order where the first item has
@@ -328,5 +345,5 @@ datasources = [
 
 
 # Return a list of data sources that match this set of dependencies
-def get_datasource_list(depends):
+def get_datasource_list(depends: List[str]) -> List[Type[sources.DataSource]]:
     return sources.list_from_depends(depends, datasources)

@@ -49,7 +49,6 @@ module = [
     "cloudinit.net.network_state",
     "cloudinit.net.networkd",
     "cloudinit.netinfo",
-    "cloudinit.sources.DataSourceConfigDrive",
     "cloudinit.sources.DataSourceEc2",
     "cloudinit.sources.DataSourceExoscale",
     "cloudinit.sources.DataSourceGCE",
