@@ -42,6 +42,7 @@ REMOVED_MODULES = [
     "cc_refresh_rmc_and_interface.py",  # Removed in 23.2
     "cc_migrator",  # Removed in 24.1
     "cc_rightscale_userdata",  # Removed in 24.1
+    "cc_reset_rmc",  # Removed in 26.3
 ]
 
 RENAMED_MODULES = {
