@@ -29,6 +29,9 @@ reporting:
 
 """
 
+REMOVED_MODULES_RE = re.compile(
+    r"Module `(?P<module>[\w-]+)` has been removed from cloud-init"
+)
 SKIPPED_MODULES_RE = re.compile(
     r"Skipping modules '(?P<modules>[\w,-]+)' because "
     r"(?:no applicable config is provided|they are not verified on distro)"
@@ -38,6 +41,8 @@ SKIPPED_MODULES_RE = re.compile(
 def get_skipped_modules(log: str) -> set[str]:
     """Return a set of all skipped modules from cloud-init.log."""
     skipped_modules: set[str] = set()
+    for match in REMOVED_MODULES_RE.finditer(log):
+        skipped_modules.add(match.groupdict()["module"])
     for match in SKIPPED_MODULES_RE.finditer(log):
         skipped_modules.update(match.groupdict()["modules"].split(","))
     return skipped_modules
@@ -110,13 +115,12 @@ def test_webhook_reporting(client: IntegrationInstance):
         ),
         "modules-config": set(
             map(
-                module_name_from_entry, cloud_cfg["cloud_config_modules"],
+                module_name_from_entry,
+                cloud_cfg["cloud_config_modules"],
             )
         ),
         "modules-final": set(
-            map(
-                module_name_from_entry, cloud_cfg["cloud_final_modules"]
-            )
+            map(module_name_from_entry, cloud_cfg["cloud_final_modules"])
         ),
     }
     for stage, modules in stage_modules.items():
