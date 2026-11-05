@@ -79,7 +79,8 @@ projects, contributions, suggestions, fixes and constructive feedback.
 * Read the `Code of Conduct`_
 * Ask questions in the ``#cloud-init`` `room on Matrix <Matrix_>`_
 * Follow announcements or ask a question on `GitHub Discussions`_
-* :ref:`Contribute on GitHub<development>`
+* Contribute on GitHub at `canonical/cloud-init <GH repo_>`_
+* Read the :ref:`development requirements<development>` before contributing
 * See the latest `release schedule`_
 * See past :ref:`events<summit>`
 
