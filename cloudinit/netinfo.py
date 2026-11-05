@@ -549,9 +549,73 @@ def _netdev_route_info_netstat(route_data):
     return routes
 
 
+def _netdev_route_info_netstat_bsd(route_data, ipv6=False):
+    """
+    Get network route dicts from BSD ``netstat -rn -f <family>`` output.
+
+    BSD netstat column layouts differ between FreeBSD, NetBSD and OpenBSD,
+    but all start with Destination, Gateway and Flags. The interface column
+    is located by name from the header line.
+
+    @param route_data: Output string from BSD netstat for one address family.
+    @param ipv6: Whether route_data holds the inet6 routing table.
+
+    @returns: A list of route dictionaries representing destination,
+              gateway, flags, genmask (IPv4 only) and interface information.
+    """
+    routes = []
+    iface_idx = None
+    for line in route_data.splitlines():
+        toks = line.split()
+        if not toks:
+            continue
+        if toks[0] == "Destination":
+            for idx, tok in enumerate(toks):
+                if tok in ("Netif", "Iface", "Interface"):
+                    iface_idx = idx
+            continue
+        # Skip the "Routing tables" and "Internet:" lines before the header
+        if iface_idx is None or len(toks) <= iface_idx:
+            continue
+        entry = {
+            "destination": toks[0],
+            "gateway": toks[1],
+            "flags": toks[2],
+            "iface": toks[iface_idx],
+        }
+        if ipv6:
+            if entry["destination"] == "default":
+                entry["destination"] = "::/0"
+        elif entry["destination"] == "default":
+            entry["destination"] = "0.0.0.0"
+            entry["genmask"] = "0.0.0.0"
+        elif "/" in entry["destination"]:
+            addr, cidr = entry["destination"].split("/")
+            entry["destination"] = addr
+            entry["genmask"] = net_prefix_to_ipv4_mask(cidr)
+        else:
+            entry["genmask"] = "255.255.255.255"
+        routes.append(entry)
+    return routes
+
+
 def route_info():
     routes = {}
-    if subp.which("ip"):
+    if util.is_BSD():
+        # BSD netstat only accepts short options; the GNU long options used
+        # below fail with a usage error (exit code 64 since FreeBSD 15).
+        route_out, _err = subp.subp(["netstat", "-rn", "-f", "inet"])
+        routes["ipv4"] = _netdev_route_info_netstat_bsd(route_out)
+        try:
+            route_out6, _err6 = subp.subp(["netstat", "-rn", "-f", "inet6"])
+        except subp.ProcessExecutionError:
+            # Kernels built without INET6 reject the inet6 address family
+            routes["ipv6"] = []
+        else:
+            routes["ipv6"] = _netdev_route_info_netstat_bsd(
+                route_out6, ipv6=True
+            )
+    elif subp.which("ip"):
         # Try iproute first of all
         iproute_out, _err = subp.subp(["ip", "-o", "route", "list"])
         routes = _netdev_route_info_iproute(iproute_out)
