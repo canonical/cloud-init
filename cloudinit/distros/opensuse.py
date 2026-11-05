@@ -21,6 +21,11 @@ LOG = logging.getLogger(__name__)
 
 
 class Distro(distros.Distro):
+    ca_cert_config = None
+    ca_cert_filename = "anchors/cloud-init-ca-cert-{cert_index}.crt"
+    ca_cert_local_path = "/usr/share/pki/trust/"
+    ca_cert_path = "/etc/pki/trust/"
+
     clock_conf_fn = "/etc/sysconfig/clock"
     hostname_conf_fn = "/etc/HOSTNAME"
     init_cmd = ["service"]
