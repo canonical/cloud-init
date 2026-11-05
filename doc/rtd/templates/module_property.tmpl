@@ -14,20 +14,25 @@
 {{prefix ~ '  '}}{{ line }}
 {% endfor -%}
 {%- endmacro -%}
-{% set ns = namespace(is_obj_type=false) -%}
+{#- is_obj_type: the property itself is an object with known keys.
+    is_obj_list: the property is a list whose items are such objects. -#}
+{% set ns = namespace(is_obj_type=false, is_obj_list=false) -%}
 {% for alt_schema in prop_cfg.get("oneOf", []) -%}
   {% if ('properties' in alt_schema or 'patternProperties' in alt_schema) %}{% set ns.is_obj_type = true -%}{% endif -%}
+  {% if ('properties' in alt_schema.get('items', {}) or 'patternProperties' in alt_schema.get('items', {})) %}{% set ns.is_obj_list = true -%}{% endif -%}
 {% endfor -%}
 {% if ('properties' in prop_cfg or 'patternProperties' in prop_cfg) %}{% set ns.is_obj_type = true -%}{% endif -%}
 {% for key, val in prop_cfg.get('items', {}).items() -%}
-  {% if key in ('properties', 'patternProperties') -%}{% set ns.is_obj_type = true -%}{% endif -%}
+  {% if key in ('properties', 'patternProperties') -%}{% set ns.is_obj_list = true -%}{% endif -%}
   {% if key == 'oneOf' -%}
     {% for oneOf in val -%}
-      {% if ('properties' in oneOf or 'patternProperties' in oneOf ) -%}{% set ns.is_obj_type = true -%}{% endif -%}
+      {% if ('properties' in oneOf or 'patternProperties' in oneOf ) -%}{% set ns.is_obj_list = true -%}{% endif -%}
     {% endfor -%}
   {% endif -%}
 {% endfor -%}
-{% if ns.is_obj_type -%}
+{% if ns.is_obj_list -%}
 {% set description = description ~ " Each object in **" ~ name ~ "** list supports the following keys:" -%}
+{% elif ns.is_obj_type -%}
+{% set description = description ~ " The **" ~ name ~ "** object supports the following keys:" -%}
 {% endif -%}
 {{ print_prop(name, types, description, deprecated, changed, prefix ) -}}
