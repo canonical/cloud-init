@@ -62,11 +62,24 @@ class BSD(distros.Distro):
     def _write_hostname(self, hostname, filename):
         bsd_utils.set_rc_config_value("hostname", hostname, fn="/etc/rc.conf")
 
-    def create_group(self, name, members=None):
+    def _get_add_group_cmd(self, name, gid=None):
+        group_add_cmd = list(self.group_add_cmd_prefix)
+        if gid is not None:
+            group_add_cmd.extend(["-g", str(gid)])
+        return group_add_cmd + [name]
+
+    def create_group(self, name, members=None, gid=None, system=False):
         if util.is_group(name):
             LOG.warning("Skipping creation of existing group '%s'", name)
         else:
-            group_add_cmd = self.group_add_cmd_prefix + [name]
+            if system:
+                LOG.warning(
+                    "System groups are not supported on %s, creating group"
+                    " '%s' as a regular group",
+                    self.name,
+                    name,
+                )
+            group_add_cmd = self._get_add_group_cmd(name, gid)
             try:
                 subp.subp(group_add_cmd)
                 LOG.info("Created new group %s", name)

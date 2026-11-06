@@ -26,6 +26,15 @@ class TestNetBSD:
             )
         ] == m_subp.call_args_list
 
+    @mock.patch(M_PATH + "util.is_group", return_value=False)
+    @mock.patch(M_PATH + "subp.subp")
+    def test_create_group_with_gid(self, m_subp, m_is_group):
+        distro = get_distro("netbsd")
+        distro.create_group("nfs", gid=1500)
+        assert [
+            mock.call(["groupadd", "-g", "1500", "nfs"])
+        ] == m_subp.call_args_list
+
     @mock.patch(M_PATH + "subp.subp")
     def test_unlock_passwd(self, m_subp, caplog):
         distro = get_distro("netbsd")
