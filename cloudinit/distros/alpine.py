@@ -30,6 +30,8 @@ NETWORK_FILE_HEADER = """\
 
 
 class Distro(distros.Distro):
+    ca_cert_remove_defaults_action = distros.DefaultCACertsAction.DISABLE
+
     pip_package_name = "py3-pip"
     keymap_path = "/usr/share/bkeymaps/"
     locale_conf_fn = "/etc/profile.d/50-cloud-init-locale.sh"

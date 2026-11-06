@@ -19,6 +19,13 @@ LOG = logging.getLogger(__name__)
 
 
 class Distro(distros.Distro):
+    ca_cert_config = None
+    ca_cert_filename = "anchors/cloud-init-ca-cert-{cert_index}.crt"
+    ca_cert_local_path = "/usr/share/pki/ca-trust-source/"
+    ca_cert_path = "/etc/pki/ca-trust/"
+    ca_cert_remove_defaults_action = distros.DefaultCACertsAction.REMOVE
+    ca_cert_update_cmd = ["update-ca-trust"]
+
     # See: https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/7/html/Networking_Guide/sec-Network_Configuration_Using_sysconfig_Files.html # noqa
     clock_conf_fn = "/etc/sysconfig/clock"
     locale_conf_fn = "/etc/sysconfig/i18n"
