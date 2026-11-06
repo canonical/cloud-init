@@ -916,18 +916,102 @@ class TestEc2:
             "FreeBSD doesn't support running dhclient with -sf" in caplog.text
         )
 
+    @pytest.mark.parametrize(
+        "vendor,pci_class,expected",
+        [
+            ("0x1d0f", "0x020000", True),
+            ("0x1d0f", "0x028000", True),
+            ("0x1d0f", "0x020028", True),
+            ("0x1d0f", "0x010802", False),
+            ("0x8086", "0x020000", False),
+            ("0x10ec", "0x020000", False),
+            ("", "", False),
+        ],
+    )
+    def test_has_amazon_network_device(
+        self, tmpdir, vendor, pci_class, expected
+    ):
+        pci_dir = tmpdir.mkdir("pci_devices")
+        dev_dir = pci_dir.mkdir("0000:00:05.0")
+        if vendor:
+            dev_dir.join("vendor").write(vendor)
+        if pci_class:
+            dev_dir.join("class").write(pci_class)
+
+        res = ec2._has_amazon_network_device(str(pci_dir))
+        assert res is expected
+
+    def test_has_amazon_network_device_no_pci_dir(self, tmpdir):
+        missing_dir = str(tmpdir.join("nonexistent"))
+        assert ec2._has_amazon_network_device(missing_dir) is False
+
+    def test_has_amazon_network_device_multiple_devices(self, tmp_path):
+        pci_dir = tmp_path / "pci_devices"
+        pci_dir.mkdir()
+        # Non-matching device (non-Amazon NIC)
+        intel_dev = pci_dir / "0000:00:04.0"
+        intel_dev.mkdir()
+        (intel_dev / "vendor").write_text("0x8086", encoding="utf-8")
+        (intel_dev / "class").write_text("0x020000", encoding="utf-8")
+        # Non-matching Amazon storage controller (NVMe)
+        nvme_dev = pci_dir / "0000:00:05.0"
+        nvme_dev.mkdir()
+        (nvme_dev / "vendor").write_text("0x1d0f", encoding="utf-8")
+        (nvme_dev / "class").write_text("0x010802", encoding="utf-8")
+
+        # Negative case: non-Amazon NIC and Amazon NVMe present, but no ENA NIC
+        assert ec2._has_amazon_network_device(str(pci_dir)) is False
+
+        # Positive case: add matching Amazon network controller (ENA)
+        ena_dev = pci_dir / "0000:00:06.0"
+        ena_dev.mkdir()
+        (ena_dev / "vendor").write_text("0x1d0f", encoding="utf-8")
+        (ena_dev / "class").write_text("0x020000", encoding="utf-8")
+
+        assert ec2._has_amazon_network_device(str(pci_dir)) is True
+
+    def test_has_amazon_network_device_partial_entry(self, tmp_path):
+        pci_dir = tmp_path / "pci_devices"
+        pci_dir.mkdir()
+        # Malformed or incomplete device entry without class attribute
+        broken_dev = pci_dir / "0000:00:04.0"
+        broken_dev.mkdir()
+        (broken_dev / "vendor").write_text("0x1d0f", encoding="utf-8")
+
+        assert ec2._has_amazon_network_device(str(pci_dir)) is False
+
+    def test_has_amazon_network_device_unreadable_entry(self, tmp_path):
+        pci_dir = tmp_path / "pci_devices"
+        pci_dir.mkdir()
+        dev = pci_dir / "0000:00:04.0"
+        dev.mkdir()
+        (dev / "vendor").write_text("0x1d0f", encoding="utf-8")
+        (dev / "class").write_text("0x020000", encoding="utf-8")
+
+        with mock.patch(
+            "cloudinit.sources.DataSourceEc2.open",
+            create=True,
+            side_effect=PermissionError,
+        ) as m_open:
+            assert ec2._has_amazon_network_device(str(pci_dir)) is False
+            assert m_open.called
+
+    @mock.patch(
+        "cloudinit.sources.DataSourceEc2._has_amazon_network_device",
+        return_value=True,
+    )
     @mock.patch("cloudinit.sources.DataSourceEc2.net.wait_for_candidate_nics")
     @mock.patch("cloudinit.sources.DataSourceEc2.net.find_candidate_nics")
-    @mock.patch("cloudinit.sources.DataSourceEc2.dmi.read_dmi_data")
     @mock.patch("cloudinit.sources.DataSourceEc2.util.is_FreeBSD")
-    def test_ec2_local_waits_for_allowlisted_product(
+    def test_ec2_local_waits_when_amazon_pci_device_present(
         self,
         m_is_freebsd,
-        m_read_dmi,
         m_find_candidate_nics,
         m_wait_for_candidate_nics,
+        m_has_pci,
         mocker,
         tmpdir,
+        caplog,
     ):
         self.datasource = ec2.DataSourceEc2Local
         ds = self._setup_ds(
@@ -938,26 +1022,42 @@ class TestEc2:
             tmpdir=tmpdir,
         )
         m_is_freebsd.return_value = False
-        m_read_dmi.return_value = "hpc7a.96xlarge"
         m_find_candidate_nics.return_value = []
         m_wait_for_candidate_nics.return_value = []
 
-        assert ds.get_data() is False
-        m_wait_for_candidate_nics.assert_called_once_with(
-            timeout=60, sleep_interval=1
+        caplog.set_level(
+            logging.INFO, logger="cloudinit.sources.DataSourceEc2"
         )
-        m_find_candidate_nics.assert_not_called()
+        assert ds.get_data() is False
+        m_find_candidate_nics.assert_called_once_with()
+        m_has_pci.assert_called_once_with()
+        m_wait_for_candidate_nics.assert_called_once_with(
+            timeout=ec2.FALLBACK_NIC_TIMEOUT, sleep_interval=1
+        )
+        expected_msg = (
+            "Amazon network controller detected on PCI bus but no "
+            f"candidate NICs found; waiting up to {ec2.FALLBACK_NIC_TIMEOUT} "
+            "seconds for NIC driver probe"
+        )
+        assert (
+            "cloudinit.sources.DataSourceEc2",
+            logging.INFO,
+            expected_msg,
+        ) in caplog.record_tuples
 
+    @mock.patch(
+        "cloudinit.sources.DataSourceEc2._has_amazon_network_device",
+        return_value=False,
+    )
     @mock.patch("cloudinit.sources.DataSourceEc2.net.wait_for_candidate_nics")
     @mock.patch("cloudinit.sources.DataSourceEc2.net.find_candidate_nics")
-    @mock.patch("cloudinit.sources.DataSourceEc2.dmi.read_dmi_data")
     @mock.patch("cloudinit.sources.DataSourceEc2.util.is_FreeBSD")
-    def test_ec2_local_does_not_wait_for_non_allowlisted_product(
+    def test_ec2_local_does_not_wait_when_no_amazon_pci_device(
         self,
         m_is_freebsd,
-        m_read_dmi,
         m_find_candidate_nics,
         m_wait_for_candidate_nics,
+        m_has_pci,
         mocker,
         tmpdir,
     ):
@@ -970,12 +1070,48 @@ class TestEc2:
             tmpdir=tmpdir,
         )
         m_is_freebsd.return_value = False
-        m_read_dmi.return_value = "m7i.48xlarge"
         m_find_candidate_nics.return_value = []
 
         assert ds.get_data() is False
-        m_wait_for_candidate_nics.assert_not_called()
         m_find_candidate_nics.assert_called_once_with()
+        m_has_pci.assert_called_once_with()
+        m_wait_for_candidate_nics.assert_not_called()
+
+    @mock.patch("cloudinit.sources.DataSourceEc2._has_amazon_network_device")
+    @mock.patch("cloudinit.sources.DataSourceEc2.net.wait_for_candidate_nics")
+    @mock.patch(
+        "cloudinit.sources.DataSourceEc2.net.find_candidate_nics",
+        return_value=["eth0"],
+    )
+    @mock.patch("cloudinit.sources.DataSourceEc2.util.is_FreeBSD")
+    def test_ec2_local_does_not_wait_when_nic_already_present(
+        self,
+        m_is_freebsd,
+        m_find_candidate_nics,
+        m_wait_for_candidate_nics,
+        m_has_pci,
+        mocker,
+        tmpdir,
+    ):
+        self.datasource = ec2.DataSourceEc2Local
+        ds = self._setup_ds(
+            platform_data=self.valid_platform_data,
+            sys_cfg={"datasource": {"Ec2": {"strict_id": False}}},
+            md=None,
+            mocker=mocker,
+            tmpdir=tmpdir,
+        )
+        m_is_freebsd.return_value = False
+
+        mocker.patch.object(
+            ds, "crawl_metadata", return_value={"instance-id": "i-123"}
+        )
+        mocker.patch("cloudinit.sources.DataSourceEc2.EphemeralIPNetwork")
+
+        assert ds._get_data() is True
+        m_find_candidate_nics.assert_called_once_with()
+        m_has_pci.assert_not_called()
+        m_wait_for_candidate_nics.assert_not_called()
 
     @responses.activate
     @pytest.mark.usefixtures("disable_netdev_info")
