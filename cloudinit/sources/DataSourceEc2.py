@@ -32,6 +32,9 @@ LOG = logging.getLogger(__name__)
 STRICT_ID_PATH = ("datasource", "Ec2", "strict_id")
 STRICT_ID_DEFAULT = "warn"
 
+# The all-zero uuid that a Xen dom0 reports in /sys/hypervisor/uuid
+NIL_UUID = "00000000-0000-0000-0000-000000000000"
+
 
 class CloudNames:
     AWS = "aws"
@@ -899,6 +902,11 @@ def _collect_platform_data():
     uuid = None
     with suppress(OSError, UnicodeDecodeError):
         uuid = util.load_text_file("/sys/hypervisor/uuid").strip()
+
+    # The nil uuid is truthy but identifies nothing, so treat it like a
+    # missing file and fall back to the DMI system-uuid.
+    if uuid == NIL_UUID:
+        uuid = None
 
     uuid = uuid or dmi.read_dmi_data("system-uuid") or ""
     serial = dmi.read_dmi_data("system-serial-number") or ""

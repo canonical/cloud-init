@@ -1953,6 +1953,86 @@ class TestIdentifyPlatform:
         assert ec2.CloudNames.UNKNOWN == ec2.identify_platform()
 
 
+class TestCollectPlatformData:
+    """Tests for where _collect_platform_data reads the uuid from."""
+
+    DMI_UUID = "EC2E1916-9099-7CAF-FD21-012345ABCDEF"
+    # what a Xen dom0 reads from /sys/hypervisor/uuid
+    XEN_DOM0_UUID = "00000000-0000-0000-0000-000000000000\n"
+
+    @pytest.fixture
+    def m_read_dmi_data(self, mocker):
+        """Mock DMI so that only system-uuid has a value."""
+        return mocker.patch(
+            M_PATH + "dmi.read_dmi_data",
+            side_effect={"system-uuid": self.DMI_UUID}.get,
+        )
+
+    @pytest.mark.parametrize(
+        "hypervisor_uuid",
+        (
+            pytest.param(XEN_DOM0_UUID, id="nil"),
+            pytest.param("", id="empty"),
+            pytest.param("\n", id="newline_only"),
+        ),
+    )
+    def test_nil_or_empty_hypervisor_uuid_uses_dmi(
+        self, hypervisor_uuid, m_read_dmi_data, mocker
+    ):
+        """A nil or empty /sys/hypervisor/uuid falls back to DMI."""
+        mocker.patch(
+            M_PATH + "util.load_text_file", return_value=hypervisor_uuid
+        )
+        assert self.DMI_UUID.lower() == ec2._collect_platform_data()["uuid"]
+        assert mock.call("system-uuid") in m_read_dmi_data.call_args_list
+
+    def test_ec2_hypervisor_uuid_is_kept(self, m_read_dmi_data, mocker):
+        """An ec2 /sys/hypervisor/uuid is used without asking DMI."""
+        hypervisor_uuid = "ec2c6e2f-5fac-4fc7-9c82-74127ec14bbb"
+        m_load_text_file = mocker.patch(
+            M_PATH + "util.load_text_file", return_value=hypervisor_uuid + "\n"
+        )
+        assert hypervisor_uuid == ec2._collect_platform_data()["uuid"]
+        assert [
+            mock.call("/sys/hypervisor/uuid")
+        ] == m_load_text_file.call_args_list
+        assert mock.call("system-uuid") not in m_read_dmi_data.call_args_list
+
+    @pytest.mark.parametrize(
+        "error",
+        (
+            pytest.param(FileNotFoundError(2, "No such file"), id="missing"),
+            pytest.param(PermissionError(13, "Permission denied"), id="perm"),
+            pytest.param(OSError(16, "Device or resource busy"), id="busy"),
+            pytest.param(
+                UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid"),
+                id="undecodable",
+            ),
+        ),
+    )
+    def test_unreadable_hypervisor_uuid_uses_dmi(
+        self, error, m_read_dmi_data, mocker
+    ):
+        """A missing or unreadable /sys/hypervisor/uuid falls back to DMI."""
+        mocker.patch(M_PATH + "util.load_text_file", side_effect=error)
+        assert self.DMI_UUID.lower() == ec2._collect_platform_data()["uuid"]
+
+    def test_nil_hypervisor_uuid_without_dmi_uuid(self, mocker):
+        """The nil uuid is not reported when DMI has no uuid either."""
+        mocker.patch(
+            M_PATH + "util.load_text_file", return_value=self.XEN_DOM0_UUID
+        )
+        mocker.patch(M_PATH + "dmi.read_dmi_data", return_value=None)
+        assert "" == ec2._collect_platform_data()["uuid"]
+
+    def test_identify_aws_on_xen_dom0(self, m_read_dmi_data, mocker):
+        """A Xen dom0 on EC2 is identified as AWS from its DMI uuid."""
+        mocker.patch(
+            M_PATH + "util.load_text_file", return_value=self.XEN_DOM0_UUID
+        )
+        assert ec2.CloudNames.AWS == ec2.identify_platform()
+
+
 class TestPreferElasticNics:
     """Tests to ensure we are sorting NICs with Amazon drivers ahead of other
     candidate NICs.
