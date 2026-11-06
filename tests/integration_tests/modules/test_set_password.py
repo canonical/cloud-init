@@ -201,7 +201,10 @@ class Mixin:
     def test_sshd_config(self, class_client):
         """Test that SSH password auth is enabled."""
         sshd_config = class_client.execute("sshd -T").stdout
-        assert "passwordauthentication yes" in sshd_config
+        assert (
+            "passwordauthentication yes" in sshd_config
+            or "PasswordAuthentication yes" in sshd_config
+        )
 
 
 @pytest.mark.user_data(LIST_USER_DATA)
