@@ -108,19 +108,19 @@ def test_webhook_reporting(client: IntegrationInstance):
     # its boot stage. Reading the config from the instance keeps testing
     # independent of the module lists in config/cloud.cfg.tmpl, which vary
     # per distro downstream.
-    cloud_cfg = yaml.safe_load(client.read_from_file("/etc/cloud/cloud.cfg"))
+    merged_cfg = yaml.safe_load(client.execute("cloud-init query merged_cfg"))
     stage_modules = {
         "init-network": set(
-            map(module_name_from_entry, cloud_cfg["cloud_init_modules"])
+            map(module_name_from_entry, merged_cfg["cloud_init_modules"])
         ),
         "modules-config": set(
             map(
                 module_name_from_entry,
-                cloud_cfg["cloud_config_modules"],
+                merged_cfg["cloud_config_modules"],
             )
         ),
         "modules-final": set(
-            map(module_name_from_entry, cloud_cfg["cloud_final_modules"])
+            map(module_name_from_entry, merged_cfg["cloud_final_modules"])
         ),
     }
     for stage, modules in stage_modules.items():
