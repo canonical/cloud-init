@@ -262,6 +262,39 @@ class TestNtp:
 
     def test_ntp_handler_real_distro_ntp_templates(self, tmpdir):
         """Test ntp handler renders the shipped distro ntp client templates."""
+        known_missing = {
+            "chrony": [
+                "OpenCloudOS",
+                "TencentOS",
+                "aosc",
+                "eurolinux",
+                "miraclelinux",
+                "openbsd",
+                "openeuler",
+                "openmandriva",
+                "raspberry-pi-os",
+                "virtuozzo",
+            ],
+            "ntp": [
+                "OpenCloudOS",
+                "TencentOS",
+                "aosc",
+                "centos",
+                "cos",
+                "eurolinux",
+                "miraclelinux",
+                "openbsd",
+                "openeuler",
+                "openmandriva",
+                "opensuse-leap",
+                "opensuse-microos",
+                "opensuse-tumbleweed",
+                "raspberry-pi-os",
+                "sle-micro",
+                "sle_hpc",
+                "virtuozzo",
+            ],
+        }
         pools = ["0.mycompany.pool.ntp.org", "3.mycompany.pool.ntp.org"]
         servers = ["192.168.23.3", "192.168.23.4"]
         for client in ["ntp", "systemd-timesyncd", "chrony"]:
@@ -279,9 +312,9 @@ class TestNtp:
                     template, distro, templates_dir=root_dir
                 )
                 template_fn = self._get_template_path(template, distro, tmpdir)
-                # don't fail if cloud-init doesn't have a template for
-                # a distro,client pair
                 if not os.path.exists(source_fn):
+                    # Ensure new distros aren't silently ignored.
+                    assert distro in known_missing.get(client, ()), source_fn
                     continue
                 # Create a copy in our tmp_dir
                 shutil.copy(source_fn, template_fn)
