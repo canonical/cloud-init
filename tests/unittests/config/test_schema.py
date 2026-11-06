@@ -9,7 +9,6 @@ import os
 import re
 import sys
 from collections import namedtuple
-from errno import EACCES
 from pathlib import Path
 from textwrap import dedent
 from types import ModuleType
@@ -38,7 +37,6 @@ from cloudinit.config.schema import (
 from cloudinit.distros import OSFAMILIES
 from cloudinit.safeyaml import load_with_marks
 from cloudinit.settings import FREQUENCIES
-from cloudinit.sources import DataSourceNotFoundException
 from cloudinit.templater import JinjaSyntaxParsingException
 from cloudinit.util import load_text_file, write_file
 from tests.helpers import cloud_init_project_dir
@@ -1142,6 +1140,12 @@ class TestMain:
         ["--system", "--config-file something"], 2
     )
 
+    @pytest.fixture(autouse=True)
+    def m_cmd_read_cfg_paths(self, mocker, paths):
+        return mocker.patch(
+            "cloudinit.cmd.schema.read_cfg_paths", return_value=paths
+        )
+
     @pytest.mark.parametrize("params", exclusive_combinations)
     def test_main_exclusive_args(self, _read_cfg_paths, params, capsys):
         """Main exits non-zero and error on required exclusive args."""
@@ -1361,20 +1365,17 @@ class TestMain:
             ),
         ),
     )
-    @mock.patch(M_PATH + "read_cfg_paths")
     @mock.patch(M_PATH + "os.getuid", return_value=0)
     def test_main_processed_data_preference_over_raw_data(
         self,
-        _read_cfg_paths,
         _getuid,
-        read_cfg_paths,
+        _read_cfg_paths,
         update_path_content_by_key,
         expected_keys,
         paths,
         capsys,
     ):
         paths.get_ipath = paths.get_ipath_cur
-        read_cfg_paths.return_value = paths
         path_content_by_key = {
             "cloud_config": "#cloud-config\n{}",
             "vendor_cloud_config": "#cloud-config\n{}",
@@ -1463,7 +1464,6 @@ class TestMain:
             ),
         ),
     )
-    @mock.patch(M_PATH + "read_cfg_paths")
     @mock.patch(M_PATH + "os.getuid", return_value=0)
     @mock.patch("cloudinit.net.netplan.available", return_value=False)
     def test_main_validates_system_userdata_vendordata_and_network_config(
@@ -1471,7 +1471,6 @@ class TestMain:
         _netplan_available,
         _getuid,
         _read_cfg_paths,
-        read_cfg_paths,
         net_config,
         net_output,
         error_raised,
@@ -1482,7 +1481,6 @@ class TestMain:
         """When --system is provided, main validates all config userdata."""
         mocker.patch(f"{M_PATH}LIBNETPLAN_AVAILABLE", False)
         paths.get_ipath = paths.get_ipath_cur
-        read_cfg_paths.return_value = paths
         cloud_config_file = paths.get_ipath_cur("cloud_config")
         write_file(cloud_config_file, b"#cloud-config\nntp:")
         vd_file = paths.get_ipath_cur("vendor_cloud_config")
@@ -1969,52 +1967,6 @@ class TestHandleSchemaArgs:
     )
 
     @pytest.mark.parametrize(
-        "failure, expected_logs",
-        (
-            (
-                IOError("No permissions on /var/lib/cloud/instance"),
-                ["Using default instance-data/user-data paths for non-root"],
-            ),
-            (
-                DataSourceNotFoundException("No cached datasource found yet"),
-                ["datasource not detected"],
-            ),
-        ),
-    )
-    @mock.patch(M_PATH + "read_cfg_paths")
-    def test_handle_schema_unable_to_read_cfg_paths(
-        self,
-        read_cfg_paths,
-        failure,
-        expected_logs,
-        paths,
-        capsys,
-        caplog,
-        tmpdir,
-    ):
-        if isinstance(failure, IOError):
-            failure.errno = EACCES
-        read_cfg_paths.side_effect = [failure, paths]
-        user_data_fn = tmpdir.join("user-data")
-        with open(user_data_fn, "w") as f:
-            f.write(dedent("""\
-                    #cloud-config
-                    packages: [sl]
-                    """))
-        args = self.Args(
-            config_file=str(user_data_fn),
-            schema_type="cloud-config",
-            annotate=False,
-            docs=None,
-            system=None,
-            instance_data=None,
-        )
-        handle_schema_args("unused", args)
-        assert "Valid schema" in capsys.readouterr().out
-        for expected_log in expected_logs:
-            assert expected_log in caplog.text
-
-    @pytest.mark.parametrize(
         "annotate, deprecation_info_boundary, expected_output",
         [
             pytest.param(
@@ -2072,10 +2024,8 @@ apt_reboot_if_required: Deprecated in version 22.2. Use\
             ),
         ],
     )
-    @mock.patch(M_PATH + "read_cfg_paths")
     def test_handle_schema_args_annotate_deprecated_config(
         self,
-        read_cfg_paths,
         annotate,
         deprecation_info_boundary,
         expected_output,
@@ -2086,7 +2036,6 @@ apt_reboot_if_required: Deprecated in version 22.2. Use\
         mocker,
     ):
         paths.get_ipath = paths.get_ipath_cur
-        read_cfg_paths.return_value = paths
         user_data_fn = tmpdir.join("user-data")
         with open(user_data_fn, "w") as f:
             f.write(dedent("""\
@@ -2108,7 +2057,7 @@ apt_reboot_if_required: Deprecated in version 22.2. Use\
             system=None,
             instance_data=None,
         )
-        handle_schema_args("unused", args)
+        handle_schema_args("unused", args, paths)
         out, err = capsys.readouterr()
         assert (
             expected_output.format(cfg_file=user_data_fn).split()
@@ -2154,10 +2103,8 @@ apt_reboot_if_required: Deprecated in version 22.2. Use\
         ],
     )
     @mock.patch(M_PATH + "os.getuid")
-    @mock.patch(M_PATH + "read_cfg_paths")
     def test_handle_schema_args_jinja_with_errors(
         self,
-        read_cfg_paths,
         getuid,
         uid,
         annotate,
@@ -2171,7 +2118,6 @@ apt_reboot_if_required: Deprecated in version 22.2. Use\
     ):
         getuid.return_value = uid
         paths.get_ipath = paths.get_ipath_cur
-        read_cfg_paths.return_value = paths
         user_data_fn = tmpdir.join("user-data")
         if uid == 0:
             id_path = paths.get_runpath("instance_data_sensitive")
@@ -2194,7 +2140,7 @@ apt_reboot_if_required: Deprecated in version 22.2. Use\
             instance_data=None,
         )
         with expectation:
-            handle_schema_args("unused", args)
+            handle_schema_args("unused", args, paths)
         out, err = capsys.readouterr()
         assert (
             expected_out.format(cfg_file=user_data_fn, id_path=id_path) == out
@@ -2203,9 +2149,6 @@ apt_reboot_if_required: Deprecated in version 22.2. Use\
             expected_err.format(cfg_file=user_data_fn, id_path=id_path) == err
         )
         assert "deprec" not in caplog.text
-        assert read_cfg_paths.call_args_list == [
-            mock.call(fetch_existing_datasource="trust")
-        ]
 
     @pytest.mark.parametrize(
         "uid, annotate, expected_out, expected_err, expectation",
@@ -2229,10 +2172,8 @@ apt_reboot_if_required: Deprecated in version 22.2. Use\
         ],
     )
     @mock.patch(M_PATH + "os.getuid")
-    @mock.patch(M_PATH + "read_cfg_paths")
     def test_handle_schema_args_unknown_header(
         self,
-        read_cfg_paths,
         getuid,
         uid,
         annotate,
@@ -2246,7 +2187,6 @@ apt_reboot_if_required: Deprecated in version 22.2. Use\
     ):
         getuid.return_value = uid
         paths.get_ipath = paths.get_ipath_cur
-        read_cfg_paths.return_value = paths
         user_data_fn = tmpdir.join("user-data")
         if uid == 0:
             id_path = paths.get_runpath("instance_data_sensitive")
@@ -2266,7 +2206,7 @@ apt_reboot_if_required: Deprecated in version 22.2. Use\
             instance_data=None,
         )
         with expectation:
-            handle_schema_args("unused", args)
+            handle_schema_args("unused", args, paths)
         out, err = capsys.readouterr()
         assert (
             expected_out.format(cfg_file=user_data_fn, id_path=id_path) == out
@@ -2275,9 +2215,6 @@ apt_reboot_if_required: Deprecated in version 22.2. Use\
             expected_err.format(cfg_file=user_data_fn, id_path=id_path) == err
         )
         assert "deprec" not in caplog.text
-        assert read_cfg_paths.call_args_list == [
-            mock.call(fetch_existing_datasource="trust")
-        ]
 
 
 class TestDeprecation:

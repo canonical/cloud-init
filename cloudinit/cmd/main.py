@@ -1302,10 +1302,8 @@ def main(sysv_args=None):
             query_parser(parser_query)
             parser_query.set_defaults(action=("render", handle_query_args))
         elif subcommand == "schema":
-            from cloudinit.config.schema import (
-                get_parser as schema_parser,
-                handle_schema_args,
-            )
+            from cloudinit.cmd.schema import handle_args as handle_schema_args
+            from cloudinit.config.schema import get_parser as schema_parser
 
             schema_parser(parser_schema)
             parser_schema.set_defaults(action=("schema", handle_schema_args))
