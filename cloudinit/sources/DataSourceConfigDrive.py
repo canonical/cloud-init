@@ -186,6 +186,7 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
                 )
             else:
                 LOG.debug("no network configuration available")
+                self._network_config = None
         return self._network_config
 
     @property
