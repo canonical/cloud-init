@@ -167,7 +167,7 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
 
     @property
     def network_config(self):
-        if self._network_config is None:
+        if self._network_config in (None, sources.UNSET):
             if self.network_json not in (None, sources.UNSET):
                 LOG.debug("network config provided via network_json")
                 self._network_config = openstack.convert_net_json(
