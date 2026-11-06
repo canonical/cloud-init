@@ -46,6 +46,7 @@ KNOWN_CLOUD_NAMES = [
     "Exoscale",
     "Hetzner Cloud",
     "NWCS",
+    "IVT",
     "IBM - (aka SoftLayer or BlueMix)",
     "LXD",
     "MAAS",
