@@ -7,6 +7,7 @@ import datetime
 import json
 import logging
 import os
+import pickle
 import stat
 import sys
 import xml.etree.ElementTree as ET
@@ -22,6 +23,7 @@ import requests
 from cloudinit import distros, dmi, helpers, subp, url_helper
 from cloudinit.atomic_helper import b64e, json_dumps
 from cloudinit.config import cc_mounts
+from cloudinit.event import EventType
 from cloudinit.net import dhcp, ephemeral
 from cloudinit.sources import UNSET
 from cloudinit.sources import DataSourceAzure as dsaz
@@ -2502,6 +2504,164 @@ scbus-1 on xpt0 bus 0
         assert ret
         assert dsrc.userdata_raw == userdataOVF.encode("utf-8")
 
+    @pytest.mark.parametrize("source", ["custom-data", "user-data"])
+    @pytest.mark.parametrize("skip_ready", [False, True])
+    @pytest.mark.parametrize("set_name", [False, True])
+    @pytest.mark.parametrize("allow_userdata", [False, True])
+    def test_runtime_datasource_options(
+        self, get_ds, source, skip_ready, set_name, allow_userdata
+    ):
+        options = {
+            "experimental_skip_ready_report": skip_ready,
+            "apply_network_config_set_name": set_name,
+        }
+        image_options = {key: not value for key, value in options.items()}
+        userdata = "#cloud-config\n" + json.dumps(
+            {
+                "datasource": {"Azure": options},
+                "bootcmd": ["echo bootcmd"],
+            }
+        )
+        imds_userdata = (
+            userdata
+            if source == "user-data"
+            else "#cloud-config\n"
+            + json.dumps({"datasource": {"Azure": image_options}})
+        )
+        imds_data = copy.deepcopy(NETWORK_METADATA)
+        imds_data["compute"]["userData"] = b64e(imds_userdata)
+        self.m_fetch.return_value = imds_data
+        dsrc = get_ds(
+            {
+                "ovfcontent": construct_ovf_env(
+                    custom_data=userdata if source == "custom-data" else None
+                ),
+                "sys_cfg": {
+                    "datasource": {"Azure": image_options},
+                    "allow_userdata": allow_userdata,
+                },
+            }
+        )
+
+        assert dsrc.get_data()
+        assert dsrc.userdata_raw == userdata.encode()
+        assert dsrc.sys_cfg["datasource"]["Azure"] == {
+            key: not value for key, value in options.items()
+        }
+        for key, value in image_options.items():
+            assert dsrc.ds_cfg[key] is value
+        assert dsrc._ds_cfg_overrides == (options if allow_userdata else {})
+        expected = options if allow_userdata else image_options
+        assert self.m_get_metadata_from_fabric.call_count == int(
+            not expected["experimental_skip_ready_report"]
+        )
+        assert self.m_fetch.call_count == 1
+        interfaces = dsrc.network_config["ethernets"]
+        assert interfaces
+        for config in interfaces.values():
+            assert ("set-name" in config) is expected[
+                "apply_network_config_set_name"
+            ]
+            assert config["match"]["macaddress"] == "00:0d:3a:04:75:98"
+
+    @pytest.mark.parametrize(
+        "refresh", ["unchanged", "removed", "unavailable"]
+    )
+    @pytest.mark.parametrize("allow_userdata", [False, True])
+    def test_runtime_datasource_options_on_refresh(
+        self, get_ds, refresh, allow_userdata
+    ):
+        image_options = {
+            "experimental_skip_ready_report": False,
+            "apply_network_config_set_name": True,
+        }
+        options = {key: not value for key, value in image_options.items()}
+        userdata = "#cloud-config\n" + json.dumps(
+            {"datasource": {"Azure": options}}
+        )
+        imds_data = copy.deepcopy(NETWORK_METADATA)
+        imds_data["compute"]["userData"] = b64e(userdata)
+        self.m_fetch.return_value = imds_data
+        dsrc = get_ds(
+            {
+                "ovfcontent": construct_ovf_env(),
+                "sys_cfg": {"datasource": {"Azure": image_options}},
+            }
+        )
+        assert dsrc.get_data()
+        assert all(
+            "set-name" not in config
+            for config in dsrc.network_config["ethernets"].values()
+        )
+        write_file(dsrc.paths.get_ipath_cur("cloud_config"), userdata)
+        dsrc.sys_cfg = helpers.ConfigMerger(
+            paths=dsrc.paths, datasource=dsrc, base_cfg=dsrc.sys_cfg
+        ).cfg
+        assert dsrc.sys_cfg["datasource"]["Azure"] == options
+        dsrc.sys_cfg["allow_userdata"] = allow_userdata
+
+        if refresh == "removed":
+            self.m_fetch.return_value = copy.deepcopy(NETWORK_METADATA)
+        elif refresh == "unavailable":
+            self.m_fetch.return_value = {}
+        assert dsrc.update_metadata_if_supported([EventType.BOOT])
+
+        expected_overrides = (
+            options if allow_userdata and refresh != "removed" else {}
+        )
+        assert dsrc._ds_cfg_overrides == expected_overrides
+        expected = expected_overrides or image_options
+        for key, value in image_options.items():
+            assert dsrc.ds_cfg[key] is value
+        assert self.m_get_metadata_from_fabric.call_count == int(
+            not expected["experimental_skip_ready_report"]
+        )
+        if refresh != "unavailable":
+            for config in dsrc.network_config["ethernets"].values():
+                assert ("set-name" in config) is expected[
+                    "apply_network_config_set_name"
+                ]
+
+    @pytest.mark.parametrize(
+        "options",
+        [
+            {
+                "experimental_skip_ready_report": "false",
+                "apply_network_config_set_name": "false",
+            },
+            None,
+        ],
+    )
+    def test_invalid_runtime_options_after_config_merge(self, get_ds, options):
+        userdata = "#cloud-config\n" + json.dumps(
+            {"datasource": {"Azure": options}}
+        )
+        dsrc = get_ds(
+            {
+                "ovfcontent": construct_ovf_env(custom_data=userdata),
+                "sys_cfg": {
+                    "datasource": {
+                        "Azure": {"apply_network_config_set_name": False}
+                    }
+                },
+            }
+        )
+        assert dsrc.get_data()
+        write_file(dsrc.paths.get_ipath_cur("cloud_config"), userdata)
+        dsrc.sys_cfg = helpers.ConfigMerger(
+            paths=dsrc.paths, datasource=dsrc, base_cfg=dsrc.sys_cfg
+        ).cfg
+        assert dsrc.sys_cfg["datasource"]["Azure"] == options
+
+        assert dsrc.update_metadata_if_supported([EventType.BOOT])
+
+        assert dsrc._ds_cfg_overrides == {}
+        assert dsrc.ds_cfg["experimental_skip_ready_report"] is False
+        assert dsrc.ds_cfg["apply_network_config_set_name"] is False
+        interfaces = dsrc.network_config["ethernets"]
+        assert interfaces
+        assert all("set-name" not in config for config in interfaces.values())
+
     @pytest.mark.usefixtures("fake_filesystem")
     def test_cleanup_resourcedisk_fstab(self, get_ds):
         """Ensure that cloud-init clean will remove resource disk entries
@@ -3004,6 +3164,23 @@ class TestCanDevBeReformatted:
 
 
 class TestClearCachedData:
+    @pytest.mark.parametrize("old_cache", [False, True])
+    def test_runtime_options_survive_pickle(self, paths, Distro, old_cache):
+        dsrc = dsaz.DataSourceAzure({}, distro=Distro("ubuntu"), paths=paths)
+        baseline = copy.deepcopy(dsrc.ds_cfg)
+        options = {
+            "experimental_skip_ready_report": True,
+            "apply_network_config_set_name": False,
+        }
+        dsrc._ds_cfg_overrides = options
+        if old_cache:
+            del dsrc._ds_cfg_overrides
+
+        restored = pickle.loads(pickle.dumps(dsrc))
+
+        assert restored.ds_cfg == baseline
+        assert restored._ds_cfg_overrides == ({} if old_cache else options)
+
     def test_clear_cached_attrs_clears_imds(self, paths):
         """All class attributes are reset to defaults, including imds data."""
         dsrc = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=paths)
@@ -5358,9 +5535,19 @@ class TestProvisioning:
         assert len(self.mock_kvp_report_success_to_host.mock_calls) == 1
 
     @pytest.mark.parametrize("pps_type", ["None", "Running", "Savable"])
-    def test_skip_ready_report(self, pps_type):
+    @pytest.mark.parametrize("from_userdata", [False, True])
+    def test_skip_ready_report(self, pps_type, from_userdata):
         """Verify ready report is skipped when configured to."""
-        self.azure_ds.ds_cfg["experimental_skip_ready_report"] = True
+        custom_data = None
+        if from_userdata:
+            custom_data = (
+                "#cloud-config\n"
+                "datasource:\n"
+                "  Azure:\n"
+                "    experimental_skip_ready_report: true\n"
+            )
+        else:
+            self.azure_ds.ds_cfg["experimental_skip_ready_report"] = True
 
         is_pps = pps_type in ("Running", "Savable")
 
@@ -5380,13 +5567,16 @@ class TestProvisioning:
                 mock.MagicMock(contents=json.dumps(imds_md_source).encode()),
                 mock.MagicMock(
                     contents=construct_ovf_env(
-                        provision_guest_proxy_agent=False
+                        provision_guest_proxy_agent=False,
+                        custom_data=custom_data,
                     ).encode()
                 ),
                 mock.MagicMock(contents=json.dumps(self.imds_md).encode()),
             ]
         else:
-            ovf = construct_ovf_env(provision_guest_proxy_agent=False)
+            ovf = construct_ovf_env(
+                provision_guest_proxy_agent=False, custom_data=custom_data
+            )
             md, ud, cfg = dsaz.read_azure_ovf(ovf)
             self.mock_util_mount_cb.return_value = (md, ud, cfg, {})
             self.mock_readurl.side_effect = [
@@ -6128,6 +6318,94 @@ class TestQueryVmId:
 
         mock_query_system_uuid.assert_called_once()
         mock_convert_uuid.assert_called_once_with("test-system-uuid")
+
+
+class TestDsCfgOverridesFromUserdata:
+    @pytest.mark.parametrize(
+        "key",
+        [
+            "experimental_skip_ready_report",
+            "apply_network_config_set_name",
+        ],
+    )
+    @pytest.mark.parametrize("value", ["true", "false", 0, 1, None, [], {}])
+    def test_rejects_non_booleans(self, key, value, caplog):
+        userdata = "#cloud-config\n" + json.dumps(
+            {"datasource": {"Azure": {key: value}}}
+        )
+
+        assert dsaz._ds_cfg_overrides_from_userdata(userdata) == {}
+        assert f"option {key} in user-data: expected a boolean" in caplog.text
+
+    @pytest.mark.parametrize(
+        "key",
+        sorted(
+            set(dsaz.BUILTIN_DS_CONFIG)
+            - {
+                "experimental_skip_ready_report",
+                "apply_network_config_set_name",
+            }
+            | {"unsupported"}
+        ),
+    )
+    def test_ignores_unsupported_options(self, key, caplog):
+        options = {
+            "experimental_skip_ready_report": True,
+            "apply_network_config_set_name": False,
+        }
+        userdata = "#cloud-config\n" + json.dumps(
+            {"datasource": {"Azure": dict(options, **{key: False})}}
+        )
+
+        assert dsaz._ds_cfg_overrides_from_userdata(userdata) == options
+        assert f"unsupported Azure datasource option in user-data: {key}" in (
+            caplog.text
+        )
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            "datasource: [",
+            "[]",
+            "datasource: null",
+            "datasource: []",
+            "datasource:\n  Azure: null",
+            "datasource:\n  Azure: []",
+        ],
+    )
+    def test_rejects_malformed_config(self, body, caplog):
+        assert (
+            dsaz._ds_cfg_overrides_from_userdata("#cloud-config\n" + body)
+            == {}
+        )
+        assert any(
+            record.levelno == logging.WARNING for record in caplog.records
+        )
+
+    @pytest.mark.parametrize(
+        "header",
+        [
+            "",
+            "#!",
+            "#cloud-boothook\n# azure-experimental-node-ready",
+            "#cloud-config-archive",
+            "## template: jinja\n#cloud-config",
+            "Content-Type: text/cloud-config\n\n#cloud-config",
+        ],
+    )
+    def test_ignores_other_formats(self, header):
+        userdata = (
+            header
+            + "\n"
+            + json.dumps(
+                {
+                    "datasource": {
+                        "Azure": {"experimental_skip_ready_report": True}
+                    }
+                }
+            )
+        )
+        assert dsaz._ds_cfg_overrides_from_userdata(userdata) == {}
 
 
 class TestHasCustomDataFromImds:
