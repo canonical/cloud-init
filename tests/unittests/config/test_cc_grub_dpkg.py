@@ -5,7 +5,12 @@ from unittest import mock
 
 import pytest
 
-from cloudinit.config.cc_grub_dpkg import fetch_idevs, handle
+from cloudinit.config.cc_grub_dpkg import (
+    DEBCONF_LOCK_ATTEMPTS,
+    DEBCONF_LOCK_RETRY_DELAY,
+    fetch_idevs,
+    handle,
+)
 from cloudinit.config.schema import (
     SchemaValidationError,
     get_schema,
@@ -268,6 +273,120 @@ class TestHandle:
         handle(mock.Mock(), cfg, mock.Mock(), mock.Mock())
         print(m_log.debug.call_args_list)
         m_log.debug.assert_called_with(*expected_log_output)
+
+
+class TestDebconfLockRetry:
+    """Tests retrying debconf-set-selections when its database is locked."""
+
+    LOCK_ERROR = ProcessExecutionError(
+        cmd=["debconf-set-selections"],
+        exit_code=1,
+        stderr=(
+            'debconf: DbDriver "config": /var/cache/debconf/config.dat is '
+            "locked by another process: Resource temporarily unavailable"
+        ),
+    )
+
+    @mock.patch("cloudinit.config.cc_grub_dpkg.time.sleep")
+    @mock.patch("cloudinit.config.cc_grub_dpkg.util.logexc")
+    @mock.patch("cloudinit.config.cc_grub_dpkg.subp.subp")
+    @mock.patch("cloudinit.config.cc_grub_dpkg.fetch_idevs")
+    @mock.patch("cloudinit.config.cc_grub_dpkg.is_efi_booted")
+    def test_retries_while_debconf_is_locked(
+        self, m_is_efi_booted, m_fetch_idevs, m_subp, m_logexc, m_sleep
+    ):
+        m_is_efi_booted.return_value = False
+        m_fetch_idevs.return_value = "/dev/sda"
+        m_subp.side_effect = [self.LOCK_ERROR, None]
+
+        handle(
+            "cc_grub_dpkg",
+            {"grub_dpkg": {"enabled": True}},
+            mock.Mock(),
+            [],
+        )
+
+        assert m_subp.call_count == 2
+        m_sleep.assert_called_once_with(DEBCONF_LOCK_RETRY_DELAY)
+        m_logexc.assert_not_called()
+
+    @mock.patch("cloudinit.config.cc_grub_dpkg.time.sleep")
+    @mock.patch("cloudinit.config.cc_grub_dpkg.util.logexc")
+    @mock.patch("cloudinit.config.cc_grub_dpkg.subp.subp")
+    @mock.patch("cloudinit.config.cc_grub_dpkg.fetch_idevs")
+    @mock.patch("cloudinit.config.cc_grub_dpkg.is_efi_booted")
+    def test_does_not_retry_unrelated_debconf_errors(
+        self, m_is_efi_booted, m_fetch_idevs, m_subp, m_logexc, m_sleep
+    ):
+        m_is_efi_booted.return_value = False
+        m_fetch_idevs.return_value = "/dev/sda"
+        m_subp.side_effect = ProcessExecutionError(
+            cmd=["debconf-set-selections"],
+            exit_code=1,
+            stderr="debconf: unable to initialize frontend",
+        )
+
+        handle(
+            "cc_grub_dpkg",
+            {"grub_dpkg": {"enabled": True}},
+            mock.Mock(),
+            [],
+        )
+
+        assert m_subp.call_count == 1
+        m_sleep.assert_not_called()
+        m_logexc.assert_called_once()
+
+    @mock.patch("cloudinit.config.cc_grub_dpkg.time.sleep")
+    @mock.patch("cloudinit.config.cc_grub_dpkg.util.logexc")
+    @mock.patch("cloudinit.config.cc_grub_dpkg.subp.subp")
+    @mock.patch("cloudinit.config.cc_grub_dpkg.fetch_idevs")
+    @mock.patch("cloudinit.config.cc_grub_dpkg.is_efi_booted")
+    def test_does_not_retry_generic_errno_message(
+        self, m_is_efi_booted, m_fetch_idevs, m_subp, m_logexc, m_sleep
+    ):
+        """A bare errno message is not proof that debconf is locked."""
+        m_is_efi_booted.return_value = False
+        m_fetch_idevs.return_value = "/dev/sda"
+        m_subp.side_effect = ProcessExecutionError(
+            cmd=["debconf-set-selections"],
+            exit_code=1,
+            stderr="Resource temporarily unavailable",
+        )
+
+        handle(
+            "cc_grub_dpkg",
+            {"grub_dpkg": {"enabled": True}},
+            mock.Mock(),
+            [],
+        )
+
+        assert m_subp.call_count == 1
+        m_sleep.assert_not_called()
+        m_logexc.assert_called_once()
+
+    @mock.patch("cloudinit.config.cc_grub_dpkg.time.sleep")
+    @mock.patch("cloudinit.config.cc_grub_dpkg.util.logexc")
+    @mock.patch("cloudinit.config.cc_grub_dpkg.subp.subp")
+    @mock.patch("cloudinit.config.cc_grub_dpkg.fetch_idevs")
+    @mock.patch("cloudinit.config.cc_grub_dpkg.is_efi_booted")
+    def test_gives_up_after_max_attempts(
+        self, m_is_efi_booted, m_fetch_idevs, m_subp, m_logexc, m_sleep
+    ):
+        m_is_efi_booted.return_value = False
+        m_fetch_idevs.return_value = "/dev/sda"
+        m_subp.side_effect = self.LOCK_ERROR
+
+        handle(
+            "cc_grub_dpkg",
+            {"grub_dpkg": {"enabled": True}},
+            mock.Mock(),
+            [],
+        )
+
+        assert m_subp.call_count == DEBCONF_LOCK_ATTEMPTS
+        assert m_sleep.call_count == DEBCONF_LOCK_ATTEMPTS - 1
+        m_logexc.assert_called_once()
 
 
 class TestGrubDpkgSchema:

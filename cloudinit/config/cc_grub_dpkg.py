@@ -10,6 +10,7 @@
 
 import logging
 import os
+import time
 
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
@@ -26,6 +27,37 @@ meta: MetaSchema = {
 }
 
 LOG = logging.getLogger(__name__)
+
+# debconf keeps a lock on its database while another process is updating it.
+# The lock is usually held only briefly, so retry for a short while instead of
+# failing the module on the first collision.
+DEBCONF_LOCK_ATTEMPTS = 5
+DEBCONF_LOCK_RETRY_DELAY = 0.5
+
+
+def _is_debconf_lock_error(exception: ProcessExecutionError) -> bool:
+    """Return True when debconf failed because its database is locked."""
+    stderr = exception.stderr or ""
+    return "is locked by another process" in stderr
+
+
+def _set_debconf_selections(dconf_sel: str) -> None:
+    """Set debconf selections, retrying while its database is locked."""
+    for attempt in range(1, DEBCONF_LOCK_ATTEMPTS + 1):
+        try:
+            subp.subp(["debconf-set-selections"], data=dconf_sel)
+            return
+        except ProcessExecutionError as e:
+            if attempt == DEBCONF_LOCK_ATTEMPTS:
+                raise
+            if not _is_debconf_lock_error(e):
+                raise
+            LOG.debug(
+                "debconf database is locked (attempt %d/%d), retrying",
+                attempt,
+                DEBCONF_LOCK_ATTEMPTS,
+            )
+            time.sleep(DEBCONF_LOCK_RETRY_DELAY)
 
 
 def fetch_idevs():
@@ -122,7 +154,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     LOG.debug("Setting grub debconf-set-selections with '%s'", dconf_sel)
 
     try:
-        subp.subp(["debconf-set-selections"], data=dconf_sel)
+        _set_debconf_selections(dconf_sel)
     except Exception as e:
         util.logexc(
             LOG, "Failed to run debconf-set-selections for grub_dpkg: %s", e
