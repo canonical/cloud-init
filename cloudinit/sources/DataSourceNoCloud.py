@@ -13,7 +13,7 @@ import logging
 import os
 from functools import partial
 
-from cloudinit import dmi, lifecycle, sources, util
+from cloudinit import dmi, lifecycle, platform, sources, util
 from cloudinit.net import eni
 
 LOG = logging.getLogger(__name__)
@@ -181,6 +181,8 @@ class DataSourceNoCloud(sources.DataSource):
             # check and replace instances of known dmi.<dmi_keys> such as
             # chassis-serial-number or baseboard-product-name
             seedfrom = dmi.sub_dmi_vars(seedfrom)
+            # replace any __platform.<key>__ placeholders
+            seedfrom = platform.sub_platform_vars(seedfrom)
 
             # This could throw errors, but the user told us to do it
             # so if errors are raised, let them raise
