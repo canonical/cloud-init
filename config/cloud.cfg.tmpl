@@ -3,11 +3,11 @@
 # and base configuration.
 {% set is_bsd = variant in ["dragonfly", "freebsd", "netbsd", "openbsd"] %}
 {% set is_rhel = variant in ["almalinux", "centos", "cloudlinux", "eurolinux",
-                             "miraclelinux", "rhel", "rocky", "virtuozzo"] %}
+                             "kylin", "miraclelinux", "rhel", "rocky", "virtuozzo"] %}
 {% set gecos = ({"amazon": "EC2 Default User", "azurelinux": "Azure Linux",
                  "centos": "Cloud User", "debian": "Debian",
                  "dragonfly": "DragonFly", "freebsd": "FreeBSD",
-                 "mariner": "MarinerOS", "rhel": "Cloud User",
+                 "kylin": "Cloud User", "mariner": "MarinerOS", "rhel": "Cloud User",
                  "netbsd": "NetBSD", "openbsd": "openBSD",
                  "openmandriva": "OpenMandriva admin", "photon": "PhotonOS",
                  "raspberry-pi-os": "Raspberry Pi OS",
@@ -25,8 +25,8 @@
                   "freebsd": "/bin/tcsh", "netbsd": "/bin/sh",
                   "openbsd": "/bin/ksh"}) %}
 {% set usernames = ({"amazon": "ec2-user", "azurelinux": "azureuser", "centos": "cloud-user",
-                     "openmandriva": "omv", "raspberry-pi-os": "pi",
-                     "rhel": "cloud-user",
+                     "kylin": "cloud-user", "openmandriva": "omv",
+                     "raspberry-pi-os": "pi", "rhel": "cloud-user",
                      "unknown": "ubuntu"}) %}
 {% if is_bsd %}
 syslog_fix_perms: root:wheel

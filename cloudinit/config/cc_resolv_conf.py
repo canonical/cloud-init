@@ -40,6 +40,7 @@ meta: MetaSchema = {
         "sle-micro",
         "sles",
         "openeuler",
+        "kylin",
     ],
     "frequency": PER_INSTANCE,
     "activate_by_schema_keys": ["manage_resolv_conf"],
