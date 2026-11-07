@@ -313,7 +313,7 @@ class TestPuppetHandle:
         ]
         assert expected_calls == m_man_puppet.call_args_list
         assert [
-            mock.call(["puppet", "agent", "--test"], capture=False)
+            mock.call(["puppet", "agent", "--test"], rcs=[0, 2], capture=False)
         ] in m_subp.call_args_list
 
     @mock.patch("cloudinit.config.cc_puppet.subp.subp", return_value=("", ""))
@@ -357,6 +357,7 @@ class TestPuppetHandle:
         assert [
             mock.call(
                 ["puppet", "agent", "--onetime", "--detailed-exitcodes"],
+                rcs=[0, 2],
                 capture=False,
             )
         ] in m_subp.call_args_list
@@ -378,9 +379,54 @@ class TestPuppetHandle:
         assert [
             mock.call(
                 ["puppet", "agent", "--onetime", "--detailed-exitcodes"],
+                rcs=[0, 2],
                 capture=False,
             )
         ] in m_subp.call_args_list
+
+    @pytest.mark.parametrize(
+        "puppet_cfg, exit_code, raises",
+        [
+            # --test implies --detailed-exitcodes: 2 means changes applied
+            pytest.param({}, 0, False, id="default_no_changes"),
+            pytest.param({}, 2, False, id="default_changes_applied"),
+            pytest.param({}, 1, True, id="default_run_failed"),
+            pytest.param({}, 4, True, id="default_resource_failures"),
+            pytest.param({}, 6, True, id="default_changes_and_failures"),
+            pytest.param(
+                {"allowed_exit_codes": [0, 2, 4, 6]},
+                6,
+                False,
+                id="custom_allows_failures",
+            ),
+            pytest.param(
+                {"allowed_exit_codes": [0]},
+                2,
+                True,
+                id="custom_disallows_changes",
+            ),
+        ],
+    )
+    def test_puppet_exec_allowed_exit_codes(
+        self, m_man_puppet, puppet_cfg, exit_code, raises
+    ):
+        """Puppet agent exit codes are checked against allowed_exit_codes."""
+
+        def fake_subp(args, rcs=None, **kwargs):
+            if args[:2] == ["puppet", "agent"]:
+                if exit_code not in (rcs or [0]):
+                    raise ProcessExecutionError(exit_code=exit_code)
+            return ("", "")
+
+        cfg = {"puppet": {"exec": True, **puppet_cfg}}
+        with mock.patch(
+            "cloudinit.config.cc_puppet.subp.subp", side_effect=fake_subp
+        ):
+            if raises:
+                with pytest.raises(ProcessExecutionError):
+                    cc_puppet.handle("notimportant", cfg, get_cloud(), None)
+            else:
+                cc_puppet.handle("notimportant", cfg, get_cloud(), None)
 
     @mock.patch("cloudinit.config.cc_puppet.subp.subp", return_value=("", ""))
     def test_puppet_falls_back_to_older_name(self, m_subp, m_man_puppet):
@@ -550,6 +596,15 @@ class TestPuppetSchema:
                     }
                 },
                 None,
+            ),
+            ({"puppet": {"allowed_exit_codes": [0, 2, 4, 6]}}, None),
+            (
+                {"puppet": {"allowed_exit_codes": ["2"]}},
+                "'2' is not of type 'integer'",
+            ),
+            (
+                {"puppet": {"allowed_exit_codes": 2}},
+                "2 is not of type 'array'",
             ),
             # Invalid package
             (

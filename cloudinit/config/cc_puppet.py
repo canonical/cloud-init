@@ -26,6 +26,8 @@ from cloudinit.settings import PER_INSTANCE
 
 AIO_INSTALL_URL = "https://raw.githubusercontent.com/puppetlabs/install-puppet/main/install.sh"  # noqa: E501
 PUPPET_AGENT_DEFAULT_ARGS = ["--test"]
+# --test implies --detailed-exitcodes, where 2 means changes were applied
+PUPPET_AGENT_DEFAULT_ALLOWED_EXIT_CODES = [0, 2]
 PUPPET_PACKAGE_NAMES = ("puppet-agent", "puppet")
 
 meta: MetaSchema = {
@@ -289,7 +291,10 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                 cmd.extend(PUPPET_AGENT_DEFAULT_ARGS)
         else:
             cmd.extend(PUPPET_AGENT_DEFAULT_ARGS)
-        subp.subp(cmd, capture=False)
+        allowed_exit_codes = puppet_cfg.get(
+            "allowed_exit_codes", PUPPET_AGENT_DEFAULT_ALLOWED_EXIT_CODES
+        )
+        subp.subp(cmd, rcs=allowed_exit_codes, capture=False)
 
     if start_puppetd:
         # Start puppetd
