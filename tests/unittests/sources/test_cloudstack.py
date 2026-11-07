@@ -770,3 +770,15 @@ class TestDataSourceCloudStackLocal:
         assert ds._get_data() is True
         assert ds.userdata_raw == "ud"
         assert ds.metadata == "md"
+
+    @mock.patch(MOD_PATH + ".get_vr_address", side_effect=NoDHCPLeaseError)
+    def test_get_data_no_dhcp_lease_error_without_dhcp_setup(
+        self,
+        m_get_vr_address,
+        tmpdir,
+    ):
+        distro = MockDistro()
+        paths = helpers.Paths({"run_dir": tmpdir})
+        ds = DataSourceCloudStack({}, distro, paths)
+        ds.perform_dhcp_setup = False
+        assert ds._get_data() is False
