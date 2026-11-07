@@ -310,8 +310,39 @@ class NetworkdActivator(NetworkActivator):
     @staticmethod
     def wait_for_network() -> None:
         """Wait for systemd-networkd-wait-online."""
+        # This may run from cloud-init's network stage, which on some
+        # distros is ordered Before=sysinit.target. A plain blocking
+        # `systemctl start` can deadlock boot from there:
+        # systemd-networkd-wait-online.service is BindsTo/After
+        # systemd-networkd.service, which is After=network-pre.target,
+        # and any unit ordered Before=network-pre.target that has default
+        # dependencies (e.g. third-party firewall or VPN helpers) is also
+        # After=sysinit.target - i.e. transitively ordered after the very
+        # cloud-init service issuing the start. The start job then never
+        # becomes runnable while cloud-init's network stage runs, and
+        # because the started jobs belong to a separate transaction,
+        # systemd cannot detect the cycle; boot hangs forever.
+        #
+        # Those ordering constraints are unsatisfiable by construction
+        # while cloud-init's network stage is running, so start
+        # systemd-networkd explicitly and ignore dependencies for both
+        # jobs, mirroring the approach taken in cc_set_passwords for the
+        # analogous sshd restart deadlock. See GH-7052.
         subp.subp(
-            ["systemctl", "start", "systemd-networkd-wait-online.service"]
+            [
+                "systemctl",
+                "start",
+                "systemd-networkd.service",
+                "--job-mode=ignore-dependencies",
+            ]
+        )
+        subp.subp(
+            [
+                "systemctl",
+                "start",
+                "systemd-networkd-wait-online.service",
+                "--job-mode=ignore-dependencies",
+            ]
         )
 
 
