@@ -12,7 +12,7 @@ import logging
 import os
 import re
 import time
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Set, Tuple
 
 from cloudinit import performance, subp, util
 from cloudinit.net.netops.iproute2 import Iproute2
@@ -1082,6 +1082,18 @@ def get_interfaces_by_mac_on_linux() -> dict:
                     ret[ib_mac],
                     ib_mac,
                 )
+    return ret
+
+
+def get_present_macs_on_linux() -> Set[str]:
+    """Return MAC addresses present without requiring uniqueness."""
+    ret: Set[str] = set()
+    for name, mac, _driver, _devid in get_interfaces():
+        ret.add(mac)
+        # Include InfiniBand addresses in 6-byte Ethernet format.
+        ib_mac = get_ib_interface_hwaddr(name, True)
+        if ib_mac:
+            ret.add(ib_mac)
     return ret
 
 
