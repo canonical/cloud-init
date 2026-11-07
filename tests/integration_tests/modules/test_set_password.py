@@ -9,6 +9,8 @@ they use a mixin to share their test definitions, because we can (of course)
 only specify one user-data per instance.
 """
 
+import json
+
 import pytest
 import yaml
 
@@ -90,6 +92,33 @@ USERS_PASSWD_VALUES = {
 
 class Mixin:
     """Shared test definitions."""
+
+    def test_password_security_logs(self, class_client):
+        """Password changes log usernames but not passwords or hashes."""
+        log = class_client.read_from_file("/var/log/cloud-init-security.log")
+        events = [json.loads(line) for line in log.splitlines()]
+        password_events = [
+            event
+            for event in events
+            if event["event"].startswith("authn_password_change:")
+        ]
+        for user in ("tom", "dick", "harry", "mikey"):
+            matching = [
+                event
+                for event in password_events
+                if event["event"] == f"authn_password_change:cloud-init,{user}"
+            ]
+            assert len(matching) == 1
+            assert matching[0]["description"] == (
+                f"Password changed for user '{user}'"
+            )
+            assert matching[0]["level"] == "INFO"
+        assert "mypassword123!" not in log
+        shadow_users, _ = fetch_and_parse_etc_shadow(class_client)
+        for user in ("tom", "dick", "harry", "mikey"):
+            assert shadow_users[user].lstrip("!") not in log
+        for password in USERS_PASSWD_VALUES.values():
+            assert password not in log
 
     def test_no_duplicate_users_in_shadow(self, class_client):
         """Confirm that set_passwords has not added duplicate shadow entries"""
