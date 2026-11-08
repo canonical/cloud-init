@@ -7,7 +7,7 @@
 import logging
 import time
 
-from cloudinit import dmi, sources, url_helper, util
+from cloudinit import dmi, net, sources, url_helper, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralDHCPv4
@@ -73,11 +73,9 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         mstr = "%s [%s,ver=%s]" % (root, self.dsmode, self.version)
         return mstr
 
-    def wait_for_metadata_service(self):
+    def wait_for_metadata_service(self, iface):
         DEF_MD_URLS = [
-            "http://[fe80::a9fe:a9fe%25{iface}]".format(
-                iface=self.distro.fallback_interface
-            ),
+            "http://[fe80::a9fe:a9fe%25{iface}]".format(iface=iface),
             "http://169.254.169.254",
         ]
         urls = self.ds_cfg.get("metadata_urls", DEF_MD_URLS)
@@ -158,14 +156,22 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         """
 
         if self.perform_dhcp_setup:  # Setup networking in init-local stage.
-            try:
-
-                with EphemeralDHCPv4(
-                    self.distro, self.distro.fallback_interface
-                ):
-                    results = self._crawl_metadata()
-            except (NoDHCPLeaseError, sources.InvalidMetaDataException) as e:
-                util.logexc(LOG, str(e))
+            results = None
+            for iface in self.get_interface_list():
+                try:
+                    with EphemeralDHCPv4(self.distro, iface):
+                        results = self._crawl_metadata(iface)
+                        break
+                except (
+                    NoDHCPLeaseError,
+                    sources.InvalidMetaDataException,
+                ) as e:
+                    util.logexc(LOG, str(e))
+            if not results:
+                LOG.warning(
+                    "All interfaces failed to get dhcp lease"
+                    "Metadata service will NOT be called"
+                )
                 return False
         else:
             try:
@@ -202,15 +208,17 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
 
         return True
 
-    def _crawl_metadata(self):
+    def _crawl_metadata(self, iface=None):
         """Crawl metadata service when available.
 
         @returns: Dictionary with all metadata discovered for this datasource.
         @raise: InvalidMetaDataException on unreadable or broken
             metadata.
         """
+        if not iface:
+            iface = self.distro.fallback_interface
         try:
-            if not self.wait_for_metadata_service():
+            if not self.wait_for_metadata_service(iface):
                 raise sources.InvalidMetaDataException(
                     "No active metadata service found"
                 )
@@ -238,6 +246,15 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             )
             raise sources.InvalidMetaDataException(msg) from e
         return result
+
+    def get_interface_list(self):
+        ifaces = []
+        for iface in net.find_candidate_nics():
+            if "dummy" in iface:
+                continue
+            ifaces.append(iface)
+
+        return ifaces
 
     def ds_detect(self):
         """Return True when a potential OpenStack platform is detected."""
