@@ -278,7 +278,7 @@ def test_unhandled_exception():
 
     trace = base64.b64decode(traceback_base64).decode("utf-8")
     assert trace.startswith("\nValueError: my value error\n")
-    assert "raise ValueError" in trace
+    assert "test_unhandled_exception" in trace
     assert trace.endswith("Traceback (most recent call last):")
 
     quoted_value = quote_csv_value(f"exception={source_error!r}")

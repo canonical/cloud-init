@@ -71,7 +71,10 @@ def abstract_to_concrete(abclass: Type):
     return type("DummyConcrete" + abclass.__name__, (concreteCls,), {})
 
 
+# pylint: disable=overridden-final-method
 class MockDistro(distros.Distro):
+    """Test double that bypasses final entry points to avoid side-effects."""
+
     fallback_interface = "eth9"
 
     # MockDistro is here to test base Distro class implementations
@@ -143,13 +146,13 @@ class MockDistro(distros.Distro):
     def update_etc_hosts(self, hostname, fqdn):
         pass
 
-    def add_user(self, name, **kwargs):
+    def add_user(self, name, **kwargs):  # type: ignore[misc]
         pass
 
-    def add_snap_user(self, name, **kwargs):
+    def add_snap_user(self, name, **kwargs):  # type: ignore[misc]
         return "snap_user"
 
-    def create_user(self, name, **kwargs):
+    def create_user(self, name, **kwargs):  # type: ignore[misc]
         return True
 
     def lock_passwd(self, name):
@@ -183,6 +186,8 @@ class MockDistro(distros.Distro):
     def do_as(self, command: list, user: str, cwd: str = "", **kwargs):
         return ("stdout", "stderr")
 
+
+# pylint: enable=overridden-final-method
 
 TEST_INSTANCE_ID = "i-testing"
 
