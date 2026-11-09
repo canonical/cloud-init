@@ -21,6 +21,99 @@ from tests.unittests.util import get_cloud
 MODPATH = "cloudinit.config.cc_users_groups"
 
 
+class TestHandlePrimaryGroup:
+    def test_handle_default_user(self, mocker):
+        cfg = {"users": ["default"]}
+        validate_cloudconfig_schema(cfg, get_schema(), strict=True)
+        cloud = get_cloud(
+            distro="ubuntu",
+            sys_cfg={"default_user": {"name": "ubuntu", "groups": ["sudo"]}},
+            metadata={},
+        )
+        mocker.patch("cloudinit.distros.util.is_user", return_value=False)
+        mocker.patch("cloudinit.distros.util.is_group", return_value=True)
+        mocker.patch(
+            "cloudinit.distros.util.system_is_snappy", return_value=False
+        )
+        m_subp = mocker.patch("cloudinit.distros.subp.subp")
+
+        cc_users_groups.handle("users_groups", cfg, cloud, None)
+
+        useradd = ["useradd", "ubuntu", "--groups", "sudo", "-m"]
+        assert m_subp.call_args_list == [
+            mock.call(useradd, logstring=useradd),
+            mock.call(["passwd", "-l", "ubuntu"]),
+        ]
+
+    @pytest.mark.parametrize(
+        "user_options,existing_groups,created_groups",
+        [
+            pytest.param(
+                {"create_groups": True},
+                [],
+                ["ci-audit-primary"],
+                id="omitted-supplementary-groups",
+            ),
+            pytest.param(
+                {}, [], ["ci-audit-primary"], id="default-create-groups"
+            ),
+            pytest.param(
+                {"groups": ["ci-audit-extra"], "create_groups": True},
+                [],
+                ["ci-audit-extra", "ci-audit-primary"],
+                id="supplementary-groups",
+            ),
+            pytest.param(
+                {"create_groups": True},
+                ["ci-audit-primary"],
+                [],
+                id="existing-primary-group",
+            ),
+            pytest.param(
+                {"create_groups": False},
+                [],
+                [],
+                id="group-creation-disabled",
+            ),
+        ],
+    )
+    def test_handle_primary_group(
+        self, mocker, user_options, existing_groups, created_groups
+    ):
+        cfg = {
+            "users": [
+                {
+                    "name": "ci-audit-user",
+                    "primary_group": "ci-audit-primary",
+                    **user_options,
+                }
+            ]
+        }
+        validate_cloudconfig_schema(cfg, get_schema(), strict=True)
+        cloud = get_cloud(distro="ubuntu", sys_cfg={}, metadata={})
+        mocker.patch("cloudinit.distros.util.is_user", return_value=False)
+        mocker.patch(
+            "cloudinit.distros.util.is_group",
+            side_effect=lambda group: group in existing_groups,
+        )
+        mocker.patch(
+            "cloudinit.distros.util.system_is_snappy", return_value=False
+        )
+        m_subp = mocker.patch("cloudinit.distros.subp.subp")
+
+        cc_users_groups.handle("users_groups", cfg, cloud, None)
+
+        useradd = ["useradd", "ci-audit-user"]
+        if "groups" in user_options:
+            useradd.extend(["--groups", "ci-audit-extra"])
+        useradd.extend(["--gid", "ci-audit-primary", "-m"])
+        assert m_subp.call_args_list == [
+            *[mock.call(["groupadd", group]) for group in created_groups],
+            mock.call(useradd, logstring=useradd),
+            mock.call(["passwd", "-l", "ci-audit-user"]),
+        ]
+
+
 @mock.patch("cloudinit.distros.ubuntu.Distro.create_group")
 @mock.patch("cloudinit.distros.ubuntu.Distro.create_user")
 class TestHandleUsersGroups:
