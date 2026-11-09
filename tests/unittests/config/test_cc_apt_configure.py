@@ -206,6 +206,42 @@ class TestAPTConfigureSchema:
                     validate_cloudconfig_schema(config, schema, strict=True)
 
 
+class TestLegacyAptProxyConversion:
+    @pytest.mark.parametrize("with_modern_config", [False, True])
+    @pytest.mark.parametrize(
+        "legacy,expected",
+        [
+            (
+                {"apt_ftp_proxy": "http://ftp-proxy.invalid:3128"},
+                {"ftp_proxy": "http://ftp-proxy.invalid:3128"},
+            ),
+            (
+                {"apt_https_proxy": "http://https-proxy.invalid:3128"},
+                {"https_proxy": "http://https-proxy.invalid:3128"},
+            ),
+            (
+                {
+                    "apt_ftp_proxy": "http://ftp-proxy.invalid:3128",
+                    "apt_https_proxy": "http://https-proxy.invalid:3128",
+                },
+                {
+                    "ftp_proxy": "http://ftp-proxy.invalid:3128",
+                    "https_proxy": "http://https-proxy.invalid:3128",
+                },
+            ),
+        ],
+        ids=["ftp", "https", "both"],
+    )
+    def test_proxy_protocols_are_preserved(
+        self, legacy, expected, with_modern_config
+    ):
+        cfg = legacy.copy()
+        if with_modern_config:
+            cfg["apt"] = expected.copy()
+
+        assert cc_apt.convert_v2_to_v3_apt_format(cfg) == {"apt": expected}
+
+
 class TestEnsureDependencies:
     @pytest.mark.parametrize(
         "cfg, already_installed, expected_install",
