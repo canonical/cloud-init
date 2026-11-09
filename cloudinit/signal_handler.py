@@ -7,6 +7,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import inspect
 import logging
+import os
 import signal
 import sys
 import types
@@ -66,13 +67,25 @@ def _handle_exit(signum, frame):
     name = signum.name if isinstance(signum, signal.Signals) else signum
     contents = StringIO(SIG_MESSAGE.format(vr.version_string(), name))
     _pprint_frame(frame, 1, BACK_FRAME_TRACE_DEPTH, contents)
-    log_util.multi_log(
-        f"Received signal {name} resulting in exit. Cause:\n"
-        + contents.getvalue(),
-        log=LOG,
-        log_level=logging.INFO,
-    )
-    sys.exit(0)
+    try:
+        log_util.multi_log(
+            f"Received signal {name} resulting in exit. Cause:\n"
+            + contents.getvalue(),
+            log=LOG,
+            log_level=logging.INFO,
+        )
+    finally:
+        # Point /dev/null to outout streams on BrokenPipeError as described in
+        # https://docs.python.org/3/library/signal.html#note-on-sigpipe
+        try:
+            sys.stdout.flush()
+            sys.stderr.flush()
+        except BrokenPipeError:
+            with open(os.devnull, "w") as devnull:
+                os.dup2(devnull.fileno(), sys.stdout.fileno())
+                os.dup2(devnull.fileno(), sys.stderr.fileno())
+        finally:
+            sys.exit(0)
 
 
 def attach_handlers():
