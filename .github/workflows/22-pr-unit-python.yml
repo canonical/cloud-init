@@ -28,7 +28,9 @@ jobs:
             check-latest: false
             experimental: false
     name: Python ${{matrix.python-version}} ${{ matrix.slug }}
-    runs-on: ubuntu-latest
+    # 24.04 is the latest actions supports for python 3.9 per the versions manifest:
+    # https://raw.githubusercontent.com/actions/python-versions/main/versions-manifest.json
+    runs-on: ${{ matrix.python-version == '3.9' && 'ubuntu-24.04' || 'ubuntu-latest' }}
     continue-on-error: ${{ matrix.experimental }}
     steps:
       - name: Checkout
