@@ -59,6 +59,10 @@ REDACT_SENSITIVE_VALUE = "redacted for non-root user"
 # Key which can be provide a cloud's official product name to cloud-init
 METADATA_CLOUD_NAME_KEY = "cloud-name"
 
+# Used for datasource cache attributes (e.g. ec2_metadata, network_json,
+# _network_config) whose value has not been crawled/computed
+# yet, or which has been explicitly invalidated. UNSET is internal-only and
+# must never be returned to callers of DataSource.network_config
 UNSET = "_unset"
 METADATA_UNKNOWN = "unknown"
 
@@ -1004,6 +1008,29 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     @property
     def network_config(self):
+        """Network configuration provided by this datasource, if any.
+
+        Implementations must return either:
+
+        - a dict with network configuration (v1 or v2 format) provided by
+          the platform, or
+        - None when this datasource has no network configuration
+
+        None is a valid, final answer meaning "no config from this source":
+        callers fall through to the next source in this datasource's
+        network_config_sources order or ultimatelyto a distro-generated
+        fallback config.
+
+        UNSET must never be returned from this property. UNSET is an
+        internal-only sentinel for the private cache attributes datasources
+        conventionally keep (self._network_config), marking the value as
+        "not yet computed". The UNSET distinction from a cached
+        None ("computed; this datasource has no network config") lets a
+        datasource cache negative results without re-crawling metadata on
+        every access, while still forcing recomputation when
+        update_metadata_if_supported() resets the attribute to UNSET on a
+        supported update event (e.g. hotplug, boot).
+        """
         return None
 
     def setup(self, is_new_instance):
