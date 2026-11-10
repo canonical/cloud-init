@@ -61,7 +61,9 @@ class TestSimpleRun:
             "config": [{"type": "physical", "name": "eth9"}],
         }
 
-        def fake_network_config() -> tuple[dict[str, Any], NetworkConfigSource]:
+        def fake_network_config(
+            ,
+        ) -> tuple[dict[str, Any], NetworkConfigSource]:
             return netcfg, NetworkConfigSource.FALLBACK
 
         assert not os.path.exists("/var/lib/cloud")
@@ -87,7 +89,10 @@ class TestSimpleRun:
             "/var/lib/cloud/instance/network-config.json"
         )
 
-    def test_none_ds_runs_modules_which_do_not_define_distros(self, caplog: LogCaptureFixture) -> None:
+    def test_none_ds_runs_modules_which_do_not_define_distros(
+        self,
+        caplog: LogCaptureFixture,
+    ) -> None:
         """Any modules which do not define a distros attribute are run."""
         initer = stages.Init()
         initer.read_cfg()
@@ -140,7 +145,10 @@ class TestSimpleRun:
         )
         assert "spacewalk" not in which_ran
 
-    def test_none_ds_runs_modules_which_distros_all(self, caplog: LogCaptureFixture) -> None:
+    def test_none_ds_runs_modules_which_distros_all(
+        self,
+        caplog: LogCaptureFixture,
+    ) -> None:
         """Skip modules which define distros attribute as supporting 'all'.
 
         This is done in the module with the declaration:
@@ -168,7 +176,12 @@ class TestSimpleRun:
             " distro 'ubuntu'" not in caplog.text
         )
 
-    def test_none_ds_forces_run_via_unverified_modules(self, caplog: LogCaptureFixture, cfg: dict[str, Any]) -> None:
+    def test_none_ds_forces_run_via_unverified_modules(
+        self,
+        caplog: LogCaptureFixture,
+        cfg: dict[str,
+        Any],
+    ) -> None:
         """run_section forced skipped modules by using unverified_modules."""
 
         # re-write cloud.cfg with unverified_modules override
@@ -197,7 +210,11 @@ class TestSimpleRun:
         assert "spacewalk" in which_ran
         assert "running unverified_modules: 'spacewalk'" in caplog.text
 
-    def test_none_ds_run_with_no_config_modules(self, cfg: dict[str, Any]) -> None:
+    def test_none_ds_run_with_no_config_modules(
+        self,
+        cfg: dict[str,
+        Any],
+    ) -> None:
         """run_section will report no modules run when none are configured."""
 
         # re-write cloud.cfg with unverified_modules override
