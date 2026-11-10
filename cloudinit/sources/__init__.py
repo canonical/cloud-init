@@ -1018,7 +1018,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         None is a valid, final answer meaning "no config from this source":
         callers fall through to the next source in this datasource's
-        network_config_sources order or ultimatelyto a distro-generated
+        network_config_sources order or ultimately to a distro-generated
         fallback config.
 
         UNSET must never be returned from this property. UNSET is an
