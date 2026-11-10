@@ -557,3 +557,46 @@ class TestInstall:
         assert "Failed to install the following packages" in message
         for pkg in total_failed:
             assert pkg in message
+
+
+@pytest.mark.parametrize("tool", ["passwd", "usermod"])
+@pytest.mark.parametrize(
+    "password,stderr,blank",
+    [
+        ("$6$hash", "sss_cache warning", False),
+        ("!", "unlock failed", True),
+        ("", "unlock failed", True),
+        ("!", "", False),
+    ],
+)
+def test_unlock_passwd_checks_shadow(
+    mocker, tmp_path, tool, password, stderr, blank
+):
+    distro = get_distro("ubuntu")
+    shadow = tmp_path / "shadow"
+    shadow.write_text(f"alice:{password}:\n")
+    distro.shadow_fn = str(shadow)
+    mocker.patch("cloudinit.distros.util.system_is_snappy", return_value=False)
+    mocker.patch(
+        "cloudinit.distros.subp.which", side_effect=lambda name: name == tool
+    )
+    subp = mocker.patch(
+        "cloudinit.distros.subp.subp", return_value=("", stderr)
+    )
+
+    distro.unlock_passwd("alice")
+
+    unlock = (
+        ["passwd", "-u", "alice"]
+        if tool == "passwd"
+        else ["usermod", "--unlock", "alice"]
+    )
+    assert subp.call_args_list[0] == mock.call(unlock, rcs=[0, 3])
+    if blank:
+        command = (
+            ["passwd", "-d", "alice"]
+            if tool == "passwd"
+            else ["usermod", "--password", "''", "alice"]
+        )
+        assert subp.call_args_list[1] == mock.call(command)
+    assert subp.call_count == 1 + int(blank)
