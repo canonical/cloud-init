@@ -355,7 +355,7 @@ class DataSourceVMware(sources.DataSource):
         return self.cfg
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[sources.NetConfig]:
         if "network" in self.metadata:
             LOG.debug("using metadata network config")
         else:

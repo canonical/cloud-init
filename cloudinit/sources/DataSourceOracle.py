@@ -30,7 +30,6 @@ from typing import (
 )
 
 from cloudinit import atomic_helper, dmi, net, sources, util
-from cloudinit.distros.networking import NetworkConfig
 from cloudinit.net import (
     cmdline,
     ephemeral,
@@ -101,7 +100,7 @@ def _ibft_has_iscsi_boot_target() -> bool:
     return False
 
 
-def _ensure_netfailover_safe(network_config: NetworkConfig) -> None:
+def _ensure_netfailover_safe(network_config: sources.NetConfig) -> None:
     """
     Search network config physical interfaces to see if any of them are
     a netfailover master.  If found, we prevent matching by MAC as the other
@@ -117,19 +116,20 @@ def _ensure_netfailover_safe(network_config: NetworkConfig) -> None:
 
     """
     # ignore anything that's not an actual network-config
-    if "version" not in network_config:
-        return
-
-    if network_config["version"] not in [1, 2]:
+    if network_config.get("version") not in [1, 2]:
         LOG.debug(
             "Ignoring unknown network config version: %s",
-            network_config["version"],
+            network_config.get("version"),
         )
         return
 
     mac_to_name = get_interfaces_by_mac()
     if network_config["version"] == 1:
-        for cfg in [c for c in network_config["config"] if "type" in c]:
+        v1_config = network_config["config"]
+        if not isinstance(v1_config, list):
+            # NetConfigV1Disabled sentinel; nothing to sanitize
+            return
+        for cfg in [c for c in v1_config if "type" in c]:
             if cfg["type"] == "physical":
                 if "mac_address" in cfg:
                     mac = cfg["mac_address"]
@@ -182,7 +182,11 @@ class DataSourceOracle(sources.DataSource):
             ]
         )
         self._network_config_source = KlibcOracleNetworkConfigSource()
-        self._network_config: dict = {"config": [], "version": 1}
+        # Cache for network config v1; populated from iscsi/cmdline/IMDS
+        self._network_config: sources.NetConfigV1 = {
+            "config": [],
+            "version": 1,
+        }
 
         url_params = self.get_url_params()
         self.url_max_wait = url_params.max_wait_seconds
@@ -312,11 +316,11 @@ class DataSourceOracle(sources.DataSource):
         """Return whether we are on a iscsi machine."""
         return _ibft_has_iscsi_boot_target()
 
-    def _get_iscsi_config(self) -> dict:
+    def _get_iscsi_config(self) -> sources.NetConfigV1:
         return self._network_config_source.render_config()
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[sources.NetConfig]:
         """Network config is read from initramfs provided files
 
         Priority for primary network_config selection:

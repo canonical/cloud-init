@@ -127,11 +127,10 @@ class DataSourceOpenNebula(sources.DataSource):
         return "%s (%s)" % (subplatform_type, self.seed)
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[sources.NetConfig]:
         if self.network is not None:
             return self.network
-        else:
-            return None
+        return None
 
     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
         if resolve_ip is None:

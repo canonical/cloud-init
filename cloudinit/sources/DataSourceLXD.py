@@ -241,7 +241,7 @@ class DataSourceLXD(sources.DataSource):
         return md.get("instance-id") == self.metadata.get("instance-id")
 
     @property
-    def network_config(self) -> dict:
+    def network_config(self) -> Optional[sources.NetConfig]:
         """Network config read from LXD socket config/user.network-config.
 
         If none is present, then we generate fallback configuration.
@@ -271,7 +271,7 @@ class DataSourceLXD(sources.DataSource):
             )
             self._network_config = generate_network_config()
 
-        return cast(dict, self._network_config)
+        return cast(sources.NetConfig, self._network_config)
 
 
 def _get_json_response(

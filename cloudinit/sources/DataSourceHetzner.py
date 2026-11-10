@@ -7,6 +7,7 @@
 https://docs.hetzner.cloud/"""
 
 import logging
+from typing import Optional
 
 import cloudinit.sources.helpers.hetzner as hc_helper
 from cloudinit import dmi, net, sources, url_helper, util
@@ -190,7 +191,7 @@ class DataSourceHetzner(sources.DataSource):
         )
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[sources.NetConfig]:
         """Configure the networking. This needs to be done each boot, since
         the IP information may have changed due to snapshot and/or
         migration.
