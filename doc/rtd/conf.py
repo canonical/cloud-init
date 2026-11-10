@@ -3,6 +3,7 @@ import glob
 import os
 import re
 import sys
+from pathlib import Path
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -17,7 +18,6 @@ sys.path.insert(0, os.path.abspath("."))
 # So avoid cloudinit imports until we have updated our path first.
 from cloudinit.config.schema import get_schema
 from cloudinit.handlers.jinja_template import render_jinja_payload
-from cloudinit.subp import subp
 
 # Suppress warnings for docs that aren't used yet
 # unused_docs = [
@@ -69,12 +69,18 @@ master_doc = "index"
 
 
 def get_version():
-    subp(["meson", "setup", "../../builddir", "../.."])
-    with open("../../builddir/meson_versions.py") as stream:
-        match = re.search(r'UPSTREAM_VERSION = "([^"]+)"', stream.read())
-    if match:
-        return match.group(1)
-    return "@UNABLE_TO_BUILD_meson_versions_py@"
+    project_root = Path(__file__).resolve().parents[2]
+    meson_build_path = project_root / "meson.build"
+    match = re.search(
+        r"^project\([^)]*?\s+version: '([^']+)'",
+        meson_build_path.read_text(encoding="utf-8"),
+    )
+    if match is None:
+        raise ValueError(
+            "Unable to extract upstream project version from %s",
+            meson_build_path,
+        )
+    return match.group(1)
 
 
 version = get_version()
