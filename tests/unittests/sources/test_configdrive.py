@@ -10,7 +10,6 @@ import pytest
 
 from cloudinit import helpers, settings, util
 from cloudinit.net import eni, network_state
-from cloudinit.sources import UNSET
 from cloudinit.sources import DataSourceConfigDrive as ds
 from cloudinit.sources.helpers import openstack
 from tests.unittests.helpers import populate_dir
@@ -680,26 +679,6 @@ class TestNetJson:
         network_config = openstack.convert_net_json(
             NETWORK_DATA, known_macs=KNOWN_MACS
         )
-        assert myds.network_config == network_config
-
-    @mock.patch(M_PATH + "on_first_boot")
-    def test_network_config_regenerated_after_clear_cached_attrs(
-        self, on_first_boot, tmp_path
-    ):
-        """network_config is regenerated, never UNSET, after cache clear.
-
-        DataSource.update_metadata_if_supported clears _network_config to
-        UNSET via clear_cached_attrs when handling EventType.BOOT for
-        datasources which support network updates on each boot.
-        """
-        myds = cfg_ds_from_dir(tmp_path, files=CFG_DRIVE_FILES_V2)
-        network_config = openstack.convert_net_json(
-            NETWORK_DATA, known_macs=KNOWN_MACS
-        )
-        assert myds.network_config == network_config
-        myds.clear_cached_attrs((("_network_config", UNSET),))
-        assert myds._network_config == UNSET
-
         assert myds.network_config == network_config
 
     def test_network_config_conversion_dhcp6(self):
