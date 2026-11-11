@@ -266,7 +266,9 @@ def sec_log_system_shutdown(func):
     """Log shutdown intent before constructing the shutdown command."""
 
     @functools.wraps(func)
-    def decorator(cls, mode: str, delay: Union[int, str], message: str, *args, **kwargs):
+    def decorator(
+        cls, mode: str, delay: Union[int, str], message: str, *args, **kwargs
+    ):
         if mode == "reboot":
             event_type = OWASPEventType.SYS_RESTART
             description = "System restart initiated"
