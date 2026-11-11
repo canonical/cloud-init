@@ -1,0 +1,216 @@
+# Cleanup of stale cloud resources left behind by cloud-init's QA
+# integration tests.
+#
+# WARNING: the Azure job deletes every VM older than HOURS_OLD in the
+# subscription and then every resource group older than HOURS_OLD, so
+# the subscription behind the PYCLOUDLIB_TOML_B64 secret must be
+# dedicated to cloud-init QA usage only.
+#
+# Cloud credentials are read from the PYCLOUDLIB_TOML_B64 repo secret,
+# the same pycloudlib.toml consumed by .github/actions/integration-test;
+# the decoded toml must provide an [azure] section.
+
+name: "8-hourly: Cleanup stale QA cloud instances"
+
+on:
+  workflow_dispatch:
+    inputs:
+      hours_old:
+        description: "Delete cloud resources older than this many hours (default 96, minimum 24)"
+        required: false
+        type: number
+      run_azure:
+        description: "Run the Azure cleanup job"
+        required: false
+        type: boolean
+        default: true
+  schedule:
+    - cron: "13 */8 * * *"  # Every 8 hours
+
+# Never run two cleanups concurrently: a dispatched run waits for the
+# in-flight one instead of cancelling it.
+concurrency:
+  group: cloud-cleanup
+  cancel-in-progress: false
+
+# No GitHub API access is needed: no checkout, no check runs, no artifacts.
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # TODO add ec2 job
+  azure:
+    name: cloud-cleanup-azure
+    runs-on: ubuntu-latest
+    if: github.repository == 'canonical/cloud-init' && (github.event_name == 'schedule' || inputs.run_azure)
+    timeout-minutes: 90
+    env:
+      PYCLOUDLIB_TOML_B64: ${{ secrets.PYCLOUDLIB_TOML_B64 }}
+      HOURS_OLD: ${{ inputs.hours_old || 96 }}
+    steps:
+      - name: Assert required repo secrets are set
+        run: |
+          if [ -z "$PYCLOUDLIB_TOML_B64" ]; then
+            echo "ERROR: Missing required repo secret. Please provide PYCLOUDLIB_TOML_B64 repo secret at ${{ github.repository }}/settings/secrets/actions."
+            exit 1
+          fi
+      - name: Setup pycloudlib
+        env:
+          PYCLOUDLIB_CONFIG: ${{ runner.temp }}/pycloudlib.toml
+        run: |
+          # Dump secret using a subprocess to avoid accidental leaks when using set -x.
+          sh -c 'echo "$PYCLOUDLIB_TOML_B64" | base64 -d > "$PYCLOUDLIB_CONFIG"'
+      - name: Cleanup stale Azure VMs and resource groups
+        env:
+          PYCLOUDLIB_CONFIG: ${{ runner.temp }}/pycloudlib.toml
+        run: |
+          set -euo pipefail
+
+          if ! [[ "$HOURS_OLD" =~ ^[1-9][0-9]*$ ]]; then
+            echo "ERROR: HOURS_OLD must be a positive integer, got: '$HOURS_OLD'" >&2
+            exit 1
+          fi
+          # Keep the blast radius of a typo in check: deleting every VM
+          # and every resource group younger than a day must stay a
+          # deliberate act, not a dispatch mistake.
+          if ((HOURS_OLD < 24)); then
+            echo "ERROR: HOURS_OLD must be at least 24, got: '$HOURS_OLD'" >&2
+            exit 1
+          fi
+
+          # A failure on a single resource must not abort the whole
+          # cleanup pass: warn, skip the offending resource, keep cleaning
+          # up the rest and fail the job at the very end.
+          rc=0
+          warn_skip() {
+            echo "WARN: $*" >&2
+            rc=1
+          }
+
+          # Extract Azure credentials from pycloudlib.toml and login to Azure.
+          # Actions runners do not run bash with xtrace. The set +x below is
+          # defense in depth to keep the service principal password out of the
+          # logs.
+          set +x
+          AZURE_TENANT_ID=$(python3 -c 'import os, tomllib; print(tomllib.load(open(os.environ["PYCLOUDLIB_CONFIG"], "rb"))["azure"]["tenant_id"])')
+          AZURE_SUBSCRIPTION_ID=$(python3 -c 'import os, tomllib; print(tomllib.load(open(os.environ["PYCLOUDLIB_CONFIG"], "rb"))["azure"]["subscription_id"])')
+          AZURE_CLIENT_ID=$(python3 -c 'import os, tomllib; print(tomllib.load(open(os.environ["PYCLOUDLIB_CONFIG"], "rb"))["azure"]["client_id"])')
+          AZURE_CLIENT_SECRET=$(python3 -c 'import os, tomllib; print(tomllib.load(open(os.environ["PYCLOUDLIB_CONFIG"], "rb"))["azure"]["client_secret"])')
+          export AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID AZURE_CLIENT_ID AZURE_CLIENT_SECRET
+          # GitHub masks only the raw PYCLOUDLIB_TOML_B64 secret value in
+          # the logs: also register the decoded credentials, so neither a
+          # stray trace nor an error message can leak them.
+          for credential in AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID AZURE_CLIENT_ID AZURE_CLIENT_SECRET; do
+            echo "::add-mask::${!credential}"
+          done
+          # Keep the runner's ~/.azure clean: confine az to the temp dir.
+          export AZURE_CONFIG_DIR="$RUNNER_TEMP/azure-config"
+          az login --service-principal --username "$AZURE_CLIENT_ID" --password "$AZURE_CLIENT_SECRET" --tenant "$AZURE_TENANT_ID"
+
+          # Some resource groups are exempt from resource group deletion,
+          # but the exemption applies to the group container only: stale
+          # VMs inside these groups are still deleted.
+          allowed_rg_prefixes=(
+            cloud-shell-storage-
+            NetworkWatcherRG
+            ha-auto-
+          )
+
+          now_epoch=$(date +%s)
+          rg_list=$(az group list --query '[].name' -o tsv) || {
+            echo "ERROR: failed to list the Azure resource groups" >&2
+            exit 1
+          }
+          # shellcheck disable=SC2086  # one resource group name per iteration
+          for rg in $rg_list; do
+            # Delete all the stale instances, regardless of the resource
+            # group they're in (including the allowlisted groups above).
+            # Fetch the id and the creation time of each VM in a single
+            # call to keep the API traffic down.
+            vm_list=$(az vm list -g "$rg" --query '[].{id:id, timeCreated:timeCreated}' -o tsv) || {
+              warn_skip "failed to list the VMs in resource group $rg, skipping it"
+              continue
+            }
+            if [ -n "$vm_list" ]; then
+              while IFS=$'\t' read -r vm vm_created; do
+                [ -n "$vm" ] || continue
+                [ -n "$vm_created" ] || {
+                  warn_skip "failed to fetch the creation time of VM $vm, skipping it"
+                  continue
+                }
+                vm_created_epoch=$(date +%s --date="$vm_created") || {
+                  warn_skip "failed to parse the creation time '$vm_created' of VM $vm, skipping it"
+                  continue
+                }
+                if ((now_epoch - vm_created_epoch > HOURS_OLD*3600)); then
+                  echo "Deleting Azure VM $vm ($rg) created $vm_created"
+                  # Make sure the OS disk and all data disks are deleted
+                  # with the VM. Disks default to detach on VM deletion
+                  # and would linger as orphaned resources.
+                  # This has bitten us before!
+                  # https://learn.microsoft.com/en-us/azure/virtual-machines/delete
+                  az resource update --ids "$vm" --set properties.storageProfile.osDisk.deleteOption=delete || {
+                    warn_skip "failed to mark the OS disk of VM $vm for deletion, skipping it"
+                    continue
+                  }
+                  data_disk_count=$(az vm show --ids "$vm" --query 'length(storageProfile.dataDisks)' -o tsv) || {
+                    warn_skip "failed to count the data disks of VM $vm, skipping it"
+                    continue
+                  }
+                  data_disk_count=${data_disk_count:-0}
+                  for ((i = 0; i < data_disk_count; i++)); do
+                    az resource update --ids "$vm" --set "properties.storageProfile.dataDisks[$i].deleteOption=delete" || {
+                      warn_skip "failed to mark data disk $i of VM $vm for deletion, skipping it"
+                      continue 2
+                    }
+                  done
+                  az vm delete --yes --no-wait --force-deletion=true --ids "$vm" || {
+                    warn_skip "failed to delete VM $vm, skipping it"
+                    continue
+                  }
+                else
+                  echo "Skipping Azure VM $vm ($rg) created $vm_created"
+                fi
+              done <<< "$vm_list"
+            fi
+
+            # Now also delete stale resource groups, but keep some.
+            keep_rg=false
+            for allowed_rg in "${allowed_rg_prefixes[@]}"; do
+              if [[ $rg == $allowed_rg* ]]; then
+                keep_rg=true
+                break
+              fi
+            done
+            $keep_rg && continue
+
+            # https://learn.microsoft.com/en-us/rest/api/resources/resources/list
+            rg_created=$(az rest --method get --url "https://management.azure.com/subscriptions/$AZURE_SUBSCRIPTION_ID/resourcegroups/$rg?api-version=2022-09-01&%24expand=createdTime" | jq --raw-output '.createdTime') || {
+              warn_skip "failed to query the creation time of resource group $rg, skipping it"
+              continue
+            }
+            [ -n "$rg_created" ] && [ "$rg_created" != "null" ] || {
+              warn_skip "resource group $rg has no creation time, skipping it"
+              continue
+            }
+            rg_created_epoch=$(date +%s --date="$rg_created") || {
+              warn_skip "failed to parse the creation time '$rg_created' of resource group $rg, skipping it"
+              continue
+            }
+            if ((now_epoch - rg_created_epoch > HOURS_OLD*3600)); then
+              echo "Deleting Azure resource group: $rg"
+              az group delete --yes --no-wait --force-deletion-types Microsoft.Compute/virtualMachines --name "$rg" || {
+                warn_skip "failed to delete resource group $rg"
+              }
+            fi
+          done
+
+          exit $rc
+      - name: Clean pycloudlib
+        if: ${{ always() }}
+        run: |
+          rm -f "${{ runner.temp }}/pycloudlib.toml"
+          rm -rf "${{ runner.temp }}/azure-config"
