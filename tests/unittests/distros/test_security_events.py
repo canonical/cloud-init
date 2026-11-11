@@ -119,6 +119,11 @@ def test_password_entry_points(distro_name, batch, fails, mocker, caplog):
             )
             for user, _ in (users if batch else users[:1])
         ]
+    assert all(
+        secret not in str(event)
+        for event in security_events(caplog)
+        for _, secret in users
+    )
     operation.assert_called()
 
 
