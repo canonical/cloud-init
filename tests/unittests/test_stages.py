@@ -655,6 +655,39 @@ class TestInit:
             "network update allowed" in caplog.text
         )
 
+    @pytest.mark.parametrize(
+        "cached_content",
+        [
+            pytest.param("", id="empty"),
+            pytest.param('{"version": 1, "conf', id="truncated"),
+            pytest.param("[1, 2, 3]", id="not-a-dict"),
+        ],
+    )
+    def test_write_network_config_json_rewrites_corrupt_cache(
+        self, cached_content, caplog
+    ):
+        """An unreadable cached network-config.json is warned about and
+        rewritten rather than raising."""
+        netcfg = {"version": 1, "config": []}
+        cache_path = self.tmpdir.join("instance", "network-config.json")
+        cache_path.write(cached_content)
+
+        self.init._write_network_config_json(netcfg)
+
+        assert netcfg == json.loads(cache_path.read())
+        assert "Ignoring unreadable cached network config" in caplog.text
+
+    def test_write_network_config_json_skips_rewrite_when_unchanged(self):
+        """A valid cache identical to the new config is not rewritten."""
+        netcfg = {"version": 1, "config": []}
+        cache_path = self.tmpdir.join("instance", "network-config.json")
+        cache_path.write(json.dumps(netcfg))
+
+        with mock.patch(M_PATH + "atomic_helper.write_json") as m_write:
+            self.init._write_network_config_json(netcfg)
+
+        m_write.assert_not_called()
+
 
 class TestInit_InitializeFilesystem:
     """Tests for cloudinit.stages.Init._initialize_filesystem.
