@@ -18,7 +18,6 @@ from requests.exceptions import ConnectionError
 
 # Note: `urllib3` is transitively installed by `requests`
 from urllib3.connection import HTTPConnection
-from urllib3.poolmanager import PoolManager
 
 from cloudinit import dmi, performance, sources, url_helper, util
 from cloudinit.event import EventScope, EventType
@@ -55,13 +54,15 @@ class SourceAddressAdapter(requests.adapters.HTTPAdapter):
         socket_options = HTTPConnection.default_socket_options + [
             (socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         ]
-        pool_kwargs["source_address"] = self.source_address
-        pool_kwargs["socket_options"] = socket_options
-        self.poolmanager = PoolManager(
-            num_pools=connections,
-            maxsize=maxsize,
-            block=block,
-            **pool_kwargs,
+        super().init_poolmanager(
+            connections,
+            maxsize,
+            block,
+            **{
+                **pool_kwargs,
+                "source_address": self.source_address,
+                "socket_options": socket_options,
+            },
         )
 
 
