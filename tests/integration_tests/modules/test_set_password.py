@@ -87,6 +87,22 @@ USERS_PASSWD_VALUES = {
     if "name" in user_dict and "passwd" in user_dict
 }
 
+SSSD_HASHED_PASSWD = (
+    "$6$lp2153951$Iq7BfvEAR8qyz9eKAKs5sAGBBtyDoSRW0D2FnBJdG3Xy5.rLbSh29Hrds0"
+    "VXSNzIx/1PNNmATPReqLjginX7/."
+)
+
+SSD_USER_DATA = f"""\
+#cloud-config
+package_update: true
+packages: [sssd-tools]
+users:
+- default
+- name: tuser
+  lock_passwd: false
+  hashed_passwd: {SSSD_HASHED_PASSWD}
+"""
+
 
 class Mixin:
     """Shared test definitions."""
@@ -221,3 +237,18 @@ class TestPasswordListString(Mixin):
 @pytest.mark.user_data(USERS_USER_DATA)
 class TestPasswordUsersList(Mixin):
     """Launch an instance with USERS_USER_DATA, ensure Mixin tests pass."""
+
+
+@pytest.mark.user_data(SSD_USER_DATA)
+def test_unlock_passwd_stderr_does_not_delete_hashed_password(client):
+    """Ensure passwd -u does not delete hashed password on unrelated stderr"""
+    assert client.execute("dpkg -s sssd-tools").ok
+    assert client.execute("cloud-init clean --logs").ok
+    client.restart()
+    assert client.execute("cloud-init status --wait").ok
+
+    log = client.read_from_file("/var/log/cloud-init.log")
+    assert "['passwd', '-d', 'tuser']" not in log
+    shadow_entry = client.execute("getent shadow tuser")
+    assert shadow_entry.ok
+    assert shadow_entry.split(":")[1] == SSSD_HASHED_PASSWD
