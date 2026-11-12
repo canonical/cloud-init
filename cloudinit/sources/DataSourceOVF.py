@@ -17,13 +17,12 @@ import base64
 import logging
 import os
 import re
-from typing import Optional, Union
+from typing import Optional
 from xml.dom import minidom  # nosec B408
 
 import yaml
 
 from cloudinit import sources, subp, util
-from cloudinit.sources import NetworkConfigV1
 
 LOG = logging.getLogger(__name__)
 
@@ -129,7 +128,7 @@ class DataSourceOVF(sources.DataSource):
         return self.cfg
 
     @property
-    def network_config(self) -> Optional[Union[dict, NetworkConfigV1]]:
+    def network_config(self) -> Optional[dict]:
         return self._network_config
 
 

@@ -2,7 +2,7 @@
 
 import copy
 import logging
-from typing import List, Optional, Union
+from typing import List, Optional
 
 from cloudinit import dmi, sources
 from cloudinit import url_helper as uhelp
@@ -10,7 +10,7 @@ from cloudinit import util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralIPNetwork
-from cloudinit.sources import DataSourceHostname, NetworkConfigV1
+from cloudinit.sources import DataSourceHostname
 from cloudinit.sources.helpers import aliyun, ec2
 
 LOG = logging.getLogger(__name__)
@@ -87,7 +87,7 @@ class DataSourceAliYun(sources.DataSource):
         return self.imdsv2_token_put_header + "-ttl-seconds"
 
     @property
-    def network_config(self) -> Optional[Union[dict, NetworkConfigV1]]:
+    def network_config(self) -> Optional[dict]:
         """Return a network config dict for rendering ENI or netplan files."""
         if self._network_config != sources.UNSET:
             return self._network_config

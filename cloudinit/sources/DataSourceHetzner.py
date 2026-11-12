@@ -7,14 +7,13 @@
 https://docs.hetzner.cloud/"""
 
 import logging
-from typing import Optional, Union
+from typing import Optional
 
 import cloudinit.sources.helpers.hetzner as hc_helper
 from cloudinit import dmi, net, sources, url_helper, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralIPNetwork
-from cloudinit.sources import NetworkConfigV1
 
 LOG = logging.getLogger(__name__)
 
@@ -192,7 +191,7 @@ class DataSourceHetzner(sources.DataSource):
         )
 
     @property
-    def network_config(self) -> Optional[Union[dict, NetworkConfigV1]]:
+    def network_config(self) -> Optional[dict]:
         """Configure the networking. This needs to be done each boot, since
         the IP information may have changed due to snapshot and/or
         migration.

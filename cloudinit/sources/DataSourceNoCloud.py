@@ -12,11 +12,10 @@ import errno
 import logging
 import os
 from functools import partial
-from typing import Optional, Union
+from typing import Optional
 
 from cloudinit import dmi, lifecycle, sources, util
 from cloudinit.net import eni
-from cloudinit.sources import NetworkConfigV1
 
 LOG = logging.getLogger(__name__)
 
@@ -265,7 +264,7 @@ class DataSourceNoCloud(sources.DataSource):
         return quick_id == current
 
     @property
-    def network_config(self) -> Optional[Union[dict, NetworkConfigV1]]:
+    def network_config(self) -> Optional[dict]:
         if self._network_config is None:
             if self._network_eni is not None:
                 lifecycle.deprecate(

@@ -10,7 +10,7 @@ import logging
 import os
 import socket
 import time
-from typing import Optional, Union
+from typing import Optional
 from urllib.parse import urlparse
 
 import requests
@@ -24,7 +24,7 @@ from cloudinit import dmi, performance, sources, url_helper, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralDHCPv4, EphemeralIPv6Network
-from cloudinit.sources import DataSourceHostname, NetworkConfigV1
+from cloudinit.sources import DataSourceHostname
 from cloudinit.subp import ProcessExecutionError
 
 LOG = logging.getLogger(__name__)
@@ -308,7 +308,7 @@ class DataSourceScaleway(sources.DataSource):
         return True
 
     @property
-    def network_config(self) -> Optional[Union[dict, NetworkConfigV1]]:
+    def network_config(self) -> Optional[dict]:
         """
         Configure networking according to data received from the
         metadata API.

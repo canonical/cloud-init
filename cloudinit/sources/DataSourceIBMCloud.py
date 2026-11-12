@@ -97,10 +97,9 @@ import base64
 import json
 import logging
 import os
-from typing import Any, Callable, Dict, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Optional, Tuple
 
 from cloudinit import atomic_helper, sources, subp, util
-from cloudinit.sources import NetworkConfigV1
 from cloudinit.sources.helpers import openstack
 
 LOG = logging.getLogger(__name__)
@@ -173,7 +172,7 @@ class DataSourceIBMCloud(sources.DataSource):
         return self.system_uuid == _read_system_uuid()
 
     @property
-    def network_config(self) -> Optional[Union[dict, NetworkConfigV1]]:
+    def network_config(self) -> Optional[dict]:
         if self.platform != Platforms.OS_CODE:
             # If deployed from template, an agent in the provisioning
             # environment handles networking configuration. Not cloud-init.

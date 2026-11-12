@@ -8,12 +8,11 @@
 
 import logging
 import os
-from typing import Optional, Union
+from typing import Optional
 
 from cloudinit import lifecycle, sources, subp, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import eni
-from cloudinit.sources import NetworkConfigV1
 from cloudinit.sources.DataSourceIBMCloud import get_ibm_platform
 from cloudinit.sources.helpers import openstack
 
@@ -168,7 +167,7 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         return sources.instance_id_matches_system_uuid(self.get_instance_id())
 
     @property
-    def network_config(self) -> Optional[Union[dict, NetworkConfigV1]]:
+    def network_config(self) -> Optional[dict]:
         if self._network_config is None:
             if self.network_json not in (None, sources.UNSET):
                 LOG.debug("network config provided via network_json")

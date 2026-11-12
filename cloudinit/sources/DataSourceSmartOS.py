@@ -30,11 +30,10 @@ import os
 import random
 import re
 import socket
-from typing import Optional, Union
+from typing import Optional
 
 from cloudinit import atomic_helper, dmi, sources, subp, util
 from cloudinit.event import EventScope, EventType
-from cloudinit.sources import NetworkConfigV1
 
 LOG = logging.getLogger(__name__)
 
@@ -346,7 +345,7 @@ class DataSourceSmartOS(sources.DataSource):
         return self.metadata["instance-id"]
 
     @property
-    def network_config(self) -> Optional[Union[dict, NetworkConfigV1]]:
+    def network_config(self) -> Optional[dict]:
         # sources.clear_cached_data() may set _network_config to '_unset'.
         if self._network_config == sources.UNSET:
             self._network_config = None

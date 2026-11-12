@@ -32,7 +32,6 @@ from cloudinit.net.dhcp import (
 )
 from cloudinit.net.ephemeral import EphemeralDHCPv4, EphemeralIPv4Network
 from cloudinit.reporting import events
-from cloudinit.sources import NetworkConfigV1
 from cloudinit.sources.azure import certs, errors, identity, imds, kvp
 from cloudinit.sources.helpers import netlink
 from cloudinit.sources.helpers.azure import (
@@ -1682,7 +1681,7 @@ class DataSourceAzure(sources.DataSource):
         return {}
 
     @property
-    def network_config(self) -> Optional[Union[dict, NetworkConfigV1]]:
+    def network_config(self) -> Optional[dict]:
         """Provide network configuration v2 dictionary."""
         # Use cached config, if present.
         if self._network_config and self._network_config != sources.UNSET:

@@ -2,10 +2,9 @@
 
 import json
 import logging
-from typing import Optional, Union
+from typing import Optional
 
 from cloudinit import dmi, sources, url_helper, util
-from cloudinit.sources import NetworkConfigV1
 
 LOG = logging.getLogger(__name__)
 
@@ -95,7 +94,7 @@ class DataSourceCloudCIX(sources.DataSource):
         return is_platform_viable()
 
     @property
-    def network_config(self) -> Optional[Union[dict, NetworkConfigV1]]:
+    def network_config(self) -> Optional[dict]:
         if self._net_cfg:
             return self._net_cfg
 

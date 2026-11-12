@@ -27,7 +27,6 @@ from typing import (
     NamedTuple,
     Optional,
     Tuple,
-    Union,
 )
 
 from cloudinit import atomic_helper, dmi, net, sources, util
@@ -38,7 +37,6 @@ from cloudinit.net import (
     get_interfaces_by_mac,
     is_netfail_master,
 )
-from cloudinit.sources import NetworkConfigV1
 from cloudinit.url_helper import wait_for_url
 
 LOG = logging.getLogger(__name__)
@@ -318,7 +316,7 @@ class DataSourceOracle(sources.DataSource):
         return self._network_config_source.render_config()
 
     @property
-    def network_config(self) -> Optional[Union[dict, NetworkConfigV1]]:
+    def network_config(self) -> Optional[dict]:
         """Network config is read from initramfs provided files
 
         Priority for primary network_config selection:

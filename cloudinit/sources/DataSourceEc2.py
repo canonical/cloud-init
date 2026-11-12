@@ -14,7 +14,7 @@ import os
 import time
 import uuid
 from contextlib import suppress
-from typing import Dict, List, Literal, Optional, Union
+from typing import Dict, List, Literal, Optional
 
 from cloudinit import dmi, net, sources
 from cloudinit import url_helper as uhelp
@@ -24,7 +24,7 @@ from cloudinit.event import EventScope, EventType
 from cloudinit.net import device_driver, netplan
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralIPNetwork
-from cloudinit.sources import HotplugRetrySettings, NetworkConfigV1, NicOrder
+from cloudinit.sources import HotplugRetrySettings, NicOrder
 from cloudinit.sources.helpers import ec2
 
 LOG = logging.getLogger(__name__)
@@ -532,7 +532,7 @@ class DataSourceEc2(sources.DataSource):
             )
 
     @property
-    def network_config(self) -> Optional[Union[dict, NetworkConfigV1]]:
+    def network_config(self) -> Optional[dict]:
         """Return a network config dict for rendering ENI or netplan files."""
         if self._network_config != sources.UNSET:
             return self._network_config

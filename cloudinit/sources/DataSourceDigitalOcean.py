@@ -7,11 +7,10 @@
 # https://developers.digitalocean.com/documentation/metadata/
 
 import logging
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional
 
 import cloudinit.sources.helpers.digitalocean as do_helper
 from cloudinit import lifecycle, sources, util
-from cloudinit.sources import NetworkConfigV1
 
 LOG = logging.getLogger(__name__)
 
@@ -106,7 +105,7 @@ class DataSourceDigitalOcean(sources.DataSource):
         )
 
     @property
-    def network_config(self) -> Optional[Union[dict, NetworkConfigV1]]:
+    def network_config(self) -> Optional[dict]:
         """Configure the networking. This needs to be done each boot, since
         the IP information may have changed due to snapshot and/or
         migration.

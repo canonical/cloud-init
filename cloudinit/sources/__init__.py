@@ -23,7 +23,6 @@ from typing import (
     NamedTuple,
     Optional,
     Tuple,
-    TypedDict,
     Union,
     cast,
 )
@@ -208,14 +207,6 @@ class HotplugRetrySettings(NamedTuple):
     force_retry: bool
     sleep_period: int
     sleep_total: int
-
-
-class NetworkConfigV1(TypedDict):
-    """Network config in the version 1 format,
-    per cloudinit/config/schemas/schema-network-config-v1.json."""
-
-    version: int
-    config: List[Dict[str, Any]]
 
 
 class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
@@ -1025,7 +1016,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return default
 
     @property
-    def network_config(self) -> Optional[Union[dict, NetworkConfigV1]]:
+    def network_config(self) -> Optional[dict]:
         """Network configuration provided by this datasource, if any.
 
         Implementations must return either:

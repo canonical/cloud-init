@@ -20,10 +20,9 @@ import pwd
 import re
 import shlex
 import textwrap
-from typing import Any, Dict, List, Optional, Union, overload
+from typing import Any, Dict, List, Optional, overload
 
 from cloudinit import atomic_helper, net, sources, subp, util
-from cloudinit.sources import NetworkConfigV1
 
 LOG = logging.getLogger(__name__)
 
@@ -128,7 +127,7 @@ class DataSourceOpenNebula(sources.DataSource):
         return "%s (%s)" % (subplatform_type, self.seed)
 
     @property
-    def network_config(self) -> Optional[Union[dict, NetworkConfigV1]]:
+    def network_config(self) -> Optional[dict]:
         if self.network is not None:
             return self.network
         else:

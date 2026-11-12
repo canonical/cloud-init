@@ -27,12 +27,11 @@ import os
 import socket
 import sys
 import time
-from typing import Any, Dict, Optional, Set, Tuple, Union
+from typing import Any, Dict, Optional, Set, Tuple
 
 from cloudinit import atomic_helper, dmi, net, netinfo, sources, util
 from cloudinit.event import EventScope, EventType, userdata_to_events
 from cloudinit.log import loggers
-from cloudinit.sources import NetworkConfigV1
 from cloudinit.sources.helpers.vmware.imc import guestcust_util
 from cloudinit.subp import ProcessExecutionError, subp, which
 
@@ -356,7 +355,7 @@ class DataSourceVMware(sources.DataSource):
         return self.cfg
 
     @property
-    def network_config(self) -> Optional[Union[dict, NetworkConfigV1]]:
+    def network_config(self) -> Optional[dict]:
         if "network" in self.metadata:
             LOG.debug("using metadata network config")
         else:
