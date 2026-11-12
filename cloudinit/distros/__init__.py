@@ -915,13 +915,14 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         Support reading /var/lib/extrausers/shadow on snappy systems.
         """
+        escaped_username = re.escape(username)
         if util.system_is_snappy():
             shadow_files = [self.shadow_extrausers_fn, self.shadow_fn]
         else:
             shadow_files = [self.shadow_fn]
         shadow_empty_passwd_re = "|".join(
             [
-                pattern.format(username=username)
+                pattern.format(username=escaped_username)
                 for pattern in self.shadow_empty_locked_passwd_patterns
             ]
         )
@@ -929,7 +930,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             if not os.path.exists(shadow_file):
                 continue
             shadow_content = util.load_text_file(shadow_file)
-            if not re.findall(rf"^{username}:", shadow_content, re.MULTILINE):
+            if not re.findall(
+                rf"^{escaped_username}:", shadow_content, re.MULTILINE
+            ):
                 LOG.debug("User %s not found in %s", username, shadow_file)
                 continue
             LOG.debug(
