@@ -6,6 +6,7 @@
 
 import logging
 import time
+from typing import Optional
 
 from cloudinit import dmi, sources, url_helper, util
 from cloudinit.event import EventScope, EventType
@@ -125,7 +126,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         return sources.instance_id_matches_system_uuid(self.get_instance_id())
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[dict]:
         """Return a network config dict for rendering ENI or netplan files."""
         if self._network_config != sources.UNSET:
             return self._network_config

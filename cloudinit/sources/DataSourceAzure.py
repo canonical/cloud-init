@@ -1681,7 +1681,7 @@ class DataSourceAzure(sources.DataSource):
         return {}
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[dict]:
         """Provide network configuration v2 dictionary."""
         # Use cached config, if present.
         if self._network_config and self._network_config != sources.UNSET:

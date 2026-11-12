@@ -14,7 +14,7 @@ import os
 import time
 import uuid
 from contextlib import suppress
-from typing import Dict, List, Literal
+from typing import Dict, List, Literal, Optional
 
 from cloudinit import dmi, net, sources
 from cloudinit import url_helper as uhelp
@@ -532,14 +532,15 @@ class DataSourceEc2(sources.DataSource):
             )
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[dict]:
         """Return a network config dict for rendering ENI or netplan files."""
         if self._network_config != sources.UNSET:
             return self._network_config
 
         if self.metadata is None:
             # this would happen if get_data hadn't been called. leave as UNSET
-            LOG.warning(
+            # _get_data may set self.metadata to None, but mypy can't know
+            LOG.warning(  # type: ignore
                 "Unexpected call to network_config when metadata is None."
             )
             return None

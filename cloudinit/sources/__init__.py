@@ -63,7 +63,7 @@ METADATA_CLOUD_NAME_KEY = "cloud-name"
 # _network_config) whose value has not been crawled/computed
 # yet, or which has been explicitly invalidated. UNSET is internal-only and
 # must never be returned to callers of DataSource.network_config
-UNSET = "_unset"
+UNSET: Any = "_unset"
 METADATA_UNKNOWN = "unknown"
 
 LOG = logging.getLogger(__name__)
@@ -1007,7 +1007,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return default
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[dict]:
         """Network configuration provided by this datasource, if any.
 
         Implementations must return either:
