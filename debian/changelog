@@ -1,3 +1,11 @@
+cloud-init (26.2-0ubuntu3~26.10.1) stonking; urgency=medium
+
+  * cherry-pick 29d50e12: don't blank password when passwd -u emits
+    to stderr and password is provided in user-data
+    (LP: #2153951)
+
+ -- Nicholas Lindsey <nicholas.lindsey@canonical.com>  Wed, 11 Nov 2026 14:22:09 -0500
+
 cloud-init (26.2-0ubuntu2) stonking; urgency=medium
 
   * d/p/udev-settle-after-mkfs.patch: perform udevadm settle when
