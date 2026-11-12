@@ -3346,3 +3346,135 @@ class TestLogExc:
             ),
             ("tests.unittests.test_util", logging.DEBUG, "an error occurred"),
         ]
+
+
+class TestParseKeyValue:
+    def test_simple_string(self):
+        assert util.parse_key_value("KEY=value") == {"KEY": "value"}
+
+    def test_multiple_pairs(self):
+        result = util.parse_key_value("A=1\nB=2\nC=3")
+        assert result == {"A": "1", "B": "2", "C": "3"}
+
+    def test_value_contains_equals(self):
+        # Only the first = is the delimiter
+        assert util.parse_key_value("K=a=b=c") == {"K": "a=b=c"}
+
+    def test_strips_whitespace(self):
+        assert util.parse_key_value("  KEY  =  value  ") == {"KEY": "value"}
+
+    def test_hash_comments_ignored(self):
+        src = "# comment\nKEY=value\n# another"
+        assert util.parse_key_value(src) == {"KEY": "value"}
+
+    def test_semicolon_comments_ignored(self):
+        src = "; comment\nKEY=value"
+        assert util.parse_key_value(src) == {"KEY": "value"}
+
+    def test_blank_lines_ignored(self):
+        src = "\nKEY=value\n\n"
+        assert util.parse_key_value(src) == {"KEY": "value"}
+
+    def test_bytes_input(self):
+        assert util.parse_key_value(b"KEY=value\n") == {"KEY": "value"}
+
+    def test_bytearray_input(self):
+        assert util.parse_key_value(bytearray(b"K=v")) == {"K": "v"}
+
+    def test_stringio_input(self):
+        from io import StringIO
+
+        assert util.parse_key_value(StringIO("K=v\n")) == {"K": "v"}
+
+    def test_bytesio_input(self):
+        from io import BytesIO
+
+        assert util.parse_key_value(BytesIO(b"K=v\n")) == {"K": "v"}
+
+    def test_list_input(self):
+        assert util.parse_key_value(["A=1", "B=2"]) == {"A": "1", "B": "2"}
+
+    def test_tuple_input(self):
+        assert util.parse_key_value(("A=1",)) == {"A": "1"}
+
+    def test_empty_string(self):
+        assert util.parse_key_value("") == {}
+
+    def test_empty_list(self):
+        assert util.parse_key_value([]) == {}
+
+    def test_empty_bytes(self):
+        assert util.parse_key_value(b"") == {}
+
+    def test_comment_only(self):
+        assert util.parse_key_value("# nothing\n; nothing") == {}
+
+    def test_line_without_equals_ignored(self):
+        src = "no-equals-here\nK=v"
+        assert util.parse_key_value(src) == {"K": "v"}
+
+    def test_later_key_overwrites_earlier(self):
+        assert util.parse_key_value("K=first\nK=second") == {"K": "second"}
+
+
+class TestDeepMerge:
+    def test_non_overlapping(self):
+        result = util.deep_merge({"a": 1}, {"b": 2})
+        assert result == {"a": 1, "b": 2}
+
+    def test_scalar_override(self):
+        result = util.deep_merge({"a": 1}, {"a": 99})
+        assert result == {"a": 99}
+
+    def test_recursive_nested(self):
+        base = {"s": {"x": 1, "y": 2}}
+        override = {"s": {"y": 20, "z": 30}}
+        assert util.deep_merge(base, override) == {
+            "s": {"x": 1, "y": 20, "z": 30}
+        }
+
+    def test_three_levels_deep(self):
+        base = {"a": {"b": {"c": 1, "d": 2}}}
+        override = {"a": {"b": {"d": 99}}}
+        assert util.deep_merge(base, override) == {
+            "a": {"b": {"c": 1, "d": 99}}
+        }
+
+    def test_override_scalar_replaces_nested_dict(self):
+        result = util.deep_merge({"k": {"nested": 1}}, {"k": "scalar"})
+        assert result == {"k": "scalar"}
+
+    def test_override_nested_dict_replaces_scalar(self):
+        result = util.deep_merge({"k": "scalar"}, {"k": {"nested": 1}})
+        assert result == {"k": {"nested": 1}}
+
+    def test_empty_override(self):
+        base = {"a": 1}
+        assert util.deep_merge(base, {}) == {"a": 1}
+
+    def test_empty_base(self):
+        assert util.deep_merge({}, {"a": 1}) == {"a": 1}
+
+    def test_base_not_mutated(self):
+        base = {"s": {"x": 1}}
+        util.deep_merge(base, {"s": {"y": 2}})
+        assert base == {"s": {"x": 1}}
+
+    def test_override_not_mutated(self):
+        override = {"s": {"y": 2}}
+        util.deep_merge({"s": {"x": 1}}, override)
+        assert override == {"s": {"y": 2}}
+
+    def test_returns_new_dict(self):
+        base = {"a": 1}
+        result = util.deep_merge(base, {"b": 2})
+        assert result is not base
+
+    def test_multiple_sequential_merges_independent(self):
+        base = {"c": {"v": "default"}}
+        r1 = util.deep_merge(base, {"c": {"v": "override1"}})
+        r2 = util.deep_merge(base, {"c": {"v": "override2"}})
+        assert r1 == {"c": {"v": "override1"}}
+        assert r2 == {"c": {"v": "override2"}}
+        # base unchanged
+        assert base == {"c": {"v": "default"}}
