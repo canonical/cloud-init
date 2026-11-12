@@ -3,13 +3,14 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
-from typing import Optional
+from typing import Optional, Union
 
 from requests import exceptions
 
 from cloudinit import dmi, net, sources, subp, url_helper, util
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralDHCPv4
+from cloudinit.sources import NetworkConfigV1
 
 LOG = logging.getLogger(__name__)
 
@@ -100,7 +101,7 @@ class DataSourceNWCS(sources.DataSource):
             raise
 
     @property
-    def network_config(self) -> Optional[dict]:
+    def network_config(self) -> Optional[Union[dict, NetworkConfigV1]]:
         LOG.debug("Attempting network configuration")
 
         if self._network_config != sources.UNSET:

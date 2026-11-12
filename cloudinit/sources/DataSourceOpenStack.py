@@ -6,13 +6,14 @@
 
 import logging
 import time
-from typing import Optional
+from typing import Optional, Union
 
 from cloudinit import dmi, sources, url_helper, util
 from cloudinit.event import EventScope, EventType
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralDHCPv4
 from cloudinit.sources import DataSourceOracle as oracle
+from cloudinit.sources import NetworkConfigV1
 from cloudinit.sources.helpers import openstack
 
 LOG = logging.getLogger(__name__)
@@ -126,7 +127,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         return sources.instance_id_matches_system_uuid(self.get_instance_id())
 
     @property
-    def network_config(self) -> Optional[dict]:
+    def network_config(self) -> Optional[Union[dict, NetworkConfigV1]]:
         """Return a network config dict for rendering ENI or netplan files."""
         if self._network_config != sources.UNSET:
             return self._network_config

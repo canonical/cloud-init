@@ -29,6 +29,7 @@ from typing import (
 from cloudinit import sources, subp, util
 from cloudinit.distros import Distro
 from cloudinit.event import EventScope, EventType
+from cloudinit.sources import NetworkConfigV1
 
 LOG = logging.getLogger(__name__)
 ETC_HOSTS = "/etc/hosts"
@@ -39,16 +40,11 @@ class GratuitousArpItem(TypedDict):
     destination: str
 
 
-class NetworkConfig(TypedDict):
-    version: int
-    config: List[Dict[str, Any]]
-
-
 class RbxConfig(TypedDict):
     ssh_pwauth: bool
     disable_root: bool
     system_info: Dict[str, Any]
-    network_config: NetworkConfig
+    network_config: NetworkConfigV1
     manage_etc_hosts: bool
 
 
@@ -151,7 +147,7 @@ def get_md() -> Optional[RbxData]:
 
 def generate_network_config(
     netadps: Iterable[Dict[str, Any]],
-) -> NetworkConfig:
+) -> NetworkConfigV1:
     """Generate network configuration
 
     @param netadps: A list of network adapter settings
@@ -283,7 +279,7 @@ class DataSourceRbxCloud(sources.DataSource):
         return True
 
     @property
-    def network_config(self) -> Optional[NetworkConfig]:
+    def network_config(self) -> Optional[Union[dict, NetworkConfigV1]]:
         if self.cfg is None:
             return None
         return self.cfg["network_config"]

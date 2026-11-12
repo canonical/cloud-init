@@ -6,12 +6,13 @@
 # https://developers.upcloud.com/1.3/8-servers/#metadata-service
 
 import logging
-from typing import Optional
+from typing import Optional, Union
 
 from cloudinit import net as cloudnet
 from cloudinit import sources, util
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralDHCPv4
+from cloudinit.sources import NetworkConfigV1
 from cloudinit.sources.helpers import upcloud as uc_helper
 
 LOG = logging.getLogger(__name__)
@@ -109,7 +110,7 @@ class DataSourceUpCloud(sources.DataSource):
         return sources.instance_id_matches_system_uuid(self.get_instance_id())
 
     @property
-    def network_config(self) -> Optional[dict]:
+    def network_config(self) -> Optional[Union[dict, NetworkConfigV1]]:
         """
         Configure the networking. This needs to be done each boot,
         since the IP and interface information might have changed

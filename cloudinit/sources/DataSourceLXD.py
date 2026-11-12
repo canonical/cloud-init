@@ -26,6 +26,7 @@ from urllib3.connectionpool import HTTPConnectionPool
 
 from cloudinit import atomic_helper, sources, subp, url_helper, util
 from cloudinit.net import find_fallback_nic
+from cloudinit.sources import NetworkConfigV1
 
 LOG = logging.getLogger(__name__)
 
@@ -241,7 +242,7 @@ class DataSourceLXD(sources.DataSource):
         return md.get("instance-id") == self.metadata.get("instance-id")
 
     @property
-    def network_config(self) -> dict:
+    def network_config(self) -> Union[dict, NetworkConfigV1]:
         """Network config read from LXD socket config/user.network-config.
 
         If none is present, then we generate fallback configuration.

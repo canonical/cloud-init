@@ -6,10 +6,11 @@
 # https://www.vultr.com/metadata/
 
 import logging
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import cloudinit.sources.helpers.vultr as vultr
 from cloudinit import sources, stages, util, version
+from cloudinit.sources import NetworkConfigV1
 
 LOG = logging.getLogger(__name__)
 BUILTIN_DS_CONFIG = {
@@ -117,7 +118,7 @@ class DataSourceVultr(sources.DataSource):
         return None
 
     @property
-    def network_config(self) -> Optional[dict]:
+    def network_config(self) -> Optional[Union[dict, NetworkConfigV1]]:
         return self.netcfg
 
 
