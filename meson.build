@@ -43,6 +43,21 @@ configure_file(
   install_tag: 'python-runtime',
 )
 
+# Python consumers must use the same helper directory as the generator.
+# Serialize it as a Python literal so quotes and backslashes remain intact.
+configure_file(
+  input: 'meson_paths.py.in',
+  output: 'meson_paths.py',
+  configuration: {
+    'LIB_EXEC_DIR': run_command(
+      python, '-c', 'import sys; print(repr(sys.argv[1]))', lib_exec_dir,
+      check: true,
+    ).stdout().strip(),
+  },
+  install_dir: python.get_install_dir() / 'cloudinit',
+  install_tag: 'python-runtime',
+)
+
 
 # Binaries and script entrypoints
 if get_option('bash_completion') and is_readthedocs != 'True'
@@ -124,6 +139,7 @@ if init_system == 'systemd' and is_readthedocs != 'True'
     output: '@BASENAME@',
     command: [
       render_tmpl,
+      '--lib-exec-dir', lib_exec_dir,
       '@INPUT@',
       meson.current_build_dir() / '@OUTPUT@',
     ],
