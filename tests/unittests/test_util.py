@@ -579,6 +579,20 @@ class TestUtil:
             ] == m_read_confd.call_args_list
         assert [expected_call] == m_mergemanydict.call_args_list
 
+    @mock.patch(
+        M_PATH + "read_conf",
+        side_effect=BrokenPipeError(errno.EPIPE, "Broken pipe"),
+    )
+    def test_read_conf_with_confd_broken_pipe_propagates(
+        self, m_read_conf, tmpdir
+    ):
+        """BrokenPipeError from read_conf must not be swallowed as a file
+        access error — it indicates a disrupted stdout pipe, not a missing or
+        unreadable config file."""
+        conf_fn = tmpdir.join("conf.cfg")
+        with pytest.raises(BrokenPipeError):
+            util.read_conf_with_confd(conf_fn)
+
     @pytest.mark.parametrize("custom_cloud_dir", [True, False])
     @mock.patch(M_PATH + "os.path.isfile", return_value=True)
     @mock.patch(M_PATH + "os.path.isdir", return_value=True)
