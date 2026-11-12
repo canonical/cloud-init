@@ -1,6 +1,8 @@
-# Author: NWCS.sh <foss@nwcs.sh>
+# Author: invirtuate.com <hello@invirtuate.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
+#
+# Replaced with IVT datasource, deprecated, will remove in the future
 
 import logging
 
