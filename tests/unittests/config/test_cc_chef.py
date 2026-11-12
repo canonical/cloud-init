@@ -122,7 +122,7 @@ class TestChef:
 
     def test_no_config(self):
         """No chef directories are created on when no chef config provided"""
-        cfg = {}
+        cfg: dict = {}
         cc_chef.handle("chef", cfg, get_cloud(), [])
         for d in cc_chef.CHEF_DIRS:
             assert not os.path.isdir(d)
@@ -180,11 +180,11 @@ class TestChef:
             if k in unrendered_keys:
                 continue
             assert v in c
-        for k, v in cc_chef.CHEF_RB_TPL_DEFAULTS.items():
+        for k, default_v in cc_chef.CHEF_RB_TPL_DEFAULTS.items():
             if k in unrendered_keys:
                 continue
             # the value from the cfg overrides that in the default
-            val = cfg["chef"].get(k, v)
+            val = cfg["chef"].get(k, default_v)
             if isinstance(val, str):
                 assert val in c
         c = util.load_text_file(cc_chef.CHEF_FB_PATH)

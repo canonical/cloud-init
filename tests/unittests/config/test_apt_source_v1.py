@@ -11,6 +11,7 @@ import pathlib
 import re
 from functools import partial
 from textwrap import dedent
+from typing import Any
 from unittest import mock
 from unittest.mock import call
 
@@ -844,7 +845,7 @@ class TestAptSourceConfig:
             },
         }
         cfg_3_only = {"apt": {"sources": fullv3}}
-        cfg_1_and_3 = {"apt_sources": [cfg1, cfg2, cfg3]}
+        cfg_1_and_3: dict[str, Any] = {"apt_sources": [cfg1, cfg2, cfg3]}
         cfg_1_and_3.update(cfg_3_only)
 
         # collision (equal, so ok to remove)
@@ -869,7 +870,9 @@ class TestAptSourceConfig:
             },
         }
         cfg_3_only = {"apt": {"sources": diff}}
-        cfg_1_and_3_different = {"apt_sources": [cfg1, cfg2, cfg3]}
+        cfg_1_and_3_different: dict[str, Any] = {
+            "apt_sources": [cfg1, cfg2, cfg3]
+        }
         cfg_1_and_3_different.update(cfg_3_only)
 
         # collision (unequal by dict having a different entry)
@@ -883,7 +886,9 @@ class TestAptSourceConfig:
             }
         }
         cfg_3_only = {"apt": {"sources": missing}}
-        cfg_1_and_3_missing = {"apt_sources": [cfg1, cfg2, cfg3]}
+        cfg_1_and_3_missing: dict[str, Any] = {
+            "apt_sources": [cfg1, cfg2, cfg3]
+        }
         cfg_1_and_3_missing.update(cfg_3_only)
         # collision (unequal by dict missing an entry)
         with pytest.raises(ValueError):

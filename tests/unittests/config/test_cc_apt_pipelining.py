@@ -20,14 +20,14 @@ class TestAptPipelining:
     @mock.patch("cloudinit.config.cc_apt_pipelining.util.write_file")
     def test_not_disabled_by_default(self, m_write_file):
         """ensure that default behaviour is to not disable pipelining"""
-        cc_apt_pipelining.handle("foo", {}, None, None)
+        cc_apt_pipelining.handle("foo", {}, mock.Mock(), [])
         assert 0 == m_write_file.call_count
 
     @mock.patch("cloudinit.config.cc_apt_pipelining.util.write_file")
     def test_false_disables_pipelining(self, m_write_file):
         """ensure that pipelining can be disabled with correct config"""
         cc_apt_pipelining.handle(
-            "foo", {"apt_pipelining": "false"}, None, None
+            "foo", {"apt_pipelining": "false"}, mock.Mock(), []
         )
         assert 1 == m_write_file.call_count
         args, _ = m_write_file.call_args
@@ -39,7 +39,7 @@ class TestAptPipelining:
     def test_deprecate_module_warning(self, m_write_file, caplog):
         """Assert warning is logged for deprecated module."""
         cc_apt_pipelining.handle(
-            "foo", {"apt_pipelining": "false"}, None, None
+            "foo", {"apt_pipelining": "false"}, mock.Mock(), []
         )
         assert "Module cc_apt_pipelining is deprecated in" in caplog.text
         assert "deprecat" in caplog.text

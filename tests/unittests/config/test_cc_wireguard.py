@@ -4,7 +4,7 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import subp, util
+from cloudinit import cloud, subp, util
 from cloudinit.config import cc_wireguard
 from cloudinit.config.schema import (
     SchemaValidationError,
@@ -19,7 +19,7 @@ MPATH = "cloudinit.config.cc_wireguard"
 MIN_KERNEL_VERSION = (5, 6)
 
 
-class FakeCloud:
+class FakeCloud(cloud.Cloud):
     def __init__(self, distro):
         self.distro = distro
 
@@ -39,7 +39,7 @@ class TestWireGuard:
 
     def test_suppl_schema_error_on_missing_keys(self):
         """ValueError raised reporting any missing required keys"""
-        cfg = {}
+        cfg: dict = {}
         match = (
             f"Invalid wireguard interface configuration:{NL}"
             "Missing required wg:interfaces keys: config_path, content, name"
@@ -207,8 +207,8 @@ class TestWireGuard:
         self, m_maybe_install_wireguard_packages, caplog
     ):
         """When no wireguard configuration is provided, nothing happens."""
-        cfg = {}
-        cc_wireguard.handle("wg", cfg=cfg, cloud=None, args=None)
+        cfg: dict = {}
+        cc_wireguard.handle("wg", cfg=cfg, cloud=mock.Mock(), args=[])
         assert (
             mock.ANY,
             logging.DEBUG,
