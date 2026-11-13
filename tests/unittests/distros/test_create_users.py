@@ -610,6 +610,61 @@ class TestCreateUser:
         assert "WARNING" not in caplog.text
         assert "DEPRECATED" not in caplog.text
 
+    @pytest.mark.parametrize(
+        "create_kwargs,is_snappy,expected",
+        [
+            pytest.param(
+                {"gid": 1500},
+                False,
+                ["groupadd", "group1", "--gid", "1500"],
+                id="gid",
+            ),
+            pytest.param(
+                {"system": True},
+                False,
+                ["groupadd", "group1", "--system"],
+                id="system",
+            ),
+            pytest.param(
+                {"gid": 0, "system": True},
+                True,
+                [
+                    "groupadd",
+                    "group1",
+                    "--gid",
+                    "0",
+                    "--system",
+                    "--extrausers",
+                ],
+                id="gid_zero_and_system_snappy",
+            ),
+        ],
+    )
+    @mock.patch("cloudinit.distros.util.is_group", return_value=False)
+    def test_create_group_options(
+        self,
+        m_is_group,
+        m_subp,
+        create_kwargs,
+        is_snappy,
+        expected,
+        dist,
+        mocker,
+    ):
+        mocker.patch(
+            "cloudinit.distros.util.system_is_snappy", return_value=is_snappy
+        )
+        dist.create_group("group1", **create_kwargs)
+        assert [mock.call(expected)] == m_subp.call_args_list
+
+    @mock.patch("cloudinit.distros.util.is_group", return_value=True)
+    def test_create_group_options_ignored_for_existing_group(
+        self, m_is_group, m_subp, caplog, dist
+    ):
+        dist.create_group("group1", gid=1500, system=True)
+        assert [] == m_subp.call_args_list
+        assert "Skipping creation of existing group 'group1'" in caplog.text
+
     def test_explicit_sudo_false(self, m_subp, dist, caplog, mocker):
         mocker.patch(
             "cloudinit.distros.util.system_is_snappy", return_value=False

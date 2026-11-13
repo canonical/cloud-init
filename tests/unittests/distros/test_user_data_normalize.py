@@ -1,4 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+import copy
 from unittest import mock
 
 import pytest
@@ -42,10 +43,10 @@ class TestUGNormalize:
         }
         _users, groups = self._norm(g, distro)
         assert "ubuntu" in groups
-        ub_members = groups["ubuntu"]
+        ub_members = groups["ubuntu"]["members"]
         assert sorted(["foo", "bar"]) == sorted(ub_members)
         assert "bob" in groups
-        b_members = groups["bob"]
+        b_members = groups["bob"]["members"]
         assert sorted(["users", "users2"]) == sorted(b_members)
 
     def test_basic_groups(self):
@@ -88,11 +89,54 @@ class TestUGNormalize:
         }
         users, groups = self._norm(ug_cfg, distro)
         assert "bob" in groups
-        assert ["s"] == groups["bob"]
-        assert [] == groups["joe"]
+        assert {"members": ["s"]} == groups["bob"]
+        assert {"members": []} == groups["joe"]
         assert "joe" in groups
         assert "steve" in groups
         assert {} == users
+
+    @pytest.mark.parametrize(
+        "groups_cfg,expected",
+        [
+            pytest.param(
+                [{"netdev": {"system": True}}],
+                {"netdev": {"members": [], "system": True}},
+                id="list_system_group",
+            ),
+            pytest.param(
+                {"nfs": {"gid": 1500, "members": ["joe", "bob"]}},
+                {"nfs": {"members": ["bob", "joe"], "gid": 1500}},
+                id="dict_gid_and_members",
+            ),
+            pytest.param(
+                {"nfs": {"gid": 0, "members": "joe,bob"}},
+                {"nfs": {"members": ["bob", "joe"], "gid": 0}},
+                id="dict_gid_zero_and_csv_members",
+            ),
+            pytest.param(
+                [
+                    {"nfs": ["joe"]},
+                    {"nfs": {"gid": 1500, "members": ["bob"]}},
+                    "nfs",
+                    {"nfs": "steve"},
+                ],
+                {"nfs": {"members": ["bob", "joe", "steve"], "gid": 1500}},
+                id="list_merges_members_and_options",
+            ),
+        ],
+    )
+    def test_group_options(self, groups_cfg, expected):
+        distro = self._make_distro("ubuntu")
+        groups_cfg_copy = copy.deepcopy(groups_cfg)
+        users, groups = self._norm({"groups": groups_cfg}, distro)
+        assert expected == groups
+        assert groups_cfg_copy == groups_cfg
+        assert {} == users
+
+    def test_group_options_bad_members(self):
+        distro = self._make_distro("ubuntu")
+        with pytest.raises(TypeError, match="Bad group member type int"):
+            self._norm({"groups": [{"nfs": {"members": 1}}]}, distro)
 
     @pytest.mark.parametrize(
         "ug_cfg",

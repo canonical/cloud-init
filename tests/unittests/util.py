@@ -170,7 +170,7 @@ class MockDistro(distros.Distro):
     def write_sudo_rules(self, user, rules, sudo_file=None):
         pass
 
-    def create_group(self, name, members=None):
+    def create_group(self, name, members=None, gid=None, system=False):
         pass
 
     @classmethod

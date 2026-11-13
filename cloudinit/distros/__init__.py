@@ -1403,8 +1403,12 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                     )
                     raise e
 
-    def create_group(self, name, members=None):
+    def create_group(self, name, members=None, gid=None, system=False):
         group_add_cmd = ["groupadd", name]
+        if gid is not None:
+            group_add_cmd.extend(["--gid", str(gid)])
+        if system:
+            group_add_cmd.append("--system")
         if util.system_is_snappy():
             group_add_cmd.append("--extrausers")
         if not members:

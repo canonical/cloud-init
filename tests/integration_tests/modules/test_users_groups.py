@@ -31,6 +31,8 @@ USER_DATA = """\
 groups:
   - secret: [root]
   - cloud-users
+  - sysgroup: {system: true}
+  - fixedgid: {gid: 1745}
 
 # Add users to the system. Users are added after groups are added.
 users:
@@ -84,6 +86,10 @@ class TestUsersGroups:
             (["group", "ubuntu"], r"ubuntu:x:[0-9]{4}:"),
             # Test the cloud-users group
             (["group", "cloud-users"], r"cloud-users:x:[0-9]{4}:barfoo"),
+            # Test the system group
+            (["group", "sysgroup"], r"sysgroup:x:[0-9]{3}:"),
+            # Test the group with a fixed gid
+            (["group", "fixedgid"], r"fixedgid:x:1745:"),
             # Test the ubuntu user
             (
                 ["passwd", "ubuntu"],

@@ -44,6 +44,29 @@ class TestHandleUsersGroups:
         m_user.assert_not_called()
         m_group.assert_not_called()
 
+    def test_handle_groups_in_cfg_calls_create_group(self, m_user, m_group):
+        """Pass group members, gid and system to distro.create_group."""
+        cfg = {
+            "groups": [
+                "plain",
+                {"admins": ["root"]},
+                {"netdev": {"system": True}},
+                {"nfs": {"gid": 1500, "members": ["root", "sys"]}},
+            ]
+        }
+        cloud = get_cloud(distro="ubuntu", sys_cfg={}, metadata={})
+        cc_users_groups.handle("modulename", cfg, cloud, None)
+        assert_count_equal(
+            m_group.call_args_list,
+            [
+                mock.call("plain", [], gid=None, system=False),
+                mock.call("admins", ["root"], gid=None, system=False),
+                mock.call("netdev", [], gid=None, system=True),
+                mock.call("nfs", ["root", "sys"], gid=1500, system=False),
+            ],
+        )
+        assert 0 == m_user.call_count
+
     @pytest.mark.parametrize(
         "groups_cfg,normalized_groups,deprecation_log",
         (
@@ -497,6 +520,62 @@ class TestUsersGroupsSchema:
                 pytest.raises(
                     SchemaValidationError,
                     match="groups.anygrp: 1 is not of type 'string', 'array'",
+                ),
+                True,
+            ),
+            # Groups can set gid, system and members
+            (
+                {"groups": [{"netdev": {"system": True}}]},
+                does_not_raise(),
+                None,
+            ),
+            (
+                {"groups": {"anygrp": {"gid": 1500, "members": ["user1"]}}},
+                does_not_raise(),
+                None,
+            ),
+            (
+                {"groups": [{"anygrp": {"gid": 0, "members": "user1"}}]},
+                does_not_raise(),
+                None,
+            ),
+            (
+                {"groups": [{"anygrp": {"gid": -1}}]},
+                pytest.raises(
+                    SchemaValidationError,
+                    match="groups.0.anygrp.gid: -1 is less than the minimum",
+                ),
+                True,
+            ),
+            (
+                {"groups": [{"anygrp": {"gid": "1500"}}]},
+                pytest.raises(
+                    SchemaValidationError,
+                    match=(
+                        "groups.0.anygrp.gid: '1500' is not of type 'integer'"
+                    ),
+                ),
+                True,
+            ),
+            (
+                {"groups": [{"anygrp": {"system": "yes"}}]},
+                pytest.raises(
+                    SchemaValidationError,
+                    match=(
+                        "groups.0.anygrp.system: 'yes' is not of type"
+                        " 'boolean'"
+                    ),
+                ),
+                True,
+            ),
+            (
+                {"groups": [{"anygrp": {"gid": 1500, "sytem": True}}]},
+                pytest.raises(
+                    SchemaValidationError,
+                    match=re.escape(
+                        "groups.0.anygrp: Additional properties are not"
+                        " allowed ('sytem' was unexpected)"
+                    ),
                 ),
                 True,
             ),
