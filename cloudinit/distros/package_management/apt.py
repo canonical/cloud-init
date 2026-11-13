@@ -175,11 +175,12 @@ class Apt(PackageManager):
         # Packages ending with '^' signify to apt to install a Task.
         # Anything after "/" refers to a target release
         # "=" allows specifying a specific version
+        # ":" allows specifying an architecture
         # Strip all off when checking for availability
         return [
             pkg
             for pkg in pkglist
-            if re.split("/|=", pkg)[0].rstrip("-^")
+            if re.split("/|=|:", pkg)[0].rstrip("-^")
             not in self.get_all_packages()
         ]
 
