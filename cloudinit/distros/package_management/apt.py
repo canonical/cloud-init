@@ -176,10 +176,13 @@ class Apt(PackageManager):
         # Anything after "/" refers to a target release
         # "=" allows specifying a specific version
         # Strip all off when checking for availability
+        # Entries starting with "?" or "~" are apt search patterns (see
+        # apt-patterns(7)), so leave those for apt to resolve
         return [
             pkg
             for pkg in pkglist
-            if re.split("/|=", pkg)[0].rstrip("-^")
+            if not pkg.startswith(("?", "~"))
+            and re.split("/|=", pkg)[0].rstrip("-^")
             not in self.get_all_packages()
         ]
 
