@@ -1,8 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import ipaddress
 import logging
-from typing import List, Union
+from typing import Any, Dict, List, Optional, Union
+from urllib.parse import urlsplit
 
 from cloudinit import dmi, sources
 from cloudinit import url_helper as uhelp
@@ -21,7 +23,13 @@ ALIYUN_PRODUCT = "Alibaba Cloud ECS"
 class DataSourceAliYun(sources.DataSource):
 
     dsname = "AliYun"
-    metadata_urls = ["http://100.100.100.200"]
+    # ECS serves metadata over both families. Listing both lets wait_for_url
+    # try them in parallel, so IPv6-only instances can reach IMDS while
+    # IPv4-only instances keep using the address they always have.
+    metadata_urls = [
+        "http://100.100.100.200",
+        "http://[fd00:100::100:200]",
+    ]
 
     # The minimum supported metadata_version from the ecs metadata apis
     min_metadata_version = "2016-01-01"
@@ -159,9 +167,61 @@ class DataSourceAliYun(sources.DataSource):
         # or the IMDS HTTP endpoint is disabled
         return None
 
+    @property
+    def effective_metadata_urls(self):
+        """Metadata endpoints in use, honouring a ds_cfg override.
+
+        The class attribute is only a default: a deployment can point the
+        datasource at different endpoints through datasource/AliYun/
+        metadata_urls in /etc/cloud/cloud.cfg.d, which is how an endpoint can
+        be rolled out before it is added to the default list.
+        """
+        return self.ds_cfg.get("metadata_urls", self.metadata_urls)
+
+    @staticmethod
+    def _metadata_url_ip_version(url: str) -> Optional[str]:
+        """Return ipv4 or ipv6 when the URL host is an IP literal."""
+        hostname = urlsplit(url).hostname
+        if hostname is None:
+            return None
+        try:
+            return "ipv{0}".format(ipaddress.ip_address(hostname).version)
+        except ValueError:
+            return None
+
+    def _ipv6_metadata_url(self):
+        """Return the configured IPv6 IMDS base URL, or None.
+
+        Whether an IPv6 endpoint is configured at all is what decides if an
+        IPv6 address is worth obtaining, so callers can use this as a switch
+        rather than hardcoding the address a second time.
+        """
+        for url in self.effective_metadata_urls:
+            if self._metadata_url_ip_version(url) == "ipv6":
+                return url
+        return None
+
+    def _metadata_connectivity_urls(self) -> List[Dict[str, Any]]:
+        """Build per-family token endpoints for network reachability checks."""
+        connectivity_urls: List[Dict[str, Any]] = []
+        for base_url in self.effective_metadata_urls:
+            url_data = {
+                "url": "{0}/{1}".format(
+                    base_url.rstrip("/"), self.api_token_route
+                ),
+                "headers": {
+                    self.imdsv2_token_req_header: self.imdsv2_token_ttl_seconds
+                },
+                "timeout": 2,
+                "request_method": "PUT",
+            }
+            if ip_version := self._metadata_url_ip_version(base_url):
+                url_data["ip_version"] = ip_version
+            connectivity_urls.append(url_data)
+        return connectivity_urls
+
     def wait_for_metadata_service(self):
-        mcfg = self.ds_cfg
-        mdurls = mcfg.get("metadata_urls", self.metadata_urls)
+        mdurls = self.effective_metadata_urls
 
         # try the api token path first
         metadata_address = self._maybe_fetch_api_token(mdurls)
@@ -272,11 +332,22 @@ class DataSourceAliYun(sources.DataSource):
                 LOG.debug("FreeBSD doesn't support running dhclient with -sf")
                 return False
             try:
+                # A configured IPv6 endpoint means IMDS may only be reachable
+                # over IPv6, which needs a routable address: the ECS router
+                # advertises a default route but no autoconfigurable prefix,
+                # so a stateful DHCPv6 lease is the only source of one.
+                # Requesting it alongside DHCPv4 lets EphemeralIPNetwork set
+                # both families up at once, so neither an IPv4-only nor an
+                # IPv6-only instance waits out the family it does not have.
+                ipv6 = bool(self._ipv6_metadata_url())
                 with EphemeralIPNetwork(
                     self.distro,
                     self.distro.fallback_interface,
                     ipv4=True,
-                    ipv6=False,
+                    ipv6=ipv6,
+                    connectivity_urls_data=self._metadata_connectivity_urls(),
+                    dhcp6=ipv6,
+                    enable_ra=ipv6,
                 ) as netw:
                     self._crawled_metadata = self.crawl_metadata()
                     LOG.debug(
