@@ -68,14 +68,59 @@ GOTO="cloudinit_end"
 # https://github.com/amzn/amzn-drivers/
 ELASTIC_DRIVERS = ["ena", "efa"]
 
-# Instance types known to exhibit a NIC initialization race condition
-# where kernel network drivers are not ready when cloud-init-local runs.
-# Polling for NICs is restricted to these product names (from DMI
-# system-product-name) to avoid unnecessary boot delays on other instances.
-# Addresses GH-6697.
-NETWORK_POLLING_PRODUCT_ALLOW_LIST = [
-    "hpc7a.96xlarge",
-]
+# Hardware identifiers for Amazon network controllers (ENA, EFA)
+# used to detect in-flight kernel probe during early boot. Addresses GH-6697.
+AMAZON_PCI_VENDOR_ID = "0x1d0f"
+PCI_NETWORK_CLASS_PREFIX = "0x02"
+SYS_BUS_PCI_DEVICES = "/sys/bus/pci/devices"
+FALLBACK_NIC_TIMEOUT = 60
+
+
+def _has_amazon_network_device(
+    pci_devices_path: str = SYS_BUS_PCI_DEVICES,
+) -> bool:
+    """Return True if an Amazon network controller is on the PCI bus.
+
+    When cloud-init-local executes early during fast boots (e.g. on Graviton
+    or fast AMD/Intel instances with modular ena drivers), candidate network
+    interfaces may not yet have appeared in /sys/class/net because kernel
+    probe is still in-flight. Presence of an Amazon network controller
+    (vendor 0x1d0f, class 0x02*) indicates candidate NICs may still appear.
+    """
+    try:
+        devices = os.listdir(pci_devices_path)
+    except OSError:
+        return False
+
+    for dev in devices:
+        try:
+            dev_dir = os.path.join(pci_devices_path, dev)
+            vendor_file = os.path.join(dev_dir, "vendor")
+            class_file = os.path.join(dev_dir, "class")
+
+            with open(vendor_file, "r", encoding="utf-8") as f:
+                vendor = f.read().strip().lower()
+            if not vendor.startswith("0x"):
+                vendor = f"0x{vendor}"
+            if vendor != AMAZON_PCI_VENDOR_ID:
+                continue
+
+            with open(class_file, "r", encoding="utf-8") as f:
+                pci_class = f.read().strip().lower()
+            if not pci_class.startswith("0x"):
+                pci_class = f"0x{pci_class}"
+            if not pci_class.startswith(PCI_NETWORK_CLASS_PREFIX):
+                continue
+
+            LOG.debug(
+                "Amazon network controller %s detected on PCI bus",
+                dev,
+            )
+            return True
+        except OSError:
+            continue
+
+    return False
 
 
 class DataSourceEc2(sources.DataSource):
@@ -168,17 +213,17 @@ class DataSourceEc2(sources.DataSource):
             if util.is_FreeBSD():
                 LOG.debug("FreeBSD doesn't support running dhclient with -sf")
                 return False
-            product_name = dmi.read_dmi_data("system-product-name")
-            wait_for_nics = (
-                product_name is not None
-                and product_name.lower() in NETWORK_POLLING_PRODUCT_ALLOW_LIST
-            )
-            if wait_for_nics:
-                candidate_nics = net.wait_for_candidate_nics(
-                    timeout=60, sleep_interval=1
+            candidate_nics = net.find_candidate_nics()
+            if not candidate_nics and _has_amazon_network_device():
+                LOG.info(
+                    "Amazon network controller detected on PCI bus but no "
+                    "candidate NICs found; waiting up to %s seconds for "
+                    "NIC driver probe",
+                    FALLBACK_NIC_TIMEOUT,
                 )
-            else:
-                candidate_nics = net.find_candidate_nics()
+                candidate_nics = net.wait_for_candidate_nics(
+                    timeout=FALLBACK_NIC_TIMEOUT, sleep_interval=1
+                )
             LOG.debug("Looking for the primary NIC in: %s", candidate_nics)
             # Abort if NICs are still unavailable
             # (whether retry was attempted or skipped).
