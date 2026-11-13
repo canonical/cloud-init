@@ -227,3 +227,39 @@ class TestGetAllPackages:
         m_subp.side_effect = fake_subp
         instance = apt.Apt(mock.Mock())
         assert {"amd64-only"} == instance.get_all_packages()
+
+
+class TestGetUnavailablePackages:
+    @pytest.mark.parametrize(
+        "pkg",
+        [
+            "?priority(standard)",
+            "?and(?installed,?automatic)",
+            "~nfoo",
+            "~i",
+        ],
+    )
+    @mock.patch(M_PATH + "get_all_packages", return_value={"curl"})
+    def test_apt_patterns_are_not_unavailable(self, m_all, pkg):
+        """apt search patterns are left for apt to resolve."""
+        instance = apt.Apt(mock.Mock())
+        assert [] == instance.get_unavailable_packages([pkg])
+
+    @mock.patch(M_PATH + "get_all_packages", return_value={"curl", "vim"})
+    def test_names_still_checked(self, m_all):
+        """Plain names keep being checked against the package list."""
+        instance = apt.Apt(mock.Mock())
+        assert ["nope", "nope2/jammy"] == instance.get_unavailable_packages(
+            ["curl", "nope", "vim-", "nope2/jammy", "vim=1.0"]
+        )
+
+    @mock.patch(M_PATH + "run_package_command")
+    @mock.patch(M_PATH + "update_package_sources")
+    @mock.patch(M_PATH + "get_all_packages", return_value={"curl"})
+    def test_install_passes_patterns_to_apt(self, m_all, m_update, m_run):
+        """install_packages hands apt patterns to apt-get install."""
+        instance = apt.Apt(mock.Mock())
+        assert [] == instance.install_packages(["curl", "?priority(standard)"])
+        m_run.assert_called_once_with(
+            "install", pkgs=["curl", "?priority(standard)"]
+        )
