@@ -240,6 +240,7 @@ class TestPasswordUsersList(Mixin):
 
 
 @pytest.mark.user_data(SSD_USER_DATA)
+@pytest.mark.skipif(not IS_UBUNTU, reason="Requires dpkg")
 def test_unlock_passwd_stderr_does_not_delete_hashed_password(client):
     """Ensure passwd -u does not delete hashed password on unrelated stderr"""
     assert client.execute("dpkg -s sssd-tools").ok
