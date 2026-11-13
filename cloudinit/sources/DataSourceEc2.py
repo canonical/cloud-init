@@ -14,13 +14,14 @@ import os
 import time
 import uuid
 from contextlib import suppress
-from typing import Dict, List, Literal
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
 from cloudinit import dmi, net, sources
 from cloudinit import url_helper as uhelp
 from cloudinit import util, warnings
 from cloudinit.distros import Distro
 from cloudinit.event import EventScope, EventType
+from cloudinit.helpers import Paths
 from cloudinit.net import device_driver, netplan
 from cloudinit.net.dhcp import NoDHCPLeaseError
 from cloudinit.net.ephemeral import EphemeralIPNetwork
@@ -49,8 +50,12 @@ class CloudNames:
 
 
 # Drop when LP: #1988157 tag handling is fixed
-def skip_404_tag_errors(exception):
-    return exception.code == 404 and "meta-data/tags/" in exception.url
+def skip_404_tag_errors(exception: uhelp.UrlError) -> bool:
+    return bool(
+        exception.code == 404
+        and exception.url
+        and "meta-data/tags/" in exception.url
+    )
 
 
 # Cloud platforms that support IMDSv2 style metadata server
@@ -104,8 +109,11 @@ class DataSourceEc2(sources.DataSource):
     url_max_wait = 240
     url_timeout = 50
 
-    _api_token = None  # API token for accessing the metadata service
-    _network_config = sources.UNSET  # Used to cache calculated network cfg v1
+    # API token for accessing the metadata service
+    _api_token: Optional[str] = None
+    # Used to cache calculated network cfg v1
+    _network_config: Union[Dict[str, Any], str, None] = sources.UNSET
+    _crawled_metadata: Optional[Dict[str, Any]] = None
 
     # Whether we want to get network configuration from the metadata service.
     perform_dhcp_setup = False
@@ -129,10 +137,10 @@ class DataSourceEc2(sources.DataSource):
     extra_hotplug_udev_rules = _EXTRA_HOTPLUG_UDEV_RULES
     hotplug_retry_settings = HotplugRetrySettings(True, 5, 30)
 
-    def __init__(self, sys_cfg, distro, paths):
+    def __init__(self, sys_cfg: Any, distro: Distro, paths: Paths) -> None:
         super(DataSourceEc2, self).__init__(sys_cfg, distro, paths)
-        self.metadata_address = None
-        self.identity = None
+        self.metadata_address: Optional[str] = None
+        self.identity: Optional[Dict[str, Any]] = None
         self._fallback_nic_order = NicOrder.MAC
 
     def _unpickle(self, ci_pkl_version: int) -> None:
@@ -141,11 +149,11 @@ class DataSourceEc2(sources.DataSource):
         self._fallback_nic_order = NicOrder.MAC
         self.hotplug_retry_settings = HotplugRetrySettings(True, 5, 30)
 
-    def _get_cloud_name(self):
+    def _get_cloud_name(self) -> str:
         """Return the cloud name as identified during _get_data."""
         return identify_platform()
 
-    def _get_data(self):
+    def _get_data(self) -> bool:
         strict_mode, _sleep = read_strict_mode(
             util.get_cfg_by_path(
                 self.sys_cfg, STRICT_ID_PATH, STRICT_ID_DEFAULT
@@ -213,7 +221,7 @@ class DataSourceEc2(sources.DataSource):
         if not self._crawled_metadata:
             LOG.error("Unable to get metadata")
             return False
-        self.metadata = self._crawled_metadata.get("meta-data", None)
+        self.metadata = self._crawled_metadata.get("meta-data") or {}
         self.userdata_raw = self._crawled_metadata.get("user-data", None)
         self.identity = (
             self._crawled_metadata.get("dynamic", {})
@@ -222,7 +230,7 @@ class DataSourceEc2(sources.DataSource):
         )
         return True
 
-    def is_classic_instance(self):
+    def is_classic_instance(self) -> bool:
         """Report if this instance type is Ec2 Classic (non-vpc)."""
         if not self.metadata:
             # Can return False on inconclusive as we are also called in
@@ -236,39 +244,39 @@ class DataSourceEc2(sources.DataSource):
         return True
 
     @property
-    def launch_index(self):
+    def launch_index(self) -> Optional[int]:
         if not self.metadata:
             return None
         return self.metadata.get("ami-launch-index")
 
     @property
-    def platform(self):
+    def platform(self) -> str:
         if not self._platform_type:
             self._platform_type = DataSourceEc2.dsname.lower()
         return self._platform_type
 
     # IMDSv2 related parameters from the ec2 metadata api document
     @property
-    def api_token_route(self):
+    def api_token_route(self) -> str:
         return "latest/api/token"
 
     @property
-    def imdsv2_token_ttl_seconds(self):
+    def imdsv2_token_ttl_seconds(self) -> str:
         return "21600"
 
     @property
-    def imdsv2_token_put_header(self):
+    def imdsv2_token_put_header(self) -> str:
         return "X-aws-ec2-metadata-token"
 
     @property
-    def imdsv2_token_req_header(self):
+    def imdsv2_token_req_header(self) -> str:
         return self.imdsv2_token_put_header + "-ttl-seconds"
 
     @property
-    def imdsv2_token_redact(self):
+    def imdsv2_token_redact(self) -> List[str]:
         return [self.imdsv2_token_put_header, self.imdsv2_token_req_header]
 
-    def get_metadata_api_version(self):
+    def get_metadata_api_version(self) -> str:
         """Get the best supported api version from the metadata service.
 
         Loop through all extended support metadata versions in order and
@@ -299,27 +307,28 @@ class DataSourceEc2(sources.DataSource):
                     LOG.debug(msg, api_ver, resp.headers)
         return self.min_metadata_version
 
-    def get_instance_id(self):
+    def get_instance_id(self) -> str:
         if self.cloud_name == CloudNames.AWS:
             # Prefer the ID from the instance identity document, but fall back
             if not getattr(self, "identity", None):
                 # If re-using cached datasource, it's get_data run didn't
                 # setup self.identity. So we need to do that now.
                 api_version = self.get_metadata_api_version()
-                self.identity = ec2.get_instance_identity(
+                inst_id = ec2.get_instance_identity(
                     api_version,
                     self.metadata_address,
                     headers_cb=self._get_headers,
                     headers_redact=self.imdsv2_token_redact,
                     exception_cb=self._refresh_stale_aws_token_cb,
-                ).get("document", {})
-            return self.identity.get(
+                )
+                self.identity = inst_id.get("document", {}) if inst_id else {}
+            return (self.identity or {}).get(
                 "instanceId", self.metadata["instance-id"]
             )
         else:
             return self.metadata["instance-id"]
 
-    def _maybe_fetch_api_token(self, mdurls):
+    def _maybe_fetch_api_token(self, mdurls: List[str]) -> Optional[str]:
         """Get an API token for EC2 Instance Metadata Service.
 
         On EC2. IMDS will always answer an API token, unless
@@ -327,22 +336,22 @@ class DataSourceEc2(sources.DataSource):
         the network topology conflicts with the configured hop-limit.
         """
         if self.cloud_name not in IDMSV2_SUPPORTED_CLOUD_PLATFORMS:
-            return
+            return None
 
         urls = []
         url2base = {}
         url_path = self.api_token_route
         request_method = "PUT"
-        for url in mdurls:
-            cur = "{0}/{1}".format(url, url_path)
+        for mdurl in mdurls:
+            cur = "{0}/{1}".format(mdurl, url_path)
             urls.append(cur)
-            url2base[cur] = url
+            url2base[cur] = mdurl
 
         # use the self._imds_exception_cb to check for Read errors
         LOG.debug("Fetching Ec2 IMDSv2 API Token")
 
         response = None
-        url = None
+        url: Optional[str] = None
         url_params = self.get_url_params()
         try:
             url, response = uhelp.wait_for_url(
@@ -362,7 +371,7 @@ class DataSourceEc2(sources.DataSource):
             pass
 
         if url and response:
-            self._api_token = response
+            self._api_token = str(response)
             return url2base[url]
 
         # If we get here, then wait_for_url timed out, waiting for IMDS
@@ -370,9 +379,9 @@ class DataSourceEc2(sources.DataSource):
         LOG.error("Unable to get response from urls: %s", urls)
         return None
 
-    def wait_for_metadata_service(self):
+    def wait_for_metadata_service(self) -> bool:
         urls = []
-        start_time = 0
+        start_time: float = 0.0
         mcfg = self.ds_cfg
 
         url_params = self.get_url_params()
@@ -419,8 +428,8 @@ class DataSourceEc2(sources.DataSource):
             start_time = time.monotonic()
             url, _ = uhelp.wait_for_url(
                 urls=urls,
-                max_wait=url_params.max_wait_seconds,
-                timeout=url_params.timeout_seconds,
+                max_wait=float(url_params.max_wait_seconds),
+                timeout=float(url_params.timeout_seconds),
                 status_cb=LOG.warning,
                 headers_redact=self.imdsv2_token_redact,
                 headers_cb=self._get_headers,
@@ -444,7 +453,7 @@ class DataSourceEc2(sources.DataSource):
 
         return bool(metadata_address)
 
-    def device_name_to_device(self, name):
+    def device_name_to_device(self, name: str) -> Optional[str]:
         # Consult metadata service, that has
         #  ephemeral0: sdb
         # and return 'sdb' for input 'ephemeral0'
@@ -496,10 +505,10 @@ class DataSourceEc2(sources.DataSource):
         return ofound
 
     @property
-    def availability_zone(self):
+    def availability_zone(self) -> Optional[str]:
         try:
             if self.cloud_name == CloudNames.AWS:
-                return self.identity.get(
+                return (self.identity or {}).get(
                     "availabilityZone",
                     self.metadata["placement"]["availability-zone"],
                 )
@@ -509,9 +518,9 @@ class DataSourceEc2(sources.DataSource):
             return None
 
     @property
-    def region(self):
+    def region(self) -> Optional[str]:
         if self.cloud_name == CloudNames.AWS:
-            region = self.identity.get("region")
+            region = (self.identity or {}).get("region")
             # Fallback to trimming the availability zone if region is missing
             if self.availability_zone and not region:
                 region = self.availability_zone[:-1]
@@ -522,7 +531,7 @@ class DataSourceEc2(sources.DataSource):
                 return az[:-1]
         return None
 
-    def activate(self, cfg, is_new_instance):
+    def activate(self, cfg: dict, is_new_instance: bool) -> None:
         if not is_new_instance:
             return
         if self.cloud_name == CloudNames.UNKNOWN:
@@ -532,12 +541,12 @@ class DataSourceEc2(sources.DataSource):
             )
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[dict]:
         """Return a network config dict for rendering ENI or netplan files."""
         if self._network_config != sources.UNSET:
-            return self._network_config
+            return self._network_config  # type: ignore[return-value]
 
-        if self.metadata is None:
+        if not self.metadata:
             # this would happen if get_data hadn't been called. leave as UNSET
             LOG.warning(
                 "Unexpected call to network_config when metadata is None."
@@ -579,7 +588,7 @@ class DataSourceEc2(sources.DataSource):
 
         return self._network_config
 
-    def crawl_metadata(self):
+    def crawl_metadata(self) -> Dict[str, Any]:
         """Crawl metadata service when available.
 
         @returns: Dictionary of crawled metadata content containing the keys:
@@ -590,6 +599,9 @@ class DataSourceEc2(sources.DataSource):
         api_version = self.get_metadata_api_version()
         redact = self.imdsv2_token_redact
         crawled_metadata = {}
+        exc_cb: Optional[Callable[[uhelp.UrlError], bool]]
+        exc_cb_ud: Optional[Callable[[uhelp.UrlError], bool]]
+        skip_cb: Optional[Callable[[uhelp.UrlError], bool]]
         if self.cloud_name in IDMSV2_SUPPORTED_CLOUD_PLATFORMS:
             exc_cb = self._refresh_stale_aws_token_cb
             exc_cb_ud = self._skip_or_refresh_stale_aws_token_cb
@@ -635,7 +647,9 @@ class DataSourceEc2(sources.DataSource):
         crawled_metadata["_metadata_api_version"] = api_version
         return crawled_metadata
 
-    def _refresh_api_token(self, seconds=None):
+    def _refresh_api_token(
+        self, seconds: Optional[str] = None
+    ) -> Optional[str]:
         """Request new metadata API token.
         @param seconds: The lifetime of the token in seconds
 
@@ -662,7 +676,7 @@ class DataSourceEc2(sources.DataSource):
                 "Unable to get API token: %s raised exception %s", token_url, e
             )
             return None
-        return response.contents
+        return util.decode_binary(response.contents)
 
     def _skip_or_refresh_stale_aws_token_cb(
         self, exception: uhelp.UrlError
@@ -715,7 +729,7 @@ class DataSourceEc2(sources.DataSource):
                 return False
         return True
 
-    def _get_headers(self, url=""):
+    def _get_headers(self, url: str = "") -> Dict[str, str]:
         """Return a dict of headers for accessing a url.
 
         If _api_token is unset on AWS, attempt to refresh the token via a PUT
@@ -750,7 +764,7 @@ class DataSourceEc2Local(DataSourceEc2):
 
     perform_dhcp_setup = True  # Use dhcp before querying metadata
 
-    def get_data(self):
+    def get_data(self) -> bool:
         supported_platforms = (CloudNames.AWS, CloudNames.OUTSCALE)
         if self.cloud_name not in supported_platforms:
             LOG.debug(
@@ -762,7 +776,9 @@ class DataSourceEc2Local(DataSourceEc2):
         return super(DataSourceEc2Local, self).get_data()
 
 
-def read_strict_mode(cfgval, default):
+def read_strict_mode(
+    cfgval: Any, default: Tuple[str, Optional[int]]
+) -> Tuple[str, Optional[int]]:
     try:
         return parse_strict_mode(cfgval)
     except ValueError as e:
@@ -770,7 +786,7 @@ def read_strict_mode(cfgval, default):
         return default
 
 
-def parse_strict_mode(cfgval):
+def parse_strict_mode(cfgval: Any) -> Tuple[str, Optional[int]]:
     # given a mode like:
     #    true, false, warn,[sleep]
     # return tuple with string mode (true|false|warn) and sleep.
@@ -782,20 +798,21 @@ def parse_strict_mode(cfgval):
     if not cfgval:
         return "warn", 0
 
-    mode, _, sleep = cfgval.partition(",")
+    mode, _, sleep_str = str(cfgval).partition(",")
     if mode not in ("true", "false", "warn"):
         raise ValueError(
             "Invalid mode '%s' in strict_id setting '%s': "
             "Expected one of 'true', 'false', 'warn'." % (mode, cfgval)
         )
 
-    if sleep:
+    sleep: Optional[int]
+    if sleep_str:
         try:
-            sleep = int(sleep)
+            sleep = int(sleep_str)
         except ValueError as e:
             raise ValueError(
                 "Invalid sleep '%s' in strict_id setting '%s': not an integer"
-                % (sleep, cfgval)
+                % (sleep_str, cfgval)
             ) from e
     else:
         sleep = None
@@ -803,7 +820,7 @@ def parse_strict_mode(cfgval):
     return mode, sleep
 
 
-def warn_if_necessary(cfgval, cfg):
+def warn_if_necessary(cfgval: Any, cfg: dict) -> None:
     try:
         mode, sleep = parse_strict_mode(cfgval)
     except ValueError as e:
@@ -816,7 +833,7 @@ def warn_if_necessary(cfgval, cfg):
     warnings.show_warning("non_ec2_md", cfg, mode=True, sleep=sleep)
 
 
-def identify_aws(data):
+def identify_aws(data: Dict[str, str]) -> Optional[str]:
     # data is a dictionary returned by _collect_platform_data.
     uuid_str = data["uuid"]
     if uuid_str.startswith("ec2"):
@@ -832,38 +849,43 @@ def identify_aws(data):
     return None
 
 
-def identify_brightbox(data):
+def identify_brightbox(data: Dict[str, str]) -> Optional[str]:
     if data["serial"].endswith(".brightbox.com"):
         return CloudNames.BRIGHTBOX
+    return None
 
 
-def identify_zstack(data):
+def identify_zstack(data: Dict[str, str]) -> Optional[str]:
     if data["asset_tag"].endswith(".zstack.io"):
         return CloudNames.ZSTACK
+    return None
 
 
-def identify_tilaa(data):
+def identify_tilaa(data: Dict[str, str]) -> Optional[str]:
     if data["vendor"] == "Tilaa":
         return CloudNames.TILAA
+    return None
 
 
-def identify_e24cloud(data):
+def identify_e24cloud(data: Dict[str, str]) -> Optional[str]:
     if data["vendor"] == "e24cloud":
         return CloudNames.E24CLOUD
+    return None
 
 
-def identify_outscale(data):
+def identify_outscale(data: Dict[str, str]) -> Optional[str]:
     if (
         data["product_name"] == "3DS Outscale VM".lower()
         and data["vendor"] == "3DS Outscale".lower()
     ):
         return CloudNames.OUTSCALE
+    return None
 
 
-def identify_platform():
+def identify_platform() -> str:
     # identify the platform and return an entry in CloudNames.
     data = _collect_platform_data()
-    checks = (
+    checks: Tuple[Callable[[Dict[str, str]], Optional[str]], ...] = (
         identify_aws,
         identify_brightbox,
         identify_zstack,
@@ -881,9 +903,10 @@ def identify_platform():
             LOG.warning(
                 "calling %s with %s raised exception: %s", checker, data, e
             )
+    return CloudNames.UNKNOWN
 
 
-def _collect_platform_data():
+def _collect_platform_data() -> Dict[str, str]:
     """Returns a dictionary of platform info from dmi or /sys/hypervisor.
 
     Keys in the dictionary are as follows:
@@ -953,17 +976,15 @@ def _build_nic_order(
     if (not macs_to_nics) or (not macs_metadata):
         return nic_order
 
-    valid_macs_metadata = filter(
-        # filter out nics without metadata (not a physical nic)
-        lambda mmd: mmd[1] is not None,
-        # filter by macs
-        map(
-            lambda mac: (mac, macs_metadata.get(mac), macs_to_nics[mac]),
-            macs_to_nics.keys(),
-        ),
-    )
+    valid_macs_metadata = [
+        (mac, macs_metadata[mac], macs_to_nics[mac])
+        for mac in macs_to_nics
+        if mac in macs_metadata and macs_metadata[mac] is not None
+    ]
 
-    def _get_key_as_int_or(dikt, key, alt_value):
+    def _get_key_as_int_or(
+        dikt: Dict[str, Any], key: str, alt_value: float
+    ) -> Union[int, float]:
         value = dikt.get(key, None)
         if value is not None:
             return int(value)
@@ -1084,13 +1105,13 @@ def _configure_policy_routing(
 
 
 def convert_ec2_metadata_network_config(
-    network_md,
-    distro,
-    macs_to_nics=None,
-    fallback_nic=None,
-    full_network_config=True,
-    fallback_nic_order=NicOrder.MAC,
-):
+    network_md: Dict[str, Any],
+    distro: Distro,
+    macs_to_nics: Optional[Dict[str, str]] = None,
+    fallback_nic: Optional[str] = None,
+    full_network_config: bool = True,
+    fallback_nic_order: NicOrder = NicOrder.MAC,
+) -> Dict[str, Any]:
     """Convert ec2 metadata to network config version 2 data dict.
 
     @param: network_md: 'network' portion of EC2 metadata.
@@ -1110,7 +1131,7 @@ def convert_ec2_metadata_network_config(
 
     @return A dict of network config version 2 based on the metadata and macs.
     """
-    netcfg = {"version": 2, "ethernets": {}}
+    netcfg: Dict[str, Any] = {"version": 2, "ethernets": {}}
     if not macs_to_nics:
         macs_to_nics = net.get_interfaces_by_mac()
     macs_metadata = network_md["interfaces"]["macs"]
@@ -1207,7 +1228,9 @@ def convert_ec2_metadata_network_config(
     return netcfg
 
 
-def get_secondary_addresses(nic_metadata, mac):
+def get_secondary_addresses(
+    nic_metadata: Dict[str, Any], mac: str
+) -> List[str]:
     """Parse interface-specific nic metadata and return any secondary IPs
 
     :return: List of secondary IPv4 or IPv6 addresses to configure on the
@@ -1215,15 +1238,15 @@ def get_secondary_addresses(nic_metadata, mac):
     """
     ipv4s = nic_metadata.get("local-ipv4s")
     ipv6s = nic_metadata.get("ipv6s")
-    addresses = []
+    addresses: List[str] = []
     # In version < 2018-09-24 local_ipv4s or ipv6s is a str with one IP
-    if bool(isinstance(ipv4s, list) and len(ipv4s) > 1):
+    if isinstance(ipv4s, list) and len(ipv4s) > 1:
         addresses.extend(
             _get_secondary_addresses(
                 nic_metadata, "subnet-ipv4-cidr-block", mac, ipv4s, "24"
             )
         )
-    if bool(isinstance(ipv6s, list) and len(ipv6s) > 1):
+    if isinstance(ipv6s, list) and len(ipv6s) > 1:
         addresses.extend(
             _get_secondary_addresses(
                 nic_metadata, "subnet-ipv6-cidr-block", mac, ipv6s, "128"
@@ -1232,7 +1255,13 @@ def get_secondary_addresses(nic_metadata, mac):
     return sorted(addresses)
 
 
-def _get_secondary_addresses(nic_metadata, cidr_key, mac, ips, default_prefix):
+def _get_secondary_addresses(
+    nic_metadata: Dict[str, Any],
+    cidr_key: str,
+    mac: str,
+    ips: List[str],
+    default_prefix: str,
+) -> List[str]:
     """Return list of IP addresses as CIDRs for secondary IPs
 
     The CIDR prefix will be default_prefix if cidr_key is absent or not
@@ -1268,5 +1297,5 @@ datasources = [
 
 
 # Return a list of data sources that match this set of dependencies
-def get_datasource_list(depends):
+def get_datasource_list(depends: List[str]) -> List[type]:
     return sources.list_from_depends(depends, datasources)
