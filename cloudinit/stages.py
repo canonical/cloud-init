@@ -1136,7 +1136,11 @@ class Init:
 
 
 def read_runtime_config(run_dir: str):
-    return util.read_conf(os.path.join(run_dir, "cloud.cfg"))
+    try:
+        return util.read_conf(os.path.join(run_dir, "cloud.cfg"))
+    except PermissionError as e:
+        LOG.warning("Skipping unreadable runtime config: %s", e)
+        return {}
 
 
 def fetch_base_config(run_dir: str, *, instance_data_file=None) -> dict:
