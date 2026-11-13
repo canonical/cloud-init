@@ -995,6 +995,13 @@ class TestJoyentMetadataClient:
         with pytest.raises(DataSourceSmartOS.JoyentMetadataFetchException):
             joyent_client.get("some_key")
 
+    def test_get_metadata_throws_exception_for_malformed_frame(
+        self, joyent_client, joyent_metadata
+    ):
+        joyent_metadata.response_parts["command"] = "BOGUS SUCCESS"
+        with pytest.raises(DataSourceSmartOS.JoyentMetadataFetchException):
+            joyent_client.get("some_key")
+
     def test_get_metadata_returns_None_if_value_not_found(
         self, joyent_client, joyent_metadata
     ):
