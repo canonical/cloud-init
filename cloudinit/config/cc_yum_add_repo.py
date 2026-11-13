@@ -35,6 +35,7 @@ meta: MetaSchema = {
         "rhel",
         "rocky",
         "TencentOS",
+        "kylin",
         "virtuozzo",
     ],
     "frequency": PER_INSTANCE,
