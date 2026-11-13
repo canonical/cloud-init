@@ -30,9 +30,12 @@ import os
 import random
 import re
 import socket
+from typing import Any, Callable, Optional, TypedDict, Union
 
 from cloudinit import atomic_helper, dmi, sources, subp, util
+from cloudinit.distros import Distro
 from cloudinit.event import EventScope, EventType
+from cloudinit.helpers import Paths
 
 LOG = logging.getLogger(__name__)
 
@@ -165,8 +168,13 @@ class DataSourceSmartOS(sources.DataSource):
 
     dsname = "Joyent"
 
-    smartos_type = sources.UNSET
-    md_client = sources.UNSET
+    smartos_type: Optional[str] = sources.UNSET
+    md_client: Union[
+        str,
+        "JoyentMetadataSerialClient",
+        "JoyentMetadataSocketClient",
+        None,
+    ] = sources.UNSET
     default_update_events = {
         EventScope.NETWORK: {
             EventType.BOOT_NEW_INSTANCE,
@@ -175,7 +183,7 @@ class DataSourceSmartOS(sources.DataSource):
         }
     }
 
-    def __init__(self, sys_cfg, distro, paths):
+    def __init__(self, sys_cfg: dict, distro: Distro, paths: Paths) -> None:
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.ds_cfg = util.mergemanydict(
             [
@@ -186,19 +194,19 @@ class DataSourceSmartOS(sources.DataSource):
         )
 
         self.metadata = {}
-        self.network_data = None
-        self._network_config = None
+        self.network_data: Any = None
+        self._network_config: Any = None
         self.routes_data = None
 
         self.script_base_d = os.path.join(self.paths.get_cpath("scripts"))
 
         self._init()
 
-    def __str__(self):
+    def __str__(self) -> str:
         root = sources.DataSource.__str__(self)
         return "%s [client=%s]" % (root, self.md_client)
 
-    def _init(self):
+    def _init(self) -> None:
         if self.smartos_type == sources.UNSET:
             self.smartos_type = get_smartos_environ()
             if self.smartos_type is None:
@@ -212,7 +220,7 @@ class DataSourceSmartOS(sources.DataSource):
                 serial_timeout=self.ds_cfg["serial_timeout"],
             )
 
-    def _set_provisioned(self):
+    def _set_provisioned(self) -> None:
         """Mark the instance provisioning state as successful.
 
         When run in a zone, the host OS will look for /var/svc/provisioning
@@ -230,17 +238,21 @@ class DataSourceSmartOS(sources.DataSource):
                 "/".join([svc_path, "provision_success"]),
             )
 
-    def _get_data(self):
+    def _get_data(self) -> bool:
         self._init()
 
-        md = {}
-        ud = ""
+        md: dict[str, Any] = {}
 
         if not self.smartos_type:
             LOG.debug("Not running on smartos")
             return False
 
-        if not self.md_client.exists():
+        client = self.md_client
+        if isinstance(client, str) or client is None:
+            LOG.debug("No metadata client for SmartOS datasource")
+            return False
+
+        if not client.exists():
             LOG.debug(
                 "No metadata device '%r' found for SmartOS datasource",
                 self.md_client,
@@ -248,16 +260,16 @@ class DataSourceSmartOS(sources.DataSource):
             return False
 
         # Open once for many requests, rather than once for each request
-        self.md_client.open_transport()
+        client.open_transport()
 
         for ci_noun, attribute in SMARTOS_ATTRIB_MAP.items():
             smartos_noun, strip = attribute
-            md[ci_noun] = self.md_client.get(smartos_noun, strip=strip)
+            md[ci_noun] = client.get(smartos_noun, strip=strip)
 
         for ci_noun, smartos_noun in SMARTOS_ATTRIB_JSON.items():
-            md[ci_noun] = self.md_client.get_json(smartos_noun)
+            md[ci_noun] = client.get_json(smartos_noun)
 
-        self.md_client.close_transport()
+        client.close_transport()
 
         # @datadictionary: This key may contain a program that is written
         # to a file in the filesystem of the guest on each boot and then
@@ -307,7 +319,7 @@ class DataSourceSmartOS(sources.DataSource):
             else:
                 md["local-hostname"] = md["instance-id"]
 
-        ud = None
+        ud: Optional[str] = None
         if md["user-data"]:
             ud = md["user-data"]
 
@@ -329,22 +341,22 @@ class DataSourceSmartOS(sources.DataSource):
         self._set_provisioned()
         return True
 
-    def _get_subplatform(self):
+    def _get_subplatform(self) -> str:
         return "serial (%s)" % SERIAL_DEVICE
 
-    def device_name_to_device(self, name):
+    def device_name_to_device(self, name: str) -> Optional[str]:
         return self.ds_cfg["disk_aliases"].get(name)
 
-    def get_config_obj(self):
+    def get_config_obj(self) -> dict[str, Any]:
         if self.smartos_type == SMARTOS_ENV_KVM:
             return BUILTIN_CLOUD_CONFIG
         return {}
 
-    def get_instance_id(self):
+    def get_instance_id(self) -> str:
         return self.metadata["instance-id"]
 
     @property
-    def network_config(self):
+    def network_config(self) -> Any:
         # sources.clear_cached_data() may set _network_config to '_unset'.
         if self._network_config == sources.UNSET:
             self._network_config = None
@@ -382,19 +394,28 @@ class JoyentMetadataClient:
         r"( (?P<payload>.+))?)"
     )
 
-    def __init__(self, smartos_type=None, fp=None):
+    def __init__(
+        self, smartos_type: Optional[str] = None, fp: Any = None
+    ) -> None:
         if smartos_type is None:
             smartos_type = get_smartos_environ()
         self.smartos_type = smartos_type
         self.fp = fp
 
-    def _checksum(self, body):
+    def _checksum(self, body: str) -> str:
         return "{0:08x}".format(
             binascii.crc32(body.encode("utf-8")) & 0xFFFFFFFF
         )
 
-    def _get_value_from_frame(self, expected_request_id, frame):
-        frame_data = self.line_regex.match(frame).groupdict()
+    def _get_value_from_frame(
+        self, expected_request_id: str, frame: str
+    ) -> Optional[str]:
+        match = self.line_regex.match(frame)
+        if match is None:
+            raise JoyentMetadataFetchException(
+                "Malformed frame: {0!r}".format(frame)
+            )
+        frame_data = match.groupdict()
         if int(frame_data["length"]) != len(frame_data["body"]):
             raise JoyentMetadataFetchException(
                 "Incorrect frame length given ({0} != {1}).".format(
@@ -421,7 +442,7 @@ class JoyentMetadataClient:
         LOG.debug('Value "%s" found.', value)
         return value
 
-    def _readline(self):
+    def _readline(self) -> str:
         r"""
         Reads a line a byte at a time until \n is encountered.  Returns an
         ascii string with the trailing newline removed.
@@ -429,9 +450,9 @@ class JoyentMetadataClient:
         If a timeout (per-byte) is set and it expires, a
         JoyentMetadataFetchException will be thrown.
         """
-        response = []
+        response: list[bytes] = []
 
-        def as_ascii():
+        def as_ascii() -> str:
             return b"".join(response).decode("ascii")
 
         msg = "Partial response: '%s'"
@@ -450,11 +471,11 @@ class JoyentMetadataClient:
                     ) from exc
                 raise
 
-    def _write(self, msg):
+    def _write(self, msg: str) -> None:
         self.fp.write(msg.encode("ascii"))
         self.fp.flush()
 
-    def _negotiate(self):
+    def _negotiate(self) -> None:
         LOG.debug("Negotiating protocol V2")
         self._write("NEGOTIATE V2\n")
         response = self._readline()
@@ -465,7 +486,9 @@ class JoyentMetadataClient:
             )
         LOG.debug("Negotiation complete")
 
-    def request(self, rtype, param=None):
+    def request(
+        self, rtype: str, param: Optional[str] = None
+    ) -> Optional[str]:
         request_id = "{0:08x}".format(random.randint(0, 0xFFFFFFFF))
         message_body = " ".join(
             (
@@ -498,7 +521,7 @@ class JoyentMetadataClient:
         value = self._get_value_from_frame(request_id, response)
         return value
 
-    def get(self, key, default=None, strip=False):
+    def get(self, key: str, default=None, strip: bool = False):
         result = self.request(rtype="GET", param=key)
         if result is None:
             return default
@@ -506,73 +529,81 @@ class JoyentMetadataClient:
             result = result.strip()
         return result
 
-    def get_json(self, key, default=None):
+    def get_json(self, key: str, default: Any = None) -> Any:
         result = self.get(key, default=default)
         if result is None:
             return default
         return json.loads(result)
 
-    def list(self):
+    def list(self) -> list[str]:
         result = self.request(rtype="KEYS")
         if not result:
             return []
         return result.split("\n")
 
-    def put(self, key, val):
+    def put(self, key: str, val: str) -> Optional[str]:
         param = b" ".join(
             [base64.b64encode(i.encode()) for i in (key, val)]
         ).decode()
         return self.request(rtype="PUT", param=param)
 
-    def close_transport(self):
+    def close_transport(self) -> None:
         if self.fp:
             self.fp.close()
             self.fp = None
 
-    def __enter__(self):
+    def __enter__(self) -> "JoyentMetadataClient":
         if self.fp:
             return self
         self.open_transport()
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         self.close_transport()
         return
 
-    def open_transport(self):
+    def open_transport(self) -> None:
         raise NotImplementedError
 
 
 class JoyentMetadataSocketClient(JoyentMetadataClient):
-    def __init__(self, socketpath, smartos_type=SMARTOS_ENV_LX_BRAND):
+    def __init__(
+        self,
+        socketpath: str,
+        smartos_type: Optional[str] = SMARTOS_ENV_LX_BRAND,
+    ) -> None:
         super(JoyentMetadataSocketClient, self).__init__(smartos_type)
         self.socketpath = socketpath
 
-    def open_transport(self):
+    def open_transport(self) -> None:
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.connect(self.socketpath)
         self.fp = sock.makefile("rwb")
         self._negotiate()
 
-    def exists(self):
+    def exists(self) -> bool:
         return os.path.exists(self.socketpath)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "%s(socketpath=%s)" % (self.__class__.__name__, self.socketpath)
 
 
 class JoyentMetadataSerialClient(JoyentMetadataClient):
     def __init__(
-        self, device, timeout=10, smartos_type=SMARTOS_ENV_KVM, fp=None
-    ):
+        self,
+        device: str,
+        timeout: int = 10,
+        smartos_type: Optional[str] = SMARTOS_ENV_KVM,
+        fp: Any = None,
+    ) -> None:
         super(JoyentMetadataSerialClient, self).__init__(smartos_type, fp)
         self.device = device
         self.timeout = timeout
 
-    def exists(self):
+    def exists(self) -> bool:
         return os.path.exists(self.device)
 
-    def open_transport(self):
+    def open_transport(self) -> None:
         if self.fp is None:
             try:
                 import serial
@@ -581,14 +612,14 @@ class JoyentMetadataSerialClient(JoyentMetadataClient):
                     "serial support is not available"
                 ) from e
             ser = serial.Serial(self.device, timeout=self.timeout)
-            if not ser.isOpen():
+            if not ser.is_open:
                 raise SystemError("Unable to open %s" % self.device)
             self.fp = ser
             fcntl.lockf(ser, fcntl.LOCK_EX)
         self._flush()
         self._negotiate()
 
-    def _flush(self):
+    def _flush(self) -> None:
         LOG.debug("Flushing input")
         # Read any pending data
         timeout = self.fp.timeout
@@ -627,12 +658,16 @@ class JoyentMetadataSerialClient(JoyentMetadataClient):
         LOG.debug('Got "invalid command".  Flush complete.')
         self.fp.timeout = timeout
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "%s(device=%s, timeout=%s)" % (
             self.__class__.__name__,
             self.device,
             self.timeout,
         )
+
+
+class _MissingDefault:
+    pass
 
 
 class JoyentMetadataLegacySerialClient(JoyentMetadataSerialClient):
@@ -650,13 +685,17 @@ class JoyentMetadataLegacySerialClient(JoyentMetadataSerialClient):
       c.) set a key named b64-<keyname> with a boolean indicating that
     <keyname> is base64 encoded."""
 
-    def __init__(self, device, timeout=10, smartos_type=None):
-        s = super(JoyentMetadataLegacySerialClient, self)
-        s.__init__(device, timeout, smartos_type)
-        self.base64_keys = None
-        self.base64_all = None
+    def __init__(
+        self,
+        device: str,
+        timeout: int = 10,
+        smartos_type: Optional[str] = None,
+    ) -> None:
+        super().__init__(device, timeout, smartos_type)
+        self.base64_keys: Optional[set[str]] = None
+        self.base64_all: Optional[bool] = None
 
-    def _init_base64_keys(self, reset=False):
+    def _init_base64_keys(self, reset: bool = False) -> set[str]:
         if reset:
             self.base64_keys = None
             self.base64_all = None
@@ -671,7 +710,7 @@ class JoyentMetadataLegacySerialClient(JoyentMetadataSerialClient):
 
         if self.base64_all:
             # short circuit if base64_all is true
-            return
+            return set()
 
         if self.base64_keys is None:
             if keys is None:
@@ -689,26 +728,27 @@ class JoyentMetadataLegacySerialClient(JoyentMetadataSerialClient):
                         b64_keys.remove(key)
 
             self.base64_keys = b64_keys
+        return self.base64_keys
 
-    def _get(self, key, default=None, strip=False):
+    def _get(self, key: str, default=None, strip: bool = False):
         return super(JoyentMetadataLegacySerialClient, self).get(
             key, default=default, strip=strip
         )
 
-    def is_b64_encoded(self, key, reset=False):
+    def is_b64_encoded(self, key: str, reset: bool = False) -> bool:
         if key in NO_BASE64_DECODE:
             return False
 
-        self._init_base64_keys(reset=reset)
+        keys = self._init_base64_keys(reset=reset)
         if self.base64_all:
             return True
 
-        return key in self.base64_keys
+        return key in keys
 
-    def get(self, key, default=None, strip=False):
-        mdefault = object()
+    def get(self, key: str, default=None, strip: bool = False):
+        mdefault = _MissingDefault()
         val = self._get(key, strip=False, default=mdefault)
-        if val is mdefault:
+        if isinstance(val, _MissingDefault):
             return default
 
         if self.is_b64_encoded(key):
@@ -724,12 +764,14 @@ class JoyentMetadataLegacySerialClient(JoyentMetadataSerialClient):
 
 
 def jmc_client_factory(
-    smartos_type=None,
-    metadata_sockfile=METADATA_SOCKFILE,
-    serial_device=SERIAL_DEVICE,
-    serial_timeout=SERIAL_TIMEOUT,
-    uname_version=None,
-):
+    smartos_type: Optional[str] = None,
+    metadata_sockfile: str = METADATA_SOCKFILE,
+    serial_device: str = SERIAL_DEVICE,
+    serial_timeout: int = SERIAL_TIMEOUT,
+    uname_version: Optional[str] = None,
+) -> Optional[
+    Union["JoyentMetadataSerialClient", "JoyentMetadataSocketClient"]
+]:
 
     if smartos_type is None:
         smartos_type = get_smartos_environ(uname_version)
@@ -750,7 +792,7 @@ def jmc_client_factory(
     raise ValueError("Unknown value for smartos_type: %s" % smartos_type)
 
 
-def identify_file(content_f):
+def identify_file(content_f: str) -> Optional[str]:
     cmd = ["file", "--brief", "--mime-type", content_f]
     f_type = None
     try:
@@ -764,8 +806,12 @@ def identify_file(content_f):
 
 
 def write_boot_content(
-    content, content_f, link=None, shebang=False, mode=0o400
-):
+    content: Optional[str],
+    content_f: str,
+    link: Optional[str] = None,
+    shebang: bool = False,
+    mode: int = 0o400,
+) -> None:
     """
     Write the content to content_f. Under the following rules:
         1. If no content, remove the file
@@ -814,7 +860,9 @@ def write_boot_content(
             util.logexc(LOG, "failed establishing content link: %s", e)
 
 
-def get_smartos_environ(uname_version=None, product_name=None):
+def get_smartos_environ(
+    uname_version: Optional[str] = None, product_name: Optional[str] = None
+) -> Optional[str]:
     uname = os.uname()
 
     # SDC LX-Brand Zones lack dmidecode (no /dev/mem) but
@@ -837,8 +885,11 @@ def get_smartos_environ(uname_version=None, product_name=None):
 
 # Convert SMARTOS 'sdc:nics' data to network_config yaml
 def convert_smartos_network_data(
-    network_data=None, dns_servers=None, dns_domain=None, routes=None
-):
+    network_data: Any = None,
+    dns_servers: Any = None,
+    dns_domain: Any = None,
+    routes: Any = None,
+) -> dict[str, Any]:
     """Return a dictionary of network_config by parsing provided
        SMARTOS sdc:nics configuration data
 
@@ -903,13 +954,17 @@ def convert_smartos_network_data(
     if not routes:
         routes = []
 
-    def is_valid_ipv4(addr):
+    def is_valid_ipv4(addr: str) -> bool:
         return "." in addr
 
-    def is_valid_ipv6(addr):
+    def is_valid_ipv6(addr: str) -> bool:
         return ":" in addr
 
-    pgws = {
+    class Gateway(TypedDict):
+        match: Callable[[str], bool]
+        gw: Optional[str]
+
+    pgws: dict[str, Gateway] = {
         "ipv4": {"match": is_valid_ipv4, "gw": None},
         "ipv6": {"match": is_valid_ipv6, "gw": None},
     }
@@ -925,6 +980,7 @@ def convert_smartos_network_data(
 
         subnets = []
         for ip in nic.get("ips", []):
+            subnet: dict[str, Any]
             if ip == "dhcp":
                 subnet = {"type": "dhcp4"}
             elif ip == "addrconf":
@@ -1023,7 +1079,9 @@ if __name__ == "__main__":
     else:
         keys = sys.argv[1:]
 
-    def load_key(client, key, data):
+    def load_key(
+        client: JoyentMetadataClient, key: str, data: dict[str, Any]
+    ) -> Any:
         if key in data:
             return data[key]
 
