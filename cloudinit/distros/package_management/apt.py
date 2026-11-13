@@ -93,7 +93,8 @@ class Apt(PackageManager):
     ) -> None:
         super().__init__(runner)
         if apt_get_command is None:
-            self.apt_get_command = APT_GET_COMMAND
+            apt_get_command = APT_GET_COMMAND
+        self.apt_get_command = apt_get_command
         if apt_get_upgrade_subcommand is None:
             apt_get_upgrade_subcommand = "dist-upgrade"
         self.apt_command = tuple(apt_get_wrapper_command) + tuple(
