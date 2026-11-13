@@ -70,8 +70,7 @@ METADATA_CLOUD_NAME_KEY = "cloud-name"
 
 # UNSET is internal-only to indicate that the _network_config has been
 # invalidated and requires recrawl or recompute instead of returning the
-# cached value. It must never be returned to callers of
-# DataSource.network_config.
+# cached value.
 UNSET: Any = "_unset"
 METADATA_UNKNOWN = "unknown"
 
