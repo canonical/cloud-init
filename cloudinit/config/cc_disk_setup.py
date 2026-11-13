@@ -1147,11 +1147,43 @@ def exec_mkpart_gpt(device, layout):
     read_parttbl(device)
 
 
-def assert_and_settle_device(device):
-    """Assert that device exists and settle so it is fully recognized."""
+def get_device_timeout(definition, device):
+    """Return the seconds a disk_setup or fs_setup entry waits for its device.
+
+    Invalid values are ignored with a warning, which keeps the old behaviour
+    of not waiting at all.
+    """
+    timeout = definition.get("timeout", 0)
+    if (
+        isinstance(timeout, bool)
+        or not isinstance(timeout, (int, float))
+        or timeout < 0
+    ):
+        LOG.warning(
+            "Ignoring invalid timeout %r for %s, not waiting for the device",
+            timeout,
+            device,
+        )
+        return 0
+    return timeout
+
+
+def assert_and_settle_device(device, timeout=0):
+    """Assert that device exists and settle so it is fully recognized.
+
+    If the device is missing, wait up to timeout seconds for it to appear.
+    This covers disks that are attached while cloud-init is already running.
+    """
     if not os.path.exists(device):
         util.udevadm_settle()
+        if not os.path.exists(device) and timeout:
+            util.wait_for_files([device], timeout, log_pre="disk_setup: ")
         if not os.path.exists(device):
+            if timeout:
+                raise RuntimeError(
+                    "Device %s did not appear within %s seconds."
+                    % (device, timeout)
+                )
             raise RuntimeError(
                 "Device %s did not exist and was not created "
                 "with a udevadm settle." % device
@@ -1176,9 +1208,10 @@ def mkpart(device, definition):
                 layout: the layout of the partition table
                 table_type: Which partition table to use, defaults to MBR
                 device: the device to work on.
+                timeout: seconds to wait for the device to appear, default 0
     """
     # ensure that we get a real device rather than a symbolic link
-    assert_and_settle_device(device)
+    assert_and_settle_device(device, get_device_timeout(definition, device))
     device = os.path.realpath(device)
 
     LOG.debug("Checking values for %s definition", device)
@@ -1276,6 +1309,8 @@ def mkfs(fs_cfg):
                             on the device.
 
             When 'cmd' is provided then no other parameter is required.
+
+            timeout: seconds to wait for the device to appear, default 0
     """
     label = fs_cfg.get("label")
     device = fs_cfg.get("device")
@@ -1287,7 +1322,7 @@ def mkfs(fs_cfg):
     overwrite = fs_cfg.get("overwrite", False)
 
     # ensure that we get a real device rather than a symbolic link
-    assert_and_settle_device(device)
+    assert_and_settle_device(device, get_device_timeout(fs_cfg, device))
     device = os.path.realpath(device)
 
     # This allows you to define the default ephemeral or swap

@@ -337,6 +337,94 @@ class TestMkfsCommandHandling:
             ["/sbin/mkswap", "-L", "swap", "-f", "/dev/xdb1"], shell=False
         )
 
+    def test_passes_timeout_to_device_check(
+        self, subp, m_device_type, m_find_device, m_assert_and_settle_device
+    ):
+        """mkfs waits for the device as long as the fs_setup entry asks."""
+        cc_disk_setup.mkfs(
+            {
+                "cmd": "mkfs -t %(filesystem)s %(device)s",
+                "filesystem": "ext4",
+                "device": "/dev/xdb1",
+                "timeout": 90,
+            }
+        )
+        m_assert_and_settle_device.assert_called_once_with("/dev/xdb1", 90)
+
+
+M_PATH = "cloudinit.config.cc_disk_setup."
+
+
+@mock.patch(M_PATH + "util.wait_for_files")
+@mock.patch(M_PATH + "util.udevadm_settle")
+@mock.patch(M_PATH + "os.path.exists")
+class TestAssertAndSettleDevice:
+    def test_existing_device_does_not_wait(self, m_exists, m_settle, m_wait):
+        m_exists.return_value = True
+        cc_disk_setup.assert_and_settle_device("/dev/vdb", timeout=30)
+        m_wait.assert_not_called()
+        m_settle.assert_called_once_with()
+
+    def test_missing_device_without_timeout_fails_after_settle(
+        self, m_exists, m_settle, m_wait
+    ):
+        m_exists.return_value = False
+        with pytest.raises(RuntimeError, match="with a udevadm settle"):
+            cc_disk_setup.assert_and_settle_device("/dev/vdb")
+        m_wait.assert_not_called()
+
+    def test_waits_for_a_device_that_appears_later(
+        self, m_exists, m_settle, m_wait
+    ):
+        # missing before and after the first settle, present after the wait
+        m_exists.side_effect = [False, False, True]
+        cc_disk_setup.assert_and_settle_device("/dev/vdb", timeout=30)
+        m_wait.assert_called_once_with(
+            ["/dev/vdb"], 30, log_pre="disk_setup: "
+        )
+        assert 2 == m_settle.call_count
+
+    def test_fails_when_the_device_never_appears(
+        self, m_exists, m_settle, m_wait
+    ):
+        m_exists.return_value = False
+        with pytest.raises(
+            RuntimeError, match="/dev/vdb did not appear within 30 seconds"
+        ):
+            cc_disk_setup.assert_and_settle_device("/dev/vdb", timeout=30)
+        m_wait.assert_called_once()
+
+
+class TestGetDeviceTimeout:
+    @pytest.mark.parametrize(
+        "definition, expected",
+        (
+            ({}, 0),
+            ({"timeout": 0}, 0),
+            ({"timeout": 30}, 30),
+            ({"timeout": 2.5}, 2.5),
+        ),
+    )
+    def test_valid(self, definition, expected, caplog):
+        assert expected == cc_disk_setup.get_device_timeout(
+            definition, "/dev/vdb"
+        )
+        assert "Ignoring invalid timeout" not in caplog.text
+
+    @pytest.mark.parametrize("timeout", ("60", -1, True, None))
+    def test_invalid_values_do_not_wait(self, timeout, caplog):
+        assert 0 == cc_disk_setup.get_device_timeout(
+            {"timeout": timeout}, "/dev/vdb"
+        )
+        assert "Ignoring invalid timeout" in caplog.text
+
+
+@mock.patch(M_PATH + "assert_and_settle_device")
+def test_mkpart_passes_timeout_to_device_check(m_assert_and_settle_device):
+    """mkpart waits for the device as long as the disk_setup entry asks."""
+    cc_disk_setup.mkpart("/dev/vdb", {"layout": False, "timeout": 45})
+    m_assert_and_settle_device.assert_called_once_with("/dev/vdb", 45)
+
 
 def _fs_setup_partition(partition):
     """Return a minimal fs_setup config using the given partition value."""
@@ -377,12 +465,35 @@ class TestDebugSchema:
             (_fs_setup_partition("auto"), None),
             (_fs_setup_partition("any"), None),
             (_fs_setup_partition("none"), None),
+            (
+                {
+                    "disk_setup": {
+                        "/dev/vdb": {"layout": True, "timeout": 120}
+                    },
+                    "fs_setup": [
+                        {
+                            "device": "/dev/vdb",
+                            "filesystem": "ext4",
+                            "timeout": 2.5,
+                        }
+                    ],
+                },
+                None,
+            ),
             # Invalid schemas
             ({"disk_setup": 1}, "disk_setup: 1 is not of type 'object'"),
             ({"fs_setup": 1}, "fs_setup: 1 is not of type 'array'"),
             (
                 {"device_aliases": 1},
                 "device_aliases: 1 is not of type 'object'",
+            ),
+            (
+                {"disk_setup": {"/dev/vdb": {"timeout": -1}}},
+                "timeout: -1 is less than the minimum of 0",
+            ),
+            (
+                {"fs_setup": [{"device": "/dev/vdb", "timeout": "60"}]},
+                "timeout: '60' is not of type 'number'",
             ),
             (
                 _fs_setup_partition("bogus"),
