@@ -4,9 +4,14 @@
 
 import os
 from pathlib import Path
+from unittest import mock
 
-from cloudinit import sources
+import pytest
+
+from cloudinit import helpers, sources
+from cloudinit.settings import PER_ALWAYS, PER_INSTANCE
 from tests.helpers import cloud_init_project_dir, get_top_level_dir
+from tests.unittests.util import FakeDataSource
 
 
 class MyDataSource(sources.DataSource):
@@ -64,3 +69,39 @@ class Testcloud_init_project_dir:
             == cloud_init_project_dir("test")
             == str(Path(self._get_top_level_dir_alt_implementation(), "test"))
         )
+
+
+class TestRunners:
+    @pytest.fixture
+    def runners(self, paths):
+        paths.datasource = FakeDataSource()
+        return helpers.Runners(paths)
+
+    def test_run_once_per_instance(self, runners):
+        functor = mock.Mock(return_value="result")
+        assert (True, "result") == runners.run(
+            "name", functor, [], PER_INSTANCE
+        )
+        assert (False, None) == runners.run("name", functor, [], PER_INSTANCE)
+        assert 1 == functor.call_count
+
+    def test_force_runs_again(self, runners):
+        functor = mock.Mock(return_value="result")
+        runners.run("name", functor, [], PER_INSTANCE)
+        assert (True, "result") == runners.run(
+            "name", functor, [], PER_INSTANCE, force=True
+        )
+        assert 2 == functor.call_count
+
+    def test_forced_run_is_recorded(self, runners):
+        """A later call without force is skipped after a forced run."""
+        functor = mock.Mock()
+        runners.run("name", functor, [], PER_INSTANCE, force=True)
+        assert (False, None) == runners.run("name", functor, [], PER_INSTANCE)
+        assert 1 == functor.call_count
+
+    def test_force_per_always(self, runners):
+        functor = mock.Mock()
+        runners.run("name", functor, [], PER_ALWAYS, force=True)
+        runners.run("name", functor, [], PER_ALWAYS, force=True)
+        assert 2 == functor.call_count
