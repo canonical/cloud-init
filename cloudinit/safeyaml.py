@@ -171,7 +171,11 @@ class _CustomSafeLoaderWithMarks(yaml.SafeLoader):
         mapping = super().construct_mapping(node, deep=deep)
         nested_path_prefix = self._get_nested_path_prefix(node)
         for key_node, value_node in node.value:
-            node_key_path = f"{nested_path_prefix}{key_node.value}"
+            # Use the parsed key (01 -> 1, true -> True) so the path matches
+            # what jsonschema reports in error paths
+            node_key_path = (
+                f"{nested_path_prefix}{self.construct_object(key_node)}"
+            )
             line_num = key_node.start_mark.line
             new_mark = SchemaPathMarks(
                 node_key_path, key_node.start_mark, value_node.end_mark
