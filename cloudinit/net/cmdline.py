@@ -17,6 +17,7 @@ from typing import Any, Dict
 
 from cloudinit import util
 from cloudinit.net import get_devicelist, read_sys_net_safe
+from cloudinit.sources import NetConfigV1
 
 _OPEN_ISCSI_INTERFACE_FILE = "/run/initramfs/open-iscsi.interface"
 
@@ -33,7 +34,7 @@ class InitramfsNetworkConfigSource(metaclass=abc.ABCMeta):
         """Is this initramfs config source applicable to the current system?"""
 
     @abc.abstractmethod
-    def render_config(self) -> dict:
+    def render_config(self) -> NetConfigV1:
         """Render a v1 network config from the initramfs configuration"""
 
 
@@ -87,7 +88,7 @@ class KlibcNetworkConfigSource(InitramfsNetworkConfigSource):
                 return True
         return False
 
-    def render_config(self) -> dict:
+    def render_config(self) -> NetConfigV1:
         return config_from_klibc_net_cfg(
             files=self._files,
             mac_addrs=self._mac_addrs,

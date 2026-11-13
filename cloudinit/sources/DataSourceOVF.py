@@ -17,6 +17,7 @@ import base64
 import logging
 import os
 import re
+from typing import Optional
 from xml.dom import minidom  # nosec B408
 
 import yaml
@@ -127,7 +128,7 @@ class DataSourceOVF(sources.DataSource):
         return self.cfg
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[sources.NetConfig]:
         return self._network_config
 
 

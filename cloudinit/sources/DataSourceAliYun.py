@@ -2,7 +2,7 @@
 
 import copy
 import logging
-from typing import List, Union
+from typing import Any, List, Optional, Union
 
 from cloudinit import dmi, sources
 from cloudinit import url_helper as uhelp
@@ -33,8 +33,8 @@ class DataSourceAliYun(sources.DataSource):
 
     # API token for accessing the metadata service
     _api_token = None
-    # Used to cache calculated network cfg v1
-    _network_config: Union[str, dict] = sources.UNSET
+    # Cache for calculated network config; sources.UNSET until crawled
+    _network_config: Optional[Union[Any, sources.NetConfig]] = sources.UNSET
 
     # Whether we want to get network configuration from the metadata service.
     perform_dhcp_setup = False
@@ -87,12 +87,12 @@ class DataSourceAliYun(sources.DataSource):
         return self.imdsv2_token_put_header + "-ttl-seconds"
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[sources.NetConfig]:
         """Return a network config dict for rendering ENI or netplan files."""
         if self._network_config != sources.UNSET:
             return self._network_config
 
-        result = {}
+        result: Optional[sources.NetConfig] = None
         iface = self.distro.fallback_interface
         net_md = self.metadata.get("network")
         if isinstance(net_md, dict):
