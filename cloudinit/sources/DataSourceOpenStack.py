@@ -6,6 +6,7 @@
 
 import logging
 import time
+from typing import Optional, Union
 
 from cloudinit import dmi, sources, url_helper, util
 from cloudinit.event import EventScope, EventType
@@ -42,10 +43,11 @@ VALID_DMI_ASSET_TAGS += [
 
 
 class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
-
     dsname = "OpenStack"
 
-    _network_config = sources.UNSET  # Used to cache calculated network cfg v1
+    _network_config: Optional[Union[str, dict]] = (
+        sources.UNSET
+    )  # Used to cache calculated network cfg v1
 
     # Whether we want to get network configuration from the metadata service.
     perform_dhcp_setup = False
@@ -159,7 +161,6 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
 
         if self.perform_dhcp_setup:  # Setup networking in init-local stage.
             try:
-
                 with EphemeralDHCPv4(
                     self.distro, self.distro.fallback_interface
                 ):
