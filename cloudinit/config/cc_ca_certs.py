@@ -57,9 +57,11 @@ DISTRO_OVERRIDES: Dict[str, Dict[str, Any]] = {
 DISTRO_FAMILY = {
     "almalinux": "rhel",
     "amazon": "rhel",
+    "azurelinux": "rhel",
     "centos": "rhel",
     "cloudlinux": "rhel",
     "fedora": "rhel",
+    "mariner": "rhel",
     "opensuse-microos": "opensuse",
     "opensuse-tumbleweed": "opensuse",
     "opensuse-leap": "opensuse",
@@ -142,7 +144,13 @@ def disable_default_ca_certs(distro_name, distro_cfg):
     @param distro_name: String providing the distro class name.
     @param distro_cfg: A hash providing _distro_ca_certs_configs function.
     """
-    if distro_name in ["rhel", "photon", "amazon"]:
+    if distro_name in [
+        "amazon",
+        "azurelinux",
+        "mariner",
+        "photon",
+        "rhel",
+    ]:
         remove_default_ca_certs(distro_cfg)
     elif distro_name in [
         "alpine",
