@@ -5671,6 +5671,38 @@ class TestGetInterfacesByMac:
         }
         assert expected == result
 
+    def test_present_macs_match_interfaces_by_mac(self, mocks):
+        assert (
+            set(net.get_interfaces_by_mac()) == net.get_present_macs_on_linux()
+        )
+
+    def test_present_macs_ib(self, mocks):
+        ib_addr = "80:00:00:28:fe:80:00:00:00:00:00:00:00:11:22:03:00:33:44:56"
+        ib_addr_eth_format = "00:11:22:33:44:56"
+        self.data["devices"] = ["enp0s1", "ib0"]
+        self.data["own_macs"].append("ib0")
+        self.data["macs"]["ib0"] = ib_addr
+        self.data["ib_hwaddr"] = {
+            "ib0": {True: ib_addr_eth_format, False: ib_addr}
+        }
+        assert {
+            "aa:aa:aa:aa:aa:01",
+            ib_addr_eth_format,
+            ib_addr,
+        } == net.get_present_macs_on_linux()
+
+    def test_present_macs_allows_duplicate_macs(self, mocks):
+        """Duplicate macs are present, without picking an interface."""
+        self.data["devices"] = ["enp0s31f6", "enx24fbe325bccd"]
+        self.data["own_macs"] = self.data["devices"]
+        self.data["macs"]["enp0s31f6"] = "24:fb:e3:25:bc:cd"
+        self.data["macs"]["enx24fbe325bccd"] = "24:fb:e3:25:bc:cd"
+        self.data["drivers"]["enp0s31f6"] = "e1000e"
+        self.data["drivers"]["enx24fbe325bccd"] = "r8152"
+        with pytest.raises(RuntimeError, match="duplicate mac found!"):
+            net.get_interfaces_by_mac()
+        assert {"24:fb:e3:25:bc:cd"} == net.get_present_macs_on_linux()
+
 
 @pytest.mark.parametrize("driver", ("mscc_felix", "fsl_enetc", "qmi_wwan"))
 @mock.patch("cloudinit.net.get_sys_class_path")
