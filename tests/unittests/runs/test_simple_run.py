@@ -61,9 +61,9 @@ class TestSimpleRun:
             "config": [{"type": "physical", "name": "eth9"}],
         }
 
-        def fake_network_config(
-            ,
-        ) -> tuple[dict[str, Any], NetworkConfigSource]:
+        def fake_network_config() -> (
+            tuple[dict[str, Any], NetworkConfigSource]
+        ):
             return netcfg, NetworkConfigSource.FALLBACK
 
         assert not os.path.exists("/var/lib/cloud")
@@ -179,8 +179,7 @@ class TestSimpleRun:
     def test_none_ds_forces_run_via_unverified_modules(
         self,
         caplog: LogCaptureFixture,
-        cfg: dict[str,
-        Any],
+        cfg: dict[str, Any],
     ) -> None:
         """run_section forced skipped modules by using unverified_modules."""
 
@@ -212,8 +211,7 @@ class TestSimpleRun:
 
     def test_none_ds_run_with_no_config_modules(
         self,
-        cfg: dict[str,
-        Any],
+        cfg: dict[str, Any],
     ) -> None:
         """run_section will report no modules run when none are configured."""
 
