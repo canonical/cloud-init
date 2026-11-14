@@ -806,6 +806,67 @@ class TestInterfaceHasOwnMAC:
             net.interface_has_own_mac("eth1", strict=True)
 
 
+class TestStolenMacPassthrough:
+    """Physical NICs whose mac was assigned by the platform (GH-6110).
+
+    r8152 docks doing MAC address passthrough report NET_ADDR_STOLEN, which
+    used to make cloud-init filter out the only working NIC and abort
+    init-local with "Not all expected physical devices present".
+    """
+
+    @pytest.fixture(autouse=True)
+    def fixtures(self, mocker, tmp_path):
+        self.sysdir = str(tmp_path) + "/"
+        mocker.patch(
+            "cloudinit.net.get_sys_class_path", return_value=self.sysdir
+        )
+
+    def _write_nic(self, name, mac, assign_type, physical=True):
+        write_file(os.path.join(self.sysdir, name, "address"), mac)
+        write_file(
+            os.path.join(self.sysdir, name, "addr_assign_type"), assign_type
+        )
+        if physical:
+            ensure_file(os.path.join(self.sysdir, name, "device", "uevent"))
+
+    def test_physical_nic_with_stolen_mac_is_enumerated(self):
+        """A hardware NIC keeps its inherited mac and stays configurable."""
+        mac = "28:00:af:0a:b4:8e"
+        self._write_nic("eth0", mac, "2")
+        assert [("eth0", mac, None, None)] == net.get_interfaces()
+        assert {mac: "eth0"} == net.get_interfaces_by_mac()
+
+    def test_virtual_device_with_inherited_mac_is_still_ignored(self):
+        """Virtual devices keep being filtered, as before this change."""
+        self._write_nic("mv0", "aa:bb:cc:aa:bb:cc", "2", physical=False)
+        assert [] == net.get_interfaces()
+
+    @pytest.mark.parametrize("order", [("eth0", "eth1"), ("eth1", "eth0")])
+    def test_duplicate_mac_prefers_the_interface_that_owns_it(self, order):
+        """A colliding owned mac wins over an inherited one, in any order."""
+        mac = "28:00:af:0a:b4:8e"
+        assign_types = {"eth0": "0", "eth1": "2"}
+        for name in order:
+            self._write_nic(name, mac, assign_types[name])
+        assert ["eth0", "eth1"] == sorted(i[0] for i in net.get_interfaces())
+        assert {mac: "eth0"} == net.get_interfaces_by_mac()
+
+    def test_two_docks_with_the_same_passthrough_mac_do_not_fail(self):
+        """Firmware may pass one mac to several docks; boot must continue."""
+        mac = "28:00:af:0a:b4:8e"
+        for name in ("eth0", "eth1"):
+            self._write_nic(name, mac, "2")
+        assert mac in net.get_interfaces_by_mac()
+
+    def test_duplicate_owned_macs_still_raise(self):
+        """Genuine duplicate macs are still reported as an error."""
+        mac = "aa:bb:cc:aa:bb:cc"
+        for name in ("eth0", "eth1"):
+            self._write_nic(name, mac, "0")
+        with pytest.raises(RuntimeError, match="duplicate mac found"):
+            net.get_interfaces_by_mac()
+
+
 @mock.patch("cloudinit.net.subp.subp")
 @pytest.mark.usefixtures("disable_netdev_info")
 class TestEphemeralIPV4Network:
