@@ -17,11 +17,23 @@ import base64
 import logging
 import os
 import re
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+)
 from xml.dom import minidom  # nosec B408
 
 import yaml
 
-from cloudinit import sources, subp, util
+from cloudinit import helpers, sources, subp, util
+from cloudinit.distros import Distro
 
 LOG = logging.getLogger(__name__)
 
@@ -29,24 +41,30 @@ LOG = logging.getLogger(__name__)
 class DataSourceOVF(sources.DataSource):
     dsname = "OVF"
 
-    def __init__(self, sys_cfg, distro, paths):
+    def __init__(
+        self,
+        sys_cfg: Dict[str, Any],
+        distro: Distro,
+        paths: helpers.Paths,
+    ) -> None:
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
-        self.seed = None
+        self.seed: Optional[str] = None
         self.seed_dir = os.path.join(paths.seed_dir, "ovf")
-        self.environment = None
-        self.cfg = {}
-        self.supported_seed_starts = ("/", "file://")
-        self._network_config = None
+        self.environment: Optional[str] = None
+        self.cfg: Dict[str, Any] = {}
+        self.supported_seed_starts: Tuple[str, ...] = ("/", "file://")
+        self._network_config: Optional[Dict[str, Any]] = None
 
-    def __str__(self):
+    def __str__(self) -> str:
         root = sources.DataSource.__str__(self)
         return "%s [seed=%s]" % (root, self.seed)
 
-    def _get_data(self):
-        found = []
-        md = {}
-        ud = ""
-        vd = ""
+    def _get_data(self) -> bool:
+        found: List[str] = []
+        md: Dict[str, Any] = {}
+        ud: Optional[Union[str, bytes]] = ""
+        vd: Union[str, bytes] = ""
+        cfg: Dict[str, Any] = {}
 
         defaults = {
             "instance-id": "iid-dsovf",
@@ -54,25 +72,25 @@ class DataSourceOVF(sources.DataSource):
 
         seedfile, contents = get_ovf_env(self.paths.seed_dir)
 
-        if seedfile:
+        if seedfile and isinstance(contents, str):
             # Found a seed dir
             seed = os.path.join(self.paths.seed_dir, seedfile)
             md, ud, cfg = read_ovf_environment(contents)
             self.environment = contents
             found.append(seed)
         else:
-            np = [
+            np: List[Tuple[str, Callable[[], Optional[str]]]] = [
                 ("com.vmware.guestInfo", transport_vmware_guestinfo),
                 ("iso", transport_iso9660),
             ]
-            name = None
+            transport_contents: Optional[str] = None
             for name, transfunc in np:
-                contents = transfunc()
-                if contents:
+                transport_contents = transfunc()
+                if transport_contents:
                     break
-            if contents:
-                md, ud, cfg = read_ovf_environment(contents, True)
-                self.environment = contents
+            if transport_contents:
+                md, ud, cfg = read_ovf_environment(transport_contents, True)
+                self.environment = transport_contents
                 if "network-config" in md and md["network-config"]:
                     self._network_config = md["network-config"]
                 found.append(name)
@@ -83,7 +101,7 @@ class DataSourceOVF(sources.DataSource):
 
         if "seedfrom" in md and md["seedfrom"]:
             seedfrom = md["seedfrom"]
-            seedfound = False
+            seedfound: Optional[str] = None
             for proto in self.supported_seed_starts:
                 if seedfrom.startswith(proto):
                     seedfound = proto
@@ -108,10 +126,10 @@ class DataSourceOVF(sources.DataSource):
         self.cfg = cfg
         return True
 
-    def _get_subplatform(self):
+    def _get_subplatform(self) -> str:
         return "ovf (%s)" % self.seed
 
-    def get_public_ssh_keys(self):
+    def get_public_ssh_keys(self) -> List[str]:
         if "public-keys" not in self.metadata:
             return []
         pks = self.metadata["public-keys"]
@@ -123,16 +141,21 @@ class DataSourceOVF(sources.DataSource):
     # The data sources' config_obj is a cloud-config formatted
     # object that came to it from ways other than cloud-config
     # because cloud-config content would be handled elsewhere
-    def get_config_obj(self):
+    def get_config_obj(self) -> Dict[str, Any]:
         return self.cfg
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[Dict[str, Any]]:
         return self._network_config
 
 
 class DataSourceOVFNet(DataSourceOVF):
-    def __init__(self, sys_cfg, distro, paths):
+    def __init__(
+        self,
+        sys_cfg: Dict[str, Any],
+        distro: Distro,
+        paths: helpers.Paths,
+    ) -> None:
         DataSourceOVF.__init__(self, sys_cfg, distro, paths)
         self.seed_dir = os.path.join(paths.seed_dir, "ovf-net")
         self.supported_seed_starts = ("http://", "https://")
@@ -140,11 +163,13 @@ class DataSourceOVFNet(DataSourceOVF):
 
 # This will return a dict with some content
 #  meta-data, user-data, some config
-def read_ovf_environment(contents, read_network=False):
+def read_ovf_environment(
+    contents: str, read_network: bool = False
+) -> Tuple[Dict[str, Any], Optional[bytes], Dict[str, Any]]:
     props = get_properties(contents)
-    md = {}
-    cfg = {}
-    ud = None
+    md: Dict[str, Any] = {}
+    cfg: Dict[str, Any] = {}
+    ud: Optional[bytes] = None
     cfg_props = ["password"]
     md_props = ["seedfrom", "local-hostname", "public-keys", "instance-id"]
     network_props = ["network-config"]
@@ -171,7 +196,9 @@ def read_ovf_environment(contents, read_network=False):
 
 # Returns tuple of filename (in 'dirname', and the contents of the file)
 # on "not found", returns 'None' for filename and False for contents
-def get_ovf_env(dirname):
+def get_ovf_env(
+    dirname: str,
+) -> Tuple[Optional[str], Union[Literal[False], str, None]]:
     env_names = ("ovf-env.xml", "ovf_env.xml", "OVF_ENV.XML", "OVF-ENV.XML")
     for fname in env_names:
         full_fn = os.path.join(dirname, fname)
@@ -184,7 +211,7 @@ def get_ovf_env(dirname):
     return (None, False)
 
 
-def maybe_cdrom_device(devname):
+def maybe_cdrom_device(devname: object) -> bool:
     """Test if devname matches known list of devices which may contain iso9660
        filesystems.
 
@@ -225,7 +252,7 @@ def maybe_cdrom_device(devname):
 
 # Transport functions are called with no arguments and return
 # either None (indicating not present) or string content of an ovf-env.xml
-def transport_iso9660(require_iso=True):
+def transport_iso9660(require_iso: bool = True) -> Optional[str]:
     # Go through mounts to see if it was already mounted
     mounts = util.mounts()
     for dev, info in mounts.items():
@@ -263,20 +290,23 @@ def transport_iso9660(require_iso=True):
     return None
 
 
-def exec_vmware_rpctool(rpctool, arg):
+def exec_vmware_rpctool(rpctool: str, arg: str) -> Tuple[List[str], str, str]:
     cmd = [rpctool, arg]
     stdout, stderr = subp.subp(cmd)
     return (cmd, stdout, stderr)
 
 
-def exec_vmtoolsd(rpctool, arg):
+def exec_vmtoolsd(rpctool: str, arg: str) -> Tuple[List[str], str, str]:
     cmd = [rpctool, "--cmd", arg]
     stdout, stderr = subp.subp(cmd)
     return (cmd, stdout, stderr)
 
 
-def transport_vmware_guestinfo():
-    rpctool, rpctool_fn = None, None
+def transport_vmware_guestinfo() -> Optional[str]:
+    rpctool: Optional[str] = None
+    rpctool_fn: Optional[Callable[[str, str], Tuple[List[str], str, str]]] = (
+        None
+    )
     vmtoolsd = subp.which("vmtoolsd")
     vmware_rpctool = subp.which("vmware-rpctool")
 
@@ -294,11 +324,14 @@ def transport_vmware_guestinfo():
 
     # If neither vmware-rpctool nor vmtoolsd are available, then nothing can
     # be done.
-    if not rpctool:
+    if not rpctool or not rpctool_fn:
         LOG.debug("no rpctool discovered")
         return None
 
-    def query_guestinfo(rpctool, rpctool_fn):
+    def query_guestinfo(
+        rpctool: str,
+        rpctool_fn: Callable[[str, str], Tuple[List[str], str, str]],
+    ) -> Optional[str]:
         LOG.info("query guestinfo.ovfEnv with %s", rpctool)
         try:
             cmd, stdout, _ = rpctool_fn(rpctool, "info-get guestinfo.ovfEnv")
@@ -346,8 +379,10 @@ def transport_vmware_guestinfo():
     return None
 
 
-def find_child(node, filter_func):
-    ret = []
+def find_child(
+    node: minidom.Node, filter_func: Callable[[minidom.Node], bool]
+) -> List[minidom.Node]:
+    ret: List[minidom.Node] = []
     if not node.hasChildNodes():
         return ret
     for child in node.childNodes:
@@ -356,12 +391,13 @@ def find_child(node, filter_func):
     return ret
 
 
-def get_properties(contents):
+def get_properties(contents: str) -> Dict[str, str]:
     dom = minidom.parseString(contents)  # nosec B318
-    if dom.documentElement.localName != "Environment":
+    document_element = dom.documentElement
+    if document_element is None or document_element.localName != "Environment":
         raise XmlError("No Environment Node")
 
-    if not dom.documentElement.hasChildNodes():
+    if not document_element.hasChildNodes():
         raise XmlError("No Child Nodes")
 
     envNsURI = "http://schemas.dmtf.org/ovf/environment/1"
@@ -369,7 +405,7 @@ def get_properties(contents):
     # could also check here that elem.namespaceURI ==
     #   "http://schemas.dmtf.org/ovf/environment/1"
     propSections = find_child(
-        dom.documentElement, lambda n: n.localName == "PropertySection"
+        document_element, lambda n: n.localName == "PropertySection"
     )
 
     if not propSections:
@@ -381,9 +417,14 @@ def get_properties(contents):
     )
 
     for elem in propElems:
-        key = elem.attributes.getNamedItemNS(envNsURI, "key").value
-        val = elem.attributes.getNamedItemNS(envNsURI, "value").value
-        props[key] = val
+        attributes = elem.attributes
+        if attributes is None:
+            raise XmlError("Property element has no attributes")
+        key_attr = attributes.getNamedItemNS(envNsURI, "key")
+        val_attr = attributes.getNamedItemNS(envNsURI, "value")
+        if key_attr is None or val_attr is None:
+            raise XmlError("Property element missing key or value")
+        props[key_attr.value] = val_attr.value
 
     return props
 
@@ -400,11 +441,13 @@ datasources = (
 
 
 # Return a list of data sources that match this set of dependencies
-def get_datasource_list(depends):
+def get_datasource_list(depends: List[str]) -> List[Type[sources.DataSource]]:
     return sources.list_from_depends(depends, datasources)
 
 
-def safeload_yaml_or_dict(data):
+def safeload_yaml_or_dict(
+    data: Optional[Union[str, bytes]],
+) -> Dict[str, Any]:
     """
     The meta data could be JSON or YAML. Since YAML is a strict superset of
     JSON, we will unmarshal the data as YAML. If data is None then a new
