@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 from _pytest.logging import LogCaptureFixture
+from pytest_mock import MockerFixture
 
 from cloudinit import atomic_helper, safeyaml, stages, util
 from cloudinit.config.modules import Modules
@@ -53,7 +54,9 @@ def cfg(mocker: Any, tmp_path: Path) -> dict[str, Any]:
 
 @pytest.mark.usefixtures("fake_filesystem")
 class TestSimpleRun:
-    def test_none_ds_populates_var_lib_cloud(self) -> None:
+    def test_none_ds_populates_var_lib_cloud(
+        self, mocker: MockerFixture
+    ) -> None:
         """Init and run_section default behavior creates appropriate dirs."""
         # Now start verifying whats created
         netcfg = {
@@ -80,7 +83,9 @@ class TestSimpleRun:
         assert iid == "iid-datasource-none"
         initer.update()
         assert os.path.islink("var/lib/cloud/instance")
-        initer._find_networking_config = fake_network_config
+        mocker.patch.object(
+            initer, "_find_networking_config", fake_network_config
+        )
         assert not os.path.exists(
             "/var/lib/cloud/instance/network-config.json"
         )
