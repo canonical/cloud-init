@@ -224,6 +224,15 @@ class PackageInstallerError(Exception):
     pass
 
 
+class DefaultCACertsAction(Enum):
+    """Distro-specific handling of the ca_certs remove_defaults option."""
+
+    DISABLE = "disable"
+    DISABLE_WITH_DEBCONF = "disable_with_debconf"
+    NOOP = "noop"
+    REMOVE = "remove"
+
+
 class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     pip_package_name = "python3-pip"
     usr_lib_exec = "/usr/lib"
@@ -237,6 +246,14 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     shadow_empty_locked_passwd_patterns = ["^{username}::", "^{username}:!:"]
     tz_zone_dir = "/usr/share/zoneinfo"
     default_owner = "root:root"
+
+    ca_cert_config: Optional[str] = "/etc/ca-certificates.conf"
+    ca_cert_filename = "cloud-init-ca-cert-{cert_index}.crt"
+    ca_cert_local_path = "/usr/local/share/ca-certificates/"
+    ca_cert_path: Optional[str] = None
+    ca_cert_remove_defaults_action = DefaultCACertsAction.NOOP
+    ca_cert_update_cmd: List[str] = ["update-ca-certificates"]
+
     init_cmd: List[str] = ["service"]  # systemctl, service etc
     renderer_configs: Mapping[str, MutableMapping[str, Any]] = {}
     _preferred_ntp_clients = None
@@ -751,6 +768,20 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             self._preferred_ntp_clients = list(PREFERRED_NTP_CLIENTS)
 
         return self._preferred_ntp_clients
+
+    @classmethod
+    def get_ca_certs_config(cls) -> Dict[str, Any]:
+        """Return independent CA trust-store settings for this distro."""
+        return {
+            "ca_cert_config": cls.ca_cert_config,
+            "ca_cert_filename": cls.ca_cert_filename,
+            "ca_cert_full_path": os.path.join(
+                cls.ca_cert_local_path, cls.ca_cert_filename
+            ),
+            "ca_cert_local_path": cls.ca_cert_local_path,
+            "ca_cert_path": cls.ca_cert_path,
+            "ca_cert_update_cmd": list(cls.ca_cert_update_cmd),
+        }
 
     def get_default_user(self):
         return self.get_option("default_user")

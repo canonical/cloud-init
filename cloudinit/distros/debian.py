@@ -36,6 +36,10 @@ SUPPORTED_FN = "/usr/share/i18n/SUPPORTED"
 
 
 class Distro(distros.Distro):
+    ca_cert_remove_defaults_action = (
+        distros.DefaultCACertsAction.DISABLE_WITH_DEBCONF
+    )
+
     hostname_conf_fn = "/etc/hostname"
     network_conf_fn = {
         "eni": "/etc/network/interfaces.d/50-cloud-init",
