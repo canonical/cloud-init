@@ -857,6 +857,20 @@ class _Annotator:
         body = "\n".join(content)
         return f"# {title}: -------------\n{body}\n\n"
 
+    def _get_line_for_path(self, path: str) -> int:
+        """Return the line number to annotate for a schema problem path.
+
+        Some paths have no schemamark, such as the root path "" when several
+        top-level keys are unexpected, or paths reached through a YAML alias.
+        Fall back to the nearest parent path with a mark, or to the first
+        line for the document root.
+        """
+        while path:
+            if path in self._schemamarks:
+                return self._schemamarks[path]
+            path = path.rpartition(".")[0]
+        return 1
+
     def _build_errors_by_line(self, schema_problems: SchemaProblems):
         errors_by_line: DefaultDict[Union[str, int], List] = defaultdict(list)
         for path, msg in schema_problems:
@@ -866,7 +880,7 @@ class _Annotator:
                 errors_by_line[int(line)].append(msg)
             else:
                 col = None
-                errors_by_line[self._schemamarks[path]].append(msg)
+                errors_by_line[self._get_line_for_path(path)].append(msg)
             if col is not None:
                 msg = "Line {line} column {col}: {msg}".format(
                     line=line, col=col, msg=msg
