@@ -94,7 +94,6 @@ module = [
     "tests.unittests.net.test_init",
     "tests.unittests.net.test_networkd",
     "tests.unittests.runs.test_merge_run",
-    "tests.unittests.runs.test_simple_run",
     "tests.unittests.sources.azure.test_errors",
     "tests.unittests.sources.azure.test_imds",
     "tests.unittests.sources.helpers.test_openstack",

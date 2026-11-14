@@ -2,8 +2,12 @@
 
 import copy
 import os
+from pathlib import Path
+from typing import Any
 
 import pytest
+from _pytest.logging import LogCaptureFixture
+from pytest_mock import MockerFixture
 
 from cloudinit import atomic_helper, safeyaml, stages, util
 from cloudinit.config.modules import Modules
@@ -13,12 +17,12 @@ from tests.unittests.helpers import replicate_test_root
 
 
 @pytest.fixture(autouse=True)
-def replicate_root(tmp_path):
+def replicate_root(tmp_path: Path) -> None:
     replicate_test_root("simple_ubuntu", str(tmp_path))
 
 
 @pytest.fixture(autouse=True)
-def cfg(mocker, tmp_path):
+def cfg(mocker: Any, tmp_path: Path) -> dict[str, Any]:
     # root group doesn't exist everywhere
     mocker.patch("cloudinit.util.chownbyname")
 
@@ -50,7 +54,9 @@ def cfg(mocker, tmp_path):
 
 @pytest.mark.usefixtures("fake_filesystem")
 class TestSimpleRun:
-    def test_none_ds_populates_var_lib_cloud(self):
+    def test_none_ds_populates_var_lib_cloud(
+        self, mocker: MockerFixture
+    ) -> None:
         """Init and run_section default behavior creates appropriate dirs."""
         # Now start verifying whats created
         netcfg = {
@@ -58,7 +64,9 @@ class TestSimpleRun:
             "config": [{"type": "physical", "name": "eth9"}],
         }
 
-        def fake_network_config():
+        def fake_network_config() -> (
+            tuple[dict[str, Any], NetworkConfigSource]
+        ):
             return netcfg, NetworkConfigSource.FALLBACK
 
         assert not os.path.exists("/var/lib/cloud")
@@ -75,7 +83,9 @@ class TestSimpleRun:
         assert iid == "iid-datasource-none"
         initer.update()
         assert os.path.islink("var/lib/cloud/instance")
-        initer._find_networking_config = fake_network_config
+        mocker.patch.object(
+            initer, "_find_networking_config", fake_network_config
+        )
         assert not os.path.exists(
             "/var/lib/cloud/instance/network-config.json"
         )
@@ -84,7 +94,10 @@ class TestSimpleRun:
             "/var/lib/cloud/instance/network-config.json"
         )
 
-    def test_none_ds_runs_modules_which_do_not_define_distros(self, caplog):
+    def test_none_ds_runs_modules_which_do_not_define_distros(
+        self,
+        caplog: LogCaptureFixture,
+    ) -> None:
         """Any modules which do not define a distros attribute are run."""
         initer = stages.Init()
         initer.read_cfg()
@@ -112,8 +125,8 @@ class TestSimpleRun:
         )
 
     def test_none_ds_skips_modules_which_define_unmatched_distros(
-        self, caplog
-    ):
+        self, caplog: LogCaptureFixture
+    ) -> None:
         """Skip modules which define distros which don't match the current."""
         initer = stages.Init()
         initer.read_cfg()
@@ -137,7 +150,10 @@ class TestSimpleRun:
         )
         assert "spacewalk" not in which_ran
 
-    def test_none_ds_runs_modules_which_distros_all(self, caplog):
+    def test_none_ds_runs_modules_which_distros_all(
+        self,
+        caplog: LogCaptureFixture,
+    ) -> None:
         """Skip modules which define distros attribute as supporting 'all'.
 
         This is done in the module with the declaration:
@@ -165,7 +181,11 @@ class TestSimpleRun:
             " distro 'ubuntu'" not in caplog.text
         )
 
-    def test_none_ds_forces_run_via_unverified_modules(self, caplog, cfg):
+    def test_none_ds_forces_run_via_unverified_modules(
+        self,
+        caplog: LogCaptureFixture,
+        cfg: dict[str, Any],
+    ) -> None:
         """run_section forced skipped modules by using unverified_modules."""
 
         # re-write cloud.cfg with unverified_modules override
@@ -194,7 +214,10 @@ class TestSimpleRun:
         assert "spacewalk" in which_ran
         assert "running unverified_modules: 'spacewalk'" in caplog.text
 
-    def test_none_ds_run_with_no_config_modules(self, cfg):
+    def test_none_ds_run_with_no_config_modules(
+        self,
+        cfg: dict[str, Any],
+    ) -> None:
         """run_section will report no modules run when none are configured."""
 
         # re-write cloud.cfg with unverified_modules override
