@@ -174,6 +174,64 @@ class TestModules:
         assert [mock.call([module_details])] == m_run_modules.call_args_list
         assert "Skipping" not in caplog.text
 
+    def test_active_modules(self, caplog, mocker):
+        mods = Modules(
+            init=mock.Mock(), cfg_files=mock.Mock(), reporter=mock.Mock()
+        )
+        mods.init.distro.name = "ubuntu"
+        mods._cached_cfg = {
+            "a_config_key": {},
+            "unverified_modules": ["suse_forced"],
+        }
+
+        def details(name, distros, activate_by_schema_keys=None):
+            module = mock.Mock()
+            module.meta = MetaSchema(
+                name=name,
+                id=f"cc_{name}",
+                title="title",
+                description="description",
+                distros=distros,
+                examples=[],
+                frequency="always",
+            )
+            if activate_by_schema_keys is not None:
+                module.meta["activate_by_schema_keys"] = (
+                    activate_by_schema_keys
+                )
+            return ModuleDetails(
+                module=module,
+                name=name,
+                frequency="always",
+                run_args=[],
+            )
+
+        mostly_mods = [
+            details("always_runs", [ALL_DISTROS]),
+            details("needs_config", [ALL_DISTROS], ["missing_config_key"]),
+            details("needs_config_present", [ALL_DISTROS], ["a_config_key"]),
+            details("rhel_only", ["rhel"]),
+            details("suse_forced", ["suse"]),
+        ]
+        mocker.patch.object(mods, "_fixup_modules", return_value=mostly_mods)
+
+        active_mods = mods.active_modules("not_matter")
+
+        assert [
+            "always_runs",
+            "needs_config_present",
+            "suse_forced",
+        ] == [m.name for m in active_mods]
+        assert (
+            "Skipping modules 'needs_config' because no applicable config is"
+            " provided." in caplog.text
+        )
+        assert (
+            "Skipping modules 'rhel_only' because they are not verified on"
+            " distro 'ubuntu'." in caplog.text
+        )
+        assert "running unverified_modules: 'suse_forced'" in caplog.text
+
     @mock.patch(M_PATH + "signature")
     @mock.patch("cloudinit.config.modules.ReportEventStack")
     def test_old_handle(self, event, m_signature, caplog):
