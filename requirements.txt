@@ -24,3 +24,6 @@ jsonpatch
 
 # For validating cloud-config sections per schema definitions
 jsonschema
+
+# For resolving schema references dynamically with jsonschema validators
+referencing
