@@ -12,7 +12,18 @@ import zlib
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from time import sleep, time
-from typing import Callable, List, Optional, TypeVar, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Literal,
+    Optional,
+    TypeVar,
+    Union,
+    overload,
+)
 from xml.etree import ElementTree as ET  # nosec B405
 from xml.sax.saxutils import escape  # nosec B406
 
@@ -39,7 +50,7 @@ T = TypeVar("T")
 
 
 def azure_ds_telemetry_reporter(func: Callable[..., T]) -> Callable[..., T]:
-    def impl(*args, **kwargs):
+    def impl(*args: Any, **kwargs: Any) -> T:
         with events.ReportEventStack(
             name=func.__name__,
             description=func.__name__,
@@ -51,7 +62,7 @@ def azure_ds_telemetry_reporter(func: Callable[..., T]) -> Callable[..., T]:
 
 
 @azure_ds_telemetry_reporter
-def get_boot_telemetry():
+def get_boot_telemetry() -> events.ReportingEvent:
     """Report timestamps related to kernel initialization and systemd
     activation of cloud-init"""
     if not distros.uses_systemd():
@@ -137,7 +148,7 @@ def get_boot_telemetry():
 
 
 @azure_ds_telemetry_reporter
-def get_system_info():
+def get_system_info() -> events.ReportingEvent:
     """Collect and report system information"""
     info = util.system_info()
     evt = events.ReportingEvent(
@@ -164,7 +175,7 @@ def get_system_info():
 
 
 def report_diagnostic_event(
-    msg: str, *, logger_func=None
+    msg: str, *, logger_func: Optional[Callable[[str], None]] = None
 ) -> events.ReportingEvent:
     """Report a diagnostic event"""
     if callable(logger_func):
@@ -181,7 +192,9 @@ def report_diagnostic_event(
     return evt
 
 
-def report_compressed_event(event_name, event_content):
+def report_compressed_event(
+    event_name: str, event_content: bytes
+) -> events.ReportingEvent:
     """Report a compressed event"""
     compressed_data = base64.encodebytes(zlib.compress(event_content))
     event_data = {
@@ -203,7 +216,7 @@ def report_compressed_event(event_name, event_content):
 
 
 @azure_ds_telemetry_reporter
-def report_dmesg_to_kvp():
+def report_dmesg_to_kvp() -> None:
     """Report dmesg to KVP."""
     LOG.debug("Dumping dmesg log to KVP")
     try:
@@ -217,7 +230,7 @@ def report_dmesg_to_kvp():
 
 
 @contextmanager
-def cd(newdir):
+def cd(newdir: str) -> Iterator[None]:
     prevdir = os.getcwd()
     os.chdir(os.path.expanduser(newdir))
     try:
@@ -333,13 +346,14 @@ class AzureEndpointHttpClient:
         "x-ms-version": "2012-11-30",
     }
 
-    def __init__(self, certificate):
+    def __init__(self, certificate: Optional[str]) -> None:
         self.extra_secure_headers = {
             "x-ms-cipher-name": "DES_EDE3_CBC",
-            "x-ms-guest-agent-public-x509-cert": certificate,
+            # Only used for secure requests, which require a certificate.
+            "x-ms-guest-agent-public-x509-cert": certificate or "",
         }
 
-    def get(self, url, secure=False) -> url_helper.UrlResponse:
+    def get(self, url: str, secure: bool = False) -> url_helper.UrlResponse:
         headers = self.headers
         if secure:
             headers = self.headers.copy()
@@ -347,7 +361,10 @@ class AzureEndpointHttpClient:
         return http_with_retries(url, headers=headers)
 
     def post(
-        self, url, data: Optional[bytes] = None, extra_headers=None
+        self,
+        url: str,
+        data: Optional[bytes] = None,
+        extra_headers: Optional[Dict[str, str]] = None,
     ) -> url_helper.UrlResponse:
         headers = self.headers
         if extra_headers is not None:
@@ -385,17 +402,16 @@ class GoalState:
             )
             raise
 
-        self.container_id = self._text_from_xpath("./Container/ContainerId")
-        self.instance_id = self._text_from_xpath(
-            "./Container/RoleInstanceList/RoleInstance/InstanceId"
+        self.container_id = self._required_text_from_xpath(
+            "./Container/ContainerId", "container_id"
         )
-        self.incarnation = self._text_from_xpath("./Incarnation")
-
-        for attr in ("container_id", "instance_id", "incarnation"):
-            if getattr(self, attr) is None:
-                msg = "Missing %s in GoalState XML" % attr
-                report_diagnostic_event(msg, logger_func=LOG.warning)
-                raise InvalidGoalStateXMLException(msg)
+        self.instance_id = self._required_text_from_xpath(
+            "./Container/RoleInstanceList/RoleInstance/InstanceId",
+            "instance_id",
+        )
+        self.incarnation = self._required_text_from_xpath(
+            "./Incarnation", "incarnation"
+        )
 
         self.certificates_xml = None
         url = self._text_from_xpath(
@@ -416,11 +432,19 @@ class GoalState:
                         "Azure endpoint returned empty certificates xml."
                     )
 
-    def _text_from_xpath(self, xpath):
+    def _text_from_xpath(self, xpath: str) -> Optional[str]:
         element = self.root.find(xpath)
         if element is not None:
             return element.text
         return None
+
+    def _required_text_from_xpath(self, xpath: str, attr: str) -> str:
+        value = self._text_from_xpath(xpath)
+        if value is None:
+            msg = "Missing %s in GoalState XML" % attr
+            report_diagnostic_event(msg, logger_func=LOG.warning)
+            raise InvalidGoalStateXMLException(msg)
+        return value
 
 
 class OpenSSLManager:
@@ -429,24 +453,24 @@ class OpenSSLManager:
         "certificate": "TransportCert.pem",
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.tmpdir = temp_utils.mkdtemp()
-        self._certificate = None
+        self._certificate: Optional[str] = None
         self.generate_certificate()
 
-    def clean_up(self):
+    def clean_up(self) -> None:
         util.del_dir(self.tmpdir)
 
     @property
-    def certificate(self):
+    def certificate(self) -> Optional[str]:
         return self._certificate
 
     @certificate.setter
-    def certificate(self, value):
+    def certificate(self, value: Optional[str]) -> None:
         self._certificate = value
 
     @azure_ds_telemetry_reporter
-    def generate_certificate(self):
+    def generate_certificate(self) -> None:
         LOG.debug("Generating certificate for communication with fabric...")
         if self.certificate is not None:
             LOG.debug("Certificate already generated.")
@@ -481,17 +505,17 @@ class OpenSSLManager:
 
     @staticmethod
     @azure_ds_telemetry_reporter
-    def _run_x509_action(action, cert):
+    def _run_x509_action(action: str, cert: str) -> str:
         cmd = ["openssl", "x509", "-noout", action]
         result, _ = subp.subp(cmd, data=cert)
         return result
 
     @azure_ds_telemetry_reporter
-    def _get_ssh_key_from_cert(self, certificate):
+    def _get_ssh_key_from_cert(self, certificate: str) -> str:
         return certs.convert_x509_to_openssh(certificate)
 
     @azure_ds_telemetry_reporter
-    def _get_fingerprint_from_cert(self, certificate):
+    def _get_fingerprint_from_cert(self, certificate: str) -> str:
         r"""openssl x509 formats fingerprints as so:
         'SHA1 Fingerprint=07:3E:19:D1:4D:1C:79:92:24:C6:A0:FD:8D:DA:\
         B6:A8:BF:27:D4:73\n'
@@ -505,11 +529,15 @@ class OpenSSLManager:
         return "".join(octets)
 
     @azure_ds_telemetry_reporter
-    def _decrypt_certs_from_xml(self, certificates_xml):
+    def _decrypt_certs_from_xml(self, certificates_xml: bytes) -> str:
         """Decrypt the certificates XML document using the our private key;
         return the list of certs and private keys contained in the doc.
         """
         tag = ET.fromstring(certificates_xml).find(".//Data")  # nosec B314
+        if tag is None or tag.text is None:
+            raise InvalidGoalStateXMLException(
+                "No Data element or content found in certificates XML."
+            )
         certificates_content = tag.text
         lines = [
             b"MIME-Version: 1.0",
@@ -530,11 +558,11 @@ class OpenSSLManager:
         return out
 
     @azure_ds_telemetry_reporter
-    def parse_certificates(self, certificates_xml):
+    def parse_certificates(self, certificates_xml: bytes) -> Dict[str, str]:
         """Given the Certificates XML document, return a dictionary of
         fingerprints and associated SSH keys derived from the certs."""
         out = self._decrypt_certs_from_xml(certificates_xml)
-        keys = {}
+        keys: Dict[str, str] = {}
 
         for certificate in certs.extract_x509_certificates(out):
             ssh_key = self._get_ssh_key_from_cert(certificate)
@@ -644,8 +672,8 @@ class GoalStateHealthReporter:
         container_id: str,
         instance_id: str,
         status: str,
-        substatus=None,
-        description=None,
+        substatus: Optional[str] = None,
+        description: str = "",
     ) -> bytes:
         health_detail = ""
         if substatus is not None:
@@ -699,17 +727,17 @@ class GoalStateHealthReporter:
 
 
 class WALinuxAgentShim:
-    def __init__(self, endpoint: str):
+    def __init__(self, endpoint: str) -> None:
         self.endpoint = endpoint
         self.openssl_manager: Optional[OpenSSLManager] = None
         self.azure_endpoint_client: Optional[AzureEndpointHttpClient] = None
 
-    def clean_up(self):
+    def clean_up(self) -> None:
         if self.openssl_manager is not None:
             self.openssl_manager.clean_up()
 
     @azure_ds_telemetry_reporter
-    def eject_iso(self, iso_dev, distro: distros.Distro) -> None:
+    def eject_iso(self, iso_dev: str, distro: distros.Distro) -> None:
         LOG.debug("Ejecting the provisioning iso")
         try:
             distro.eject_media(iso_dev)
@@ -721,7 +749,10 @@ class WALinuxAgentShim:
 
     @azure_ds_telemetry_reporter
     def register_with_azure_and_fetch_data(
-        self, distro: distros.Distro, pubkey_info=None, iso_dev=None
+        self,
+        distro: distros.Distro,
+        pubkey_info: Optional[List[str]] = None,
+        iso_dev: Optional[str] = None,
     ) -> Optional[List[str]]:
         """Gets the VM's GoalState from Azure, uses the GoalState information
         to report ready/send the ready signal/provisioning complete signal to
@@ -733,7 +764,7 @@ class WALinuxAgentShim:
             GoalState.
         @return: The list of user's authorized pubkey values.
         """
-        http_client_certificate = None
+        http_client_certificate: Optional[str] = None
         if self.openssl_manager is None and pubkey_info is not None:
             self.openssl_manager = OpenSSLManager()
             http_client_certificate = self.openssl_manager.certificate
@@ -744,7 +775,7 @@ class WALinuxAgentShim:
         goal_state = self._fetch_goal_state_from_azure(
             need_certificate=http_client_certificate is not None
         )
-        ssh_keys = None
+        ssh_keys: Optional[List[str]] = None
         if pubkey_info is not None:
             ssh_keys = self._get_user_pubkeys(goal_state, pubkey_info)
         health_reporter = GoalStateHealthReporter(
@@ -933,7 +964,7 @@ def get_metadata_from_fabric(
     distro: distros.Distro,
     pubkey_info: Optional[List[str]] = None,
     iso_dev: Optional[str] = None,
-):
+) -> Optional[List[str]]:
     shim = WALinuxAgentShim(endpoint=endpoint)
     try:
         return shim.register_with_azure_and_fetch_data(
@@ -944,7 +975,7 @@ def get_metadata_from_fabric(
 
 
 @azure_ds_telemetry_reporter
-def report_failure_to_fabric(endpoint: str, *, encoded_report: str):
+def report_failure_to_fabric(endpoint: str, *, encoded_report: str) -> None:
     shim = WALinuxAgentShim(endpoint=endpoint)
     try:
         shim.register_with_azure_and_report_failure(description=encoded_report)
@@ -996,7 +1027,9 @@ class OvfEnvXml:
         self.preprovisioned_vm_type = preprovisioned_vm_type
         self.provision_guest_proxy_agent = provision_guest_proxy_agent
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, OvfEnvXml):
+            return NotImplemented
         return self.__dict__ == other.__dict__
 
     @classmethod
@@ -1024,13 +1057,31 @@ class OvfEnvXml:
 
         return instance
 
+    @overload
     def _find(
         self,
-        node,
+        node: ET.Element,
+        name: str,
+        required: Literal[True],
+        namespace: str = "wa",
+    ) -> ET.Element: ...
+
+    @overload
+    def _find(
+        self,
+        node: ET.Element,
+        name: str,
+        required: Literal[False],
+        namespace: str = "wa",
+    ) -> Optional[ET.Element]: ...
+
+    def _find(
+        self,
+        node: ET.Element,
         name: str,
         required: bool,
         namespace: str = "wa",
-    ):
+    ) -> Optional[ET.Element]:
         matches = node.findall(
             "./%s:%s" % (namespace, name), OvfEnvXml.NAMESPACES
         )
@@ -1050,13 +1101,13 @@ class OvfEnvXml:
 
     def _parse_property(
         self,
-        node,
+        node: ET.Element,
         name: str,
         required: bool,
         decode_base64: bool = False,
         parse_bool: bool = False,
-        default=None,
-    ):
+        default: Any = None,
+    ) -> Any:
         matches = node.findall("./wa:" + name, OvfEnvXml.NAMESPACES)
         if not matches:
             msg = "missing configuration for %r" % name
@@ -1071,7 +1122,7 @@ class OvfEnvXml:
                 % (name, len(matches))
             )
 
-        value = matches[0].text
+        value: Any = matches[0].text
 
         # Empty string may be None.
         if value is None:
@@ -1092,7 +1143,7 @@ class OvfEnvXml:
 
         return value
 
-    def _parse_linux_configuration_set_section(self, root):
+    def _parse_linux_configuration_set_section(self, root: ET.Element) -> None:
         provisioning_section = self._find(
             root, "ProvisioningSection", required=True
         )
@@ -1133,7 +1184,7 @@ class OvfEnvXml:
 
         self._parse_ssh_section(config_set)
 
-    def _parse_platform_settings_section(self, root):
+    def _parse_platform_settings_section(self, root: ET.Element) -> None:
         platform_settings_section = self._find(
             root, "PlatformSettingsSection", required=True
         )
@@ -1161,7 +1212,7 @@ class OvfEnvXml:
             required=False,
         )
 
-    def _parse_ssh_section(self, config_set):
+    def _parse_ssh_section(self, config_set: ET.Element) -> None:
         self.public_keys = []
 
         ssh_section = self._find(config_set, "SSH", required=False)
