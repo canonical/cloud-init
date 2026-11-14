@@ -161,8 +161,8 @@ class TestVmwareConfigFile:
 
         for _, config in ethernets.items():
             assert isinstance(config, dict)
-            name_servers = config.get("nameservers").get("addresses")
-            dns_suffixes = config.get("nameservers").get("search")
+            name_servers = config.get("nameservers", {}).get("addresses")
+            dns_suffixes = config.get("nameservers", {}).get("search")
             assert ["10.20.145.1", "10.20.145.2"] == name_servers, "dns"
             assert [
                 "eng.vmware.com",
@@ -185,8 +185,8 @@ class TestVmwareConfigFile:
 
         for _, config in ethernets.items():
             assert isinstance(config, dict)
-            name_servers = config.get("nameservers").get("addresses")
-            dns_suffixes = config.get("nameservers").get("search")
+            name_servers = config.get("nameservers", {}).get("addresses")
+            dns_suffixes = config.get("nameservers", {}).get("search")
             assert None is name_servers, "dns"
             assert ["eng.vmware.com"] == dns_suffixes, "suffixes"
 
