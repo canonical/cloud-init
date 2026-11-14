@@ -768,11 +768,12 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     ) -> None:
         """Add a user to the system."""
 
-        if groups and primary_group:
-            groups = groups + [primary_group]
+        groups_to_create = (
+            groups + [primary_group] if primary_group else groups
+        )
 
-        if create_groups and groups:
-            for group in groups:
+        if create_groups and groups_to_create:
+            for group in groups_to_create:
                 if not util.is_group(group):
                     self.create_group(group)
                     LOG.debug("created group '%s' for user '%s'", group, name)
