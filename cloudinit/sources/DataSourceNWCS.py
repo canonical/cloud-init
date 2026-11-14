@@ -3,6 +3,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
+from typing import Optional
 
 from requests import exceptions
 
@@ -99,7 +100,7 @@ class DataSourceNWCS(sources.DataSource):
             raise
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[dict]:
         LOG.debug("Attempting network configuration")
 
         if self._network_config != sources.UNSET:

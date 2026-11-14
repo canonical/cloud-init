@@ -6,7 +6,7 @@
 # https://www.vultr.com/metadata/
 
 import logging
-from typing import Tuple
+from typing import Optional, Tuple
 
 import cloudinit.sources.helpers.vultr as vultr
 from cloudinit import sources, stages, util, version
@@ -117,7 +117,7 @@ class DataSourceVultr(sources.DataSource):
         return None
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[dict]:
         return self.netcfg
 
 

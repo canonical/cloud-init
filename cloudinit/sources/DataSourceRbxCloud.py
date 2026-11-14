@@ -39,16 +39,11 @@ class GratuitousArpItem(TypedDict):
     destination: str
 
 
-class NetworkConfig(TypedDict):
-    version: int
-    config: List[Dict[str, Any]]
-
-
 class RbxConfig(TypedDict):
     ssh_pwauth: bool
     disable_root: bool
     system_info: Dict[str, Any]
-    network_config: NetworkConfig
+    network_config: dict
     manage_etc_hosts: bool
 
 
@@ -151,7 +146,7 @@ def get_md() -> Optional[RbxData]:
 
 def generate_network_config(
     netadps: Iterable[Dict[str, Any]],
-) -> NetworkConfig:
+) -> Dict[str, Any]:
     """Generate network configuration
 
     @param netadps: A list of network adapter settings
@@ -283,7 +278,7 @@ class DataSourceRbxCloud(sources.DataSource):
         return True
 
     @property
-    def network_config(self) -> Optional[NetworkConfig]:
+    def network_config(self) -> Optional[dict]:
         if self.cfg is None:
             return None
         return self.cfg["network_config"]

@@ -16,7 +16,16 @@ import os
 import pickle
 import re
 from enum import Enum, unique
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union, cast
+from typing import (
+    Any,
+    Dict,
+    List,
+    NamedTuple,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
 
 from cloudinit import (
     atomic_helper,
@@ -59,7 +68,10 @@ REDACT_SENSITIVE_VALUE = "redacted for non-root user"
 # Key which can be provide a cloud's official product name to cloud-init
 METADATA_CLOUD_NAME_KEY = "cloud-name"
 
-UNSET = "_unset"
+# UNSET is internal-only to indicate that the _network_config has been
+# invalidated and requires recrawl or recompute instead of returning the
+# cached value.
+UNSET: Any = "_unset"
 METADATA_UNKNOWN = "unknown"
 
 LOG = logging.getLogger(__name__)
@@ -1003,7 +1015,20 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return default
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[dict]:
+        """Network configuration provided by this datasource, if any.
+
+        Implementations must return either:
+
+        - a dict with network configuration (v1 or v2 format) provided by
+          the platform, or
+        - None when this datasource has no network configuration
+
+        None is a valid, final answer meaning "no config from this source":
+        callers fall through to the next source in this datasource's
+        network_config_sources order or ultimately to a distro-generated
+        fallback config.
+        """
         return None
 
     def setup(self, is_new_instance):

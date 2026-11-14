@@ -316,7 +316,7 @@ class DataSourceOracle(sources.DataSource):
         return self._network_config_source.render_config()
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[dict]:
         """Network config is read from initramfs provided files
 
         Priority for primary network_config selection:

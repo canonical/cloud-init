@@ -172,7 +172,7 @@ class DataSourceIBMCloud(sources.DataSource):
         return self.system_uuid == _read_system_uuid()
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[dict]:
         if self.platform != Platforms.OS_CODE:
             # If deployed from template, an agent in the provisioning
             # environment handles networking configuration. Not cloud-init.

@@ -10,6 +10,7 @@ import logging
 import os
 import socket
 import time
+from typing import Optional
 from urllib.parse import urlparse
 
 import requests
@@ -307,7 +308,7 @@ class DataSourceScaleway(sources.DataSource):
         return True
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[dict]:
         """
         Configure networking according to data received from the
         metadata API.
@@ -323,7 +324,7 @@ class DataSourceScaleway(sources.DataSource):
             return self._network_config
 
         netcfg = {}
-        ip_cfg = {}
+        ip_cfg: dict = {}
         for ip in self.metadata["public_ips"]:
             # Use DHCP for primary address
             if ip["address"] == self.ephemeral_fixed_address:

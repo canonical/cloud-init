@@ -105,7 +105,7 @@ class DataSourceDigitalOcean(sources.DataSource):
         )
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[dict]:
         """Configure the networking. This needs to be done each boot, since
         the IP information may have changed due to snapshot and/or
         migration.
