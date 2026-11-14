@@ -1135,6 +1135,22 @@ class TestAnnotatedCloudconfigFile:
         out, _err = capsys.readouterr()
         assert out.strip() == expected_err.strip()
 
+    @skipUnlessJsonSchema()
+    @pytest.mark.parametrize("key", ["01", "0x1", "true"])
+    def test_annotated_non_string_key(self, key, tmp_path: Path, capsys):
+        """Keys that YAML parses into non-strings still get annotated."""
+        config_file = tmp_path / "my.yaml"
+        config_file.write_text(
+            f"#cloud-config\nsnap:\n  commands:\n    {key}: [snap, 123]\n"
+        )
+        with pytest.raises(SchemaValidationError):
+            validate_cloudconfig_file(
+                str(config_file), get_schema(), annotate=True
+            )
+        out, _err = capsys.readouterr()
+        assert f"    {key}: [snap, 123]\t\t# E1" in out
+        assert "# E1: 123 is not of type 'string'" in out
+
 
 @mock.patch(M_PATH + "read_cfg_paths")  # called by parse_args help docs
 class TestMain:
