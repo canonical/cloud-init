@@ -246,8 +246,7 @@ class NMConnection:
         # Because network v2 route definitions can have mixed v4 and v6
         # routes, determine the family per route based on the network
         family = "ipv6" if is_ipv6_network(route["network"]) else "ipv4"
-        if not self.config.has_section(family):
-            self.config[family] = {}
+        route_key = self._get_next_numbered_section(family, "route")
         value = f'{route["network"]}/{route["prefix"]}'
         if "gateway" in route:
             value += f',{route["gateway"]}'
@@ -256,7 +255,6 @@ class NMConnection:
                 self.config[family]["route-metric"] = f'{route["metric"]}'
             else:
                 value += f',{route["metric"]}'
-        route_key = self._get_next_numbered_section(family, "route")
         self.config[family][route_key] = value
         if "mtu" in route:
             self._add_route_options(family, route_key, "mtu", route["mtu"])

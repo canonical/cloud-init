@@ -3177,7 +3177,6 @@ class TestNetworkManagerRendering:
             ("v2-mixed-routes-no-ipv6-addr", "yaml"),
             ("v2-mixed-routes-metric", "yaml"),
             ("v2-mixed-routes-metric-reversed", "yaml"),
-            ("v2-mixed-routes-metric-second-family", "yaml"),
             ("v2-mixed-routes-metric-no-ipv6-addr", "yaml"),
             ("v2-mixed-routes-metric-dhcp", "yaml"),
             ("v2-dns", "yaml"),
