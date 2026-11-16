@@ -17,7 +17,7 @@ USER_DATA = """\
 apt:
   sources:
     cloudinit:
-      source: 'deb [arch=amd64] http://ppa.launchpad.net/cloud-init-dev/daily/ubuntu focal main'
+      source: 'deb [arch=amd64] http://ppa.launchpad.net/cloud-init-dev/daily/ubuntu $RELEASE main'
       keyserver: keyserver.ubuntu.com
       keyid: E4D304DF
 """  # noqa: E501

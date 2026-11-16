@@ -278,6 +278,38 @@ class TestUpCloudNetworkSetup:
             UC_METADATA.get("network").get("dns")[1] == dns.get("address")[1]
         )
 
+    @mock.patch("cloudinit.sources.helpers.upcloud.read_metadata")
+    @mock.patch("cloudinit.net.get_interfaces_by_mac")
+    def test_network_config_unset_recomputes(
+        self, m_get_by_mac, mock_readmd, ds
+    ):
+        """network_config must recompute when _network_config is UNSET.
+
+        update_metadata_if_supported() sets _network_config = sources.UNSET
+        (the truthy string "_unset"). Without the UNSET sentinel check, the
+        bare truthiness guard returns the sentinel directly instead of
+        recomputing, causing AttributeError in apply_network_config.
+        """
+        mock_readmd.return_value = UC_METADATA.copy()
+
+        raw_ifaces = UC_METADATA.get("network").get("interfaces")
+        m_get_by_mac.return_value = {
+            raw_ifaces[0].get("mac"): "eth0",
+            raw_ifaces[1].get("mac"): "eth1",
+            raw_ifaces[2].get("mac"): "eth2",
+            raw_ifaces[3].get("mac"): "eth3",
+        }
+
+        ds.perform_dhcp_setup = False
+        assert ds.get_data() is True
+
+        # Simulate what update_metadata_if_supported() does
+        ds._network_config = sources.UNSET
+        recomputed_netcfg = ds.network_config
+        assert recomputed_netcfg != sources.UNSET
+        assert isinstance(recomputed_netcfg, dict)
+        assert 1 == recomputed_netcfg.get("version")
+
 
 class TestUpCloudDatasourceLoading:
     def test_get_datasource_list_returns_in_local(self):

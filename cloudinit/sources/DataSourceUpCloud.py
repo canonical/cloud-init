@@ -115,7 +115,7 @@ class DataSourceUpCloud(sources.DataSource):
         due to reconfiguration.
         """
 
-        if self._network_config:
+        if self._network_config and self._network_config != sources.UNSET:
             return self._network_config
 
         raw_network_config = self.metadata.get("network")

@@ -6077,6 +6077,83 @@ class TestRenameInterfaces:
         mock_subp.assert_has_calls(expected)
 
 
+class TestGetCurrentRenameInfo:
+    """Tests for _get_current_rename_info()."""
+
+    IFACE = ("ens18", "bc:24:11:56:41:9f", "virtio_net", "0x1")
+    STATIC_IPV4 = (
+        "2: ens18: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500\n"
+        "    inet 10.0.0.5/24 brd 10.0.0.255 scope global ens18\n"
+        "       valid_lft forever preferred_lft forever\n"
+    )
+    STATIC_IPV6 = (
+        "2: ens18: <BROADCAST,MULTICAST,UP,LOWER_UP>\n"
+        "    inet6 2001:db8::1/64 scope global permanent\n"
+        "       valid_lft forever preferred_lft forever\n"
+    )
+
+    @pytest.mark.parametrize(
+        "ipv4_out,ipv6_out,is_up,check_downable,expected",
+        [
+            pytest.param("", "", True, True, True, id="link_local_or_dhcp"),
+            pytest.param(
+                STATIC_IPV4, "", True, True, False, id="permanent_global_ipv4"
+            ),
+            pytest.param(
+                "", STATIC_IPV6, True, True, False, id="permanent_global_ipv6"
+            ),
+            pytest.param(
+                STATIC_IPV4, "", False, True, True, id="interface_already_down"
+            ),
+            pytest.param("", "", True, False, None, id="check_downable_false"),
+        ],
+    )
+    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.net.get_interfaces")
+    @mock.patch("cloudinit.net.is_up")
+    def test_downable(
+        self,
+        mock_is_up,
+        mock_get_interfaces,
+        mock_subp,
+        ipv4_out,
+        ipv6_out,
+        is_up,
+        check_downable,
+        expected,
+    ):
+        """Verify downable status for different IP address configurations."""
+        mock_is_up.return_value = is_up
+        mock_get_interfaces.return_value = [self.IFACE]
+        mock_subp.side_effect = [(ipv6_out, ""), (ipv4_out, "")]
+
+        info = net._get_current_rename_info(check_downable=check_downable)
+        assert info["ens18"]["downable"] is expected
+
+    @pytest.mark.parametrize(
+        "family",
+        [
+            pytest.param("-4", id="ipv4"),
+            pytest.param("-6", id="ipv6"),
+        ],
+    )
+    @mock.patch("cloudinit.subp.subp")
+    @mock.patch("cloudinit.net.get_interfaces")
+    @mock.patch("cloudinit.net.is_up", return_value=True)
+    def test_permanent_scope_global_flags_used(
+        self, mock_is_up, mock_get_interfaces, mock_subp, family
+    ):
+        """Verify ip addr show uses 'permanent scope global'."""
+        mock_get_interfaces.return_value = [self.IFACE]
+        mock_subp.return_value = ("", "")
+        net._get_current_rename_info(check_downable=True)
+        expected = mock.call(
+            ["ip", family, "addr", "show", "permanent", "scope", "global"],
+            capture=True,
+        )
+        assert expected in mock_subp.call_args_list
+
+
 class TestNetworkState:
     def test_bcast_addr(self):
         """Test mask_and_ipv4_to_bcast_addr proper execution."""
