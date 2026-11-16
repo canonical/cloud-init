@@ -283,7 +283,9 @@ def sec_log_system_shutdown(func):
             level=OWASPEventLevel.INFO,
             description=description,
         )
-        return func(cls, mode=mode, delay=delay, message=message)
+        return func(
+            cls, *args, mode=mode, delay=delay, message=message, **kwargs
+        )
 
     return decorator
 
