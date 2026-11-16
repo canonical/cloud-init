@@ -1173,9 +1173,11 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             LOG.warning("Failed to enable password for user %s", name)
             raise
         if err:
-            # if "passwd" or "usermod" are unable to unlock an account with
-            # an empty password then they display a message on stdout. In
-            # that case then instead set a blank password.
+            LOG.debug(
+                "Unlocking password for %s wrote to stderr: %s", name, err
+            )
+        if err and self._shadow_file_has_empty_user_password(name):
+            # Unlocking an empty locked password can require clearing it.
             passwd_set_tools = (
                 ["passwd", "-d", name],
                 ["usermod", "--password", "''", name],
