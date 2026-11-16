@@ -1,5 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-from typing import Optional, Type
+from typing import List, Optional, Type
 from unittest import mock
 
 from cloudinit import cloud, distros, helpers
@@ -71,8 +71,6 @@ def abstract_to_concrete(abclass: Type):
     return type("DummyConcrete" + abclass.__name__, (concreteCls,), {})
 
 
-# Test doubles intentionally bypass final entry points to avoid system changes.
-# pylint: disable=overridden-final-method
 class MockDistro(distros.Distro):
     """Test double that bypasses final entry points to avoid side-effects."""
 
@@ -162,7 +160,7 @@ class MockDistro(distros.Distro):
     def expire_passwd(self, user):
         pass
 
-    def set_passwd(self, user, passwd, hashed=False):  # type: ignore[misc]
+    def _set_passwd(self, user: str, passwd: str, hashed: bool = False):
         return True
 
     def ensure_sudo_dir(self, path, sudo_base="/etc/sudoers"):
@@ -174,9 +172,11 @@ class MockDistro(distros.Distro):
     def create_group(self, name, members=None):
         pass
 
-    @classmethod  # type: ignore[misc]
-    def shutdown_command(cls, *, mode, delay, message):
-        pass
+    @classmethod
+    def _build_shutdown_command(
+        cls, mode: str, delay: str, message: str
+    ) -> List[str]:
+        return []
 
     def package_command(self, command, args=None, pkgs=None):
         pass
