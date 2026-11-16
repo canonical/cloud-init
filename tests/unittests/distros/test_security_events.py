@@ -1,7 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from typing import Dict, Union
-
 import pytest
 
 from cloudinit import distros, subp
@@ -86,77 +84,154 @@ def test_create_user_only_logs_new_users(pre_existing, mocker, caplog):
     assert security_events(caplog) == expected
 
 
+DISTRO_NAMES = ["ubuntu", "freebsd", "netbsd", "openbsd", "dragonflybsd"]
+
+
 @pytest.mark.parametrize(
-    "distro_name", ["ubuntu", "freebsd", "netbsd", "openbsd", "dragonflybsd"]
+    "distro_name,expected_result",
+    [
+        ("ubuntu", True),
+        ("freebsd", None),
+        ("netbsd", None),
+        ("openbsd", None),
+        ("dragonflybsd", None),
+    ],
 )
-@pytest.mark.parametrize("batch", [False, True])
-@pytest.mark.parametrize("fails", [False, True])
-def test_password_entry_points(distro_name, batch, fails, mocker, caplog):
+def test_set_passwd_logs_security_event(
+    distro_name, expected_result, mocker, caplog
+):
+    """set_passwd logs a security event and returns the distro result."""
     distro = get_distro(distro_name)
     operation = mocker.patch("cloudinit.subp.subp", return_value=("", ""))
-    if fails:
-        operation.side_effect = subp.ProcessExecutionError()
-    users = [("first", "$6$secret-hash"), ("second", "$6$other-hash")]
-
-    def change_passwords():
-        if batch:
-            return distro.chpasswd(plist_in=users, hashed=True)
-        return distro.set_passwd(user="first", passwd=users[0][1], hashed=True)
-
-    if fails:
-        with pytest.raises(subp.ProcessExecutionError):
-            change_passwords()
-        assert security_events(caplog) == []
-    else:
-        result = change_passwords()
-        assert result is (
-            True if not batch and distro_name == "ubuntu" else None
-        )
-        assert security_events(caplog) == [
-            expected_event(
-                f"authn_password_change:cloud-init,{user}",
-                f"Password changed for user '{user}'",
-            )
-            for user, _ in (users if batch else users[:1])
-        ]
-    assert all(
-        secret not in str(event)
-        for event in security_events(caplog)
-        for _, secret in users
+    assert (
+        distro.set_passwd("testuser", "$6$secret-hash", hashed=True)
+        is expected_result
     )
+    assert security_events(caplog) == [
+        expected_event(
+            "authn_password_change:cloud-init,testuser",
+            "Password changed for user 'testuser'",
+        )
+    ]
+    assert "$6$secret-hash" not in caplog.text
     operation.assert_called()
 
 
-@pytest.mark.parametrize("batch", [False, True])
-@pytest.mark.parametrize("keyword", [False, True])
-def test_password_decorators_preserve_calls_and_return(
-    batch, keyword, mocker, caplog
-):
-    def perform_change(*args, **kwargs):
-        assert security_events(caplog) == []
-        return result_value
+@pytest.mark.parametrize("distro_name", DISTRO_NAMES)
+def test_chpasswd_logs_security_event_per_user(distro_name, mocker, caplog):
+    """chpasswd logs one security event per user in the batch."""
+    distro = get_distro(distro_name)
+    operation = mocker.patch("cloudinit.subp.subp", return_value=("", ""))
+    users = [("first", "$6$secret-hash"), ("second", "$6$other-hash")]
+    assert distro.chpasswd(plist_in=users, hashed=True) is None
+    assert security_events(caplog) == [
+        expected_event(
+            f"authn_password_change:cloud-init,{user}",
+            f"Password changed for user '{user}'",
+        )
+        for user, _secret in users
+    ]
+    assert "$6$secret-hash" not in caplog.text
+    assert "$6$other-hash" not in caplog.text
+    operation.assert_called()
 
-    result_value = object()
-    operation = mocker.Mock(side_effect=perform_change)
-    decorator = (
-        distros.sec_log_password_changed_batch
-        if batch
-        else distros.sec_log_password_changed
+
+@pytest.mark.parametrize("distro_name", DISTRO_NAMES)
+def test_set_passwd_failure_logs_no_security_event(
+    distro_name, mocker, caplog
+):
+    """No security event is logged when a password change fails."""
+    distro = get_distro(distro_name)
+    mocker.patch(
+        "cloudinit.subp.subp", side_effect=subp.ProcessExecutionError()
     )
-    wrapped = decorator(operation)
-    argument = [("testuser", "plaintext-secret")] if batch else "testuser"
-    kwargs: Dict[str, Union[bool, str]] = (
-        {"hashed": False}
-        if batch
-        else {"hashed": False, "passwd": "plaintext-secret"}
+    with pytest.raises(subp.ProcessExecutionError):
+        distro.set_passwd("testuser", "$6$secret-hash", hashed=True)
+    assert security_events(caplog) == []
+    assert "$6$secret-hash" not in caplog.text
+
+
+@pytest.mark.parametrize("distro_name", DISTRO_NAMES)
+def test_chpasswd_failure_logs_no_security_event(distro_name, mocker, caplog):
+    """No security event is logged when a batch password change fails."""
+    distro = get_distro(distro_name)
+    mocker.patch(
+        "cloudinit.subp.subp", side_effect=subp.ProcessExecutionError()
     )
-    if keyword:
-        key = "plist_in" if batch else "user"
-        result = wrapped(None, **{key: argument}, **kwargs)
-    else:
-        result = wrapped(None, argument, **kwargs)
-    operation.assert_called_once_with(None, argument, **kwargs)
-    assert result is result_value
+    with pytest.raises(subp.ProcessExecutionError):
+        distro.chpasswd([("testuser", "$6$secret-hash")], hashed=True)
+    assert security_events(caplog) == []
+    assert "$6$secret-hash" not in caplog.text
+
+
+@pytest.mark.parametrize(
+    "call_args,call_kwargs",
+    [
+        (("testuser",), {"passwd": "plaintext-secret", "hashed": False}),
+        (
+            (),
+            {
+                "user": "testuser",
+                "passwd": "plaintext-secret",
+                "hashed": False,
+            },
+        ),
+    ],
+    ids=["positional", "keyword"],
+)
+def test_sec_log_password_changed_preserves_call_and_return(
+    call_args, call_kwargs, caplog
+):
+    """The password decorator forwards calls and results, then logs."""
+    calls = []
+
+    def set_passwd(self, user, passwd, hashed):
+        assert security_events(caplog) == []
+        calls.append((self, user, passwd, hashed))
+        return "result"
+
+    wrapped = distros.sec_log_password_changed(set_passwd)
+    assert wrapped(None, *call_args, **call_kwargs) == "result"
+    assert calls == [(None, "testuser", "plaintext-secret", False)]
+    assert security_events(caplog) == [
+        expected_event(
+            "authn_password_change:cloud-init,testuser",
+            "Password changed for user 'testuser'",
+        )
+    ]
+
+
+@pytest.mark.parametrize(
+    "call_args,call_kwargs",
+    [
+        (
+            ([("testuser", "plaintext-secret")],),
+            {"hashed": False},
+        ),
+        (
+            (),
+            {
+                "plist_in": [("testuser", "plaintext-secret")],
+                "hashed": False,
+            },
+        ),
+    ],
+    ids=["positional", "keyword"],
+)
+def test_sec_log_password_changed_batch_preserves_call_and_return(
+    call_args, call_kwargs, caplog
+):
+    """The batch decorator forwards calls and results, then logs."""
+    calls = []
+
+    def chpasswd(self, plist_in, hashed):
+        assert security_events(caplog) == []
+        calls.append((self, plist_in, hashed))
+        return "result"
+
+    wrapped = distros.sec_log_password_changed_batch(chpasswd)
+    assert wrapped(None, *call_args, **call_kwargs) == "result"
+    assert calls == [(None, [("testuser", "plaintext-secret")], False)]
     assert security_events(caplog) == [
         expected_event(
             "authn_password_change:cloud-init,testuser",
@@ -220,11 +295,9 @@ def test_bsd_batch_partial_failure(mocker, caplog):
 def test_shutdown_entry_point(
     mode, delay, message, event, description, command, caplog
 ):
+    shutdown_command = distros.Distro.shutdown_command
     assert (
-        distros.Distro.shutdown_command(
-            mode=mode, delay=delay, message=message
-        )
-        == command
+        shutdown_command(mode=mode, delay=delay, message=message) == command
     )
     assert security_events(caplog) == [
         expected_event(f"{event}:cloud-init", description)
