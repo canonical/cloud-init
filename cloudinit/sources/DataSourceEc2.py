@@ -538,8 +538,6 @@ class DataSourceEc2(sources.DataSource):
             return self._network_config
 
         if not self.metadata:
-            # this would happen if get_data hadn't been called. leave as UNSET
-            # _get_data may set self.metadata to None, but mypy can't know
             LOG.warning(
                 "Unexpected call to network_config when metadata is None."
             )
