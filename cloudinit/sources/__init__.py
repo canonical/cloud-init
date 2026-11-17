@@ -77,11 +77,11 @@ class Unset(str):
     An invalidated cache must be recomputed on next access; it is never a
     valid value. Unset is a str subclass so equality with the plain
     ``"_unset"`` string written to obj.pkl caches by older releases is
-    preserved, and ``__reduce__`` pickles it as that plain string so caches
+    preserved, and ``__reduce__`` pickles it as a plain string so caches
     written by this release remain readable by older releases as well.
     Unlike the legacy truthy string, Unset is falsy: ``if cached_attr:``
     guards must treat an invalidated cache as absent configuration, never
-    as valid config (the bug class fixed in #7213).
+    as valid config.
     """
 
     def __repr__(self) -> str:
