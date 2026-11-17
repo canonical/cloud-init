@@ -68,10 +68,36 @@ REDACT_SENSITIVE_VALUE = "redacted for non-root user"
 # Key which can be provide a cloud's official product name to cloud-init
 METADATA_CLOUD_NAME_KEY = "cloud-name"
 
+_UNSET_STR = "_unset"
+
+
+class Unset(str):
+    """Sentinel str marking a cached datasource attribute as invalidated.
+
+    An invalidated cache must be recomputed on next access; it is never a
+    valid value. Unset is a str subclass so equality with the plain
+    ``"_unset"`` string written to obj.pkl caches by older releases is
+    preserved, and ``__reduce__`` pickles it as that plain string so caches
+    written by this release remain readable by older releases as well.
+    Unlike the legacy truthy string, Unset is falsy: ``if cached_attr:``
+    guards must treat an invalidated cache as absent configuration, never
+    as valid config (the bug class fixed in #7213).
+    """
+
+    def __repr__(self) -> str:
+        return "UNSET"
+
+    def __bool__(self) -> bool:
+        return False
+
+    def __reduce__(self):
+        return (str, (_UNSET_STR,))
+
+
 # UNSET is internal-only to indicate that the _network_config has been
 # invalidated and requires recrawl or recompute instead of returning the
 # cached value.
-UNSET: Any = "_unset"
+UNSET: Unset = Unset(_UNSET_STR)
 METADATA_UNKNOWN = "unknown"
 
 LOG = logging.getLogger(__name__)
@@ -357,7 +383,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         self.vendordata2_raw = None
         self.metadata_address: Optional[str] = None
         self.network_json: Optional[str] = UNSET
-        self.ec2_metadata = UNSET
+        self.ec2_metadata: Union[Dict[str, Any], None, Unset] = UNSET
 
         self.ds_cfg = util.get_cfg_by_path(
             self.sys_cfg, ("datasource", self.dsname), {}

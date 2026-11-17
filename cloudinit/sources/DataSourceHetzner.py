@@ -7,7 +7,7 @@
 https://docs.hetzner.cloud/"""
 
 import logging
-from typing import Optional
+from typing import Any, Dict, Optional, Union
 
 import cloudinit.sources.helpers.hetzner as hc_helper
 from cloudinit import dmi, net, sources, url_helper, util
@@ -75,7 +75,9 @@ class DataSourceHetzner(sources.DataSource):
         self.wait_retry = self.ds_cfg.get("wait_retry", MD_WAIT_RETRY)
         self.max_wait = self.ds_cfg.get("max_wait", MD_MAX_WAIT)
         self.sleep_time = self.ds_cfg.get("sleep_time", MD_SLEEP_TIME)
-        self._network_config = sources.UNSET
+        self._network_config: Union[Dict[str, Any], None, sources.Unset] = (
+            sources.UNSET
+        )
         self.dsmode = sources.DSMODE_NETWORK
         self.metadata_full = None
 
@@ -204,7 +206,7 @@ class DataSourceHetzner(sources.DataSource):
             )
             self._network_config = sources.UNSET
 
-        if self._network_config != sources.UNSET:
+        if isinstance(self._network_config, dict):
             return self._network_config
 
         net_config = self.metadata["network-config"]

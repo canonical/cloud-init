@@ -3,7 +3,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
-from typing import Optional
+from typing import Any, Dict, Optional, Union
 
 from requests import exceptions
 
@@ -42,7 +42,9 @@ class DataSourceNWCS(sources.DataSource):
         self.retries = self.ds_cfg.get("retries", MD_RETRIES)
         self.timeout = self.ds_cfg.get("timeout", MD_TIMEOUT)
         self.wait_retry = self.ds_cfg.get("wait_retry", MD_WAIT_RETRY)
-        self._network_config = sources.UNSET
+        self._network_config: Union[Dict[str, Any], None, sources.Unset] = (
+            sources.UNSET
+        )
         self.dsmode = sources.DSMODE_NETWORK
         self.metadata_full = None
 
@@ -103,7 +105,7 @@ class DataSourceNWCS(sources.DataSource):
     def network_config(self) -> Optional[dict]:
         LOG.debug("Attempting network configuration")
 
-        if self._network_config != sources.UNSET:
+        if isinstance(self._network_config, dict):
             return self._network_config
 
         if not self.metadata["network"]["config"]:
