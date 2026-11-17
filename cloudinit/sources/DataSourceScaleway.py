@@ -10,7 +10,7 @@ import logging
 import os
 import socket
 import time
-from typing import Optional
+from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
 import requests
@@ -324,7 +324,7 @@ class DataSourceScaleway(sources.DataSource):
             return self._network_config
 
         netcfg = {}
-        ip_cfg: dict = {}
+        ip_cfg: Dict[str, Any] = {}
         for ip in self.metadata["public_ips"]:
             # Use DHCP for primary address
             if ip["address"] == self.ephemeral_fixed_address:
