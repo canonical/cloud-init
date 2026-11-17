@@ -540,7 +540,8 @@ class DataSourceEc2(sources.DataSource):
 
         if not self.metadata:
             LOG.warning(
-                "Unexpected call to network_config when metadata is None."
+                "Unexpected call to network_config when metadata is %s.",
+                self.metadata,
             )
             return None
 
