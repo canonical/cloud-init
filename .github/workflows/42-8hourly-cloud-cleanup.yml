@@ -44,26 +44,30 @@ jobs:
     name: cloud-cleanup-check-config
     runs-on: ubuntu-latest
     if: github.repository == 'canonical/cloud-init'
+    timeout-minutes: 5
     env:
       PYCLOUDLIB_TOML_B64: ${{ secrets.PYCLOUDLIB_TOML_B64 }}
     steps:
       - name: Validate the hours_old dispatch input
         env:
-          HOURS_OLD: ${{ inputs.hours_old || 96 }}
+          HOURS_OLD: ${{ inputs.hours_old }}
         run: |
           # HOURS_OLD mirrors the Jenkins HOURS_OLD string parameter.
           # Scheduled runs provide no input: leave HOURS_OLD empty and
-          # let each cleanup job fall back to its own default.
-          if [ -n "$HOURS_OLD" ] && ! [[ "$HOURS_OLD" =~ ^[1-9][0-9]*$ ]]; then
-            echo "ERROR: HOURS_OLD must be a positive integer, got: '$HOURS_OLD'" >&2
-            exit 1
-          fi
-          # Keep the blast radius of a typo in check: deleting every VM
-          # and every resource group younger than a day must stay a
-          # deliberate act, not a dispatch mistake.
-          if ((HOURS_OLD < 24)); then
-            echo "ERROR: HOURS_OLD must be at least 24, got: '$HOURS_OLD'" >&2
-            exit 1
+          # let each cleanup job fall back to its own default (the
+          # azure job defaults HOURS_OLD to 96 hours below).
+          if [ -n "$HOURS_OLD" ]; then
+            if ! [[ "$HOURS_OLD" =~ ^[1-9][0-9]*$ ]]; then
+              echo "ERROR: HOURS_OLD must be a positive integer, got: '$HOURS_OLD'" >&2
+              exit 1
+            fi
+            # Keep the blast radius of a typo in check: deleting every
+            # VM and every resource group younger than a day must stay
+            # a deliberate act, not a dispatch mistake.
+            if ((HOURS_OLD < 24)); then
+              echo "ERROR: HOURS_OLD must be at least 24, got: '$HOURS_OLD'" >&2
+              exit 1
+            fi
           fi
       - name: Assert required repo secrets are set
         run: |
@@ -86,7 +90,9 @@ jobs:
           PYCLOUDLIB_CONFIG: ${{ runner.temp }}/pycloudlib.toml
         run: |
           # Dump secret using a subprocess to avoid accidental leaks when using set -x.
-          sh -c 'echo "$PYCLOUDLIB_TOML_B64" | base64 -d > "$PYCLOUDLIB_CONFIG"'
+          # install(1) creates the config with 0600 so the decoded
+          # credentials stay private to the runner user.
+          sh -c 'echo "$PYCLOUDLIB_TOML_B64" | base64 -d | install -m 600 /dev/stdin "$PYCLOUDLIB_CONFIG"'
       - name: Cleanup stale Azure VMs and resource groups
         env:
           PYCLOUDLIB_CONFIG: ${{ runner.temp }}/pycloudlib.toml
@@ -120,7 +126,7 @@ jobs:
           done
           # Keep the runner's ~/.azure clean: confine az to the temp dir.
           export AZURE_CONFIG_DIR="$RUNNER_TEMP/azure-config"
-          az login --service-principal --username "$AZURE_CLIENT_ID" --password "$AZURE_CLIENT_SECRET" --tenant "$AZURE_TENANT_ID"
+          az login --service-principal --username "$AZURE_CLIENT_ID" --password "$AZURE_CLIENT_SECRET" --tenant "$AZURE_TENANT_ID" --output none
 
           # Some resource groups are exempt from resource group deletion,
           # but the exemption applies to the group container only: stale
@@ -199,15 +205,39 @@ jobs:
             done
             $keep_rg && continue
 
-            # https://learn.microsoft.com/en-us/rest/api/resources/resources/list
-            rg_created=$(az rest --method get --url "https://management.azure.com/subscriptions/$AZURE_SUBSCRIPTION_ID/resourcegroups/$rg?api-version=2022-09-01&%24expand=createdTime" | jq --raw-output '.createdTime') || {
-              warn_skip "failed to query the creation time of resource group $rg, skipping it"
+            # Resource groups do not expose a creation time of their
+            # own: age the group by the creation time of its oldest
+            # remaining resource. Stale VMs above were only marked for
+            # deletion (asynchronous), so their createdTime still
+            # counts toward the group's age - which is the desired
+            # behavior: a group holding only stale resources must go.
+            # https://learn.microsoft.com/en-us/rest/api/resources/resources/list-by-resource-group
+            rg_created=""
+            resources_url="https://management.azure.com/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$rg/resources?api-version=2021-04-01&%24expand=createdTime"
+            while :; do
+              resources_json=$(az rest --method get --url "$resources_url") || {
+                warn_skip "failed to list the resources of resource group $rg, skipping it"
+                continue 2
+              }
+              while IFS= read -r created; do
+                # A missing creation time must not mask the age of the
+                # resources which do expose one.
+                [ -n "$created" ] && [ "$created" != "null" ] || continue
+                if [ -z "$rg_created" ] || [[ "$created" < "$rg_created" ]]; then
+                  rg_created=$created
+                fi
+              done < <(jq --raw-output '.value[].createdTime' <<< "$resources_json")
+              # The resource list may be paginated: follow nextLink.
+              resources_url=$(jq --raw-output '.nextLink // empty' <<< "$resources_json")
+              [ -n "$resources_url" ] || break
+            done
+            if [ -z "$rg_created" ]; then
+              # An empty group may belong to a test that just started
+              # (group created, resources not yet deployed): never
+              # delete a group we cannot age.
+              echo "Skipping Azure resource group $rg: no resource creation time to age it by"
               continue
-            }
-            [ -n "$rg_created" ] && [ "$rg_created" != "null" ] || {
-              warn_skip "resource group $rg has no creation time, skipping it"
-              continue
-            }
+            fi
             rg_created_epoch=$(date +%s --date="$rg_created") || {
               warn_skip "failed to parse the creation time '$rg_created' of resource group $rg, skipping it"
               continue
