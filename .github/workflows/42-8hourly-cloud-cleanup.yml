@@ -6,9 +6,8 @@
 # the subscription behind the PYCLOUDLIB_TOML_B64 secret must be
 # dedicated to cloud-init QA usage only.
 #
-# Cloud credentials are read from the PYCLOUDLIB_TOML_B64 repo secret,
-# the same pycloudlib.toml consumed by .github/actions/integration-test;
-# the decoded toml must provide an [azure] section.
+# Cloud credentials are read from the PYCLOUDLIB_TOML_B64 repo secret
+# to run_azure the [azure] config section is required in pycloudlib.toml.
 
 name: "8-hourly: Cleanup stale QA cloud instances"
 
@@ -41,22 +40,47 @@ defaults:
     shell: bash
 
 jobs:
-  # TODO add ec2 job
-  azure:
-    name: cloud-cleanup-azure
+  check:
+    name: cloud-cleanup-check-config
     runs-on: ubuntu-latest
-    if: github.repository == 'canonical/cloud-init' && (github.event_name == 'schedule' || inputs.run_azure)
-    timeout-minutes: 90
+    if: github.repository == 'canonical/cloud-init'
     env:
       PYCLOUDLIB_TOML_B64: ${{ secrets.PYCLOUDLIB_TOML_B64 }}
-      HOURS_OLD: ${{ inputs.hours_old || 96 }}
     steps:
+      - name: Validate the hours_old dispatch input
+        env:
+          HOURS_OLD: ${{ inputs.hours_old || 96 }}
+        run: |
+          # HOURS_OLD mirrors the Jenkins HOURS_OLD string parameter.
+          # Scheduled runs provide no input: leave HOURS_OLD empty and
+          # let each cleanup job fall back to its own default.
+          if [ -n "$HOURS_OLD" ] && ! [[ "$HOURS_OLD" =~ ^[1-9][0-9]*$ ]]; then
+            echo "ERROR: HOURS_OLD must be a positive integer, got: '$HOURS_OLD'" >&2
+            exit 1
+          fi
+          # Keep the blast radius of a typo in check: deleting every VM
+          # and every resource group younger than a day must stay a
+          # deliberate act, not a dispatch mistake.
+          if ((HOURS_OLD < 24)); then
+            echo "ERROR: HOURS_OLD must be at least 24, got: '$HOURS_OLD'" >&2
+            exit 1
+          fi
       - name: Assert required repo secrets are set
         run: |
           if [ -z "$PYCLOUDLIB_TOML_B64" ]; then
             echo "ERROR: Missing required repo secret. Please provide PYCLOUDLIB_TOML_B64 repo secret at ${{ github.repository }}/settings/secrets/actions."
             exit 1
           fi
+  azure:
+    name: cloud-cleanup-azure
+    runs-on: ubuntu-latest
+    needs: check
+    if: github.repository == 'canonical/cloud-init' && (github.event_name == 'schedule' || inputs.run_azure)
+    timeout-minutes: 90
+    env:
+      HOURS_OLD: ${{ inputs.hours_old || 96 }}
+      PYCLOUDLIB_TOML_B64: ${{ secrets.PYCLOUDLIB_TOML_B64 }}
+    steps:
       - name: Setup pycloudlib
         env:
           PYCLOUDLIB_CONFIG: ${{ runner.temp }}/pycloudlib.toml
@@ -68,18 +92,6 @@ jobs:
           PYCLOUDLIB_CONFIG: ${{ runner.temp }}/pycloudlib.toml
         run: |
           set -euo pipefail
-
-          if ! [[ "$HOURS_OLD" =~ ^[1-9][0-9]*$ ]]; then
-            echo "ERROR: HOURS_OLD must be a positive integer, got: '$HOURS_OLD'" >&2
-            exit 1
-          fi
-          # Keep the blast radius of a typo in check: deleting every VM
-          # and every resource group younger than a day must stay a
-          # deliberate act, not a dispatch mistake.
-          if ((HOURS_OLD < 24)); then
-            echo "ERROR: HOURS_OLD must be at least 24, got: '$HOURS_OLD'" >&2
-            exit 1
-          fi
 
           # A failure on a single resource must not abort the whole
           # cleanup pass: warn, skip the offending resource, keep cleaning
