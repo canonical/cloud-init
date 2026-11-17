@@ -119,9 +119,10 @@ class DataSourceNWCS(sources.DataSource):
                 LOG.info("Overriding %s with %s", i["name"], iface_name)
                 i["name"] = iface_name
 
-        self._network_config = self.metadata["network"]
+        net_config = self.metadata["network"]
+        self._network_config = net_config
 
-        return self._network_config
+        return net_config
 
     @staticmethod
     def ds_detect():

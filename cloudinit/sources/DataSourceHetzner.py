@@ -233,7 +233,7 @@ class DataSourceHetzner(sources.DataSource):
             )
         net_config["config"].extend(private_networks_config)
         self._network_config = net_config
-        return self._network_config
+        return net_config
 
 
 def get_hcloud_data():

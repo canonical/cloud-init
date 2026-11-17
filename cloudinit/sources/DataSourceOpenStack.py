@@ -146,11 +146,12 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             return None
 
         LOG.debug("network config provided via network_json")
-        self._network_config = openstack.convert_net_json(
+        net_config = openstack.convert_net_json(
             self.network_json, known_macs=None
         )
+        self._network_config = net_config
 
-        return self._network_config
+        return net_config
 
     def _get_data(self):
         """Crawl metadata, parse and persist that data for this instance.
