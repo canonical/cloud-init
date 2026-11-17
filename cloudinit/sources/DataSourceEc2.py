@@ -213,7 +213,7 @@ class DataSourceEc2(sources.DataSource):
         if not self._crawled_metadata:
             LOG.error("Unable to get metadata")
             return False
-        self.metadata = self._crawled_metadata.get("meta-data", None)
+        self.metadata = self._crawled_metadata.get("meta-data", {})
         self.userdata_raw = self._crawled_metadata.get("user-data", None)
         self.identity = (
             self._crawled_metadata.get("dynamic", {})
@@ -370,9 +370,9 @@ class DataSourceEc2(sources.DataSource):
         LOG.error("Unable to get response from urls: %s", urls)
         return None
 
-    def wait_for_metadata_service(self):
+    def wait_for_metadata_service(self) -> bool:
         urls = []
-        start_time = 0
+        start_time: float = 0.0
         mcfg = self.ds_cfg
 
         url_params = self.get_url_params()
@@ -444,7 +444,7 @@ class DataSourceEc2(sources.DataSource):
 
         return bool(metadata_address)
 
-    def device_name_to_device(self, name):
+    def device_name_to_device(self, name: str) -> Optional[str]:
         # Consult metadata service, that has
         #  ephemeral0: sdb
         # and return 'sdb' for input 'ephemeral0'
@@ -537,10 +537,10 @@ class DataSourceEc2(sources.DataSource):
         if self._network_config != sources.UNSET:
             return self._network_config
 
-        if self.metadata is None:
+        if not self.metadata:
             # this would happen if get_data hadn't been called. leave as UNSET
             # _get_data may set self.metadata to None, but mypy can't know
-            LOG.warning(  # type: ignore
+            LOG.warning(
                 "Unexpected call to network_config when metadata is None."
             )
             return None
