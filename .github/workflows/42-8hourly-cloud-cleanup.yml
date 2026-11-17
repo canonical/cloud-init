@@ -52,7 +52,6 @@ jobs:
         env:
           HOURS_OLD: ${{ inputs.hours_old }}
         run: |
-          # HOURS_OLD mirrors the Jenkins HOURS_OLD string parameter.
           # Scheduled runs provide no input: leave HOURS_OLD empty and
           # let each cleanup job fall back to its own default (the
           # azure job defaults HOURS_OLD to 96 hours below).
@@ -144,6 +143,8 @@ jobs:
           }
           # shellcheck disable=SC2086  # one resource group name per iteration
           for rg in $rg_list; do
+            echo "INFO: processing resource group: $rg"
+
             # Delete all the stale instances, regardless of the resource
             # group they're in (including the allowlisted groups above).
             # Fetch the id and the creation time of each VM in a single
