@@ -1,8 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import os
+from pathlib import Path
 
 import pytest
+from pytest_mock import MockerFixture
 
 from cloudinit import safeyaml, stages, util
 from cloudinit.config.modules import Modules
@@ -12,13 +14,13 @@ from tests.unittests.helpers import replicate_test_root
 
 
 @pytest.fixture(autouse=True)
-def user_data(tmp_path):
+def user_data(tmp_path: Path) -> str:
     replicate_test_root("simple_ubuntu", str(tmp_path))
     return helpers.readResource("user_data.1.txt")
 
 
 @pytest.fixture(autouse=True)
-def cfg(tmp_path, mocker):
+def cfg(tmp_path: Path, mocker: MockerFixture) -> None:
     # root group doesn't exist everywhere
     mocker.patch("cloudinit.util.chownbyname")
 
@@ -49,12 +51,12 @@ def cfg(tmp_path, mocker):
 
 @pytest.mark.usefixtures("fake_filesystem")
 class TestMergeRun:
-    def test_none_ds(self, user_data):
+    def test_none_ds(self, user_data: str) -> None:
         initer = stages.Init()
         initer.read_cfg()
         initer.initialize()
-        initer.fetch()
-        initer.datasource.userdata_raw = user_data
+        datasource = initer.fetch()
+        datasource.userdata_raw = user_data
         initer.instancify()
         initer.update()
         initer.cloudify().run(
