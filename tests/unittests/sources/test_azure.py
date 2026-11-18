@@ -101,7 +101,7 @@ def mock_chassis_asset_tag():
     with mock.patch.object(
         identity.ChassisAssetTag,
         "query_system",
-        return_value=identity.ChassisAssetTag.AZURE_CLOUD.value,
+        return_value=identity.ChassisAssetTag.AZURE_CLOUD,
     ) as m:
         yield m
 
@@ -3511,7 +3511,7 @@ class TestIsPlatformViable:
     @pytest.mark.parametrize(
         "tag",
         [
-            identity.ChassisAssetTag.AZURE_CLOUD.value,
+            identity.ChassisAssetTag.AZURE_CLOUD,
         ],
     )
     def test_true_on_azure_chassis(
