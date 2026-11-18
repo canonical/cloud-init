@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       hours_old:
-        description: "Delete cloud resources older than this many hours (default 96, minimum 24)"
+        description: "Delete cloud resources older than this many hours (default 96, minimum 24, maximum 700)"
         required: false
         type: number
       run_azure:
@@ -65,6 +65,10 @@ jobs:
             # a deliberate act, not a dispatch mistake.
             if ((HOURS_OLD < 24)); then
               echo "ERROR: HOURS_OLD must be at least 24, got: '$HOURS_OLD'" >&2
+              exit 1
+            fi
+            if ((HOURS_OLD > 700)); then
+              echo "ERROR: HOURS_OLD must be at most 700, got: '$HOURS_OLD'" >&2
               exit 1
             fi
           fi
