@@ -320,6 +320,27 @@ class TestRemoveDefaultCaCerts:
                             else:
                                 assert mock_subp.call_count == 0
 
+    def test_rhel_keeps_extracted_dir(self, tmp_path):
+        """remove_defaults must leave the dirs update-ca-trust writes to."""
+        conf = cc_ca_certs._distro_ca_certs_configs("rhel")
+        ca_trust = tmp_path / "etc/pki/ca-trust"
+        local = tmp_path / "usr/share/pki/ca-trust-source"
+        for path in (
+            ca_trust / "source/anchors/admin-ca.crt",
+            ca_trust / "extracted/pem/tls-ca-bundle.pem",
+            local / "ca-bundle.trust.p11-kit",
+        ):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("cert")
+        conf["ca_cert_path"] = str(tmp_path) + conf["ca_cert_path"]
+        conf["ca_cert_local_path"] = str(tmp_path) + conf["ca_cert_local_path"]
+
+        cc_ca_certs.remove_default_ca_certs(conf)
+
+        assert [] == list((ca_trust / "source").iterdir())
+        assert [] == list(local.iterdir())
+        assert (ca_trust / "extracted/pem").is_dir()
+
     @pytest.mark.parametrize(
         "distro_name",
         [
