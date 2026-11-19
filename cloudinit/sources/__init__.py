@@ -1032,18 +1032,16 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
           the platform, or
         - None when this datasource has no network configuration
 
-        None is a valid, final answer meaning "no config from this source":
-        callers fall through to the next source in this datasource's
-        network_config_sources order or ultimately to a distro-generated
-        fallback config.
+        None means "no config from this source": callers fall through to
+        the next source in this datasource's network_config_sources order
+        or ultimately to a distro-generated fallback config.
 
-        A dict returned by _get_network_config is cached until
-        update_metadata_if_supported invalidates the cache (resetting it
-        to None), requiring the configuration to be regenerated from
-        fresh metadata. An invalidated cache is never returned as if it
-        were valid configuration: None and UNSET, including the plain
-        ``"_unset"`` string restored from caches written by older
-        releases, all trigger regeneration via _get_network_config.
+        Only dict results are cached: a dict returned by
+        _get_network_config is memoized and served on subsequent accesses
+        until update_metadata_if_supported invalidates the cache
+        (resetting it to None), requiring the configuration to be
+        regenerated from fresh metadata via _get_network_config. None is
+        not memoized; it marks the cache as invalidated.
         """
         if isinstance(self._network_config, dict):
             return self._network_config
