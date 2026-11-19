@@ -510,6 +510,10 @@ class OpenSSLManager:
         return the list of certs and private keys contained in the doc.
         """
         tag = ET.fromstring(certificates_xml).find(".//Data")  # nosec B314
+        if tag is None or tag.text is None:
+            raise InvalidGoalStateXMLException(
+                "Missing certificate data in Certificates XML."
+            )
         certificates_content = tag.text
         lines = [
             b"MIME-Version: 1.0",

@@ -510,6 +510,25 @@ class TestOpenSSLManagerActions:
         path = "tests/data/azure"
         return os.path.join(path, name)
 
+    @pytest.mark.parametrize(
+        "certificates_xml",
+        [
+            "<Certificates />",
+            "<Certificates><Data /></Certificates>",
+        ],
+    )
+    def test_decrypt_certs_rejects_missing_data(self, certificates_xml):
+        with mock.patch.object(
+            azure_helper.OpenSSLManager, "generate_certificate"
+        ):
+            sslmgr = azure_helper.OpenSSLManager()
+
+        with pytest.raises(
+            azure_helper.InvalidGoalStateXMLException,
+            match="Missing certificate data",
+        ):
+            sslmgr._decrypt_certs_from_xml(certificates_xml)
+
     @pytest.mark.allow_all_subp
     @pytest.mark.skipif(
         not all(
