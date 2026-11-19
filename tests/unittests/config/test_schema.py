@@ -852,6 +852,57 @@ class TestValidateCloudConfigSchema:
             assert log_record not in caplog.record_tuples
 
 
+class TestAzureDatasourceSchema:
+    @skipUnlessJsonSchema()
+    @pytest.mark.parametrize("skip_ready", [False, True])
+    @pytest.mark.parametrize("set_name", [False, True])
+    def test_boolean_options(self, skip_ready, set_name):
+        validate_cloudconfig_schema(
+            {
+                "datasource": {
+                    "Azure": {
+                        "experimental_skip_ready_report": skip_ready,
+                        "apply_network_config_set_name": set_name,
+                    }
+                },
+                "bootcmd": ["echo bootcmd"],
+            },
+            strict=True,
+        )
+
+    @skipUnlessJsonSchema()
+    @pytest.mark.parametrize(
+        "key",
+        [
+            "experimental_skip_ready_report",
+            "apply_network_config_set_name",
+        ],
+    )
+    @pytest.mark.parametrize("value", ["true", "false", 0, 1, None, [], {}])
+    def test_rejects_non_booleans(self, key, value):
+        with pytest.raises(SchemaValidationError, match=key):
+            validate_cloudconfig_schema(
+                {"datasource": {"Azure": {key: value}}}, strict=True
+            )
+
+    @skipUnlessJsonSchema()
+    @pytest.mark.parametrize(
+        "config",
+        [
+            None,
+            [],
+            {"Azure": None},
+            {"Azure": []},
+            {"Azure": {"data_dir": "/other"}},
+            {"Azure": {"apply_network_config": False}},
+            {"Other": {}},
+        ],
+    )
+    def test_rejects_invalid_datasource_config(self, config):
+        with pytest.raises(SchemaValidationError, match="datasource"):
+            validate_cloudconfig_schema({"datasource": config}, strict=True)
+
+
 class TestCloudConfigExamples:
     metas = get_metas()
     params = [
