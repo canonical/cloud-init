@@ -105,7 +105,6 @@ class DataSourceEc2(sources.DataSource):
     url_timeout = 50
 
     _api_token = None  # API token for accessing the metadata service
-    _network_config = sources.UNSET  # Used to cache calculated network cfg v1
 
     # Whether we want to get network configuration from the metadata service.
     perform_dhcp_setup = False
@@ -531,12 +530,8 @@ class DataSourceEc2(sources.DataSource):
                 cfg,
             )
 
-    @property
-    def network_config(self) -> Optional[dict]:
+    def _get_network_config(self) -> Optional[dict]:
         """Return a network config dict for rendering ENI or netplan files."""
-        if self._network_config != sources.UNSET:
-            return self._network_config
-
         if not self.metadata:
             LOG.warning(
                 "Unexpected call to network_config when metadata is %s.",
@@ -575,9 +570,7 @@ class DataSourceEc2(sources.DataSource):
                 )
         else:
             LOG.warning("Metadata 'network' key not valid: %s.", net_md)
-        self._network_config = result
-
-        return self._network_config
+        return result
 
     def crawl_metadata(self):
         """Crawl metadata service when available.

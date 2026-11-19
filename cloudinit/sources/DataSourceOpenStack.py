@@ -46,8 +46,6 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
 
     dsname = "OpenStack"
 
-    _network_config = sources.UNSET  # Used to cache calculated network cfg v1
-
     # Whether we want to get network configuration from the metadata service.
     perform_dhcp_setup = False
 
@@ -125,18 +123,13 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         # quickly (local check only) if self.instance_id is still valid
         return sources.instance_id_matches_system_uuid(self.get_instance_id())
 
-    @property
-    def network_config(self) -> Optional[dict]:
+    def _get_network_config(self) -> Optional[dict]:
         """Return a network config dict for rendering ENI or netplan files."""
-        if self._network_config != sources.UNSET:
-            return self._network_config
-
         # RELEASE_BLOCKER: SRU to Xenial and Artful SRU should not provide
         # network_config by default unless configured in /etc/cloud/cloud.cfg*.
         # Patch Xenial and Artful before release to default to False.
         if util.is_false(self.ds_cfg.get("apply_network_config", True)):
-            self._network_config = None
-            return self._network_config
+            return None
         if self.network_json == sources.UNSET:
             # this would happen if get_data hadn't been called. leave as UNSET
             LOG.warning(
@@ -145,11 +138,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             return None
 
         LOG.debug("network config provided via network_json")
-        net_config = openstack.convert_net_json(
-            self.network_json, known_macs=None
-        )
-        self._network_config = net_config
-        return net_config
+        return openstack.convert_net_json(self.network_json, known_macs=None)
 
     def _get_data(self):
         """Crawl metadata, parse and persist that data for this instance.

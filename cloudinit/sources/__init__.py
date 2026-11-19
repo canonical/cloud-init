@@ -68,9 +68,9 @@ REDACT_SENSITIVE_VALUE = "redacted for non-root user"
 # Key which can be provide a cloud's official product name to cloud-init
 METADATA_CLOUD_NAME_KEY = "cloud-name"
 
-# UNSET is internal-only to indicate that the _network_config has been
-# invalidated and requires recrawl or recompute instead of returning the
-# cached value.
+# UNSET is internal-only to indicate that a cached metadata attribute
+# (such as ec2_metadata or network_json) has been invalidated and
+# requires recrawl or recompute instead of returning the cached value.
 UNSET: Any = "_unset"
 METADATA_UNKNOWN = "unknown"
 
@@ -292,6 +292,13 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
             EventType.BOOT_NEW_INSTANCE,
         }
     }
+
+    # Cached value of the network_config property. None marks the cache
+    # as invalidated: network configuration must be regenerated from
+    # current metadata on next access. update_metadata_if_supported
+    # resets this to None when a supported platform event may have changed
+    # the network configuration.
+    _network_config: Optional[Dict[str, Any]] = None
 
     # N-tuple listing default values for any metadata-related class
     # attributes cached on an instance by a process_data runs. These attribute
@@ -962,10 +969,10 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 scope.value,
                 ", ".join([event.value for event in matched_events]),
             )
-            # Each datasource has a cached config property which needs clearing
-            # Once cleared that config property will be regenerated from
-            # current metadata.
-            self.clear_cached_attrs((("_%s_config" % scope, UNSET),))
+            # Each datasource has a cached config property which needs
+            # clearing. Once cleared that config property will be
+            # regenerated from current metadata.
+            self.clear_cached_attrs((("_%s_config" % scope, None),))
         if supported_events:
             self.clear_cached_attrs()
             result = self.get_data()
@@ -1018,7 +1025,8 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def network_config(self) -> Optional[dict]:
         """Network configuration provided by this datasource, if any.
 
-        Implementations must return either:
+        Datasources implement _get_network_config to generate
+        configuration from crawled metadata, returning either:
 
         - a dict with network configuration (v1 or v2 format) provided by
           the platform, or
@@ -1028,7 +1036,23 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         callers fall through to the next source in this datasource's
         network_config_sources order or ultimately to a distro-generated
         fallback config.
+
+        A dict returned by _get_network_config is cached until
+        update_metadata_if_supported invalidates the cache (resetting it
+        to None), requiring the configuration to be regenerated from
+        fresh metadata. An invalidated cache is never returned as if it
+        were valid configuration: None and UNSET, including the plain
+        ``"_unset"`` string restored from caches written by older
+        releases, all trigger regeneration via _get_network_config.
         """
+        if isinstance(self._network_config, dict):
+            return self._network_config
+        netcfg = self._get_network_config()
+        self._network_config = netcfg
+        return netcfg
+
+    def _get_network_config(self) -> Optional[dict]:
+        """Generate this datasource's network configuration from metadata."""
         return None
 
     def setup(self, is_new_instance):

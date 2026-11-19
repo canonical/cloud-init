@@ -198,7 +198,9 @@ class DataSourceOracle(sources.DataSource):
                 "_network_config_source",
                 KlibcOracleNetworkConfigSource(),
             )
-        if not hasattr(self, "_network_config"):
+        # DataSource also declares a class-level _network_config, so an
+        # instance attribute must be reconstituted explicitly on unpickle.
+        if "_network_config" not in self.__dict__:
             self._network_config = {"config": [], "version": 1}
 
     def _has_network_config(self) -> bool:

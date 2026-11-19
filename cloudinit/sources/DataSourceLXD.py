@@ -15,7 +15,7 @@ import stat
 import time
 from enum import Flag, auto
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -173,7 +173,7 @@ class DataSourceLXD(sources.DataSource):
 
     dsname = "LXD"
 
-    _network_config: Union[Dict, str] = sources.UNSET
+    # Used to cache raw metadata crawled from the LXD socket API
     _crawled_metadata: Optional[Union[Dict, str]] = sources.UNSET
 
     sensitive_metadata_keys: Tuple[str, ...] = (
@@ -240,38 +240,29 @@ class DataSourceLXD(sources.DataSource):
             md = util.load_yaml(md)
         return md.get("instance-id") == self.metadata.get("instance-id")
 
-    @property
-    def network_config(self) -> dict:
+    def _get_network_config(self) -> dict:
         """Network config read from LXD socket config/user.network-config.
 
         If none is present, then we generate fallback configuration.
         """
-        if self._network_config == sources.UNSET:
-            if self._crawled_metadata == sources.UNSET:
-                self._get_data()
-            if isinstance(self._crawled_metadata, dict):
-                if self._crawled_metadata.get("network-config"):
-                    LOG.debug("LXD datasource using provided network config")
-                    self._network_config = self._crawled_metadata[
-                        "network-config"
-                    ]
-                elif self._crawled_metadata.get("devices"):
-                    # If no explicit network config, but we have net devices
-                    # available to us, find the primary and set it up.
-                    devices: List[str] = [
-                        k
-                        for k, v in self._crawled_metadata["devices"].items()
-                        if v["type"] == "nic"
-                    ]
-                    self._network_config = generate_network_config(devices)
-        if self._network_config == sources.UNSET:
-            # We know nothing about network, so setup fallback
-            LOG.debug(
-                "LXD datasource generating network config using fallback."
-            )
-            self._network_config = generate_network_config()
-
-        return cast(dict, self._network_config)
+        if self._crawled_metadata == sources.UNSET:
+            self._get_data()
+        if isinstance(self._crawled_metadata, dict):
+            if self._crawled_metadata.get("network-config"):
+                LOG.debug("LXD datasource using provided network config")
+                return self._crawled_metadata["network-config"]
+            if self._crawled_metadata.get("devices"):
+                # If no explicit network config, but we have net devices
+                # available to us, find the primary and set it up.
+                devices: List[str] = [
+                    k
+                    for k, v in self._crawled_metadata["devices"].items()
+                    if v["type"] == "nic"
+                ]
+                return generate_network_config(devices)
+        # We know nothing about network, so setup fallback
+        LOG.debug("LXD datasource generating network config using fallback.")
+        return generate_network_config()
 
 
 def _get_json_response(

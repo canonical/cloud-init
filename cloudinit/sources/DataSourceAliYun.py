@@ -33,8 +33,6 @@ class DataSourceAliYun(sources.DataSource):
 
     # API token for accessing the metadata service
     _api_token = None
-    # Used to cache calculated network cfg v1
-    _network_config = sources.UNSET
 
     # Whether we want to get network configuration from the metadata service.
     perform_dhcp_setup = False
@@ -86,28 +84,20 @@ class DataSourceAliYun(sources.DataSource):
     def imdsv2_token_req_header(self):
         return self.imdsv2_token_put_header + "-ttl-seconds"
 
-    @property
-    def network_config(self) -> Optional[dict]:
+    def _get_network_config(self) -> Optional[dict]:
         """Return a network config dict for rendering ENI or netplan files."""
-        if self._network_config != sources.UNSET:
-            return self._network_config
-
-        result = {}
         iface = self.distro.fallback_interface
         net_md = self.metadata.get("network")
         if isinstance(net_md, dict):
-            result = aliyun.convert_ecs_metadata_network_config(
+            return aliyun.convert_ecs_metadata_network_config(
                 net_md,
                 fallback_nic=iface,
                 full_network_config=util.get_cfg_option_bool(
                     self.ds_cfg, "apply_full_imds_network_config", True
                 ),
             )
-        else:
-            LOG.warning("Metadata 'network' key not valid: %s.", net_md)
-            return result
-        self._network_config = result
-        return self._network_config
+        LOG.warning("Metadata 'network' key not valid: %s.", net_md)
+        return {}
 
     def _maybe_fetch_api_token(self, mdurls):
         """Get an API token for ECS Instance Metadata Service.

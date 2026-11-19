@@ -75,7 +75,6 @@ class DataSourceHetzner(sources.DataSource):
         self.wait_retry = self.ds_cfg.get("wait_retry", MD_WAIT_RETRY)
         self.max_wait = self.ds_cfg.get("max_wait", MD_MAX_WAIT)
         self.sleep_time = self.ds_cfg.get("sleep_time", MD_SLEEP_TIME)
-        self._network_config = sources.UNSET
         self.dsmode = sources.DSMODE_NETWORK
         self.metadata_full = None
 
@@ -190,23 +189,11 @@ class DataSourceHetzner(sources.DataSource):
             self.get_instance_id(), "system-serial-number"
         )
 
-    @property
-    def network_config(self) -> Optional[dict]:
+    def _get_network_config(self) -> Optional[dict]:
         """Configure the networking. This needs to be done each boot, since
         the IP information may have changed due to snapshot and/or
         migration.
         """
-
-        if self._network_config is None:
-            LOG.warning(
-                "Found None as cached _network_config. Resetting to %s",
-                sources.UNSET,
-            )
-            self._network_config = sources.UNSET
-
-        if self._network_config != sources.UNSET:
-            return self._network_config
-
         net_config = self.metadata["network-config"]
         if not net_config:
             raise RuntimeError("Unable to get meta-data from server....")
@@ -230,7 +217,6 @@ class DataSourceHetzner(sources.DataSource):
                 }
             )
         net_config["config"].extend(private_networks_config)
-        self._network_config = net_config
         return net_config
 
 

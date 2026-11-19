@@ -17,7 +17,6 @@ import base64
 import logging
 import os
 import re
-from typing import Optional
 from xml.dom import minidom  # nosec B408
 
 import yaml
@@ -126,10 +125,6 @@ class DataSourceOVF(sources.DataSource):
     # because cloud-config content would be handled elsewhere
     def get_config_obj(self):
         return self.cfg
-
-    @property
-    def network_config(self) -> Optional[dict]:
-        return self._network_config
 
 
 class DataSourceOVFNet(DataSourceOVF):

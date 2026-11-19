@@ -172,7 +172,6 @@ class DataSourceScaleway(sources.DataSource):
         self.retries = int(self.ds_cfg.get("retries", DEF_MD_RETRIES))
         self.timeout = int(self.ds_cfg.get("timeout", DEF_MD_TIMEOUT))
         self.max_wait = int(self.ds_cfg.get("max_wait", DEF_MD_MAX_WAIT))
-        self._network_config = sources.UNSET
         self.metadata_urls = DS_BASE_URLS
         self.metadata_url = None
         self.userdata_url = None
@@ -307,22 +306,11 @@ class DataSourceScaleway(sources.DataSource):
                 return False
         return True
 
-    @property
-    def network_config(self) -> Optional[dict]:
+    def _get_network_config(self) -> Optional[dict]:
         """
         Configure networking according to data received from the
         metadata API.
         """
-        if self._network_config is None:
-            LOG.warning(
-                "Found None as cached _network_config. Resetting to %s",
-                sources.UNSET,
-            )
-            self._network_config = sources.UNSET
-
-        if self._network_config != sources.UNSET:
-            return self._network_config
-
         netcfg: Dict[str, Dict[str, Any]] = {}
         routes: List[Dict[str, Any]] = []
         addresses: List[str] = []
@@ -351,9 +339,7 @@ class DataSourceScaleway(sources.DataSource):
         if addresses:
             ip_cfg["addresses"] = tuple(addresses)
         netcfg[self.distro.fallback_interface] = ip_cfg
-        self._network_config = {"version": 2, "ethernets": netcfg}
-
-        return self._network_config
+        return {"version": 2, "ethernets": netcfg}
 
     @property
     def launch_index(self):

@@ -42,14 +42,8 @@ class DataSourceNWCS(sources.DataSource):
         self.retries = self.ds_cfg.get("retries", MD_RETRIES)
         self.timeout = self.ds_cfg.get("timeout", MD_TIMEOUT)
         self.wait_retry = self.ds_cfg.get("wait_retry", MD_WAIT_RETRY)
-        self._network_config = sources.UNSET
         self.dsmode = sources.DSMODE_NETWORK
         self.metadata_full = None
-
-    def _unpickle(self, ci_pkl_version: int) -> None:
-        super()._unpickle(ci_pkl_version)
-        if not self._network_config:
-            self._network_config = sources.UNSET
 
     def _get_data(self):
         md = self.get_metadata()
@@ -99,12 +93,8 @@ class DataSourceNWCS(sources.DataSource):
             LOG.error("DHCP failure: %s", e)
             raise
 
-    @property
-    def network_config(self) -> Optional[dict]:
+    def _get_network_config(self) -> Optional[dict]:
         LOG.debug("Attempting network configuration")
-
-        if self._network_config != sources.UNSET:
-            return self._network_config
 
         if not self.metadata["network"]["config"]:
             raise RuntimeError("Unable to get metadata from server")
@@ -117,10 +107,8 @@ class DataSourceNWCS(sources.DataSource):
                 LOG.info("Overriding %s with %s", i["name"], iface_name)
                 i["name"] = iface_name
 
-        net_config = self.metadata["network"]
-        self._network_config = net_config
-
-        return net_config
+        # Return the metadata network configuration; the property caches it
+        return self.metadata["network"]
 
     @staticmethod
     def ds_detect():
