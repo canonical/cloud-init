@@ -1047,9 +1047,8 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """
         if isinstance(self._network_config, dict):
             return self._network_config
-        netcfg = self._get_network_config()
-        self._network_config = netcfg
-        return netcfg
+        self._network_config = self._get_network_config()
+        return self._network_config
 
     def _get_network_config(self) -> Optional[dict]:
         """Generate this datasource's network configuration from metadata."""
