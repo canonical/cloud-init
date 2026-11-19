@@ -204,7 +204,7 @@ class DataSourceOracle(sources.DataSource):
             self._network_config = {"config": [], "version": 1}
 
     def _has_network_config(self) -> bool:
-        return bool(self._network_config.get("config", []))
+        return bool((self._network_config or {}).get("config", []))
 
     @staticmethod
     def ds_detect() -> bool:
