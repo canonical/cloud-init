@@ -320,6 +320,25 @@ class TestRemoveDefaultCaCerts:
                             else:
                                 assert mock_subp.call_count == 0
 
+    @pytest.mark.parametrize(
+        "distro_name",
+        [
+            name
+            for name, family in cc_ca_certs.DISTRO_FAMILY.items()
+            if family == "rhel"
+        ],
+    )
+    def test_rhel_family_removes_defaults(self, distro_name, setup_test):
+        """remove_defaults must not be a no-op on RHEL-family distros."""
+        conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
+
+        with mock.patch.object(
+            cc_ca_certs, "remove_default_ca_certs"
+        ) as mock_remove:
+            cc_ca_certs.disable_default_ca_certs(distro_name, conf)
+
+        mock_remove.assert_called_once_with(conf)
+
     @pytest.mark.parametrize("distro_name", cc_ca_certs.distros)
     def test_non_existent_cert_cfg(self, distro_name, setup_test):
         _, m_stat = setup_test
