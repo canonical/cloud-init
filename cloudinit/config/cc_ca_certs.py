@@ -142,7 +142,8 @@ def disable_default_ca_certs(distro_name, distro_cfg):
     @param distro_name: String providing the distro class name.
     @param distro_cfg: A hash providing _distro_ca_certs_configs function.
     """
-    if distro_name in ["rhel", "photon", "amazon"]:
+    distro_name = DISTRO_FAMILY.get(distro_name, distro_name)
+    if distro_name in ["rhel", "photon"]:
         remove_default_ca_certs(distro_cfg)
     elif distro_name in [
         "alpine",
