@@ -3512,6 +3512,7 @@ class TestIsPlatformViable:
         "tag",
         [
             identity.ChassisAssetTag.AZURE_CLOUD,
+            identity.ChassisAssetTag.AZURE_LOCAL,
         ],
     )
     def test_true_on_azure_chassis(

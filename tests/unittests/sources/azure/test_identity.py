@@ -132,6 +132,15 @@ class TestQueryVmId:
 
 
 class TestChassisAssetTag:
+    def test_true_azure_local(self, caplog, mock_read_dmi_data):
+        mock_read_dmi_data.return_value = (
+            identity.ChassisAssetTag.AZURE_LOCAL.value
+        )
+        asset_tag = identity.ChassisAssetTag.query_system()
+
+        assert asset_tag == identity.ChassisAssetTag.AZURE_LOCAL
+        assert "AZURE_LOCAL" in caplog.text
+
     def test_true_azure_cloud(self, caplog, mock_read_dmi_data):
         mock_read_dmi_data.return_value = (
             identity.ChassisAssetTag.AZURE_CLOUD.value
