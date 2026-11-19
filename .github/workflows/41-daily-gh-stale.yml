@@ -19,10 +19,10 @@ jobs:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
         days-before-issue-stale: -1
         days-before-issue-close: -1
-        days-before-pr-stale: 14
+        days-before-pr-stale: 28
         days-before-pr-close: 7
         stale-pr-message: |
-          Hello! Thank you for this proposed change to cloud-init. This pull request is now marked as stale as it has not seen any activity in 14 days. If no activity occurs within the next 7 days, this pull request will automatically close.
+          Hello! Thank you for this proposed change to cloud-init. This pull request is now marked as stale as it has not seen any activity in 28 days. If no activity occurs within the next 7 days, this pull request will automatically close.
 
           If you are waiting for code review and you are seeing this message, apologies!  Please reply, tagging blackboxsw, and he will ensure that someone takes a look soon.
 
