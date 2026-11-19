@@ -10,7 +10,7 @@ import logging
 import os
 import socket
 import time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
 import requests
@@ -172,9 +172,7 @@ class DataSourceScaleway(sources.DataSource):
         self.retries = int(self.ds_cfg.get("retries", DEF_MD_RETRIES))
         self.timeout = int(self.ds_cfg.get("timeout", DEF_MD_TIMEOUT))
         self.max_wait = int(self.ds_cfg.get("max_wait", DEF_MD_MAX_WAIT))
-        self._network_config: Union[Dict[str, Any], None, sources.Unset] = (
-            sources.UNSET
-        )
+        self._network_config = sources.UNSET
         self.metadata_urls = DS_BASE_URLS
         self.metadata_url = None
         self.userdata_url = None
@@ -322,7 +320,7 @@ class DataSourceScaleway(sources.DataSource):
             )
             self._network_config = sources.UNSET
 
-        if isinstance(self._network_config, dict):
+        if self._network_config != sources.UNSET:
             return self._network_config
 
         netcfg: Dict[str, Dict[str, Any]] = {}

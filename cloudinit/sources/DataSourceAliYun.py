@@ -2,7 +2,7 @@
 
 import copy
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import List, Optional
 
 from cloudinit import dmi, sources
 from cloudinit import url_helper as uhelp
@@ -34,7 +34,7 @@ class DataSourceAliYun(sources.DataSource):
     # API token for accessing the metadata service
     _api_token = None
     # Used to cache calculated network cfg v1
-    _network_config: Union[Dict[str, Any], None, sources.Unset] = sources.UNSET
+    _network_config = sources.UNSET
 
     # Whether we want to get network configuration from the metadata service.
     perform_dhcp_setup = False
@@ -89,7 +89,7 @@ class DataSourceAliYun(sources.DataSource):
     @property
     def network_config(self) -> Optional[dict]:
         """Return a network config dict for rendering ENI or netplan files."""
-        if isinstance(self._network_config, dict):
+        if self._network_config != sources.UNSET:
             return self._network_config
 
         result = {}
@@ -107,7 +107,7 @@ class DataSourceAliYun(sources.DataSource):
             LOG.warning("Metadata 'network' key not valid: %s.", net_md)
             return result
         self._network_config = result
-        return result
+        return self._network_config
 
     def _maybe_fetch_api_token(self, mdurls):
         """Get an API token for ECS Instance Metadata Service.

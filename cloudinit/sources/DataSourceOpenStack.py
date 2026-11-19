@@ -6,7 +6,7 @@
 
 import logging
 import time
-from typing import Any, Dict, Optional, Union
+from typing import Optional
 
 from cloudinit import dmi, sources, url_helper, util
 from cloudinit.event import EventScope, EventType
@@ -46,8 +46,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
 
     dsname = "OpenStack"
 
-    # Used to cache calculated network cfg v1
-    _network_config: Union[Dict[str, Any], None, sources.Unset] = sources.UNSET
+    _network_config = sources.UNSET  # Used to cache calculated network cfg v1
 
     # Whether we want to get network configuration from the metadata service.
     perform_dhcp_setup = False
@@ -129,7 +128,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
     @property
     def network_config(self) -> Optional[dict]:
         """Return a network config dict for rendering ENI or netplan files."""
-        if isinstance(self._network_config, dict):
+        if self._network_config != sources.UNSET:
             return self._network_config
 
         # RELEASE_BLOCKER: SRU to Xenial and Artful SRU should not provide
@@ -150,7 +149,6 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             self.network_json, known_macs=None
         )
         self._network_config = net_config
-
         return net_config
 
     def _get_data(self):

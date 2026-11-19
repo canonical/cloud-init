@@ -173,8 +173,7 @@ class DataSourceLXD(sources.DataSource):
 
     dsname = "LXD"
 
-    # Used to cache calculated network cfg v2
-    _network_config: Union[Dict[str, Any], sources.Unset] = sources.UNSET
+    _network_config: Union[Dict, str] = sources.UNSET
     _crawled_metadata: Optional[Union[Dict, str]] = sources.UNSET
 
     sensitive_metadata_keys: Tuple[str, ...] = (

@@ -14,7 +14,7 @@ import os
 import time
 import uuid
 from contextlib import suppress
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Dict, List, Literal, Optional
 
 from cloudinit import dmi, net, sources
 from cloudinit import url_helper as uhelp
@@ -105,8 +105,7 @@ class DataSourceEc2(sources.DataSource):
     url_timeout = 50
 
     _api_token = None  # API token for accessing the metadata service
-    # Used to cache calculated network cfg v1
-    _network_config: Union[Dict[str, Any], None, sources.Unset] = sources.UNSET
+    _network_config = sources.UNSET  # Used to cache calculated network cfg v1
 
     # Whether we want to get network configuration from the metadata service.
     perform_dhcp_setup = False
@@ -535,7 +534,7 @@ class DataSourceEc2(sources.DataSource):
     @property
     def network_config(self) -> Optional[dict]:
         """Return a network config dict for rendering ENI or netplan files."""
-        if isinstance(self._network_config, dict):
+        if self._network_config != sources.UNSET:
             return self._network_config
 
         if not self.metadata:

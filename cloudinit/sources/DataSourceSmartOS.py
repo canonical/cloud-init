@@ -30,7 +30,7 @@ import os
 import random
 import re
 import socket
-from typing import Optional, Union
+from typing import Optional
 
 from cloudinit import atomic_helper, dmi, sources, subp, util
 from cloudinit.event import EventScope, EventType
@@ -166,10 +166,8 @@ class DataSourceSmartOS(sources.DataSource):
 
     dsname = "Joyent"
 
-    smartos_type: Union[str, None, sources.Unset] = sources.UNSET
-    md_client: Union["JoyentMetadataClient", None, sources.Unset] = (
-        sources.UNSET
-    )
+    smartos_type = sources.UNSET
+    md_client = sources.UNSET
     default_update_events = {
         EventScope.NETWORK: {
             EventType.BOOT_NEW_INSTANCE,
