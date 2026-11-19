@@ -35,22 +35,18 @@ meta: MetaSchema = {
 
 LOG = logging.getLogger(__name__)
 
-GENERATE_KEY_NAMES = ["rsa", "ecdsa", "ed25519"]
-FIPS_UNSUPPORTED_KEY_NAMES = ["ed25519"]
-
-KEY_FILE_TPL = "/etc/ssh/ssh_host_%s_key"
 PUBLISH_HOST_KEYS = True
 # By default publish all supported hostkey types.
 HOST_KEY_PUBLISH_BLACKLIST: List[str] = []
 
 CONFIG_KEY_TO_FILE = {}
 PRIV_TO_PUB = {}
-for k in GENERATE_KEY_NAMES:
+for k in util.GENERATE_KEY_NAMES:
     CONFIG_KEY_TO_FILE.update(
         {
-            f"{k}_private": (KEY_FILE_TPL % k, 0o600),
-            f"{k}_public": (f"{KEY_FILE_TPL % k}.pub", 0o644),
-            f"{k}_certificate": (f"{KEY_FILE_TPL % k}-cert.pub", 0o644),
+            f"{k}_private": (util.KEY_FILE_TPL % k, 0o600),
+            f"{k}_public": (f"{util.KEY_FILE_TPL % k}.pub", 0o644),
+            f"{k}_certificate": (f"{util.KEY_FILE_TPL % k}-cert.pub", 0o644),
         }
     )
     PRIV_TO_PUB[f"{k}_private"] = f"{k}_public"
@@ -155,7 +151,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     else:
         # if not, generate them
         genkeys = util.get_cfg_option_list(
-            cfg, "ssh_genkeytypes", GENERATE_KEY_NAMES
+            cfg, "ssh_genkeytypes", util.GENERATE_KEY_NAMES
         )
         # remove keys that are not supported in fips mode if its enabled
         key_names = (
@@ -164,7 +160,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             else [
                 names
                 for names in genkeys
-                if names not in FIPS_UNSUPPORTED_KEY_NAMES
+                if names not in util.FIPS_UNSUPPORTED_KEY_NAMES
             ]
         )
         skipped_keys = set(genkeys).difference(key_names)
@@ -175,7 +171,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
             )
 
         for keytype in key_names:
-            keyfile = KEY_FILE_TPL % (keytype)
+            keyfile = util.KEY_FILE_TPL % (keytype)
             if os.path.exists(keyfile):
                 continue
             util.ensure_dir(os.path.dirname(keyfile))
@@ -278,7 +274,7 @@ def get_public_host_keys(blacklist: Optional[Sequence[str]] = None):
     @returns: List of keys, each formatted as a two-element tuple.
         e.g. [('ssh-rsa', 'AAAAB3Nz...'), ('ssh-ed25519', 'AAAAC3Nx...')]
     """
-    public_key_file_tmpl = "%s.pub" % (KEY_FILE_TPL,)
+    public_key_file_tmpl = "%s.pub" % (util.KEY_FILE_TPL,)
     key_list = []
     blacklist_files = []
     if blacklist:
