@@ -1047,6 +1047,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """
         if isinstance(self._network_config, dict):
             return self._network_config
+        # pylint: disable=assignment-from-none
         self._network_config = self._get_network_config()
         return self._network_config
 
