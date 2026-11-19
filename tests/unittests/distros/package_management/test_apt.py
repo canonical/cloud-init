@@ -235,6 +235,7 @@ class TestGetUnavailablePackages:
         [
             "?priority(standard)",
             "?and(?installed,?automatic)",
+            "?priority(standard) ?not(?name(systemd-timesyncd))",
             "~nfoo",
             "~i",
         ],
