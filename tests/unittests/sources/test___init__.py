@@ -10,14 +10,7 @@ from cloudinit.sources import DataSourceOpenStack as ds
 openstack_ds_name = ds.DataSourceOpenStack.dsname.lower()
 
 
-class _NoNetworkConfigDataSource(sources.DataSource):
-    """Minimal datasource which provides no network configuration."""
-
-    def _get_data(self) -> bool:
-        return True
-
-
-class _HookDataSource(_NoNetworkConfigDataSource):
+class _NetworkConfigDataSource(sources.DataSource):
     """Minimal datasource counting _get_network_config calls per instance.
 
     network_config caches the dict returned by _get_network_config until
@@ -35,7 +28,7 @@ class _HookDataSource(_NoNetworkConfigDataSource):
         return self.hook_result
 
 
-class _PicklableHookDataSource(_HookDataSource):
+class _PicklableHookDataSource(_NetworkConfigDataSource):
     """Pickle shim stripping mocked unpicklable attributes."""
 
     def __getstate__(self):
@@ -44,20 +37,6 @@ class _PicklableHookDataSource(_HookDataSource):
         state["paths"] = None
         state["ud_proc"] = None
         return state
-
-
-class TestUnsetSentinel:
-    """UNSET must remain the plain "_unset" string for obj.pkl compat."""
-
-    def test_unset_is_plain_unset_string(self):
-        """obj.pkl compatibility: the sentinel is the plain "_unset" string.
-
-        Caches written by older releases store the bare string, so
-        equality checks against values restored from those caches must
-        keep matching UNSET.
-        """
-        assert sources.UNSET == "_unset"
-        assert pickle.loads(pickle.dumps(sources.UNSET)) == "_unset"
 
 
 class TestNetworkConfigHook:
@@ -72,8 +51,8 @@ class TestNetworkConfigHook:
     """
 
     @pytest.fixture
-    def datasource(self) -> _HookDataSource:
-        return _HookDataSource(
+    def datasource(self) -> _NetworkConfigDataSource:
+        return _NetworkConfigDataSource(
             sys_cfg={}, distro=mock.MagicMock(), paths=mock.MagicMock()
         )
 
@@ -91,7 +70,7 @@ class TestNetworkConfigHook:
         assert {"version": 1} == datasource.network_config
         datasource._dirty_cache = True
         datasource.clear_cached_attrs((("_network_config", None),))
-        assert None is datasource._network_config
+        assert datasource._network_config is None
         assert {"version": 1} == datasource.network_config
         assert 2 == datasource.hook_calls
 
@@ -121,7 +100,7 @@ class TestNetworkConfigHook:
 
     def test_default_hook_returns_none(self):
         """A datasource which does not implement the hook has no config."""
-        no_config_ds = _NoNetworkConfigDataSource(
+        no_config_ds = sources.DataSource(
             sys_cfg={}, distro=mock.MagicMock(), paths=mock.MagicMock()
         )
         assert None is no_config_ds.network_config

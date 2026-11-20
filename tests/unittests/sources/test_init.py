@@ -923,7 +923,7 @@ class TestDataSource:
                 EventType.BOOT_NEW_INSTANCE,
             ]
         )
-        assert None is self.datasource._network_config
+        assert self.datasource._network_config is None
 
         assert (
             mock.ANY,
