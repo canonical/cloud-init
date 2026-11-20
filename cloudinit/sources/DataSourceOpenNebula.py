@@ -127,7 +127,7 @@ class DataSourceOpenNebula(sources.DataSource):
         return "%s (%s)" % (subplatform_type, self.seed)
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[dict]:
         if self.network is not None:
             return self.network
         else:

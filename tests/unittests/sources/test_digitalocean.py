@@ -259,15 +259,16 @@ class TestDataSourceDigitalOcean:
 
     @mock.patch("cloudinit.net.get_interfaces_by_mac")
     @mock.patch("cloudinit.sources.helpers.digitalocean.read_metadata")
-    def test_network_config_unset_recomputes(
+    def test_network_config_invalid_cache_recomputes(
         self, mock_readmd, m_get_by_mac, get_ds
     ):
-        """network_config must recompute when _network_config is UNSET.
+        """network_config must recompute whenever the cache is invalid.
 
-        update_metadata_if_supported() sets _network_config = sources.UNSET
-        (the truthy string "_unset"). Without the UNSET sentinel check, the
-        bare truthiness guard returns the sentinel directly instead of
-        recomputing, causing AttributeError in apply_network_config.
+        update_metadata_if_supported() resets _network_config to None on
+        each boot event. obj.pkl caches written by older releases may hold
+        the plain "_unset" string or UNSET. None of those invalid values
+        may be returned as configuration; each must trigger regeneration
+        via _get_network_config.
         """
         mock_readmd.return_value = DO_META.copy()
         m_get_by_mac.return_value = {
@@ -278,12 +279,14 @@ class TestDataSourceDigitalOcean:
         ds = get_ds()
         assert ds.get_data() is True
 
-        # Simulate what update_metadata_if_supported() does on every boot
-        ds._network_config = UNSET
-        recomputed_netcfg = ds.network_config
-        assert recomputed_netcfg != UNSET
-        assert isinstance(recomputed_netcfg, dict)
-        assert "config" in recomputed_netcfg
+        # Simulate update_metadata_if_supported() on every boot and the
+        # invalid values which obj.pkl caches may contain.
+        for invalid_cache in (None, UNSET, "_unset"):
+            ds._network_config = invalid_cache
+            recomputed_netcfg = ds.network_config
+            assert recomputed_netcfg != invalid_cache
+            assert isinstance(recomputed_netcfg, dict)
+            assert "config" in recomputed_netcfg
 
 
 class TestNetworkConvert:

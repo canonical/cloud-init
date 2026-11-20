@@ -1147,6 +1147,22 @@ class TestNetworkConfig:
 
         assert azure_ds.network_config == self.fallback_config
 
+    def test_network_config_regenerated_after_clear_cached_attrs(
+        self, azure_ds, mock_generate_fallback_config
+    ):
+        """network_config is regenerated after the cache is invalidated.
+
+        DataSource.update_metadata_if_supported resets _network_config
+        to None via clear_cached_attrs when handling EventType.BOOT for
+        datasources which support network updates on each boot.
+        """
+        mock_generate_fallback_config.return_value = self.fallback_config
+        azure_ds._dirty_cache = True
+        azure_ds.clear_cached_attrs((("_network_config", None),))
+        assert azure_ds._network_config is None
+
+        assert azure_ds.network_config == self.fallback_config
+
     def test_uses_fallback_cfg_when_imds_metadata_unset(
         self, azure_ds, mock_generate_fallback_config
     ):

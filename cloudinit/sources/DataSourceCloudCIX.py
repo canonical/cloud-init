@@ -94,7 +94,7 @@ class DataSourceCloudCIX(sources.DataSource):
         return is_platform_viable()
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[dict]:
         if self._net_cfg:
             return self._net_cfg
 

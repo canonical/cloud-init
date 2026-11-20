@@ -314,22 +314,20 @@ class TestDataSourceLXD:
     def test__get_data(self, lxd_ds):
         """get_data calls read_metadata, setting appropriate instance attrs."""
         assert UNSET == lxd_ds._crawled_metadata
-        assert UNSET == lxd_ds._network_config
+        assert None is lxd_ds._network_config
         assert None is lxd_ds.userdata_raw
         assert True is lxd_ds._get_data()
         assert LXD_V1_METADATA == lxd_ds._crawled_metadata
-        # network-config is dumped from YAML
-        assert NETWORK_V1 == lxd_ds._network_config
         # Any user-data and vendor-data are saved as raw
         assert LXD_V1_METADATA["user-data"] == lxd_ds.userdata_raw
         assert LXD_V1_METADATA["vendor-data"] == lxd_ds.vendordata_raw
 
     def test_network_config_when_unset(self, lxd_ds):
-        """network_config is correctly computed when _network_config and
-        _crawled_metadata are unset.
+        """network_config is correctly computed when the network config
+        cache is invalidated and _crawled_metadata is unset.
         """
         assert UNSET == lxd_ds._crawled_metadata
-        assert UNSET == lxd_ds._network_config
+        assert None is lxd_ds._network_config
         assert None is lxd_ds.userdata_raw
         # network-config is dumped from YAML
         assert NETWORK_V1 == lxd_ds.network_config
@@ -339,11 +337,12 @@ class TestDataSourceLXD:
     def test_network_config_crawled_metadata_no_network_config(
         self, m_generate, lxd_ds_no_network_config
     ):
-        """network_config is correctly computed when _network_config is unset
-        and _crawled_metadata does not contain network_config.
+        """network_config is correctly computed when the network config
+        cache is invalidated and _crawled_metadata does not contain
+        network_config.
         """
         assert UNSET == lxd_ds_no_network_config._crawled_metadata
-        assert UNSET == lxd_ds_no_network_config._network_config
+        assert None is lxd_ds_no_network_config._network_config
         assert None is lxd_ds_no_network_config.userdata_raw
         # network-config is dumped from YAML
         assert NETWORK_V1 == lxd_ds_no_network_config.network_config

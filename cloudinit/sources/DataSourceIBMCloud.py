@@ -128,7 +128,6 @@ class DataSourceIBMCloud(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceIBMCloud, self).__init__(sys_cfg, distro, paths)
         self.source = None
-        self._network_config = None
         self.network_json = None
         self.platform = None
 
@@ -171,21 +170,18 @@ class DataSourceIBMCloud(sources.DataSource):
             return False
         return self.system_uuid == _read_system_uuid()
 
-    @property
-    def network_config(self):
+    def _get_network_config(self) -> Optional[dict]:
         if self.platform != Platforms.OS_CODE:
             # If deployed from template, an agent in the provisioning
             # environment handles networking configuration. Not cloud-init.
             return {"config": "disabled", "version": 1}
-        if self._network_config is None:
-            if self.network_json not in (sources.UNSET, None):
-                LOG.debug("network config provided via network_json")
-                self._network_config = openstack.convert_net_json(
-                    self.network_json, known_macs=None
-                )
-            else:
-                LOG.debug("no network configuration available.")
-        return self._network_config
+        if self.network_json not in (sources.UNSET, None):
+            LOG.debug("network config provided via network_json")
+            return openstack.convert_net_json(
+                self.network_json, known_macs=None
+            )
+        LOG.debug("no network configuration available.")
+        return None
 
 
 def _read_system_uuid() -> Optional[str]:

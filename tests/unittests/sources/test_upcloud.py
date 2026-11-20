@@ -280,15 +280,16 @@ class TestUpCloudNetworkSetup:
 
     @mock.patch("cloudinit.sources.helpers.upcloud.read_metadata")
     @mock.patch("cloudinit.net.get_interfaces_by_mac")
-    def test_network_config_unset_recomputes(
+    def test_network_config_invalid_cache_recomputes(
         self, m_get_by_mac, mock_readmd, ds
     ):
-        """network_config must recompute when _network_config is UNSET.
+        """network_config must recompute whenever the cache is invalid.
 
-        update_metadata_if_supported() sets _network_config = sources.UNSET
-        (the truthy string "_unset"). Without the UNSET sentinel check, the
-        bare truthiness guard returns the sentinel directly instead of
-        recomputing, causing AttributeError in apply_network_config.
+        update_metadata_if_supported() resets _network_config to None on
+        each boot event. obj.pkl caches written by older releases may hold
+        the plain "_unset" string or UNSET. None of those invalid values
+        may be returned as configuration; each must trigger regeneration
+        via _get_network_config.
         """
         mock_readmd.return_value = UC_METADATA.copy()
 
@@ -303,12 +304,14 @@ class TestUpCloudNetworkSetup:
         ds.perform_dhcp_setup = False
         assert ds.get_data() is True
 
-        # Simulate what update_metadata_if_supported() does
-        ds._network_config = sources.UNSET
-        recomputed_netcfg = ds.network_config
-        assert recomputed_netcfg != sources.UNSET
-        assert isinstance(recomputed_netcfg, dict)
-        assert 1 == recomputed_netcfg.get("version")
+        # Simulate update_metadata_if_supported() and the invalid values
+        # which obj.pkl caches may contain.
+        for invalid_cache in (None, sources.UNSET, "_unset"):
+            ds._network_config = invalid_cache
+            recomputed_netcfg = ds.network_config
+            assert recomputed_netcfg != invalid_cache
+            assert isinstance(recomputed_netcfg, dict)
+            assert 1 == recomputed_netcfg.get("version")
 
 
 class TestUpCloudDatasourceLoading:
