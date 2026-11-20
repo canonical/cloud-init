@@ -8,6 +8,7 @@ chef:
       keepalive: false
       prefork: {maxclients: 100}
   install_type: omnibus
+  chef_license_key: <your-chef-license-key>
   log_level: :auto
   omnibus_url_retries: 2
   run_list: ['recipe[apache2]', 'role[db]']

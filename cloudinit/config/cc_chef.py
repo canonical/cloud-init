@@ -293,7 +293,11 @@ def subp_blob_in_tempfile(blob, distro: Distro, args: list, **kwargs):
 
 
 def install_chef_from_omnibus(
-    distro: Distro, url=None, retries=None, omnibus_version=None
+    distro: Distro,
+    url=None,
+    retries=None,
+    omnibus_version=None,
+    license_key=None,
 ):
     """Install an omnibus unified package from url.
 
@@ -303,6 +307,9 @@ def install_chef_from_omnibus(
         Defaults to OMNIBUS_URL_RETRIES
     @param omnibus_version: Optional version string to require for omnibus
         install.
+    @param license_key: Optional Chef license key, required by Chef to
+        download its packages. It is passed to the install script in the
+        CHEF_LICENSE_KEY environment variable so it is not logged.
     """
     if url is None:
         url = OMNIBUS_URL
@@ -314,12 +321,16 @@ def install_chef_from_omnibus(
     else:
         args = ["-v", omnibus_version]
     content = url_helper.readurl(url=url, retries=retries).contents
+    kwargs = {}
+    if license_key:
+        kwargs["update_env"] = {"CHEF_LICENSE_KEY": license_key}
     return subp_blob_in_tempfile(
         distro=distro,
         blob=content,
         args=args,
         basename="chef-omnibus-install",
         capture=False,
+        **kwargs,
     )
 
 
@@ -349,6 +360,7 @@ def install_chef(cloud: Cloud, chef_cfg):
             url=util.get_cfg_option_str(chef_cfg, "omnibus_url"),
             retries=util.get_cfg_option_int(chef_cfg, "omnibus_url_retries"),
             omnibus_version=omnibus_version,
+            license_key=util.get_cfg_option_str(chef_cfg, "chef_license_key"),
         )
     else:
         LOG.warning("Unknown chef install type '%s'", install_type)
