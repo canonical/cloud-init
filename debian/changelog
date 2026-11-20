@@ -1,4 +1,4 @@
-cloud-init (26.3~1gd8f758fc-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (26.3~1gd8f758fc-0ubuntu1) tenacious; urgency=medium
 
   * refresh patches:
     - d/p/udev-settle-after-mkfs.patch
@@ -6,7 +6,7 @@ cloud-init (26.3~1gd8f758fc-0ubuntu1) UNRELEASED; urgency=medium
     - Bugs fixed in this snapshot: (LP: #2153951, #2153951, #2136392)
       (LP: #2144694)
 
- -- Nicholas Lindsey <nicholas.lindsey@canonical.com>  Fri, 20 Nov 2026 14:38:19 -0500
+ -- Nicholas Lindsey <nicholas.lindsey@canonical.com>  Fri, 20 Nov 2026 14:40:02 -0500
 
 cloud-init (26.2-0ubuntu2) stonking; urgency=medium
 
