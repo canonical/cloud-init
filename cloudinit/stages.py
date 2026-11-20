@@ -447,9 +447,21 @@ class Init:
         network_link = self.paths.get_runpath("network_config")
         if os.path.exists(ncfg_instance_path):
             # Compare and only write on delta of current network-config
-            if netcfg != util.load_json(
-                util.load_text_file(ncfg_instance_path)
-            ):
+            try:
+                current_netcfg = util.load_json(
+                    util.load_text_file(ncfg_instance_path)
+                )
+            except (ValueError, TypeError) as e:
+                # An empty, truncated or otherwise corrupt cache file (for
+                # example after an unclean shutdown) must not abort boot.
+                # Treat it as stale so that it gets rewritten below.
+                LOG.warning(
+                    "Ignoring unreadable cached network config %s: %s",
+                    ncfg_instance_path,
+                    e,
+                )
+                current_netcfg = None
+            if netcfg != current_netcfg:
                 atomic_helper.write_json(
                     ncfg_instance_path, netcfg, mode=0o600
                 )
