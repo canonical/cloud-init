@@ -71,9 +71,21 @@ class TestConfig:
         assert cc_ca_certs._distro_ca_certs_configs(distro_name) == expected
 
     def test_supported_distros(self):
-        assert set(cc_ca_certs.distros) <= set(ALL_DISTRO_NAMES)
-        assert cc_ca_certs.meta["distros"] == cc_ca_certs.distros
+        """Require an explicit ca_certs support decision for every distro.
 
+        A new distro can silently skip ca_certs configuration. Check its
+        trust store before enabling the module or listing it as unsupported.
+        """
+        known = set(ALL_DISTRO_NAMES)
+        supported = set(cc_ca_certs.distros)
+        unknown = supported - known
+        assert not unknown, f"Unknown ca_certs distros: {sorted(unknown)}"
+        assert (
+            cc_ca_certs.meta["distros"] == cc_ca_certs.distros
+        ), "Module metadata must match cc_ca_certs.distros"
+
+        # Remove entries as support is added:
+        # https://github.com/canonical/cloud-init/issues/7249
         unsupported_distros = {
             "OpenCloudOS",
             "TencentOS",
@@ -91,10 +103,12 @@ class TestConfig:
             "suse",
             "virtuozzo",
         }
+        missing = known - supported - unsupported_distros
+        assert not missing, f"Evaluate ca_certs support for: {sorted(missing)}"
+        stale = unsupported_distros - (known - supported)
         assert (
-            set(ALL_DISTRO_NAMES) - set(cc_ca_certs.distros)
-            == unsupported_distros
-        )
+            not stale
+        ), f"Remove stale entries from unsupported_distros: {sorted(stale)}"
 
     def _fetch_distro(self, kind):
         cls = distros.fetch(kind)
