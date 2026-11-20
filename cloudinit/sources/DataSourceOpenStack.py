@@ -6,6 +6,7 @@
 
 import logging
 import time
+from typing import Any, Optional, Union
 
 from cloudinit import dmi, sources, url_helper, util
 from cloudinit.event import EventScope, EventType
@@ -45,7 +46,8 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
 
     dsname = "OpenStack"
 
-    _network_config = sources.UNSET  # Used to cache calculated network cfg v1
+    # Cache for calculated network config; sources.UNSET until crawled
+    _network_config: Union[Any, Optional[sources.NetConfigV1]] = sources.UNSET
 
     # Whether we want to get network configuration from the metadata service.
     perform_dhcp_setup = False
@@ -125,7 +127,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         return sources.instance_id_matches_system_uuid(self.get_instance_id())
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[sources.NetConfig]:
         """Return a network config dict for rendering ENI or netplan files."""
         if self._network_config != sources.UNSET:
             return self._network_config
@@ -144,10 +146,11 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             return None
 
         LOG.debug("network config provided via network_json")
-        self._network_config = openstack.convert_net_json(
+        net_config: Optional[sources.NetConfigV1] = openstack.convert_net_json(
             self.network_json, known_macs=None
         )
-        return self._network_config
+        self._network_config = net_config
+        return net_config
 
     def _get_data(self):
         """Crawl metadata, parse and persist that data for this instance.

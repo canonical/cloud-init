@@ -16,7 +16,18 @@ import os
 import pickle
 import re
 from enum import Enum, unique
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union, cast
+from typing import (
+    Any,
+    Dict,
+    List,
+    Literal,
+    NamedTuple,
+    Optional,
+    Tuple,
+    TypedDict,
+    Union,
+    cast,
+)
 
 from cloudinit import (
     atomic_helper,
@@ -194,6 +205,41 @@ class HotplugRetrySettings(NamedTuple):
     force_retry: bool
     sleep_period: int
     sleep_total: int
+
+
+class NetConfigV1(TypedDict):
+    """A version 1 network config, per schema-network-config-v1.json."""
+
+    version: Literal[1]
+    config: List[Dict[str, Any]]
+
+
+class NetConfigV1Disabled(TypedDict):
+    """A version 1 network config that disables network configuration.
+
+    cloud-init skips network configuration entirely when a datasource
+    provides this legacy v1 "config: disabled" sentinel
+    (see net.is_disabled_cfg).
+    """
+
+    version: Literal[1]
+    config: Literal["disabled"]
+
+
+class _NetConfigV2Required(TypedDict):
+    version: Literal[2]
+
+
+class NetConfigV2(_NetConfigV2Required, total=False):
+    """A version 2 network config, per schema-network-config-v2.json.
+
+    Only version is required; ethernets is optional.
+    """
+
+    ethernets: Dict[str, Dict[str, Any]]
+
+
+NetConfig = Union[NetConfigV1, NetConfigV1Disabled, NetConfigV2]
 
 
 class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
@@ -1003,7 +1049,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return default
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[NetConfig]:
         return None
 
     def setup(self, is_new_instance):

@@ -6,6 +6,7 @@
 # https://developers.upcloud.com/1.3/8-servers/#metadata-service
 
 import logging
+from typing import Optional
 
 from cloudinit import net as cloudnet
 from cloudinit import sources, util
@@ -108,7 +109,7 @@ class DataSourceUpCloud(sources.DataSource):
         return sources.instance_id_matches_system_uuid(self.get_instance_id())
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[sources.NetConfig]:
         """
         Configure the networking. This needs to be done each boot,
         since the IP and interface information might have changed

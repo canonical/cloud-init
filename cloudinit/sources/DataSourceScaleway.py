@@ -10,6 +10,7 @@ import logging
 import os
 import socket
 import time
+from typing import Dict, List, Optional, Tuple, TypedDict, Union
 from urllib.parse import urlparse
 
 import requests
@@ -33,6 +34,14 @@ DS_BASE_URLS = ["http://169.254.42.42", "http://[fd00:42::42]"]
 DEF_MD_RETRIES = 3
 DEF_MD_MAX_WAIT = 2
 DEF_MD_TIMEOUT = 10
+
+
+class IpConfig(TypedDict, total=False):
+    """A per-interface network config v2 entry."""
+
+    dhcp4: bool
+    routes: List[Dict[str, Union[bool, str]]]
+    addresses: Tuple[str, ...]
 
 
 class SourceAddressAdapter(requests.adapters.HTTPAdapter):
@@ -307,7 +316,7 @@ class DataSourceScaleway(sources.DataSource):
         return True
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[sources.NetConfig]:
         """
         Configure networking according to data received from the
         metadata API.
@@ -322,14 +331,14 @@ class DataSourceScaleway(sources.DataSource):
         if self._network_config != sources.UNSET:
             return self._network_config
 
-        netcfg = {}
-        ip_cfg = {}
+        netcfg: Dict[str, IpConfig] = {}
+        ip_cfg: IpConfig = {}
         for ip in self.metadata["public_ips"]:
             # Use DHCP for primary address
             if ip["address"] == self.ephemeral_fixed_address:
                 ip_cfg["dhcp4"] = True
                 # Force addition of a route to the metadata API
-                route = {
+                route: Dict[str, Union[bool, str]] = {
                     "on-link": True,
                     "to": "169.254.42.42/32",
                     "via": "62.210.0.1",

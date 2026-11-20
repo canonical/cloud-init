@@ -12,6 +12,7 @@ import errno
 import logging
 import os
 from functools import partial
+from typing import Optional
 
 from cloudinit import dmi, lifecycle, sources, util
 from cloudinit.net import eni
@@ -263,7 +264,7 @@ class DataSourceNoCloud(sources.DataSource):
         return quick_id == current
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[sources.NetConfig]:
         if self._network_config is None:
             if self._network_eni is not None:
                 lifecycle.deprecate(

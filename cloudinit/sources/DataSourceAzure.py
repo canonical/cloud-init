@@ -344,7 +344,7 @@ class DataSourceAzure(sources.DataSource):
             [util.get_cfg_by_path(sys_cfg, DS_CFG_PATH, {}), BUILTIN_DS_CONFIG]
         )
         self._iso_dev: Optional[str] = None
-        self._network_config: Optional[Dict[str, Any]] = None
+        self._network_config: Optional[sources.NetConfig] = None
         self._ephemeral_dhcp_ctx: Optional[EphemeralDHCPv4] = None
         self._reported_ready_marker_file = os.path.join(
             paths.cloud_dir, "data", "reported_ready"
@@ -1681,7 +1681,7 @@ class DataSourceAzure(sources.DataSource):
         return {}
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[sources.NetConfig]:
         """Provide network configuration v2 dictionary."""
         # Use cached config, if present.
         if self._network_config:

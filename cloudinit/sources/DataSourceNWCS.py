@@ -3,6 +3,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
+from typing import Any, Optional, Union
 
 from requests import exceptions
 
@@ -41,7 +42,8 @@ class DataSourceNWCS(sources.DataSource):
         self.retries = self.ds_cfg.get("retries", MD_RETRIES)
         self.timeout = self.ds_cfg.get("timeout", MD_TIMEOUT)
         self.wait_retry = self.ds_cfg.get("wait_retry", MD_WAIT_RETRY)
-        self._network_config = sources.UNSET
+        # Cache for network config; sources.UNSET until crawled
+        self._network_config: Union[Any, sources.NetConfig] = sources.UNSET
         self.dsmode = sources.DSMODE_NETWORK
         self.metadata_full = None
 
@@ -99,7 +101,7 @@ class DataSourceNWCS(sources.DataSource):
             raise
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[sources.NetConfig]:
         LOG.debug("Attempting network configuration")
 
         if self._network_config != sources.UNSET:
@@ -116,9 +118,9 @@ class DataSourceNWCS(sources.DataSource):
                 LOG.info("Overriding %s with %s", i["name"], iface_name)
                 i["name"] = iface_name
 
-        self._network_config = self.metadata["network"]
-
-        return self._network_config
+        net_config: sources.NetConfig = self.metadata["network"]
+        self._network_config = net_config
+        return net_config
 
     @staticmethod
     def ds_detect():

@@ -172,11 +172,13 @@ class DataSourceIBMCloud(sources.DataSource):
         return self.system_uuid == _read_system_uuid()
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[sources.NetConfig]:
         if self.platform != Platforms.OS_CODE:
             # If deployed from template, an agent in the provisioning
             # environment handles networking configuration. Not cloud-init.
-            return {"config": "disabled", "version": 1}
+            # cloud-init disables its own network configuration via the
+            # legacy v1 "config: disabled" sentinel (net.is_disabled_cfg).
+            return sources.NetConfigV1Disabled(version=1, config="disabled")
         if self._network_config is None:
             if self.network_json not in (sources.UNSET, None):
                 LOG.debug("network config provided via network_json")
