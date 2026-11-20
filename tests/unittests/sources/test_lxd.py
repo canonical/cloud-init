@@ -318,8 +318,6 @@ class TestDataSourceLXD:
         assert None is lxd_ds.userdata_raw
         assert True is lxd_ds._get_data()
         assert LXD_V1_METADATA == lxd_ds._crawled_metadata
-        # network-config is dumped from YAML
-        assert NETWORK_V1 == lxd_ds._network_config
         # Any user-data and vendor-data are saved as raw
         assert LXD_V1_METADATA["user-data"] == lxd_ds.userdata_raw
         assert LXD_V1_METADATA["vendor-data"] == lxd_ds.vendordata_raw

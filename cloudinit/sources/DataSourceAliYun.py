@@ -97,7 +97,7 @@ class DataSourceAliYun(sources.DataSource):
                 ),
             )
         LOG.warning("Metadata 'network' key not valid: %s.", net_md)
-        return {}
+        return None
 
     def _maybe_fetch_api_token(self, mdurls):
         """Get an API token for ECS Instance Metadata Service.

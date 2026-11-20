@@ -295,9 +295,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     # Cached value of the network_config property. None marks the cache
     # as invalidated: network configuration must be regenerated from
-    # current metadata on next access. update_metadata_if_supported
-    # resets this to None when a supported platform event may have changed
-    # the network configuration.
+    # current metadata on next access.
     _network_config: Optional[Dict[str, Any]] = None
 
     # N-tuple listing default values for any metadata-related class
@@ -1032,16 +1030,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
           the platform, or
         - None when this datasource has no network configuration
 
-        None means "no config from this source": callers fall through to
-        the next source in this datasource's network_config_sources order
-        or ultimately to a distro-generated fallback config.
-
-        Only dict results are cached: a dict returned by
-        _get_network_config is memoized and served on subsequent accesses
-        until update_metadata_if_supported invalidates the cache
-        (resetting it to None), requiring the configuration to be
-        regenerated from fresh metadata via _get_network_config. None is
-        not memoized; it marks the cache as invalidated.
+        None means "no config from this source" and is not cached.
         """
         if isinstance(self._network_config, dict):
             return self._network_config

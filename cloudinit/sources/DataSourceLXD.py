@@ -218,10 +218,6 @@ class DataSourceLXD(sources.DataSource):
             )
         if "user-data" in self._crawled_metadata:
             self.userdata_raw = self._crawled_metadata["user-data"]
-        if "network-config" in self._crawled_metadata:
-            self._network_config = _raw_instance_data_to_dict(
-                "network-config", self._crawled_metadata["network-config"]
-            )
         if "vendor-data" in self._crawled_metadata:
             self.vendordata_raw = self._crawled_metadata["vendor-data"]
         return True
