@@ -299,8 +299,8 @@ BUILTIN_DS_CONFIG = {
     "apply_network_config_for_secondary_ips": True,  # Configure secondary ips
     "experimental_fail_on_missing_customdata": False,
     "apply_network_config_set_name": True,  # Use set-name for NICs
+    "experimental_azure_local_detection": False, # Support Azure Local chassis
     "experimental_skip_ready_report": False,  # Skip final ready report
-    "experimental_azure_local_detection": False,
 }
 
 BUILTIN_CLOUD_EPHEMERAL_DISK_CONFIG = {
@@ -373,8 +373,8 @@ class DataSourceAzure(sources.DataSource):
             "apply_network_config_for_secondary_ips",
             "experimental_fail_on_missing_customdata",
             "apply_network_config_set_name",
-            "experimental_skip_ready_report",
             "experimental_azure_local_detection",
+            "experimental_skip_ready_report",
         ):
             self.ds_cfg.setdefault(key, BUILTIN_DS_CONFIG[key])
 
