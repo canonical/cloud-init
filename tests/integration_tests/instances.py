@@ -9,6 +9,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Union
 
+from pycloudlib.errors import PycloudlibTimeoutError
 from pycloudlib.gce.instance import GceInstance
 from pycloudlib.instance import BaseInstance
 from pycloudlib.lxd.instance import LXDInstance
@@ -352,6 +353,9 @@ Pin-Priority: 1001"""
         if self.settings.KEEP_INSTANCE is True or (
             self.settings.KEEP_INSTANCE == "ON_ERROR" and self.test_failed
         ):
-            log.info("Keeping Instance, public ip: %s", self.ip())
+            try:
+                log.info("Keeping Instance, public ip: %s", self.ip())
+            except PycloudlibTimeoutError as e:
+                log.info("IP address unavailable: %s", e)
         else:
             self.cloud.reaper.reap(self)
