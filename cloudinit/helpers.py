@@ -138,13 +138,23 @@ class Runners:
             self.sems[sem_path] = FileSemaphores(sem_path)
         return self.sems[sem_path]
 
-    def run(self, name, functor, args, freq=None, clear_on_fail=False):
+    def run(
+        self, name, functor, args, freq=None, clear_on_fail=False, force=False
+    ):
+        """Run functor with args unless name has already run at freq.
+
+        :param force: Run even if name has already run at freq. The forced
+            run is recorded like any other, so later calls without force
+            are still skipped.
+        """
         sem = self._get_sem(freq)
         if not sem:
             sem = DummySemaphores()
         if not args:
             args = []
-        if sem.has_run(name, freq):
+        if force:
+            sem.clear(name, freq)
+        elif sem.has_run(name, freq):
             LOG.debug("%s already ran (freq=%s)", name, freq)
             return (False, None)
         with sem.lock(name, freq, clear_on_fail) as lk:

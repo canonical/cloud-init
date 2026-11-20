@@ -13,7 +13,7 @@ from typing import List, Optional, Tuple
 import cloudinit.distros.bsd
 from cloudinit import subp, util
 from cloudinit.distros.networking import FreeBSDNetworking
-from cloudinit.settings import PER_ALWAYS, PER_INSTANCE
+from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
@@ -226,7 +226,8 @@ class Distro(cloudinit.distros.bsd.BSD):
             "update-sources",
             self.package_command,
             ["update"],
-            freq=PER_ALWAYS if force else PER_INSTANCE,
+            freq=PER_INSTANCE,
+            force=force,
         )
 
     @staticmethod
