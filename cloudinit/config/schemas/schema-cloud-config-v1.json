@@ -639,8 +639,39 @@
             "type": "string",
             "default": "keyserver.ubuntu.com",
             "description": "Keyserver from which to retrieve the key identified by **keyid**."
+          },
+          "keyurl": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL of a PGP key to import, ASCII-armored or binary. Cannot be combined with **key**, **keyid** or **keyserver**."
           }
-        }
+        },
+        "allOf": [
+          {
+            "not": {
+              "required": [
+                "keyurl",
+                "key"
+              ]
+            }
+          },
+          {
+            "not": {
+              "required": [
+                "keyurl",
+                "keyid"
+              ]
+            }
+          },
+          {
+            "not": {
+              "required": [
+                "keyurl",
+                "keyserver"
+              ]
+            }
+          }
+        ]
       },
       "minItems": 1
     },
@@ -1186,12 +1217,43 @@
                     "append": {
                       "type": "boolean",
                       "default": true
+                    },
+                    "keyurl": {
+                      "type": "string",
+                      "format": "uri",
+                      "description": "URL of a PGP key to import, ASCII-armored or binary. Cannot be combined with **key**, **keyid** or **keyserver**."
                     }
                   },
-                  "minProperties": 1
+                  "minProperties": 1,
+                  "allOf": [
+                    {
+                      "not": {
+                        "required": [
+                          "keyurl",
+                          "key"
+                        ]
+                      }
+                    },
+                    {
+                      "not": {
+                        "required": [
+                          "keyurl",
+                          "keyid"
+                        ]
+                      }
+                    },
+                    {
+                      "not": {
+                        "required": [
+                          "keyurl",
+                          "keyserver"
+                        ]
+                      }
+                    }
+                  ]
                 }
               },
-              "description": "Source list entries can be specified as a dictionary under the **sources** config key, with each key in the dict representing a different source file. The key of each source entry will be used as an id that can be referenced in other config entries, as well as the filename for the source's configuration under ``/etc/apt/sources.list.d``. If the name does not end with ``.list``, it will be appended. If there is no configuration for a key in **sources**, no file will be written, but the key may still be referred to as an id in other **sources** entries.\n\nEach entry under **sources** is a dictionary which may contain any of the following optional keys:\n- **source**: a sources.list entry (some variable replacements apply).\n- **keyid**: a key to import via short ID or fingerprint.\n- **key**: a raw PGP key to import.\n- **keyserver**: keyserver from which to retrieve the key identified by **keyid**. Default: ``keyserver.ubuntu.com``.\n- **filename**: specify the name of the list file.\n- **append**: If ``true``, append to sources file, otherwise overwrite it. Default: ``true``.\n\nThe **source** key supports variable replacements for the following strings:\n- ``$MIRROR``\n- ``$PRIMARY``\n- ``$SECURITY``\n- ``$RELEASE``\n- ``$KEY_FILE``"
+              "description": "Source list entries can be specified as a dictionary under the **sources** config key, with each key in the dict representing a different source file. The key of each source entry will be used as an id that can be referenced in other config entries, as well as the filename for the source's configuration under ``/etc/apt/sources.list.d``. If the name does not end with ``.list``, it will be appended. If there is no configuration for a key in **sources**, no file will be written, but the key may still be referred to as an id in other **sources** entries.\n\nEach entry under **sources** is a dictionary which may contain any of the following optional keys:\n- **source**: a sources.list entry (some variable replacements apply).\n- **keyid**: a key to import via short ID or fingerprint.\n- **key**: a raw PGP key to import.\n- **keyserver**: keyserver from which to retrieve the key identified by **keyid**. Default: ``keyserver.ubuntu.com``.\n- **keyurl**: URL of a PGP key to import, ASCII-armored or binary. Cannot be combined with **key**, **keyid** or **keyserver**.\n- **filename**: specify the name of the list file.\n- **append**: If ``true``, append to sources file, otherwise overwrite it. Default: ``true``.\n\nThe **source** key supports variable replacements for the following strings:\n- ``$MIRROR``\n- ``$PRIMARY``\n- ``$SECURITY``\n- ``$RELEASE``\n- ``$KEY_FILE``"
             }
           }
         }

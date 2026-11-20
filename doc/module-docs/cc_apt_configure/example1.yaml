@@ -63,3 +63,6 @@ apt:
               ------BEGIN PGP PUBLIC KEY BLOCK-------
               <key data>
               ------END PGP PUBLIC KEY BLOCK-------
+      source5:
+          source: deb [signed-by=$KEY_FILE] https://<url>/ $RELEASE main
+          keyurl: https://<url>/key.gpg
