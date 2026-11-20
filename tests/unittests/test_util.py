@@ -480,6 +480,21 @@ class TestUtil:
         assert "Could not apply Jinja template" in caplog.text
         assert conf == {"a": "{{c}}"}
 
+    def test_read_conf_with_failed_jinja_render_none(self, mocker):
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch(
+            "cloudinit.util.load_text_file",
+            return_value=(
+                '## template: jinja\n{"a": "{{ ds.meta_data.region }}"}'
+            ),
+        )
+        mocker.patch(
+            "cloudinit.handlers.jinja_template.render_jinja_payload_from_file",
+            return_value=None,
+        )
+        conf = util.read_conf("cfg_path", instance_data_file="vars_path")
+        assert conf == {"a": "{{ ds.meta_data.region }}"}
+
     @pytest.mark.parametrize(
         "template",
         [
