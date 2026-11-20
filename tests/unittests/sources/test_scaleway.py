@@ -191,7 +191,9 @@ class TestDataSourceScaleway:
     @pytest.fixture(autouse=True)
     def fixtures(self, mocker, paths, tmp_path):
         distro = ubuntu.Distro("", {}, {})
-        distro.get_tmp_exec_path = str(tmp_path)
+        mocker.patch.object(
+            distro, "get_tmp_exec_path", return_value=str(tmp_path)
+        )
         self.datasource = DataSourceScaleway.DataSourceScaleway(
             settings.CFG_BUILTIN, distro, paths
         )
@@ -223,6 +225,7 @@ class TestDataSourceScaleway:
 
         self.datasource._set_metadata_url([self.base_urls[0]])
 
+        assert self.datasource.metadata_url is not None
         assert self.base_urls[0] in self.datasource.metadata_url
 
     @responses.activate
@@ -230,6 +233,7 @@ class TestDataSourceScaleway:
 
         self.datasource._set_metadata_url([self.base_urls[1]])
 
+        assert self.datasource.metadata_url is not None
         assert self.base_urls[1] in self.datasource.metadata_url
 
     @responses.activate
@@ -436,6 +440,9 @@ class TestDataSourceScaleway:
         ds_detect.return_value = True
 
         self.datasource._set_metadata_url([self.base_urls[0]])
+        assert self.datasource.metadata_url is not None
+        assert self.datasource.userdata_url is not None
+        assert self.datasource.vendordata_url is not None
 
         # Make user and vendor data APIs return HTTP/404, which means there is
         # no user / vendor data for the server.
@@ -563,6 +570,9 @@ class TestDataSourceScaleway:
         ds_detect.return_value = True
 
         self.datasource._set_metadata_url([self.base_urls[0]])
+        assert self.datasource.metadata_url is not None
+        assert self.datasource.userdata_url is not None
+        assert self.datasource.vendordata_url is not None
 
         responses.add_callback(
             responses.GET,
