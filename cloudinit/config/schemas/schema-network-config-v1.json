@@ -477,8 +477,11 @@
           "description": "IPv4 network address with CIDR netmask notation or IPv6 with prefix length. Alias for ``network`` and preferred above the ``network`` key."
         },
         "netmask": {
-          "type": "string",
-          "description": "IPv4 subnet mask in dotted format or CIDR notation"
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Subnet mask in dotted format, or prefix length. A prefix length may be given as an integer or a string."
         },
         "gateway": {
           "type": "string",
@@ -522,8 +525,11 @@
           "description": "IPv4 or IPv6 address. It may include CIDR netmask notation."
         },
         "netmask": {
-          "type": "string",
-          "description": "IPv4 subnet mask in dotted format or CIDR notation"
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Subnet mask in dotted format, or prefix length. A prefix length may be given as an integer or a string."
         },
         "broadcast": {
           "type": "string",
