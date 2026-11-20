@@ -761,6 +761,28 @@ class TestGetHostnameFqdn:
         assert "12345" == hostname
         assert "12345.example.com" == fqdn
 
+    def test_get_hostname_fqdn_from_numeric_hostname(self):
+        """When cfg hostname is numeric, ensure it is treated as a string."""
+        cloud = mock.MagicMock()
+        cloud.get_hostname.return_value = DataSourceHostname(
+            "cloudhost.mycloud.com", False
+        )
+        hostname, fqdn, is_default = util.get_hostname_fqdn(
+            cfg={"hostname": 123456}, cloud=cloud
+        )
+        assert "123456" == hostname
+        assert "cloudhost.mycloud.com" == fqdn
+        assert not is_default
+
+    def test_get_hostname_fqdn_from_numeric_hostname_with_domain(self):
+        """When cfg hostname contains dots, parse hostname and fqdn."""
+        hostname, fqdn, is_default = util.get_hostname_fqdn(
+            cfg={"hostname": "123456.example.com"}, cloud=None
+        )
+        assert "123456" == hostname
+        assert "123456.example.com" == fqdn
+        assert not is_default
+
     def test_get_hostname_fqdn_from_passes_metadata_only_to_cloud(self):
         """Calls to cloud.get_hostname pass the metadata_only parameter."""
         cloud = mock.MagicMock()
