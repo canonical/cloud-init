@@ -98,6 +98,13 @@ class Distro(cloudinit.distros.bsd.BSD):
     def _get_add_member_to_group_cmd(self, member_name, group_name):
         return ["pw", "usermod", "-n", member_name, "-G", group_name]
 
+    def _get_add_group_cmd(self, name, gid=None):
+        # pw(8) expects the group name before its options
+        group_add_cmd = self.group_add_cmd_prefix + [name]
+        if gid is not None:
+            group_add_cmd.extend(["-g", str(gid)])
+        return group_add_cmd
+
     def _build_add_user_cmd(
         self, name: str, groups: List[str], **kwargs
     ) -> Tuple[List[str], List[str]]:

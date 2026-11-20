@@ -10,6 +10,12 @@ cc_users_groups:
     dictionary with the group name as the key and string of a single user as a
     member of that group or a list of users who should be members of the group.
 
+    To set a fixed group ID or to create a system group, map the group name to
+    a dictionary with the optional ``members``, ``gid`` and ``system`` keys
+    instead. System groups get a group ID from the distribution's system range.
+    ``gid`` and ``system`` are only used when the group is created, and are
+    ignored for a group that already exists.
+
     .. note::
        Groups are added before users, so any users in a group list must already
        exist on the system.
@@ -107,5 +113,9 @@ cc_users_groups:
   - comment: >
       Example 8: Avoid creating any ``default_user``.
     file: cc_users_groups/example8.yaml
+  - comment: >
+      Example 9: Add ``netdev`` as a system group, and add ``nfsusers`` with
+      the fixed group ID ``2000`` and members ``root`` and ``sys``.
+    file: cc_users_groups/example9.yaml
   name: Users and Groups
   title: Configure users and groups

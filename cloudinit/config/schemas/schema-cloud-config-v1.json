@@ -199,15 +199,40 @@
       "patternProperties": {
         "^.+$": {
           "label": "<group_name>",
-          "description": "Optional string of single username or a list of usernames to add to the group.",
+          "description": "Optional string of single username or a list of usernames to add to the group, or an object with the members and settings of the group.",
           "type": [
             "string",
-            "array"
+            "array",
+            "object"
           ],
           "items": {
             "type": "string"
           },
-          "minItems": 1
+          "minItems": 1,
+          "additionalProperties": false,
+          "properties": {
+            "members": {
+              "description": "Optional string of single username or a list of usernames to add to the group.",
+              "type": [
+                "string",
+                "array"
+              ],
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "gid": {
+              "description": "Optional group ID to create the group with. Only used when the group is created. Default: [system default].",
+              "type": "integer",
+              "minimum": 0
+            },
+            "system": {
+              "description": "Optional. Create the group as a system group, with a group ID from the system range. Only used when the group is created. Not supported on BSD. Default: ``false``.",
+              "type": "boolean",
+              "default": false
+            }
+          }
         }
       }
     },

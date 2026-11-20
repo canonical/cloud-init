@@ -36,6 +36,25 @@ class TestFreeBSD:
             )
         ] == m_subp.call_args_list
 
+    @mock.patch(M_PATH + "util.is_group", return_value=False)
+    @mock.patch(M_PATH + "subp.subp")
+    def test_create_group_with_gid(self, m_subp, m_is_group):
+        distro = get_distro("freebsd")
+        distro.create_group("nfs", gid=1500)
+        assert [
+            mock.call(["pw", "group", "add", "nfs", "-g", "1500"])
+        ] == m_subp.call_args_list
+
+    @mock.patch(M_PATH + "util.is_group", return_value=False)
+    @mock.patch(M_PATH + "subp.subp")
+    def test_create_system_group(self, m_subp, m_is_group, caplog):
+        distro = get_distro("freebsd")
+        distro.create_group("netdev", system=True)
+        assert [
+            mock.call(["pw", "group", "add", "netdev"])
+        ] == m_subp.call_args_list
+        assert "System groups are not supported on freebsd" in caplog.text
+
     def test_unlock_passwd(self, caplog):
         distro = get_distro("freebsd")
         distro.unlock_passwd("me2")

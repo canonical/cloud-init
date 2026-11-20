@@ -19,6 +19,29 @@ class TestAlpineBusyboxUserGroup:
 
         m_subp.assert_called_with(["addgroup", group])
 
+    @pytest.mark.parametrize(
+        "create_kwargs,expected",
+        [
+            ({"gid": 1500}, ["addgroup", "-g", "1500", "mygroup"]),
+            ({"system": True}, ["addgroup", "-S", "mygroup"]),
+            (
+                {"gid": 0, "system": True},
+                ["addgroup", "-g", "0", "-S", "mygroup"],
+            ),
+        ],
+    )
+    @mock.patch("cloudinit.distros.alpine.util.is_group", return_value=False)
+    @mock.patch("cloudinit.distros.alpine.subp.subp")
+    @mock.patch("cloudinit.distros.subp.which", return_value=False)
+    def test_busybox_add_group_options(
+        self, m_which, m_subp, m_is_group, create_kwargs, expected
+    ):
+        distro = distros.fetch("alpine")("alpine", {}, None)
+
+        distro.create_group("mygroup", **create_kwargs)
+
+        assert [mock.call(expected)] == m_subp.call_args_list
+
     @pytest.mark.usefixtures("fake_filesystem")
     @mock.patch("cloudinit.distros.alpine.subp.subp")
     @mock.patch("cloudinit.distros.subp.which", return_value=False)
@@ -64,6 +87,21 @@ class TestAlpineShadowUserGroup:
         self.distro.create_group(group)
 
         m_subp.assert_called_with(["groupadd", group])
+
+    @mock.patch("cloudinit.distros.util.system_is_snappy", return_value=False)
+    @mock.patch("cloudinit.distros.util.is_group", return_value=False)
+    @mock.patch("cloudinit.distros.alpine.subp.subp")
+    @mock.patch(
+        "cloudinit.distros.subp.which", return_value=("/usr/sbin/groupadd")
+    )
+    def test_shadow_add_group_options(
+        self, m_which, m_subp, m_is_group, m_is_snappy
+    ):
+        self.distro.create_group("mygroup", gid=1500, system=True)
+
+        assert [
+            mock.call(["groupadd", "mygroup", "--gid", "1500", "--system"])
+        ] == m_subp.call_args_list
 
     @mock.patch("cloudinit.distros.alpine.subp.subp")
     @mock.patch(

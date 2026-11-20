@@ -20,17 +20,26 @@ LOG = logging.getLogger(__name__)
 # Normalizes an input group configuration which can be:
 # Comma separated string or a list or a dictionary
 #
-# Returns dictionary of group names => members of that group which is the
-# standard form used in the rest of cloud-init
+# The members of a group can also be given as a dictionary with the
+# optional keys 'members', 'gid' and 'system'.
+#
+# Returns dictionary of group names => group config which is the standard
+# form used in the rest of cloud-init. Each group config is a dictionary
+# holding the 'members' of that group, plus 'gid' and 'system' if provided.
 def _normalize_groups(grp_cfg):
     if isinstance(grp_cfg, str):
         grp_cfg = grp_cfg.strip().split(",")
 
     if isinstance(grp_cfg, list):
-        c_grp_cfg: Dict[str, List[str]] = {}
+        c_grp_cfg: Dict[str, Dict[str, Any]] = {}
         for i in grp_cfg:
             if isinstance(i, dict):
                 for k, v in i.items():
+                    c_grp = c_grp_cfg.setdefault(k, {"members": []})
+                    if isinstance(v, dict):
+                        # Keep the members collected so far, merged below
+                        c_grp.update({**v, "members": c_grp["members"]})
+                        v = v.get("members", [])
                     if not isinstance(v, (list, str)):
                         raise TypeError(
                             "Bad group member type %s"
@@ -38,22 +47,26 @@ def _normalize_groups(grp_cfg):
                         )
 
                     if isinstance(v, list):
-                        c_grp_cfg.setdefault(k, []).extend(v)
+                        c_grp["members"].extend(v)
                     else:
-                        c_grp_cfg.setdefault(k, []).append(v)
+                        c_grp["members"].append(v)
             elif isinstance(i, str):
                 if i not in c_grp_cfg:
-                    c_grp_cfg[i] = []
+                    c_grp_cfg[i] = {"members": []}
             else:
                 raise TypeError(
                     "Unknown group name type %s" % (type_utils.obj_name(i))
                 )
         grp_cfg = c_grp_cfg
 
-    groups = {}
+    groups: Dict[str, Dict[str, Any]] = {}
     if isinstance(grp_cfg, dict):
         for grp_name, grp_members in grp_cfg.items():
-            groups[grp_name] = util.uniq_merge_sorted(grp_members)
+            groups[grp_name] = {}
+            if isinstance(grp_members, dict):
+                groups[grp_name].update(grp_members)
+                grp_members = grp_members.get("members", [])
+            groups[grp_name]["members"] = util.uniq_merge_sorted(grp_members)
     else:
         raise TypeError(
             "Group config must be list, dict or string type only but found %s"
