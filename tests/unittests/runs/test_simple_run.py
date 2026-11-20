@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from _pytest.logging import LogCaptureFixture
+from pytest import LogCaptureFixture
 from pytest_mock import MockerFixture
 
 from cloudinit import atomic_helper, safeyaml, stages, util
@@ -22,7 +22,7 @@ def replicate_root(tmp_path: Path) -> None:
 
 
 @pytest.fixture(autouse=True)
-def cfg(mocker: Any, tmp_path: Path) -> dict[str, Any]:
+def cfg(mocker: MockerFixture, tmp_path: Path) -> dict[str, Any]:
     # root group doesn't exist everywhere
     mocker.patch("cloudinit.util.chownbyname")
 
