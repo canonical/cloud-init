@@ -1470,7 +1470,7 @@
       "properties": {
         "disable_ec2_metadata": {
           "default": false,
-          "description": "Set true to disable IPv4 routes to EC2 metadata. Default: ``false``.",
+          "description": "Set true to disable routes to EC2 metadata, ``169.254.169.254`` and, when the ``ip`` command is used, ``fd00:ec2::254``. Default: ``false``.",
           "type": "boolean"
         }
       }

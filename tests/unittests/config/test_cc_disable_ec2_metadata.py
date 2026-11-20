@@ -29,16 +29,44 @@ class TestEC2MetadataRoute:
             capture=False,
         )
 
+    @mock.patch(
+        "cloudinit.config.cc_disable_ec2_metadata.os.path.exists",
+        return_value=True,
+    )
     @mock.patch("cloudinit.config.cc_disable_ec2_metadata.subp.which")
     @mock.patch("cloudinit.config.cc_disable_ec2_metadata.subp.subp")
-    def test_disable_ip(self, m_subp, m_which):
-        """Set the route if ip command is available"""
+    def test_disable_ip(self, m_subp, m_which, m_exists):
+        """Set the IPv4 and IPv6 routes if ip command is available"""
         m_which.side_effect = lambda x: x if x == "ip" else None
         ec2_meta.handle("foo", DISABLE_CFG, mock.MagicMock(), [])
-        m_subp.assert_called_with(
-            ["ip", "route", "add", "prohibit", "169.254.169.254"],
-            capture=False,
-        )
+        assert [
+            mock.call(
+                ["ip", "route", "add", "prohibit", "169.254.169.254"],
+                capture=False,
+            ),
+            mock.call(
+                ["ip", "-6", "route", "add", "prohibit", "fd00:ec2::254"],
+                capture=False,
+            ),
+        ] == m_subp.call_args_list
+        m_exists.assert_called_once_with("/proc/net/if_inet6")
+
+    @mock.patch(
+        "cloudinit.config.cc_disable_ec2_metadata.os.path.exists",
+        return_value=False,
+    )
+    @mock.patch("cloudinit.config.cc_disable_ec2_metadata.subp.which")
+    @mock.patch("cloudinit.config.cc_disable_ec2_metadata.subp.subp")
+    def test_disable_ip_without_ipv6(self, m_subp, m_which, m_exists):
+        """Set only the IPv4 route if the kernel has no IPv6"""
+        m_which.side_effect = lambda x: x if x == "ip" else None
+        ec2_meta.handle("foo", DISABLE_CFG, mock.MagicMock(), [])
+        assert [
+            mock.call(
+                ["ip", "route", "add", "prohibit", "169.254.169.254"],
+                capture=False,
+            ),
+        ] == m_subp.call_args_list
 
     @mock.patch("cloudinit.config.cc_disable_ec2_metadata.subp.which")
     @mock.patch("cloudinit.config.cc_disable_ec2_metadata.subp.subp")

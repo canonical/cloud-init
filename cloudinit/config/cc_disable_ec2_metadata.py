@@ -9,6 +9,7 @@
 """Disable EC2 Metadata: Disable AWS EC2 metadata."""
 
 import logging
+import os
 
 from cloudinit import subp, util
 from cloudinit.cloud import Cloud
@@ -19,6 +20,7 @@ from cloudinit.settings import PER_ALWAYS
 
 REJECT_CMD_IF = ["route", "add", "-host", "169.254.169.254", "reject"]
 REJECT_CMD_IP = ["ip", "route", "add", "prohibit", "169.254.169.254"]
+REJECT_CMD_IP6 = ["ip", "-6", "route", "add", "prohibit", "fd00:ec2::254"]
 
 LOG = logging.getLogger(__name__)
 
@@ -33,18 +35,22 @@ meta: MetaSchema = {
 def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     disabled = util.get_cfg_option_bool(cfg, "disable_ec2_metadata", False)
     if disabled:
-        reject_cmd = None
         if subp.which("ip"):
-            reject_cmd = REJECT_CMD_IP
+            reject_cmds = [REJECT_CMD_IP]
+            # EC2 also serves the metadata service on an IPv6 address. A
+            # kernel without IPv6 can neither reach it nor add this route.
+            if os.path.exists("/proc/net/if_inet6"):
+                reject_cmds.append(REJECT_CMD_IP6)
         elif subp.which("ifconfig"):
-            reject_cmd = REJECT_CMD_IF
+            reject_cmds = [REJECT_CMD_IF]
         else:
             LOG.error(
                 'Neither "route" nor "ip" command found, unable to '
                 "manipulate routing table"
             )
             return
-        subp.subp(reject_cmd, capture=False)
+        for reject_cmd in reject_cmds:
+            subp.subp(reject_cmd, capture=False)
     else:
         LOG.debug(
             "Skipping module named %s, disabling the ec2 route not enabled",
