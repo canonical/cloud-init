@@ -116,6 +116,50 @@ class TestInstallChefOmnibus:
         }
         assert expected_kwargs == called_kwargs
 
+    @mock.patch("cloudinit.config.cc_chef.url_helper.readurl")
+    @mock.patch("cloudinit.config.cc_chef.subp_blob_in_tempfile")
+    def test_install_chef_from_omnibus_passes_license_key_in_env(
+        self, m_subp_blob, m_rdurl
+    ):
+        """The license key reaches the install script only via its env."""
+        m_rdurl.return_value.contents = b"#!/bin/bash"
+        distro = mock.Mock()
+        cc_chef.install_chef_from_omnibus(
+            distro=distro, license_key="my-license-key"
+        )
+
+        # The key must not end up in the logged url or command arguments.
+        assert {
+            "retries": cc_chef.OMNIBUS_URL_RETRIES,
+            "url": cc_chef.OMNIBUS_URL,
+        } == m_rdurl.call_args_list[0][1]
+        assert {
+            "args": [],
+            "basename": "chef-omnibus-install",
+            "blob": b"#!/bin/bash",
+            "capture": False,
+            "distro": distro,
+            "update_env": {"CHEF_LICENSE_KEY": "my-license-key"},
+        } == m_subp_blob.call_args_list[0][1]
+
+    @mock.patch("cloudinit.config.cc_chef.install_chef_from_omnibus")
+    def test_install_chef_passes_chef_license_key(self, m_install_omnibus):
+        """install_chef forwards chef_license_key for omnibus installs."""
+        cloud = mock.Mock()
+        cc_chef.install_chef(
+            cloud,
+            {"install_type": "omnibus", "chef_license_key": "my-license-key"},
+        )
+        assert "my-license-key" == (
+            m_install_omnibus.call_args_list[0][1]["license_key"]
+        )
+
+    @mock.patch("cloudinit.config.cc_chef.install_chef_from_omnibus")
+    def test_install_chef_without_chef_license_key(self, m_install_omnibus):
+        """Without chef_license_key, no license key is passed."""
+        cc_chef.install_chef(mock.Mock(), {"install_type": "omnibus"})
+        assert m_install_omnibus.call_args_list[0][1]["license_key"] is None
+
 
 @pytest.mark.usefixtures("fake_filesystem")
 class TestChef:
@@ -432,6 +476,10 @@ class TestBootCMDSchema:
             (
                 {"chef": {"node_name": 1}},
                 "chef.node_name: 1 is not of type 'string'",
+            ),
+            (
+                {"chef": {"chef_license_key": 1}},
+                "chef.chef_license_key: 1 is not of type 'string'",
             ),
             (
                 {"chef": {"omnibus_url": 1}},
