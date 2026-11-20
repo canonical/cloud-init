@@ -300,6 +300,7 @@ BUILTIN_DS_CONFIG = {
     "experimental_fail_on_missing_customdata": False,
     "apply_network_config_set_name": True,  # Use set-name for NICs
     "experimental_skip_ready_report": False,  # Skip final ready report
+    "experimental_azure_local_detection": False,
 }
 
 BUILTIN_CLOUD_EPHEMERAL_DISK_CONFIG = {
@@ -373,6 +374,7 @@ class DataSourceAzure(sources.DataSource):
             "experimental_fail_on_missing_customdata",
             "apply_network_config_set_name",
             "experimental_skip_ready_report",
+            "experimental_azure_local_detection",
         ):
             self.ds_cfg.setdefault(key, BUILTIN_DS_CONFIG[key])
 
@@ -961,7 +963,12 @@ class DataSourceAzure(sources.DataSource):
         run.
         """
         chassis_tag = identity.ChassisAssetTag.query_system()
-        if chassis_tag is not None:
+        if chassis_tag is identity.ChassisAssetTag.AZURE_CLOUD:
+            return True
+        if (
+            chassis_tag is identity.ChassisAssetTag.AZURE_LOCAL
+            and self.ds_cfg.get("experimental_azure_local_detection", False)
+        ):
             return True
 
         # If no valid chassis tag, check for seeded ovf-env.xml.

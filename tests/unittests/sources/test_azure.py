@@ -3519,8 +3519,22 @@ class TestIsPlatformViable:
         self, azure_ds, mock_chassis_asset_tag, tag
     ):
         mock_chassis_asset_tag.return_value = tag
+        if tag is identity.ChassisAssetTag.AZURE_LOCAL:
+            azure_ds.ds_cfg["experimental_azure_local_detection"] = True
 
         assert azure_ds.ds_detect() is True
+
+    @pytest.mark.parametrize("enabled", [None, False, True])
+    def test_azure_local_detection_flag(
+        self, azure_ds, mock_chassis_asset_tag, enabled
+    ):
+        mock_chassis_asset_tag.return_value = (
+            identity.ChassisAssetTag.AZURE_LOCAL
+        )
+        if enabled is not None:
+            azure_ds.ds_cfg["experimental_azure_local_detection"] = enabled
+
+        assert azure_ds.ds_detect() is (enabled is True)
 
     def test_true_on_azure_ovf_env_in_seed_dir(
         self, azure_ds, mock_chassis_asset_tag
