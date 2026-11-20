@@ -1,0 +1,14 @@
+#cloud-config
+disk_setup:
+  /dev/disk/by-id/virtio-data:
+    table_type: gpt
+    layout: true
+    timeout: 120
+fs_setup:
+- device: /dev/disk/by-id/virtio-data
+  partition: auto
+  filesystem: ext4
+  label: data
+  timeout: 120
+mounts:
+- [LABEL=data, /data]

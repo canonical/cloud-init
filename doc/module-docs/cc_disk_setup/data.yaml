@@ -27,5 +27,9 @@ cc_disk_setup:
   - comment: |
       Example 1:
     file: cc_disk_setup/example1.yaml
+  - comment: |
+      Example 2: Wait up to two minutes for a volume that may be attached
+      after the instance has started, then partition and format it.
+    file: cc_disk_setup/example2.yaml
   name: Disk Setup
   title: Configure partitions and filesystems

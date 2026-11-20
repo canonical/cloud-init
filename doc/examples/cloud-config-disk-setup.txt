@@ -98,6 +98,7 @@ disk_setup:
 #       table_type: 'mbr'|'gpt'
 #       layout: <LAYOUT|BOOL>
 #       overwrite: <BOOL>
+#       timeout: <SECONDS>
 #
 # Where:
 #   <DEVICE>: The name of the device. 'ephemeralX' and 'swap' are special
@@ -162,6 +163,13 @@ disk_setup:
 #                   done blindly. USE with caution, you can do things you
 #                   really, really don't want to do.
 #
+#   timeout=<SECONDS>: How long to wait for the device to appear before
+#               partitioning it. Use this for disks that may be attached
+#               while cloud-init is already running, such as volumes
+#               attached by an orchestration tool after the instance
+#               starts. The default of 0 does not wait, and a missing
+#               device is an error.
+#
 #
 # fs_setup: Setup the filesystem
 # ------------------------------
@@ -189,6 +197,7 @@ fs_setup:
 #       partition: <PART_VALUE>
 #       overwrite: <OVERWRITE>
 #       replace_fs: <FS_TYPE>
+#       timeout: <SECONDS>
 #
 # Where:
 #   <LABEL>: The filesystem label to be used. If set to None, no label is
@@ -264,6 +273,10 @@ fs_setup:
 #     instructs cloud-init to replace a filesystem of <FS_TYPE>. NOTE:
 #     unless you define a label, this requires the use of the 'any' partition
 #     directive.
+#
+#   <SECONDS>: How long to wait for <DEVICE> to appear before creating the
+#     filesystem, for disks that may be attached while cloud-init is already
+#     running. The default of 0 does not wait.
 #
 # Behavior Caveat: The default behavior is to _check_ if the filesystem exists.
 #   If a filesystem matches the specification, then the operation is a no-op.
