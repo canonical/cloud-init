@@ -7,6 +7,7 @@
 # https://developers.digitalocean.com/documentation/metadata/
 
 import logging
+from typing import Any, Dict, Optional
 
 import cloudinit.sources.helpers.digitalocean as do_helper
 from cloudinit import lifecycle, sources, util
@@ -47,8 +48,7 @@ class DataSourceDigitalOcean(sources.DataSource):
         self.timeout = self.ds_cfg.get("timeout", MD_TIMEOUT)
         self.use_ip4LL = self.ds_cfg.get("use_ip4LL", MD_USE_IPV4LL)
         self.wait_retry = self.ds_cfg.get("wait_retry", MD_WAIT_RETRY)
-        self._network_config = None
-        self.metadata_full = None
+        self.metadata_full: Optional[Dict[str, Any]] = None
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         super()._unpickle(ci_pkl_version)
@@ -65,7 +65,7 @@ class DataSourceDigitalOcean(sources.DataSource):
         return do_helper.read_sysinfo()
 
     def _get_data(self):
-        (is_do, droplet_id) = self._get_sysinfo()
+        is_do, droplet_id = self._get_sysinfo()
 
         # only proceed if we know we are on DigitalOcean
         if not is_do:
@@ -103,26 +103,18 @@ class DataSourceDigitalOcean(sources.DataSource):
             self.get_instance_id(), "system-serial-number"
         )
 
-    @property
-    def network_config(self):
+    def _get_network_config(self) -> Optional[dict]:
         """Configure the networking. This needs to be done each boot, since
         the IP information may have changed due to snapshot and/or
         migration.
         """
-
-        if self._network_config:
-            return self._network_config
-
         interfaces = self.metadata.get("interfaces")
         LOG.debug(interfaces)
-        if not interfaces:
+        if not interfaces or self.metadata_full is None:
             raise RuntimeError("Unable to get meta-data from server....")
 
         nameservers = self.metadata_full["dns"]["nameservers"]
-        self._network_config = do_helper.convert_network_configuration(
-            interfaces, nameservers
-        )
-        return self._network_config
+        return do_helper.convert_network_configuration(interfaces, nameservers)
 
 
 # Used to match classes to dependencies

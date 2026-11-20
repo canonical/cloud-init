@@ -19,7 +19,15 @@ import ipaddress
 import json
 import logging
 import time
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple
+from typing import (
+    Any,
+    ContextManager,
+    Dict,
+    List,
+    NamedTuple,
+    Optional,
+    Tuple,
+)
 
 from cloudinit import atomic_helper, dmi, net, sources, util
 from cloudinit.distros.networking import NetworkConfig
@@ -190,11 +198,13 @@ class DataSourceOracle(sources.DataSource):
                 "_network_config_source",
                 KlibcOracleNetworkConfigSource(),
             )
-        if not hasattr(self, "_network_config"):
+        # DataSource also declares a class-level _network_config, so an
+        # instance attribute must be reconstituted explicitly on unpickle.
+        if "_network_config" not in self.__dict__:
             self._network_config = {"config": [], "version": 1}
 
     def _has_network_config(self) -> bool:
-        return bool(self._network_config.get("config", []))
+        return bool((self._network_config or {}).get("config", []))
 
     @staticmethod
     def ds_detect() -> bool:
@@ -205,7 +215,7 @@ class DataSourceOracle(sources.DataSource):
 
         self.system_uuid = _read_system_uuid()
 
-        connectivity_urls_data = (
+        connectivity_urls_data: List[Dict[str, Any]] = [
             {
                 "url": IPV4_METADATA_PATTERN.format(
                     version=2, path="instance"
@@ -228,8 +238,9 @@ class DataSourceOracle(sources.DataSource):
                     version=1, path="instance"
                 ),
             },
-        )
+        ]
 
+        network_context: ContextManager
         if self.perform_dhcp_setup:
             nic_name = net.find_fallback_nic()
             network_context = ephemeral.EphemeralIPNetwork(
@@ -307,7 +318,7 @@ class DataSourceOracle(sources.DataSource):
         return self._network_config_source.render_config()
 
     @property
-    def network_config(self):
+    def network_config(self) -> Optional[dict]:
         """Network config is read from initramfs provided files
 
         Priority for primary network_config selection:

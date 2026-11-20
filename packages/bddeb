@@ -72,7 +72,7 @@ def run_helper(helper, args=None, strip=True):
     if args is None:
         args = []
     cmd = [os.path.abspath(os.path.join(find_root(), "tools", helper))] + args
-    (stdout, _stderr) = subp.subp(cmd)
+    stdout, _stderr = subp.subp(cmd)
     if strip:
         stdout = stdout.strip()
     return stdout
@@ -125,7 +125,7 @@ def write_debian_folder(root, templ_data, cloud_util_deps):
     ):
         requires.append("dh-systemd")
     build_deps = ",".join(requires)
-    (stdout, _stderr) = subp.subp(
+    stdout, _stderr = subp.subp(
         ["dpkg-query", "-W", "-f='${Provides}'", "debhelper"]
     )
     # Get latest debhelper-compat support on host

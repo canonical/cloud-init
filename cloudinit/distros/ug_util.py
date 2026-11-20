@@ -10,6 +10,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import logging
+from typing import Any, Dict, List
 
 from cloudinit import lifecycle, type_utils, util
 
@@ -26,7 +27,7 @@ def _normalize_groups(grp_cfg):
         grp_cfg = grp_cfg.strip().split(",")
 
     if isinstance(grp_cfg, list):
-        c_grp_cfg = {}
+        c_grp_cfg: Dict[str, List[str]] = {}
         for i in grp_cfg:
             if isinstance(i, dict):
                 for k, v in i.items():
@@ -72,7 +73,7 @@ def _normalize_groups(grp_cfg):
 # marked false.
 def _normalize_users(u_cfg, def_user_cfg=None):
     if isinstance(u_cfg, dict):
-        ad_ucfg = []
+        ad_ucfg: List[Any] = []
         for k, v in u_cfg.items():
             if isinstance(v, (bool, int, float, str)):
                 if util.is_true(v):
@@ -89,7 +90,7 @@ def _normalize_users(u_cfg, def_user_cfg=None):
     elif isinstance(u_cfg, str):
         u_cfg = util.uniq_merge_sorted(u_cfg)
 
-    users = {}
+    users: Dict[str, Dict[str, Any]] = {}
     for user_config in u_cfg:
         if isinstance(user_config, (list, str)):
             for u in util.uniq_merge(user_config):

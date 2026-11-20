@@ -101,6 +101,6 @@ class TestLoadWithMarks:
     def test_schema_marks_preserved(
         self, source_yaml, loaded_yaml, schemamarks
     ):
-        (processed_yaml, yaml_marks) = load_with_marks(source_yaml)
+        processed_yaml, yaml_marks = load_with_marks(source_yaml)
         assert loaded_yaml == processed_yaml
         assert schemamarks == yaml_marks

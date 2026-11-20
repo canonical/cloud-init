@@ -119,7 +119,7 @@ class CloudConfigPartHandler(handlers.Handler):
         self.cloud_buf = patch.apply(self.cloud_buf, in_place=False)
 
     def _merge_part(self, payload, headers):
-        (payload_yaml, my_mergers) = self._extract_mergers(payload, headers)
+        payload_yaml, my_mergers = self._extract_mergers(payload, headers)
         LOG.debug("Merging by applying %s", my_mergers)
         merger = mergers.construct(my_mergers)
         self.cloud_buf = merger.merge(self.cloud_buf, payload_yaml)

@@ -112,7 +112,7 @@ def string_extract_mergers(merge_how):
                 m_name
             )
             raise ValueError(msg)
-        (m_name, m_ops) = match.groups()
+        m_name, m_ops = match.groups()
         m_ops = m_ops.strip().split(",")
         m_ops = [m.strip().lower() for m in m_ops if m.strip()]
         parsed_mergers.append((m_name, m_ops))

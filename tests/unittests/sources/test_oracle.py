@@ -233,7 +233,7 @@ ipv4_v2_instance_url = oracle.IPV4_METADATA_PATTERN.format(
     path="instance",
     version=2,
 )
-connectivity_urls_data = (
+connectivity_urls_data = [
     {
         "url": oracle.IPV4_METADATA_PATTERN.format(version=2, path="instance"),
         "headers": oracle.V2_HEADERS,
@@ -248,7 +248,7 @@ connectivity_urls_data = (
     {
         "url": oracle.IPV6_METADATA_PATTERN.format(version=1, path="instance"),
     },
-)
+]
 
 
 @pytest.fixture
@@ -629,8 +629,10 @@ class TestNetworkConfigFromOpcImds:
 
         assert (
             logging.DEBUG,
-            "Could not obtain network configuration from initramfs."
-            " Falling back to IMDS.",
+            (
+                "Could not obtain network configuration from initramfs."
+                " Falling back to IMDS."
+            ),
         ) == caplog.record_tuples[log_initramfs_index][1:]
 
 
@@ -1141,8 +1143,10 @@ class TestCommon_GetDataBehaviour:
             ("local-hostname", "instance-20200320-1400"),
             (
                 "instance-id",
-                "ocid1.instance.oc1.phx"
-                ".anyhqljtniwq6syc3nex55sep5w34qbwmw6TRUNCATED",
+                (
+                    "ocid1.instance.oc1.phx"
+                    ".anyhqljtniwq6syc3nex55sep5w34qbwmw6TRUNCATED"
+                ),
             ),
             ("name", "instance-20200320-1400"),
             (
@@ -1453,6 +1457,11 @@ class TestNetworkConfig:
         assert 1 == oracle_ds._get_iscsi_config.call_count
         oracle_ds.network_config  # pylint: disable=pointless-statement
         assert 1 == oracle_ds._get_iscsi_config.call_count
+
+    def test_has_network_config_none(self, m_get_interfaces_by_mac, oracle_ds):
+        """_has_network_config returns False rather than raising on None"""
+        oracle_ds._network_config = None
+        assert oracle_ds._has_network_config() is False
 
     @pytest.mark.is_iscsi(True)
     def test_keep_configuration_set_from_iscsi_klibc(

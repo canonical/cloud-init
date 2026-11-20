@@ -338,7 +338,7 @@ Example
 
 On an Ubuntu system, :file:`/etc/cloud/cloud.cfg` should look similar to:
 
-.. code-block:: yaml
+.. code-block:: text
 
     # The top level settings are used as module and base configuration.
     # A set of users which may be applied and/or used by various modules
@@ -413,7 +413,6 @@ On an Ubuntu system, :file:`/etc/cloud/cloud.cfg` should look similar to:
     - ansible
     - mcollective
     - salt_minion
-    - reset_rmc
     - scripts_vendor
     - scripts_per_once
     - scripts_per_boot

@@ -59,7 +59,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         return
 
     # import for cloudinit created users
-    (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
+    users, _groups = ug_util.normalize_users_groups(cfg, cloud.distro)
     elist = []
     for user, user_cfg in users.items():
         import_ids = []

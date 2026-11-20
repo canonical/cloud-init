@@ -1,0 +1,47 @@
+name: "Twice weekly 26.04: azure"
+
+on:
+  workflow_dispatch:
+    inputs:
+      install_source:
+        required: false
+        type: string
+        default: 'ppa:cloud-init-dev/daily'
+      image_type:
+        required: true
+        type: choice
+        options:
+        - generic
+        - minimal
+      filter_tests:
+        required: false
+        type: string
+  schedule:
+    # Run Mon & Thurs to reduce additional cost on shared external tokens
+    - cron: '2 22 * * 1,4'
+
+jobs:
+  resolute-azure:
+    runs-on: ubuntu-latest
+    if: github.repository == 'canonical/cloud-init'
+    permissions:
+      # Least-privilege scopes required by ctrf-io/github-test-reporter:
+      checks: write   # check-run reports
+      actions: read   # insights for flaky test delta
+      contents: read  # checkout
+    env:
+      PYCLOUDLIB_TOML_B64: ${{ secrets.PYCLOUDLIB_TOML_B64 }}
+      SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - name: Run integration tests
+        uses: ./.github/actions/integration-test
+        with:
+          release: resolute
+          platform: azure
+          install_source: ${{ inputs.install_source || 'ppa:cloud-init-dev/daily' }}
+          image_type: ${{ inputs.image_type || 'generic' }}
+          filter_tests: ${{ inputs.filter_tests }}

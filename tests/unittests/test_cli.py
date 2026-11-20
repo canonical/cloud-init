@@ -226,7 +226,7 @@ class TestCLI:
     def test_modules_subcommand_parser(self, m_status_wrapper, subcommand):
         """The subcommand 'subcommand' calls status_wrapper passing modules."""
         self._call_main(["cloud-init", subcommand])
-        (name, parseargs) = m_status_wrapper.call_args_list[0][0]
+        name, parseargs = m_status_wrapper.call_args_list[0][0]
         assert subcommand == name
         assert subcommand == parseargs.subcommand
         assert subcommand == parseargs.action[0]
@@ -324,7 +324,7 @@ class TestCLI:
     def test_single_subcommand(self, m_main_single):
         """The subcommand 'single' calls main_single with valid args."""
         self._call_main(["cloud-init", "single", "--name", "cc_ntp"])
-        (name, parseargs) = m_main_single.call_args_list[0][0]
+        name, parseargs = m_main_single.call_args_list[0][0]
         assert "single" == name
         assert "single" == parseargs.subcommand
         assert "single" == parseargs.action[0]
@@ -338,7 +338,7 @@ class TestCLI:
     def test_features_hook_subcommand(self, m_features):
         """The subcommand 'features' calls main_features with args."""
         self._call_main(["cloud-init", "features"])
-        (name, parseargs) = m_features.call_args_list[0][0]
+        name, parseargs = m_features.call_args_list[0][0]
         assert "features" == name
         assert "features" == parseargs.subcommand
         assert "features" == parseargs.action[0]

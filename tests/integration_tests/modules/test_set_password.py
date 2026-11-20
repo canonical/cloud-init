@@ -48,9 +48,7 @@ Uh69tP4GSrGW5XKHxMLiKowJgm/"
     lock_passwd: false
 """
 
-LIST_USER_DATA = (
-    COMMON_USER_DATA
-    + """
+LIST_USER_DATA = COMMON_USER_DATA + """
 chpasswd:
   list:
     - tom:mypassword123!
@@ -58,11 +56,8 @@ chpasswd:
     - harry:RANDOM
     - mikey:$5$xZ$B2YGGEx2AOf4PeW48KC6.QyT1W2B4rZ9Qbltudtha89
 """
-)
 
-STRING_USER_DATA = (
-    COMMON_USER_DATA
-    + """
+STRING_USER_DATA = COMMON_USER_DATA + """
 chpasswd:
     list: |
       tom:mypassword123!
@@ -70,11 +65,8 @@ chpasswd:
       harry:RANDOM
       mikey:$5$xZ$B2YGGEx2AOf4PeW48KC6.QyT1W2B4rZ9Qbltudtha89
 """
-)
 
-USERS_USER_DATA = (
-    COMMON_USER_DATA
-    + """
+USERS_USER_DATA = COMMON_USER_DATA + """
 chpasswd:
   users:
     - name: tom
@@ -87,7 +79,6 @@ chpasswd:
     - name: mikey
       password: $5$xZ$B2YGGEx2AOf4PeW48KC6.QyT1W2B4rZ9Qbltudtha89
 """
-)
 
 USERS_DICTS = yaml.safe_load(COMMON_USER_DATA)["users"]
 USERS_PASSWD_VALUES = {
@@ -95,6 +86,22 @@ USERS_PASSWD_VALUES = {
     for user_dict in USERS_DICTS
     if "name" in user_dict and "passwd" in user_dict
 }
+
+SSSD_HASHED_PASSWD = (
+    "$6$lp2153951$Iq7BfvEAR8qyz9eKAKs5sAGBBtyDoSRW0D2FnBJdG3Xy5.rLbSh29Hrds0"
+    "VXSNzIx/1PNNmATPReqLjginX7/."
+)
+
+SSD_USER_DATA = f"""\
+#cloud-config
+package_update: true
+packages: [sssd-tools]
+users:
+- default
+- name: tuser
+  lock_passwd: false
+  hashed_passwd: {SSSD_HASHED_PASSWD}
+"""
 
 
 class Mixin:
@@ -210,7 +217,10 @@ class Mixin:
     def test_sshd_config(self, class_client):
         """Test that SSH password auth is enabled."""
         sshd_config = class_client.execute("sshd -T").stdout
-        assert "passwordauthentication yes" in sshd_config
+        assert (
+            "passwordauthentication yes" in sshd_config
+            or "PasswordAuthentication yes" in sshd_config
+        )
 
 
 @pytest.mark.user_data(LIST_USER_DATA)
@@ -227,3 +237,19 @@ class TestPasswordListString(Mixin):
 @pytest.mark.user_data(USERS_USER_DATA)
 class TestPasswordUsersList(Mixin):
     """Launch an instance with USERS_USER_DATA, ensure Mixin tests pass."""
+
+
+@pytest.mark.user_data(SSD_USER_DATA)
+@pytest.mark.skipif(not IS_UBUNTU, reason="Requires dpkg")
+def test_unlock_passwd_stderr_does_not_delete_hashed_password(client):
+    """Ensure passwd -u does not delete hashed password on unrelated stderr"""
+    assert client.execute("dpkg -s sssd-tools").ok
+    assert client.execute("cloud-init clean --logs").ok
+    client.restart()
+    assert client.execute("cloud-init status --wait").ok
+
+    log = client.read_from_file("/var/log/cloud-init.log")
+    assert "['passwd', '-d', 'tuser']" not in log
+    shadow_entry = client.execute("getent shadow tuser")
+    assert shadow_entry.ok
+    assert shadow_entry.split(":")[1] == SSSD_HASHED_PASSWD

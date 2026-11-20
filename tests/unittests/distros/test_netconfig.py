@@ -769,8 +769,7 @@ class TestNetCfgDistroRedhat:
 
     def test_apply_network_config_rh(self, distro_redhat, tmp_path):
         expected_cfgs = {
-            self.ifcfg_path("eth0"): dedent(
-                """\
+            self.ifcfg_path("eth0"): dedent("""\
                 BOOTPROTO=none
                 DEFROUTE=yes
                 DEVICE=eth0
@@ -780,22 +779,17 @@ class TestNetCfgDistroRedhat:
                 ONBOOT=yes
                 TYPE=Ethernet
                 USERCTL=no
-                """
-            ),
-            self.ifcfg_path("eth1"): dedent(
-                """\
+                """),
+            self.ifcfg_path("eth1"): dedent("""\
                 BOOTPROTO=dhcp
                 DEVICE=eth1
                 ONBOOT=yes
                 TYPE=Ethernet
                 USERCTL=no
-                """
-            ),
-            self.control_path(): dedent(
-                """\
+                """),
+            self.control_path(): dedent("""\
                 NETWORKING=yes
-                """
-            ),
+                """),
         }
         # rh_distro.apply_network_config(V1_NET_CFG, False)
         self._apply_and_verify(
@@ -807,8 +801,7 @@ class TestNetCfgDistroRedhat:
 
     def test_apply_network_config_ipv6_rh(self, distro_redhat, tmp_path):
         expected_cfgs = {
-            self.ifcfg_path("eth0"): dedent(
-                """\
+            self.ifcfg_path("eth0"): dedent("""\
                 BOOTPROTO=none
                 DEFROUTE=yes
                 DEVICE=eth0
@@ -820,24 +813,19 @@ class TestNetCfgDistroRedhat:
                 ONBOOT=yes
                 TYPE=Ethernet
                 USERCTL=no
-                """
-            ),
-            self.ifcfg_path("eth1"): dedent(
-                """\
+                """),
+            self.ifcfg_path("eth1"): dedent("""\
                 BOOTPROTO=dhcp
                 DEVICE=eth1
                 ONBOOT=yes
                 TYPE=Ethernet
                 USERCTL=no
-                """
-            ),
-            self.control_path(): dedent(
-                """\
+                """),
+            self.control_path(): dedent("""\
                 NETWORKING=yes
                 NETWORKING_IPV6=yes
                 IPV6_AUTOCONF=no
-                """
-            ),
+                """),
         }
         # rh_distro.apply_network_config(V1_NET_CFG_IPV6, False)
         self._apply_and_verify(
@@ -851,8 +839,7 @@ class TestNetCfgDistroRedhat:
         self, distro_redhat, tmp_path
     ):
         expected_cfgs = {
-            self.ifcfg_path("eth0"): dedent(
-                """\
+            self.ifcfg_path("eth0"): dedent("""\
                 BOOTPROTO=none
                 DEFROUTE=yes
                 DEVICE=eth0
@@ -864,25 +851,20 @@ class TestNetCfgDistroRedhat:
                 ONBOOT=yes
                 TYPE=Ethernet
                 USERCTL=no
-                """
-            ),
-            self.ifcfg_path("eth1"): dedent(
-                """\
+                """),
+            self.ifcfg_path("eth1"): dedent("""\
                 BOOTPROTO=dhcp
                 DEVICE=eth1
                 ONBOOT=yes
                 TYPE=Ethernet
                 USERCTL=no
-                """
-            ),
-            self.control_path(): dedent(
-                """\
+                """),
+            self.control_path(): dedent("""\
                 NETWORKING=yes
                 NETWORKING_IPV6=yes
                 IPV6_AUTOCONF=no
                 NOZEROCONF=yes
-                """
-            ),
+                """),
         }
         file_mode = 0o644
         # pre-existing config in /etc/sysconfig/network should not be removed
@@ -918,8 +900,7 @@ class TestNetCfgDistroRedhat:
             },
         }
         expected_cfgs = {
-            self.ifcfg_path("eth0"): dedent(
-                """\
+            self.ifcfg_path("eth0"): dedent("""\
                 BOOTPROTO=none
                 DEVICE=eth0
                 HWADDR=00:16:3e:60:7c:df
@@ -928,10 +909,8 @@ class TestNetCfgDistroRedhat:
                 ONBOOT=yes
                 TYPE=Ethernet
                 USERCTL=no
-                """
-            ),
-            self.ifcfg_path("infra0"): dedent(
-                """\
+                """),
+            self.ifcfg_path("infra0"): dedent("""\
                 BOOTPROTO=none
                 DEVICE=infra0
                 IPADDR=10.0.1.2
@@ -940,13 +919,10 @@ class TestNetCfgDistroRedhat:
                 PHYSDEV=eth0
                 USERCTL=no
                 VLAN=yes
-                """
-            ),
-            self.control_path(): dedent(
-                """\
+                """),
+            self.control_path(): dedent("""\
                 NETWORKING=yes
-                """
-            ),
+                """),
         }
         self._apply_and_verify(
             distro_redhat.apply_network_config,
@@ -968,8 +944,7 @@ class TestNetCfgDistroRedhat:
             },
         }
         expected_cfgs = {
-            self.ifcfg_path("eth0"): dedent(
-                """\
+            self.ifcfg_path("eth0"): dedent("""\
                 BOOTPROTO=none
                 DEVICE=eth0
                 IPADDR=192.10.1.2
@@ -977,10 +952,8 @@ class TestNetCfgDistroRedhat:
                 ONBOOT=yes
                 TYPE=Ethernet
                 USERCTL=no
-                """
-            ),
-            self.ifcfg_path("eth0.1001"): dedent(
-                """\
+                """),
+            self.ifcfg_path("eth0.1001"): dedent("""\
                 BOOTPROTO=none
                 DEVICE=eth0.1001
                 IPADDR=10.0.1.2
@@ -989,13 +962,10 @@ class TestNetCfgDistroRedhat:
                 PHYSDEV=eth0
                 USERCTL=no
                 VLAN=yes
-                """
-            ),
-            self.control_path(): dedent(
-                """\
+                """),
+            self.control_path(): dedent("""\
                 NETWORKING=yes
-                """
-            ),
+                """),
         }
         self._apply_and_verify(
             distro_redhat.apply_network_config,
@@ -1036,20 +1006,16 @@ class TestNetCfgDistroOpensuse:
     def test_apply_network_config_opensuse(self, distro_opensuse, tmp_path):
         """Opensuse uses apply_network_config and renders sysconfig"""
         expected_cfgs = {
-            self.ifcfg_path("eth0"): dedent(
-                """\
+            self.ifcfg_path("eth0"): dedent("""\
                 BOOTPROTO=static
                 IPADDR=192.168.1.5
                 NETMASK=255.255.255.0
                 STARTMODE=auto
-                """
-            ),
-            self.ifcfg_path("eth1"): dedent(
-                """\
+                """),
+            self.ifcfg_path("eth1"): dedent("""\
                 BOOTPROTO=dhcp4
                 STARTMODE=auto
-                """
-            ),
+                """),
         }
         self._apply_and_verify(
             distro_opensuse.apply_network_config,
@@ -1063,19 +1029,15 @@ class TestNetCfgDistroOpensuse:
     ):
         """Opensuse uses apply_network_config and renders sysconfig w/ipv6"""
         expected_cfgs = {
-            self.ifcfg_path("eth0"): dedent(
-                """\
+            self.ifcfg_path("eth0"): dedent("""\
                 BOOTPROTO=static
                 IPADDR6=2607:f0d0:1002:0011::2/64
                 STARTMODE=auto
-            """
-            ),
-            self.ifcfg_path("eth1"): dedent(
-                """\
+            """),
+            self.ifcfg_path("eth1"): dedent("""\
                 BOOTPROTO=dhcp4
                 STARTMODE=auto
-            """
-            ),
+            """),
         }
         self._apply_and_verify(
             distro_opensuse.apply_network_config,
@@ -1131,8 +1093,7 @@ class TestNetCfgDistroArch:
 
     def test_apply_network_config_v1_with_netplan(self, distro_arch, tmp_path):
         expected_cfgs = {
-            self.netplan_path(): dedent(
-                """\
+            self.netplan_path(): dedent("""\
                 # generated by cloud-init
                 network:
                     version: 2
@@ -1145,8 +1106,7 @@ class TestNetCfgDistroArch:
                                 via: 192.168.1.254
                         eth1:
                             dhcp4: true
-                """
-            ),
+                """),
         }
 
         with mock.patch(
@@ -1210,8 +1170,7 @@ class TestNetCfgDistroPhoton:
         return "/etc/systemd/network/10-cloud-init-%s.network" % ifname
 
     def net_cfg_1(self, ifname):
-        ret = (
-            """\
+        ret = """\
         [Match]
         Name=%s
         [Network]
@@ -1219,20 +1178,15 @@ class TestNetCfgDistroPhoton:
         [Address]
         Address=192.168.1.5/24
         [Route]
-        Gateway=192.168.1.254"""
-            % ifname
-        )
+        Gateway=192.168.1.254""" % ifname
         return ret
 
     def net_cfg_2(self, ifname):
-        ret = (
-            """\
+        ret = """\
         [Match]
         Name=%s
         [Network]
-        DHCP=ipv4"""
-            % ifname
-        )
+        DHCP=ipv4""" % ifname
         return ret
 
     def test_photon_network_config_v1(self, distro_photon, tmp_path):
@@ -1350,8 +1304,7 @@ class TestNetCfgDistroMariner:
         return "/etc/systemd/network/10-cloud-init-%s.network" % ifname
 
     def net_cfg_1(self, ifname):
-        ret = (
-            """\
+        ret = """\
         [Match]
         Name=%s
         [Network]
@@ -1359,20 +1312,15 @@ class TestNetCfgDistroMariner:
         [Address]
         Address=192.168.1.5/24
         [Route]
-        Gateway=192.168.1.254"""
-            % ifname
-        )
+        Gateway=192.168.1.254""" % ifname
         return ret
 
     def net_cfg_2(self, ifname):
-        ret = (
-            """\
+        ret = """\
         [Match]
         Name=%s
         [Network]
-        DHCP=ipv4"""
-            % ifname
-        )
+        DHCP=ipv4""" % ifname
         return ret
 
     def test_mariner_network_config_v1(self, distro_mariner, tmp_path):
@@ -1490,8 +1438,7 @@ class TestNetCfgDistroAzureLinux:
         return "/etc/systemd/network/10-cloud-init-%s.network" % ifname
 
     def net_cfg_1(self, ifname):
-        ret = (
-            """\
+        ret = """\
         [Match]
         Name=%s
         [Network]
@@ -1499,20 +1446,15 @@ class TestNetCfgDistroAzureLinux:
         [Address]
         Address=192.168.1.5/24
         [Route]
-        Gateway=192.168.1.254"""
-            % ifname
-        )
+        Gateway=192.168.1.254""" % ifname
         return ret
 
     def net_cfg_2(self, ifname):
-        ret = (
-            """\
+        ret = """\
         [Match]
         Name=%s
         [Network]
-        DHCP=ipv4"""
-            % ifname
-        )
+        DHCP=ipv4""" % ifname
         return ret
 
     def test_azurelinux_network_config_v1(self, distro_azurelinux, tmp_path):

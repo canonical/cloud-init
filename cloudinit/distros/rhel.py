@@ -98,7 +98,7 @@ class Distro(distros.Distro):
             raise ValueError("Invalid path: %s" % locale_fn)
 
         if os.path.exists(locale_fn):
-            (_exists, contents) = rhel_util.read_sysconfig_file(locale_fn)
+            _exists, contents = rhel_util.read_sysconfig_file(locale_fn)
             if keyname in contents:
                 return contents[keyname]
             else:
@@ -146,14 +146,14 @@ class Distro(distros.Distro):
         if self.uses_systemd() and filename.endswith("/previous-hostname"):
             return util.load_text_file(filename).strip()
         elif self.uses_systemd():
-            (out, _err) = subp.subp(["hostname"])
+            out, _err = subp.subp(["hostname"])
             out = out.strip()
             if len(out):
                 return out
             else:
                 return default
         else:
-            (_exists, contents) = rhel_util.read_sysconfig_file(filename)
+            _exists, contents = rhel_util.read_sysconfig_file(filename)
             if "HOSTNAME" in contents:
                 return contents["HOSTNAME"]
             else:

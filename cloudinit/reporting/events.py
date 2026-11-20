@@ -8,6 +8,7 @@ events for reporting.
 The events here are designed to be used with reporting.
 They can be published to registered handlers with report_event.
 """
+
 import base64
 import logging
 import os.path
@@ -304,7 +305,7 @@ class ReportEventStack:
         return self._childrens_finish_info()
 
     def __exit__(self, exc_type, exc_value, traceback):
-        (result, msg) = self._finish_info(exc_value)
+        result, msg = self._finish_info(exc_value)
         if self.parent:
             self.parent.children[self.name] = (result, msg)
         if self.reporting_enabled:
