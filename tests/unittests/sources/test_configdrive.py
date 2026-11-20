@@ -1075,3 +1075,232 @@ def populate_ds_from_read_config(cfg_ds, source, results):
     cfg_ds._network_config = openstack.convert_net_json(
         cfg_ds.network_json, known_macs=KNOWN_MACS
     )
+
+
+class TestConfigDriveInjectedFiles:
+    def test_extract_files_policy_defaults(self):
+        """Default policy allows all files, overwrites, and sets mode 0o660."""
+        expected = {
+            "enabled": True,
+            "allowlist": None,
+            "denylist": [],
+            "overwrite": True,
+            "mode": 0o660,
+        }
+        assert ds.extract_files_policy(None) == expected
+        assert ds.extract_files_policy({}) == expected
+        assert ds.extract_files_policy({"files": True}) == expected
+
+    def test_extract_files_policy_boolean(self):
+        """Boolean configuration disables or enables all injected files."""
+        assert ds.extract_files_policy(False)["enabled"] is False
+        assert ds.extract_files_policy({"files": False})["enabled"] is False
+        assert ds.extract_files_policy(True)["enabled"] is True
+        assert ds.extract_files_policy({"files": True})["enabled"] is True
+
+    def test_extract_files_policy_nested_dict(self):
+        """Nested dict configuration parses all supported settings."""
+        cfg = {
+            "files": {
+                "enabled": True,
+                "allowlist": ["/etc/foo.cfg", "/etc/network/*"],
+                "denylist": ["/etc/shadow", "/root/*"],
+                "overwrite": False,
+                "mode": "0640",
+            }
+        }
+        policy = ds.extract_files_policy(cfg)
+        assert policy["enabled"] is True
+        assert policy["allowlist"] == ["/etc/foo.cfg", "/etc/network/*"]
+        assert policy["denylist"] == ["/etc/shadow", "/root/*"]
+        assert policy["overwrite"] is False
+        assert policy["mode"] == 0o640
+
+    def test_extract_files_policy_aliases(self):
+        """Supports whitelist/blacklist as aliases for allowlist/denylist."""
+        cfg = {
+            "files": {
+                "whitelist": ["/etc/whitelist/*"],
+                "blacklist": ["/etc/blacklist/*"],
+            }
+        }
+        policy = ds.extract_files_policy(cfg)
+        assert policy["allowlist"] == ["/etc/whitelist/*"]
+        assert policy["denylist"] == ["/etc/blacklist/*"]
+
+    def test_extract_files_policy_flat_keys(self):
+        """Supports flat datasource keys under ConfigDrive."""
+        cfg = {
+            "files_allowlist": ["/etc/flat/*"],
+            "files_denylist": ["/etc/deny/*"],
+            "files_overwrite": False,
+        }
+        policy = ds.extract_files_policy(cfg)
+        assert policy["allowlist"] == ["/etc/flat/*"]
+        assert policy["denylist"] == ["/etc/deny/*"]
+        assert policy["overwrite"] is False
+
+    @mock.patch(M_PATH + "util.write_file")
+    def test_write_injected_files_default(self, m_write_file):
+        """By default, all files are written with mode 0o660."""
+        files = {
+            "/etc/foo.cfg": b"content_foo",
+            "etc/bar.cfg": b"content_bar",
+        }
+        ds.write_injected_files(files)
+        assert m_write_file.call_count == 2
+        m_write_file.assert_any_call(
+            "/etc/foo.cfg", b"content_foo", mode=0o660
+        )
+        m_write_file.assert_any_call(
+            "/etc/bar.cfg", b"content_bar", mode=0o660
+        )
+
+    @mock.patch(M_PATH + "util.write_file")
+    def test_write_injected_files_disabled(self, m_write_file):
+        """When disabled, no files are written."""
+        files = {"/etc/foo.cfg": b"content_foo"}
+        ds.write_injected_files(files, policy={"enabled": False})
+        m_write_file.assert_not_called()
+
+    @mock.patch(M_PATH + "util.write_file")
+    def test_write_injected_files_allowlist(self, m_write_file):
+        """Allowlist restricts which files are written."""
+        files = {
+            "/etc/network/interfaces": b"net",
+            "/etc/shadow": b"shadow",
+            "/var/app/test.cfg": b"app",
+        }
+        policy = {"allowlist": ["/etc/network/*", "/var/app/test.cfg"]}
+        ds.write_injected_files(files, policy=policy)
+        assert m_write_file.call_count == 2
+        written = [call.args[0] for call in m_write_file.call_args_list]
+        assert "/etc/network/interfaces" in written
+        assert "/var/app/test.cfg" in written
+        assert "/etc/shadow" not in written
+
+    @mock.patch(M_PATH + "util.write_file")
+    def test_write_injected_files_denylist(self, m_write_file):
+        """Denylist blocks specified files from being written."""
+        files = {
+            "/etc/network/interfaces": b"net",
+            "/etc/shadow": b"shadow",
+            "/root/.ssh/authorized_keys": b"keys",
+        }
+        policy = {"denylist": ["/etc/shadow", "/root/.ssh/*"]}
+        ds.write_injected_files(files, policy=policy)
+        assert m_write_file.call_count == 1
+        written = [call.args[0] for call in m_write_file.call_args_list]
+        assert "/etc/network/interfaces" in written
+        assert "/etc/shadow" not in written
+        assert "/root/.ssh/authorized_keys" not in written
+
+    @mock.patch(M_PATH + "util.write_file")
+    def test_write_injected_files_denylist_overrules_allowlist(
+        self, m_write_file
+    ):
+        """Denylist takes precedence over allowlist."""
+        files = {
+            "/etc/network/interfaces": b"net",
+            "/etc/network/interfaces.d/bad": b"bad",
+        }
+        policy = {
+            "allowlist": ["/etc/network/*"],
+            "denylist": ["/etc/network/interfaces.d/*"],
+        }
+        ds.write_injected_files(files, policy=policy)
+        assert m_write_file.call_count == 1
+        written = [call.args[0] for call in m_write_file.call_args_list]
+        assert "/etc/network/interfaces" in written
+        assert "/etc/network/interfaces.d/bad" not in written
+
+    @mock.patch(M_PATH + "os.path.lexists")
+    @mock.patch(M_PATH + "util.write_file")
+    def test_write_injected_files_overwrite(self, m_write_file, m_lexists):
+        """With overwrite=False, existing files are not overwritten."""
+        files = {
+            "/etc/existing.cfg": b"new_data",
+            "/etc/new.cfg": b"new_data",
+        }
+        m_lexists.side_effect = lambda path: path == "/etc/existing.cfg"
+        policy = {"overwrite": False}
+        ds.write_injected_files(files, policy=policy)
+        assert m_write_file.call_count == 1
+        m_write_file.assert_called_once_with(
+            "/etc/new.cfg", b"new_data", mode=0o660
+        )
+
+    @mock.patch(M_PATH + "util.write_file")
+    def test_write_injected_files_path_traversal(self, m_write_file):
+        """Paths with traversal components are normalized before filtering.
+
+        A path like ``../etc/shadow`` or ``/etc//shadow`` must be
+        normalized so that it is correctly matched against denylist
+        entries.
+        """
+        files = {
+            "../etc/shadow": b"evil",
+            "/etc//shadow": b"evil2",
+            "/etc/./network/../shadow": b"evil3",
+            "/etc/safe.cfg": b"ok",
+        }
+        policy = {"denylist": ["/etc/shadow"]}
+        ds.write_injected_files(files, policy=policy)
+        assert m_write_file.call_count == 1
+        m_write_file.assert_called_once_with(
+            "/etc/safe.cfg", b"ok", mode=0o660
+        )
+
+    @mock.patch(M_PATH + "os.path.lexists")
+    @mock.patch(M_PATH + "util.write_file")
+    def test_write_injected_files_dangling_symlink(
+        self, m_write_file, m_lexists
+    ):
+        """Dangling symlinks are treated as existing when overwrite=False.
+
+        ``os.path.lexists`` returns True for dangling symlinks, unlike
+        ``os.path.exists``, so write_file must not follow the link.
+        """
+        files = {"/etc/dangling.cfg": b"data"}
+        m_lexists.return_value = True
+        policy = {"overwrite": False}
+        ds.write_injected_files(files, policy=policy)
+        assert m_write_file.call_count == 0
+
+    @mock.patch(M_PATH + "util.write_file")
+    def test_write_injected_files_custom_mode(self, m_write_file):
+        """Custom mode is respected when writing files."""
+        files = {"/etc/foo.cfg": b"content"}
+        policy = {"mode": 0o644}
+        ds.write_injected_files(files, policy=policy)
+        m_write_file.assert_called_once_with(
+            "/etc/foo.cfg", b"content", mode=0o644
+        )
+
+    @mock.patch(M_PATH + "util.write_file")
+    def test_on_first_boot_integration_with_ds_cfg(
+        self, m_write_file, tmp_path
+    ):
+        """DataSourceConfigDrive.get_data filters files using ds_cfg."""
+        run = os.path.join(tmp_path, "run")
+        os.mkdir(run)
+        sys_cfg = {
+            "datasource": {
+                "ConfigDrive": {
+                    "files": {
+                        "denylist": ["/etc/bar/*"],
+                    }
+                }
+            }
+        }
+        cfg_ds = ds.DataSourceConfigDrive(
+            sys_cfg, None, helpers.Paths({"run_dir": run})
+        )
+        cfg_ds.seed_dir = os.path.join(tmp_path, "seed")
+        populate_dir(cfg_ds.seed_dir, CFG_DRIVE_FILES_V2)
+        cfg_ds.known_macs = KNOWN_MACS.copy()
+
+        assert cfg_ds.get_data() is True
+        written = [call.args[0] for call in m_write_file.call_args_list]
+        assert "/etc/foo.cfg" in written
+        assert "/etc/bar/bar.cfg" not in written
