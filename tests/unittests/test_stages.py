@@ -4,6 +4,7 @@
 """Tests related to cloudinit.stages module."""
 
 import json
+import logging
 import os
 import stat
 from unittest import mock
@@ -53,6 +54,37 @@ class TestUpdateEventEnabled:
         assert enabled is stages.update_event_enabled(
             m_datasource, cfg, EventType.HOTPLUG, EventScope.NETWORK
         )
+
+
+class TestReadRuntimeConfig:
+    @pytest.mark.parametrize(
+        "content, expected",
+        (
+            (None, {}),
+            ("datasource_list: [NoCloud]\n", {"datasource_list": ["NoCloud"]}),
+        ),
+    )
+    def test_reads_runtime_config(self, content, expected, caplog, tmpdir):
+        if content is not None:
+            tmpdir.join("cloud.cfg").write(content)
+        assert expected == stages.read_runtime_config(str(tmpdir))
+        assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
+
+    @mock.patch(M_PATH + "util.load_text_file")
+    def test_unreadable_runtime_config_is_skipped_with_warning(
+        self, m_load_text_file, caplog, tmpdir
+    ):
+        """Unreadable runtime config is not fatal, for root or not."""
+        permission_error = PermissionError(
+            13, "Permission denied", str(tmpdir.join("cloud.cfg"))
+        )
+        m_load_text_file.side_effect = permission_error
+        assert {} == stages.read_runtime_config(str(tmpdir))
+        assert (
+            "cloudinit.stages",
+            logging.WARNING,
+            f"Skipping unreadable runtime config: {permission_error}",
+        ) in caplog.record_tuples
 
 
 class TestNetworkConfigWithoutDS:

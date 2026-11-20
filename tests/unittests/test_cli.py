@@ -320,6 +320,41 @@ class TestCLI:
             "Expected one of --config-file or --system arguments\n" in err
         )
 
+    @test_helpers.skipUnlessJsonSchema()
+    @mock.patch("cloudinit.stages.Init.fetch")
+    @mock.patch("cloudinit.util.read_conf_from_cmdline", return_value={})
+    @mock.patch("cloudinit.util.read_conf")
+    def test_wb_schema_config_file_without_root_access(
+        self,
+        m_read_conf,
+        _m_read_conf_from_cmdline,
+        m_fetch,
+        caplog,
+        capsys,
+        tmpdir,
+    ):
+        """A config file validates when /run/cloud-init is unreadable.
+
+        The datasource cache is not loaded either: --config-file does not
+        need it, and it is not readable by non-root users.
+        """
+
+        def read_conf(fname, **_kwargs):
+            if fname == "/run/cloud-init/cloud.cfg":
+                raise PermissionError(13, "Permission denied", fname)
+            return {}
+
+        m_read_conf.side_effect = read_conf
+        user_data = tmpdir.join("user-data")
+        user_data.write("#cloud-config\npackages: [sl]\n")
+        exit_code = self._call_main(
+            ["cloud-init", "schema", "--config-file", str(user_data)]
+        )
+        assert not exit_code
+        assert f"Valid schema {user_data}\n" == capsys.readouterr().out
+        assert 0 == m_fetch.call_count
+        assert "Skipping unreadable runtime config" in caplog.text
+
     @mock.patch("cloudinit.cmd.main.main_single")
     def test_single_subcommand(self, m_main_single):
         """The subcommand 'single' calls main_single with valid args."""
