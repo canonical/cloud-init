@@ -146,6 +146,14 @@ DISTRO_CLIENT_CONFIG: Dict[str, Dict] = {
             "confpath": "/etc/chrony/chrony.conf",
         },
     },
+    "fedora": {
+        "ntp": {
+            "service_name": "ntpd",
+        },
+        "chrony": {
+            "service_name": "chronyd",
+        },
+    },
     "freebsd": {
         "ntp": {
             "confpath": "/etc/ntp.conf",
