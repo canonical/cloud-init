@@ -129,6 +129,31 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
         )
 
 
+def get_existing_idevs(key: str) -> str:
+    """Read existing debconf value to preserve backup partitions."""
+    if not subp.which("debconf-communicate"):
+        return ""
+    try:
+        out, _ = subp.subp(["debconf-communicate"], data=f"GET {key}\n")
+        if out.startswith("0 "):
+            return out[2:].strip()
+    except Exception as e:
+        LOG.debug("Failed to GET %s from debconf: %s", key, e)
+    return ""
+
+
+def combine_idevs(existing: str, new_idev: str) -> str:
+    devices = []
+    if existing:
+        devices = [d.strip() for d in existing.split(",") if d.strip()]
+    if new_idev and new_idev not in devices:
+        devices.append(new_idev)
+    # Filter to only keep devices that actually exist on current system.
+    # Preserves RAID/backup ESPs while pruning stale disks from images.
+    valid_devices = [d for d in devices if os.path.exists(d)]
+    return ", ".join(valid_devices)
+
+
 def get_debconf_config(mycfg: Config) -> str:
     """
     Returns the debconf config for grub-pc or
@@ -141,12 +166,16 @@ def get_debconf_config(mycfg: Config) -> str:
 
         if idevs is None:
             idevs = fetch_idevs()
+            existing = get_existing_idevs("grub-efi/install_devices")
+            idevs = combine_idevs(existing, idevs)
 
-        return "grub-pc grub-efi/install_devices string %s\n" % idevs
+        return "grub-pc grub-efi/install_devices multiselect %s\n" % idevs
     else:
         idevs = util.get_cfg_option_str(mycfg, "grub-pc/install_devices", None)
         if idevs is None:
             idevs = fetch_idevs()
+            existing = get_existing_idevs("grub-pc/install_devices")
+            idevs = combine_idevs(existing, idevs)
 
         idevs_empty = mycfg.get("grub-pc/install_devices_empty")
         if idevs_empty is None:
@@ -158,7 +187,7 @@ def get_debconf_config(mycfg: Config) -> str:
         # now idevs and idevs_empty are set to determined values
         # or, those set by user
         return (
-            "grub-pc grub-pc/install_devices string %s\n"
+            "grub-pc grub-pc/install_devices multiselect %s\n"
             "grub-pc grub-pc/install_devices_empty boolean %s\n"
             % (idevs, idevs_empty)
         )
