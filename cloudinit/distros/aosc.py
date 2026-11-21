@@ -15,6 +15,13 @@ LOG = logging.getLogger(__name__)
 
 
 class Distro(distros.Distro):
+    ca_cert_config = "/etc/ca-certificates/conf.d/cloud-init.conf"
+    ca_cert_filename = "cloud-init-ca-cert-{cert_index}.pem"
+    ca_cert_local_path = "/etc/ssl/certs/"
+    ca_cert_path = "/etc/ssl/certs/"
+    ca_cert_remove_defaults_action = distros.DefaultCACertsAction.DISABLE
+    ca_cert_update_cmd = ["update-ca-bundle"]
+
     systemd_locale_conf_fn = "/etc/locale.conf"
     init_cmd = ["systemctl"]
     network_conf_dir = "/etc/sysconfig/network"

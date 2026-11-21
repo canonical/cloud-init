@@ -1,7 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 # pylint: disable=attribute-defined-outside-init
 import re
-from collections import namedtuple
 from typing import List
 from unittest import mock
 
@@ -17,7 +16,65 @@ from cloudinit.config.schema import (
 from tests.unittests.helpers import SCHEMA_EMPTY_ERROR, skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
 
-CAMocks = namedtuple("CAMocks", ["add", "update", "remove"])
+CA_CERT_PROFILES = {
+    "aosc": {
+        "ca_cert_config": "/etc/ca-certificates/conf.d/cloud-init.conf",
+        "ca_cert_filename": "cloud-init-ca-cert-{cert_index}.pem",
+        "ca_cert_full_path": (
+            "/etc/ssl/certs/cloud-init-ca-cert-{cert_index}.pem"
+        ),
+        "ca_cert_local_path": "/etc/ssl/certs/",
+        "ca_cert_path": "/etc/ssl/certs/",
+        "ca_cert_update_cmd": ["update-ca-bundle"],
+    },
+    "debian": {
+        "ca_cert_config": "/etc/ca-certificates.conf",
+        "ca_cert_filename": "cloud-init-ca-cert-{cert_index}.crt",
+        "ca_cert_full_path": (
+            "/usr/local/share/ca-certificates/"
+            "cloud-init-ca-cert-{cert_index}.crt"
+        ),
+        "ca_cert_local_path": "/usr/local/share/ca-certificates/",
+        "ca_cert_path": None,
+        "ca_cert_update_cmd": ["update-ca-certificates"],
+    },
+    "opensuse": {
+        "ca_cert_config": None,
+        "ca_cert_filename": "anchors/cloud-init-ca-cert-{cert_index}.crt",
+        "ca_cert_full_path": (
+            "/usr/share/pki/trust/anchors/"
+            "cloud-init-ca-cert-{cert_index}.crt"
+        ),
+        "ca_cert_local_path": "/usr/share/pki/trust/",
+        "ca_cert_path": "/etc/pki/trust/",
+        "ca_cert_update_cmd": ["update-ca-certificates"],
+    },
+    "photon": {
+        "ca_cert_config": None,
+        "ca_cert_filename": "cloud-init-ca-cert-{cert_index}.pem",
+        "ca_cert_full_path": (
+            "/etc/ssl/certs/cloud-init-ca-cert-{cert_index}.pem"
+        ),
+        "ca_cert_local_path": "/etc/ssl/certs/",
+        "ca_cert_path": "/etc/pki/tls/certs/",
+        "ca_cert_update_cmd": ["rehash_ca_certificates.sh"],
+    },
+    "rhel": {
+        "ca_cert_config": None,
+        "ca_cert_filename": "anchors/cloud-init-ca-cert-{cert_index}.crt",
+        "ca_cert_full_path": (
+            "/usr/share/pki/ca-trust-source/anchors/"
+            "cloud-init-ca-cert-{cert_index}.crt"
+        ),
+        "ca_cert_local_path": "/usr/share/pki/ca-trust-source/",
+        "ca_cert_path": "/etc/pki/ca-trust/",
+        "ca_cert_update_cmd": ["update-ca-trust"],
+    },
+}
+
+ALL_DISTRO_NAMES = sorted(
+    {name for family in distros.OSFAMILIES.values() for name in family}
+)
 
 
 class TestNoConfig:
@@ -45,6 +102,60 @@ class TestConfig:
     paths = None
     args: List = []
 
+    @pytest.mark.parametrize("distro_name", cc_ca_certs.distros)
+    def test_distro_config(self, distro_name):
+        profile = "debian"
+        if distro_name in ("aosc", "photon"):
+            profile = distro_name
+        elif distro_name in distros.OSFAMILIES["redhat"]:
+            profile = "rhel"
+        elif distro_name in distros.OSFAMILIES["suse"]:
+            profile = "opensuse"
+
+        assert (
+            cc_ca_certs._distro_ca_certs_configs(distro_name)
+            == CA_CERT_PROFILES[profile]
+        )
+
+    @pytest.mark.parametrize(
+        "distro_name",
+        sorted(set(ALL_DISTRO_NAMES) - set(cc_ca_certs.distros)),
+    )
+    def test_unsupported_distro_config(self, distro_name):
+        with pytest.raises(
+            ValueError,
+            match=f"^Unsupported distro for ca_certs: {distro_name}$",
+        ):
+            cc_ca_certs._distro_ca_certs_configs(distro_name)
+
+    def test_supported_distros(self):
+        assert set(cc_ca_certs.distros) <= set(ALL_DISTRO_NAMES)
+        assert cc_ca_certs.meta["distros"] == cc_ca_certs.distros
+
+        unsupported_distros = {
+            "OpenCloudOS",
+            "TencentOS",
+            "arch",
+            "azurelinux",
+            "cos",
+            "dragonfly",
+            "eurolinux",
+            "freebsd",
+            "gentoo",
+            "mariner",
+            "miraclelinux",
+            "netbsd",
+            "openbsd",
+            "openeuler",
+            "openmandriva",
+            "suse",
+            "virtuozzo",
+        }
+        assert (
+            set(ALL_DISTRO_NAMES) - set(cc_ca_certs.distros)
+            == unsupported_distros
+        )
+
     def _fetch_distro(self, kind):
         cls = distros.fetch(kind)
         paths = helpers.Paths({})
@@ -58,7 +169,11 @@ class TestConfig:
         mock_remove = mocker.patch.object(
             cc_ca_certs, "disable_default_ca_certs"
         )
-        return CAMocks(mock_add, mock_update, mock_remove)
+        ca_mocks = mock.Mock()
+        ca_mocks.attach_mock(mock_add, "add")
+        ca_mocks.attach_mock(mock_update, "update")
+        ca_mocks.attach_mock(mock_remove, "remove")
+        return ca_mocks
 
     @pytest.mark.parametrize("distro_name", cc_ca_certs.distros)
     @mock.patch(
@@ -167,11 +282,14 @@ class TestConfig:
         config = {"ca_certs": {"remove_defaults": True, "trusted": ["CERT1"]}}
         cloud = get_cloud(distro_name)
         conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
+
         cc_ca_certs.handle(self.name, config, cloud, self.args)
 
-        assert ca_mocks.remove.call_count == 1
-        ca_mocks.add.assert_called_once_with(conf, ["CERT1"])
-        assert ca_mocks.update.call_count == 1
+        assert ca_mocks.mock_calls == [
+            mock.call.remove(distro_name, conf),
+            mock.call.add(conf, ["CERT1"]),
+            mock.call.update(conf),
+        ]
 
 
 class TestAddCaCerts:
@@ -220,6 +338,7 @@ class TestAddCaCerts:
                     )
                 ]
             )
+            assert mock_write.call_count == 1
 
     @pytest.mark.parametrize("distro_name", cc_ca_certs.distros)
     def test_multiple_certs(self, distro_name, setup_test):
@@ -249,6 +368,7 @@ class TestAddCaCerts:
                     ),
                 ]
             )
+            assert mock_write.call_count == 2
 
 
 class TestUpdateCaCerts:
@@ -274,7 +394,7 @@ class TestRemoveDefaultCaCerts:
         m_stat = mocker.patch("cloudinit.config.cc_ca_certs.os.stat")
         return paths, m_stat
 
-    @pytest.mark.parametrize("distro_name", cc_ca_certs.distros)
+    @pytest.mark.parametrize("distro_name", ALL_DISTRO_NAMES)
     def test_commands(self, distro_name, setup_test):
         _, m_stat = setup_test
         ca_certs_content = "# line1\nline2\nline3\n"
@@ -283,7 +403,11 @@ class TestRemoveDefaultCaCerts:
             " user-data\n!line2\n!line3\n"
         )
         m_stat.return_value.st_size = 1
-        conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
+        conf = (
+            cc_ca_certs._distro_ca_certs_configs(distro_name)
+            if distro_name in cc_ca_certs.distros
+            else {}
+        )
 
         with mock.patch.object(util, "delete_dir_contents") as mock_delete:
             with mock.patch.object(
@@ -291,34 +415,58 @@ class TestRemoveDefaultCaCerts:
             ) as mock_load:
                 with mock.patch.object(subp, "subp") as mock_subp:
                     with mock.patch.object(util, "write_file") as mock_write:
+                        calls = mock.Mock()
+                        calls.attach_mock(mock_delete, "delete")
+                        calls.attach_mock(mock_load, "load")
+                        calls.attach_mock(mock_subp, "subp")
+                        calls.attach_mock(mock_write, "write")
+
                         cc_ca_certs.disable_default_ca_certs(distro_name, conf)
 
-                        if distro_name in ["rhel", "photon"]:
-                            mock_delete.assert_has_calls(
-                                [
-                                    mock.call(conf["ca_cert_path"]),
-                                    mock.call(conf["ca_cert_local_path"]),
-                                ]
-                            )
-                            assert [] == mock_subp.call_args_list
-                        elif distro_name in ["alpine", "debian", "ubuntu"]:
-                            mock_load.assert_called_once_with(
-                                conf["ca_cert_config"]
-                            )
-                            mock_write.assert_called_once_with(
-                                conf["ca_cert_config"], expected, omode="wb"
-                            )
+                        if distro_name in [
+                            "amazon",
+                            "photon",
+                            "rhel",
+                        ]:
+                            expected_calls = [
+                                mock.call.delete(conf["ca_cert_path"]),
+                                mock.call.delete(conf["ca_cert_local_path"]),
+                            ]
+                        elif distro_name in [
+                            "alpine",
+                            "aosc",
+                            "debian",
+                            "raspberry-pi-os",
+                            "ubuntu",
+                        ]:
+                            expected_calls = [
+                                mock.call.load(conf["ca_cert_config"]),
+                                mock.call.write(
+                                    conf["ca_cert_config"],
+                                    expected,
+                                    omode="wb",
+                                ),
+                            ]
 
-                            if distro_name in ["debian", "ubuntu"]:
-                                mock_subp.assert_called_once_with(
-                                    ["debconf-set-selections", "-"],
-                                    data=(
-                                        "ca-certificates ca-certificates/"
-                                        "trust_new_crts select no"
-                                    ),
+                            if distro_name in [
+                                "debian",
+                                "raspberry-pi-os",
+                                "ubuntu",
+                            ]:
+                                expected_calls.append(
+                                    mock.call.subp(
+                                        ["debconf-set-selections", "-"],
+                                        data=(
+                                            "ca-certificates "
+                                            "ca-certificates/trust_new_crts "
+                                            "select no"
+                                        ),
+                                    )
                                 )
-                            else:
-                                assert mock_subp.call_count == 0
+                        else:
+                            expected_calls = []
+
+                        assert calls.mock_calls == expected_calls
 
     @pytest.mark.parametrize("distro_name", cc_ca_certs.distros)
     def test_non_existent_cert_cfg(self, distro_name, setup_test):

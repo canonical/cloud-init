@@ -6,78 +6,37 @@
 
 import logging
 import os
-from typing import Any, Dict
 
 from cloudinit import lifecycle, subp, util
 from cloudinit.cloud import Cloud
 from cloudinit.config import Config
 from cloudinit.config.schema import MetaSchema
+from cloudinit.distros import DefaultCACertsAction, fetch
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
-DEFAULT_CONFIG: Dict[str, Any] = {
-    "ca_cert_path": None,
-    "ca_cert_local_path": "/usr/local/share/ca-certificates/",
-    "ca_cert_filename": "cloud-init-ca-cert-{cert_index}.crt",
-    "ca_cert_config": "/etc/ca-certificates.conf",
-    "ca_cert_update_cmd": ["update-ca-certificates"],
-}
-DISTRO_OVERRIDES: Dict[str, Dict[str, Any]] = {
-    "aosc": {
-        "ca_cert_path": "/etc/ssl/certs/",
-        "ca_cert_local_path": "/etc/ssl/certs/",
-        "ca_cert_filename": "cloud-init-ca-cert-{cert_index}.pem",
-        "ca_cert_config": "/etc/ca-certificates/conf.d/cloud-init.conf",
-        "ca_cert_update_cmd": ["update-ca-bundle"],
-    },
-    "rhel": {
-        "ca_cert_path": "/etc/pki/ca-trust/",
-        "ca_cert_local_path": "/usr/share/pki/ca-trust-source/",
-        "ca_cert_filename": "anchors/cloud-init-ca-cert-{cert_index}.crt",
-        "ca_cert_config": None,
-        "ca_cert_update_cmd": ["update-ca-trust"],
-    },
-    "opensuse": {
-        "ca_cert_path": "/etc/pki/trust/",
-        "ca_cert_local_path": "/usr/share/pki/trust/",
-        "ca_cert_filename": "anchors/cloud-init-ca-cert-{cert_index}.crt",
-        "ca_cert_config": None,
-        "ca_cert_update_cmd": ["update-ca-certificates"],
-    },
-    "photon": {
-        "ca_cert_path": "/etc/pki/tls/certs/",
-        "ca_cert_local_path": "/etc/ssl/certs/",
-        "ca_cert_filename": "cloud-init-ca-cert-{cert_index}.pem",
-        "ca_cert_config": None,
-        "ca_cert_update_cmd": ["rehash_ca_certificates.sh"],
-    },
-}
-
-DISTRO_FAMILY = {
-    "almalinux": "rhel",
-    "amazon": "rhel",
-    "centos": "rhel",
-    "cloudlinux": "rhel",
-    "fedora": "rhel",
-    "opensuse-microos": "opensuse",
-    "opensuse-tumbleweed": "opensuse",
-    "opensuse-leap": "opensuse",
-    "rocky": "rhel",
-    "sle_hpc": "opensuse",
-    "sle-micro": "opensuse",
-    "sles": "opensuse",
-}
-
-distros = list(DISTRO_FAMILY.keys()) + [
-    "aosc",
+distros = [
+    "almalinux",
     "alpine",
+    "amazon",
+    "aosc",
+    "centos",
+    "cloudlinux",
     "debian",
+    "fedora",
+    "opensuse",
+    "opensuse-leap",
+    "opensuse-microos",
+    "opensuse-tumbleweed",
+    "photon",
     "raspberry-pi-os",
     "rhel",
-    "opensuse",
+    "rocky",
+    "sle-micro",
+    "sle_hpc",
+    "sles",
     "ubuntu",
-    "photon",
 ]
 
 meta: MetaSchema = {
@@ -93,14 +52,12 @@ def _distro_ca_certs_configs(distro_name):
 
     @param distro_name: String providing the distro class name.
     @returns: Dict of distro configurations for ca_cert.
+    @raises ValueError: If the distro is not supported by this module.
     """
-    if distro_name in DISTRO_FAMILY:
-        distro_name = DISTRO_FAMILY[distro_name]
-    cfg = DISTRO_OVERRIDES.get(distro_name, DEFAULT_CONFIG)
-    cfg["ca_cert_full_path"] = os.path.join(
-        cfg["ca_cert_local_path"], cfg["ca_cert_filename"]
-    )
-    return cfg
+    if distro_name not in distros:
+        raise ValueError(f"Unsupported distro for ca_certs: {distro_name}")
+
+    return fetch(distro_name).get_ca_certs_config()
 
 
 def update_ca_certs(distro_cfg):
@@ -142,18 +99,20 @@ def disable_default_ca_certs(distro_name, distro_cfg):
     @param distro_name: String providing the distro class name.
     @param distro_cfg: A hash providing _distro_ca_certs_configs function.
     """
-    if distro_name in ["rhel", "photon", "amazon"]:
+    if distro_name not in distros:
+        return
+
+    action = fetch(distro_name).ca_cert_remove_defaults_action
+
+    if action is DefaultCACertsAction.REMOVE:
         remove_default_ca_certs(distro_cfg)
-    elif distro_name in [
-        "alpine",
-        "aosc",
-        "debian",
-        "raspberry-pi-os",
-        "ubuntu",
-    ]:
+    elif action in (
+        DefaultCACertsAction.DISABLE,
+        DefaultCACertsAction.DISABLE_WITH_DEBCONF,
+    ):
         disable_system_ca_certs(distro_cfg)
 
-        if distro_name in ["debian", "raspberry-pi-os", "ubuntu"]:
+        if action is DefaultCACertsAction.DISABLE_WITH_DEBCONF:
             debconf_sel = (
                 "ca-certificates ca-certificates/trust_new_crts " + "select no"
             )

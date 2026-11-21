@@ -13,6 +13,13 @@ LOG = logging.getLogger(__name__)
 
 
 class Distro(distros.Distro):
+    ca_cert_config = None
+    ca_cert_filename = "cloud-init-ca-cert-{cert_index}.pem"
+    ca_cert_local_path = "/etc/ssl/certs/"
+    ca_cert_path = "/etc/pki/tls/certs/"
+    ca_cert_remove_defaults_action = distros.DefaultCACertsAction.REMOVE
+    ca_cert_update_cmd = ["rehash_ca_certificates.sh"]
+
     systemd_hostname_conf_fn = "/etc/hostname"
     network_conf_dir = "/etc/systemd/network/"
     systemd_locale_conf_fn = "/etc/locale.conf"
