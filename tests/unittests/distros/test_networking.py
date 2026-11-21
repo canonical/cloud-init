@@ -281,6 +281,38 @@ class TestNetworkingWaitForPhysDevs:
             == m_settle.call_count
         )
 
+    @mock.patch(
+        "cloudinit.distros.networking.util.udevadm_settle", autospec=True
+    )
+    def test_physical_nic_with_stolen_mac_is_present(
+        self, m_udevadm_settle, sys_class_net
+    ):
+        """A NIC with a platform-assigned mac counts as a present device.
+
+        GH-6110: the passthrough NIC was filtered out of
+        get_interfaces_by_mac(), so this method aborted init-local with
+        "Not all expected physical devices present".
+        """
+        nic = sys_class_net.join("eth0")
+        nic.ensure_dir()
+        nic.join("address").write("28:00:af:0a:b4:8e")
+        nic.join("addr_assign_type").write("2")
+        nic.join("device").ensure_dir()
+        netcfg = {
+            "version": 2,
+            "ethernets": {
+                "eth0": {
+                    "dhcp4": True,
+                    "match": {"macaddress": "28:00:af:0a:b4:8e"},
+                    "set-name": "eth0",
+                }
+            },
+        }
+
+        LinuxNetworking().wait_for_physdevs(netcfg)
+
+        assert 0 == m_udevadm_settle.call_count
+
 
 class TestLinuxNetworkingApplyNetworkCfgNames:
     V1_CONFIG = textwrap.dedent("""\

@@ -694,6 +694,10 @@ def interface_has_own_mac(ifname, strict=False):
     Based on addr_assign_type in /sys.  Return true for any interface
     that does not have a 'stolen' address. Examples of such devices
     are bonds or vlans that inherit their mac from another device.
+    Note that the kernel also reports a 'stolen' address for physical NICs
+    that are handed a mac by the platform (r8152 docks doing MAC address
+    passthrough), so callers deciding whether a device is virtual must also
+    consult interface_is_physical().
     Possible values are:
       0: permanent address    2: stolen from another device
     1: randomly generated   3: set using dev_set_mac_address"""
@@ -706,6 +710,15 @@ def interface_has_own_mac(ifname, strict=False):
             raise ValueError("%s had no addr_assign_type.")
         return True
     return assign_type in (0, 1, 3)
+
+
+def interface_is_physical(ifname) -> bool:
+    """Return True when ifname is backed by a hardware device.
+
+    Virtual devices (bonds, bridges, vlans, macvlans, tunnels) have no
+    'device' symlink in sysfs, while PCI, USB and platform NICs always do.
+    """
+    return os.path.exists(sys_dev_path(ifname, "device"))
 
 
 def _get_current_rename_info(check_downable=True):
@@ -1020,11 +1033,32 @@ def get_interfaces_by_mac_on_openbsd() -> dict:
 def get_interfaces_by_mac_on_linux() -> dict:
     """Build a dictionary of tuples {mac: name}.
 
-    Bridges and any devices that have a 'stolen' mac are excluded."""
+    Bridges and virtual devices that inherit a mac are excluded.  Physical
+    devices are kept even when their mac was assigned by the platform, as
+    happens with MAC address passthrough docks (GH-6110)."""
     ret: dict = {}
 
     for name, mac, driver, _devid in get_interfaces():
         if mac in ret:
+            stored_has_own_mac = interface_has_own_mac(ret[mac])
+            current_has_own_mac = interface_has_own_mac(name)
+            if stored_has_own_mac != current_has_own_mac:
+                # A platform can hand the same MAC to a physical device and to
+                # one that inherited it (MAC passthrough docks, GH-6110).
+                # Prefer the interface that owns the address rather than
+                # failing the datasource over the ambiguity.
+                if current_has_own_mac:
+                    LOG.debug(
+                        "Replacing mac '%s' mapping from '%s' to '%s' "
+                        "because '%s' inherited the address.",
+                        mac,
+                        ret[mac],
+                        name,
+                        ret[mac],
+                    )
+                    ret[mac] = name
+                continue
+
             # This is intended to be a short-term fix of LP: #1997922
             # Long term, we should better handle configuration of virtual
             # devices where duplicate MACs are expected early in boot if
@@ -1038,6 +1072,21 @@ def get_interfaces_by_mac_on_linux() -> dict:
                     name,
                     ret[mac],
                     driver,
+                )
+                continue
+
+            if not current_has_own_mac:
+                # Every colliding device inherited this address.  Firmware can
+                # give the same passthrough MAC to more than one dock, and
+                # cloud-init used to filter all of them out, so this ambiguity
+                # must not abort the boot.  Keep the first one enumerated.
+                LOG.warning(
+                    "Duplicate inherited mac '%s' on '%s' and '%s'; "
+                    "keeping '%s'.",
+                    mac,
+                    ret[mac],
+                    name,
+                    ret[mac],
                 )
                 continue
 
@@ -1099,7 +1148,9 @@ def get_interfaces(
 ) -> list:
     """Return list of interface tuples (name, mac, driver, device_id)
 
-    Bridges and any devices that have a 'stolen' mac are excluded."""
+    Bridges and virtual devices that inherit a mac (bonds, vlans, macvlans)
+    are excluded.  Physical devices are kept even when their mac was assigned
+    by the platform, as happens with MAC address passthrough docks."""
     filtered_logger = LOG.debug if log_filtered_reasons else lambda *args: None
     ret = []
     devs = get_devicelist()
@@ -1114,7 +1165,16 @@ def get_interfaces(
         if is_bond(name):
             filtered_logger("Ignoring bond interface: %s", name)
             continue
-        if filter_without_own_mac and not interface_has_own_mac(name):
+        if (
+            filter_without_own_mac
+            and not interface_has_own_mac(name)
+            # NET_ADDR_STOLEN marks virtual devices that inherit their address
+            # (bonds, vlans, macvlans), but the kernel also sets it for real
+            # hardware that is handed a MAC by the platform: r8152 docks
+            # doing MAC address passthrough (GH-6110).  A device that owns a
+            # 'device' link is hardware, so it must stay visible.
+            and not interface_is_physical(name)
+        ):
             filtered_logger("Ignoring interface with inherited MAC: %s", name)
             continue
         if (
