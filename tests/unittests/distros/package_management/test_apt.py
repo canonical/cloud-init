@@ -22,11 +22,39 @@ class TestPackageCommand:
         "cloudinit.distros.package_management.apt.Apt._apt_lock_available",
         return_value=True,
     )
-    def test_simple_command(self, m_apt_avail, m_subp, m_which):
-        apt = Apt(runner=mock.Mock(), apt_get_wrapper_command=["eatmydata"])
+    @pytest.mark.parametrize("from_config", [False, True])
+    @pytest.mark.parametrize(
+        "apt_get_command",
+        [None, ["custom-apt-get", "--quiet"], ("custom-apt-get", "--quiet")],
+    )
+    def test_simple_command(
+        self, m_apt_avail, m_subp, m_which, from_config, apt_get_command
+    ):
+        if from_config:
+            apt = Apt.from_config(
+                runner=mock.Mock(),
+                cfg={
+                    "apt_get_command": apt_get_command,
+                    "apt_get_wrapper": {
+                        "enabled": True,
+                        "command": ["eatmydata"],
+                    },
+                },
+            )
+        else:
+            apt = Apt(
+                runner=mock.Mock(),
+                apt_get_wrapper_command=["eatmydata"],
+                apt_get_command=apt_get_command,
+            )
+        command = (
+            APT_GET_COMMAND if apt_get_command is None else apt_get_command
+        )
+        assert apt.available()
+        m_which.assert_called_once_with(command[0])
         apt.run_package_command("update")
         expected_call = {
-            "args": ["eatmydata"] + list(APT_GET_COMMAND) + ["update"],
+            "args": ["eatmydata"] + list(command) + ["update"],
             "capture": False,
             "update_env": {"DEBIAN_FRONTEND": "noninteractive"},
         }
