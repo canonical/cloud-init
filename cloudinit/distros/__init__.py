@@ -89,6 +89,7 @@ OSFAMILIES = {
         "rhel",
         "rocky",
         "virtuozzo",
+        "kylin",
     ],
     "suse": [
         "opensuse",
