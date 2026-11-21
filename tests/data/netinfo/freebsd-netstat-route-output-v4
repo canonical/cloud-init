@@ -1,0 +1,8 @@
+Routing tables
+
+Internet:
+Destination        Gateway            Flags         Netif Expire
+default            10.0.2.2           UGS          vtnet0
+10.0.2.0/24        link#1             U            vtnet0
+10.0.2.15          link#2             UHS             lo0
+127.0.0.1          link#2             UH              lo0

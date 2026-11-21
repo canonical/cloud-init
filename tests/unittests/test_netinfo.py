@@ -13,6 +13,7 @@ from cloudinit.netinfo import (
     _netdev_info_iproute_json,
     netdev_info,
     netdev_pformat,
+    route_info,
     route_pformat,
 )
 from tests.unittests.helpers import readResource
@@ -25,6 +26,12 @@ SAMPLE_IPADDRSHOW_OUT = readResource("netinfo/sample-ipaddrshow-output")
 SAMPLE_IPADDRSHOW_JSON = readResource("netinfo/sample-ipaddrshow-json")
 SAMPLE_ROUTE_OUT_V4 = readResource("netinfo/sample-route-output-v4")
 SAMPLE_ROUTE_OUT_V6 = readResource("netinfo/sample-route-output-v6")
+SAMPLE_FREEBSD_ROUTE_OUT_V4 = readResource(
+    "netinfo/freebsd-netstat-route-output-v4"
+)
+SAMPLE_FREEBSD_ROUTE_OUT_V6 = readResource(
+    "netinfo/freebsd-netstat-route-output-v6"
+)
 SAMPLE_IPROUTE_OUT_V4 = readResource("netinfo/sample-iproute-output-v4")
 SAMPLE_IPROUTE_OUT_V6 = readResource("netinfo/sample-iproute-output-v6")
 SAMPLE_IPROUTE_OUT_V6_MISSING_GATEWAY = readResource(
@@ -39,6 +46,9 @@ ROUTE_FORMATTED_OUT_MISSING_GATEWAY = readResource(
     "netinfo/route-formatted-output-missing-gateway"
 )
 FREEBSD_NETDEV_OUT = readResource("netinfo/freebsd-netdev-formatted-output")
+FREEBSD_ROUTE_FORMATTED_OUT = readResource(
+    "netinfo/freebsd-route-formatted-output"
+)
 
 
 class TestNetInfo:
@@ -250,6 +260,63 @@ class TestNetInfo:
         m_which.side_effect = lambda x: x if x == "ip" else None
         content = route_pformat()
         assert ROUTE_FORMATTED_OUT_MISSING_GATEWAY == content
+
+    @mock.patch("cloudinit.netinfo.util.is_BSD", return_value=True)
+    @mock.patch("cloudinit.netinfo.subp.which")
+    @mock.patch("cloudinit.netinfo.subp.subp")
+    def test_route_bsd_netstat_pformat(self, m_subp, m_which, _m_is_bsd):
+        """route_pformat renders BSD netstat output using BSD flags."""
+
+        def subp_netstat_route_selector(*args, **kwargs):
+            if args[0] == ["netstat", "-rn", "-f", "inet"]:
+                return (SAMPLE_FREEBSD_ROUTE_OUT_V4, "")
+            if args[0] == ["netstat", "-rn", "-f", "inet6"]:
+                return (SAMPLE_FREEBSD_ROUTE_OUT_V6, "")
+            # FreeBSD 15 netstat rejects GNU long options with EX_USAGE
+            raise subp.ProcessExecutionError(
+                cmd=args[0],
+                exit_code=64,
+                stderr="netstat: illegal option -- -",
+            )
+
+        m_subp.side_effect = subp_netstat_route_selector
+        m_which.side_effect = lambda x: x if x == "netstat" else None
+        content = route_pformat()
+        assert FREEBSD_ROUTE_FORMATTED_OUT == content
+
+    @mock.patch("cloudinit.netinfo.util.is_BSD", return_value=True)
+    @mock.patch("cloudinit.netinfo.subp.subp")
+    def test_route_info_bsd_netstat(self, m_subp, _m_is_bsd):
+        """route_info parses BSD netstat columns from the header."""
+        openbsd_v4 = (
+            "Routing tables\n\nInternet:\n"
+            "Destination        Gateway            Flags   Refs      Use"
+            "   Mtu  Prio Iface\n"
+            "default            10.0.2.2           UGS        5       33"
+            "     -     8 em0\n"
+            "10.0.2/24          10.0.2.15          UCn        1        0"
+            "     -     4 em0\n"
+        )
+        m_subp.side_effect = [(openbsd_v4, ""), ("", "")]
+        assert {
+            "ipv4": [
+                {
+                    "destination": "0.0.0.0",
+                    "gateway": "10.0.2.2",
+                    "genmask": "0.0.0.0",
+                    "flags": "UGS",
+                    "iface": "em0",
+                },
+                {
+                    "destination": "10.0.2",
+                    "gateway": "10.0.2.15",
+                    "genmask": "255.255.255.0",
+                    "flags": "UCn",
+                    "iface": "em0",
+                },
+            ],
+            "ipv6": [],
+        } == route_info()
 
     @mock.patch("cloudinit.netinfo.subp.which")
     @mock.patch("cloudinit.netinfo.subp.subp")
