@@ -84,8 +84,8 @@ class TestPuppetHandle:
     ):
         """Cloud-config containing no 'puppet' key is skipped."""
 
-        cfg = {}
-        cc_puppet.handle("notimportant", cfg, get_cloud(), None)
+        cfg: dict = {}
+        cc_puppet.handle("notimportant", cfg, get_cloud(), [])
         assert "no 'puppet' configuration found" in caplog.text
         assert 0 == m_man_puppet.call_count
 
@@ -95,7 +95,7 @@ class TestPuppetHandle:
 
         cloud = get_cloud()
         cfg = {"puppet": {"install": False}}
-        cc_puppet.handle("notimportant", cfg, cloud, None)
+        cc_puppet.handle("notimportant", cfg, cloud, [])
         assert 2 == m_man_puppet.call_count
         expected_calls = [
             mock.call(cloud, "enable"),
@@ -108,8 +108,8 @@ class TestPuppetHandle:
         """Cloud-config empty 'puppet' configuration installs latest puppet."""
         cloud = get_cloud()
         cloud.distro = mock.MagicMock()
-        cfg = {"puppet": {}}
-        cc_puppet.handle("notimportant", cfg, cloud, None)
+        cfg: dict = {"puppet": {}}
+        cc_puppet.handle("notimportant", cfg, cloud, [])
         assert [
             mock.call(["puppet-agent"])
         ] == cloud.distro.install_packages.call_args_list
@@ -120,7 +120,7 @@ class TestPuppetHandle:
         cloud = get_cloud()
         cloud.distro = mock.MagicMock()
         cfg = {"puppet": {"install": True}}
-        cc_puppet.handle("notimportant", cfg, cloud, None)
+        cc_puppet.handle("notimportant", cfg, cloud, [])
         assert [
             mock.call(["puppet-agent"])
         ] in cloud.distro.install_packages.call_args_list
@@ -134,7 +134,7 @@ class TestPuppetHandle:
         cloud = get_cloud()
         cloud.distro = distro
         cfg = {"puppet": {"install": True, "install_type": "aio"}}
-        cc_puppet.handle("notimportant", cfg, cloud, None)
+        cc_puppet.handle("notimportant", cfg, cloud, [])
         m_aio.assert_called_with(
             distro, cc_puppet.AIO_INSTALL_URL, None, None, True
         )
@@ -156,7 +156,7 @@ class TestPuppetHandle:
                 "install_type": "aio",
             }
         }
-        cc_puppet.handle("notimportant", cfg, cloud, None)
+        cc_puppet.handle("notimportant", cfg, cloud, [])
         m_aio.assert_called_with(
             distro, cc_puppet.AIO_INSTALL_URL, "6.24.0", None, True
         )
@@ -178,7 +178,7 @@ class TestPuppetHandle:
                 "install_type": "aio",
             }
         }
-        cc_puppet.handle("notimportant", cfg, cloud, None)
+        cc_puppet.handle("notimportant", cfg, cloud, [])
         m_aio.assert_called_with(
             distro, cc_puppet.AIO_INSTALL_URL, None, "puppet6", True
         )
@@ -200,7 +200,7 @@ class TestPuppetHandle:
                 "install_type": "aio",
             }
         }
-        cc_puppet.handle("notimportant", cfg, cloud, None)
+        cc_puppet.handle("notimportant", cfg, cloud, [])
         m_aio.assert_called_with(
             distro, "http://test.url/path/to/script.sh", None, None, True
         )
@@ -222,7 +222,7 @@ class TestPuppetHandle:
                 "install_type": "aio",
             }
         }
-        cc_puppet.handle("notimportant", cfg, cloud, None)
+        cc_puppet.handle("notimportant", cfg, cloud, [])
         m_aio.assert_called_with(
             distro, cc_puppet.AIO_INSTALL_URL, None, None, False
         )
@@ -233,7 +233,7 @@ class TestPuppetHandle:
         cloud = get_cloud()
         cloud.distro = mock.MagicMock()
         cfg = {"puppet": {"version": "3.8"}}
-        cc_puppet.handle("notimportant", cfg, cloud, None)
+        cc_puppet.handle("notimportant", cfg, cloud, [])
         assert [
             mock.call([["puppet-agent", "3.8"]])
         ] == cloud.distro.install_packages.call_args_list
@@ -251,7 +251,7 @@ class TestPuppetHandle:
         util.write_file(self.CONF, "[agent]\nserver = origpuppet\nother = 3")
         cloud = get_cloud()
         cloud.distro = mock.MagicMock()
-        cc_puppet.handle("notimportant", cfg, cloud, None)
+        cc_puppet.handle("notimportant", cfg, cloud, [])
         content = util.load_text_file(self.CONF)
         expected = "[agent]\nserver = puppetserver.example.org\nother = 3\n\n"
         assert expected == content
@@ -288,7 +288,7 @@ class TestPuppetHandle:
                 }
             }
         }
-        cc_puppet.handle("notimportant", cfg, get_cloud(), None)
+        cc_puppet.handle("notimportant", cfg, get_cloud(), [])
         content = util.load_text_file(self.CSR_ATTRIBUTES_PATH)
         expected = textwrap.dedent("""\
             custom_attributes:
@@ -305,7 +305,7 @@ class TestPuppetHandle:
         """Run puppet with default args if 'exec' is set to True."""
         cloud = get_cloud()
         cfg = {"puppet": {"exec": True}}
-        cc_puppet.handle("notimportant", cfg, cloud, None)
+        cc_puppet.handle("notimportant", cfg, cloud, [])
         assert 2 == m_man_puppet.call_count
         expected_calls = [
             mock.call(cloud, "enable"),
@@ -320,8 +320,8 @@ class TestPuppetHandle:
     def test_puppet_starts_puppetd(self, m_subp, m_man_puppet):
         """Run puppet with default args if 'exec' is set to True."""
         cloud = get_cloud()
-        cfg = {"puppet": {}}
-        cc_puppet.handle("notimportant", cfg, cloud, None)
+        cfg: dict = {"puppet": {}}
+        cc_puppet.handle("notimportant", cfg, cloud, [])
         assert 2 == m_man_puppet.call_count
         expected_calls = [
             mock.call(cloud, "enable"),
@@ -334,7 +334,7 @@ class TestPuppetHandle:
         """Run puppet with default args if 'exec' is set to True."""
 
         cfg = {"puppet": {"start_service": False}}
-        cc_puppet.handle("notimportant", cfg, get_cloud(), None)
+        cc_puppet.handle("notimportant", cfg, get_cloud(), [])
         assert 0 == m_man_puppet.call_count
         assert [
             mock.call(["systemctl", "start", "puppet-agent"], capture=False)
@@ -352,7 +352,7 @@ class TestPuppetHandle:
                 "exec_args": ["--onetime", "--detailed-exitcodes"],
             }
         }
-        cc_puppet.handle("notimportant", cfg, get_cloud(), None)
+        cc_puppet.handle("notimportant", cfg, get_cloud(), [])
         assert 2 == m_man_puppet.call_count
         assert [
             mock.call(
@@ -373,7 +373,7 @@ class TestPuppetHandle:
                 "exec_args": "--onetime --detailed-exitcodes",
             }
         }
-        cc_puppet.handle("notimportant", cfg, get_cloud(), None)
+        cc_puppet.handle("notimportant", cfg, get_cloud(), [])
         assert 2 == m_man_puppet.call_count
         assert [
             mock.call(
@@ -384,7 +384,7 @@ class TestPuppetHandle:
 
     @mock.patch("cloudinit.config.cc_puppet.subp.subp", return_value=("", ""))
     def test_puppet_falls_back_to_older_name(self, m_subp, m_man_puppet):
-        cfg = {"puppet": {}}
+        cfg: dict = {"puppet": {}}
         with mock.patch(
             "tests.unittests.util.MockDistro.install_packages"
         ) as install_pkg:
@@ -392,7 +392,7 @@ class TestPuppetHandle:
             install_pkg.side_effect = (PackageInstallerError, 0)
 
             cloud = get_cloud()
-            cc_puppet.handle("notimportant", cfg, cloud, None)
+            cc_puppet.handle("notimportant", cfg, cloud, [])
             expected_calls = [
                 mock.call(cloud, "enable"),
                 mock.call(cloud, "start"),
@@ -408,7 +408,7 @@ class TestPuppetHandle:
             # puppet-agent not installed, but puppet is
             install_pkg.side_effect = (ProcessExecutionError, 0)
             with pytest.raises(ProcessExecutionError):
-                cc_puppet.handle("notimportant", cfg, get_cloud(), None)
+                cc_puppet.handle("notimportant", cfg, get_cloud(), [])
             assert 0 == m_man_puppet.call_count
             assert [
                 mock.call(["systemctl", "start", "puppet-agent"], capture=True)
@@ -417,7 +417,7 @@ class TestPuppetHandle:
     @mock.patch("cloudinit.config.cc_puppet.subp.subp", return_value=("", ""))
     def test_puppet_with_conf_package_name_success(self, m_subp, m_man_puppet):
         cfg = {"puppet": {"package_name": "puppet"}}
-        cc_puppet.handle("notimportant", cfg, get_cloud(), None)
+        cc_puppet.handle("notimportant", cfg, get_cloud(), [])
         assert 2 == m_man_puppet.call_count
 
 
