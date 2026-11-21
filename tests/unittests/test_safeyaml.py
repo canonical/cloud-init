@@ -104,3 +104,19 @@ class TestLoadWithMarks:
         processed_yaml, yaml_marks = load_with_marks(source_yaml)
         assert loaded_yaml == processed_yaml
         assert schemamarks == yaml_marks
+
+    @pytest.mark.parametrize(
+        "key,path",
+        (
+            pytest.param("01", "a.1", id="leading_zero_int"),
+            pytest.param("0x1", "a.1", id="hex_int"),
+            pytest.param("true", "a.True", id="bool"),
+            pytest.param("null", "a.None", id="null"),
+            pytest.param("1.0", "a.1.0", id="float"),
+            pytest.param("b", "a.b", id="plain_string"),
+        ),
+    )
+    def test_schema_marks_use_parsed_keys(self, key, path):
+        """Mark paths match the parsed key, as jsonschema reports it."""
+        _, yaml_marks = load_with_marks(f"a:\n  {key}: [x, y]\n")
+        assert {"a": 1, path: 2, f"{path}.0": 2, f"{path}.1": 2} == yaml_marks
