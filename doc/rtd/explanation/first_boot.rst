@@ -22,10 +22,10 @@ happens is when an instance is launched from an image captured from a
 launched instance.
 
 By default, ``cloud-init`` attempts to determine which case it is running
-in by checking the instance ID in the cache against the instance ID it
-determines at runtime. If they do not match, then this is an instance's
-first boot; otherwise, it's a subsequent boot. Internally, ``cloud-init``
-refers to this behaviour as ``check``.
+in by checking the :ref:`instance ID <instance_id>` in the cache against the
+instance ID it determines at runtime. If they do not match, then this is an
+instance's first boot; otherwise, it's a subsequent boot. Internally,
+``cloud-init`` refers to this behaviour as ``check``.
 
 This behaviour is required for images captured from launched instances to
 behave correctly, and so is the default that generic cloud images ship with.

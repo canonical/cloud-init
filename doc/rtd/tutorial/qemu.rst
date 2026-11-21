@@ -139,6 +139,10 @@ virtual machine instance.
 
     EOF
 
+``Cloud-init`` uses the instance ID to tell whether this is the first boot of
+a new instance. If you change it later, ``cloud-init`` runs its per-instance
+configuration again on the next boot. See :ref:`instance_id` for more.
+
 Next, let's create an empty file called :file:`vendor-data` in our temporary
 directory. This will speed up the retry wait time.
 

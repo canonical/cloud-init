@@ -495,7 +495,8 @@ The hostname is set by way of the meta-data key ``local-hostname``.
 Setting the instance ID
 -----------------------
 
-The instance ID may be set by way of the meta-data key ``instance-id``.
+The :ref:`instance ID <instance_id>` may be set by way of the meta-data key
+``instance-id``.
 However, if this value is absent then the instance ID is read from the file
 :file:`/sys/class/dmi/id/product_uuid`.
 

@@ -106,7 +106,8 @@ networking to be up before user-data actions are run.
      default: iid-dsconfigdrive
 
 This is utilized as the meta-data's instance-id. It should generally
-be unique, as it is what is used to determine "is this a new instance?".
+be unique, as it is what is used to determine "is this a new instance?". See
+:ref:`instance_id`.
 
 ``public-keys``
 ---------------

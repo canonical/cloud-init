@@ -134,7 +134,8 @@ the case to the best of our knowledge at the time of this writing.
 
 Most of what ``meta-data`` is intended for is not applicable under WSL, such as
 setting a hostname. Yet, the knowledge of ``meta-data.instance-id`` is vital
-for cloud-init. So, this datasource provides a default value but also supports
+for cloud-init (see :ref:`instance_id`). So, this datasource provides a
+default value but also supports
 optionally sourcing meta-data from a per-instance specific configuration file
 located either at ``%USERPROFILE%\.cloud-init\<InstanceName>.meta-data`` or
 ``%USERPROFILE%\.ubuntupro\.cloud-init\<InstanceName>.meta-data``. When both
