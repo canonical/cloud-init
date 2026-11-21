@@ -1,7 +1,7 @@
 import logging
 import platform
 import re
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import cloudinit.net.netops.bsd_netops as bsd_netops
 from cloudinit import distros, helpers, net, subp, util
@@ -93,7 +93,7 @@ class BSD(distros.Distro):
                 )
 
     def generate_fallback_config(self):
-        nconf = {"config": [], "version": 1}
+        nconf: Dict[str, Any] = {"config": [], "version": 1}
         for mac, name in net.get_interfaces_by_mac().items():
             nconf["config"].append(
                 {
