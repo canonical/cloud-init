@@ -43,6 +43,23 @@ Meson install directory locations may be set with
 ``meson setup -D<option_name>=<option_value>``. See :file:`meson_options.txt`
 for available build options.
 
+The systemd generator uses the same helper directory as Meson's
+installation rules: ``<prefix>/<libexecdir>/cloud-init``. An absolute
+``libexecdir`` overrides the prefix. For example,
+``--prefix=/usr --libexecdir=libexec`` installs ``ds-identify`` at
+``/usr/libexec/cloud-init/ds-identify`` and embeds that path in the
+generator. When rendering the generator directly with
+``tools/render-template``, pass ``--lib-exec-dir`` with the full helper
+directory to override the distribution-specific default.
+
+Meson also records this directory in the installed
+``cloudinit/meson_paths.py``. The SSH host-key console module and the
+executable temporary-directory fallback use this value, including custom
+prefixes and absolute ``libexecdir`` settings. Reconfiguring Meson updates
+both the generator and Python paths. Staging with ``DESTDIR`` does not
+change these runtime paths. Source checkouts without generated metadata
+continue to use the distribution's default directory.
+
 Steps to validate ``cloud-init`` package builds in a development environment:
 
 .. code-block:: bash
