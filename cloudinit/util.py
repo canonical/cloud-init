@@ -1127,6 +1127,8 @@ def read_conf_with_confd(cfgfile, *, instance_data_file=None) -> dict:
         LOG.warning(
             "REDACTED config part %s, insufficient permissions", cfgfile
         )
+    except BrokenPipeError:
+        raise
     except OSError as e:
         LOG.warning("Error accessing file %s: [%s]", cfgfile, e)
     else:
