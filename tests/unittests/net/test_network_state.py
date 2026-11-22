@@ -72,6 +72,25 @@ network:
         addresses: [4.4.4.4]
 """
 
+V2_CONFIG_NAMESERVERS_SEARCH_ONLY = """\
+network:
+  version: 2
+  ethernets:
+    eth0:
+      match:
+        macaddress: '00:11:22:33:44:55'
+      dhcp4: true
+      nameservers:
+        search: [spam.local]
+    eth1:
+      match:
+        macaddress: '66:77:88:99:00:11'
+      dhcp4: true
+      nameservers:
+        search: [foo.local]
+        addresses: [4.4.4.4]
+"""
+
 
 class TestNetworkStateParseConfig:
     # pylint: disable=attribute-defined-outside-init
@@ -317,6 +336,28 @@ class TestNetworkStateParseNameservers:
             assert server not in config.dns_nameservers
         for search in ["bar.local", "eggs.local", "foo.local", "spam.local"]:
             assert search not in config.dns_searchdomains
+
+    def test_v2_nameservers_search_only(self, mocker, caplog):
+        """A nameservers mapping with only search domains is valid v2.
+
+        It must not abort DNS parsing for the interface or for the
+        interfaces that follow it.
+        """
+        mocker.patch("cloudinit.net.network_state.get_interfaces_by_mac")
+        mocker.patch("cloudinit.net.get_interfaces_by_mac")
+        config = self._parse_network_state_from_config(
+            V2_CONFIG_NAMESERVERS_SEARCH_ONLY
+        )
+
+        dns = {
+            iface["name"]: iface.get("dns")
+            for iface in config.iter_interfaces()
+        }
+        assert dns == {
+            "eth0": {"nameservers": [], "search": ["spam.local"]},
+            "eth1": {"nameservers": ["4.4.4.4"], "search": ["foo.local"]},
+        }
+        assert "Skipping invalid command" not in caplog.text
 
 
 class TestNetworkStateHelperFunctions:

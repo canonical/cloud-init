@@ -613,8 +613,9 @@ class NetworkStateInterpreter:
             dns["nameservers"].extend(nameservers)
             dns["search"].extend(search)
 
-    @ensure_command_keys(["address"])
     def _handle_individual_nameserver(self, command, iface):
+        # v2 nameservers may hold only search domains, so do not require
+        # an address here the way handle_nameserver does for v1.
         _iface = self._network_state.get("interfaces")
         nameservers, search = self._parse_dns(command)
         _iface[iface]["dns"] = {"nameservers": nameservers, "search": search}
