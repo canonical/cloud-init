@@ -1420,6 +1420,34 @@ class TestExtractPhysdevs:
         }
         assert [] == net.extract_physdevs(netcfg)
 
+    def test_get_v1_type_physical_skips_and_logs_if_no_name(self, caplog):
+        """A v1 physical entry with a MAC and no name is skipped, GH-6982.
+
+        Looking up the driver of a nameless device raised TypeError and
+        failed init-local.
+        """
+        netcfg = {
+            "version": 1,
+            "config": [
+                {
+                    "type": "physical",
+                    "mac_address": "86:00:00:aa:5d:f8",
+                    "name": None,
+                    "subnets": [{"type": "dhcp"}],
+                },
+                _mk_v1_phys("aa:bb:cc:dd:ee:ff", "eth0", "virtio", "0x1000"),
+            ],
+        }
+        assert [
+            ["aa:bb:cc:dd:ee:ff", "eth0", "virtio", "0x1000"]
+        ] == net.extract_physdevs(netcfg)
+        self.m_driver.assert_not_called()
+        self.m_devid.assert_not_called()
+        assert (
+            "Skipping physical device 86:00:00:aa:5d:f8 without a name"
+            in caplog.text
+        )
+
     def test_runtime_error_on_unknown_netcfg_version(self):
         with pytest.raises(RuntimeError):
             net.extract_physdevs({"version": 3, "awesome_config": []})

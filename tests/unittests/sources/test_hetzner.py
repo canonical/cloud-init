@@ -167,3 +167,40 @@ class TestDataSourceHetzner:
         # These are a white box attempt to ensure it did not search.
         assert 0 == m_find_fallback.call_count
         assert 0 == m_get_metadata.call_count
+
+    @pytest.mark.parametrize(
+        "nic_name, expected_names",
+        [
+            pytest.param("eth1", ["eth0", "eth1"], id="private_nic_present"),
+            pytest.param(None, ["eth0"], id="private_nic_not_hotplugged_yet"),
+        ],
+    )
+    @mock.patch(
+        "cloudinit.sources.helpers.hetzner.get_interface_name_from_mac"
+    )
+    def test_network_config_private_networks(
+        self, m_get_name, nic_name, expected_names, ds, caplog
+    ):
+        """A private network whose NIC is not present yet is left out.
+
+        Hetzner hotplugs private NICs, so the NIC can still be missing when
+        init-local builds the network config. An entry without a name
+        failed init-local, GH-6982. Hotplug configures the NIC once it
+        appears.
+        """
+        m_get_name.return_value = nic_name
+        ds.metadata = {
+            "network-config": util.load_yaml(METADATA)["network-config"],
+            "private-networks": util.load_yaml(
+                PRIVATE_NETWORKS, allowed=(dict, list)
+            ),
+        }
+
+        netcfg = ds.network_config
+
+        assert expected_names == [dev.get("name") for dev in netcfg["config"]]
+        if nic_name is None:
+            assert (
+                "No interface with MAC 86:00:00:aa:5d:f8 yet, skipping"
+                " private network 11352901" in caplog.text
+            )

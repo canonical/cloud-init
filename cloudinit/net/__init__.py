@@ -650,6 +650,14 @@ def extract_physdevs(netcfg):
             if not mac:
                 continue
             name = ent.get("name")
+            if not name:
+                # name is required in v1, so this config is invalid
+                LOG.error(
+                    "Skipping physical device %s without a name in network"
+                    " config v1",
+                    mac,
+                )
+                continue
             driver = ent.get("params", {}).get("driver")
             device_id = ent.get("params", {}).get("device_id")
             if not driver:
