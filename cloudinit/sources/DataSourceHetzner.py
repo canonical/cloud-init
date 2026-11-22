@@ -201,13 +201,23 @@ class DataSourceHetzner(sources.DataSource):
         private_networks = self.metadata.get("private-networks", [])
         private_networks_config = []
         for private_network in private_networks:
+            mac = private_network["mac_address"]
+            name = hc_helper.get_interface_name_from_mac(mac)
+            if not name:
+                # Private NICs are hotplugged and may appear after this
+                # runs. Hotplug configures them once they show up.
+                LOG.warning(
+                    "No interface with MAC %s yet, skipping private"
+                    " network %s",
+                    mac,
+                    private_network.get("network_id"),
+                )
+                continue
             private_networks_config.append(
                 {
                     "type": "physical",
-                    "mac_address": private_network["mac_address"],
-                    "name": hc_helper.get_interface_name_from_mac(
-                        private_network["mac_address"]
-                    ),
+                    "mac_address": mac,
+                    "name": name,
                     "subnets": [
                         {
                             "ipv4": True,
