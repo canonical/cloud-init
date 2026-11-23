@@ -59,7 +59,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
     if create_hostname_file is not None:
         cloud.distro.set_option("create_hostname_file", create_hostname_file)
 
-    (hostname, fqdn, is_default) = util.get_hostname_fqdn(cfg, cloud)
+    hostname, fqdn, is_default = util.get_hostname_fqdn(cfg, cloud)
     # Check for previous successful invocation of set_hostname
 
     # set-hostname artifact file accounts for both hostname and fqdn

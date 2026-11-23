@@ -19,7 +19,7 @@ except ImportError:
 import pytest
 import requests
 
-from cloudinit import distros, dmi, helpers, subp, url_helper
+from cloudinit import distros, dmi, subp, url_helper
 from cloudinit.atomic_helper import b64e, json_dumps
 from cloudinit.config import cc_mounts
 from cloudinit.net import dhcp, ephemeral
@@ -101,7 +101,7 @@ def mock_chassis_asset_tag():
     with mock.patch.object(
         identity.ChassisAssetTag,
         "query_system",
-        return_value=identity.ChassisAssetTag.AZURE_CLOUD.value,
+        return_value=identity.ChassisAssetTag.AZURE_CLOUD,
     ) as m:
         yield m
 
@@ -448,9 +448,11 @@ def construct_ovf_env(
         "<ns1:ProvisioningSection>",
         "<ns1:Version>1.0</ns1:Version>",
         "<ns1:LinuxProvisioningConfigurationSet>",
-        "<ns1:ConfigurationSetType>"
-        "LinuxProvisioningConfiguration"
-        "</ns1:ConfigurationSetType>",
+        (
+            "<ns1:ConfigurationSetType>"
+            "LinuxProvisioningConfiguration"
+            "</ns1:ConfigurationSetType>"
+        ),
     ]
     if hostname is not None:
         content.append("<ns1:HostName>%s</ns1:HostName>" % hostname)
@@ -489,9 +491,11 @@ def construct_ovf_env(
         "<ns1:PlatformSettingsSection>",
         "<ns1:Version>1.0</ns1:Version>",
         "<ns1:PlatformSettings>",
-        "<ns1:KmsServerHostname>"
-        "kms.core.windows.net"
-        "</ns1:KmsServerHostname>",
+        (
+            "<ns1:KmsServerHostname>"
+            "kms.core.windows.net"
+            "</ns1:KmsServerHostname>"
+        ),
         "<ns1:ProvisionGuestAgent>false</ns1:ProvisionGuestAgent>",
         '<ns1:GuestAgentPackageName xsi:nil="true" />',
     ]
@@ -1140,6 +1144,22 @@ class TestNetworkConfig:
         azure_ds.ds_cfg["apply_network_config"] = False
         azure_ds._metadata_imds = NETWORK_METADATA
         mock_generate_fallback_config.return_value = self.fallback_config
+
+        assert azure_ds.network_config == self.fallback_config
+
+    def test_network_config_regenerated_after_clear_cached_attrs(
+        self, azure_ds, mock_generate_fallback_config
+    ):
+        """network_config is regenerated after the cache is invalidated.
+
+        DataSource.update_metadata_if_supported resets _network_config
+        to None via clear_cached_attrs when handling EventType.BOOT for
+        datasources which support network updates on each boot.
+        """
+        mock_generate_fallback_config.return_value = self.fallback_config
+        azure_ds._dirty_cache = True
+        azure_ds.clear_cached_attrs((("_network_config", None),))
+        assert azure_ds._network_config is None
 
         assert azure_ds.network_config == self.fallback_config
 
@@ -2575,7 +2595,7 @@ class TestReadAzureOvf:
     def test_load_with_pubkeys(self):
         public_keys = [{"fingerprint": "fp1", "path": "path1", "value": ""}]
         content = construct_ovf_env(public_keys=public_keys)
-        (_md, _ud, cfg) = dsaz.read_azure_ovf(content)
+        _md, _ud, cfg = dsaz.read_azure_ovf(content)
         for pk in public_keys:
             assert pk in cfg["_pubkeys"]
 
@@ -3467,9 +3487,11 @@ class TestRemoveUbuntuNetworkConfigScripts:
             (
                 mock.ANY,
                 logging.INFO,
-                "Removing Ubuntu extended network scripts because cloud-init"
-                " updates Azure network configuration on the following events:"
-                " ['boot', 'boot-legacy'].",
+                (
+                    "Removing Ubuntu extended network scripts because"
+                    " cloud-init updates Azure network configuration on the"
+                    " following events: ['boot', 'boot-legacy']."
+                ),
             ),
             (mock.ANY, logging.DEBUG, "Recursively deleting %s" % subdir),
             (mock.ANY, logging.DEBUG, "Attempting to remove %s" % file1),
@@ -3505,7 +3527,7 @@ class TestIsPlatformViable:
     @pytest.mark.parametrize(
         "tag",
         [
-            identity.ChassisAssetTag.AZURE_CLOUD.value,
+            identity.ChassisAssetTag.AZURE_CLOUD,
         ],
     )
     def test_true_on_azure_chassis(
@@ -3513,18 +3535,18 @@ class TestIsPlatformViable:
     ):
         mock_chassis_asset_tag.return_value = tag
 
-        assert dsaz.DataSourceAzure.ds_detect(None) is True
+        assert azure_ds.ds_detect() is True
 
     def test_true_on_azure_ovf_env_in_seed_dir(
-        self, azure_ds, mock_chassis_asset_tag, tmpdir
+        self, azure_ds, mock_chassis_asset_tag
     ):
-        mock_chassis_asset_tag.return_value = "notazure"
+        mock_chassis_asset_tag.return_value = None
 
         seed_path = Path(azure_ds.seed_dir, "ovf-env.xml")
         seed_path.parent.mkdir(exist_ok=True, parents=True)
         seed_path.write_text("")
 
-        assert dsaz.DataSourceAzure.ds_detect(seed_path.parent) is True
+        assert azure_ds.ds_detect() is True
 
     def test_false_on_no_matching_azure_criteria(
         self, azure_ds, mock_chassis_asset_tag
@@ -3533,13 +3555,8 @@ class TestIsPlatformViable:
 
         seed_path = Path(azure_ds.seed_dir, "ovf-env.xml")
         seed_path.parent.mkdir(exist_ok=True, parents=True)
-        paths = helpers.Paths(
-            {"cloud_dir": "/tmp/", "run_dir": "/tmp/", "seed_dir": seed_path}
-        )
 
-        assert (
-            dsaz.DataSourceAzure({}, mock.Mock(), paths).ds_detect() is False
-        )
+        assert azure_ds.ds_detect() is False
 
 
 class TestRandomSeed:
@@ -3945,13 +3962,17 @@ class TestEphemeralNetworking:
         # Verify the diagnostic messages in order, ignoring dynamic values
         expected = [
             (
-                "Bringing up ephemeral networking with "
-                "iface=eth0 mac=00:11:22:33:44:00 driver=hv_netvsc",
+                (
+                    "Bringing up ephemeral networking with "
+                    "iface=eth0 mac=00:11:22:33:44:00 driver=hv_netvsc"
+                ),
                 dsaz.LOG.debug,
             ),
             (
-                "Failed to obtain DHCP lease "
-                "(iface=eth0 mac=00:11:22:33:44:00 driver=hv_netvsc)",
+                (
+                    "Failed to obtain DHCP lease "
+                    "(iface=eth0 mac=00:11:22:33:44:00 driver=hv_netvsc)"
+                ),
                 dsaz.LOG.error,
             ),
             (
@@ -3964,13 +3985,17 @@ class TestEphemeralNetworking:
                 dsaz.LOG.error,
             ),
             (
-                "Bringing up ephemeral networking with iface=eth1 "
-                "mac=00:11:22:33:44:01 driver=unknown1",
+                (
+                    "Bringing up ephemeral networking with iface=eth1 "
+                    "mac=00:11:22:33:44:01 driver=unknown1"
+                ),
                 dsaz.LOG.debug,
             ),
             (
-                "Failed to obtain DHCP lease "
-                "(iface=eth1 mac=00:11:22:33:44:01 driver=unknown1)",
+                (
+                    "Failed to obtain DHCP lease "
+                    "(iface=eth1 mac=00:11:22:33:44:01 driver=unknown1)"
+                ),
                 dsaz.LOG.error,
             ),
             (
@@ -3983,8 +4008,10 @@ class TestEphemeralNetworking:
                 dsaz.LOG.error,
             ),
             (
-                "Bringing up ephemeral networking with "
-                "iface=eth2 mac=00:11:22:33:44:02 driver=unknown2",
+                (
+                    "Bringing up ephemeral networking with "
+                    "iface=eth2 mac=00:11:22:33:44:02 driver=unknown2"
+                ),
                 dsaz.LOG.debug,
             ),
             (
@@ -5956,9 +5983,11 @@ class TestValidateIMDSMetadata:
         assert (
             "cloudinit.sources.DataSourceAzure",
             30,
-            "IMDS network metadata is missing configuration for NICs "
-            "['00:11:22:33:44:55', '01:11:22:33:44:55']: "
-            f"{imds_md['network']!r}",
+            (
+                "IMDS network metadata is missing configuration for NICs "
+                "['00:11:22:33:44:55', '01:11:22:33:44:55']: "
+                f"{imds_md['network']!r}"
+            ),
         ) in caplog.record_tuples
 
     def test_missing_primary(
@@ -5998,14 +6027,18 @@ class TestValidateIMDSMetadata:
         assert (
             "cloudinit.sources.DataSourceAzure",
             30,
-            "IMDS network metadata is missing configuration for NICs "
-            f"['00:11:22:33:44:55']: {imds_md['network']!r}",
+            (
+                "IMDS network metadata is missing configuration for NICs "
+                f"['00:11:22:33:44:55']: {imds_md['network']!r}"
+            ),
         ) in caplog.record_tuples
         assert (
             "cloudinit.sources.DataSourceAzure",
             30,
-            "IMDS network metadata is missing primary NIC "
-            f"'00:11:22:33:44:55': {imds_md['network']!r}",
+            (
+                "IMDS network metadata is missing primary NIC "
+                f"'00:11:22:33:44:55': {imds_md['network']!r}"
+            ),
         ) in caplog.record_tuples
 
     def test_missing_secondary(

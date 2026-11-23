@@ -10,6 +10,7 @@ import logging
 import os
 import socket
 import time
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
 import requests
@@ -171,7 +172,6 @@ class DataSourceScaleway(sources.DataSource):
         self.retries = int(self.ds_cfg.get("retries", DEF_MD_RETRIES))
         self.timeout = int(self.ds_cfg.get("timeout", DEF_MD_TIMEOUT))
         self.max_wait = int(self.ds_cfg.get("max_wait", DEF_MD_MAX_WAIT))
-        self._network_config = sources.UNSET
         self.metadata_urls = DS_BASE_URLS
         self.metadata_url = None
         self.userdata_url = None
@@ -306,55 +306,40 @@ class DataSourceScaleway(sources.DataSource):
                 return False
         return True
 
-    @property
-    def network_config(self):
+    def _get_network_config(self) -> Optional[dict]:
         """
         Configure networking according to data received from the
         metadata API.
         """
-        if self._network_config is None:
-            LOG.warning(
-                "Found None as cached _network_config. Resetting to %s",
-                sources.UNSET,
-            )
-            self._network_config = sources.UNSET
-
-        if self._network_config != sources.UNSET:
-            return self._network_config
-
-        netcfg = {}
-        ip_cfg = {}
+        netcfg: Dict[str, Dict[str, Any]] = {}
+        routes: List[Dict[str, Any]] = []
+        addresses: List[str] = []
+        dhcp4 = False
         for ip in self.metadata["public_ips"]:
             # Use DHCP for primary address
             if ip["address"] == self.ephemeral_fixed_address:
-                ip_cfg["dhcp4"] = True
+                dhcp4 = True
                 # Force addition of a route to the metadata API
-                route = {
-                    "on-link": True,
-                    "to": "169.254.42.42/32",
-                    "via": "62.210.0.1",
-                }
-                if "routes" in ip_cfg.keys():
-                    ip_cfg["routes"] += [route]
-                else:
-                    ip_cfg["routes"] = [route]
+                routes.append(
+                    {
+                        "on-link": True,
+                        "to": "169.254.42.42/32",
+                        "via": "62.210.0.1",
+                    }
+                )
             else:
-                if "addresses" in ip_cfg.keys():
-                    ip_cfg["addresses"] += (
-                        f'{ip["address"]}/{ip["netmask"]}',
-                    )
-                else:
-                    ip_cfg["addresses"] = (f'{ip["address"]}/{ip["netmask"]}',)
+                addresses.append(f'{ip["address"]}/{ip["netmask"]}')
                 if ip["family"] == "inet6":
-                    route = {"via": ip["gateway"], "to": "::/0"}
-                    if "routes" in ip_cfg.keys():
-                        ip_cfg["routes"] += [route]
-                    else:
-                        ip_cfg["routes"] = [route]
+                    routes.append({"via": ip["gateway"], "to": "::/0"})
+        ip_cfg: Dict[str, Any] = {}
+        if dhcp4:
+            ip_cfg["dhcp4"] = True
+        if routes:
+            ip_cfg["routes"] = routes
+        if addresses:
+            ip_cfg["addresses"] = tuple(addresses)
         netcfg[self.distro.fallback_interface] = ip_cfg
-        self._network_config = {"version": 2, "ethernets": netcfg}
-
-        return self._network_config
+        return {"version": 2, "ethernets": netcfg}
 
     @property
     def launch_index(self):

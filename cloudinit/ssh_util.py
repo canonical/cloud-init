@@ -163,16 +163,16 @@ class AuthKeyLineParser:
 
         ent = line.strip()
         try:
-            (keytype, base64, comment) = parse_ssh_key(ent)
+            keytype, base64, comment = parse_ssh_key(ent)
         except TypeError:
-            (keyopts, remain) = self._extract_options(ent)
+            keyopts, remain = self._extract_options(ent)
             # If the options parameter is falsy, use options from the key line
             # (no override)
             if not options:
                 options = keyopts
 
             try:
-                (keytype, base64, comment) = parse_ssh_key(remain)
+                keytype, base64, comment = parse_ssh_key(remain)
             except TypeError:
                 return AuthKeyLine(src_line)
 
@@ -406,7 +406,7 @@ def check_create_path(username, filename, strictmodes):
 
 
 def extract_authorized_keys(username, sshd_cfg_file=DEF_SSHD_CFG):
-    (ssh_dir, pw_ent) = users_ssh_info(username)
+    ssh_dir, pw_ent = users_ssh_info(username)
     default_authorizedkeys_file = os.path.join(ssh_dir, "authorized_keys")
     user_authorizedkeys_file = default_authorizedkeys_file
     auth_key_fns = []
@@ -470,7 +470,7 @@ def setup_user_keys(keys, username, options=None):
         key_entries.append(parser.parse(str(k), options=options))
 
     # Extract the old and make the new
-    (auth_key_fn, auth_key_entries) = extract_authorized_keys(username)
+    auth_key_fn, auth_key_entries = extract_authorized_keys(username)
     ssh_dir = os.path.dirname(auth_key_fn)
     with util.SeLinuxGuard(ssh_dir, recursive=True):
         content = update_authorized_keys(auth_key_entries, key_entries)
@@ -684,7 +684,6 @@ def get_opensshd_upstream_version():
     else:
         upstream_version = full_version
     try:
-        upstream_version = lifecycle.Version.from_str(upstream_version)
-        return upstream_version
+        return lifecycle.Version.from_str(upstream_version)
     except (ValueError, TypeError):
         LOG.warning("Could not parse sshd version: %s", upstream_version)

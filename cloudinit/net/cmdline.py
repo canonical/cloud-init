@@ -13,6 +13,7 @@ import io
 import logging
 import os
 import shlex
+from typing import Any, Dict
 
 from cloudinit import util
 from cloudinit.net import get_devicelist, read_sys_net_safe
@@ -201,7 +202,7 @@ def config_from_klibc_net_cfg(files=None, mac_addrs=None):
         files = _get_klibc_net_cfg_files()
 
     entries = []
-    names = {}
+    names: Dict[str, Dict[str, Any]] = {}
     for cfg_file in files:
         name, entry = _klibc_to_config_entry(
             util.load_text_file(cfg_file), mac_addrs=mac_addrs

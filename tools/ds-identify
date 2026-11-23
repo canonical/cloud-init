@@ -981,7 +981,7 @@ get_single_line_flow_sequence() {
 }
 
 # LXD datasource requires active /dev/lxd/sock
-# https://documentation.ubuntu.com/lxd/en/latest/dev-lxd/
+# https://canonical.com/lxd/docs/latest/dev-lxd/
 dscheck_LXD() {
     if is_socket_file /dev/lxd/sock; then
         return ${DS_FOUND}
@@ -1403,6 +1403,10 @@ ec2_identify_platform() {
             ;;
         Tilaa)
             _RET="Tilaa"
+            return 0
+            ;;
+        Hetzner)
+            _RET="$default"
             return 0
             ;;
     esac

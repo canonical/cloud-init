@@ -13,7 +13,7 @@ from unittest import mock
 import pytest
 
 from cloudinit import settings
-from cloudinit.sources import DataSourceDigitalOcean
+from cloudinit.sources import UNSET, DataSourceDigitalOcean
 from cloudinit.sources.helpers import digitalocean
 
 DO_MULTIPLE_KEYS = [
@@ -23,8 +23,7 @@ DO_MULTIPLE_KEYS = [
 DO_SINGLE_KEY = "ssh-rsa AAAAB3NzaC1yc2EAAAA... test@do.co"
 
 # the following JSON was taken from droplet (that's why its a string)
-DO_META = json.loads(
-    """
+DO_META = json.loads("""
 {
   "droplet_id": "22532410",
   "hostname": "utl-96268",
@@ -80,8 +79,7 @@ DO_META = json.loads(
     ]
   }
 }
-"""
-)
+""")
 
 # This has no private interface
 DO_META_2 = {
@@ -89,16 +87,20 @@ DO_META_2 = {
     "hostname": "smtest1",
     "vendor_data": "\n".join(
         [
-            '"Content-Type: multipart/mixed; '
-            'boundary="===============8645434374073493512=="',
+            (
+                '"Content-Type: multipart/mixed; '
+                'boundary="===============8645434374073493512=="'
+            ),
             "MIME-Version: 1.0",
             "",
             "--===============8645434374073493512==",
-            "MIME-Version: 1.0"
-            'Content-Type: text/cloud-config; charset="us-ascii"'
-            "Content-Transfer-Encoding: 7bit"
-            'Content-Disposition: attachment; filename="cloud-config"'
-            "",
+            (
+                "MIME-Version: 1.0"
+                'Content-Type: text/cloud-config; charset="us-ascii"'
+                "Content-Transfer-Encoding: 7bit"
+                'Content-Disposition: attachment; filename="cloud-config"'
+                ""
+            ),
             "#cloud-config",
             "disable_root: false",
             "manage_etc_hosts: true",
@@ -246,6 +248,46 @@ class TestDataSourceDigitalOcean:
         assert metadata["public_keys"] == ds.get_public_ssh_keys()
         assert isinstance(ds.get_public_ssh_keys(), list)
 
+    def test_network_config_requires_full_metadata(self, get_ds):
+        ds = get_ds()
+        ds.metadata["interfaces"] = DO_META["interfaces"]
+
+        with pytest.raises(
+            RuntimeError, match="Unable to get meta-data from server"
+        ):
+            _ = ds.network_config
+
+    @mock.patch("cloudinit.net.get_interfaces_by_mac")
+    @mock.patch("cloudinit.sources.helpers.digitalocean.read_metadata")
+    def test_network_config_invalid_cache_recomputes(
+        self, mock_readmd, m_get_by_mac, get_ds
+    ):
+        """network_config must recompute whenever the cache is invalid.
+
+        update_metadata_if_supported() resets _network_config to None on
+        each boot event. obj.pkl caches written by older releases may hold
+        the plain "_unset" string or UNSET. None of those invalid values
+        may be returned as configuration; each must trigger regeneration
+        via _get_network_config.
+        """
+        mock_readmd.return_value = DO_META.copy()
+        m_get_by_mac.return_value = {
+            "04:01:57:d1:9e:01": "eth0",
+            "04:01:57:d1:9e:02": "eth1",
+        }
+
+        ds = get_ds()
+        assert ds.get_data() is True
+
+        # Simulate update_metadata_if_supported() on every boot and the
+        # invalid values which obj.pkl caches may contain.
+        for invalid_cache in (None, UNSET, "_unset"):
+            ds._network_config = invalid_cache
+            recomputed_netcfg = ds.network_config
+            assert recomputed_netcfg != invalid_cache
+            assert isinstance(recomputed_netcfg, dict)
+            assert "config" in recomputed_netcfg
+
 
 class TestNetworkConvert:
     def _get_networking(self):
@@ -336,7 +378,7 @@ class TestNetworkConvert:
         assert len(gateways) == 2
 
         # make that the ipv6 gateway is there
-        (nic_def, meta_def) = self._get_nic_definition("public", "eth0")
+        nic_def, meta_def = self._get_nic_definition("public", "eth0")
         ipv4_def = meta_def.get("ipv4")
         assert ipv4_def.get("gateway") in gateways
 
@@ -346,21 +388,21 @@ class TestNetworkConvert:
 
     def test_public_interface_defined(self):
         """test that the public interface is defined as eth0"""
-        (nic_def, meta_def) = self._get_nic_definition("public", "eth0")
+        nic_def, meta_def = self._get_nic_definition("public", "eth0")
         assert "eth0" == nic_def.get("name")
         assert meta_def.get("mac") == nic_def.get("mac_address")
         assert "physical" == nic_def.get("type")
 
     def test_private_interface_defined(self):
         """test that the private interface is defined as eth1"""
-        (nic_def, meta_def) = self._get_nic_definition("private", "eth1")
+        nic_def, meta_def = self._get_nic_definition("private", "eth1")
         assert "eth1" == nic_def.get("name")
         assert meta_def.get("mac") == nic_def.get("mac_address")
         assert "physical" == nic_def.get("type")
 
     def test_public_interface_ipv6(self):
         """test public ipv6 addressing"""
-        (nic_def, meta_def) = self._get_nic_definition("public", "eth0")
+        nic_def, meta_def = self._get_nic_definition("public", "eth0")
         ipv6_def = meta_def.get("ipv6")
         assert ipv6_def is not None
 
@@ -377,7 +419,7 @@ class TestNetworkConvert:
 
     def test_public_interface_ipv4(self):
         """test public ipv4 addressing"""
-        (nic_def, meta_def) = self._get_nic_definition("public", "eth0")
+        nic_def, meta_def = self._get_nic_definition("public", "eth0")
         ipv4_def = meta_def.get("ipv4")
         assert ipv4_def is not None
 
@@ -390,7 +432,7 @@ class TestNetworkConvert:
 
     def test_public_interface_anchor_ipv4(self):
         """test public ipv4 addressing"""
-        (nic_def, meta_def) = self._get_nic_definition("public", "eth0")
+        nic_def, meta_def = self._get_nic_definition("public", "eth0")
         ipv4_def = meta_def.get("anchor_ipv4")
         assert ipv4_def is not None
 

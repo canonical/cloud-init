@@ -13,7 +13,7 @@ class DataSourceTesting(DataSourceNone):
     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
         return DataSourceHostname("hostname", False)
 
-    def persist_instance_data(self):
+    def persist_instance_data(self, write_cache=True):
         return True
 
     @property
@@ -61,7 +61,7 @@ def get_cloud(
     )
 
 
-def abstract_to_concrete(abclass):
+def abstract_to_concrete(abclass: Type):
     """Takes an abstract class and returns a concrete version of it."""
 
     class concreteCls(abclass):
@@ -71,7 +71,10 @@ def abstract_to_concrete(abclass):
     return type("DummyConcrete" + abclass.__name__, (concreteCls,), {})
 
 
+# pylint: disable=overridden-final-method
 class MockDistro(distros.Distro):
+    """Test double that bypasses final entry points to avoid side-effects."""
+
     fallback_interface = "eth9"
 
     # MockDistro is here to test base Distro class implementations
@@ -143,13 +146,13 @@ class MockDistro(distros.Distro):
     def update_etc_hosts(self, hostname, fqdn):
         pass
 
-    def add_user(self, name, **kwargs):
+    def add_user(self, name, **kwargs):  # type: ignore[misc]
         pass
 
-    def add_snap_user(self, name, **kwargs):
+    def add_snap_user(self, name, **kwargs):  # type: ignore[misc]
         return "snap_user"
 
-    def create_user(self, name, **kwargs):
+    def create_user(self, name, **kwargs):  # type: ignore[misc]
         return True
 
     def lock_passwd(self, name):
@@ -170,7 +173,8 @@ class MockDistro(distros.Distro):
     def create_group(self, name, members=None):
         pass
 
-    def shutdown_command(self, *, mode, delay, message):
+    @classmethod
+    def shutdown_command(cls, *, mode, delay, message):
         pass
 
     def package_command(self, command, args=None, pkgs=None):
@@ -179,9 +183,11 @@ class MockDistro(distros.Distro):
     def update_package_sources(self, *, force=False):
         return (True, "yay")
 
-    def do_as(self, command, args=None, **kwargs):
+    def do_as(self, command: list, user: str, cwd: str = "", **kwargs):
         return ("stdout", "stderr")
 
+
+# pylint: enable=overridden-final-method
 
 TEST_INSTANCE_ID = "i-testing"
 
@@ -195,7 +201,7 @@ class FakeDataSource(DataSource):
         network_config="",
         paths=None,
     ):
-        DataSource.__init__(self, {}, None, paths=paths)
+        DataSource.__init__(self, {}, MockDistro(), paths=paths)
         self.metadata = {"instance-id": TEST_INSTANCE_ID}
         self.userdata_raw = userdata
         self.vendordata_raw = vendordata

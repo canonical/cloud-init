@@ -1,5 +1,6 @@
 -r requirements.txt
 doc8
+rstcheck
 furo
 meson
 ninja

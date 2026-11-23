@@ -2,7 +2,6 @@
 
 """Tests cc_disable_ec2_metadata handler"""
 
-
 from unittest import mock
 
 import pytest

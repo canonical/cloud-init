@@ -64,7 +64,7 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     try:
         cmd = [helper_path, ",".join(fp_blacklist), ",".join(key_blacklist)]
-        (stdout, _stderr) = subp.subp(cmd)
+        stdout, _stderr = subp.subp(cmd)
         log_util.multi_log(
             "%s\n" % (stdout.strip()), stderr=False, console=True
         )
