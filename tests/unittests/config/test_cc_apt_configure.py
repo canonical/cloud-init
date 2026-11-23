@@ -150,7 +150,10 @@ class TestAPTConfigureSchema:
                         ]
                     }
                 },
-                "apt.primary.0: .* should not be valid under",
+                (
+                    "apt.primary.0: .* "
+                    "(should not be valid under|is not allowed for)"
+                ),
             ),
             (
                 {"apt": {"add_apt_repo_match": True}},
@@ -168,11 +171,17 @@ class TestAPTConfigureSchema:
             ),
             (
                 {"apt": {"sources": {"s1": {"keyurl": "u", "key": "k"}}}},
-                "apt.sources.s1: .* should not be valid under",
+                (
+                    "apt.sources.s1: .* "
+                    "(should not be valid under|is not allowed for)"
+                ),
             ),
             (
                 {"apt": {"sources": {"s1": {"keyurl": "u", "keyid": "i"}}}},
-                "apt.sources.s1: .* should not be valid under",
+                (
+                    "apt.sources.s1: .* "
+                    "(should not be valid under|is not allowed for)"
+                ),
             ),
             (
                 {
@@ -180,7 +189,10 @@ class TestAPTConfigureSchema:
                         "sources": {"s1": {"keyurl": "u", "keyserver": "s"}}
                     }
                 },
-                "apt.sources.s1: .* should not be valid under",
+                (
+                    "apt.sources.s1: .* "
+                    "(should not be valid under|is not allowed for)"
+                ),
             ),
             (
                 {"apt": {"debconf_selections": True}},
