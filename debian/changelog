@@ -1,3 +1,11 @@
+cloud-init (26.1-0ubuntu1~22.04.2) UNRELEASED; urgency=medium
+
+  * New bug fix release:
+    - d/p/retain-arm64-apt-mirrors-revert-archive-ubuntu-com.patch
+      (LP: #2171959)
+
+ -- Nicholas Lindsey <nicholas.lindsey@canonical.com>  Mon, 23 Nov 2026 10:41:29 -0500
+
 cloud-init (26.1-0ubuntu1~22.04.1) jammy; urgency=medium
 
   * d/p/0001-Revert-fix-DNS-resolution-performance-regression-dur.patch revert Ec2 URL change 
