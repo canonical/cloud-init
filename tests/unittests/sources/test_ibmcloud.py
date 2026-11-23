@@ -132,8 +132,7 @@ class TestReadMD:
         "public_keys": {"1091307": "ssh-rsa AAAAB3N..Hw== ci-pubkey"},
     }
 
-    content_interfaces = dedent(
-        """\
+    content_interfaces = dedent("""\
         auto lo
         iface lo inet loopback
 
@@ -142,8 +141,7 @@ class TestReadMD:
         iface eth0 inet static
         address 10.82.43.5
         netmask 255.255.255.192
-        """
-    )
+        """)
 
     userdata = b"#!/bin/sh\necho hi mom\n"
     # meta.js file gets json encoded userdata as a list.

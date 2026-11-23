@@ -25,12 +25,6 @@ class TestDHCP:
         verify_clean_log(log)
         verify_clean_boot(client)
 
-    @pytest.mark.xfail(
-        reason=(
-            "Noble images have dhclient installed and ordered first in their"
-            "configuration. Until this changes, dhcpcd will not be used"
-        )
-    )
     @pytest.mark.skipif(
         CURRENT_RELEASE < NOBLE, reason="pre-noble uses dhclient"
     )

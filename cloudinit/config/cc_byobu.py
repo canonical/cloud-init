@@ -69,8 +69,8 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
 
     shcmd = ""
     if mod_user:
-        (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
-        (user, _user_config) = ug_util.extract_default(users)
+        users, _groups = ug_util.normalize_users_groups(cfg, cloud.distro)
+        user, _user_config = ug_util.extract_default(users)
         if not user:
             LOG.warning(
                 "No default byobu user provided, "

@@ -31,7 +31,7 @@ Additional dependencies for systemd environments:
 The full list of all package build dependencies for a given distribution can
 be obtained by the following command:
 
-.. code-block:: bash
+.. code-block:: shell-session
 
    ./tools/read-dependencies --requirements-file requirements.txt --requirements-file test-requirements.txt --system-pkg-names --system-pkg-names --distro=<your_distro_name>
 

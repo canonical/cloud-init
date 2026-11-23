@@ -3,6 +3,9 @@
 Install and configure MCollective
 *********************************
 
+.. note::
+   This module is deprecated in 26.3.
+
 This example shows how MCollective can be installed, configured and started.
 For a full list of keys, refer to the
 :ref:`MCollective module <mod_cc_mcollective>` schema.

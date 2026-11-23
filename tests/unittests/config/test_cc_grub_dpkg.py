@@ -101,8 +101,10 @@ class TestFetchIdevs:
                     "/dev/disk/by-id/wwn-0x500a075116e6875a "
                     "/dev/disk/by-id/ata-Crucial_CT525MX300SSD1_171816E6875A"
                 ),
-                "/dev/disk/by-id/ata-Crucial_CT525MX300SSD1_171816E6875A-"
-                "part1",
+                (
+                    "/dev/disk/by-id/ata-Crucial_CT525MX300SSD1_171816E6875A-"
+                    "part1"
+                ),
                 True,
             ),
         ],
@@ -159,9 +161,11 @@ class TestHandle:
                 "/dev/disk/by-id/nvme-Company_hash000",
                 (
                     "Setting grub debconf-set-selections with '%s'",
-                    "grub-pc grub-pc/install_devices string "
-                    "/dev/disk/by-id/nvme-Company_hash000\n"
-                    "grub-pc grub-pc/install_devices_empty boolean false\n",
+                    (
+                        "grub-pc grub-pc/install_devices string "
+                        "/dev/disk/by-id/nvme-Company_hash000\n"
+                        "grub-pc grub-pc/install_devices_empty boolean false\n"
+                    ),
                 ),
                 False,
             ),
@@ -172,8 +176,10 @@ class TestHandle:
                 "/dev/sda",
                 (
                     "Setting grub debconf-set-selections with '%s'",
-                    "grub-pc grub-pc/install_devices string /dev/sda\n"
-                    "grub-pc grub-pc/install_devices_empty boolean false\n",
+                    (
+                        "grub-pc grub-pc/install_devices string /dev/sda\n"
+                        "grub-pc grub-pc/install_devices_empty boolean false\n"
+                    ),
                 ),
                 False,
             ),
@@ -184,8 +190,10 @@ class TestHandle:
                 "/dev/xvda",
                 (
                     "Setting grub debconf-set-selections with '%s'",
-                    "grub-pc grub-pc/install_devices string /dev/xvda\n"
-                    "grub-pc grub-pc/install_devices_empty boolean true\n",
+                    (
+                        "grub-pc grub-pc/install_devices string /dev/xvda\n"
+                        "grub-pc grub-pc/install_devices_empty boolean true\n"
+                    ),
                 ),
                 False,
             ),
@@ -196,8 +204,10 @@ class TestHandle:
                 "/dev/disk/by-id/company-user-1",
                 (
                     "Setting grub debconf-set-selections with '%s'",
-                    "grub-pc grub-pc/install_devices string /dev/vda\n"
-                    "grub-pc grub-pc/install_devices_empty boolean false\n",
+                    (
+                        "grub-pc grub-pc/install_devices string /dev/vda\n"
+                        "grub-pc grub-pc/install_devices_empty boolean false\n"
+                    ),
                 ),
                 False,
             ),
@@ -209,8 +219,10 @@ class TestHandle:
                 "",
                 (
                     "Setting grub debconf-set-selections with '%s'",
-                    "grub-pc grub-pc/install_devices string /dev/nvme0n1\n"
-                    "grub-pc grub-pc/install_devices_empty boolean true\n",
+                    (
+                        "grub-pc grub-pc/install_devices string /dev/nvme0n1\n"
+                        "grub-pc grub-pc/install_devices_empty boolean true\n"
+                    ),
                 ),
                 False,
             ),

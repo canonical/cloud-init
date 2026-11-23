@@ -8,6 +8,7 @@
 
 import logging
 import os
+from typing import Optional
 
 from cloudinit import lifecycle, sources, subp, util
 from cloudinit.event import EventScope, EventType
@@ -49,7 +50,6 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         self.seed_dir = os.path.join(paths.seed_dir, "config_drive")
         self.version = None
         self.ec2_metadata = None
-        self._network_config = None
         self.network_json = sources.UNSET
         self.network_eni = None
         self.known_macs = None
@@ -165,28 +165,25 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         # quickly (local check only) if self.instance_id is still valid
         return sources.instance_id_matches_system_uuid(self.get_instance_id())
 
-    @property
-    def network_config(self):
-        if self._network_config is None:
-            if self.network_json not in (None, sources.UNSET):
-                LOG.debug("network config provided via network_json")
-                self._network_config = openstack.convert_net_json(
-                    self.network_json, known_macs=self.known_macs
-                )
-            elif self.network_eni is not None:
-                self._network_config = eni.convert_eni_data(self.network_eni)
-                LOG.debug("network config provided via converted eni data")
-                lifecycle.deprecate(
-                    deprecated="Eni network configuration in ConfigDrive",
-                    deprecated_version="24.3",
-                    extra_message=(
-                        "You can use openstack's network "
-                        "configuration format instead"
-                    ),
-                )
-            else:
-                LOG.debug("no network configuration available")
-        return self._network_config
+    def _get_network_config(self) -> Optional[dict]:
+        if self.network_json not in (None, sources.UNSET):
+            LOG.debug("network config provided via network_json")
+            return openstack.convert_net_json(
+                self.network_json, known_macs=self.known_macs
+            )
+        if self.network_eni is not None:
+            LOG.debug("network config provided via converted eni data")
+            lifecycle.deprecate(
+                deprecated="Eni network configuration in ConfigDrive",
+                deprecated_version="24.3",
+                extra_message=(
+                    "You can use openstack's network "
+                    "configuration format instead"
+                ),
+            )
+            return eni.convert_eni_data(self.network_eni)
+        LOG.debug("no network configuration available")
+        return None
 
     @property
     def platform(self):

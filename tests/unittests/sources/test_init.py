@@ -923,13 +923,15 @@ class TestDataSource:
                 EventType.BOOT_NEW_INSTANCE,
             ]
         )
-        assert UNSET == self.datasource._network_config
+        assert self.datasource._network_config is None
 
         assert (
             mock.ANY,
             logging.DEBUG,
-            "Update datasource metadata and network config due to"
-            " events: boot-new-instance",
+            (
+                "Update datasource metadata and network config due to"
+                " events: boot-new-instance"
+            ),
         ) in caplog.record_tuples
 
 

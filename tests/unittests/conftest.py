@@ -42,7 +42,6 @@ def m_gpg():
     MockGPG = mock.Mock(spec=GPG)
     MockGPG.configure_mock(**{"getkeybyid.return_value": "fakekey"})
     gpg = MockGPG()
-    gpg.list_keys = mock.Mock(return_value="<mocked: list_keys>")
     gpg.getkeybyid = mock.Mock(return_value="<mocked: getkeybyid>")
 
     # to make tests for cc_apt_configure behave, we need the mocked GPG
@@ -203,7 +202,10 @@ def dhclient_exists():
         yield
 
 
-loggers.configure_root_logger()
+# Avoid setup_security_logging side-effects which would attempt to create
+# /var/log/cloud-init-security.log if unittests are run as root.
+with mock.patch.object(loggers, "setup_security_logging", autospec=True):
+    loggers.configure_root_logger()
 
 
 @pytest.fixture(autouse=True, scope="session")

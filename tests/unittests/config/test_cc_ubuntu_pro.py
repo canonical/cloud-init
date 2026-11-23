@@ -165,8 +165,10 @@ class TestConfigurePro:
                     (
                         MPATH,
                         logging.DEBUG,
-                        "Attaching to Ubuntu Pro. pro attach"
-                        " --no-auto-enable REDACTED",
+                        (
+                            "Attaching to Ubuntu Pro. pro attach"
+                            " --no-auto-enable REDACTED"
+                        ),
                     )
                 ],
                 id="with_specific_services",
@@ -202,14 +204,18 @@ class TestConfigurePro:
                     (
                         MPATH,
                         logging.DEBUG,
-                        "Attaching to Ubuntu Pro. pro attach"
-                        " --no-auto-enable REDACTED",
+                        (
+                            "Attaching to Ubuntu Pro. pro attach"
+                            " --no-auto-enable REDACTED"
+                        ),
                     ),
                     (
                         MPATH,
                         logging.WARNING,
-                        "ubuntu_pro: enable should be a list, not a "
-                        "string; treating as a single enable",
+                        (
+                            "ubuntu_pro: enable should be a list, not a "
+                            "string; treating as a single enable"
+                        ),
                     ),
                 ],
                 id="with_string_services",
@@ -233,8 +239,10 @@ class TestConfigurePro:
                     (
                         MPATH,
                         logging.WARNING,
-                        "ubuntu_pro: enable should be a list, not a"
-                        " dict; skipping enabling services",
+                        (
+                            "ubuntu_pro: enable should be a list, not a"
+                            " dict; skipping enabling services"
+                        ),
                     ),
                 ],
                 id="with_weird_services",
@@ -664,8 +672,10 @@ class TestUbuntuProSchema:
                     ),
                 ),
                 [
-                    "'ubuntu_pro.features.disable_auto_attach' should be"
-                    " a bool, not a list\n"
+                    (
+                        "'ubuntu_pro.features.disable_auto_attach' should be"
+                        " a bool, not a list\n"
+                    )
                 ],
             ),
         ],
@@ -704,8 +714,10 @@ class TestHandle:
                     (
                         MPATH,
                         logging.DEBUG,
-                        "Skipping module named nomatter, no 'ubuntu_pro'"
-                        " configuration found",
+                        (
+                            "Skipping module named nomatter, no 'ubuntu_pro'"
+                            " configuration found"
+                        ),
                     )
                 ],
                 [],
@@ -756,9 +768,11 @@ class TestHandle:
                     (
                         MPATH,
                         logging.WARNING,
-                        "Deprecated configuration key(s) provided:"
-                        ' ubuntu-advantage. Expected "ubuntu_pro"; will'
-                        " attempt to continue.",
+                        (
+                            "Deprecated configuration key(s) provided:"
+                            ' ubuntu-advantage. Expected "ubuntu_pro"; will'
+                            " attempt to continue."
+                        ),
                     ),
                 ],
                 None,
@@ -780,8 +794,10 @@ class TestHandle:
                     (
                         MPATH,
                         logging.DEBUG,
-                        "Ignoring `ubuntu_pro.enable_beta` services in"
-                        " Pro attach: realtime-kernel",
+                        (
+                            "Ignoring `ubuntu_pro.enable_beta` services in"
+                            " Pro attach: realtime-kernel"
+                        ),
                     )
                 ],
                 None,
@@ -800,15 +816,19 @@ class TestHandle:
                     (
                         MPATH,
                         logging.WARNING,
-                        "Deprecated configuration key(s) provided:"
-                        ' ubuntu-advantage. Expected "ubuntu_pro"; will'
-                        " attempt to continue.",
+                        (
+                            "Deprecated configuration key(s) provided:"
+                            ' ubuntu-advantage. Expected "ubuntu_pro"; will'
+                            " attempt to continue."
+                        ),
                     ),
                     (
                         MPATH,
                         logging.WARNING,
-                        "Ignoring deprecated key ubuntu-advantage and"
-                        " preferring ubuntu_pro config",
+                        (
+                            "Ignoring deprecated key ubuntu-advantage and"
+                            " preferring ubuntu_pro config"
+                        ),
                     ),
                 ],
                 None,
