@@ -296,9 +296,7 @@ def test_shutdown_entry_point(
     mode, delay, message, event, description, command, caplog
 ):
     shutdown_command = distros.Distro.shutdown_command
-    assert (
-        shutdown_command(mode=mode, delay=delay, message=message) == command
-    )
+    assert shutdown_command(mode=mode, delay=delay, message=message) == command
     assert security_events(caplog) == [
         expected_event(f"{event}:cloud-init", description)
     ]
