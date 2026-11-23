@@ -322,14 +322,19 @@ class Modules:
         mostly_mods = self._fixup_modules(raw_mods)
         return self._run_modules(mostly_mods)
 
-    def run_section(self, section_name):
-        """Runs all modules in the given section.
+    def active_modules(self, section_name) -> List[ModuleDetails]:
+        """Return the modules in section_name applicable to this system.
 
         section_name - One of the modules lists as defined in
           /etc/cloud/cloud.cfg. One of:
-         - cloud_init_modules
-         - cloud_config_modules
-         - cloud_final_modules
+          - cloud_init_modules
+          - cloud_config_modules
+          - cloud_final_modules
+
+        Modules are excluded when they are removed from cloud-init,
+        when their 'activate_by_schema_keys' do not intersect config keys,
+        or when they are not verified on this distro (unless listed in
+        'unverified_modules').
         """
         raw_mods = self._read_modules(section_name)
         mostly_mods = self._fixup_modules(raw_mods)
@@ -376,4 +381,15 @@ class Modules:
         if forced:
             LOG.info("running unverified_modules: '%s'", ", ".join(forced))
 
-        return self._run_modules(active_mods)
+        return active_mods
+
+    def run_section(self, section_name):
+        """Runs all modules in the given section.
+
+        section_name - One of the modules lists as defined in
+          /etc/cloud/cloud.cfg. One of:
+          - cloud_init_modules
+          - cloud_config_modules
+          - cloud_final_modules
+        """
+        return self._run_modules(self.active_modules(section_name))

@@ -3,6 +3,7 @@
 """Tests for testing reporting and event handling."""
 
 import json
+import shlex
 
 import pytest
 
@@ -25,6 +26,41 @@ reporting:
     retries: 1
 
 """
+
+# Ask the cloud-init installed on the system under test which config
+# modules are applicable in each module section, using the same module
+# filtering `cloud-init modules` stages perform.
+ACTIVE_MODULES_SNIPPET = """\
+import json
+from cloudinit.config.modules import Modules
+from cloudinit.stages import Init
+
+init = Init(ds_deps=[])
+init.read_cfg()
+init.fetch(existing="trust")
+modules = Modules(init)
+print(
+    json.dumps(
+        {
+            section: [
+                module.name
+                for module in modules.active_modules(section)
+            ]
+            for section in (
+                "cloud_init_modules",
+                "cloud_config_modules",
+                "cloud_final_modules",
+            )
+        }
+    )
+)
+"""
+
+SECTIONS_BY_STAGE = {
+    "init-network": "cloud_init_modules",
+    "modules-config": "cloud_config_modules",
+    "modules-final": "cloud_final_modules",
+}
 
 
 @pytest.mark.user_data(USER_DATA)
@@ -50,18 +86,41 @@ def test_webhook_reporting(client: IntegrationInstance):
         "cloud-init modules --mode=final; "
         "cloud-init status --wait"
     )
-    verify_clean_log(client.read_from_file("/var/log/cloud-init.log"))
+    log = client.read_from_file("/var/log/cloud-init.log")
+    verify_clean_log(log)
     verify_clean_boot(client)
 
     server_output = client.read_from_file(
         "/var/tmp/echo_server_output"
     ).splitlines()
     events = [json.loads(line) for line in server_output]
+    event_names = [e["name"] for e in events]
 
-    # Only time this should be less is if we remove modules
-    assert len(events) > 50, events
+    for stage in (
+        "init-network",
+        "modules-config",
+        "modules-final",
+    ):
+        assert stage in event_names, f"missing webhook event for {stage}"
 
-    # Assert our first and last expected messages exist
+    # Each applicable config module in the instance's cloud.cfg reported
+    # an event in its boot stage. The list of applicable modules comes
+    # from the cloud-init code on the instance itself, so any module
+    # skipped for its section (removed from cloud-init, no applicable
+    # config provided, or not verified on distro) is correctly expected
+    # to be absent from the webhook event stream.
+    active_modules = json.loads(
+        client.execute(
+            f"python3 -c {shlex.quote(ACTIVE_MODULES_SNIPPET)}"
+        ).stdout
+    )
+    for stage, section in SECTIONS_BY_STAGE.items():
+        for module in active_modules[section]:
+            assert (
+                f"{stage}/config-{module}" in event_names
+            ), f"no webhook event for module '{module}' in stage {stage}"
+
+    # Assert our datasource activation events exist
     ds_events = [
         e for e in events if e["name"] == "init-network/activate-datasource"
     ]
