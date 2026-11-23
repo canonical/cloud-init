@@ -1,0 +1,28 @@
+Description: Retain arm64 apt mirrors to retain original behavior
+ This is a revert of upstream commit d4566b1aa35951e6c32da330e627c023785026ea
+ which configured arm64 to use archive.ubuntu.com. This is only applicable on
+ noble and newer releases.
+Author: Chad Smith <chad.smith@canonical.com>
+Origin: backport
+Bug: https://bugs.launchpad.net/ubuntu/+source/cloud-init/+bug/2171959
+Last-Update: 2026-10-22
+--- a/config/cloud.cfg.tmpl
++++ b/config/cloud.cfg.tmpl
+@@ -348,7 +348,7 @@ system_info:
+         security: https://deb.debian.org/debian-security
+ {% elif variant in ["ubuntu", "unknown"] %}
+   package_mirrors:
+-    - arches: [arm64, i386, amd64]
++    - arches: [i386, amd64]
+       failsafe:
+         primary: http://archive.ubuntu.com/ubuntu
+         security: http://security.ubuntu.com/ubuntu
+@@ -358,7 +358,7 @@ system_info:
+           - http://%(availability_zone)s.clouds.archive.ubuntu.com/ubuntu/
+           - http://%(region)s.clouds.archive.ubuntu.com/ubuntu/
+         security: []
+-    - arches: [armel, armhf]
++    - arches: [arm64, armel, armhf]
+       failsafe:
+         primary: http://ports.ubuntu.com/ubuntu-ports
+         security: http://ports.ubuntu.com/ubuntu-ports

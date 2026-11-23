@@ -17,3 +17,4 @@ retain-setuptools.patch
 revert-usr-lib-systemd-units.patch
 0001-Revert-fix-support-bond-names-in-network_data.patch
 0001-Revert-fix-DNS-resolution-performance-regression-dur.patch
+retain-arm64-apt-mirrors-revert-archive-ubuntu-com.patch
