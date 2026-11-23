@@ -453,6 +453,18 @@ class TestCreateUser:
         unlock_passwd.assert_not_called()
         assert m_subp.call_args_list == []
 
+    def test_unlock_preexisting_user_with_regex_metacharacter_username(
+        self, m_subp, dist, mocker, tmp_path
+    ):
+        dist.shadow_fn = str(tmp_path / "shadow")
+        Path(dist.shadow_fn).write_text("fooXuser::\nfoo.user:$6$hash:")
+        mocker.patch("cloudinit.distros.util.is_user", return_value=True)
+        unlock_passwd = mocker.patch.object(dist, "unlock_passwd")
+
+        dist.create_user(name="foo.user", groups=[], lock_passwd=False)
+
+        unlock_passwd.assert_called_once_with("foo.user")
+
     @pytest.mark.parametrize(
         "create_kwargs,expected,expected_logs",
         [

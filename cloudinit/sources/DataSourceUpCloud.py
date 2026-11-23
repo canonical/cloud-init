@@ -6,6 +6,7 @@
 # https://developers.upcloud.com/1.3/8-servers/#metadata-service
 
 import logging
+from typing import Optional
 
 from cloudinit import net as cloudnet
 from cloudinit import sources, util
@@ -45,7 +46,6 @@ class DataSourceUpCloud(sources.DataSource):
         self.retries = self.ds_cfg.get("retries", MD_RETRIES)
         self.timeout = self.ds_cfg.get("timeout", MD_TIMEOUT)
         self.wait_retry = self.ds_cfg.get("wait_retry", MD_WAIT_RETRY)
-        self._network_config = None
         self.metadata_full = None
 
     def _get_sysinfo(self):
@@ -107,28 +107,21 @@ class DataSourceUpCloud(sources.DataSource):
     def check_instance_id(self, sys_cfg):
         return sources.instance_id_matches_system_uuid(self.get_instance_id())
 
-    @property
-    def network_config(self):
+    def _get_network_config(self) -> Optional[dict]:
         """
         Configure the networking. This needs to be done each boot,
         since the IP and interface information might have changed
         due to reconfiguration.
         """
-
-        if self._network_config:
-            return self._network_config
-
         raw_network_config = self.metadata.get("network")
         if not raw_network_config:
             raise RuntimeError(
                 "Unable to get network meta-data from server...."
             )
 
-        self._network_config = uc_helper.convert_network_config(
+        return uc_helper.convert_network_config(
             raw_network_config,
         )
-
-        return self._network_config
 
 
 class DataSourceUpCloudLocal(DataSourceUpCloud):

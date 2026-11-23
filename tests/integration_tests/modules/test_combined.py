@@ -782,6 +782,15 @@ class TestCombined:
             )
 
         # status subcommands
+        # client's version_boundary newer than 22.2 means exit 2 due to sudo
+        version_boundary = get_feature_flag_value(
+            class_client, "DEPRECATION_INFO_BOUNDARY"
+        )
+        status_exit_code = (
+            2
+            if lifecycle.should_log_deprecation("22.2", version_boundary)
+            else 0
+        )
         for command in [
             "cloud-init status --long",
             "cloud-init status --format json",
@@ -795,7 +804,7 @@ class TestCombined:
                 class_client.execute(command, get_pty=True),
                 command,
                 text=UNWANTED_WORDS_DEPRECATED_EXPECTED,
-                return_code=2,
+                return_code=status_exit_code,
             )
 
         # These commands include "WARNING", but it would be easier

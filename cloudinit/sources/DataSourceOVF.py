@@ -126,10 +126,6 @@ class DataSourceOVF(sources.DataSource):
     def get_config_obj(self):
         return self.cfg
 
-    @property
-    def network_config(self):
-        return self._network_config
-
 
 class DataSourceOVFNet(DataSourceOVF):
     def __init__(self, sys_cfg, distro, paths):

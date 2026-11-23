@@ -1458,6 +1458,11 @@ class TestNetworkConfig:
         oracle_ds.network_config  # pylint: disable=pointless-statement
         assert 1 == oracle_ds._get_iscsi_config.call_count
 
+    def test_has_network_config_none(self, m_get_interfaces_by_mac, oracle_ds):
+        """_has_network_config returns False rather than raising on None"""
+        oracle_ds._network_config = None
+        assert oracle_ds._has_network_config() is False
+
     @pytest.mark.is_iscsi(True)
     def test_keep_configuration_set_from_iscsi_klibc(
         self, m_get_interfaces_by_mac, oracle_ds

@@ -1133,6 +1133,28 @@ class TestEc2:
         assert instance_tags["Application"] == "test"
         assert instance_tags["Environment"] == "production"
 
+    @responses.activate
+    def test_metadata_is_empty_dict_when_meta_data_absent(
+        self, mocker, tmpdir
+    ):
+        """ds.metadata is an empty dict when crawled data lacks meta-data."""
+        ds = self._setup_ds(
+            platform_data=self.valid_platform_data,
+            sys_cfg={"datasource": {"Ec2": {"strict_id": False}}},
+            md=None,
+            mocker=mocker,
+            tmpdir=tmpdir,
+        )
+        mocker.patch.object(
+            ds,
+            "crawl_metadata",
+            return_value={"user-data": "user-data-content"},
+        )
+        assert True is ds._get_data()
+        assert {} == ds.metadata
+        assert "user-data-content" == ds.userdata_raw
+        assert {} == ds.identity
+
 
 class TestGetSecondaryAddresses:
     mac = "06:17:04:d7:26:ff"

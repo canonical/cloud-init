@@ -26,6 +26,7 @@ exclude = []
 module = [
     "apport.*",
     "configobj",
+    "crypt",
     "debconf",
     "jsonpatch",
     "tests.integration_tests.user_settings",
@@ -40,7 +41,6 @@ module = [
     "cloudinit.distros.azurelinux",
     "cloudinit.distros.bsd",
     "cloudinit.distros.opensuse",
-    "cloudinit.distros.parsers.hostname",
     "cloudinit.distros.parsers.resolv_conf",
     "cloudinit.helpers",
     "cloudinit.net.freebsd",

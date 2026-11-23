@@ -278,6 +278,41 @@ class TestUpCloudNetworkSetup:
             UC_METADATA.get("network").get("dns")[1] == dns.get("address")[1]
         )
 
+    @mock.patch("cloudinit.sources.helpers.upcloud.read_metadata")
+    @mock.patch("cloudinit.net.get_interfaces_by_mac")
+    def test_network_config_invalid_cache_recomputes(
+        self, m_get_by_mac, mock_readmd, ds
+    ):
+        """network_config must recompute whenever the cache is invalid.
+
+        update_metadata_if_supported() resets _network_config to None on
+        each boot event. obj.pkl caches written by older releases may hold
+        the plain "_unset" string or UNSET. None of those invalid values
+        may be returned as configuration; each must trigger regeneration
+        via _get_network_config.
+        """
+        mock_readmd.return_value = UC_METADATA.copy()
+
+        raw_ifaces = UC_METADATA.get("network").get("interfaces")
+        m_get_by_mac.return_value = {
+            raw_ifaces[0].get("mac"): "eth0",
+            raw_ifaces[1].get("mac"): "eth1",
+            raw_ifaces[2].get("mac"): "eth2",
+            raw_ifaces[3].get("mac"): "eth3",
+        }
+
+        ds.perform_dhcp_setup = False
+        assert ds.get_data() is True
+
+        # Simulate update_metadata_if_supported() and the invalid values
+        # which obj.pkl caches may contain.
+        for invalid_cache in (None, sources.UNSET, "_unset"):
+            ds._network_config = invalid_cache
+            recomputed_netcfg = ds.network_config
+            assert recomputed_netcfg != invalid_cache
+            assert isinstance(recomputed_netcfg, dict)
+            assert 1 == recomputed_netcfg.get("version")
+
 
 class TestUpCloudDatasourceLoading:
     def test_get_datasource_list_returns_in_local(self):
