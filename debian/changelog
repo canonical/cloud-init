@@ -1,3 +1,11 @@
+cloud-init (26.2-0ubuntu1~26.04.3) UNRELEASED; urgency=medium
+
+  * drop the following cherry-picks now included:
+    - cpick-29d50e12-fix-distros-don-t-blank-password-when-unlock-writes-to
+  * Upstream snapshot based on upstream/main at d8f758fc.
+
+ -- Nicholas Lindsey <nicholas.lindsey@canonical.com>  Mon, 23 Nov 2026 16:07:48 -0500
+
 cloud-init (26.2-0ubuntu1~26.04.2) resolute; urgency=medium
 
   * cherry-pick 29d50e12: don't blank password when passwd -u emits
