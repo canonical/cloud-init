@@ -145,15 +145,6 @@ class MockDistro(distros.Distro):
     def update_etc_hosts(self, hostname, fqdn):
         pass
 
-    def add_user(self, name, **kwargs):  # type: ignore[misc]
-        pass
-
-    def add_snap_user(self, name, **kwargs):  # type: ignore[misc]
-        return "snap_user"
-
-    def create_user(self, name, **kwargs):  # type: ignore[misc]
-        return True
-
     def lock_passwd(self, name):
         pass
 
@@ -170,6 +161,15 @@ class MockDistro(distros.Distro):
         pass
 
     def create_group(self, name, members=None):
+        pass
+
+    def _add_user(
+        self,
+        name: str,
+        *,
+        groups: List[str],
+        **kwargs,
+    ):
         pass
 
     @classmethod
