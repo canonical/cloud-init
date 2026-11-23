@@ -216,7 +216,7 @@ class NetworkState:
 
 
 class NetworkStateInterpreter:
-    initial_network_state = {
+    initial_network_state: Dict[str, Any] = {
         "interfaces": {},
         "routes": [],
         "dns": {
@@ -489,7 +489,7 @@ class NetworkStateInterpreter:
         """
 
         self.handle_physical(command)
-        interfaces = self._network_state.get("interfaces")
+        interfaces = self._network_state["interfaces"]
         iface = interfaces.get(command.get("name"), {})
         for param, val in command.get("params").items():
             iface.update({param: val})
@@ -602,7 +602,7 @@ class NetworkStateInterpreter:
 
     @ensure_command_keys(["address"])
     def handle_nameserver(self, command):
-        dns = self._network_state.get("dns")
+        dns = self._network_state["dns"]
         nameservers, search = self._parse_dns(command)
         if "interface" in command:
             self._interface_dns_map[command["interface"]] = (
@@ -615,7 +615,7 @@ class NetworkStateInterpreter:
 
     @ensure_command_keys(["address"])
     def _handle_individual_nameserver(self, command, iface):
-        _iface = self._network_state.get("interfaces")
+        _iface = self._network_state["interfaces"]
         nameservers, search = self._parse_dns(command)
         _iface[iface]["dns"] = {"nameservers": nameservers, "search": search}
 
@@ -835,7 +835,7 @@ class NetworkStateInterpreter:
 
         # inverse mapping for v2 keynames to v1 keynames
         v2key_to_v1 = dict(
-            (v, k) for k, v in NET_CONFIG_TO_V2.get(cmd_type).items()
+            (v, k) for k, v in NET_CONFIG_TO_V2[cmd_type].items()
         )
 
         for item_name, item_cfg in command.items():
@@ -889,7 +889,7 @@ class NetworkStateInterpreter:
 
         subnets = []
         if cfg.get("dhcp4"):
-            subnet = {"type": "dhcp4"}
+            subnet: Dict[str, Any] = {"type": "dhcp4"}
             _add_dhcp_overrides(cfg.get("dhcp4-overrides", {}), subnet)
             subnets.append(subnet)
         if cfg.get("dhcp6"):
@@ -900,7 +900,7 @@ class NetworkStateInterpreter:
 
         gateway4 = None
         gateway6 = None
-        nameservers = {}
+        nameservers: Dict[str, Any] = {}
         for address in cfg.get("addresses", []):
             subnet = {
                 "type": "static",
