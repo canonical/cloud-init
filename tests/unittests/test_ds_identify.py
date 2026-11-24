@@ -521,15 +521,15 @@ class TestDsIdentify(DsIdentifyBase):
     ):
         data = {
             "ds": "Azure",
-            "files": {
-                P_CHASSIS_ASSET_TAG: "6590858269327679676576328677\n"
-            },
+            "files": {P_CHASSIS_ASSET_TAG: "6590858269327679676576328677\n"},
         }
         if enabled is not None:
+            enabled_value = str(enabled).lower()
             data["files"]["etc/cloud/cloud.cfg"] = (
                 "datasource:\n"
                 "  Azure:\n"
-                f"    experimental_azure_local_detection: {str(enabled).lower()}\n"
+                "    experimental_azure_local_detection:"
+                f" {enabled_value}\n"
             )
 
         self._check_via_dict(data, str(tmp_path), RC_NOT_FOUND)
@@ -1664,13 +1664,11 @@ VALID_CFG = {
         "ds": "Azure",
         "files": {
             P_CHASSIS_ASSET_TAG: "6590858269327679676576328677\n",
-            "etc/cloud/cloud.cfg": dedent(
-                """\
+            "etc/cloud/cloud.cfg": dedent("""\
                 datasource:
                   Azure:
                     experimental_azure_local_detection: true
-                """
-            ),
+                """),
         },
     },
     "Azure-seed-detection": {

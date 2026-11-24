@@ -963,10 +963,10 @@ class DataSourceAzure(sources.DataSource):
         run.
         """
         chassis_tag = identity.ChassisAssetTag.query_system()
-        
+
         if chassis_tag is identity.ChassisAssetTag.AZURE_CLOUD:
             return True
-        
+
         if (
             chassis_tag is identity.ChassisAssetTag.AZURE_LOCAL
             and self.ds_cfg.get("experimental_azure_local_detection", False)
