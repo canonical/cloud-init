@@ -525,27 +525,21 @@ def find_candidate_nics_on_linux() -> List[str]:
     if "net.ifnames=0" in util.get_cmdline():
         LOG.debug("Stable ifnames disabled by net.ifnames=0 in /proc/cmdline")
     else:
-        unstable = [
-            device
-            for device in get_devicelist()
-            if device != "lo" and not is_renamed(device)
-        ]
-        if len(unstable):
-            LOG.debug(
-                "Found unstable nic names: %s; calling udevadm settle",
-                unstable,
+        # Settle even when every nic is already renamed: a nic renamed to its
+        # predictable name can still have another rename queued, such as a
+        # netplan set-name rule. With no queued events this returns at once.
+        LOG.debug("Calling udevadm settle so pending nic renames complete")
+        try:
+            util.udevadm_settle()
+        except subp.ProcessExecutionError as error:
+            LOG.warning(
+                "udevadm failed to settle: "
+                "cmd=%r stderr=%r stdout=%r exit_code=%s",
+                error.cmd,
+                error.stderr,
+                error.stdout,
+                error.exit_code,
             )
-            try:
-                util.udevadm_settle()
-            except subp.ProcessExecutionError as error:
-                LOG.warning(
-                    "udevadm failed to settle: "
-                    "cmd=%r stderr=%r stdout=%r exit_code=%s",
-                    error.cmd,
-                    error.stderr,
-                    error.stdout,
-                    error.exit_code,
-                )
 
     # sort into interfaces with carrier, interfaces which could have carrier,
     # and ignore interfaces that are definitely disconnected

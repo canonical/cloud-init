@@ -590,13 +590,14 @@ class TestNetFindCandidateNics:
         assert result == ["eth0"]
         self.m_settle.assert_not_called()
 
-    def test_udevadm_settle_not_called_for_renamed_interface(self):
-        self.create_fake_interface(name="eth0", renamed=True)
+    def test_udevadm_settle_called_for_renamed_interface(self):
+        """A renamed NIC can still have a rename queued (netplan set-name)."""
+        self.create_fake_interface(name="enp1s0", renamed=True)
 
         result = net.find_candidate_nics_on_linux()
 
-        assert result == ["eth0"]
-        self.m_settle.assert_not_called()
+        assert result == ["enp1s0"]
+        self.m_settle.assert_called_once()
 
     def test_udevadm_settle_failure_handled_gracefully(self, caplog):
         self.create_fake_interface(name="eth0", renamed=False)
