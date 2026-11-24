@@ -60,6 +60,7 @@ DISTRO_FAMILY = {
     "centos": "rhel",
     "cloudlinux": "rhel",
     "fedora": "rhel",
+    "kylin": "rhel",
     "opensuse-microos": "opensuse",
     "opensuse-tumbleweed": "opensuse",
     "opensuse-leap": "opensuse",

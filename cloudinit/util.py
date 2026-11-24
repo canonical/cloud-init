@@ -621,6 +621,7 @@ def _get_variant(info):
             "debian",
             "eurolinux",
             "fedora",
+            "kylin",
             "mariner",
             "miraclelinux",
             "openeuler",

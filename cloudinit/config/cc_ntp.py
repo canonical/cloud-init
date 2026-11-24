@@ -34,6 +34,7 @@ distros = [
     "eurolinux",
     "fedora",
     "freebsd",
+    "kylin",
     "mariner",
     "miraclelinux",
     "openbsd",
@@ -247,7 +248,7 @@ DISTRO_CLIENT_CONFIG: Dict[str, Dict] = {
 for distro in ("opensuse-microos", "opensuse-tumbleweed", "opensuse-leap"):
     DISTRO_CLIENT_CONFIG[distro] = DISTRO_CLIENT_CONFIG["opensuse"]
 
-for distro in ("almalinux", "cloudlinux", "rocky"):
+for distro in ("almalinux", "cloudlinux", "kylin", "rocky"):
     DISTRO_CLIENT_CONFIG[distro] = DISTRO_CLIENT_CONFIG["rhel"]
 
 for distro in ("sle_hpc", "sle-micro"):
