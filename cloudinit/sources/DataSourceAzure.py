@@ -299,7 +299,7 @@ BUILTIN_DS_CONFIG = {
     "apply_network_config_for_secondary_ips": True,  # Configure secondary ips
     "experimental_fail_on_missing_customdata": False,
     "apply_network_config_set_name": True,  # Use set-name for NICs
-    "experimental_azure_local_detection": False, # Support Azure Local chassis
+    "experimental_azure_local_detection": False,  # Support Azure Local chassis
     "experimental_skip_ready_report": False,  # Skip final ready report
 }
 
