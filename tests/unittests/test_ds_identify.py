@@ -515,6 +515,25 @@ class TestDsIdentify(DsIdentifyBase):
         for var in expected_vars:
             assert "{0}=".format(var) in err
 
+    @pytest.mark.parametrize("enabled", [None, False])
+    def test_azure_local_dmi_detection_requires_enabled_flag(
+        self, tmp_path, enabled
+    ):
+        data = {
+            "ds": "Azure",
+            "files": {P_CHASSIS_ASSET_TAG: "6590858269327679676576328677\n"},
+        }
+        if enabled is not None:
+            enabled_value = str(enabled).lower()
+            data["files"]["etc/cloud/cloud.cfg"] = (
+                "datasource:\n"
+                "  Azure:\n"
+                "    experimental_azure_local_detection:"
+                f" {enabled_value}\n"
+            )
+
+        self._check_via_dict(data, str(tmp_path), RC_NOT_FOUND)
+
     @pytest.mark.parametrize(
         "config,found",
         [
@@ -549,6 +568,11 @@ class TestDsIdentify(DsIdentifyBase):
                 "Azure-dmi-detection",
                 True,
                 id="azure_dmi_detection_from_chassis_asset_tag",
+            ),
+            pytest.param(
+                "Azure-local-dmi-detection",
+                True,
+                id="azure_local_dmi_detection_from_chassis_asset_tag",
             ),
             # Azure datasource is detected due to presence of a seed file.
             #
@@ -1635,6 +1659,17 @@ VALID_CFG = {
     "Azure-dmi-detection": {
         "ds": "Azure",
         "files": {P_CHASSIS_ASSET_TAG: "7783-7084-3265-9085-8269-3286-77\n"},
+    },
+    "Azure-local-dmi-detection": {
+        "ds": "Azure",
+        "files": {
+            P_CHASSIS_ASSET_TAG: "6590858269327679676576328677\n",
+            "etc/cloud/cloud.cfg": dedent("""\
+                datasource:
+                  Azure:
+                    experimental_azure_local_detection: true
+                """),
+        },
     },
     "Azure-seed-detection": {
         "ds": "Azure",
