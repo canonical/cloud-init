@@ -1228,8 +1228,8 @@ class TestAzureDataSource:
             "fetch_metadata_with_api_fallback",
             mock.MagicMock(return_value=NETWORK_METADATA),
         )
-        self.m_fallback_nic = mocker.patch(
-            "cloudinit.sources.net.find_fallback_nic", return_value="eth9"
+        self.m_primary_nic = mocker.patch(
+            MOCKPATH + "find_primary_nic", return_value="eth9"
         )
         self.m_remove_ubuntu_network_scripts = mocker.patch.object(
             dsaz,
