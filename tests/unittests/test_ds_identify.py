@@ -515,6 +515,25 @@ class TestDsIdentify(DsIdentifyBase):
         for var in expected_vars:
             assert "{0}=".format(var) in err
 
+    @pytest.mark.parametrize("enabled", [None, False])
+    def test_azure_local_dmi_detection_requires_enabled_flag(
+        self, tmp_path, enabled
+    ):
+        data = {
+            "ds": "Azure",
+            "files": {
+                P_CHASSIS_ASSET_TAG: "6590858269327679676576328677\n"
+            },
+        }
+        if enabled is not None:
+            data["files"]["etc/cloud/cloud.cfg"] = (
+                "datasource:\n"
+                "  Azure:\n"
+                f"    experimental_azure_local_detection: {str(enabled).lower()}\n"
+            )
+
+        self._check_via_dict(data, str(tmp_path), RC_NOT_FOUND)
+
     @pytest.mark.parametrize(
         "config,found",
         [
@@ -1643,7 +1662,16 @@ VALID_CFG = {
     },
     "Azure-local-dmi-detection": {
         "ds": "Azure",
-        "files": {P_CHASSIS_ASSET_TAG: "6590858269327679676576328677\n"},
+        "files": {
+            P_CHASSIS_ASSET_TAG: "6590858269327679676576328677\n",
+            "etc/cloud/cloud.cfg": dedent(
+                """\
+                datasource:
+                  Azure:
+                    experimental_azure_local_detection: true
+                """
+            ),
+        },
     },
     "Azure-seed-detection": {
         "ds": "Azure",
