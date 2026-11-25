@@ -1,0 +1,29 @@
+#cloud-config
+# OCodeJS / Velclaw VPS preparation baseline for Ubuntu 24.04.
+# This prepares the host only; it does not deploy application services.
+
+package_update: true
+package_upgrade: false
+
+packages:
+  - ca-certificates
+  - curl
+  - git
+  - jq
+  - python3
+  - python3-venv
+
+write_files:
+  - path: /etc/motd.d/ocodejs-bootstrap
+    owner: root:root
+    permissions: "0644"
+    content: |
+      OCodeJS / Velclaw host
+      Base provisioning completed by cloud-init.
+      Application deployment is managed separately.
+
+runcmd:
+  - [mkdir, -p, /opt/ocodejs, /opt/velclaw, /var/lib/ocodejs]
+  - [chmod, "0755", /opt/ocodejs, /opt/velclaw, /var/lib/ocodejs]
+
+final_message: "OCodeJS / Velclaw base host preparation finished."
