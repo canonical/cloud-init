@@ -7,7 +7,7 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import lifecycle, ssh_util
+from cloudinit import lifecycle, ssh_util, util
 from cloudinit.config import cc_ssh
 from cloudinit.config.schema import (
     SchemaValidationError,
@@ -31,7 +31,7 @@ def publish_hostkey_test_setup(tmpdir):
     }
     test_hostkey_files = []
     hostkey_tmpdir = tmpdir
-    for key_type in cc_ssh.GENERATE_KEY_NAMES:
+    for key_type in util.GENERATE_KEY_NAMES:
         filename = "ssh_host_%s_key.pub" % key_type
         filepath = os.path.join(hostkey_tmpdir, filename)
         test_hostkey_files.append(filepath)
@@ -39,7 +39,7 @@ def publish_hostkey_test_setup(tmpdir):
             f.write(" ".join(test_hostkeys[key_type]))
 
     with mock.patch.object(
-        cc_ssh, "KEY_FILE_TPL", os.path.join(hostkey_tmpdir, "ssh_host_%s_key")
+        util, "KEY_FILE_TPL", os.path.join(hostkey_tmpdir, "ssh_host_%s_key")
     ):
         yield test_hostkeys, test_hostkey_files
 
@@ -225,10 +225,10 @@ class TestHandleSsh:
     @pytest.mark.parametrize(
         "cfg, expected_key_types",
         [
-            pytest.param({}, cc_ssh.GENERATE_KEY_NAMES, id="default"),
+            pytest.param({}, util.GENERATE_KEY_NAMES, id="default"),
             pytest.param(
                 {"ssh_publish_hostkeys": {"enabled": True}},
-                cc_ssh.GENERATE_KEY_NAMES,
+                util.GENERATE_KEY_NAMES,
                 id="config_enable",
             ),
             pytest.param(
@@ -248,7 +248,7 @@ class TestHandleSsh:
             ),
             pytest.param(
                 {"ssh_publish_hostkeys": {"enabled": True, "blacklist": []}},
-                cc_ssh.GENERATE_KEY_NAMES,
+                util.GENERATE_KEY_NAMES,
                 id="empty_blacklist",
             ),
         ],
@@ -335,7 +335,7 @@ class TestHandleSsh:
         """
         m_gid.return_value = 10 if ssh_keys_group_exists else -1
         m_sshd_version.return_value = lifecycle.Version(sshd_version, 0)
-        key_path = cc_ssh.KEY_FILE_TPL % "rsa"
+        key_path = util.KEY_FILE_TPL % "rsa"
         cloud = get_cloud(distro="centos")
         cc_ssh.handle("name", {"ssh_genkeytypes": ["rsa"]}, cloud, [])
         if ssh_keys_group_exists:
@@ -376,7 +376,7 @@ class TestHandleSsh:
 
         expected_calls = []
         cert_content = ""
-        for key_type in cc_ssh.GENERATE_KEY_NAMES:
+        for key_type in util.GENERATE_KEY_NAMES:
             private_name = "{}_private".format(key_type)
             public_name = "{}_public".format(key_type)
             cert_name = "{}_certificate".format(key_type)

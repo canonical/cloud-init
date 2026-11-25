@@ -185,6 +185,13 @@ cloud_config_modules:
 
 # The modules that run in the 'final' stage
 cloud_final_modules:
+{% if is_rhel %}
+# the rhel module needs to be in here to avoid the race between
+# cc_ssh and cc_rhel - cc_ssh can come in between enabling fips
+# mode and rebooting creating non-fips complaint keys. This
+# happens if both cc_ssh and cc_rhel are run in init stage.
+  - rhel
+{% endif %}
   - package_update_upgrade_install
 {% if variant in ["debian", "ubuntu", "unknown"] %}
   - fan
