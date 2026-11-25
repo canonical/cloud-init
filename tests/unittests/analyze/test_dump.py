@@ -265,11 +265,11 @@ class TestParseCILogLine:
             warnings.simplefilter("ignore", category=DeprecationWarning)
             # Generate the expected value using `datetime`, so that TZ
             # determination is consistent with the code under test.
-            date = datetime.strptime("Apr 30 19:39:11", "%b %d %H:%M:%S")
+            date = datetime.strptime(
+                f"Apr 30 19:39:11 {datetime.now().year}", "%b %d %H:%M:%S %Y"
+            )
 
-        timestamp_dt = date.replace(year=datetime.now().year).replace(
-            tzinfo=timezone.utc
-        )
+        timestamp_dt = date.replace(tzinfo=timezone.utc)
         expected = {
             "description": "attempting to read from cache [check]",
             "event_type": "start",
