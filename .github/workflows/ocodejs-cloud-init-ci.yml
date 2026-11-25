@@ -1,0 +1,78 @@
+name: OCodeJS Cloud-init CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloud-init-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-tests:
+    name: Unit tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install tox
+        run: python -m pip install --upgrade tox
+      - name: Run unit tests
+        run: tox -e py3 -- --color=yes
+
+  lint:
+    name: Lint and static checks
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Install system tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tox
+          sudo snap install shfmt
+      - name: Run upstream format and lint suite
+        run: tox -e check_format
+
+  build-package:
+    name: Build Ubuntu 24.04 package
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Install build dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ubuntu-dev-tools tox
+          deps="$(./tools/read-dependencies \
+            --requirements-file requirements.txt \
+            --requirements-file test-requirements.txt \
+            --distro ubuntu \
+            --system-pkg-names)"
+          sudo apt-get install -y $deps
+      - name: Build package
+        run: |
+          DEB_BUILD_OPTIONS=nocheck ./packages/bddeb -d --release noble
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: cloud-init-ubuntu-24.04
+          path: cloud-init-base*.deb
+          if-no-files-found: error
+          retention-days: 7
