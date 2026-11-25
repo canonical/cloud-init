@@ -1,0 +1,22 @@
+name: Actions Runner Smoke Test
+
+on:
+  push:
+    branches:
+      - diagnostics/actions-runner-smoke
+
+permissions:
+  contents: read
+
+jobs:
+  runner-smoke:
+    name: GitHub-hosted runner allocation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Confirm runner allocation
+        run: |
+          echo "runner allocation successful"
+          echo "runner: $RUNNER_NAME"
+          echo "os: $RUNNER_OS"
+          echo "arch: $RUNNER_ARCH"
