@@ -1,10 +1,9 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+import logging
 import os
 import re
-from io import BytesIO
 from unittest import mock
 
-import configobj
 import pytest
 
 from cloudinit import util
@@ -16,6 +15,16 @@ from cloudinit.config.schema import (
 )
 from tests.unittests.helpers import skipUnlessJsonSchema
 from tests.unittests.util import get_cloud
+
+LOG = logging.getLogger(__name__)
+
+
+def _parse_mcollective_config(source):
+    """Thin test helper: parse flat key=value mcollective config via util."""
+    if hasattr(source, "read") or isinstance(source, (bytes, bytearray)):
+        return util.parse_key_value(source)
+    return util.parse_key_value(util.load_text_file(source))
+
 
 STOCK_CONFIG = """\
 main_collective = mcollective
@@ -83,7 +92,7 @@ class TestConfig:
 
         cc_mcollective.configure(cfg["mcollective"]["conf"])
         contents = util.load_binary_file(cc_mcollective.SERVER_CFG)
-        contents = configobj.ConfigObj(BytesIO(contents))
+        contents = _parse_mcollective_config(contents)
         assert expected == dict(contents)
 
     def test_existing_config_is_saved(self, server_cfg):
@@ -98,7 +107,7 @@ class TestConfig:
         cfg = {"loglevel": "warn"}
         util.write_file(server_cfg, STOCK_CONFIG)
         cc_mcollective.configure(config=cfg, server_cfg=server_cfg)
-        cfgobj = configobj.ConfigObj(server_cfg)
+        cfgobj = _parse_mcollective_config(server_cfg)
         assert cfg["loglevel"] == cfgobj["loglevel"]
 
     def test_certificats_written(self, pricert_file, pubcert_file, server_cfg):
@@ -116,7 +125,7 @@ class TestConfig:
             pubcert_file=pubcert_file,
         )
 
-        found = configobj.ConfigObj(server_cfg)
+        found = _parse_mcollective_config(server_cfg)
 
         # make sure these didnt get written in
         assert "public-cert" not in found

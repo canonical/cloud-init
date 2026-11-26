@@ -173,6 +173,65 @@ class TestLandscape:
         )
         assert expected_calls == m_subp.call_args_list
 
+    @pytest.mark.parametrize(
+        "option, value, expected",
+        [
+            ("registration-key", '"abc#123"', "abc#123"),
+            ("registration-key", '"abc#123" # secret', "abc#123"),
+            ("registration-key", "'abc#123' # secret", "abc#123"),
+            ("registration-key", r'"abc\def#123" # secret', r"abc\def#123"),
+            ("registration-key", '"" # no key', ""),
+            ("registration-key", "# no key", ""),
+            (
+                "url",
+                "https://example.com/message-system # server",
+                "https://example.com/message-system",
+            ),
+            (
+                "url",
+                "https://example.com/message-system#server",
+                "https://example.com/message-system",
+            ),
+            ("computer-title", '" My #1 PC " # title', " My #1 PC "),
+            ("computer-title", "Joe's PC # title", "Joe's PC"),
+            ("tags", '"one,two" # tags', "one,two"),
+        ],
+    )
+    def test_handler_parses_existing_client_values(
+        self, m_subp, tmpdir, option, value, expected
+    ):
+        """Existing INI quotes and comments do not reach landscape-config."""
+        client_fn = tmpdir.join("client.conf")
+        key = option.replace("-", "_")
+        client_fn.write(f"[client]\n{key} = {value}\n")
+        mycloud = get_cloud("ubuntu")
+        mycloud.distro = mock.MagicMock()
+        cfg: dict[str, dict[str, dict]] = {"landscape": {"client": {}}}
+
+        with mock.patch(f"{MPATH}.LSC_CLIENT_CFG_FILE", client_fn.strpath):
+            cc_landscape.handle("notimportant", cfg, mycloud, [])
+
+        command = m_subp.call_args.args[0]
+        assert command[:2] == ["landscape-config", "--silent"]
+        assert command[command.index(f"--{option}") + 1] == expected
+
+    def test_handler_cloudconfig_overrides_parsed_client_values(
+        self, m_subp, tmpdir
+    ):
+        """Cloud-config values override INI values without being reparsed."""
+        client_fn = tmpdir.join("client.conf")
+        client_fn.write('[client]\nregistration_key = "old#key" # secret\n')
+        mycloud = get_cloud("ubuntu")
+        mycloud.distro = mock.MagicMock()
+        key = '"new#key" # literal'
+        cfg = {"landscape": {"client": {"registration_key": key}}}
+
+        with mock.patch(f"{MPATH}.LSC_CLIENT_CFG_FILE", client_fn.strpath):
+            cc_landscape.handle("notimportant", cfg, mycloud, [])
+
+        command = m_subp.call_args.args[0]
+        assert command[command.index("--registration-key") + 1] == key
+
     def test_handler_writes_merged_provided_cloudconfig_with_defaults(
         self, m_subp, tmpdir
     ):

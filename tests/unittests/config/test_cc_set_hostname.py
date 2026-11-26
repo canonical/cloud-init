@@ -5,7 +5,6 @@ from pathlib import Path
 from unittest import mock
 
 import pytest
-from configobj import ConfigObj
 
 from cloudinit import util
 from cloudinit.config import cc_set_hostname
@@ -21,8 +20,7 @@ def fake_subp(*args, **kwargs):
     raise RuntimeError(f"Unexpected subp: {args[0]}")
 
 
-def conf_parser(conf):
-    return dict(ConfigObj(conf.splitlines()))
+conf_parser = util.parse_key_value
 
 
 @pytest.mark.usefixtures("fake_filesystem")

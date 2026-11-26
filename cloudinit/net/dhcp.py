@@ -18,8 +18,6 @@ from io import StringIO
 from subprocess import TimeoutExpired
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
-import configobj
-
 from cloudinit import subp, temp_utils, util
 from cloudinit.net import get_interface_mac, is_ib_interface
 
@@ -116,7 +114,7 @@ def networkd_parse_lease(content):
 
     Simply return a dictionary of key/values."""
 
-    return dict(configobj.ConfigObj(StringIO(content), list_values=False))
+    return util.parse_key_value(StringIO(content))
 
 
 def networkd_load_leases(leases_d=None):
@@ -180,7 +178,7 @@ def network_manager_load_leases(device: str) -> Dict[str, str]:
         line = line.partition(":")[2].strip()
         content.append(line)
 
-    return dict(configobj.ConfigObj(content, list_values=False))
+    return util.parse_key_value(content)
 
 
 def find_correct_device_nmcli() -> Optional[str]:
