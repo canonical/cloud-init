@@ -13,6 +13,7 @@ LOG = logging.getLogger(__name__)
 
 
 class Distro(distros.Distro):
+    usr_lib_exec = "/usr/libexec"
     systemd_hostname_conf_fn = "/etc/hostname"
     network_conf_dir = "/etc/systemd/network/"
     systemd_locale_conf_fn = "/etc/locale.conf"
