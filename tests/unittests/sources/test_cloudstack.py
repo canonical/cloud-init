@@ -554,6 +554,59 @@ class TestGetVrAddress:
         )
 
 
+class TestCloudStackDHCPFailures:
+    def test_missing_lease_uses_gateway_for_metadata(
+        self, cloudstack_ds, mocker
+    ):
+        mocker.patch(MOD_PATH + ".get_data_server", return_value=None)
+        mocker.patch(
+            DHCP_MOD_PATH + ".networkd_get_option_from_leases",
+            return_value=None,
+        )
+        mocker.patch(
+            DHCP_MOD_PATH + ".IscDhclient.get_key_from_latest_lease",
+            return_value=None,
+        )
+        mocker.patch(
+            DHCP_MOD_PATH + ".network_manager_get_option_from_leases",
+            return_value=None,
+        )
+        client = mock.Mock()
+        client.get_newest_lease.side_effect = NoDHCPLeaseError
+        cloudstack_ds.distro._client = client
+        gateway = mocker.patch(
+            MOD_PATH + ".get_default_gateway", return_value="10.1.37.1"
+        )
+        wait = mocker.patch.object(
+            cloudstack_ds, "wait_for_metadata_service", return_value=True
+        )
+        crawl = mocker.patch.object(
+            cloudstack_ds, "_crawl_metadata", return_value=True
+        )
+
+        assert cloudstack_ds._get_data() is True
+        client.get_newest_lease.assert_called_once_with("eth9")
+        gateway.assert_called_once_with()
+        assert cloudstack_ds.vr_addr == "10.1.37.1"
+        assert cloudstack_ds.metadata_address == "http://10.1.37.1/"
+        wait.assert_called_once_with()
+        crawl.assert_called_once_with()
+
+    def test_network_stage_lease_error_logs_without_primary_nic(
+        self, cloudstack_ds, mocker, caplog
+    ):
+        mocker.patch(MOD_PATH + ".get_vr_address", return_value="10.1.37.1")
+        mocker.patch.object(
+            cloudstack_ds, "wait_for_metadata_service", return_value=True
+        )
+        mocker.patch.object(
+            cloudstack_ds, "_crawl_metadata", side_effect=NoDHCPLeaseError
+        )
+
+        assert cloudstack_ds._get_data() is False
+        assert "Unable to obtain a DHCP lease on None" in caplog.text
+
+
 @pytest.mark.usefixtures("dhclient_exists")
 @mock.patch(MOD_PATH + ".dmi.read_dmi_data", return_value=CLOUD_STACK_DMI_NAME)
 class TestCloudStackPasswordFetching:
@@ -734,6 +787,7 @@ class TestDataSourceCloudStackLocal:
             assert ds._get_data() is False
             for msg in logs:
                 assert msg in caplog.text
+        m_get_vr_address.assert_not_called()
 
     @mock.patch(MOD_PATH + ".CloudStackPasswordServerClient.get_password")
     @mock.patch(SOURCES_PATH + ".helpers.ec2.get_instance_metadata")
