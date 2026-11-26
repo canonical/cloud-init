@@ -6,6 +6,20 @@ AltCloud
 The datasource AltCloud will be used to pick up user-data on `RHEVm`_ and
 `vSphere`_.
 
+Datasource detection
+====================
+
+AltCloud first reads ``/etc/sysconfig/cloud-info``. When that file is present,
+its stripped, uppercased contents select the cloud back end: a value containing
+``RHEV`` selects RHEVm and one containing ``VSPHERE`` selects vSphere. On images
+without that file, the DMI system product name is used instead: a name starting
+with ``RHEV`` selects RHEVm and one starting with ``VMWARE`` selects vSphere.
+Any other value means AltCloud does not apply.
+
+AltCloud does not provide real instance metadata. It reports only placeholder
+values: an empty block-device mapping, instance ID ``455``, local hostname
+``localhost`` and an empty placement.
+
 RHEVm
 =====
 
