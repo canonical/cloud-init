@@ -25,6 +25,8 @@ header and content types for each user-data format below:
 +--------------------+-----------------------------+-------------------------+
 |Include file        |#include                     |text/x-include-url       |
 +--------------------+-----------------------------+-------------------------+
+|Include file once   |#include-once                |text/x-include-once-url  |
++--------------------+-----------------------------+-------------------------+
 |Part handler        |#part-handler                |text/part-handler        |
 +--------------------+-----------------------------+-------------------------+
 
