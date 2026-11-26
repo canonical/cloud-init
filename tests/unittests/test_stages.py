@@ -656,6 +656,40 @@ class TestInit:
         )
 
 
+class TestInitDistroProperty:
+    """Tests for the Init.distro property."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, tmpdir):
+        self.tmpdir = tmpdir
+        self.init = stages.Init()
+        self.init._cfg = {
+            "system_info": {
+                "paths": {"cloud_dir": tmpdir, "run_dir": tmpdir},
+            }
+        }
+        tmpdir.mkdir("instance-uuid")
+        sym_link(tmpdir.join("instance-uuid"), tmpdir.join("instance"))
+
+    def test_missing_distro_warns_and_defaults_to_ubuntu(self, caplog):
+        """When system_info has no 'distro' key, a warning is logged and
+        ubuntu is used as the fallback so the misconfiguration is visible."""
+        with caplog.at_level("WARNING"):
+            distro = self.init.distro
+        assert distro.name == "ubuntu"
+        assert "No distro found in system_info config" in caplog.text
+        assert "defaulting to 'ubuntu'" in caplog.text
+
+    def test_explicit_distro_does_not_warn(self, caplog):
+        """When 'distro' is present in system_info, no warning is emitted."""
+        self.init._cfg["system_info"]["distro"] = "ubuntu"
+        # Reset cached distro so the property re-evaluates.
+        self.init._distro = None
+        with caplog.at_level("WARNING"):
+            _ = self.init.distro
+        assert "No distro found in system_info config" not in caplog.text
+
+
 class TestInit_InitializeFilesystem:
     """Tests for cloudinit.stages.Init._initialize_filesystem.
 
