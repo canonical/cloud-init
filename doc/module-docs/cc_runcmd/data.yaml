@@ -13,6 +13,11 @@ cc_runcmd:
     :ref:`Final boot stage <boot-Final>`.
 
     .. note::
+       Command output is captured in ``/var/log/cloud-init-output.log``. When
+       a command fails, inspect that log to see which command failed and why:
+       the module-level warning alone does not include the command's stderr.
+
+    .. note::
        All commands must be proper YAML, so you must quote any characters YAML
        would eat (":" can be problematic).
 
