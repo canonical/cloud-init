@@ -2004,3 +2004,25 @@ class TestPreferElasticNics:
                 non_elastic_nics + elastic_nics,
                 key=ec2._prefer_elastic_drivers,
             )
+
+
+class TestMaybeFetchApiToken:
+    """Test _maybe_fetch_api_token token decoding and header handling."""
+
+    @mock.patch("cloudinit.sources.DataSourceEc2.uhelp.wait_for_url")
+    def test_maybe_fetch_api_token_decodes_bytes(self, m_wait_for_url):
+        url = "http://169.254.169.254/latest/api/token"
+        m_wait_for_url.return_value = (url, b"test-token-value")
+        ds = ec2.DataSourceEc2(
+            sys_cfg={}, distro=mock.MagicMock(), paths=mock.MagicMock()
+        )
+        ds._cloud_name = ec2.CloudNames.AWS
+        base = ds._maybe_fetch_api_token(
+            mdurls=["http://169.254.169.254"],
+        )
+        assert base == "http://169.254.169.254"
+        assert ds._api_token == "test-token-value"
+        assert isinstance(ds._api_token, str)
+        headers = ds._get_headers()
+        assert headers.get("X-aws-ec2-metadata-token") == "test-token-value"
+

@@ -244,7 +244,7 @@ class DataSourceEc2(sources.DataSource):
         return True
 
     @property
-    def launch_index(self) -> Optional[int]:
+    def launch_index(self) -> Optional[str]:
         if not self.metadata:
             return None
         return self.metadata.get("ami-launch-index")
@@ -371,7 +371,7 @@ class DataSourceEc2(sources.DataSource):
             pass
 
         if url and response:
-            self._api_token = str(response)
+            self._api_token = util.decode_binary(response)
             return url2base[url]
 
         # If we get here, then wait_for_url timed out, waiting for IMDS
@@ -798,7 +798,7 @@ def parse_strict_mode(cfgval: Any) -> Tuple[str, Optional[int]]:
     if not cfgval:
         return "warn", 0
 
-    mode, _, sleep_str = str(cfgval).partition(",")
+    mode, _, sleep_str = cfgval.partition(",")
     if mode not in ("true", "false", "warn"):
         raise ValueError(
             "Invalid mode '%s' in strict_id setting '%s': "
