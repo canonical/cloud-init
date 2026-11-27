@@ -916,16 +916,20 @@ class TestEc2:
             "FreeBSD doesn't support running dhclient with -sf" in caplog.text
         )
 
+    @pytest.mark.parametrize(
+        "product_name", ["hpc7a.96xlarge", "c6g.medium", "m7g.medium"]
+    )
     @mock.patch("cloudinit.sources.DataSourceEc2.net.wait_for_candidate_nics")
     @mock.patch("cloudinit.sources.DataSourceEc2.net.find_candidate_nics")
     @mock.patch("cloudinit.sources.DataSourceEc2.dmi.read_dmi_data")
     @mock.patch("cloudinit.sources.DataSourceEc2.util.is_FreeBSD")
-    def test_ec2_local_waits_for_allowlisted_product(
+    def test_ec2_local_waits_for_nics_on_aws(
         self,
         m_is_freebsd,
         m_read_dmi,
         m_find_candidate_nics,
         m_wait_for_candidate_nics,
+        product_name,
         mocker,
         tmpdir,
     ):
@@ -938,7 +942,7 @@ class TestEc2:
             tmpdir=tmpdir,
         )
         m_is_freebsd.return_value = False
-        m_read_dmi.return_value = "hpc7a.96xlarge"
+        m_read_dmi.return_value = product_name
         m_find_candidate_nics.return_value = []
         m_wait_for_candidate_nics.return_value = []
 
@@ -963,14 +967,20 @@ class TestEc2:
     ):
         self.datasource = ec2.DataSourceEc2Local
         ds = self._setup_ds(
-            platform_data=self.valid_platform_data,
+            platform_data={
+                "uuid": "81c7e555-6471-4833-9551-1ab366c4cfd2",
+                "serial": "",
+                "asset_tag": "",
+                "vendor": "3ds outscale",
+                "product_name": "3ds outscale vm",
+            },
             sys_cfg={"datasource": {"Ec2": {"strict_id": False}}},
             md=None,
             mocker=mocker,
             tmpdir=tmpdir,
         )
         m_is_freebsd.return_value = False
-        m_read_dmi.return_value = "m7i.48xlarge"
+        m_read_dmi.return_value = "3ds outscale vm"
         m_find_candidate_nics.return_value = []
 
         assert ds.get_data() is False

@@ -168,7 +168,7 @@ class DataSourceEc2(sources.DataSource):
                 LOG.debug("FreeBSD doesn't support running dhclient with -sf")
                 return False
             product_name = dmi.read_dmi_data("system-product-name")
-            wait_for_nics = (
+            wait_for_nics = self.cloud_name == CloudNames.AWS or (
                 product_name is not None
                 and product_name.lower() in NETWORK_POLLING_PRODUCT_ALLOW_LIST
             )
