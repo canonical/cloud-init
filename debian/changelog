@@ -1,3 +1,12 @@
+cloud-init (26.3~1gd8f758fc-0ubuntu2) UNRELEASED; urgency=medium
+
+  * d/cloud-init.maintscript: remove the obsolete logrotate configuration
+    retained by the cloud-init metapackage after the cloud-init-base split.
+    Preserve local changes as a dpkg backup. (LP: #2152107)
+  * d/tests: exercise conffile migration with disposable dpkg roots.
+
+ -- skyeyesec333 <skyeyesec333@users.noreply.github.com>  Thu, 22 Oct 2026 10:31:28 +0700
+
 cloud-init (26.3~1gd8f758fc-0ubuntu1) tenacious; urgency=medium
 
   * refresh patches:

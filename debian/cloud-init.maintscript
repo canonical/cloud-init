@@ -1,0 +1,1 @@
+rm_conffile /etc/logrotate.d/cloud-init 26.3~1gd8f758fc-0ubuntu2~
