@@ -103,6 +103,15 @@ below. It will log all messages of priority ``DEBUG`` or higher to both
 For additional information about configuring Python's logging module, please
 see the documentation for `python logging config`_.
 
+Security events
+===============
+
+Cloud-init writes security events as JSON Lines to
+:file:`/var/log/cloud-init-security.log`, with file permissions ``0600``.
+Each record minimally includes a timestamp, application ID, event type,
+severity, description, and hostname. Security events are separate from
+regular logging and console output.
+
 .. _logging_command_output:
 
 Command output

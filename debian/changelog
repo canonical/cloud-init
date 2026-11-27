@@ -1,4 +1,4 @@
-cloud-init (26.2-0ubuntu3) UNRELEASED; urgency=medium
+cloud-init (26.3~1gd8f758fc-0ubuntu2) UNRELEASED; urgency=medium
 
   * d/cloud-init.maintscript: remove the obsolete logrotate configuration
     retained by the cloud-init metapackage after the cloud-init-base split.
@@ -6,6 +6,16 @@ cloud-init (26.2-0ubuntu3) UNRELEASED; urgency=medium
   * d/tests: exercise conffile migration with disposable dpkg roots.
 
  -- skyeyesec333 <skyeyesec333@users.noreply.github.com>  Thu, 22 Oct 2026 10:31:28 +0700
+
+cloud-init (26.3~1gd8f758fc-0ubuntu1) tenacious; urgency=medium
+
+  * refresh patches:
+    - d/p/udev-settle-after-mkfs.patch
+  * Upstream snapshot based on upstream/main at d8f758fc.
+    - Bugs fixed in this snapshot: (LP: #2153951, #2153951, #2136392)
+      (LP: #2144694)
+
+ -- Nicholas Lindsey <nicholas.lindsey@canonical.com>  Fri, 20 Nov 2026 14:40:02 -0500
 
 cloud-init (26.2-0ubuntu2) stonking; urgency=medium
 

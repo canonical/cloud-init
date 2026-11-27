@@ -30,6 +30,7 @@ import os
 import random
 import re
 import socket
+from typing import Optional
 
 from cloudinit import atomic_helper, dmi, sources, subp, util
 from cloudinit.event import EventScope, EventType
@@ -187,7 +188,6 @@ class DataSourceSmartOS(sources.DataSource):
 
         self.metadata = {}
         self.network_data = None
-        self._network_config = None
         self.routes_data = None
 
         self.script_base_d = os.path.join(self.paths.get_cpath("scripts"))
@@ -343,21 +343,15 @@ class DataSourceSmartOS(sources.DataSource):
     def get_instance_id(self):
         return self.metadata["instance-id"]
 
-    @property
-    def network_config(self):
-        # sources.clear_cached_data() may set _network_config to '_unset'.
-        if self._network_config == sources.UNSET:
-            self._network_config = None
-
-        if self._network_config is None:
-            if self.network_data is not None:
-                self._network_config = convert_smartos_network_data(
-                    network_data=self.network_data,
-                    dns_servers=self.metadata["dns_servers"],
-                    dns_domain=self.metadata["dns_domain"],
-                    routes=self.routes_data,
-                )
-        return self._network_config
+    def _get_network_config(self) -> Optional[dict]:
+        if self.network_data is not None:
+            return convert_smartos_network_data(
+                network_data=self.network_data,
+                dns_servers=self.metadata["dns_servers"],
+                dns_domain=self.metadata["dns_domain"],
+                routes=self.routes_data,
+            )
+        return None
 
 
 class JoyentMetadataFetchException(Exception):
@@ -754,7 +748,7 @@ def identify_file(content_f):
     cmd = ["file", "--brief", "--mime-type", content_f]
     f_type = None
     try:
-        (f_type, _err) = subp.subp(cmd)
+        f_type, _err = subp.subp(cmd)
         LOG.debug("script %s mime type is %s", content_f, f_type)
     except subp.ProcessExecutionError as e:
         util.logexc(

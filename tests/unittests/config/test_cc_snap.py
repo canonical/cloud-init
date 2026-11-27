@@ -151,8 +151,10 @@ class TestAddAssertions:
         assert (
             M_PATH[:-1],
             logging.DEBUG,
-            "Snap acking: ['type: system-user', 'authority-id: "
-            "LqvZQdfyfGlYvtep4W6Oj6pFXP9t1Ksp']",
+            (
+                "Snap acking: ['type: system-user', 'authority-id: "
+                "LqvZQdfyfGlYvtep4W6Oj6pFXP9t1Ksp']"
+            ),
         ) in caplog.record_tuples
         assert (
             M_PATH[:-1],

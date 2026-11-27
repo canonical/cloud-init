@@ -4,6 +4,7 @@
 """test_handler_apt_configure_sources_list
 Test templating of sources list
 """
+
 import stat
 
 import pytest

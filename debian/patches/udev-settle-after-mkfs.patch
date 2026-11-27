@@ -37,8 +37,8 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  def update_disk_setup_devices(disk_setup, tformer):
 --- a/tests/unittests/config/test_cc_disk_setup.py
 +++ b/tests/unittests/config/test_cc_disk_setup.py
-@@ -337,6 +337,86 @@ class TestMkfsCommandHandling:
-         )
+@@ -351,6 +351,86 @@ def _fs_setup_partition(partition):
+     }
  
  
 +@mock.patch(

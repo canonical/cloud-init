@@ -14,7 +14,7 @@ OLD_PATH = Path("etc/logrotate.d/cloud-init")
 NEW_PATH = Path("etc/logrotate.d/cloud-init-base")
 ORIGINAL = b"/var/log/cloud-init*.log {\n    missingok\n    rotate 6\n}\n"
 OLD_VERSION = "26.1-0ubuntu3~26.04.1"
-FIXED_VERSION = "26.2-0ubuntu3"
+FIXED_VERSION = "26.3~1gd8f758fc-0ubuntu2"
 
 
 class TestLogrotateConffile(unittest.TestCase):
@@ -137,9 +137,16 @@ class TestLogrotateConffile(unittest.TestCase):
         self.assert_active_config()
         self.assertFalse(Path(str(self.old) + ".dpkg-bak").exists())
 
-    def test_upgrade_from_last_unfixed_packaging_version(self):
+    def test_upgrade_from_previous_unfixed_packaging_version(self):
         self.status.write_text(
             self.status.read_text().replace(OLD_VERSION, "26.2-0ubuntu2")
+        )
+        self.upgrade()
+        self.assert_active_config()
+
+    def test_upgrade_from_last_unfixed_packaging_version(self):
+        self.status.write_text(
+            self.status.read_text().replace(OLD_VERSION, "26.3~1gd8f758fc-0ubuntu1")
         )
         self.upgrade()
         self.assert_active_config()
@@ -156,7 +163,7 @@ class TestLogrotateConffile(unittest.TestCase):
         self.assert_active_config()
         recreated = b"# file created after the migration\n"
         self.old.write_bytes(recreated)
-        self.upgrade("26.2-0ubuntu4")
+        self.upgrade("26.3~1gd8f758fc-0ubuntu3")
         self.assertEqual(recreated, self.old.read_bytes())
         self.assertEqual(ORIGINAL, self.new.read_bytes())
 

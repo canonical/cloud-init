@@ -8,7 +8,7 @@ from unittest import mock
 import pytest
 
 from cloudinit import distros, helpers, subp, util
-from cloudinit.config import cc_ca_certs
+from cloudinit.config import Config, cc_ca_certs
 from cloudinit.config.schema import (
     SchemaValidationError,
     get_schema,
@@ -26,8 +26,8 @@ class TestNoConfig:
         Test that nothing is done if no ca-certs configuration is provided.
         """
         name = "ca_certs"
-        cloud_init = None
-        args = []
+        cloud_init = get_cloud("ubuntu")
+        args: List[str] = []
 
         config = util.get_builtin_cfg()
         with mock.patch.object(util, "write_file") as util_mock:
@@ -70,7 +70,7 @@ class TestConfig:
         Test that no certificates are written if the 'trusted' key is not
         present.
         """
-        config = {"ca_certs": {}}
+        config: Config = {"ca_certs": {}}
         cloud = get_cloud(distro_name)
         cc_ca_certs.handle(self.name, config, cloud, self.args)
 
@@ -85,7 +85,7 @@ class TestConfig:
     )
     def test_empty_trusted_list(self, _, distro_name, ca_mocks):
         """Test that no certificate are written if 'trusted' list is empty."""
-        config = {"ca_certs": {"trusted": []}}
+        config: Config = {"ca_certs": {"trusted": []}}
         cloud = get_cloud(distro_name)
         cc_ca_certs.handle(self.name, config, cloud, self.args)
 
@@ -311,7 +311,7 @@ class TestRemoveDefaultCaCerts:
 
                             if distro_name in ["debian", "ubuntu"]:
                                 mock_subp.assert_called_once_with(
-                                    ("debconf-set-selections", "-"),
+                                    ["debconf-set-selections", "-"],
                                     data=(
                                         "ca-certificates ca-certificates/"
                                         "trust_new_crts select no"

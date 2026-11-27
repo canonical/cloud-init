@@ -11,6 +11,7 @@
 import collections.abc  # pylint: disable=import-error
 import copy
 import io
+import json
 import logging
 import logging.config
 import logging.handlers
@@ -22,6 +23,7 @@ from contextlib import suppress
 from typing import DefaultDict
 
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(filename)s[%(levelname)s]: %(message)s"
+SECURITY = logging.WARNING - 5
 DEPRECATED = 35
 TRACE = logging.DEBUG - 5
 
@@ -41,6 +43,49 @@ class CustomLoggerType(logging.Logger):
     def deprecated(self, *args, **kwargs):
         pass
 
+    def security(self, *args, **kwargs):
+        pass
+
+
+SECURITY_LOG_FILE = "/var/log/cloud-init-security.log"
+
+
+class SecurityOnlyFilter(logging.Filter):
+    """Pass only SECURITY level records, which must be dictionaries."""
+
+    def filter(self, record) -> bool:
+        return record.levelno == SECURITY and isinstance(record.msg, dict)
+
+
+class NoSecurityFilter(logging.Filter):
+    """Block SECURITY level records from non-security handlers."""
+
+    def filter(self, record) -> bool:
+        return record.levelno != SECURITY
+
+
+class SecurityFormatter(logging.Formatter):
+    """Inject a 'datetime' field (UTC ISO-8601) into SECURITY JSON messages."""
+
+    # Provide ISO-8601 millisecond details and TZ info in datetime value.
+    default_time_format = "%Y-%m-%dT%H:%M:%S"
+    default_msec_format = "%s.%03d+00:00"
+
+    def format(self, record: logging.LogRecord) -> str:
+        # Use record.msg instead of getMessage which formats dict to JSON
+        if not isinstance(record.msg, dict):
+            raise ValueError(
+                f"SECURITY logs expected dict but found: {record.msg}"
+            )
+        # Produce compressed JSON lines with separators to avoid whitespace.
+        return json.dumps(
+            {
+                **record.msg,
+                "datetime": self.formatTime(record),
+            },
+            separators=(",", ":"),
+        )
+
 
 def setup_basic_logging(level=logging.DEBUG, formatter=None):
     formatter = formatter or logging.Formatter(DEFAULT_LOG_FORMAT)
@@ -48,8 +93,46 @@ def setup_basic_logging(level=logging.DEBUG, formatter=None):
     console = logging.StreamHandler(sys.stderr)
     console.setFormatter(formatter)
     console.setLevel(level)
+    console.addFilter(NoSecurityFilter())
     root.addHandler(console)
     root.setLevel(level)
+
+
+def setup_security_logging(
+    root: logging.Logger, log_file: str = SECURITY_LOG_FILE
+) -> None:
+    """Attach a SECURITY FileHandler if absent, logging setup failures."""
+    for h in root.handlers:
+        if getattr(h, "baseFilename", None) == log_file:
+            return  # handler already attached
+
+    failure_level = logging.WARNING if os.geteuid() == 0 else logging.ERROR
+    try:
+        handler = logging.FileHandler(log_file)
+    except OSError as error:
+        root.log(
+            failure_level,
+            "Unable to set up compliance logging: cannot open %s: %s",
+            log_file,
+            error,
+        )
+        return
+    try:
+        os.chmod(log_file, 0o600)
+    except OSError as error:
+        handler.close()
+        root.log(
+            failure_level,
+            "Unable to set up compliance logging: "
+            "cannot set permissions on %s: %s",
+            log_file,
+            error,
+        )
+        return
+    handler.setFormatter(SecurityFormatter())
+    handler.addFilter(SecurityOnlyFilter())
+    handler.setLevel(SECURITY)
+    root.addHandler(handler)
 
 
 def flush_loggers(root):
@@ -63,7 +146,7 @@ def flush_loggers(root):
 
 
 def define_extra_loggers() -> None:
-    """Add DEPRECATED and TRACE log levels to the logging module."""
+    """Add SECURITY, DEPRECATED and TRACE log levels to the logging module."""
 
     def new_logger(level):
         def log_at_level(self, message, *args, **kwargs):
@@ -72,8 +155,10 @@ def define_extra_loggers() -> None:
 
         return log_at_level
 
+    logging.addLevelName(SECURITY, "SECURITY")
     logging.addLevelName(DEPRECATED, "DEPRECATED")
     logging.addLevelName(TRACE, "TRACE")
+    setattr(logging.Logger, "security", new_logger(SECURITY))
     setattr(logging.Logger, "deprecated", new_logger(DEPRECATED))
     setattr(logging.Logger, "trace", new_logger(TRACE))
 
@@ -86,6 +171,7 @@ def setup_logging(cfg=None):
     root_logger = logging.getLogger()
     exporter = LogExporter()
     exporter.setLevel(logging.WARN)
+    exporter.addFilter(NoSecurityFilter())
 
     log_cfgs = []
     log_cfg = cfg.get("logcfg")
@@ -122,6 +208,9 @@ def setup_logging(cfg=None):
 
             # Attempt to load its config.
             logging.config.fileConfig(log_cfg)
+            for h in root_logger.handlers:
+                h.addFilter(NoSecurityFilter())
+            setup_security_logging(root_logger)
 
             # Configure warning exporter after loading logging configuration
             root_logger.addHandler(exporter)
@@ -216,7 +305,10 @@ def configure_root_logger():
     # add handler only to the root logger
     handler = LogExporter()
     handler.setLevel(logging.WARN)
-    logging.getLogger().addHandler(handler)
+    handler.addFilter(NoSecurityFilter())
+    root_logger = logging.getLogger()
+    root_logger.addHandler(handler)
+    setup_security_logging(root_logger)
 
     # LogRecord allows us to report more useful information than __init__.py
     logging.setLogRecordFactory(CloudInitLogRecord)

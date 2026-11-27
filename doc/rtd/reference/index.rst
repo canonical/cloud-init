@@ -7,6 +7,8 @@ support matrices and so on.
 
 -----
 
+.. rstcheck: silence "Document may not end with transition" warning
+
 .. toctree::
    :maxdepth: 1
 
